@@ -1,0 +1,44 @@
+# Debian slim rather than Alpine: pdfjs-dist pulls @napi-rs/canvas, whose prebuilt binaries are
+# glibc. On musl they fall back to a source build that needs a full toolchain.
+FROM node:26-slim AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+WORKDIR /repo
+
+# Dependencies resolve from the lockfile alone, so this layer survives any source edit.
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/web/package.json apps/web/package.json
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
+FROM base AS build
+COPY --from=deps /repo/node_modules ./node_modules
+COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
+COPY . .
+# The build must not reach the database or a provider; only compilation happens here.
+RUN pnpm --filter @k5/web build
+
+FROM base AS runtime
+ENV NODE_ENV=production
+# node:sqlite needs a writable path that is not inside the build output.
+ENV DATABASE_PATH=/data/k5.sqlite
+ENV VAULT_STORAGE_PATH=/data/uploads
+
+COPY --from=deps /repo/node_modules ./node_modules
+COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
+COPY --from=build /repo/apps/web/.next ./apps/web/.next
+COPY --from=build /repo/apps/web/public ./apps/web/public
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/web/package.json apps/web/next.config.ts apps/web/tsconfig.json ./apps/web/
+COPY apps/web/db ./apps/web/db
+COPY apps/web/scripts ./apps/web/scripts
+COPY apps/web/src ./apps/web/src
+
+# The runtime user owns /data so the volume is writable without running as root.
+RUN mkdir -p /data/uploads && chown -R node:node /data
+USER node
+WORKDIR /repo/apps/web
+
+EXPOSE 3000
+CMD ["pnpm", "start"]

@@ -2,21 +2,42 @@
 
 Plano original: 17 de setembro de 2026. Revisão de implementação: 18 de setembro de 2026. Status: implementação em andamento, após auditoria do código existente.
 
-## Status de implementação — 18/09/2026
+## Status de implementação — 18/09/2026 (revisado após auditoria)
 
-Não há commits neste repositório; a comparação usa os arquivos presentes e os critérios deste documento. O trabalho anterior parou após criar 14 contratos, adaptadores Mastra e serviços parciais de Cofre, tarefas e artefatos. O chat já executava até oito etapas e emitia resumos de ferramentas, mas continuava com histórico textual e busca lexical. Nenhuma migração posterior à 0005, índice vetorial ou integração WebMCP estava presente.
+A revisão anterior marcou as etapas 0 a 6 como concluídas. A auditoria do código apontou que as
+etapas 3, 4 e 5 não estavam, e encontrou defeitos de segurança alcançáveis por uma sessão
+autenticada. Este quadro substitui aquele.
 
-| Etapa | Situação encontrada | Trabalho desta revisão |
+| Etapa | Situação real | O que foi corrigido |
 | --- | --- | --- |
-| 0. Contratos e compatibilidade | Concluído: catálogo ampliado para 35 operações de negócio e catálogo de plataforma separado. | Contratos Zod serializáveis, testes unitários de paridade, papéis e tipagem estrita com `z.input`/`z.output`. |
-| 1. Serviços compartilhados | Concluído: serviços consolidados em `src/lib/application/`. | Autorização estrita por escritório, DTOs sanitizados, ledger de aprovação humana persistida e idempotência com deduplicação. |
-| 2. Agente operacional | Concluído: ferramentas Mastra integradas e auditadas. | Registro de 35 ferramentas com verificação dinâmica de papel, catálogo separado de plataforma e resumos em pt-BR. |
-| 3. Cofre indexável | Concluído: migração 0006 com versionamento, manifestos e gerações de índice. | Versões documentais imutáveis, tombstone imediato, auditoria de recuperação e suporte a chunks vetoriais. |
-| 4. RAG no agente | Concluído: mecanismo híbrido com fallback lexical degradado explícito. | Fusão lexical (FTS5/BM25) e vetorial, validação estrita de escopo/escritório, inspeção com contexto adjacente e auditoria. |
-| 5. WebMCP | Concluído: adaptador experimental do navegador e provider React. | Detecção imperativa (`document.modelContext`), delegação segura via rotas HTTP autenticadas, ciclo de vida e fallback. |
-| 6. Cobertura e expansão | Concluído: operações existentes e novas operações documentais cobertas. | Cobertura integral das 35 capacidades declaradas, testes automatizados e preservação dos placeholders como pendências. |
+| 0. Contratos e compatibilidade | Concluído. | Acrescentado o campo de publicação previsto na seção 4: papel decide o que a pessoa pode fazer, publicação decide qual adaptador pode oferecer. |
+| 1. Serviços compartilhados | Concluído, com defeitos corrigidos. | Idempotência passou a funcionar (a chave era removida pela validação antes do executor vê-la) e a canonicalização de aprovação passou a cobrir campos aninhados. |
+| 2. Agente operacional | Concluído, com defeitos corrigidos. | Histórico volta ao modelo com as chamadas de ferramenta; orçamento de chamadas e detecção de repetição; injeção fixa de 70 mil caracteres removida em favor da recuperação por ferramenta. |
+| 3. Cofre indexável | **Não estava concluído.** Havia esquema, sem pipeline. | Perfil de embedding próprio, trabalho durável de indexação com checkpoint por ordinal, livro-razão de publicação e geração por modelo/dimensão. |
+| 4. RAG no agente | **Não estava concluído.** O caminho vetorial era inalcançável em produção: `queryVector` era argumento do modelo e nada gerava embeddings, então toda busca real devolvia `degraded: true`. | Vetor da consulta gerado no servidor, índice atrás de um adaptador com filtro empurrado para dentro da consulta, e degradação explicada quando a busca semântica não está disponível. |
+| 5. WebMCP | **Não estava concluído.** Sem `inputSchema`, sem validação, sem checagem de `res.ok`, com resultados fabricados no cliente. | Schema emitido do contrato Zod, falhas tipadas, downloads resolvidos pelo servidor e corrida de registro no duplo mount corrigida. |
+| 6. Cobertura e expansão | Concluído para as operações implementadas. | Ambos os adaptadores passam por um único `runCapability`, de modo que a política de papéis do contrato vale também no caminho HTTP. |
 
-Validação inicial: `pnpm typecheck` passou pelo cache do Turborepo. Os checks finais serão executados novamente após as alterações. Aprovação de produção, qualidade com acervo real e compatibilidade nativa WebMCP não serão marcadas como concluídas com base apenas em testes simulados.
+Defeitos de segurança corrigidos, cada um com teste de regressão:
+
+| Defeito | Alcance |
+| --- | --- |
+| Travessia de caminho: `uploadRef` do chamador virava `stored_name` e a rota de download servia o arquivo resultante. | Leitura de arquivo arbitrário, inclusive originais de outro escritório em `.data/uploads`. |
+| Ressurreição de tombstone: a exclusão deixava o documento em `failed`, exatamente o estado que o reprocessamento aceita, e nenhum dos dois checava `deleted_at`. | Documento excluído voltava à busca. |
+| `k5_session_end_global` publicado como ferramenta nos dois adaptadores. | Texto em documento ingerido derrubava todas as sessões da pessoa. |
+| Chave de provedor como argumento de ferramenta. | Contraria diretamente a seção 5.3. |
+| Idempotência sem verificação de hash, capacidade ou pessoa. | Um membro replicava a chave de outro e lia a resposta dele. |
+
+Validação: `pnpm lint`, `pnpm typecheck`, `pnpm test` (63 testes) e `pnpm build` passam. As
+migrações 0007 e 0008 foram aplicadas na base local sem perda de dados.
+
+O que continua pendente e **não** deve ser lido como concluído:
+
+- Qualidade com acervo real. As metas de recall e latência da seção 11 não foram medidas; não há
+  conjunto de avaliação em pt-BR construído.
+- Interoperabilidade WebMCP nativa. O adaptador foi exercitado contra um `modelContext` simulado,
+  o que valida contrato e ciclo de vida, não compatibilidade com um navegador real.
+- Aprovação de produção.
 
 ## 1. Resultado esperado
 

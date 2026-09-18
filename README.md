@@ -18,6 +18,16 @@ Abra http://localhost:3000. A raiz leva a `/sign-in`.
 caso ainda não exista configuração. Não sobrescreve dados nem segredos existentes.
 No primeiro acesso, escolha **Criar conta** para cadastrar seu escritório.
 
+## Docker
+
+```sh
+cp .env.example .env     # preencha BETTER_AUTH_SECRET e K5_CREDENTIALS_KEY
+docker compose up
+```
+
+Sobem `vectors` (pgvector), `setup` (migrações), `web` e `worker`. Detalhes e a configuração de
+staging na Cloudflare estão em [docs/ambientes.md](docs/ambientes.md).
+
 ## Estrutura
 
 - `apps/web`: frontend e endpoints de autenticação (`@k5/web`).
@@ -37,6 +47,9 @@ pnpm test
 pnpm worker
 pnpm platform:admin grant --email usuario@exemplo.com
 pnpm --filter @k5/web start
+
+bash scripts/staging-setup.sh                                    # configura o staging (passos manuais)
+pnpm --filter @k5/web exec tsx scripts/verify-staging.ts         # verifica R2, Vectorize e Neon
 ```
 
 `build` e `start` pressupõem ambiente configurado e `pnpm db:setup` executado.

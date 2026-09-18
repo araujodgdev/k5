@@ -44,6 +44,8 @@ export function publishGenerationIfComplete(officeId: string, generationId: stri
   ).get(officeId, generationId)?.n ?? 0);
   if (pending > 0) return false;
 
+  // Counts the ledger, not the index. Vectorize in particular accepts an upsert and only makes
+  // the vector queryable some seconds later, so "the index answered" is not a completion signal.
   const published = Number(database.prepare(
     'SELECT count(*) AS n FROM vault_document_chunk_vector WHERE office_id = ? AND generation_id = ?',
   ).get(officeId, generationId)?.n ?? 0);
@@ -165,6 +167,20 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
       chunkId: chunk.id, documentId: job.document_id, embedding: vectors[position],
     }));
     await index.upsert(job.office_id, job.generation_id, records);
+
+    // Publication ledger, written for every backend. The vectors themselves live wherever the
+    // adapter put them - pgvector, Vectorize, or this table's blob column for SQLite - but the
+    // record of what was published to which generation has to be in the business database.
+    // It is what decides when a generation is complete, and what identifies the vectors to
+    // delete when a document is removed from a remote index that cannot be queried by document.
+    const ledger = database.prepare(`
+      INSERT INTO vault_document_chunk_vector (id, office_id, document_id, chunk_id, generation_id, embedding)
+      VALUES (?, ?, ?, ?, ?, '')
+      ON CONFLICT(chunk_id, generation_id) DO NOTHING
+    `);
+    for (const record of records) {
+      ledger.run(`${job.generation_id}:${record.chunkId}`, job.office_id, job.document_id, record.chunkId, job.generation_id);
+    }
 
     cursor = chunks[chunks.length - 1].ordinal + 1;
     done += chunks.length;

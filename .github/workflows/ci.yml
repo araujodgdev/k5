@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # A new push supersedes the run it interrupted; only the tip of a branch matters.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          # The repo pins >=22.13 because the application uses node:sqlite.
+          node-version-file: package.json
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      - name: Build
+        # The build must compile without reaching a database or a provider. These are throwaway
+        # values for compilation only; staging secrets never enter a pull request build.
+        env:
+          BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
+          BETTER_AUTH_URL: http://localhost:3000
+          K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnVu
+        run: pnpm build
+
+  migrations:
+    # Migrations are append-only: editing a file that already ran leaves every existing database
+    # on the old schema with no way to notice.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Refuse edits to applied migrations
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          changed=$(git diff --name-only --diff-filter=MD "$base"...HEAD -- 'apps/web/db/migrations/*.sql')
+          if [ -n "$changed" ]; then
+            echo "Estas migrações já aplicadas foram alteradas ou removidas:"
+            echo "$changed"
+            echo "Crie uma nova migração em vez de editar uma existente."
+            exit 1
+          fi
+          echo "Nenhuma migração existente foi alterada."
