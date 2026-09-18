@@ -241,28 +241,45 @@ export async function processNextDeletion(): Promise<boolean> {
   ).get(MAX_ATTEMPTS) as { id: string; officeId: string; kind: string; ref: string; attempts: number } | undefined;
   if (!row) return false;
 
+  /** Closing the entry is a claim that the bytes are gone, so only proof may close it. */
+  const close = (note?: string) => {
+    if (note) database.prepare('UPDATE vault_deletion_queue SET completed_at = CURRENT_TIMESTAMP, last_error = ? WHERE id = ?').run(note, row.id);
+    else database.prepare('UPDATE vault_deletion_queue SET completed_at = CURRENT_TIMESTAMP WHERE id = ?').run(row.id);
+  };
+  const retry = (cause: unknown) => {
+    database.prepare('UPDATE vault_deletion_queue SET attempts = attempts + 1, last_error = ? WHERE id = ?')
+      .run(cause instanceof Error ? cause.message.slice(0, 300) : 'falha', row.id);
+  };
+
   try {
     if (row.kind === 'object') await objectStorage().delete(row.ref);
     else await vectorIndex().removeDocument(row.officeId, row.ref);
-    database.prepare("UPDATE vault_deletion_queue SET completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(row.id);
+    close();
   } catch (error) {
     // A reference the current key format rejects belongs to a document stored before the adapter
-    // existed. Retrying it four more times will never make it valid, so the backend gets one
-    // chance at its legacy layout and the entry closes either way - otherwise the bytes of a
-    // deleted document sit on disk forever behind a queue entry that can never succeed.
+    // existed, so the backend gets a second chance at its legacy layout. Only two outcomes end
+    // the entry: the bytes were removed, or no backend could ever address that reference. A
+    // filesystem that was merely busy has to come back through the retry path, because closing
+    // on it would leave the bytes of a deleted document on disk with nothing left to chase them.
     if (error instanceof StorageError && error.code === 'invalid_key' && row.kind === 'object') {
-      let note = 'referência anterior ao formato atual: nada a remover';
       const storage = objectStorage();
-      if (storage.deleteLegacy) {
-        try { await storage.deleteLegacy(row.ref); note = 'removido pelo caminho legado'; }
-        catch (legacyError) { note = legacyError instanceof Error ? legacyError.message.slice(0, 300) : 'falha no caminho legado'; }
+      if (!storage.deleteLegacy) {
+        close('backend sem caminho legado: nada a remover');
+        return true;
       }
-      database.prepare("UPDATE vault_deletion_queue SET completed_at = CURRENT_TIMESTAMP, last_error = ? WHERE id = ?")
-        .run(note, row.id);
+      try {
+        await storage.deleteLegacy(row.ref);
+        close('removido pelo caminho legado');
+      } catch (legacyError) {
+        if (legacyError instanceof StorageError && legacyError.code === 'invalid_key') {
+          close('referência inválida em qualquer formato: nada a remover');
+        } else {
+          retry(legacyError);
+        }
+      }
       return true;
     }
-    database.prepare('UPDATE vault_deletion_queue SET attempts = attempts + 1, last_error = ? WHERE id = ?')
-      .run(error instanceof Error ? error.message.slice(0, 300) : 'falha', row.id);
+    retry(error);
   }
   return true;
 }

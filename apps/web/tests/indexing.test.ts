@@ -1,7 +1,7 @@
 import { testDb, testStorageRoot } from "./test-setup";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
@@ -180,6 +180,36 @@ test("deletion: a legacy flat name is removed and its queue entry closes", async
   assert.ok(row.completedAt, "the entry closes instead of retrying a key that can never parse");
   assert.equal(row.attempts, 0);
   assert.equal(existsSync(resolve(testStorageRoot, legacyName)), false, "and the bytes are actually gone");
+});
+
+test("deletion: a legacy removal that fails for a passing reason retries instead of closing", async () => {
+  const { officeId } = seedOffice();
+  const legacyName = `legado-${randomUUID()}.pdf`;
+
+  // A directory where the legacy file should be: unlink refuses it with an errno that says
+  // "not now", not "never". Standing in for a busy or unreadable filesystem, which is the case
+  // that must not close the entry - closing it claims the bytes are gone when they are not, and
+  // nothing is left to chase them.
+  mkdirSync(resolve(testStorageRoot, legacyName));
+
+  const queueId = randomUUID();
+  testDb.prepare("INSERT INTO vault_deletion_queue (id, office_id, target_kind, target_ref) VALUES (?, ?, 'object', ?)")
+    .run(queueId, officeId, legacyName);
+
+  assert.equal(await processNextDeletion(), true);
+
+  const stalled = testDb.prepare("SELECT completed_at AS completedAt, attempts FROM vault_deletion_queue WHERE id = ?")
+    .get(queueId) as { completedAt: string | null; attempts: number };
+  assert.equal(stalled.completedAt, null, "a transient failure leaves the entry open");
+  assert.equal(stalled.attempts, 1, "and spends one attempt, so it is retried and eventually surfaced");
+
+  // Once the obstruction clears, the same entry succeeds: the retry path is real, not decorative.
+  rmSync(resolve(testStorageRoot, legacyName), { recursive: true });
+  assert.equal(await processNextDeletion(), true);
+
+  const settled = testDb.prepare("SELECT completed_at AS completedAt FROM vault_deletion_queue WHERE id = ?")
+    .get(queueId) as { completedAt: string | null };
+  assert.ok(settled.completedAt, "the entry closes only once the removal actually holds");
 });
 
 test("vectorize: a scope wider than one filter batch is queried whole, not truncated", async () => {
