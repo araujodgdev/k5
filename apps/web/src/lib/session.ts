@@ -1,0 +1,16 @@
+import "server-only";
+import { cache } from "react";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth } from "./auth";
+import { database } from "./database";
+import { ensureOfficeForUser } from "./offices";
+
+export const getSession = cache(async () => auth.api.getSession({ headers: await headers() }));
+
+export const requireWorkspace = cache(async () => {
+  const session = await getSession();
+  if (!session) redirect("/sign-in");
+  const office = ensureOfficeForUser(database, session.user);
+  return { user: session.user, office };
+});

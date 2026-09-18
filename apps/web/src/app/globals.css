@@ -1,0 +1,139 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   K5 theme. The shadcn tokens carry the K5 palette, so every ui/* component
+   inherits it. Rules and rationale live in apps/web/DESIGN.md.
+   --------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* Surfaces: one warm neutral ramp, no tinted or pastel fills. */
+  --background: #ffffff;
+  --foreground: #1b1b1a;
+  --canvas: #fafaf9;          /* sidebar and auth background */
+  --card: #ffffff;
+  --card-foreground: #1b1b1a;
+  --popover: #ffffff;
+  --popover-foreground: #1b1b1a;
+
+  /* Primary is ink. There is no brand accent color. */
+  --primary: #1b1b1a;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f3f1;
+  --secondary-foreground: #1b1b1a;
+  --muted: #f3f3f1;
+  --muted-foreground: #5f5f5b;
+  --subtle-foreground: #93938e; /* placeholders and empty states */
+  --accent: #ebebe8;            /* hover and selected fills */
+  --accent-foreground: #1b1b1a;
+
+  --destructive: #b3261e;
+  --border: #e8e8e5;
+  --input: #d4d4d0;
+  --ring: #1b1b1a;
+
+  --sidebar: #fafaf9;
+  --sidebar-foreground: #1b1b1a;
+  --sidebar-primary: #1b1b1a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ebebe8;
+  --sidebar-accent-foreground: #1b1b1a;
+  --sidebar-border: #e8e8e5;
+  --sidebar-ring: #1b1b1a;
+  --sidebar-width: 15.5rem;
+
+  --radius: 0.75rem;
+  --tabbar-h: 64px;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --shadow-float: 0 1px 2px rgb(27 27 26 / .04), 0 8px 24px rgb(27 27 26 / .06);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+  --font-heading: var(--font-newsreader), ui-serif, Georgia, serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground text-sm;
+    -webkit-font-smoothing: antialiased;
+  }
+  html {
+    @apply font-sans;
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Serif voice, for page titles and the auth heading only. */
+@utility display {
+  font-family: var(--font-newsreader), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -.01em;
+  line-height: 1.1;
+}
+
+/* Clears the mobile tab bar and the home indicator. */
+@utility pb-dock {
+  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+}
+
+/* The mobile "Mais" panel floats above the tab bar. Written as plain CSS (and
+   outside a cascade layer) so it beats the utility classes, with a static
+   fallback for engines that choke on env() inside calc(). */
+[data-slot="sheet-content"][data-side="bottom"] {
+  left: .5rem;
+  right: .5rem;
+  bottom: 72px;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + .5rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
