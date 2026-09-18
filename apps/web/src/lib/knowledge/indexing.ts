@@ -1,7 +1,7 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
-import { objectStorage } from '@/lib/storage';
+import { objectStorage, StorageError } from '@/lib/storage';
 import { embeddingProfile, embedTexts, EmbeddingUnavailableError, type EmbeddingProfile } from './embedding-provider';
 import { vectorIndex, type VectorRecord } from './vector-index';
 
@@ -39,10 +39,14 @@ export function generationForProfile(officeId: string, profile: EmbeddingProfile
 
 /** Promotes a generation once every job behind it finished, then retires the previous one. */
 export function publishGenerationIfComplete(officeId: string, generationId: string) {
-  const pending = Number(database.prepare(
-    "SELECT count(*) AS n FROM knowledge_index_job WHERE office_id = ? AND generation_id = ? AND status IN ('queued','running')",
+  // 'failed' blocks as firmly as 'queued': promoting a generation whose jobs did not all finish
+  // would retire a complete index in favour of one that silently omits those documents. A failed
+  // job is cleared by re-queueing it, which enqueueIndexJob does. 'cancelled' does not block,
+  // because it means the document was deleted and has nothing left to contribute.
+  const unfinished = Number(database.prepare(
+    "SELECT count(*) AS n FROM knowledge_index_job WHERE office_id = ? AND generation_id = ? AND status IN ('queued','running','failed')",
   ).get(officeId, generationId)?.n ?? 0);
-  if (pending > 0) return false;
+  if (unfinished > 0) return false;
 
   // Counts the ledger, not the index. Vectorize in particular accepts an upsert and only makes
   // the vector queryable some seconds later, so "the index answered" is not a completion signal.
@@ -111,6 +115,16 @@ function claimIndexJob(): { job: JobRow; owner: string } | undefined {
   const owner = randomUUID();
   database.exec('BEGIN IMMEDIATE');
   try {
+    // A worker that dies mid-run leaves its job 'running' with the attempt already spent. Once
+    // attempts reach the limit the claim query below can never pick it up again, so without this
+    // it would stay 'running' forever and hold its generation unpublished. Fail it explicitly.
+    database.prepare(
+      `UPDATE knowledge_index_job
+       SET status = 'failed', lease_owner = NULL, lease_until = 0, updated_at = CURRENT_TIMESTAMP,
+           error = COALESCE(error, 'A indexação esgotou as tentativas sem concluir.')
+       WHERE status = 'running' AND lease_until < ? AND attempts >= ?`,
+    ).run(Date.now(), MAX_ATTEMPTS);
+
     const row = database.prepare(
       `SELECT * FROM knowledge_index_job
        WHERE (status = 'queued' OR (status = 'running' AND lease_until < ?)) AND attempts < ?
@@ -141,7 +155,8 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
     const live = database.prepare('SELECT deleted_at FROM vault_document WHERE id = ? AND office_id = ?')
       .get(job.document_id, job.office_id) as { deleted_at: string | null } | undefined;
     if (!live || live.deleted_at !== null) {
-      database.prepare("UPDATE knowledge_index_job SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(job.id);
+      database.prepare("UPDATE knowledge_index_job SET status = 'cancelled', lease_owner = NULL, lease_until = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND lease_owner = ?")
+        .run(job.id, owner);
       return;
     }
 
@@ -204,9 +219,14 @@ export async function processNextIndexJob(): Promise<boolean> {
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : 'Falha ao indexar o documento.';
     const terminal = error instanceof EmbeddingUnavailableError || Number(claimed.job.attempts) + 1 >= MAX_ATTEMPTS;
+    // Only the lease holder may record the outcome. A worker whose lease expired mid-run finishes
+    // late, and without this guard it would push the job back to 'queued' underneath the worker
+    // that legitimately reclaimed it - interrupting live indexing and paying for the same
+    // embeddings twice. The write simply no-ops when the lease has moved on.
     database.prepare(
-      `UPDATE knowledge_index_job SET status = ?, error = ?, lease_owner = NULL, lease_until = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    ).run(terminal ? 'failed' : 'queued', message, claimed.job.id);
+      `UPDATE knowledge_index_job SET status = ?, error = ?, lease_owner = NULL, lease_until = 0, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND lease_owner = ?`,
+    ).run(terminal ? 'failed' : 'queued', message, claimed.job.id, claimed.owner);
   }
   return true;
 }
@@ -226,6 +246,21 @@ export async function processNextDeletion(): Promise<boolean> {
     else await vectorIndex().removeDocument(row.officeId, row.ref);
     database.prepare("UPDATE vault_deletion_queue SET completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(row.id);
   } catch (error) {
+    // A reference the current key format rejects belongs to a document stored before the adapter
+    // existed. Retrying it four more times will never make it valid, so the backend gets one
+    // chance at its legacy layout and the entry closes either way - otherwise the bytes of a
+    // deleted document sit on disk forever behind a queue entry that can never succeed.
+    if (error instanceof StorageError && error.code === 'invalid_key' && row.kind === 'object') {
+      let note = 'referência anterior ao formato atual: nada a remover';
+      const storage = objectStorage();
+      if (storage.deleteLegacy) {
+        try { await storage.deleteLegacy(row.ref); note = 'removido pelo caminho legado'; }
+        catch (legacyError) { note = legacyError instanceof Error ? legacyError.message.slice(0, 300) : 'falha no caminho legado'; }
+      }
+      database.prepare("UPDATE vault_deletion_queue SET completed_at = CURRENT_TIMESTAMP, last_error = ? WHERE id = ?")
+        .run(note, row.id);
+      return true;
+    }
     database.prepare('UPDATE vault_deletion_queue SET attempts = attempts + 1, last_error = ? WHERE id = ?')
       .run(error instanceof Error ? error.message.slice(0, 300) : 'falha', row.id);
   }

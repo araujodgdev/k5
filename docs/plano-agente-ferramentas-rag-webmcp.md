@@ -28,7 +28,20 @@ Defeitos de segurança corrigidos, cada um com teste de regressão:
 | Chave de provedor como argumento de ferramenta. | Contraria diretamente a seção 5.3. |
 | Idempotência sem verificação de hash, capacidade ou pessoa. | Um membro replicava a chave de outro e lia a resposta dele. |
 
-Validação: `pnpm lint`, `pnpm typecheck`, `pnpm test` (63 testes) e `pnpm build` passam. As
+Defeitos de correção e durabilidade corrigidos depois, na revisão do pull request, também com
+testes de regressão:
+
+| Defeito | Alcance |
+| --- | --- |
+| A publicação de uma geração ignorava tarefas em `failed`: bastava uma concluída para promovê-la. | O índice completo era aposentado em favor de um que omitia silenciosamente os documentos que falharam. |
+| Uma tarefa `running` que esgotou as tentativas não chegava a estado terminal e deixava de ser reivindicável. | A geração ficava presa para sempre, sem publicar. |
+| O tratamento de erro da indexação escrevia só por `id`, sem checar a concessão. | Um worker atrasado devolvia à fila uma tarefa já retomada por outro, interrompendo a indexação e pagando os mesmos embeddings duas vezes. |
+| O filtro do Vectorize truncava o escopo em 64 documentos, com o contrato permitindo 100. | Busca semântica respondia com confiança sobre parte das evidências. |
+| A referência de upload era consumida antes de a ingestão validar o destino. | Um caso inexistente custava o arquivo à pessoa e deixava bytes que nenhuma varredura alcançava. |
+| Nomes de arquivo anteriores ao formato de chave não podiam ser excluídos. | Os bytes de um documento excluído permaneciam em disco atrás de uma entrada de fila que nunca teria sucesso. |
+| O objeto era gravado antes da linha de referência, sem compensação. | Falha na escrita da linha deixava bytes órfãos e invisíveis. |
+
+Validação: `pnpm lint`, `pnpm typecheck`, `pnpm test` (69 testes) e `pnpm build` passam. As
 migrações 0007 e 0008 foram aplicadas na base local sem perda de dados.
 
 O que continua pendente e **não** deve ser lido como concluído:

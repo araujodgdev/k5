@@ -101,7 +101,9 @@ de 22 segundos numa verificação de ponta a ponta. Duas consequências:
 
 - A publicação de uma geração conta o **livro-razão** em `vault_document_chunk_vector`, escrito
   pelo worker em toda ingestão, e não uma resposta do índice. "O índice aceitou" não é sinal de
-  que a consulta já enxerga o vetor.
+  que a consulta já enxerga o vetor. Uma tarefa em `failed` impede a publicação: promover uma
+  geração incompleta aposentaria um índice completo em troca de um que omite documentos sem
+  dizer. Reenfileirar o documento é o caminho de recuperação.
 - Uma busca feita na janela entre o upsert e a indexação não encontra o vetor. Ela degrada para
   lexical e diz por quê, em vez de afirmar que não há evidência.
 

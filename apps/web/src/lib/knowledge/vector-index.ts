@@ -173,6 +173,20 @@ class PgVectorIndex implements VectorIndex {
   }
 }
 
+/**
+ * Cloudflare Vectorize caps a `$in` filter at 64 values and `delete_by_ids` at 1000. Both limits
+ * sit below what the capability contract allows, so the adapter fans out instead of truncating:
+ * a silently trimmed scope returns a confident answer built on part of the evidence.
+ */
+const VECTORIZE_FILTER_VALUES = 64;
+const VECTORIZE_DELETE_IDS = 1_000;
+
+function batched<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) batches.push(items.slice(i, i + size));
+  return batches;
+}
+
 /** Cloudflare Vectorize over the REST API, namespaced per office. */
 class VectorizeIndex implements VectorIndex {
   readonly kind = 'vectorize' as const;
@@ -205,17 +219,36 @@ class VectorizeIndex implements VectorIndex {
 
   async query(officeId: string, generationId: string, embedding: Float32Array, options: VectorQuery) {
     if (!options.documentIds.length) return [];
-    const payload = {
-      vector: Array.from(embedding),
-      topK: options.topK,
-      namespace: officeId,
-      returnMetadata: 'indexed',
-      filter: { generationId: { $eq: generationId }, documentId: { $in: options.documentIds.slice(0, 64) } },
-    };
-    const body = await this.call('/query', payload) as { result?: { matches?: Array<{ score: number; metadata?: { chunkId?: string } }> } };
-    return (body.result?.matches ?? [])
-      .filter((match) => typeof match.metadata?.chunkId === 'string')
-      .map((match) => ({ chunkId: String(match.metadata!.chunkId), score: Number(match.score) }));
+    const vector = Array.from(embedding);
+
+    // Each partition returns its own topK, so the global topK is always a subset of their union:
+    // merging and re-ranking gives the same answer a single unpartitioned query would.
+    const responses = await Promise.all(
+      batched(options.documentIds, VECTORIZE_FILTER_VALUES).map((documentIds) => this.call('/query', {
+        vector,
+        topK: options.topK,
+        namespace: officeId,
+        returnMetadata: 'indexed',
+        filter: { generationId: { $eq: generationId }, documentId: { $in: documentIds } },
+      }) as Promise<{ result?: { matches?: Array<{ score: number; metadata?: { chunkId?: string } }> } }>),
+    );
+
+    const best = new Map<string, number>();
+    for (const body of responses) {
+      for (const match of body.result?.matches ?? []) {
+        const chunkId = match.metadata?.chunkId;
+        if (typeof chunkId !== 'string') continue;
+        const score = Number(match.score);
+        // A chunk belongs to exactly one document, so it can only come back from one partition;
+        // the guard is here so a duplicate would keep its best score rather than its last.
+        if (!best.has(chunkId) || score > best.get(chunkId)!) best.set(chunkId, score);
+      }
+    }
+
+    return [...best.entries()]
+      .map(([chunkId, score]) => ({ chunkId, score }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, options.topK);
   }
 
   async removeDocument(officeId: string, documentId: string) {
@@ -223,14 +256,21 @@ class VectorizeIndex implements VectorIndex {
     const ids = database.prepare('SELECT chunk_id AS chunkId, generation_id AS generationId FROM vault_document_chunk_vector WHERE office_id = ? AND document_id = ?')
       .all(officeId, documentId) as Array<{ chunkId: string; generationId: string }>;
     if (!ids.length) return;
-    await this.call('/delete_by_ids', { ids: ids.map((row) => `${row.generationId}:${row.chunkId}`) });
+    await this.deleteIds(ids.map((row) => `${row.generationId}:${row.chunkId}`));
   }
 
   async removeGeneration(officeId: string, generationId: string) {
     const ids = database.prepare('SELECT chunk_id AS chunkId FROM vault_document_chunk_vector WHERE office_id = ? AND generation_id = ?')
       .all(officeId, generationId) as Array<{ chunkId: string }>;
     if (!ids.length) return;
-    await this.call('/delete_by_ids', { ids: ids.map((row) => `${generationId}:${row.chunkId}`) });
+    await this.deleteIds(ids.map((row) => `${generationId}:${row.chunkId}`));
+  }
+
+  /** Sequential on purpose: a partial delete that leaves vectors behind is worse than a slow one. */
+  private async deleteIds(ids: string[]) {
+    for (const batch of batched(ids, VECTORIZE_DELETE_IDS)) {
+      await this.call('/delete_by_ids', { ids: batch });
+    }
   }
 }
 

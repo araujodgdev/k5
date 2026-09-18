@@ -9,7 +9,7 @@ import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
 import { requireAndConsumeApproval } from './approvals-service';
-import { consumeUploadRef } from './uploads-service';
+import { consumeUploadRef, releaseUploadRef } from './uploads-service';
 import { enqueueDeletion } from '@/lib/knowledge/indexing';
 import { searchKnowledgeEngine } from '@/lib/knowledge/retrieval';
 
@@ -195,7 +195,12 @@ export function addDocumentVersion(context: WorkspaceContext, input: CapabilityI
       WHERE id=? AND office_id=? AND deleted_at IS NULL
     `).run(upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, doc.id, context.officeId);
     database.exec('COMMIT');
-  } catch (error) { database.exec('ROLLBACK'); throw error; }
+  } catch (error) {
+    // Same reasoning as ingestUpload: the rollback undid everything, so the reference is unspent.
+    database.exec('ROLLBACK');
+    releaseUploadRef(context, input.uploadRef);
+    throw error;
+  }
 
   return { document: getDocument(context, { documentId: input.documentId }).document, version: nextVersion };
 }
@@ -226,7 +231,12 @@ export function ingestUpload(context: WorkspaceContext, input: CapabilityInput<'
   try {
     const document = createVaultDocument(context.officeId, context.userId, upload, { scope: input.scope, caseId: input.caseId ?? null });
     return getDocument(context, { documentId: document.id });
-  } catch (error) { throw asCapabilityError(error); }
+  } catch (error) {
+    // createVaultDocument is transactional, so a throw means no document and no version exist.
+    // Handing the reference back is what keeps a rejected destination from costing the upload.
+    releaseUploadRef(context, input.uploadRef);
+    throw asCapabilityError(error);
+  }
 }
 
 export async function searchKnowledge(context: WorkspaceContext, input: CapabilityInput<'k5_knowledge_search'>): Promise<CapabilityOutput<'k5_knowledge_search'>> {

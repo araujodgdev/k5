@@ -54,10 +54,17 @@ export async function createUploadRef(context: WorkspaceContext, file: File): Pr
   await objectStorage().put(key, data);
 
   const sha256 = createHash('sha256').update(data).digest('hex');
-  database.prepare(`
-    INSERT INTO vault_upload_ref (id, office_id, user_id, storage_key, original_name, mime_type, byte_size, sha256, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, context.officeId, context.userId, key, name, mimeType, data.byteLength, sha256, Date.now() + UPLOAD_REF_TTL_MS);
+  try {
+    database.prepare(`
+      INSERT INTO vault_upload_ref (id, office_id, user_id, storage_key, original_name, mime_type, byte_size, sha256, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, context.officeId, context.userId, key, name, mimeType, data.byteLength, sha256, Date.now() + UPLOAD_REF_TTL_MS);
+  } catch (error) {
+    // The row is what makes the object findable; without it the sweep has nothing to walk and the
+    // bytes are unreachable forever. Undo the write before surfacing the failure.
+    await objectStorage().delete(key).catch(() => undefined);
+    throw error;
+  }
 
   return { id, storageKey: key, originalName: name, mimeType, byteSize: data.byteLength, sha256 };
 }
@@ -96,6 +103,18 @@ export function consumeUploadRef(context: WorkspaceContext, refId: string): Uplo
     byteSize: Number(row.byteSize),
     sha256: String(row.sha256),
   };
+}
+
+/**
+ * Consumption is a claim, not a receipt. When the work behind it fails - a case that no longer
+ * exists, a constraint that rejects the row - nothing was created, so the reference goes back to
+ * unclaimed and the person can simply try again. Without this the upload is lost to them and its
+ * bytes are invisible to the sweep, which only walks unclaimed references.
+ */
+export function releaseUploadRef(context: WorkspaceContext, refId: string): void {
+  database.prepare(
+    'UPDATE vault_upload_ref SET consumed_at = NULL WHERE id = ? AND office_id = ? AND user_id = ? AND consumed_at IS NOT NULL',
+  ).run(refId, context.officeId, context.userId);
 }
 
 /** Expired references leave bytes behind; the worker collects them through the deletion queue. */

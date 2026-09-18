@@ -1,7 +1,7 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
-import { relative, resolve, sep } from 'node:path';
+import { basename, relative, resolve, sep } from 'node:path';
 
 /**
  * Object storage for Vault originals. Keys are minted here and never accepted from a request:
@@ -12,6 +12,8 @@ export interface ObjectStorage {
   put(key: string, data: Buffer): Promise<void>;
   get(key: string): Promise<Buffer>;
   delete(key: string): Promise<void>;
+  /** Backends that predate the key format implement this; the rest reject and the caller stops. */
+  deleteLegacy?(key: string): Promise<void>;
 }
 
 export class StorageError extends Error {
@@ -65,6 +67,22 @@ class LocalObjectStorage implements ObjectStorage {
 
   async delete(key: string) {
     await unlink(this.path(key)).catch((error: NodeJS.ErrnoException) => {
+      if (error?.code !== 'ENOENT') throw error;
+    });
+  }
+
+  /**
+   * Rows written before the adapter existed hold a flat file name sitting directly in the root,
+   * which `assertStorageKey` rejects. Deletion has to reach them or the bytes of a deleted
+   * document stay on disk forever - the same fallback `readVaultOriginal` already makes for
+   * reading, and safe for the same reason: a base name has no separators to escape with.
+   */
+  async deleteLegacy(key: string) {
+    const name = basename(key);
+    if (!name || name !== key || name === '.' || name === '..') {
+      throw new StorageError('invalid_key', 'Referência de armazenamento inválida.');
+    }
+    await unlink(resolve(this.root, name)).catch((error: NodeJS.ErrnoException) => {
       if (error?.code !== 'ENOENT') throw error;
     });
   }
