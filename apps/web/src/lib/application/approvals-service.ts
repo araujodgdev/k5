@@ -18,12 +18,22 @@ export type ApprovalRow = {
   consumed_at: string | null;
 };
 
+/**
+ * Stable JSON at every depth. The obvious `JSON.stringify(obj, Object.keys(obj).sort())` looks
+ * like a sort but is a property *filter* that applies recursively, so nested fields vanish from
+ * the canonical form and changing one would not invalidate the approval.
+ */
+function canonicalize(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(canonicalize);
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, item]) => item !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return Object.fromEntries(entries.map(([key, item]) => [key, canonicalize(item)]));
+}
+
 function canonicalInput(input: Record<string, unknown>): string {
-  const clean: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(input)) {
-    if (value !== undefined) clean[key] = value;
-  }
-  return JSON.stringify(clean, Object.keys(clean).sort());
+  return JSON.stringify(canonicalize(input));
 }
 
 export function createApprovalProposal(
@@ -49,7 +59,8 @@ export function createApprovalProposal(
 }
 
 export function approveProposal(context: WorkspaceContext, approvalId: string): ApprovalRow {
-  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=?').get(approvalId, context.officeId) as ApprovalRow | undefined;
+  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
+    .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
   if (row.expires_at < Date.now()) throw new CapabilityError('CONFLICT', 'A solicitação de aprovação expirou.');
   if (row.status !== 'pending') throw new CapabilityError('CONFLICT', `A solicitação está ${row.status}.`);
@@ -59,14 +70,16 @@ export function approveProposal(context: WorkspaceContext, approvalId: string): 
 }
 
 export function rejectProposal(context: WorkspaceContext, approvalId: string): ApprovalRow {
-  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=?').get(approvalId, context.officeId) as ApprovalRow | undefined;
+  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
+    .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
   database.prepare("UPDATE capability_approval SET status='rejected' WHERE id=?").run(approvalId);
   return database.prepare('SELECT * FROM capability_approval WHERE id=?').get(approvalId) as ApprovalRow;
 }
 
 export function getApprovalProposal(context: WorkspaceContext, approvalId: string): ApprovalRow {
-  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=?').get(approvalId, context.officeId) as ApprovalRow | undefined;
+  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
+    .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
   return row;
 }
@@ -85,7 +98,8 @@ export function requireAndConsumeApproval(
     throw new CapabilityError('APPROVAL_REQUIRED', `${description} Proposta registrada [id: ${proposal.id}].`);
   }
 
-  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=?').get(approvalId, context.officeId) as ApprovalRow | undefined;
+  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
+    .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Código de aprovação não encontrado.');
   if (row.expires_at < Date.now()) throw new CapabilityError('CONFLICT', 'Esta aprovação expirou. Solicite uma nova confirmação.');
   if (row.capability_name !== capabilityName) throw new CapabilityError('FORBIDDEN', 'Aprovação inválida para esta operação.');
@@ -102,5 +116,8 @@ export function requireAndConsumeApproval(
   }
   if (row.status !== 'approved') throw new CapabilityError('APPROVAL_REQUIRED', 'A operação ainda não foi aprovada pelo usuário.');
 
-  database.prepare("UPDATE capability_approval SET status='consumed', consumed_at=CURRENT_TIMESTAMP WHERE id=?").run(approvalId);
+  const consumed = database.prepare(
+    "UPDATE capability_approval SET status='consumed', consumed_at=CURRENT_TIMESTAMP WHERE id=? AND status='approved'",
+  ).run(approvalId);
+  if (!consumed.changes) throw new CapabilityError('CONFLICT', 'Esta aprovação já foi utilizada.');
 }

@@ -1,235 +1,188 @@
+import { z } from 'zod';
 import type { OfficeRole } from '@/lib/offices';
-import { capabilities, capabilitiesForRole, type CapabilityName } from '@/lib/capabilities/contracts';
+import { capabilities, publishedCapabilitiesForRole, type CapabilityName } from '@/lib/capabilities/contracts';
 import type { WebMCPContext, WebMCPToolDefinition, WebMCPToolRegistration } from './types';
 
 export function isWebMCPSupported(): boolean {
-  if (typeof window === 'undefined') return false;
-  return Boolean(
-    (typeof document !== 'undefined' && document.modelContext) ||
-    (window as unknown as { modelContext?: unknown }).modelContext ||
-    (typeof navigator !== 'undefined' && (navigator as unknown as { modelContext?: unknown }).modelContext)
-  );
+  return getModelContext() !== null;
 }
 
+/**
+ * The imperative surface is `document.modelContext`. `navigator.modelContext` appears in early
+ * examples and is not what the current runtime exposes, so it is not probed here.
+ */
 export function getModelContext(): WebMCPContext | null {
-  if (typeof window === 'undefined') return null;
-  if (typeof document !== 'undefined' && document.modelContext) return document.modelContext;
-  if ((window as unknown as { modelContext?: WebMCPContext }).modelContext) return (window as unknown as { modelContext: WebMCPContext }).modelContext;
-  if (typeof navigator !== 'undefined' && (navigator as unknown as { modelContext?: WebMCPContext }).modelContext) {
-    return (navigator as unknown as { modelContext: WebMCPContext }).modelContext;
-  }
-  return null;
+  if (typeof document === 'undefined') return null;
+  const context = document.modelContext;
+  return context && typeof context.registerTool === 'function' ? context : null;
 }
+
+type Route = {
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
+  path: (input: Record<string, unknown>) => string;
+  body?: (input: Record<string, unknown>) => unknown;
+};
+
+const id = (value: unknown) => encodeURIComponent(String(value ?? ''));
+
+/**
+ * One route per capability. Nothing is synthesised on the client: a download link that the server
+ * never confirmed is a result the agent cannot distinguish from a real one, for a document that
+ * may not exist or may not belong to this office.
+ */
+const routes: Record<CapabilityName, Route> = {
+  k5_vault_list_cases: { method: 'GET', path: () => '/api/vault/cases' },
+  k5_vault_create_case: { method: 'POST', path: () => '/api/vault/cases', body: (i) => i },
+  k5_vault_update_case: { method: 'PATCH', path: (i) => `/api/vault/cases/${id(i.caseId)}`, body: (i) => i },
+  k5_vault_delete_case: { method: 'DELETE', path: (i) => `/api/vault/cases/${id(i.caseId)}`, body: (i) => i },
+  k5_vault_list_documents: {
+    method: 'GET',
+    path: (i) => {
+      const params = new URLSearchParams();
+      if (i.scope) params.set('scope', String(i.scope));
+      if (i.caseId) params.set('caseId', String(i.caseId));
+      if (i.limit) params.set('limit', String(i.limit));
+      const query = params.toString();
+      return query ? `/api/vault/documents?${query}` : '/api/vault/documents';
+    },
+  },
+  k5_vault_get_document: { method: 'GET', path: (i) => `/api/vault/documents/${id(i.documentId)}` },
+  k5_vault_update_document: { method: 'PATCH', path: (i) => `/api/vault/documents/${id(i.documentId)}`, body: (i) => i },
+  k5_vault_delete_document: { method: 'DELETE', path: (i) => `/api/vault/documents/${id(i.documentId)}`, body: (i) => i },
+  k5_vault_add_document_version: { method: 'POST', path: (i) => `/api/vault/documents/${id(i.documentId)}/versions`, body: (i) => i },
+  k5_vault_download_document: { method: 'GET', path: (i) => `/api/vault/documents/${id(i.documentId)}/link` },
+  k5_vault_retry_ingestion: { method: 'POST', path: (i) => `/api/vault/documents/${id(i.documentId)}/retry`, body: (i) => i },
+  k5_vault_ingest_upload: { method: 'POST', path: () => '/api/vault/documents/ingest', body: (i) => i },
+  k5_knowledge_search: { method: 'POST', path: () => '/api/knowledge/search', body: (i) => i },
+  k5_knowledge_get_source: { method: 'POST', path: () => '/api/knowledge/source', body: (i) => i },
+  k5_knowledge_get_index_status: { method: 'GET', path: (i) => `/api/knowledge/status?documentId=${id(i.documentId)}` },
+  k5_knowledge_reindex: { method: 'POST', path: () => '/api/knowledge/reindex', body: (i) => i },
+  k5_runs_list: { method: 'GET', path: () => '/api/runs' },
+  k5_runs_get: { method: 'GET', path: (i) => `/api/runs/${id(i.runId)}` },
+  k5_runs_cancel: { method: 'PATCH', path: (i) => `/api/runs/${id(i.runId)}`, body: (i) => ({ ...i, action: 'cancel' }) },
+  k5_runs_retry: { method: 'PATCH', path: (i) => `/api/runs/${id(i.runId)}`, body: (i) => ({ ...i, action: 'retry' }) },
+  k5_documents_start_chronology: { method: 'POST', path: () => '/api/runs', body: (i) => ({ kind: 'chronology', ...i }) },
+  k5_documents_start_draft: { method: 'POST', path: () => '/api/runs', body: (i) => ({ kind: 'draft', ...i }) },
+  k5_citations_list_candidates: {
+    method: 'GET',
+    path: (i) => {
+      const ids = Array.isArray(i.documentIds) ? (i.documentIds as unknown[]) : [];
+      const params = new URLSearchParams();
+      for (const value of ids) params.append('documentId', String(value));
+      return `/api/citations?${params.toString()}`;
+    },
+  },
+  k5_artifacts_get: { method: 'GET', path: (i) => `/api/artifacts/${id(i.artifactId)}` },
+  k5_artifacts_update: { method: 'PUT', path: (i) => `/api/artifacts/${id(i.artifactId)}`, body: (i) => i },
+  k5_artifacts_list_versions: { method: 'GET', path: (i) => `/api/artifacts/${id(i.artifactId)}/versions` },
+  k5_artifacts_restore_version: { method: 'POST', path: (i) => `/api/artifacts/${id(i.artifactId)}/restore`, body: (i) => i },
+  k5_artifacts_export_docx: { method: 'GET', path: (i) => `/api/artifacts/${id(i.artifactId)}/link` },
+  k5_conversations_list: { method: 'GET', path: () => '/api/conversations' },
+  k5_conversations_get: { method: 'GET', path: (i) => `/api/conversations/${id(i.conversationId)}` },
+  k5_conversations_create: { method: 'POST', path: () => '/api/conversations', body: (i) => i },
+  k5_conversations_delete: { method: 'DELETE', path: (i) => `/api/conversations/${id(i.conversationId)}` },
+  k5_context_set_sources: { method: 'POST', path: () => '/api/knowledge/scope', body: (i) => i },
+  k5_ui_open_resource: { method: 'POST', path: () => '/api/ui/open', body: (i) => i },
+  k5_session_end_global: { method: 'POST', path: () => '/api/session/global-logout' },
+};
+
+export type WebMCPResult =
+  | { ok: true; data: unknown }
+  | { ok: false; code: string; error: string };
 
 export async function executeViaHttp(
   name: CapabilityName,
-  input: Record<string, unknown>,
-  signal?: AbortSignal
-): Promise<unknown> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  rawInput: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<WebMCPResult> {
+  const capability = capabilities[name];
 
-  switch (name) {
-    case 'k5_vault_list_cases': {
-      const res = await fetch('/api/vault/cases', { signal });
-      return await res.json();
+  // Validate against the same contract the server enforces, so a schema mistake is a clear
+  // message here instead of an opaque 400 the agent has to guess at.
+  const parsed = capability.input.safeParse(rawInput);
+  if (!parsed.success) {
+    return { ok: false, code: 'INVALID', error: parsed.error.issues.map((issue) => `${issue.path.join('.') || 'entrada'}: ${issue.message}`).join('; ') };
+  }
+  const input = parsed.data as Record<string, unknown>;
+  const route = routes[name];
+
+  try {
+    const response = await fetch(route.path(input), {
+      method: route.method,
+      headers: route.body ? { 'Content-Type': 'application/json' } : undefined,
+      body: route.body ? JSON.stringify(route.body(input)) : undefined,
+      signal,
+    });
+
+    const payload = response.status === 204 ? null : await response.json().catch(() => null);
+
+    // A 403 body is not a result. Returning it as one is how an agent concludes that a refused
+    // operation succeeded.
+    if (!response.ok) {
+      const body = payload as { error?: string; code?: string } | null;
+      if (response.status === 401) return { ok: false, code: 'UNAUTHENTICATED', error: 'Sua sessão expirou. Entre novamente no K5 para continuar.' };
+      return { ok: false, code: body?.code ?? String(response.status), error: body?.error ?? 'Não foi possível concluir a operação.' };
     }
-    case 'k5_vault_create_case': {
-      const res = await fetch('/api/vault/cases', { method: 'POST', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_vault_update_case': {
-      const res = await fetch(`/api/vault/cases/${encodeURIComponent(String(input.caseId))}`, { method: 'PATCH', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_vault_delete_case': {
-      const res = await fetch(`/api/vault/cases/${encodeURIComponent(String(input.caseId))}`, { method: 'DELETE', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_vault_list_documents': {
-      const params = new URLSearchParams();
-      if (input.scope) params.set('scope', String(input.scope));
-      if (input.caseId) params.set('caseId', String(input.caseId));
-      const res = await fetch(`/api/vault/documents?${params.toString()}`, { signal });
-      return await res.json();
-    }
-    case 'k5_vault_get_document': {
-      const res = await fetch(`/api/vault/documents/${encodeURIComponent(String(input.documentId))}`, { signal });
-      return await res.json();
-    }
-    case 'k5_vault_update_document': {
-      const res = await fetch(`/api/vault/documents/${encodeURIComponent(String(input.documentId))}`, { method: 'PATCH', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_vault_delete_document': {
-      const res = await fetch(`/api/vault/documents/${encodeURIComponent(String(input.documentId))}`, { method: 'DELETE', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_vault_add_document_version': {
-      const res = await fetch(`/api/vault/documents/${encodeURIComponent(String(input.documentId))}/versions`, { method: 'POST', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_vault_download_document': {
-      return {
-        downloadUrl: `/api/vault/documents/${encodeURIComponent(String(input.documentId))}/download`,
-        name: 'documento',
-        mimeType: 'application/octet-stream',
-      };
-    }
-    case 'k5_vault_retry_ingestion': {
-      const res = await fetch(`/api/vault/documents/${encodeURIComponent(String(input.documentId))}/retry`, { method: 'POST', headers, signal });
-      return await res.json();
-    }
-    case 'k5_vault_ingest_upload': {
-      const res = await fetch('/api/vault/documents/ingest', { method: 'POST', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_knowledge_search': {
-      const res = await fetch('/api/knowledge/search', { method: 'POST', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_knowledge_get_source': {
-      const res = await fetch('/api/knowledge/source', { method: 'POST', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_knowledge_get_index_status': {
-      const res = await fetch(`/api/knowledge/status?documentId=${encodeURIComponent(String(input.documentId))}`, { signal });
-      return await res.json();
-    }
-    case 'k5_knowledge_reindex': {
-      const res = await fetch('/api/knowledge/reindex', { method: 'POST', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_runs_list': {
-      const res = await fetch('/api/runs', { signal });
-      return await res.json();
-    }
-    case 'k5_runs_get': {
-      const res = await fetch(`/api/runs/${encodeURIComponent(String(input.runId))}`, { signal });
-      return await res.json();
-    }
-    case 'k5_runs_cancel': {
-      const res = await fetch(`/api/runs/${encodeURIComponent(String(input.runId))}`, { method: 'PATCH', headers, body: JSON.stringify({ action: 'cancel' }), signal });
-      return await res.json();
-    }
-    case 'k5_runs_retry': {
-      const res = await fetch(`/api/runs/${encodeURIComponent(String(input.runId))}`, { method: 'PATCH', headers, body: JSON.stringify({ action: 'retry' }), signal });
-      return await res.json();
-    }
-    case 'k5_documents_start_chronology': {
-      const res = await fetch('/api/runs', { method: 'POST', headers, body: JSON.stringify({ kind: 'chronology', ...input }), signal });
-      return await res.json();
-    }
-    case 'k5_documents_start_draft': {
-      const res = await fetch('/api/runs', { method: 'POST', headers, body: JSON.stringify({ kind: 'draft', ...input }), signal });
-      return await res.json();
-    }
-    case 'k5_artifacts_get': {
-      const res = await fetch(`/api/artifacts/${encodeURIComponent(String(input.artifactId))}`, { signal });
-      return await res.json();
-    }
-    case 'k5_artifacts_update': {
-      const res = await fetch(`/api/artifacts/${encodeURIComponent(String(input.artifactId))}`, { method: 'PUT', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_artifacts_list_versions': {
-      const res = await fetch(`/api/artifacts/${encodeURIComponent(String(input.artifactId))}/versions`, { signal });
-      return await res.json();
-    }
-    case 'k5_artifacts_restore_version': {
-      const res = await fetch(`/api/artifacts/${encodeURIComponent(String(input.artifactId))}/restore`, { method: 'POST', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_artifacts_export_docx': {
-      return {
-        downloadUrl: `/api/artifacts/${encodeURIComponent(String(input.artifactId))}/export`,
-        fileName: 'minuta.docx',
-      };
-    }
-    case 'k5_conversations_list': {
-      const res = await fetch('/api/conversations', { signal });
-      return await res.json();
-    }
-    case 'k5_conversations_get': {
-      const res = await fetch(`/api/conversations/${encodeURIComponent(String(input.conversationId))}`, { signal });
-      return await res.json();
-    }
-    case 'k5_conversations_create': {
-      const res = await fetch('/api/conversations', { method: 'POST', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_conversations_delete': {
-      const res = await fetch(`/api/conversations/${encodeURIComponent(String(input.conversationId))}`, { method: 'DELETE', signal });
-      return { success: res.ok };
-    }
-    case 'k5_citations_list_candidates': {
-      const docs = Array.isArray(input.documentIds) ? input.documentIds : [];
-      const firstId = docs[0];
-      const res = await fetch(`/api/citations?documentId=${encodeURIComponent(String(firstId))}`, { signal });
-      return await res.json();
-    }
-    case 'k5_context_set_sources': {
-      const res = await fetch('/api/knowledge/scope', { method: 'POST', headers, body: JSON.stringify(input), signal });
-      return await res.json();
-    }
-    case 'k5_session_end_global': {
-      const res = await fetch('/api/session/global-logout', { method: 'POST', headers, signal });
-      return await res.json();
-    }
-    case 'k5_ui_open_resource': {
-      const type = input.resourceType;
-      const id = input.resourceId;
-      let path = '/app';
-      if (type === 'vault') path = '/app/vault';
-      else if (type === 'case') path = id ? `/app/vault?caseId=${encodeURIComponent(String(id))}` : '/app/vault';
-      else if (type === 'document') path = id ? `/app/vault?documentId=${encodeURIComponent(String(id))}` : '/app/vault';
-      else if (type === 'run' || type === 'artifact') path = id ? `/app/documents?runId=${encodeURIComponent(String(id))}` : '/app/documents';
-      return { path };
-    }
-    default:
-      throw new Error(`Operação ${name} não suportada via adaptador HTTP do navegador.`);
+    return { ok: true, data: payload };
+  } catch (error) {
+    if (signal?.aborted) return { ok: false, code: 'CANCELLED', error: 'Operação cancelada.' };
+    void error;
+    return { ok: false, code: 'NETWORK', error: 'Não foi possível falar com o K5.' };
   }
 }
 
+/**
+ * Registers the authorized catalog and returns a cleanup that works even when it is called before
+ * an async `registerTool` settles - React's double mount does exactly that, and a registration
+ * that lands after unmount would otherwise leak a live tool into the next mount.
+ */
 export function registerWebMCPCapabilities(role: OfficeRole): () => void {
   const context = getModelContext();
   if (!context) return () => {};
 
+  const lifetime = new AbortController();
   const registrations: WebMCPToolRegistration[] = [];
-  const allowedNames = capabilitiesForRole(role);
+  let disposed = false;
 
-  for (const name of allowedNames) {
+  for (const name of publishedCapabilitiesForRole(role, 'webmcp')) {
     const capability = capabilities[name];
-    const def: WebMCPToolDefinition = {
+    const definition: WebMCPToolDefinition = {
       name,
       description: capability.description,
+      inputSchema: z.toJSONSchema(capability.input, { io: 'input' }) as Record<string, unknown>,
       hints: {
         readOnlyHint: capability.effect === 'read',
         consequentialHint: capability.effect === 'write',
+        // Vault text is someone else's document; it is data, never instructions for the agent.
+        untrustedContentHint: capability.module === 'knowledge' || capability.module === 'citations',
       },
     };
 
     try {
-      const registration = context.registerTool(def, async (input, execContext) => {
-        return await executeViaHttp(name, input, execContext?.signal);
-      });
+      const registered = context.registerTool(
+        definition,
+        async (input, execution) => executeViaHttp(name, input ?? {}, execution?.signal),
+        { signal: lifetime.signal },
+      );
 
-      if (registration && typeof (registration as Promise<WebMCPToolRegistration>).then === 'function') {
-        (registration as Promise<WebMCPToolRegistration>).then((reg) => registrations.push(reg));
-      } else if (registration && typeof (registration as WebMCPToolRegistration).unregister === 'function') {
-        registrations.push(registration as WebMCPToolRegistration);
+      if (registered && typeof (registered as Promise<WebMCPToolRegistration>).then === 'function') {
+        void (registered as Promise<WebMCPToolRegistration>).then((registration) => {
+          if (disposed) { try { registration.unregister(); } catch { /* already gone */ } return; }
+          registrations.push(registration);
+        }).catch(() => { /* registration refused by the browser */ });
+      } else if (registered && typeof (registered as WebMCPToolRegistration).unregister === 'function') {
+        registrations.push(registered as WebMCPToolRegistration);
       }
     } catch {
-      // Browser modelContext error or invalid registration: ignore gracefully
+      // Browser refused this definition: the interface keeps working without it.
     }
   }
 
   return () => {
-    for (const reg of registrations) {
-      try {
-        reg.unregister();
-      } catch {
-        // Safe unregister
-      }
+    disposed = true;
+    lifetime.abort();
+    for (const registration of registrations.splice(0)) {
+      try { registration.unregister(); } catch { /* already gone */ }
     }
   };
 }

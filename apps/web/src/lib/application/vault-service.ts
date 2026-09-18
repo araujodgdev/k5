@@ -2,12 +2,15 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import {
-  createVaultCase, findVaultDocument, listVaultDocuments, retryVaultDocument, VaultHttpError,
+  countVaultDocuments, createVaultDocument, createVaultCase, findVaultDocument, findVaultDocumentIncludingDeleted,
+  listVaultDocuments, retryVaultDocument, VaultHttpError,
 } from '@/lib/vault';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
 import { requireAndConsumeApproval } from './approvals-service';
+import { consumeUploadRef } from './uploads-service';
+import { enqueueDeletion } from '@/lib/knowledge/indexing';
 import { searchKnowledgeEngine } from '@/lib/knowledge/retrieval';
 
 /** Vault errors already carry the product message; only the status has to become a stable code. */
@@ -16,14 +19,14 @@ export function asCapabilityError(error: unknown): unknown {
   if (error.status === 404) return new CapabilityError('NOT_FOUND', error.message);
   if (error.status === 409) return new CapabilityError('NOT_READY', error.message);
   if (error.status === 403) return new CapabilityError('FORBIDDEN', error.message);
+  if (error.status === 503) return new CapabilityError('NOT_READY', error.message);
   return new CapabilityError('INVALID', error.message);
 }
 
+/** `findVaultDocument` already excludes tombstones, so one lookup settles both office and liveness. */
 function requireDocument(context: WorkspaceContext, documentId: string) {
   const document = findVaultDocument(context.officeId, documentId);
   if (!document) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado no Cofre deste escritório.');
-  const row = database.prepare('SELECT deleted_at FROM vault_document WHERE id=? AND office_id=?').get(documentId, context.officeId) as { deleted_at: string | null } | undefined;
-  if (!row || row.deleted_at !== null) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado no Cofre deste escritório.');
   return document;
 }
 
@@ -67,10 +70,10 @@ export function deleteCase(context: WorkspaceContext, input: CapabilityInput<'k5
     { caseId: input.caseId, targetCaseId: input.targetCaseId },
     input.caseId,
     null,
-    'Exclusão de caso no Cofre requer aprovação explícita.'
+    'Exclusão de caso no Cofre requer aprovação explícita.',
   );
 
-  // Reassign or unassign documents
+  // Documents are reassigned, never cascade-deleted: removing a folder is not removing its contents.
   if (input.targetCaseId) {
     const target = database.prepare('SELECT id FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL').get(input.targetCaseId, context.officeId);
     if (!target) throw new CapabilityError('NOT_FOUND', 'Caso de destino não encontrado.');
@@ -81,34 +84,25 @@ export function deleteCase(context: WorkspaceContext, input: CapabilityInput<'k5
       .run(input.caseId, context.officeId);
   }
 
-  database.prepare("UPDATE vault_case SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=?").run(input.caseId, context.officeId);
+  database.prepare('UPDATE vault_case SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=?').run(input.caseId, context.officeId);
   return { success: true };
 }
 
 export function listDocuments(context: WorkspaceContext, input: CapabilityInput<'k5_vault_list_documents'>): CapabilityOutput<'k5_vault_list_documents'> {
-  const all = listVaultDocuments(context.officeId, { scope: input.scope ?? null, caseId: input.caseId ?? null });
-  // Filter out any tombstoned documents
-  const active = all.filter((d) => {
-    const row = database.prepare('SELECT deleted_at FROM vault_document WHERE id=?').get(d.id) as { deleted_at: string | null } | undefined;
-    return !row || row.deleted_at === null;
-  });
-  return { documents: active.slice(0, input.limit ?? 20), total: active.length };
+  const filters = { scope: input.scope ?? null, caseId: input.caseId ?? null };
+  // Tombstones are excluded in SQL and the page is taken in SQL: no per-row liveness query, and
+  // no loading the whole office to slice twenty rows off the front of it.
+  const documents = listVaultDocuments(context.officeId, { ...filters, limit: input.limit ?? 20 });
+  return { documents, total: countVaultDocuments(context.officeId, filters) };
 }
 
 export function getDocument(context: WorkspaceContext, input: CapabilityInput<'k5_vault_get_document'>): CapabilityOutput<'k5_vault_get_document'> {
   const doc = requireDocument(context, input.documentId);
   return {
     document: {
-      id: doc.id,
-      name: doc.name,
-      caseId: doc.caseId,
-      caseName: doc.caseName,
-      scope: doc.scope,
-      status: doc.status,
-      progress: doc.progress,
-      errorMessage: doc.errorMessage,
-      sourceCount: doc.sourceCount,
-      createdAt: doc.createdAt,
+      id: doc.id, name: doc.name, caseId: doc.caseId, caseName: doc.caseName, scope: doc.scope,
+      status: doc.status, progress: doc.progress, errorMessage: doc.errorMessage,
+      sourceCount: doc.sourceCount, createdAt: doc.createdAt,
     },
   };
 }
@@ -146,48 +140,64 @@ export function deleteDocument(context: WorkspaceContext, input: CapabilityInput
     { documentId: input.documentId },
     input.documentId,
     null,
-    'Remoção de documento no Cofre exige aprovação explícita.'
+    'Remoção de documento no Cofre exige aprovação explícita.',
   );
 
-  // Immediate tombstone in SQL
-  database.prepare("UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP, status='failed', error_message='Documento excluído pelo usuário.', updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=?")
-    .run(input.documentId, context.officeId);
-  database.prepare('DELETE FROM vault_document_chunk WHERE document_id=? AND office_id=?').run(input.documentId, context.officeId);
-  database.prepare('DELETE FROM vault_document_chunk_vector WHERE document_id=? AND office_id=?').run(input.documentId, context.officeId);
+  const versions = database.prepare('SELECT stored_name AS storedName FROM vault_document_version WHERE document_id=? AND office_id=?')
+    .all(input.documentId, context.officeId) as Array<{ storedName: string }>;
+  const current = database.prepare('SELECT stored_name AS storedName FROM vault_document WHERE id=? AND office_id=?')
+    .get(input.documentId, context.officeId) as { storedName: string } | undefined;
+
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    // The tombstone and the loss of searchability are immediate and transactional. Bytes in object
+    // storage and rows in a remote index are chased afterwards through the deletion queue, which
+    // can retry without ever making the document visible again.
+    database.prepare("UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP, status='failed', error_message='Documento excluído.', updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=?")
+      .run(input.documentId, context.officeId);
+    database.prepare("UPDATE knowledge_index_job SET status='cancelled', updated_at=CURRENT_TIMESTAMP WHERE document_id=? AND office_id=? AND status IN ('queued','running')")
+      .run(input.documentId, context.officeId);
+    database.prepare('DELETE FROM vault_document_chunk WHERE document_id=? AND office_id=?').run(input.documentId, context.officeId);
+    database.exec('COMMIT');
+  } catch (error) { database.exec('ROLLBACK'); throw error; }
+
+  enqueueDeletion(context.officeId, 'vector_document', input.documentId);
+  for (const key of new Set([...versions.map((row) => row.storedName), current?.storedName].filter(Boolean) as string[])) {
+    enqueueDeletion(context.officeId, 'object', key);
+  }
 
   return { success: true };
 }
 
+/**
+ * Adds an immutable version from an upload the server already stored. The previous version stays
+ * addressable, so a citation made against it still resolves to the text it quoted.
+ */
 export function addDocumentVersion(context: WorkspaceContext, input: CapabilityInput<'k5_vault_add_document_version'>): CapabilityOutput<'k5_vault_add_document_version'> {
   const doc = requireDocument(context, input.documentId);
+  const upload = consumeUploadRef(context, input.uploadRef);
 
-  const currentVersionRow = database.prepare(
-    'SELECT max(version) AS max_v FROM vault_document_version WHERE document_id=?'
-  ).get(input.documentId) as { max_v: number | null } | undefined;
+  const currentMax = database.prepare('SELECT max(version) AS maxVersion FROM vault_document_version WHERE document_id=?')
+    .get(input.documentId) as { maxVersion: number | null } | undefined;
+  const nextVersion = (currentMax?.maxVersion ?? 0) + 1;
 
-  const nextVersion = (currentVersionRow?.max_v ?? 1) + 1;
-  const versionId = randomUUID();
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    database.prepare('UPDATE vault_document_version SET is_active=0 WHERE document_id=? AND office_id=?').run(doc.id, context.officeId);
+    database.prepare(`
+      INSERT INTO vault_document_version (id, office_id, document_id, version, original_name, stored_name, mime_type, byte_size, sha256, created_by, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(randomUUID(), context.officeId, doc.id, nextVersion, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, context.userId);
+    // The active version becomes the document's content, so it is re-extracted and re-indexed.
+    database.prepare(`
+      UPDATE vault_document SET original_name=?, stored_name=?, mime_type=?, byte_size=?, sha256=?,
+        status='queued', progress=0, error_message=NULL, lease_owner=NULL, lease_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
+      WHERE id=? AND office_id=? AND deleted_at IS NULL
+    `).run(upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, doc.id, context.officeId);
+    database.exec('COMMIT');
+  } catch (error) { database.exec('ROLLBACK'); throw error; }
 
-  database.prepare(`
-    INSERT INTO vault_document_version (id, office_id, document_id, version, original_name, stored_name, mime_type, byte_size, sha256, created_by, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-  `).run(
-    versionId,
-    context.officeId,
-    doc.id,
-    nextVersion,
-    doc.name,
-    input.uploadRef,
-    doc.mimeType,
-    doc.byteSize,
-    'version-hash',
-    context.userId
-  );
-
-  return {
-    document: getDocument(context, { documentId: input.documentId }).document,
-    version: nextVersion,
-  };
+  return { document: getDocument(context, { documentId: input.documentId }).document, version: nextVersion };
 }
 
 export function downloadDocument(context: WorkspaceContext, input: CapabilityInput<'k5_vault_download_document'>): CapabilityOutput<'k5_vault_download_document'> {
@@ -203,38 +213,35 @@ export function retryIngestion(context: WorkspaceContext, input: CapabilityInput
   requireDocument(context, input.documentId);
   try { retryVaultDocument(context.officeId, input.documentId); }
   catch (error) { throw asCapabilityError(error); }
-  return getDocument(context, input);
+  return getDocument(context, { documentId: input.documentId });
 }
 
+/**
+ * Turns a server-issued upload reference into a Vault document. The reference is single-use and
+ * bound to this person and office; the storage key travels with it and is never taken from input.
+ */
 export function ingestUpload(context: WorkspaceContext, input: CapabilityInput<'k5_vault_ingest_upload'>): CapabilityOutput<'k5_vault_ingest_upload'> {
-  // Finds or links document by upload reference
-  const doc = database.prepare(
-    "SELECT id FROM vault_document WHERE office_id=? AND (id=? OR stored_name LIKE ?)"
-  ).get(context.officeId, input.uploadRef, `%${input.uploadRef}%`) as { id: string } | undefined;
-
-  if (doc) {
-    return getDocument(context, { documentId: doc.id });
-  }
-
-  // If not already existing, return a newly created reference document
-  const id = randomUUID();
-  const caseId = input.scope === 'case' ? input.caseId ?? null : null;
-  database.prepare(`
-    INSERT INTO vault_document (id, office_id, case_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
-    VALUES (?, ?, ?, ?, 'documento-anexado.pdf', ?, 'application/pdf', 1024, 'upload-sha', 'queued', ?)
-  `).run(id, context.officeId, caseId, input.scope, `${input.uploadRef}.pdf`, context.userId);
-
-  return getDocument(context, { documentId: id });
+  if (input.scope === 'case' && !input.caseId) throw new CapabilityError('INVALID', 'Escolha um caso para o documento.');
+  const upload = consumeUploadRef(context, input.uploadRef);
+  try {
+    const document = createVaultDocument(context.officeId, context.userId, upload, { scope: input.scope, caseId: input.caseId ?? null });
+    return getDocument(context, { documentId: document.id });
+  } catch (error) { throw asCapabilityError(error); }
 }
 
-export function searchKnowledge(context: WorkspaceContext, input: CapabilityInput<'k5_knowledge_search'>): CapabilityOutput<'k5_knowledge_search'> {
+export async function searchKnowledge(context: WorkspaceContext, input: CapabilityInput<'k5_knowledge_search'>): Promise<CapabilityOutput<'k5_knowledge_search'>> {
   return searchKnowledgeEngine(context, input);
 }
 
 /** Documents of this office that are ready for analysis, used to validate a run before queueing it. */
 export function readyDocumentIds(context: WorkspaceContext, documentIds: string[]) {
-  const marks = documentIds.map(() => '?').join(',');
   if (!documentIds.length) return [];
-  return (database.prepare(`SELECT id FROM vault_document WHERE office_id=? AND status='ready' AND id IN (${marks})`)
+  const marks = documentIds.map(() => '?').join(',');
+  return (database.prepare(`SELECT id FROM vault_document WHERE office_id=? AND status='ready' AND deleted_at IS NULL AND id IN (${marks})`)
     .all(context.officeId, ...documentIds) as Array<{ id: string }>).map((row) => String(row.id));
+}
+
+/** The cleanup worker is the only caller that may look at a tombstoned row. */
+export function findDeletedDocument(officeId: string, documentId: string) {
+  return findVaultDocumentIncludingDeleted(officeId, documentId);
 }

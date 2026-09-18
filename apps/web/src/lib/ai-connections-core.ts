@@ -8,7 +8,9 @@ import {
 type MasterKey = Uint8Array | CredentialKeyring;
 
 export const AI_PROVIDERS = ["openai", "anthropic", "google", "deepseek", "inception", "openrouter", "vercel"] as const;
-export const AI_TASKS = ["chat", "extraction", "drafting"] as const;
+// Embedding is its own profile: model and dimension are fixed per index generation, so it must
+// never inherit whatever the chat profile happens to point at.
+export const AI_TASKS = ["chat", "extraction", "drafting", "embedding"] as const;
 export type AiProvider = typeof AI_PROVIDERS[number];
 export type AiTask = typeof AI_TASKS[number];
 
@@ -24,7 +26,7 @@ export type ConnectionPatch = Partial<Omit<ConnectionInput, "apiKey" | "models">
 
 // Shape and size checks for HTTP bodies; business rules and their messages stay in the functions below.
 const modelField = z.string().max(160).nullable().optional();
-const modelsSchema = z.strictObject({ chat: modelField, extraction: modelField, drafting: modelField });
+const modelsSchema = z.strictObject({ chat: modelField, extraction: modelField, drafting: modelField, embedding: modelField });
 const nameField = z.string().max(200);
 const apiKeyField = z.string().max(4096);
 export const connectionInputSchema = z.strictObject({
@@ -37,7 +39,7 @@ export const connectionTestSchema = z.strictObject({ task: z.enum(AI_TASKS).opti
 
 type Row = {
   id: string; office_id: string; name: string; provider: AiProvider; encrypted_api_key: string | null; api_key_hint: string;
-  chat_model: string | null; extraction_model: string | null; drafting_model: string | null; enabled: number;
+  chat_model: string | null; extraction_model: string | null; drafting_model: string | null; embedding_model: string | null; enabled: number;
   created_at: string; updated_at: string; deleted_at: string | null;
 };
 
@@ -64,13 +66,13 @@ function validateProvider(value: unknown): AiProvider {
 }
 
 function cleanModels(models: Partial<Record<AiTask, unknown>> | undefined): Record<AiTask, string | null> {
-  return { chat: cleanModel(models?.chat), extraction: cleanModel(models?.extraction), drafting: cleanModel(models?.drafting) };
+  return { chat: cleanModel(models?.chat), extraction: cleanModel(models?.extraction), drafting: cleanModel(models?.drafting), embedding: cleanModel(models?.embedding) };
 }
 
 function toView(row: Row) {
   return {
     id: row.id, officeId: row.office_id, name: row.name, provider: row.provider, keyHint: row.api_key_hint,
-    models: { chat: row.chat_model, extraction: row.extraction_model, drafting: row.drafting_model },
+    models: { chat: row.chat_model, extraction: row.extraction_model, drafting: row.drafting_model, embedding: row.embedding_model },
     enabled: Boolean(row.enabled), createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -114,9 +116,9 @@ export function createAiConnection(db: DatabaseSync, key: MasterKey, actorUserId
   try {
     assignTasksExclusively(db, officeId, id, models);
     db.prepare(`INSERT INTO ai_connection
-      (id, office_id, name, provider, encrypted_api_key, api_key_hint, chat_model, extraction_model, drafting_model, enabled)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(id, officeId, name, provider, encryptCredential(apiKey, key), credentialHint(apiKey), models.chat, models.extraction, models.drafting, input.enabled === false ? 0 : 1);
+      (id, office_id, name, provider, encrypted_api_key, api_key_hint, chat_model, extraction_model, drafting_model, embedding_model, enabled)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(id, officeId, name, provider, encryptCredential(apiKey, key), credentialHint(apiKey), models.chat, models.extraction, models.drafting, models.embedding, input.enabled === false ? 0 : 1);
     audit(db, actorUserId, officeId, id, "ai_connection.created", { name, provider, enabled: input.enabled !== false, models });
     db.exec("RELEASE create_ai_connection");
   } catch (error) {
@@ -132,7 +134,7 @@ export function updateAiConnection(db: DatabaseSync, key: MasterKey, actorUserId
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   const name = patch.name === undefined ? current.name : validateName(patch.name);
   const provider = patch.provider === undefined ? current.provider : validateProvider(patch.provider);
-  const models = patch.models === undefined ? { chat: current.chat_model, extraction: current.extraction_model, drafting: current.drafting_model } : cleanModels(patch.models);
+  const models = patch.models === undefined ? { chat: current.chat_model, extraction: current.extraction_model, drafting: current.drafting_model, embedding: current.embedding_model } : cleanModels(patch.models);
   const apiKey = patch.apiKey?.trim();
   if (patch.apiKey !== undefined && !apiKey) throw new AiConnectionError("invalid", "A nova chave não pode estar vazia.");
   const encrypted = apiKey ? encryptCredential(apiKey, key) : current.encrypted_api_key;
@@ -141,8 +143,8 @@ export function updateAiConnection(db: DatabaseSync, key: MasterKey, actorUserId
   db.exec("SAVEPOINT update_ai_connection");
   try {
     assignTasksExclusively(db, officeId, connectionId, models);
-    db.prepare(`UPDATE ai_connection SET name = ?, provider = ?, encrypted_api_key = ?, api_key_hint = ?, chat_model = ?, extraction_model = ?, drafting_model = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?`)
-      .run(name, provider, encrypted, hint, models.chat, models.extraction, models.drafting, enabled, connectionId, officeId);
+    db.prepare(`UPDATE ai_connection SET name = ?, provider = ?, encrypted_api_key = ?, api_key_hint = ?, chat_model = ?, extraction_model = ?, drafting_model = ?, embedding_model = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?`)
+      .run(name, provider, encrypted, hint, models.chat, models.extraction, models.drafting, models.embedding, enabled, connectionId, officeId);
     audit(db, actorUserId, officeId, connectionId, apiKey ? "ai_connection.key_rotated" : "ai_connection.updated", { name, provider, enabled: Boolean(enabled), models });
     db.exec("RELEASE update_ai_connection");
   } catch (error) {
@@ -156,7 +158,7 @@ export function updateAiConnection(db: DatabaseSync, key: MasterKey, actorUserId
 export function deleteAiConnection(db: DatabaseSync, actorUserId: string, officeId: string, connectionId: string): void {
   const current = db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
-  if (current.chat_model || current.extraction_model || current.drafting_model) throw new AiConnectionError("in_use", "Remova as atribuições de modelos antes de excluir a conexão.");
+  if (current.chat_model || current.extraction_model || current.drafting_model || current.embedding_model) throw new AiConnectionError("in_use", "Remova as atribuições de modelos antes de excluir a conexão.");
   db.exec("SAVEPOINT delete_ai_connection");
   try {
     db.prepare("UPDATE ai_connection SET encrypted_api_key = NULL, enabled = 0, deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?").run(connectionId, officeId);

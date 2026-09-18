@@ -23,6 +23,7 @@ function fixture() {
   db.exec(readFileSync(new URL("../db/migrations/0001_offices.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../db/migrations/0002_platform.sql", import.meta.url), "utf8"));
   db.exec(readFileSync(new URL("../db/migrations/0005_ai_providers.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../db/migrations/0008_ai_connection_embedding.sql", import.meta.url), "utf8"));
   const admin = randomUUID(), outsider = randomUUID(), officeA = randomUUID(), officeB = randomUUID();
   db.prepare("INSERT INTO user (id,email,name) VALUES (?,?,?),(?,?,?)").run(admin, "admin@example.test", "Admin", outsider, "other@example.test", "Other");
   db.prepare("INSERT INTO office (id,name) VALUES (?,?),(?,?)").run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia");

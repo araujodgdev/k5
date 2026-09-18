@@ -17,7 +17,7 @@ async function fixture() {
   db.exec("PRAGMA foreign_keys = ON");
   const auth = createAuth(db, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600 });
   await (await getMigrations(auth.options)).runMigrations();
-  for (const name of ["0001_offices.sql", "0002_platform.sql", "0005_ai_providers.sql"]) db.exec(readFileSync(new URL(`../db/migrations/${name}`, import.meta.url), "utf8"));
+  for (const name of ["0001_offices.sql", "0002_platform.sql", "0005_ai_providers.sql", "0008_ai_connection_embedding.sql"]) db.exec(readFileSync(new URL(`../db/migrations/${name}`, import.meta.url), "utf8"));
   async function signup(email: string) {
     const response = await auth.handler(new Request(`${origin}/api/auth/sign-up/email`, {
       method: "POST", headers: { "content-type": "application/json", origin },

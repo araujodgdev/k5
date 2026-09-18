@@ -1,10 +1,12 @@
 import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { basename, extname, resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 import { database } from "@/lib/database";
 import { ensureOfficeForUser, type OfficeMembership } from "@/lib/offices";
+import { assertStorageKey, objectStorage, StorageError } from "@/lib/storage";
+import type { UploadRef } from "@/lib/application/uploads-service";
 
 export type VaultStatus = "queued" | "processing" | "ready" | "failed";
 export type VaultScope = "library" | "case";
@@ -14,15 +16,7 @@ export type VaultDocument = {
   extractedCharacters: number; sourceCount: number; createdAt: string;
 };
 export type DocumentChunk = { id: string; documentId: string; stableReference: string; sourceLabel: string; content: string; ordinal: number };
-type DocumentRow = VaultDocument & { storedName: string; officeId: string; leaseOwner: string | null; leaseExpiresAt: string | null };
-
-const ALLOWED_EXTENSIONS: Record<string, string> = {
-  ".pdf": "application/pdf", ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ".eml": "message/rfc822", ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ".csv": "text/csv", ".txt": "text/plain",
-};
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
-const UPLOAD_DIRECTORY = resolve(process.cwd(), ".data", "uploads");
+type DocumentRow = VaultDocument & { storedName: string; officeId: string; leaseOwner: string | null; leaseExpiresAt: string | null; deletedAt: string | null };
 
 export class VaultHttpError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
@@ -35,6 +29,7 @@ function mapDocument(row: Record<string, unknown>): DocumentRow {
     progress: Number(row.progress), errorMessage: row.errorMessage as string | null, extractedCharacters: Number(row.extractedCharacters),
     sourceCount: Number(row.sourceCount), createdAt: String(row.createdAt), storedName: String(row.storedName), officeId: String(row.officeId),
     leaseOwner: row.leaseOwner as string | null, leaseExpiresAt: row.leaseExpiresAt as string | null,
+    deletedAt: row.deletedAt as string | null,
   };
 }
 
@@ -43,7 +38,8 @@ const documentSelect = `
     d.mime_type AS mimeType, d.byte_size AS byteSize, d.status, d.progress,
     d.error_message AS errorMessage, d.extracted_characters AS extractedCharacters,
     d.source_count AS sourceCount, d.created_at AS createdAt, d.stored_name AS storedName,
-    d.office_id AS officeId, d.lease_owner AS leaseOwner, d.lease_expires_at AS leaseExpiresAt
+    d.office_id AS officeId, d.lease_owner AS leaseOwner, d.lease_expires_at AS leaseExpiresAt,
+    d.deleted_at AS deletedAt
   FROM vault_document d LEFT JOIN vault_case c ON c.id = d.case_id AND c.office_id = d.office_id`;
 
 export async function requireVaultWorkspace(): Promise<{ user: { id: string }; office: OfficeMembership }> {
@@ -82,7 +78,7 @@ export function createVaultCase(officeId: string, userId: string, name: string) 
 }
 
 // Stored name, office and lease data stay on the server.
-function publicDocument(row: DocumentRow): VaultDocument {
+export function publicDocument(row: DocumentRow): VaultDocument {
   return {
     id: row.id, name: row.name, caseId: row.caseId, caseName: row.caseName, scope: row.scope,
     mimeType: row.mimeType, byteSize: row.byteSize, status: row.status, progress: row.progress,
@@ -91,56 +87,102 @@ function publicDocument(row: DocumentRow): VaultDocument {
   };
 }
 
-export function listVaultDocuments(officeId: string, filters: { scope?: string | null; caseId?: string | null } = {}): VaultDocument[] {
-  const where = ["d.office_id = ?"];
-  const values: (string | null)[] = [officeId];
+export function listVaultDocuments(
+  officeId: string,
+  filters: { scope?: string | null; caseId?: string | null; limit?: number; offset?: number } = {},
+): VaultDocument[] {
+  // A tombstoned document is invisible here, not merely marked: this list feeds the UI, the
+  // agent catalog and the run scope, and each of them would otherwise keep offering deleted files.
+  const where = ["d.office_id = ?", "d.deleted_at IS NULL"];
+  const values: (string | number | null)[] = [officeId];
   if (filters.scope === "library" || filters.scope === "case") { where.push("d.scope = ?"); values.push(filters.scope); }
   if (filters.caseId) { where.push("d.case_id = ?"); values.push(filters.caseId); }
-  return database.prepare(`${documentSelect} WHERE ${where.join(" AND ")} ORDER BY d.created_at DESC`).all(...values).map((row) => publicDocument(mapDocument(row)));
+  const limit = Math.min(Math.max(filters.limit ?? 200, 1), 200);
+  const offset = Math.max(filters.offset ?? 0, 0);
+  return database.prepare(`${documentSelect} WHERE ${where.join(" AND ")} ORDER BY d.created_at DESC LIMIT ? OFFSET ?`)
+    .all(...values, limit, offset).map((row) => publicDocument(mapDocument(row)));
 }
 
+export function countVaultDocuments(officeId: string, filters: { scope?: string | null; caseId?: string | null } = {}): number {
+  const where = ["office_id = ?", "deleted_at IS NULL"];
+  const values: (string | null)[] = [officeId];
+  if (filters.scope === "library" || filters.scope === "case") { where.push("scope = ?"); values.push(filters.scope); }
+  if (filters.caseId) { where.push("case_id = ?"); values.push(filters.caseId); }
+  return Number(database.prepare(`SELECT count(*) AS n FROM vault_document WHERE ${where.join(" AND ")}`).get(...values)?.n ?? 0);
+}
+
+/**
+ * Live documents only. Deletion has to stop every read path at once, so the default lookup
+ * excludes tombstones and the cleanup worker asks for them explicitly.
+ */
 export function findVaultDocument(officeId: string, documentId: string): DocumentRow | undefined {
+  const row = database.prepare(`${documentSelect} WHERE d.office_id = ? AND d.id = ? AND d.deleted_at IS NULL`)
+    .get(officeId, documentId) as Record<string, unknown> | undefined;
+  return row ? mapDocument(row) : undefined;
+}
+
+export function findVaultDocumentIncludingDeleted(officeId: string, documentId: string): DocumentRow | undefined {
   const row = database.prepare(`${documentSelect} WHERE d.office_id = ? AND d.id = ?`).get(officeId, documentId) as Record<string, unknown> | undefined;
   return row ? mapDocument(row) : undefined;
 }
 
-function validatedFileName(fileName: string) {
-  const file = basename(fileName).replace(/[\u0000-\u001f<>:"/\\|?*]/g, "_").trim();
-  const extension = extname(file).toLowerCase();
-  if (extension === ".msg") throw new VaultHttpError(400, "Arquivos .msg ainda não são compatíveis. Exporte o e-mail como .eml.");
-  const mimeType = ALLOWED_EXTENSIONS[extension];
-  if (!mimeType) throw new VaultHttpError(400, "Envie PDF, DOCX, EML, XLSX, CSV ou TXT.");
-  if (!file) throw new VaultHttpError(400, "O arquivo precisa ter um nome válido.");
-  return { file, extension, mimeType };
-}
-
-export async function createVaultDocument(officeId: string, userId: string, options: { file: File; scope: string; caseId?: string | null }) {
-  const { file, extension, mimeType } = validatedFileName(options.file.name);
-  if (options.file.size <= 0) throw new VaultHttpError(400, "O arquivo está vazio.");
-  if (options.file.size > MAX_UPLOAD_BYTES) throw new VaultHttpError(400, "O arquivo excede o limite de 50 MB.");
+/**
+ * Creates the document row for an upload the server already stored and validated. The storage key
+ * comes from the upload reference, never from the caller, so there is no caller-controlled path.
+ */
+export function createVaultDocument(
+  officeId: string,
+  userId: string,
+  upload: UploadRef,
+  options: { scope: string; caseId?: string | null },
+) {
   const scope: VaultScope = options.scope === "case" ? "case" : options.scope === "library" ? "library" : (() => { throw new VaultHttpError(400, "Escolha o destino do documento."); })();
   const caseId = scope === "case" ? options.caseId?.trim() : null;
   if (scope === "case" && !caseId) throw new VaultHttpError(400, "Escolha um caso para o documento.");
-  if (caseId && !database.prepare("SELECT 1 FROM vault_case WHERE id = ? AND office_id = ?").get(caseId, officeId)) throw new VaultHttpError(404, "Caso não encontrado.");
-  const data = Buffer.from(await options.file.arrayBuffer());
+  if (caseId && !database.prepare("SELECT 1 FROM vault_case WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(caseId, officeId)) {
+    throw new VaultHttpError(404, "Caso não encontrado.");
+  }
   const id = randomUUID();
-  const storedName = `${id}${extension}`;
-  await mkdir(UPLOAD_DIRECTORY, { recursive: true });
-  await writeFile(resolve(UPLOAD_DIRECTORY, storedName), data, { flag: "wx", mode: 0o600 });
+  database.exec("BEGIN IMMEDIATE");
   try {
     database.prepare(`INSERT INTO vault_document
       (id, office_id, case_id, scope, original_name, stored_name, mime_type, byte_size, sha256, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(id, officeId, caseId ?? null, scope, file, storedName, mimeType, data.byteLength, createHash("sha256").update(data).digest("hex"), userId);
-  } catch (error) {
-    await unlink(resolve(UPLOAD_DIRECTORY, storedName)).catch(() => undefined);
-    throw error;
-  }
+      .run(id, officeId, caseId ?? null, scope, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, userId);
+    database.prepare(`INSERT INTO vault_document_version
+      (id, office_id, document_id, version, original_name, stored_name, mime_type, byte_size, sha256, created_by, is_active)
+      VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 1)`)
+      .run(randomUUID(), officeId, id, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, userId);
+    database.exec("COMMIT");
+  } catch (error) { database.exec("ROLLBACK"); throw error; }
   return findVaultDocument(officeId, id)!;
 }
 
+const LEGACY_UPLOAD_DIRECTORY = resolve(process.cwd(), ".data", "uploads");
+const EXTRACTOR_VERSION = "k5-extract-1";
+
+/**
+ * Reads the original through the storage adapter. Rows written before the adapter existed hold a
+ * flat file name instead of a key; those are read from the legacy directory by base name only,
+ * which is also what keeps an old row from pointing outside it.
+ */
 export async function readVaultOriginal(document: Pick<DocumentRow, "storedName">) {
-  return readFile(resolve(UPLOAD_DIRECTORY, document.storedName));
+  const key = document.storedName;
+  try {
+    assertStorageKey(key);
+  } catch {
+    const legacy = basename(key);
+    if (!legacy || legacy !== key) throw new VaultHttpError(404, "Arquivo original não encontrado.");
+    try {
+      return await readFile(resolve(LEGACY_UPLOAD_DIRECTORY, legacy));
+    } catch { throw new VaultHttpError(404, "Arquivo original não encontrado."); }
+  }
+  try {
+    return await objectStorage().get(key);
+  } catch (error) {
+    if (error instanceof StorageError && error.code === "not_found") throw new VaultHttpError(404, "Arquivo original não encontrado.");
+    throw new VaultHttpError(503, "Armazenamento de documentos indisponível.");
+  }
 }
 
 /** Server-only original-file access for the export workflow. Office ownership is checked first. */
@@ -151,9 +193,11 @@ export async function readVaultDocumentFile(officeId: string, documentId: string
 }
 
 export function retryVaultDocument(officeId: string, documentId: string) {
+  // `deleted_at IS NULL` is the point: deletion parks the row in `failed`, which is exactly the
+  // state this transition accepts, so without it a tombstone could be reprocessed back into view.
   const result = database.prepare(`UPDATE vault_document
     SET status = 'queued', progress = 0, error_message = NULL, lease_owner = NULL, lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP
-    WHERE office_id = ? AND id = ? AND status = 'failed'`).run(officeId, documentId);
+    WHERE office_id = ? AND id = ? AND status = 'failed' AND deleted_at IS NULL`).run(officeId, documentId);
   if (!result.changes) throw new VaultHttpError(409, "Somente documentos com falha podem ser reenviados.");
 }
 
@@ -161,7 +205,7 @@ export function getDocumentChunks(officeId: string, documentIds: string[], query
   const ids = [...new Set(documentIds.filter((id) => /^[0-9a-f-]{36}$/i.test(id)))];
   if (!ids.length) return [];
   const marks = ids.map(() => "?").join(", ");
-  const allowed = database.prepare(`SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND id IN (${marks})`).all(officeId, ...ids) as Array<{ id: string; name: string; status: VaultStatus }>;
+  const allowed = database.prepare(`SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND id IN (${marks})`).all(officeId, ...ids) as Array<{ id: string; name: string; status: VaultStatus }>;
   if (allowed.length !== ids.length) throw new VaultHttpError(404, "Um dos documentos selecionados não está disponível neste escritório.");
   const unavailable = allowed.find((document) => document.status !== "ready");
   if (unavailable) throw new VaultHttpError(409, `O documento “${unavailable.name}” ainda não está pronto para uso.`);
@@ -184,12 +228,12 @@ export function claimQueuedDocument() {
   const owner = randomUUID();
   database.exec("BEGIN IMMEDIATE");
   try {
-    const row = database.prepare(`${documentSelect} WHERE (d.status = 'queued' OR (d.status = 'processing' AND d.lease_expires_at < CURRENT_TIMESTAMP)) ORDER BY d.created_at LIMIT 1`).get() as Record<string, unknown> | undefined;
+    const row = database.prepare(`${documentSelect} WHERE d.deleted_at IS NULL AND (d.status = 'queued' OR (d.status = 'processing' AND d.lease_expires_at < CURRENT_TIMESTAMP)) ORDER BY d.created_at LIMIT 1`).get() as Record<string, unknown> | undefined;
     if (!row) { database.exec("COMMIT"); return undefined; }
     const document = mapDocument(row);
     const changes = database.prepare(`UPDATE vault_document SET status = 'processing', progress = CASE WHEN progress > 0 THEN progress ELSE 1 END,
       lease_owner = ?, lease_expires_at = datetime('now', '+5 minutes'), error_message = NULL, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND (status = 'queued' OR (status = 'processing' AND lease_expires_at < CURRENT_TIMESTAMP))`).run(owner, document.id);
+      WHERE id = ? AND deleted_at IS NULL AND (status = 'queued' OR (status = 'processing' AND lease_expires_at < CURRENT_TIMESTAMP))`).run(owner, document.id);
     if (!changes.changes) { database.exec("ROLLBACK"); return undefined; }
     database.exec("COMMIT");
     return { document: findVaultDocument(document.officeId, document.id)!, owner };
@@ -231,8 +275,21 @@ export async function processDocument(documentId: string, officeId: string, leas
       }
       database.prepare(`UPDATE vault_document SET status = 'ready', progress = 100, error_message = NULL, extracted_characters = ?, source_count = ?,
         lease_owner = NULL, lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND lease_owner = ?`).run(characters, ordinal, documentId, officeId, owner);
+      // What the extractor saw, per run: unit counts and the extractor version, so a later
+      // reindex can tell a coverage gap from a retrieval miss.
+      database.prepare(`INSERT INTO vault_extraction_manifest (id, office_id, document_id, extractor_version, total_units, completed_units, failed_units, details)
+        VALUES (?, ?, ?, ?, ?, ?, 0, ?)`)
+        .run(randomUUID(), officeId, documentId, EXTRACTOR_VERSION, sections.length, sections.length, JSON.stringify({ chunks: ordinal, characters }));
       database.exec("COMMIT");
     } catch (error) { database.exec("ROLLBACK"); throw error; }
+    // Lexical search is already available at this point. Semantic indexing is durable work that
+    // continues in the worker, and its absence degrades the search instead of blocking extraction.
+    try {
+      const { enqueueIndexJob } = await import("@/lib/knowledge/indexing");
+      enqueueIndexJob(officeId, documentId);
+    } catch {
+      // No embedding profile configured, or the index is unavailable: search stays lexical.
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : "Não foi possível processar este documento.";
     database.prepare(`UPDATE vault_document SET status = 'failed', error_message = ?, lease_owner = NULL, lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP

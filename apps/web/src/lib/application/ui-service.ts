@@ -50,19 +50,14 @@ export function openResource(
   return { path };
 }
 
-export function endGlobalSession(
-  context: WorkspaceContext
-): CapabilityOutput<'k5_session_end_global'> {
-  // Better Auth session table: delete all active sessions for this user
-  try {
-    database.prepare('DELETE FROM session WHERE user_id=? OR userId=?').run(context.userId, context.userId);
-  } catch {
-    // If column name differs, try standard userId
-    database.prepare('DELETE FROM session WHERE userId=?').run(context.userId);
-  }
-
-  return {
-    success: true,
-    message: 'Todas as sessões ativas foram encerradas com sucesso.',
-  };
+/**
+ * Revocation goes through Better Auth, which owns the session table and whatever caching sits in
+ * front of it. Deleting rows directly - and guessing the column name at runtime - works only while
+ * the cookie cache happens to be disabled, and stops being immediate the moment it is turned on.
+ */
+export async function endGlobalSession(): Promise<CapabilityOutput<'k5_session_end_global'>> {
+  const { headers } = await import('next/headers');
+  const { auth } = await import('@/lib/auth');
+  await auth.api.revokeSessions({ headers: await headers() });
+  return { success: true, message: 'Todas as sessões ativas foram encerradas.' };
 }

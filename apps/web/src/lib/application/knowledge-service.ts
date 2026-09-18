@@ -6,11 +6,12 @@ import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
 import { searchKnowledgeEngine } from '@/lib/knowledge/retrieval';
+import { activeGeneration, enqueueIndexJob } from '@/lib/knowledge/indexing';
 
-export function searchKnowledge(
+export async function searchKnowledge(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_search'>
-): CapabilityOutput<'k5_knowledge_search'> {
+): Promise<CapabilityOutput<'k5_knowledge_search'>> {
   return searchKnowledgeEngine(context, input);
 }
 
@@ -64,53 +65,59 @@ export function getKnowledgeIndexStatus(
   const doc = findVaultDocument(context.officeId, input.documentId);
   if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
 
-  const activeGen = database.prepare(
-    "SELECT id FROM knowledge_index_generation WHERE office_id=? AND status='active' ORDER BY created_at DESC LIMIT 1"
-  ).get(context.officeId) as { id: string } | undefined;
+  const generation = activeGeneration(context.officeId);
 
   let vectorIndexed = false;
-  if (activeGen) {
-    const vectorCount = Number(
-      database.prepare(
-        'SELECT count(*) AS n FROM vault_document_chunk_vector WHERE office_id=? AND document_id=? AND generation_id=?'
-      ).get(context.officeId, doc.id, activeGen.id)?.n ?? 0
-    );
-    vectorIndexed = vectorCount > 0;
+  if (generation) {
+    const count = Number(database.prepare(
+      'SELECT count(*) AS n FROM vault_document_chunk_vector WHERE office_id=? AND document_id=? AND generation_id=?'
+    ).get(context.officeId, doc.id, generation.id)?.n ?? 0);
+    vectorIndexed = count > 0;
   }
 
+  const job = database.prepare(
+    'SELECT status, chunks_done AS done, chunks_total AS total, error FROM knowledge_index_job WHERE office_id=? AND document_id=? ORDER BY updated_at DESC LIMIT 1'
+  ).get(context.officeId, input.documentId) as { status: string; done: number; total: number; error: string | null } | undefined;
+
+  // Extraction and semantic indexing are distinct states: a document can be searchable lexically
+  // while its vectors are still pending, and saying so is the point of reporting them apart.
   return {
     documentId: doc.id,
     status: doc.status,
     extractionStatus: doc.status === 'ready' ? 'concluída' : doc.status,
+    indexingStatus: job?.status ?? (generation ? 'não enfileirado' : 'sem perfil de embedding'),
+    indexedChunks: Number(job?.done ?? 0),
+    totalChunks: Number(job?.total ?? doc.sourceCount ?? 0),
     vectorIndexed,
-    generationId: activeGen?.id ?? null,
+    generationId: generation?.id ?? null,
   };
 }
 
+/**
+ * Actually enqueues durable work. Returning `enqueued: true` after creating a row and scheduling
+ * nothing is a false success: the caller is told indexing will happen and it never does.
+ */
 export function reindexKnowledge(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_reindex'>
 ): CapabilityOutput<'k5_knowledge_reindex'> {
   const doc = findVaultDocument(context.officeId, input.documentId);
   if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
+  if (doc.status !== 'ready') throw new CapabilityError('NOT_READY', `O documento "${doc.name}" ainda está em processamento.`);
 
-  // Idempotently create active index generation if none exists
-  let gen = database.prepare(
-    "SELECT id FROM knowledge_index_generation WHERE office_id=? AND status='active' LIMIT 1"
-  ).get(context.officeId) as { id: string } | undefined;
-
-  if (!gen) {
-    const genId = randomUUID();
-    database.prepare(`
-      INSERT INTO knowledge_index_generation (id, office_id, profile_name, model_id, dimension, chunker, status)
-      VALUES (?, ?, 'default', 'k5-embed-v1', 1536, 'structural', 'active')
-    `).run(genId, context.officeId);
-    gen = { id: genId };
+  // Extraction is not redone: the chunks already exist and only the embeddings are recomputed.
+  const queued = enqueueIndexJob(context.officeId, input.documentId);
+  if (!queued) {
+    throw new CapabilityError(
+      'NOT_READY',
+      'Nenhum modelo de embedding está configurado para este escritório. Configure o perfil de embedding antes de reindexar.'
+    );
   }
 
   return {
     enqueued: true,
-    message: `Reindexação do documento "${doc.name}" enfileirada com sucesso na geração ${gen.id}.`,
+    message: `Reindexação semântica do documento "${doc.name}" enfileirada.`,
+    generationId: queued.generationId,
   };
 }
 

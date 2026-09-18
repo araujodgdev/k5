@@ -1,25 +1,26 @@
-import { database } from '@/lib/database';
-import { apiWorkspace, apiError, ApiError, limitedJson } from '@/lib/workspace-api';
-import { ownedRun, publicRun } from '@/lib/ai-store';
+import { handleCapability } from '@/lib/capability-route';
+import { apiError, ApiError, limitedJson } from '@/lib/workspace-api';
 import { z } from 'zod';
+
+export const runtime = 'nodejs';
+
 type Context = { params: Promise<{ id: string }> };
+
 export async function GET(request: Request, context: Context) {
-  try {
-    const { user, office } = await apiWorkspace(request);
-    const run = ownedRun(database, { officeId: office.officeId, userId: user.id }, (await context.params).id);
-    if (!run) throw new ApiError(404, 'Tarefa não encontrada.');
-    return Response.json({ run: publicRun(run) });
-  } catch (e) { return apiError(e); }
+  return handleCapability(request, 'k5_runs_get', { runId: (await context.params).id });
 }
+
 export async function PATCH(request: Request, context: Context) {
   try {
-    const { user, office } = await apiWorkspace(request, true);
-    const { action } = z.object({ action: z.enum(['retry', 'cancel']) }).parse(await limitedJson(request));
-    const run = ownedRun(database, { officeId: office.officeId, userId: user.id }, (await context.params).id);
-    if (!run) throw new ApiError(404, 'Tarefa não encontrada.');
-    if (action === 'retry' && run.status === 'failed') database.prepare("UPDATE ai_run SET status='queued',error=NULL,attempts=0,lease_until=0 WHERE id=?").run(run.id);
-    else if (action === 'cancel' && ['queued','running'].includes(run.status)) database.prepare("UPDATE ai_run SET status='cancelled',lease_until=0 WHERE id=?").run(run.id);
-    else throw new ApiError(409, 'Esta ação não está disponível para a tarefa.');
-    return Response.json({ run: publicRun(ownedRun(database, { officeId: office.officeId, userId: user.id }, run.id)!) });
-  } catch (e) { return apiError(e); }
+    const runId = (await context.params).id;
+    const body = z.object({ action: z.enum(['retry', 'cancel']), idempotencyKey: z.string().min(8).max(128).optional() })
+      .parse(await limitedJson(request));
+    // Both actions run through the same service the agent uses, so the state transitions and the
+    // conflict messages are identical whichever adapter asked.
+    const cloned = new Request(request.url, { method: 'PATCH', headers: request.headers, body: JSON.stringify({ runId, idempotencyKey: body.idempotencyKey }) });
+    return handleCapability(cloned, body.action === 'cancel' ? 'k5_runs_cancel' : 'k5_runs_retry', { runId });
+  } catch (error) {
+    if (error instanceof ApiError) return apiError(error);
+    return apiError(error);
+  }
 }

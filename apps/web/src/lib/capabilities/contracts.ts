@@ -7,6 +7,8 @@ import type { OfficeRole } from '@/lib/offices';
  * The output schema is the DTO fence — Zod strips whatever it does not declare,
  * so an internal field added to a row never reaches the model by accident.
  */
+export type CapabilitySurface = 'agent' | 'webmcp';
+
 export type Capability = {
   module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'citations' | 'ui' | 'session' | 'platform';
   description: string;
@@ -14,12 +16,21 @@ export type Capability = {
   roles: readonly OfficeRole[];
   input: z.ZodType;
   output: z.ZodType;
+  /** Where this capability may be published. Absent means both adapters; [] means neither. */
+  publish?: readonly CapabilitySurface[];
 };
 
 const readers: readonly OfficeRole[] = ['administrator', 'lawyer', 'reviewer'];
 const writers: readonly OfficeRole[] = ['administrator', 'lawyer'];
 
 const identifier = z.string().min(1).max(64);
+const uuid = z.string().uuid();
+/**
+ * Supplied by the caller so a retried tool call, a regenerated turn or a reconnect resolves to the
+ * same write. It is part of the contract precisely so the schema does not strip it before the
+ * executor can see it.
+ */
+const idempotencyKey = z.string().min(8).max(128).optional();
 const documentIds = z.array(identifier).min(1).max(100);
 
 export const caseDto = z.object({ id: z.string(), name: z.string(), createdAt: z.string() });
@@ -54,19 +65,19 @@ export const capabilities = {
   k5_vault_create_case: {
     module: 'vault', effect: 'write', roles: writers,
     description: 'Cria um caso no Cofre. Se já existir um caso com o mesmo nome, devolve o existente em vez de duplicar.',
-    input: z.object({ name: z.string().trim().min(2).max(180).describe('Nome do caso, por exemplo "Silva vs. Construtora Horizonte".') }),
+    input: z.object({ name: z.string().trim().min(2).max(180).describe('Nome do caso, por exemplo "Silva vs. Construtora Horizonte".'), idempotencyKey }),
     output: z.object({ case: caseDto, created: z.boolean() }),
   },
   k5_vault_update_case: {
     module: 'vault', effect: 'write', roles: writers,
     description: 'Atualiza o nome de um caso existente no Cofre.',
-    input: z.object({ caseId: identifier, name: z.string().trim().min(2).max(180) }),
+    input: z.object({ caseId: identifier, name: z.string().trim().min(2).max(180), idempotencyKey }),
     output: z.object({ case: caseDto }),
   },
   k5_vault_delete_case: {
     module: 'vault', effect: 'write', roles: writers,
     description: 'Remove um caso do Cofre. Requer confirmação/aprovação explícita e reatribuição dos documentos vinculados.',
-    input: z.object({ caseId: identifier, targetCaseId: identifier.optional(), approvalId: z.string().optional() }),
+    input: z.object({ caseId: identifier, targetCaseId: identifier.optional(), approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
   k5_vault_list_documents: {
@@ -91,19 +102,20 @@ export const capabilities = {
       documentId: identifier,
       name: z.string().trim().min(1).max(255).optional(),
       caseId: identifier.nullable().optional(),
+      idempotencyKey,
     }),
     output: z.object({ document: documentDto }),
   },
   k5_vault_delete_document: {
     module: 'vault', effect: 'write', roles: writers,
     description: 'Remove um documento do Cofre com tombstone imediato nos índices e consultas. Requer aprovação explícita.',
-    input: z.object({ documentId: identifier, approvalId: z.string().optional() }),
+    input: z.object({ documentId: identifier, approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
   k5_vault_add_document_version: {
     module: 'vault', effect: 'write', roles: writers,
     description: 'Adiciona uma nova versão imutável a um documento existente via referência de upload.',
-    input: z.object({ documentId: identifier, uploadRef: identifier }),
+    input: z.object({ documentId: identifier, uploadRef: uuid.describe('Referência devolvida pelo envio de arquivo.'), idempotencyKey }),
     output: z.object({ document: documentDto, version: z.number() }),
   },
   k5_vault_download_document: {
@@ -115,15 +127,16 @@ export const capabilities = {
   k5_vault_retry_ingestion: {
     module: 'vault', effect: 'write', roles: writers,
     description: 'Reenvia para processamento um documento cuja extração falhou.',
-    input: z.object({ documentId: identifier }), output: z.object({ document: documentDto }),
+    input: z.object({ documentId: identifier, idempotencyKey }), output: z.object({ document: documentDto }),
   },
   k5_vault_ingest_upload: {
     module: 'vault', effect: 'write', roles: writers,
     description: 'Confirma um upload prévio e enfileira a ingestão no Cofre.',
     input: z.object({
-      uploadRef: identifier,
+      uploadRef: uuid.describe('Referência devolvida pelo envio de arquivo; o agente nunca informa um caminho.'),
       scope: z.enum(['library', 'case']),
       caseId: identifier.optional(),
+      idempotencyKey,
     }),
     output: z.object({ document: documentDto }),
   },
@@ -134,9 +147,12 @@ export const capabilities = {
       query: z.string().trim().min(2).max(500).describe('Pergunta ou termos a buscar, em português.'),
       documentIds: documentIds.describe('Documentos autorizados para esta busca.'),
       limit: z.number().int().min(1).max(12).default(8),
-      queryVector: z.array(z.number()).optional().describe('Vetor numérico de consulta para busca semântica/híbrida.'),
     }),
-    output: z.object({ sources: z.array(sourceDto), degraded: z.boolean().describe('Verdadeiro quando a busca foi apenas lexical.') }),
+    output: z.object({
+      sources: z.array(sourceDto),
+      degraded: z.boolean().describe('Verdadeiro quando a busca foi apenas lexical.'),
+      degradedReason: z.string().optional().describe('Por que a busca semântica não foi usada.'),
+    }),
   },
   k5_knowledge_get_source: {
     module: 'knowledge', effect: 'read', roles: readers,
@@ -150,14 +166,16 @@ export const capabilities = {
     input: z.object({ documentId: identifier }),
     output: z.object({
       documentId: z.string(), status: z.string(), extractionStatus: z.string(),
+      indexingStatus: z.string().describe('Estado da indexação semântica, separado da extração.'),
+      indexedChunks: z.number(), totalChunks: z.number(),
       vectorIndexed: z.boolean(), generationId: z.string().nullable(),
     }),
   },
   k5_knowledge_reindex: {
     module: 'knowledge', effect: 'write', roles: writers,
     description: 'Enfileira reindexação semântica e lexical de um documento sem refazer OCR existente.',
-    input: z.object({ documentId: identifier }),
-    output: z.object({ enqueued: z.boolean(), message: z.string() }),
+    input: z.object({ documentId: identifier, idempotencyKey }),
+    output: z.object({ enqueued: z.boolean(), message: z.string(), generationId: z.string().nullable() }),
   },
   k5_runs_list: {
     module: 'runs', effect: 'read', roles: readers,
@@ -173,18 +191,18 @@ export const capabilities = {
   k5_runs_cancel: {
     module: 'runs', effect: 'write', roles: writers,
     description: 'Cancela uma tarefa na fila ou em execução.',
-    input: z.object({ runId: identifier }), output: z.object({ run: runDto }),
+    input: z.object({ runId: identifier, idempotencyKey }), output: z.object({ run: runDto }),
   },
   k5_runs_retry: {
     module: 'runs', effect: 'write', roles: writers,
     description: 'Recoloca na fila uma tarefa que falhou.',
-    input: z.object({ runId: identifier }), output: z.object({ run: runDto }),
+    input: z.object({ runId: identifier, idempotencyKey }), output: z.object({ run: runDto }),
   },
   k5_documents_start_chronology: {
     module: 'runs', effect: 'write', roles: writers,
     description: 'Inicia a revisão exaustiva dos documentos escolhidos e monta uma cronologia dos fatos. Devolve a tarefa; o resultado fica pronto em segundo plano.',
     input: z.object({
-      documentIds, instructions: z.string().trim().min(1).max(12000).describe('O que a cronologia deve priorizar.'),
+      documentIds, instructions: z.string().trim().min(1).max(12000).describe('O que a cronologia deve priorizar.'), idempotencyKey,
     }),
     output: z.object({ run: runDto }),
   },
@@ -193,7 +211,7 @@ export const capabilities = {
     description: 'Inicia a redação de uma minuta a partir dos documentos escolhidos. Sem citações jurídicas: autoridades exigem seleção humana na tela.',
     input: z.object({
       documentIds, instructions: z.string().trim().min(1).max(12000).describe('O pedido da minuta.'),
-      templateId: identifier.optional().describe('Documento do Cofre usado apenas como modelo de estilo.'),
+      templateId: identifier.optional().describe('Documento do Cofre usado apenas como modelo de estilo.'), idempotencyKey,
     }),
     output: z.object({ run: runDto }),
   },
@@ -213,7 +231,7 @@ export const capabilities = {
     description: 'Salva uma nova versão de um documento gerado. Exige a versão atual; se o documento tiver mudado, a gravação é recusada.',
     input: z.object({
       artifactId: identifier, title: z.string().trim().min(1).max(200),
-      content: z.string().min(1).max(400_000), version: z.number().int().positive().describe('Versão lida em k5_artifacts_get.'),
+      content: z.string().min(1).max(400_000), version: z.number().int().positive().describe('Versão lida em k5_artifacts_get.'), idempotencyKey,
     }),
     output: z.object({ artifact: artifactDto }),
   },
@@ -226,7 +244,7 @@ export const capabilities = {
   k5_artifacts_restore_version: {
     module: 'artifacts', effect: 'write', roles: writers,
     description: 'Restaura uma versão anterior de um documento gerado, gerando uma nova versão correspondente.',
-    input: z.object({ artifactId: identifier, version: z.number().int().positive() }),
+    input: z.object({ artifactId: identifier, version: z.number().int().positive(), idempotencyKey }),
     output: z.object({ artifact: artifactDto }),
   },
   k5_artifacts_export_docx: {
@@ -250,13 +268,13 @@ export const capabilities = {
   k5_conversations_create: {
     module: 'conversations', effect: 'write', roles: writers,
     description: 'Cria uma nova conversa no escritório atual.',
-    input: z.object({ title: z.string().trim().min(1).max(120).optional() }),
+    input: z.object({ title: z.string().trim().min(1).max(120).optional(), idempotencyKey }),
     output: z.object({ conversation: conversationDto }),
   },
   k5_conversations_delete: {
     module: 'conversations', effect: 'write', roles: writers,
     description: 'Exclui uma conversa existente se não estiver ocupada.',
-    input: z.object({ conversationId: identifier }),
+    input: z.object({ conversationId: identifier, idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
   k5_context_set_sources: {
@@ -279,6 +297,9 @@ export const capabilities = {
     description: 'Encerra imediatamente todas as sessões ativas da conta em todos os dispositivos.',
     input: z.object({}),
     output: z.object({ success: z.boolean(), message: z.string() }),
+    // Terminal and irreversible, and a document the agent is reading is untrusted input. The
+    // interface keeps the button; neither adapter gets a tool that can log the person out.
+    publish: [],
   },
 } as const satisfies Record<string, Capability>;
 
@@ -290,6 +311,17 @@ export const capabilityNames = Object.keys(capabilities) as CapabilityName[];
 
 export function capabilitiesForRole(role: OfficeRole): CapabilityName[] {
   return capabilityNames.filter((name) => (capabilities[name].roles as readonly OfficeRole[]).includes(role));
+}
+
+/**
+ * Role decides what a person may do; `publish` decides which adapter may offer it. A capability
+ * can be legitimate for this role and still have no business being a tool an agent can call.
+ */
+export function publishedCapabilitiesForRole(role: OfficeRole, surface: CapabilitySurface): CapabilityName[] {
+  return capabilitiesForRole(role).filter((name) => {
+    const published = (capabilities[name] as Capability).publish;
+    return published === undefined || published.includes(surface);
+  });
 }
 
 // Separate catalog for platform administrator operations (Section 5.3)
@@ -319,12 +351,14 @@ export const platformCapabilities = {
       officeId: identifier,
       name: z.string().trim().min(2).max(80),
       provider: z.enum(['openai', 'anthropic', 'google', 'deepseek', 'inception', 'openrouter', 'vercel']),
-      apiKey: z.string().trim().min(1).max(4096),
+      // Opaque reference to a key a human already submitted through the platform form.
+      secretRef: z.string().uuid().describe('Referência de segredo emitida pelo formulário da plataforma.'),
       enabled: z.boolean().optional(),
       models: z.object({
         chat: z.string().max(160).nullable().optional(),
         extraction: z.string().max(160).nullable().optional(),
         drafting: z.string().max(160).nullable().optional(),
+        embedding: z.string().max(160).nullable().optional(),
       }).optional(),
     }),
     output: z.object({
@@ -345,12 +379,13 @@ export const platformCapabilities = {
       connectionId: identifier,
       name: z.string().trim().min(2).max(80).optional(),
       provider: z.enum(['openai', 'anthropic', 'google', 'deepseek', 'inception', 'openrouter', 'vercel']).optional(),
-      apiKey: z.string().trim().min(1).max(4096).optional(),
+      secretRef: z.string().uuid().optional().describe('Referência de segredo emitida pelo formulário da plataforma; obrigatória apenas ao rotacionar a chave.'),
       enabled: z.boolean().optional(),
       models: z.object({
         chat: z.string().max(160).nullable().optional(),
         extraction: z.string().max(160).nullable().optional(),
         drafting: z.string().max(160).nullable().optional(),
+        embedding: z.string().max(160).nullable().optional(),
       }).optional(),
     }),
     output: z.object({

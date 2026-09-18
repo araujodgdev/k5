@@ -7,6 +7,7 @@ import {
   capabilities,
   capabilitiesForRole,
   capabilityNames,
+  publishedCapabilitiesForRole,
 } from "../src/lib/capabilities/contracts";
 import { CapabilityError } from "../src/lib/capabilities/errors";
 import { assertCapabilityAllowed, type WorkspaceContext } from "../src/lib/application/context";
@@ -18,9 +19,12 @@ import * as approvalsService from "../src/lib/application/approvals-service";
 import { withIdempotency } from "../src/lib/application/idempotency-service";
 import { agentTools, toolSummary } from "../src/lib/agent-tools";
 import { registerWebMCPCapabilities, executeViaHttp } from "../src/lib/webmcp/adapter";
+import * as uploadsService from "../src/lib/application/uploads-service";
+import { vectorIndex } from "../src/lib/knowledge/vector-index";
 import * as uiService from "../src/lib/application/ui-service";
 import * as platformService from "../src/lib/application/platform-service";
 import { grantPlatformAdmin } from "../src/lib/platform-core";
+import { createSecretRef } from "../src/lib/application/secrets-service";
 
 function seedFixture() {
   const userAdmin = randomUUID();
@@ -51,6 +55,12 @@ function seedFixture() {
     );
 
   return { userAdmin, userLawyer, userReviewer, userOfficeB, officeA, officeB };
+}
+
+/** Mints a genuine upload reference: bytes through the storage adapter, row in the database. */
+function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
+  const file = new File([Buffer.from(`conteudo-${randomUUID()}`)], name, { type: "application/pdf" });
+  return uploadsService.createUploadRef(context, file);
 }
 
 test("capabilities contract: complete catalog and role permissions", () => {
@@ -134,14 +144,14 @@ test("vault service: idempotent case creation, update and deletion with approval
   );
 });
 
-test("vault document service: versions, tombstone and office isolation", () => {
+test("vault document service: versions, tombstone and office isolation", async () => {
   const { userLawyer, userOfficeB, officeA, officeB } = seedFixture();
   const contextA: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
   const contextB: WorkspaceContext = { officeId: officeB, userId: userOfficeB, role: "lawyer" };
 
-  // Ingest document for Office A
+  // Ingest document for Office A through a real, server-issued upload reference
   const ingested = vaultService.ingestUpload(contextA, {
-    uploadRef: `upload-doc-${randomUUID()}`,
+    uploadRef: (await seedUpload(contextA, "contrato.pdf")).id,
     scope: "library",
   });
   assert.ok(ingested.document.id);
@@ -155,9 +165,9 @@ test("vault document service: versions, tombstone and office isolation", () => {
   // Add document version
   const v2 = vaultService.addDocumentVersion(contextA, {
     documentId: ingested.document.id,
-    uploadRef: "upload-doc-v2",
+    uploadRef: (await seedUpload(contextA, "contrato-v2.pdf")).id,
   });
-  assert.equal(v2.version, 2);
+  assert.equal(v2.version, 2, "version 2 follows the version 1 recorded at ingestion");
 
   // Delete document requires approval
   assert.throws(
@@ -172,7 +182,7 @@ test("vault document service: versions, tombstone and office isolation", () => {
   assert.equal(deleted.success, true);
 });
 
-test("knowledge engine: hybrid retrieval, source inspection and audit", () => {
+test("knowledge engine: hybrid retrieval, source inspection and audit", async () => {
   const { userLawyer, officeA } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
@@ -192,7 +202,7 @@ test("knowledge engine: hybrid retrieval, source inspection and audit", () => {
   `).run(chunk1Id, docId, officeA, chunk2Id, docId, officeA);
 
   // 1. Search knowledge (returns lexical chunks marked degraded: true because no active vector generation)
-  const searchResult = knowledgeService.searchKnowledge(context, {
+  const searchResult = await knowledgeService.searchKnowledge(context, {
     query: "aluguel mensal",
     documentIds: [docId],
   });
@@ -208,7 +218,8 @@ test("knowledge engine: hybrid retrieval, source inspection and audit", () => {
     source_count: number;
   };
   assert.ok(audit);
-  assert.equal(audit.query, "aluguel mensal");
+  assert.notEqual(audit.query, "aluguel mensal", "the question itself is not retained");
+  assert.match(audit.query, /^[0-9a-f]{32}$/, "a hash identifies repeats without storing the text");
   assert.equal(audit.degraded, 1);
 
   // 3. Inspect source with adjacent context
@@ -224,9 +235,12 @@ test("knowledge engine: hybrid retrieval, source inspection and audit", () => {
   assert.equal(status.status, "ready");
   assert.equal(status.vectorIndexed, false);
 
-  // 5. Reindex
-  const reindexRes = knowledgeService.reindexKnowledge(context, { documentId: docId });
-  assert.equal(reindexRes.enqueued, true);
+  // 5. Reindex without an embedding profile is refused instead of falsely reporting success
+  assert.throws(
+    () => knowledgeService.reindexKnowledge(context, { documentId: docId }),
+    (err: unknown) => err instanceof CapabilityError && err.code === "NOT_READY",
+    "no embedding profile means no queue, and saying so beats returning enqueued: true"
+  );
 });
 
 test("idempotency: cached execution prevents duplicated writes", () => {
@@ -328,7 +342,10 @@ test("agent tools: mastra tools creation and summary formatting", () => {
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   const tools = agentTools(context);
-  assert.equal(Object.keys(tools).length, 35);
+  // The catalog is the published set for this role, not every capability the role may exercise:
+  // global logout stays out of it even though a lawyer is allowed to log themselves out.
+  assert.deepEqual(Object.keys(tools).sort(), publishedCapabilitiesForRole("lawyer", "agent").sort());
+  assert.ok(!Object.keys(tools).includes("k5_session_end_global"));
 
   // Formatting summaries
   const s1 = toolSummary("k5_vault_list_cases", { cases: [{}, {}] }, false);
@@ -356,9 +373,8 @@ test("webmcp: registration adapter handles mock browser modelContext", () => {
   };
 
   const cleanup = registerWebMCPCapabilities("reviewer");
-  // Reviewer should only register read capabilities
-  const reviewerCount = capabilitiesForRole("reviewer").length;
-  assert.equal(registered.length, reviewerCount);
+  // A reviewer registers exactly the read capabilities published to the browser.
+  assert.deepEqual(registered.sort(), publishedCapabilitiesForRole("reviewer", "webmcp").sort());
   assert.ok(registered.includes("k5_vault_list_cases"));
   assert.ok(!registered.includes("k5_vault_create_case"));
 
@@ -396,7 +412,7 @@ test("approval security: rejects modified target resource or modified input argu
   );
 });
 
-test("knowledge engine: vector cosine similarity and RRF fusion in hybrid retrieval", () => {
+test("knowledge engine: vectors fuse with lexical hits and tombstones stay out", async () => {
   const { userLawyer, officeA } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
@@ -416,43 +432,30 @@ test("knowledge engine: vector cosine similarity and RRF fusion in hybrid retrie
            (?, ?, ?, 1, 'página:2', 'Foro de eleição na comarca de Curitiba Paraná.')
   `).run(chunkId1, docId, officeA, chunkId2, docId, officeA);
 
-  // Create active generation with dimension 3
   testDb.prepare(`
     INSERT INTO knowledge_index_generation (id, office_id, profile_name, model_id, dimension, chunker, status)
-    VALUES (?, ?, 'default', 'test-embed', 3, 'structural', 'active')
+    VALUES (?, ?, 'embedding', 'test-embed', 3, 'structural', 'active')
   `).run(genId, officeA);
 
-  // Chunk 1 has embedding [1, 0, 0], Chunk 2 has embedding [0, 1, 0]
-  testDb.prepare(`
-    INSERT INTO vault_document_chunk_vector (id, office_id, document_id, chunk_id, generation_id, embedding)
-    VALUES (?, ?, ?, ?, ?, '[1, 0, 0]'),
-           (?, ?, ?, ?, ?, '[0, 1, 0]')
-  `).run(randomUUID(), officeA, docId, chunkId1, genId, randomUUID(), officeA, docId, chunkId2, genId);
+  // The index adapter stores float32 blobs; the query vector is produced by the server, never
+  // by the caller, so the test drives the adapter the same way the worker does.
+  await vectorIndex().upsert(officeA, genId, [
+    { chunkId: chunkId1, documentId: docId, embedding: Float32Array.from([1, 0, 0]) },
+    { chunkId: chunkId2, documentId: docId, embedding: Float32Array.from([0, 1, 0]) },
+  ]);
 
-  // 1. Without queryVector -> falls back to degraded lexical
-  const lexicalOnly = knowledgeService.searchKnowledge(context, {
-    query: "rescisão",
-    documentIds: [docId],
-  });
-  assert.equal(lexicalOnly.degraded, true);
-  assert.equal(lexicalOnly.sources.length, 1);
-  assert.equal(lexicalOnly.sources[0].sourceId, chunkId1);
+  const hits = await vectorIndex().query(officeA, genId, Float32Array.from([0, 1, 0]), { documentIds: [docId], topK: 5 });
+  assert.equal(hits[0]?.chunkId, chunkId2, "cosine similarity ranks the semantically closest chunk first");
 
-  // 2. With queryVector matching chunk 2 ([0, 1, 0]) while lexical query matches chunk 1 ("rescisão")
-  // Both chunks should appear in hybrid fusion, with chunk 2 included due to semantic vector similarity!
-  const hybrid = knowledgeService.searchKnowledge(context, {
-    query: "rescisão",
-    documentIds: [docId],
-    queryVector: [0, 1, 0],
-  });
-  assert.equal(hybrid.degraded, false);
-  assert.ok(hybrid.sources.length >= 2);
-  const foundChunk2 = hybrid.sources.find(s => s.sourceId === chunkId2);
-  assert.ok(foundChunk2, "Chunk 2 must be retrieved via vector cosine similarity");
+  // Without an embedding profile the search degrades to lexical, and says so.
+  const lexical = await knowledgeService.searchKnowledge(context, { query: "rescisão", documentIds: [docId] });
+  assert.equal(lexical.degraded, true);
+  assert.ok(lexical.degradedReason, "a degraded search explains why it is degraded");
+  assert.equal(lexical.sources[0].sourceId, chunkId1);
 
-  // 3. Soft-deleted document is rejected
+  // A tombstoned document is refused even though its vectors are still in the index.
   testDb.prepare("UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP WHERE id=?").run(docId);
-  assert.throws(
+  await assert.rejects(
     () => knowledgeService.searchKnowledge(context, { query: "rescisão", documentIds: [docId] }),
     (err: unknown) => err instanceof CapabilityError && err.code === "NOT_FOUND"
   );
@@ -499,35 +502,42 @@ test("ui service: openResource validates resource access and throws NOT_FOUND on
   assert.equal(res.path, `/app/vault?caseId=${encodeURIComponent(localCase.case.id)}`);
 });
 
-test("webmcp: executeViaHttp handles all 35 capabilities without throwing unsupported operation", async () => {
-  // Mock global fetch to return dummy JSON
+test("webmcp: every published capability has a route, a schema and typed failures", async () => {
   const originalFetch = globalThis.fetch;
-  (globalThis as unknown as { fetch: typeof fetch }).fetch = async () => ({
-    ok: true,
-    json: async () => ({ success: true, dummy: true }),
-  } as unknown as Response);
+  let lastUrl = "";
+  (globalThis as unknown as { fetch: typeof fetch }).fetch = async (input: RequestInfo | URL) => {
+    lastUrl = String(input);
+    return { ok: true, status: 200, json: async () => ({ success: true }) } as unknown as Response;
+  };
 
   try {
-    for (const name of capabilityNames) {
-      // Execute via HTTP adapter: no capability must throw "não suportada"
+    const published = publishedCapabilitiesForRole("administrator", "webmcp");
+    assert.ok(!published.includes("k5_session_end_global"), "global logout is never a browser tool");
+
+    for (const name of published) {
       const result = await executeViaHttp(name, {
-        caseId: "c1",
-        documentId: "d1",
-        artifactId: "a1",
-        runId: "r1",
-        conversationId: "conv1",
-        uploadRef: "u1",
-        documentIds: ["d1"],
-        query: "teste",
-        name: "nome",
-        title: "titulo",
-        content: "conteudo",
-        version: 1,
-        instructions: "instrucoes",
-        resourceType: "vault",
+        caseId: randomUUID(), documentId: randomUUID(), artifactId: randomUUID(),
+        runId: randomUUID(), conversationId: randomUUID(), uploadRef: randomUUID(),
+        documentIds: [randomUUID()], query: "teste", name: "nome do caso", title: "titulo",
+        content: "conteudo", version: 1, instructions: "instrucoes", resourceType: "vault",
+        stableReference: "página:1", scope: "library",
       });
-      assert.ok(result !== undefined, `Capability ${name} returned undefined`);
+      assert.equal(result.ok, true, `${name} should reach a route: ${JSON.stringify(result)}`);
     }
+    assert.ok(lastUrl.startsWith("/api/"), "routes stay same-origin");
+
+    // A refusal from the server is a typed failure, not a result the agent reads as success.
+    (globalThis as unknown as { fetch: typeof fetch }).fetch = async () => ({
+      ok: false, status: 403, json: async () => ({ error: "Origem não autorizada.", code: "FORBIDDEN" }),
+    } as unknown as Response);
+    const denied = await executeViaHttp("k5_vault_list_cases", {});
+    assert.equal(denied.ok, false);
+    assert.equal(denied.ok === false && denied.code, "FORBIDDEN");
+
+    // Bad arguments fail against the same contract the server enforces.
+    const invalid = await executeViaHttp("k5_knowledge_search", { query: "x", documentIds: [] });
+    assert.equal(invalid.ok, false);
+    assert.equal(invalid.ok === false && invalid.code, "INVALID");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -546,9 +556,10 @@ test("platform service: create, list, and delete AI connection operations", () =
     officeId: officeA,
     name: "Conexão Teste OpenAI",
     provider: "openai",
-    apiKey: "sk-test-fake-key-12345",
+    // The key reached the server through a human form; the tool only carries the reference.
+    secretRef: createSecretRef(userAdmin, "sk-test-fake-key-12345").id,
     enabled: true,
-    models: { chat: "gpt-4o", extraction: null, drafting: null },
+    models: { chat: "gpt-4o", extraction: null, drafting: null, embedding: null },
   });
   assert.equal(created.connection.name, "Conexão Teste OpenAI");
   assert.equal(created.connection.provider, "openai");
@@ -563,7 +574,7 @@ test("platform service: create, list, and delete AI connection operations", () =
     officeId: officeA,
     connectionId: created.connection.id,
     name: "Conexão Teste OpenAI v2",
-    models: { chat: null, extraction: null, drafting: null },
+    models: { chat: null, extraction: null, drafting: null, embedding: null },
   });
   assert.equal(updated.connection.name, "Conexão Teste OpenAI v2");
 

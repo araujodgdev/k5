@@ -1,11 +1,11 @@
-import { apiWorkspace, apiError, ApiError } from '@/lib/workspace-api';
-import { selectedSources } from '@/lib/ai-sources';
-import { citationCandidates } from '@/lib/ai-policy';
+import { handleCapability, searchParamsInput } from '@/lib/capability-route';
+
+export const runtime = 'nodejs';
+
+/** Accepts repeated documentId params: the whole authorized selection, not just the first one. */
 export async function GET(request: Request) {
-  try {
-    const { office } = await apiWorkspace(request);
-    const id = new URL(request.url).searchParams.get('documentId');
-    if (!id) throw new ApiError(400, 'Selecione um documento.');
-    return Response.json({ candidates: citationCandidates(selectedSources(office.officeId, [id])) });
-  } catch (e) { return apiError(e); }
+  const params = searchParamsInput(request, ['documentId']);
+  const raw = params.documentId;
+  const documentIds = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return handleCapability(request, 'k5_citations_list_candidates', { documentIds });
 }

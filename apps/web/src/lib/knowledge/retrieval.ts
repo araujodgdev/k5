@@ -1,161 +1,153 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { database } from '@/lib/database';
 import { getDocumentChunks } from '@/lib/vault';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { WorkspaceContext } from '@/lib/application/context';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 
-import { cosineSimilarity, parseEmbedding } from './embedding';
+import { embedQuery, EmbeddingUnavailableError } from './embedding-provider';
+import { activeGeneration } from './indexing';
+import { vectorIndex } from './vector-index';
 
 export type SearchKnowledgeResult = CapabilityOutput<'k5_knowledge_search'>;
 
-export function searchKnowledgeEngine(
+const RRF_K = 60;
+const MAX_TEXT = 4000;
+
+type ScoredSource = {
+  sourceId: string;
+  documentId: string;
+  documentName: string;
+  sourceLabel: string;
+  text: string;
+  score: number;
+};
+
+/**
+ * Hybrid retrieval over an explicitly authorized scope. Every document id is re-checked against
+ * the office before a byte is read, and the vector filter is pushed into the index rather than
+ * applied to a global result set afterwards.
+ */
+export async function searchKnowledgeEngine(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_search'>,
-): SearchKnowledgeResult {
-  const { query, documentIds, limit = 8, queryVector } = input;
+): Promise<SearchKnowledgeResult> {
+  const { query, documentIds } = input;
+  const limit = input.limit ?? 8;
   if (!documentIds.length) {
     throw new CapabilityError('SCOPE_REQUIRED', 'Informe ao menos um documento autorizado no escopo.');
   }
 
-  // Authorize documents: must belong to context.officeId and not be deleted
-  const marks = documentIds.map(() => '?').join(',');
+  const unique = [...new Set(documentIds)];
+  const marks = unique.map(() => '?').join(',');
   const validDocs = database.prepare(
-    `SELECT id, original_name AS name, status FROM vault_document WHERE office_id=? AND deleted_at IS NULL AND id IN (${marks})`
-  ).all(context.officeId, ...documentIds) as Array<{ id: string; name: string; status: string }>;
+    `SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND id IN (${marks})`,
+  ).all(context.officeId, ...unique) as Array<{ id: string; name: string; status: string }>;
 
-  if (validDocs.length !== documentIds.length) {
+  if (validDocs.length !== unique.length) {
     throw new CapabilityError('NOT_FOUND', 'Um ou mais documentos selecionados não pertencem a este escritório ou foram excluídos.');
   }
+  const notReady = validDocs.find((doc) => doc.status !== 'ready');
+  if (notReady) throw new CapabilityError('NOT_READY', `O documento "${notReady.name}" ainda está em processamento.`);
 
-  const notReady = validDocs.find(d => d.status !== 'ready');
-  if (notReady) {
-    throw new CapabilityError('NOT_READY', `O documento "${notReady.name}" ainda está em processamento.`);
-  }
-
-  // 1. Lexical retrieval via FTS5
-  let lexicalChunks: ReturnType<typeof getDocumentChunks> = [];
-  try {
-    lexicalChunks = getDocumentChunks(context.officeId, documentIds, query);
-  } catch (err) {
-    throw new CapabilityError('INVALID', err instanceof Error ? err.message : 'Falha na recuperação lexical.');
-  }
-
-  // 2. Semantic vector retrieval if active generation exists and queryVector is provided
-  const activeGen = database.prepare(
-    "SELECT id, model_id, dimension FROM knowledge_index_generation WHERE office_id=? AND status='active' ORDER BY created_at DESC LIMIT 1"
-  ).get(context.officeId) as { id: string; model_id: string; dimension: number } | undefined;
-
-  let isDegraded = true;
-  let strategy = 'lexical';
-
-  type ScoredSource = {
-    sourceId: string;
-    documentId: string;
-    documentName: string;
-    sourceLabel: string;
-    text: string;
-    score: number;
-  };
-
-  const nameMap = new Map(validDocs.map(d => [d.id, d.name]));
+  const nameMap = new Map(validDocs.map((doc) => [doc.id, doc.name]));
   const scoreMap = new Map<string, ScoredSource>();
 
-  // Assign RRF score for lexical chunks
+  // 1. Lexical (FTS5/BM25).
+  let lexicalChunks: ReturnType<typeof getDocumentChunks> = [];
+  try {
+    lexicalChunks = getDocumentChunks(context.officeId, unique, query);
+  } catch (error) {
+    throw new CapabilityError('INVALID', error instanceof Error ? error.message : 'Falha na recuperação lexical.');
+  }
   lexicalChunks.forEach((chunk, rank) => {
-    const rrf = 1 / (60 + rank + 1);
     scoreMap.set(chunk.id, {
       sourceId: chunk.id,
       documentId: chunk.documentId,
       documentName: nameMap.get(chunk.documentId) ?? 'Documento',
       sourceLabel: chunk.sourceLabel,
-      text: chunk.content.slice(0, 4000),
-      score: rrf,
+      text: chunk.content.slice(0, MAX_TEXT),
+      score: 1 / (RRF_K + rank + 1),
     });
   });
 
-  if (activeGen && queryVector && queryVector.length === activeGen.dimension) {
-    // Look for vector embeddings in this generation for the selected documents
-    const vectorRows = database.prepare(
-      `SELECT v.chunk_id, v.embedding, c.document_id, c.stable_reference, c.content
-       FROM vault_document_chunk_vector v
-       JOIN vault_document_chunk c ON c.id = v.chunk_id
-       WHERE v.office_id=? AND v.generation_id=? AND c.document_id IN (${marks})`
-    ).all(context.officeId, activeGen.id, ...documentIds) as Array<{
-      chunk_id: string;
-      embedding: string;
-      document_id: string;
-      stable_reference: string;
-      content: string;
-    }>;
+  // 2. Semantic. The query is embedded here; the caller never supplies a vector or a filter.
+  let degraded = true;
+  let strategy = 'lexical';
+  let degradedReason: string | undefined;
 
-    const scoredVectors: Array<{ row: typeof vectorRows[0]; sim: number }> = [];
-    for (const vRow of vectorRows) {
-      const emb = parseEmbedding(vRow.embedding);
-      const sim = cosineSimilarity(queryVector, emb);
-      if (sim > 0) {
-        scoredVectors.push({ row: vRow, sim });
-      }
-    }
+  const generation = activeGeneration(context.officeId);
+  if (!generation) {
+    degradedReason = 'Nenhum índice semântico ativo para este escritório.';
+  } else {
+    try {
+      const { embedding } = await embedQuery(context.officeId, query);
+      const hits = await vectorIndex().query(context.officeId, generation.id, embedding, {
+        documentIds: unique,
+        topK: Math.max(limit * 3, 24),
+      });
 
-    scoredVectors.sort((a, b) => b.sim - a.sim);
+      if (hits.length) {
+        const hitIds = hits.map((hit) => hit.chunkId);
+        const hitMarks = hitIds.map(() => '?').join(',');
+        // Re-read from the business database: the index is derived data and never the authority
+        // on what this office may currently see.
+        const rows = database.prepare(
+          `SELECT c.id, c.document_id AS documentId, c.stable_reference AS stableReference, c.content
+           FROM vault_document_chunk c
+           JOIN vault_document d ON d.id = c.document_id AND d.office_id = c.office_id
+           WHERE c.office_id = ? AND d.deleted_at IS NULL AND c.id IN (${hitMarks})`,
+        ).all(context.officeId, ...hitIds) as Array<{ id: string; documentId: string; stableReference: string; content: string }>;
+        const byId = new Map(rows.map((row) => [String(row.id), row]));
 
-    scoredVectors.forEach((item, vRank) => {
-      const vRrf = 1 / (60 + vRank + 1);
-      const existing = scoreMap.get(item.row.chunk_id);
-      if (existing) {
-        existing.score += vRrf;
-      } else {
-        scoreMap.set(item.row.chunk_id, {
-          sourceId: item.row.chunk_id,
-          documentId: item.row.document_id,
-          documentName: nameMap.get(item.row.document_id) ?? 'Documento',
-          sourceLabel: `${nameMap.get(item.row.document_id) ?? 'Documento'} — ${item.row.stable_reference}`,
-          text: item.row.content.slice(0, 4000),
-          score: vRrf,
+        hits.forEach((hit, rank) => {
+          const row = byId.get(hit.chunkId);
+          if (!row) return;
+          const rrf = 1 / (RRF_K + rank + 1);
+          const existing = scoreMap.get(hit.chunkId);
+          if (existing) { existing.score += rrf; return; }
+          const documentName = nameMap.get(row.documentId) ?? 'Documento';
+          scoreMap.set(hit.chunkId, {
+            sourceId: String(row.id),
+            documentId: String(row.documentId),
+            documentName,
+            sourceLabel: `${documentName} — ${row.stableReference}`,
+            text: String(row.content).slice(0, MAX_TEXT),
+            score: rrf,
+          });
         });
-      }
-    });
 
-    if (scoredVectors.length > 0) {
-      isDegraded = false;
-      strategy = lexicalChunks.length > 0 ? 'hybrid' : 'vector';
+        degraded = false;
+        strategy = lexicalChunks.length > 0 ? 'hybrid' : 'vector';
+      } else {
+        degradedReason = 'Os documentos selecionados ainda não têm vetores publicados.';
+      }
+    } catch (error) {
+      if (error instanceof EmbeddingUnavailableError) degradedReason = error.message;
+      else degradedReason = 'A busca semântica falhou; a consulta usou apenas o índice lexical.';
     }
   }
 
-  const sortedSources = Array.from(scoreMap.values())
+  const sources = Array.from(scoreMap.values())
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map(({ sourceId, documentId, documentName, sourceLabel, text }) => ({
-      sourceId,
-      documentId,
-      documentName,
-      sourceLabel,
-      text,
-    }));
+    .map(({ sourceId, documentId, documentName, sourceLabel, text }) => ({ sourceId, documentId, documentName, sourceLabel, text }));
 
-  // Audit search
+  // The query itself is not retained: a hash identifies repeats without storing what was asked.
   try {
     database.prepare(`
       INSERT INTO knowledge_retrieval_audit (id, office_id, user_id, query, strategy, degraded, document_count, source_count)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      randomUUID(),
-      context.officeId,
-      context.userId,
-      query,
-      strategy,
-      isDegraded ? 1 : 0,
-      documentIds.length,
-      sortedSources.length,
+      randomUUID(), context.officeId, context.userId,
+      createHash('sha256').update(query).digest('hex').slice(0, 32),
+      strategy, degraded ? 1 : 0, unique.length, sources.length,
     );
   } catch {
-    // Retrieval audit should never fail the user query
+    // Retrieval audit must never fail the user query.
   }
 
-  return {
-    sources: sortedSources,
-    degraded: isDegraded,
-  };
+  return { sources, degraded, ...(degraded && degradedReason ? { degradedReason } : {}) };
 }

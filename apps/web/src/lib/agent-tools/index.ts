@@ -2,8 +2,8 @@ import 'server-only';
 import { createTool } from '@mastra/core/tools';
 import {
   capabilities,
-  capabilitiesForRole,
   platformCapabilities,
+  publishedCapabilitiesForRole,
   type Capability,
   type CapabilityName,
 } from '@/lib/capabilities/contracts';
@@ -17,6 +17,7 @@ import * as citations from '@/lib/application/citations-service';
 import * as knowledge from '@/lib/application/knowledge-service';
 import * as ui from '@/lib/application/ui-service';
 import * as platform from '@/lib/application/platform-service';
+import { endGlobalSession } from '@/lib/application/ui-service';
 
 type Executor = (context: WorkspaceContext, input: never) => unknown;
 
@@ -56,20 +57,47 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_conversations_delete: conversations.deleteConversation,
   k5_context_set_sources: knowledge.setScopeSources,
   k5_ui_open_resource: ui.openResource,
-  k5_session_end_global: ui.endGlobalSession,
+  k5_session_end_global: () => endGlobalSession(),
 };
 
 export type ToolEvent = { name: CapabilityName; state: 'completed' | 'failed'; summary: string };
 
+import { withIdempotency } from '@/lib/application/idempotency-service';
+
+/**
+ * Single execution path for a capability, whatever called it. The Mastra tool and the HTTP route
+ * both land here, so authorization, idempotency and the DTO fence cannot drift between the two
+ * adapters the way they do when each route re-implements its own checks.
+ */
+export async function runCapability<N extends CapabilityName>(
+  context: WorkspaceContext,
+  name: N,
+  rawInput: unknown,
+): Promise<unknown> {
+  const capability: Capability = capabilities[name];
+  const authorized = assertCapabilityAllowed(context, name);
+  const input = capability.input.parse(rawInput) as Record<string, unknown>;
+
+  const execute = async () => {
+    const result = await (executors[name] as (context: WorkspaceContext, input: unknown) => unknown)(authorized, input);
+    // Zod strips anything the contract does not declare, so an internal column added to a row
+    // later cannot reach the model or the browser by accident.
+    return capability.output.parse(result);
+  };
+
+  const key = typeof input.idempotencyKey === 'string' ? input.idempotencyKey : undefined;
+  if (capability.effect === 'write' && key) return withIdempotency(authorized, name, key, input, execute);
+  return execute();
+}
+
 /**
  * Builds the tools for one authenticated request. The office, the user and the role come from the
  * session and are re-checked inside every call, so a revoked membership stops the next step.
+ * Capabilities marked unpublished are absent from the catalog entirely.
  */
 export function agentTools(context: WorkspaceContext) {
-  return Object.fromEntries(capabilitiesForRole(context.role).map((name) => [name, toolFor(name, context)]));
+  return Object.fromEntries(publishedCapabilitiesForRole(context.role, 'agent').map((name) => [name, toolFor(name, context)]));
 }
-
-import { withIdempotency } from '@/lib/application/idempotency-service';
 
 function toolFor(name: CapabilityName, context: WorkspaceContext) {
   const capability: Capability = capabilities[name];
@@ -78,18 +106,7 @@ function toolFor(name: CapabilityName, context: WorkspaceContext) {
     description: capability.description,
     inputSchema: capability.input,
     outputSchema: capability.output,
-    execute: async (input: unknown) => {
-      const authorized = assertCapabilityAllowed(context, name);
-      const idempotencyKey = (input && typeof input === 'object' && 'idempotencyKey' in input && typeof (input as { idempotencyKey?: unknown }).idempotencyKey === 'string')
-        ? (input as { idempotencyKey: string }).idempotencyKey
-        : undefined;
-      if (capability.effect === 'write' && idempotencyKey) {
-        return await withIdempotency(authorized, name, idempotencyKey, input, async () => {
-          return await (executors[name] as (context: WorkspaceContext, input: unknown) => unknown)(authorized, input);
-        });
-      }
-      return await (executors[name] as (context: WorkspaceContext, input: unknown) => unknown)(authorized, input);
-    },
+    execute: async (input: unknown) => runCapability(context, name, input),
   });
 }
 

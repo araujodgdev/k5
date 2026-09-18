@@ -1,6 +1,10 @@
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+import { randomBytes } from "node:crypto";
 
 // Mock server-only so unit tests can import server modules under default Node conditions
 const req = createRequire(import.meta.url);
@@ -21,5 +25,13 @@ testDb.exec(readFileSync(new URL("../db/migrations/0003_vault.sql", import.meta.
 testDb.exec(readFileSync(new URL("../db/migrations/0004_ai_workspace.sql", import.meta.url), "utf8"));
 testDb.exec(readFileSync(new URL("../db/migrations/0005_ai_providers.sql", import.meta.url), "utf8"));
 testDb.exec(readFileSync(new URL("../db/migrations/0006_vault_knowledge_index.sql", import.meta.url), "utf8"));
+testDb.exec(readFileSync(new URL("../db/migrations/0007_upload_refs_and_index_jobs.sql", import.meta.url), "utf8"));
+testDb.exec(readFileSync(new URL("../db/migrations/0008_ai_connection_embedding.sql", import.meta.url), "utf8"));
 
 (globalThis as unknown as { k5Database: DatabaseSync }).k5Database = testDb;
+
+// Object storage under the test's own temporary root, so the traversal assertions exercise the
+// real adapter instead of a stub that cannot fail the way production would.
+export const testStorageRoot = mkdtempSync(resolve(tmpdir(), "k5-test-storage-"));
+process.env.VAULT_STORAGE_PATH = testStorageRoot;
+process.env.K5_CREDENTIALS_KEY ??= randomBytes(32).toString("base64");

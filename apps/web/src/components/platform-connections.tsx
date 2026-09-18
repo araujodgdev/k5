@@ -16,13 +16,16 @@ type Catalog = Record<AiProvider, string[]>;
 const providerNames: Record<AiProvider, string> = { openai: "OpenAI", anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek", inception: "Inception", openrouter: "OpenRouter", vercel: "AI Gateway" };
 const tasks: Array<{ id: AiTask; label: string }> = [
   { id: "chat", label: "Conversa" }, { id: "extraction", label: "Extração" }, { id: "drafting", label: "Redação" },
+  // Embedding is configured here so an office can choose its index model deliberately, instead of
+  // inheriting whichever model happens to serve chat.
+  { id: "embedding", label: "Embedding" },
 ];
 // 44px controls on touch, default height from md up.
 const touch = "h-11 md:h-9";
 
 type Draft = { name: string; provider: AiProvider; apiKey: string; enabled: boolean; models: Record<AiTask, string> };
-const emptyDraft = (): Draft => ({ name: "", provider: "openai", apiKey: "", enabled: true, models: { chat: "", extraction: "", drafting: "" } });
-const fromConnection = (item: AiConnectionView): Draft => ({ name: item.name, provider: item.provider, apiKey: "", enabled: item.enabled, models: { chat: item.models.chat ?? "", extraction: item.models.extraction ?? "", drafting: item.models.drafting ?? "" } });
+const emptyDraft = (): Draft => ({ name: "", provider: "openai", apiKey: "", enabled: true, models: { chat: "", extraction: "", drafting: "", embedding: "" } });
+const fromConnection = (item: AiConnectionView): Draft => ({ name: item.name, provider: item.provider, apiKey: "", enabled: item.enabled, models: { chat: item.models.chat ?? "", extraction: item.models.extraction ?? "", drafting: item.models.drafting ?? "", embedding: item.models.embedding ?? "" } });
 const modelsOf = (draft: Draft) => Object.fromEntries(Object.entries(draft.models).map(([key, value]) => [key, value.trim() || null]));
 
 async function api(url: string, method: string, body?: object) {
@@ -42,7 +45,7 @@ function Fields({ draft, setDraft, catalog, requireKey, keyHint }: { draft: Draf
     <div className="grid gap-1.5"><Label htmlFor={`${id}-key`}>{requireKey ? "Chave da API" : "Nova chave da API"}</Label><Input id={`${id}-key`} className={touch} type="password" value={draft.apiKey} onChange={(event) => setDraft({ ...draft, apiKey: event.target.value })} placeholder={requireKey ? "Cole a chave" : keyHint ? `Atual: ${keyHint}. Deixe em branco para manter.` : "Deixe em branco para manter"} required={requireKey} autoComplete="new-password" /></div>
     <fieldset className="grid gap-3">
       <legend className="mb-3 text-muted-foreground text-[13px]">Modelos por tarefa</legend>
-      <div className="grid gap-4 sm:grid-cols-3">{tasks.map((task) => <div className="grid gap-1.5" key={task.id}><Label htmlFor={`${id}-${task.id}`}>{task.label}</Label><ModelPicker id={`${id}-${task.id}`} value={draft.models[task.id]} models={catalog[draft.provider] ?? []} onChange={(value) => setDraft({ ...draft, models: { ...draft.models, [task.id]: value } })} /></div>)}</div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{tasks.map((task) => <div className="grid gap-1.5" key={task.id}><Label htmlFor={`${id}-${task.id}`}>{task.label}</Label><ModelPicker id={`${id}-${task.id}`} value={draft.models[task.id]} models={catalog[draft.provider] ?? []} onChange={(value) => setDraft({ ...draft, models: { ...draft.models, [task.id]: value } })} /></div>)}</div>
     </fieldset>
     <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-0"><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })} className="size-4 accent-foreground" />Conexão ativa</label>
   </div>;
