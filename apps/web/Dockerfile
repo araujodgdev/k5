@@ -3,7 +3,7 @@
 FROM node:26-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable
+RUN npm install -g pnpm@12.4.2
 WORKDIR /repo
 
 # Dependencies resolve from the lockfile alone, so this layer survives any source edit.
@@ -25,15 +25,15 @@ ENV NODE_ENV=production
 ENV DATABASE_PATH=/data/k5.sqlite
 ENV VAULT_STORAGE_PATH=/data/uploads
 
-COPY --from=deps /repo/node_modules ./node_modules
-COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
-COPY --from=build /repo/apps/web/.next ./apps/web/.next
-COPY --from=build /repo/apps/web/public ./apps/web/public
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-COPY apps/web/package.json apps/web/next.config.ts apps/web/tsconfig.json ./apps/web/
-COPY apps/web/db ./apps/web/db
-COPY apps/web/scripts ./apps/web/scripts
-COPY apps/web/src ./apps/web/src
+COPY --chown=node:node --from=deps /repo/node_modules ./node_modules
+COPY --chown=node:node --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
+COPY --chown=node:node --from=build /repo/apps/web/.next ./apps/web/.next
+COPY --chown=node:node --from=build /repo/apps/web/public ./apps/web/public
+COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY --chown=node:node apps/web/package.json apps/web/next.config.ts apps/web/tsconfig.json ./apps/web/
+COPY --chown=node:node apps/web/db ./apps/web/db
+COPY --chown=node:node apps/web/scripts ./apps/web/scripts
+COPY --chown=node:node apps/web/src ./apps/web/src
 
 # The runtime user owns /data so the volume is writable without running as root.
 RUN mkdir -p /data/uploads && chown -R node:node /data

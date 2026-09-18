@@ -48,6 +48,7 @@ services:
       K5_CREDENTIALS_KEY: ${K5_CREDENTIALS_KEY:?defina K5_CREDENTIALS_KEY no .env da raiz}
       K5_CREDENTIALS_PREVIOUS_KEYS: ${K5_CREDENTIALS_PREVIOUS_KEYS:-}
       SESSION_IDLE_SECONDS: ${SESSION_IDLE_SECONDS:-28800}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-}
       VECTOR_INDEX_BACKEND: pgvector
       VECTOR_DATABASE_URL: postgresql://k5:${VECTOR_DB_PASSWORD:-k5-local-dev}@vectors:5432/k5_vectors
       VAULT_OCR_URL: ${VAULT_OCR_URL:-}
@@ -102,6 +103,15 @@ services:
     depends_on:
       vectors:
         condition: service_healthy
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    command: ["tunnel", "--no-autoupdate", "--url", "http://web:3000"]
+    depends_on:
+      web:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   # SQLite and the Vault originals share one volume so a `docker compose down` keeps both, and
