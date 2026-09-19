@@ -1,6 +1,8 @@
 # Plano de implementação da infraestrutura de dados judiciais do K5
 
-Data: 18/09/2026. Status: proposta executável; conectores ainda não implementados nem homologados. Esta entrega autoriza o planejamento, não contrata fornecedores, solicita credenciais, contata tribunais ou inicia coleta de processos.
+Data: 18/09/2026. Status: proposta executável. Esta entrega autoriza o planejamento, não contrata fornecedores, solicita credenciais, contata tribunais ou inicia coleta de processos.
+
+Atualização de 19/09/2026: a fundação (F1) e a parte do DJEN que não depende de acesso externo foram implementadas. Nenhum conector foi homologado e nenhum tribunal foi contatado; o acesso real à rede permanece desligado por padrão. O que existe no código, o que continua fechado e a verificação executada estão em [nota de implementação](infra-judicial-implementacao.md).
 
 Documentos complementares: [pesquisa das fontes e caminhos de acesso](fontes-infra-judicial.md), [registro nacional de investigação](registro-cobertura-judicial.md), [análise inicial do DataJud](pesquisa-datajud.md), [plano documental do MVP](plano-ia-mvp.md) e [serviços, ferramentas e RAG](plano-agente-ferramentas-rag-webmcp.md).
 

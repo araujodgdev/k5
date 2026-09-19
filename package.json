@@ -14,6 +14,8 @@
     "test": "turbo run test",
     "db:setup": "pnpm --filter @k5/web db:setup",
     "worker": "pnpm --filter @k5/web worker",
+    "judicial:worker": "pnpm --filter @k5/web judicial:worker",
+    "judicial:admin": "pnpm --filter @k5/web judicial:admin",
     "platform:admin": "pnpm --filter @k5/web platform:admin"
   },
   "devDependencies": {
