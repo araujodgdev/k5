@@ -64,7 +64,7 @@ function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
 }
 
 test("capabilities contract: complete catalog and role permissions", () => {
-  assert.equal(capabilityNames.length, 35, "All 35 capabilities declared");
+  assert.equal(capabilityNames.length, 38, "All 38 capabilities declared");
 
   const reviewerCaps = capabilitiesForRole("reviewer");
   const lawyerCaps = capabilitiesForRole("lawyer");
@@ -77,8 +77,8 @@ test("capabilities contract: complete catalog and role permissions", () => {
   }
 
   // Lawyers and Admins have all capabilities
-  assert.equal(lawyerCaps.length, 35);
-  assert.equal(adminCaps.length, 35);
+  assert.equal(lawyerCaps.length, 38);
+  assert.equal(adminCaps.length, 38);
 });
 
 test("authorization: dynamic role check and membership revocation", () => {
@@ -499,7 +499,7 @@ test("ui service: openResource validates resource access and throws NOT_FOUND on
   // Valid internal case resolves path
   const localCase = vaultService.createCase(contextA, { name: "Caso Alfa Local" });
   const res = uiService.openResource(contextA, { resourceType: "case", resourceId: localCase.case.id });
-  assert.equal(res.path, `/app/vault?caseId=${encodeURIComponent(localCase.case.id)}`);
+  assert.equal(res.path, `/app/vault/cases/${encodeURIComponent(localCase.case.id)}`);
 });
 
 test("webmcp: every published capability has a route, a schema and typed failures", async () => {
@@ -517,7 +517,7 @@ test("webmcp: every published capability has a route, a schema and typed failure
     for (const name of published) {
       const result = await executeViaHttp(name, {
         caseId: randomUUID(), documentId: randomUUID(), artifactId: randomUUID(),
-        runId: randomUUID(), conversationId: randomUUID(), uploadRef: randomUUID(),
+        runId: randomUUID(), conversationId: randomUUID(), uploadRef: randomUUID(), folderId: randomUUID(),
         documentIds: [randomUUID()], query: "teste", name: "nome do caso", title: "titulo",
         content: "conteudo", version: 1, instructions: "instrucoes", resourceType: "vault",
         stableReference: "página:1", scope: "library",
@@ -586,3 +586,68 @@ test("platform service: create, list, and delete AI connection operations", () =
   assert.equal(deleted.success, true);
 });
 
+
+test("vault drive: a case carries its client data and folders stay inside their own case", () => {
+  const { userLawyer, officeA, officeB, userOfficeB } = seedFixture();
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const other: WorkspaceContext = { officeId: officeB, userId: userOfficeB, role: "lawyer" };
+
+  const created = vaultService.createCase(context, {
+    name: `Drive ${randomUUID()}`,
+    description: "Ação de rescisão contratual.",
+    client: { name: "Maria Silva", document: "123.456.789-00", email: "maria@example.test" },
+  });
+  assert.equal(created.created, true);
+  assert.equal(created.case.description, "Ação de rescisão contratual.");
+  assert.equal(created.case.client.name, "Maria Silva");
+  assert.equal(created.case.documentCount, 0);
+
+  // A partial update keeps what it does not mention.
+  const renamed = vaultService.updateCase(context, { caseId: created.case.id, name: "Caso renomeado" });
+  assert.equal(renamed.case.name, "Caso renomeado");
+  assert.equal(renamed.case.client.name, "Maria Silva");
+  assert.equal(renamed.case.description, "Ação de rescisão contratual.");
+
+  const root = vaultService.createFolder(context, { caseId: created.case.id, name: "Petições" });
+  const child = vaultService.createFolder(context, { caseId: created.case.id, name: "2026", parentId: root.folder.id });
+  assert.equal(child.folder.parentId, root.folder.id);
+  assert.deepEqual(vaultService.listFolders(context, { caseId: created.case.id }).folders.map((f) => f.name), ["Petições"]);
+  assert.deepEqual(vaultService.listFolders(context, { caseId: created.case.id, parentId: root.folder.id }).path.map((f) => f.name), ["Petições"]);
+
+  // Siblings cannot share a name, and a folder of another office is not addressable from here.
+  assert.throws(() => vaultService.createFolder(context, { caseId: created.case.id, name: "Petições" }), (error) => error instanceof CapabilityError && error.code === "NOT_READY");
+  const foreign = vaultService.createCase(other, { name: `Beta ${randomUUID()}` });
+  assert.throws(
+    () => vaultService.createFolder(context, { caseId: foreign.case.id, name: "Qualquer" }),
+    (error) => error instanceof CapabilityError && error.code === "NOT_FOUND",
+  );
+
+  // Removing a folder moves its contents up instead of deleting them.
+  vaultService.deleteFolder(context, { folderId: root.folder.id });
+  assert.deepEqual(vaultService.listFolders(context, { caseId: created.case.id }).folders.map((f) => f.name), ["2026"]);
+});
+
+test("knowledge engine: an empty scope searches this office's Cofre and never another's", async () => {
+  const { userLawyer, officeA, officeB, userOfficeB } = seedFixture();
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+
+  const seedDocument = (officeId: string, userId: string, name: string, text: string) => {
+    const documentId = randomUUID();
+    testDb.prepare(`
+      INSERT INTO vault_document (id, office_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
+      VALUES (?, ?, 'library', ?, ?, 'application/pdf', 1024, 'sha', 'ready', ?)
+    `).run(documentId, officeId, name, `stored-${documentId}.pdf`, userId);
+    testDb.prepare(`
+      INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content)
+      VALUES (?, ?, ?, 0, 'página:1', ?)
+    `).run(randomUUID(), documentId, officeId, text);
+    return documentId;
+  };
+
+  const mine = seedDocument(officeA, userLawyer, "laudo-pericial.pdf", "O laudo pericial apontou infiltração na laje.");
+  seedDocument(officeB, userOfficeB, "laudo-alheio.pdf", "O laudo pericial do escritório vizinho.");
+
+  const result = await knowledgeService.searchKnowledge(context, { query: "laudo pericial" });
+  assert.ok(result.sources.length > 0, "the whole Cofre is in scope when no document is named");
+  assert.ok(result.sources.every((source) => source.documentId === mine), "another office's documents never enter the scope");
+});

@@ -63,8 +63,8 @@ export function recordUsage(officeId: string, userId: string | null, config: Mod
     .run(randomUUID(), officeId, userId, config.connectionId, config.provider, config.modelId, task, status, usage?.inputTokens ?? null, usage?.outputTokens ?? null);
 }
 
-export async function generateStructured<T extends z.ZodType>(officeId: string, userId: string, task: ModelTask, prompt: string, schema: T): Promise<z.output<T>> {
-  const { agent, config } = await createOfficeAgent(officeId, task);
+export async function generateStructured<T extends z.ZodType>(officeId: string, userId: string, task: ModelTask, prompt: string, schema: T, requestedModel?: { provider?: string; modelId?: string }): Promise<z.output<T>> {
+  const { agent, config } = await createOfficeAgent(officeId, task, undefined, undefined, requestedModel);
   const ctx = new RequestContext();
   ctx.set('provider', config.provider);
   ctx.set('modelId', config.modelId);

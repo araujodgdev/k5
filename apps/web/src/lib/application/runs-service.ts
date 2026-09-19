@@ -54,14 +54,16 @@ export async function startRun(context: WorkspaceContext, raw: StartRunInput) {
   const input = runInputSchema.parse({ ...raw, approvedCitationIds: raw.approvedCitationIds ?? [] });
   const running = Number(database.prepare("SELECT count(*) AS n FROM ai_run WHERE office_id=? AND status IN ('queued','running')").get(context.officeId)?.n);
   if (running >= 5) throw new CapabilityError('RATE_LIMITED', 'Seu escritório já tem cinco tarefas em andamento.');
-  await resolveOfficeModelConfig(context.officeId, input.kind === 'chronology' ? 'extraction' : 'drafting');
+  // Fail here, not three minutes into the worker: the credential has to resolve before queueing.
+  await resolveOfficeModelConfig(context.officeId, input.kind === 'chronology' ? 'extraction' : 'drafting', context.model);
   let selection;
   try { selection = validateRunSources(context.officeId, input); }
   catch (error) { throw new CapabilityError('SCOPE_REQUIRED', error instanceof Error ? error.message : 'Confira os documentos selecionados.'); }
   const id = randomUUID();
   database.exec('SAVEPOINT start_run');
   try {
-    database.prepare('INSERT INTO ai_run(id,office_id,user_id,kind,input) VALUES(?,?,?,?,?)').run(id, context.officeId, context.userId, input.kind, JSON.stringify(input));
+    database.prepare('INSERT INTO ai_run(id,office_id,user_id,kind,input,model_provider,model_id) VALUES(?,?,?,?,?,?,?)')
+      .run(id, context.officeId, context.userId, input.kind, JSON.stringify(input), context.model?.provider ?? null, context.model?.modelId ?? null);
     for (const citation of selection.approved) {
       database.prepare('INSERT INTO ai_citation_approval(run_id,citation_id,source_text,source_label,user_id) VALUES(?,?,?,?,?)')
         .run(id, citation.id, citation.text, citation.sourceLabel, context.userId);

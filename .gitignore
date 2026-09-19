@@ -18,3 +18,5 @@ Thumbs.db
 *.sqlite-wal
 test-results/
 playwright-report/
+.agents/*
+!.agents/skills/

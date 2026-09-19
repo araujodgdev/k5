@@ -2,8 +2,9 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import {
-  countVaultDocuments, createVaultDocument, createVaultCase, findVaultDocument, findVaultDocumentIncludingDeleted,
-  listVaultDocuments, retryVaultDocument, VaultHttpError,
+  countVaultDocuments, createVaultDocument, createVaultCase, createVaultFolder, deleteVaultFolder, findVaultCase,
+  findVaultDocument, findVaultDocumentIncludingDeleted, findVaultFolder, listVaultCases, listVaultDocuments,
+  listVaultFolders, retryVaultDocument, updateVaultCase, vaultFolderPath, VaultHttpError,
 } from '@/lib/vault';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
@@ -31,9 +32,7 @@ function requireDocument(context: WorkspaceContext, documentId: string) {
 }
 
 export function listCases(context: WorkspaceContext): CapabilityOutput<'k5_vault_list_cases'> {
-  const cases = database.prepare('SELECT id, name, created_at AS createdAt FROM vault_case WHERE office_id=? AND deleted_at IS NULL ORDER BY created_at DESC')
-    .all(context.officeId) as Array<{ id: string; name: string; createdAt: string }>;
-  return { cases };
+  return { cases: listVaultCases(context.officeId) };
 }
 
 export function createCase(context: WorkspaceContext, input: CapabilityInput<'k5_vault_create_case'>): CapabilityOutput<'k5_vault_create_case'> {
@@ -41,21 +40,37 @@ export function createCase(context: WorkspaceContext, input: CapabilityInput<'k5
   const existing = listCases(context).cases.find((item) => item.name.toLowerCase() === input.name.toLowerCase());
   if (existing) return { case: existing, created: false };
   try {
-    const created = createVaultCase(context.officeId, context.userId, input.name);
-    const stored = listCases(context).cases.find((item) => item.id === created.id);
-    return { case: stored ?? { ...created, createdAt: new Date().toISOString() }, created: true };
+    return { case: createVaultCase(context.officeId, context.userId, input.name, { description: input.description, client: input.client }), created: true };
   } catch (error) { throw asCapabilityError(error); }
 }
 
 export function updateCase(context: WorkspaceContext, input: CapabilityInput<'k5_vault_update_case'>): CapabilityOutput<'k5_vault_update_case'> {
-  const existing = database.prepare('SELECT id, name, created_at AS createdAt FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL')
-    .get(input.caseId, context.officeId) as { id: string; name: string; createdAt: string } | undefined;
-  if (!existing) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
+  if (!findVaultCase(context.officeId, input.caseId)) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
+  try {
+    return { case: updateVaultCase(context.officeId, input.caseId, { name: input.name, description: input.description, client: input.client }) };
+  } catch (error) { throw asCapabilityError(error); }
+}
 
-  database.prepare('UPDATE vault_case SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=?')
-    .run(input.name, input.caseId, context.officeId);
+export function listFolders(context: WorkspaceContext, input: CapabilityInput<'k5_vault_list_folders'>): CapabilityOutput<'k5_vault_list_folders'> {
+  if (!findVaultCase(context.officeId, input.caseId)) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
+  const parentId = input.parentId ?? null;
+  if (parentId) {
+    const parent = findVaultFolder(context.officeId, parentId);
+    if (!parent || parent.caseId !== input.caseId) throw new CapabilityError('NOT_FOUND', 'Pasta não encontrada.');
+  }
+  return { folders: listVaultFolders(context.officeId, input.caseId, parentId), path: parentId ? vaultFolderPath(context.officeId, parentId) : [] };
+}
 
-  return { case: { id: existing.id, name: input.name, createdAt: existing.createdAt } };
+export function createFolder(context: WorkspaceContext, input: CapabilityInput<'k5_vault_create_folder'>): CapabilityOutput<'k5_vault_create_folder'> {
+  try {
+    return { folder: createVaultFolder(context.officeId, context.userId, input.caseId, input.name, input.parentId ?? null) };
+  } catch (error) { throw asCapabilityError(error); }
+}
+
+export function deleteFolder(context: WorkspaceContext, input: CapabilityInput<'k5_vault_delete_folder'>): CapabilityOutput<'k5_vault_delete_folder'> {
+  try { deleteVaultFolder(context.officeId, input.folderId); }
+  catch (error) { throw asCapabilityError(error); }
+  return { success: true };
 }
 
 export function deleteCase(context: WorkspaceContext, input: CapabilityInput<'k5_vault_delete_case'>): CapabilityOutput<'k5_vault_delete_case'> {
@@ -84,12 +99,15 @@ export function deleteCase(context: WorkspaceContext, input: CapabilityInput<'k5
       .run(input.caseId, context.officeId);
   }
 
+  // The case's own folder tree goes with it; the documents were already reassigned above.
+  database.prepare('UPDATE vault_folder SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL').run(input.caseId, context.officeId);
+  database.prepare('UPDATE vault_document SET folder_id=NULL WHERE case_id=? AND office_id=?').run(input.caseId, context.officeId);
   database.prepare('UPDATE vault_case SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=?').run(input.caseId, context.officeId);
   return { success: true };
 }
 
 export function listDocuments(context: WorkspaceContext, input: CapabilityInput<'k5_vault_list_documents'>): CapabilityOutput<'k5_vault_list_documents'> {
-  const filters = { scope: input.scope ?? null, caseId: input.caseId ?? null };
+  const filters = { scope: input.scope ?? null, caseId: input.caseId ?? null, ...(input.folderId === undefined ? {} : { folderId: input.folderId }) };
   // Tombstones are excluded in SQL and the page is taken in SQL: no per-row liveness query, and
   // no loading the whole office to slice twenty rows off the front of it.
   const documents = listVaultDocuments(context.officeId, { ...filters, limit: input.limit ?? 20 });
@@ -100,7 +118,7 @@ export function getDocument(context: WorkspaceContext, input: CapabilityInput<'k
   const doc = requireDocument(context, input.documentId);
   return {
     document: {
-      id: doc.id, name: doc.name, caseId: doc.caseId, caseName: doc.caseName, scope: doc.scope,
+      id: doc.id, name: doc.name, caseId: doc.caseId, caseName: doc.caseName, folderId: doc.folderId, scope: doc.scope,
       status: doc.status, progress: doc.progress, errorMessage: doc.errorMessage,
       sourceCount: doc.sourceCount, createdAt: doc.createdAt,
     },
@@ -117,13 +135,29 @@ export function updateDocument(context: WorkspaceContext, input: CapabilityInput
 
   if (input.caseId !== undefined) {
     if (input.caseId === null) {
-      database.prepare("UPDATE vault_document SET case_id=NULL, scope='library', updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL")
+      // Out of every case means out of every folder of that case.
+      database.prepare("UPDATE vault_document SET case_id=NULL, folder_id=NULL, scope='library', updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL")
         .run(input.documentId, context.officeId);
     } else {
       const caseExists = database.prepare('SELECT 1 FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL').get(input.caseId, context.officeId);
       if (!caseExists) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
-      database.prepare("UPDATE vault_document SET case_id=?, scope='case', updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL")
+      database.prepare("UPDATE vault_document SET case_id=?, folder_id=NULL, scope='case', updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL")
         .run(input.caseId, input.documentId, context.officeId);
+    }
+  }
+
+  if (input.folderId !== undefined) {
+    const current = requireDocument(context, input.documentId);
+    if (input.folderId === null) {
+      database.prepare('UPDATE vault_document SET folder_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL')
+        .run(input.documentId, context.officeId);
+    } else {
+      // The folder has to belong to the case this document is in, so a move cannot relocate it
+      // into another case's tree while leaving case_id behind.
+      const folder = findVaultFolder(context.officeId, input.folderId);
+      if (!folder || folder.caseId !== current.caseId) throw new CapabilityError('NOT_FOUND', 'Pasta não encontrada neste caso.');
+      database.prepare('UPDATE vault_document SET folder_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL')
+        .run(input.folderId, input.documentId, context.officeId);
     }
   }
 
@@ -229,7 +263,7 @@ export function ingestUpload(context: WorkspaceContext, input: CapabilityInput<'
   if (input.scope === 'case' && !input.caseId) throw new CapabilityError('INVALID', 'Escolha um caso para o documento.');
   const upload = consumeUploadRef(context, input.uploadRef);
   try {
-    const document = createVaultDocument(context.officeId, context.userId, upload, { scope: input.scope, caseId: input.caseId ?? null });
+    const document = createVaultDocument(context.officeId, context.userId, upload, { scope: input.scope, caseId: input.caseId ?? null, folderId: input.folderId ?? null });
     return getDocument(context, { documentId: document.id });
   } catch (error) {
     // createVaultDocument is transactional, so a throw means no document and no version exist.

@@ -27,6 +27,9 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_vault_create_case: vault.createCase,
   k5_vault_update_case: vault.updateCase,
   k5_vault_delete_case: vault.deleteCase,
+  k5_vault_list_folders: vault.listFolders,
+  k5_vault_create_folder: vault.createFolder,
+  k5_vault_delete_folder: vault.deleteFolder,
   k5_vault_list_documents: vault.listDocuments,
   k5_vault_get_document: vault.getDocument,
   k5_vault_update_document: vault.updateDocument,
@@ -165,6 +168,9 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_vault_create_case: 'Criou um caso no Cofre',
     k5_vault_update_case: 'Atualizou um caso no Cofre',
     k5_vault_delete_case: 'Removeu um caso do Cofre',
+    k5_vault_list_folders: 'Consultou as pastas do caso',
+    k5_vault_create_folder: 'Criou uma pasta no caso',
+    k5_vault_delete_folder: 'Removeu uma pasta do caso',
     k5_vault_list_documents: 'Consultou documentos do Cofre',
     k5_vault_get_document: 'Consultou um documento',
     k5_vault_update_document: 'Atualizou um documento',
@@ -214,6 +220,7 @@ function describe(result: unknown): string {
   const value = result as Record<string, unknown>;
   if (Array.isArray(value.sources)) return `${value.sources.length} trecho(s)`;
   if (Array.isArray(value.cases)) return `${value.cases.length} caso(s)`;
+  if (Array.isArray(value.folders)) return `${value.folders.length} pasta(s)`;
   if (Array.isArray(value.documents)) return `${value.documents.length} documento(s)`;
   if (Array.isArray(value.runs)) return `${value.runs.length} tarefa(s)`;
   if (Array.isArray(value.versions)) return `${value.versions.length} versão(ões)`;

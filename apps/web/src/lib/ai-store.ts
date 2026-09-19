@@ -3,7 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { UIMessage } from 'ai';
 
 export type Owner = { officeId: string; userId: string };
-export type RunRow = { id: string; office_id: string; user_id: string; kind: 'chronology' | 'draft'; input: string; status: string; progress: number; error: string | null; artifact_id: string | null; lease_token: string; attempts: number; created_at: string };
+export type RunRow = { id: string; office_id: string; user_id: string; kind: 'chronology' | 'draft'; input: string; status: string; progress: number; error: string | null; artifact_id: string | null; lease_token: string; attempts: number; model_provider: string | null; model_id: string | null; created_at: string };
 export type ArtifactRow = { id: string; office_id: string; user_id: string; title: string; content: string; version: number; status: string; source_refs: string; validation_issues: string; template_id: string | null; run_id: string };
 
 export function createConversation(db: DatabaseSync, owner: Owner) {

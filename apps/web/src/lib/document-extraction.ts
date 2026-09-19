@@ -14,6 +14,7 @@ export async function extractDocumentSections(data: Buffer, mimeType: string, na
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": return extractXlsx(data);
     case "text/csv": return extractDelimited(decoder.decode(data), "linha");
     case "text/plain": return extractText(decoder.decode(data));
+    case "image/png": case "image/jpeg": case "image/webp": return extractImage(data, name);
     default: throw new Error(`O formato de ${name} não é compatível.`);
   }
 }
@@ -89,6 +90,21 @@ async function extractPdfLocally(data: Buffer, documentId: string, existingPdf?:
   } finally { await worker?.terminate(); }
   if (!sections.length) throw new Error("O OCR local não encontrou texto utilizável no PDF.");
   return sections;
+}
+
+/**
+ * An image is treated as a single scanned page. Recognising it here is what lets an image answer
+ * a search at all — a model with vision sees the picture, but the index only holds text.
+ */
+async function extractImage(data: Buffer, name: string): Promise<ExtractedSection[]> {
+  const { createWorker } = await import("tesseract.js") as unknown as { createWorker: (languages?: string | string[], oem?: number, options?: Record<string, unknown>) => Promise<{ recognize: (image: Buffer) => Promise<{ data: { text: string } }>; terminate: () => Promise<void> }> };
+  const worker = await createWorker(["por", "eng"]);
+  try {
+    const text = (await worker.recognize(data)).data.text.replace(/\s+/g, " ").trim();
+    // An image with no legible text is still a valid document: the caption keeps it addressable,
+    // and a vision model reads the picture directly.
+    return [{ reference: "imagem:1", content: text || `Imagem sem texto reconhecível: ${name}.` }];
+  } finally { await worker.terminate(); }
 }
 
 async function extractDocx(data: Buffer): Promise<ExtractedSection[]> {

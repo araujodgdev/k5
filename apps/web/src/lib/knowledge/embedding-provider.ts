@@ -17,9 +17,10 @@ const OPENAI_COMPATIBLE: Partial<Record<AiProvider, string>> = {
 };
 
 const UNSUPPORTED: Partial<Record<AiProvider, string>> = {
-  anthropic: 'A Anthropic não oferece endpoint de embeddings. Configure outro provedor no perfil de embedding.',
-  deepseek: 'A DeepSeek não oferece endpoint de embeddings. Configure outro provedor no perfil de embedding.',
-  inception: 'A Inception não oferece endpoint de embeddings. Configure outro provedor no perfil de embedding.',
+  anthropic: 'A Anthropic não oferece endpoint de embeddings. Cadastre uma conexão OpenAI, Google ou AI Gateway para a busca semântica.',
+  deepseek: 'A DeepSeek não oferece endpoint de embeddings. Cadastre uma conexão OpenAI, Google ou AI Gateway para a busca semântica.',
+  inception: 'A Inception não oferece endpoint de embeddings. Cadastre uma conexão OpenAI, Google ou AI Gateway para a busca semântica.',
+  openrouter: 'O OpenRouter não expõe modelos de embedding. Cadastre uma conexão OpenAI, Google ou AI Gateway para a busca semântica.',
 };
 
 export class EmbeddingUnavailableError extends Error {
@@ -33,7 +34,7 @@ export function embeddingProfile(officeId: string): EmbeddingProfile {
     config = resolveOfficeModelConfig(officeId, 'embedding');
   } catch (error) {
     if (error instanceof AiConnectionError) {
-      throw new EmbeddingUnavailableError('Nenhum modelo de embedding está configurado para este escritório.');
+      throw new EmbeddingUnavailableError('Nenhuma conexão de IA compatível com embeddings está ativa neste escritório.');
     }
     throw error;
   }

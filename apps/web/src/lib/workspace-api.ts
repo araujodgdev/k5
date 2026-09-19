@@ -6,6 +6,7 @@ import { AiConnectionError } from './ai-connections-core';
 import { CredentialKeyError } from './platform-crypto';
 
 import { CapabilityError, statusForCapabilityError } from './capabilities/errors';
+import { isTrustedOrigin } from './trusted-origins';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -15,8 +16,7 @@ export async function apiWorkspace(request: Request, write = false) {
   if (!await getSession()) throw new ApiError(401, 'Entre novamente para continuar.');
   const workspace = await requireWorkspace();
   if (write) {
-    const allowed = [process.env.BETTER_AUTH_URL ?? 'http://localhost:3000', ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(',') ?? [])].map(s => s.trim());
-    if (!allowed.includes(request.headers.get('origin') ?? '')) throw new ApiError(403, 'Origem não autorizada.');
+    if (!isTrustedOrigin(request.headers.get('origin'))) throw new ApiError(403, 'Origem não autorizada.');
     if (workspace.office.role === 'reviewer') throw new ApiError(403, 'Seu papel permite apenas consultar os documentos.');
   }
   return workspace;

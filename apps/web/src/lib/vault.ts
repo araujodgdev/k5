@@ -6,15 +6,23 @@ import { basename, resolve } from "node:path";
 import { database } from "@/lib/database";
 import { ensureOfficeForUser, type OfficeMembership } from "@/lib/offices";
 import { assertStorageKey, objectStorage, StorageError } from "@/lib/storage";
+import { isTrustedOrigin } from "@/lib/trusted-origins";
 import type { UploadRef } from "@/lib/application/uploads-service";
 
 export type VaultStatus = "queued" | "processing" | "ready" | "failed";
 export type VaultScope = "library" | "case";
 export type VaultDocument = {
-  id: string; name: string; caseId: string | null; caseName: string | null; scope: VaultScope;
+  id: string; name: string; caseId: string | null; caseName: string | null; folderId: string | null; scope: VaultScope;
   mimeType: string; byteSize: number; status: VaultStatus; progress: number; errorMessage: string | null;
   extractedCharacters: number; sourceCount: number; createdAt: string;
 };
+/** A case is a folder in the office drive: a title, a description and, optionally, who it is for. */
+export type VaultCase = {
+  id: string; name: string; description: string | null; createdAt: string; updatedAt: string;
+  client: { name: string | null; document: string | null; email: string | null; phone: string | null; notes: string | null };
+  documentCount: number;
+};
+export type VaultFolder = { id: string; caseId: string; parentId: string | null; name: string; createdAt: string; documentCount: number; folderCount: number };
 export type DocumentChunk = { id: string; documentId: string; stableReference: string; sourceLabel: string; content: string; ordinal: number };
 type DocumentRow = VaultDocument & { storedName: string; officeId: string; leaseOwner: string | null; leaseExpiresAt: string | null; deletedAt: string | null };
 
@@ -25,7 +33,7 @@ export class VaultHttpError extends Error {
 function mapDocument(row: Record<string, unknown>): DocumentRow {
   return {
     id: String(row.id), name: String(row.name), caseId: row.caseId as string | null, caseName: row.caseName as string | null,
-    scope: row.scope as VaultScope, mimeType: String(row.mimeType), byteSize: Number(row.byteSize), status: row.status as VaultStatus,
+    folderId: row.folderId as string | null, scope: row.scope as VaultScope, mimeType: String(row.mimeType), byteSize: Number(row.byteSize), status: row.status as VaultStatus,
     progress: Number(row.progress), errorMessage: row.errorMessage as string | null, extractedCharacters: Number(row.extractedCharacters),
     sourceCount: Number(row.sourceCount), createdAt: String(row.createdAt), storedName: String(row.storedName), officeId: String(row.officeId),
     leaseOwner: row.leaseOwner as string | null, leaseExpiresAt: row.leaseExpiresAt as string | null,
@@ -34,7 +42,7 @@ function mapDocument(row: Record<string, unknown>): DocumentRow {
 }
 
 const documentSelect = `
-  SELECT d.id, d.original_name AS name, d.case_id AS caseId, c.name AS caseName, d.scope,
+  SELECT d.id, d.original_name AS name, d.case_id AS caseId, c.name AS caseName, d.folder_id AS folderId, d.scope,
     d.mime_type AS mimeType, d.byte_size AS byteSize, d.status, d.progress,
     d.error_message AS errorMessage, d.extracted_characters AS extractedCharacters,
     d.source_count AS sourceCount, d.created_at AS createdAt, d.stored_name AS storedName,
@@ -55,32 +63,164 @@ export function requireVaultWriteRole(role: OfficeMembership["role"]) {
 }
 
 export function assertSameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  const trusted = [process.env.BETTER_AUTH_URL ?? "http://localhost:3000", ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [])]
-    .map((value) => value.trim()).filter(Boolean);
-  if (!origin || !trusted.some((value) => {
-    try { return new URL(value).origin === origin; } catch { return false; }
-  })) throw new VaultHttpError(403, "Origem da requisição não autorizada.");
+  // Same list, same reading as the rest of the app: see src/lib/trusted-origins.ts.
+  if (!isTrustedOrigin(request.headers.get("origin"))) throw new VaultHttpError(403, "Origem da requisição não autorizada.");
 }
 
-export function listVaultCases(officeId: string) {
-  return database.prepare("SELECT id, name, created_at AS createdAt FROM vault_case WHERE office_id = ? ORDER BY created_at DESC").all(officeId)
-    // node:sqlite rows have a null prototype, which cannot cross into Client Components.
-    .map((row) => ({ id: String(row.id), name: String(row.name), createdAt: String(row.createdAt) }));
+export type CaseDetails = {
+  description?: string | null;
+  client?: { name?: string | null; document?: string | null; email?: string | null; phone?: string | null; notes?: string | null } | null;
+};
+
+const caseSelect = `
+  SELECT k.id, k.name, k.description, k.created_at AS createdAt, k.updated_at AS updatedAt,
+    k.client_name AS clientName, k.client_document AS clientDocument, k.client_email AS clientEmail,
+    k.client_phone AS clientPhone, k.client_notes AS clientNotes,
+    (SELECT count(*) FROM vault_document d WHERE d.case_id = k.id AND d.office_id = k.office_id AND d.deleted_at IS NULL) AS documentCount
+  FROM vault_case k`;
+
+// node:sqlite rows have a null prototype, which cannot cross into Client Components.
+function mapCase(row: Record<string, unknown>): VaultCase {
+  const text = (value: unknown) => (value === null || value === undefined ? null : String(value));
+  return {
+    id: String(row.id), name: String(row.name), description: text(row.description),
+    createdAt: String(row.createdAt), updatedAt: String(row.updatedAt ?? row.createdAt),
+    client: {
+      name: text(row.clientName), document: text(row.clientDocument), email: text(row.clientEmail),
+      phone: text(row.clientPhone), notes: text(row.clientNotes),
+    },
+    documentCount: Number(row.documentCount ?? 0),
+  };
 }
 
-export function createVaultCase(officeId: string, userId: string, name: string) {
+export function listVaultCases(officeId: string): VaultCase[] {
+  return database.prepare(`${caseSelect} WHERE k.office_id = ? AND k.deleted_at IS NULL ORDER BY k.updated_at DESC, k.created_at DESC`)
+    .all(officeId).map((row) => mapCase(row as Record<string, unknown>));
+}
+
+export function findVaultCase(officeId: string, caseId: string): VaultCase | undefined {
+  const row = database.prepare(`${caseSelect} WHERE k.office_id = ? AND k.id = ? AND k.deleted_at IS NULL`).get(officeId, caseId) as Record<string, unknown> | undefined;
+  return row ? mapCase(row) : undefined;
+}
+
+function cleanText(value: unknown, max: number, label: string): string | null {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  if (text.length > max) throw new VaultHttpError(400, `${label} excede ${max} caracteres.`);
+  return text;
+}
+
+export function createVaultCase(officeId: string, userId: string, name: string, details: CaseDetails = {}) {
   const clean = name.trim();
   if (clean.length < 2 || clean.length > 180) throw new VaultHttpError(400, "Informe um nome de caso entre 2 e 180 caracteres.");
   const id = randomUUID();
-  database.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, ?, ?)").run(id, officeId, clean, userId);
-  return { id, name: clean };
+  const client = details.client ?? {};
+  database.prepare(`INSERT INTO vault_case (id, office_id, name, description, client_name, client_document, client_email, client_phone, client_notes, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, officeId, clean, cleanText(details.description, 4000, "A descrição"), cleanText(client.name, 180, "O nome do cliente"),
+      cleanText(client.document, 40, "O documento do cliente"), cleanText(client.email, 200, "O e-mail do cliente"),
+      cleanText(client.phone, 40, "O telefone do cliente"), cleanText(client.notes, 4000, "As observações"), userId);
+  return findVaultCase(officeId, id)!;
+}
+
+/** Partial update: a field left out keeps its stored value, and an empty string clears it. */
+export function updateVaultCase(officeId: string, caseId: string, patch: { name?: string } & CaseDetails) {
+  const current = findVaultCase(officeId, caseId);
+  if (!current) throw new VaultHttpError(404, "Caso não encontrado.");
+  const name = patch.name === undefined ? current.name : patch.name.trim();
+  if (name.length < 2 || name.length > 180) throw new VaultHttpError(400, "Informe um nome de caso entre 2 e 180 caracteres.");
+  const pick = <K extends keyof VaultCase["client"]>(key: K, max: number, label: string) =>
+    patch.client === undefined || patch.client === null || patch.client[key] === undefined
+      ? current.client[key]
+      : cleanText(patch.client[key], max, label);
+  database.prepare(`UPDATE vault_case SET name = ?, description = ?, client_name = ?, client_document = ?, client_email = ?, client_phone = ?, client_notes = ?,
+      updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND deleted_at IS NULL`)
+    .run(name, patch.description === undefined ? current.description : cleanText(patch.description, 4000, "A descrição"),
+      pick("name", 180, "O nome do cliente"), pick("document", 40, "O documento do cliente"), pick("email", 200, "O e-mail do cliente"),
+      pick("phone", 40, "O telefone do cliente"), pick("notes", 4000, "As observações"), caseId, officeId);
+  return findVaultCase(officeId, caseId)!;
+}
+
+const folderSelect = `
+  SELECT f.id, f.case_id AS caseId, f.parent_id AS parentId, f.name, f.created_at AS createdAt,
+    (SELECT count(*) FROM vault_document d WHERE d.folder_id = f.id AND d.office_id = f.office_id AND d.deleted_at IS NULL) AS documentCount,
+    (SELECT count(*) FROM vault_folder c WHERE c.parent_id = f.id AND c.deleted_at IS NULL) AS folderCount
+  FROM vault_folder f`;
+
+function mapFolder(row: Record<string, unknown>): VaultFolder {
+  return {
+    id: String(row.id), caseId: String(row.caseId), parentId: row.parentId === null || row.parentId === undefined ? null : String(row.parentId),
+    name: String(row.name), createdAt: String(row.createdAt),
+    documentCount: Number(row.documentCount ?? 0), folderCount: Number(row.folderCount ?? 0),
+  };
+}
+
+/** Direct children of a level. `parentId` null is the case root. */
+export function listVaultFolders(officeId: string, caseId: string, parentId: string | null = null): VaultFolder[] {
+  const clause = parentId ? "f.parent_id = ?" : "f.parent_id IS NULL";
+  const values = parentId ? [officeId, caseId, parentId] : [officeId, caseId];
+  return database.prepare(`${folderSelect} WHERE f.office_id = ? AND f.case_id = ? AND ${clause} AND f.deleted_at IS NULL ORDER BY f.name COLLATE NOCASE`)
+    .all(...values).map((row) => mapFolder(row as Record<string, unknown>));
+}
+
+export function findVaultFolder(officeId: string, folderId: string): VaultFolder | undefined {
+  const row = database.prepare(`${folderSelect} WHERE f.office_id = ? AND f.id = ? AND f.deleted_at IS NULL`).get(officeId, folderId) as Record<string, unknown> | undefined;
+  return row ? mapFolder(row) : undefined;
+}
+
+/** Root-to-folder path, for breadcrumbs. Depth is bounded so a cycle cannot loop the request. */
+export function vaultFolderPath(officeId: string, folderId: string): VaultFolder[] {
+  const path: VaultFolder[] = [];
+  let current: string | null = folderId;
+  for (let depth = 0; current && depth < 12; depth += 1) {
+    const folder: VaultFolder | undefined = findVaultFolder(officeId, current);
+    if (!folder) break;
+    path.unshift(folder);
+    current = folder.parentId;
+  }
+  return path;
+}
+
+export function createVaultFolder(officeId: string, userId: string, caseId: string, name: string, parentId: string | null = null) {
+  const clean = name.trim();
+  if (clean.length < 1 || clean.length > 120) throw new VaultHttpError(400, "Informe um nome de pasta de até 120 caracteres.");
+  if (!findVaultCase(officeId, caseId)) throw new VaultHttpError(404, "Caso não encontrado.");
+  // The parent has to belong to the same case of the same office; otherwise a valid id from
+  // elsewhere would graft a subtree across cases.
+  if (parentId) {
+    const parent = findVaultFolder(officeId, parentId);
+    if (!parent || parent.caseId !== caseId) throw new VaultHttpError(404, "Pasta de destino não encontrada.");
+    if (vaultFolderPath(officeId, parentId).length >= 8) throw new VaultHttpError(409, "Limite de subpastas atingido neste caminho.");
+  }
+  const id = randomUUID();
+  try {
+    database.prepare("INSERT INTO vault_folder (id, office_id, case_id, parent_id, name, created_by) VALUES (?, ?, ?, ?, ?, ?)")
+      .run(id, officeId, caseId, parentId, clean, userId);
+  } catch (error) {
+    if (String(error).includes("UNIQUE constraint failed")) throw new VaultHttpError(409, "Já existe uma pasta com esse nome neste nível.");
+    throw error;
+  }
+  return findVaultFolder(officeId, id)!;
+}
+
+/** Soft-deletes a folder. Its documents move up to the parent level instead of disappearing. */
+export function deleteVaultFolder(officeId: string, folderId: string) {
+  const folder = findVaultFolder(officeId, folderId);
+  if (!folder) throw new VaultHttpError(404, "Pasta não encontrada.");
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    database.prepare("UPDATE vault_document SET folder_id = ?, updated_at = CURRENT_TIMESTAMP WHERE folder_id = ? AND office_id = ?").run(folder.parentId, folderId, officeId);
+    database.prepare("UPDATE vault_folder SET parent_id = ?, updated_at = CURRENT_TIMESTAMP WHERE parent_id = ? AND office_id = ? AND deleted_at IS NULL").run(folder.parentId, folderId, officeId);
+    database.prepare("UPDATE vault_folder SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?").run(folderId, officeId);
+    database.exec("COMMIT");
+  } catch (error) { database.exec("ROLLBACK"); throw error; }
 }
 
 // Stored name, office and lease data stay on the server.
 export function publicDocument(row: DocumentRow): VaultDocument {
   return {
-    id: row.id, name: row.name, caseId: row.caseId, caseName: row.caseName, scope: row.scope,
+    id: row.id, name: row.name, caseId: row.caseId, caseName: row.caseName, folderId: row.folderId, scope: row.scope,
     mimeType: row.mimeType, byteSize: row.byteSize, status: row.status, progress: row.progress,
     errorMessage: row.errorMessage, extractedCharacters: row.extractedCharacters,
     sourceCount: row.sourceCount, createdAt: row.createdAt,
@@ -89,7 +229,7 @@ export function publicDocument(row: DocumentRow): VaultDocument {
 
 export function listVaultDocuments(
   officeId: string,
-  filters: { scope?: string | null; caseId?: string | null; limit?: number; offset?: number } = {},
+  filters: { scope?: string | null; caseId?: string | null; folderId?: string | null; limit?: number; offset?: number } = {},
 ): VaultDocument[] {
   // A tombstoned document is invisible here, not merely marked: this list feeds the UI, the
   // agent catalog and the run scope, and each of them would otherwise keep offering deleted files.
@@ -97,17 +237,22 @@ export function listVaultDocuments(
   const values: (string | number | null)[] = [officeId];
   if (filters.scope === "library" || filters.scope === "case") { where.push("d.scope = ?"); values.push(filters.scope); }
   if (filters.caseId) { where.push("d.case_id = ?"); values.push(filters.caseId); }
+  // `null` means the case root, which is a different question from "any folder".
+  if (filters.folderId === null) where.push("d.folder_id IS NULL");
+  else if (filters.folderId) { where.push("d.folder_id = ?"); values.push(filters.folderId); }
   const limit = Math.min(Math.max(filters.limit ?? 200, 1), 200);
   const offset = Math.max(filters.offset ?? 0, 0);
   return database.prepare(`${documentSelect} WHERE ${where.join(" AND ")} ORDER BY d.created_at DESC LIMIT ? OFFSET ?`)
     .all(...values, limit, offset).map((row) => publicDocument(mapDocument(row)));
 }
 
-export function countVaultDocuments(officeId: string, filters: { scope?: string | null; caseId?: string | null } = {}): number {
+export function countVaultDocuments(officeId: string, filters: { scope?: string | null; caseId?: string | null; folderId?: string | null } = {}): number {
   const where = ["office_id = ?", "deleted_at IS NULL"];
   const values: (string | null)[] = [officeId];
   if (filters.scope === "library" || filters.scope === "case") { where.push("scope = ?"); values.push(filters.scope); }
   if (filters.caseId) { where.push("case_id = ?"); values.push(filters.caseId); }
+  if (filters.folderId === null) where.push("folder_id IS NULL");
+  else if (filters.folderId) { where.push("folder_id = ?"); values.push(filters.folderId); }
   return Number(database.prepare(`SELECT count(*) AS n FROM vault_document WHERE ${where.join(" AND ")}`).get(...values)?.n ?? 0);
 }
 
@@ -134,7 +279,7 @@ export function createVaultDocument(
   officeId: string,
   userId: string,
   upload: UploadRef,
-  options: { scope: string; caseId?: string | null },
+  options: { scope: string; caseId?: string | null; folderId?: string | null },
 ) {
   const scope: VaultScope = options.scope === "case" ? "case" : options.scope === "library" ? "library" : (() => { throw new VaultHttpError(400, "Escolha o destino do documento."); })();
   const caseId = scope === "case" ? options.caseId?.trim() : null;
@@ -142,13 +287,19 @@ export function createVaultDocument(
   if (caseId && !database.prepare("SELECT 1 FROM vault_case WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(caseId, officeId)) {
     throw new VaultHttpError(404, "Caso não encontrado.");
   }
+  // A folder only exists inside a case, and only inside this one.
+  const folderId = caseId ? options.folderId?.trim() || null : null;
+  if (folderId) {
+    const folder = findVaultFolder(officeId, folderId);
+    if (!folder || folder.caseId !== caseId) throw new VaultHttpError(404, "Pasta não encontrada.");
+  }
   const id = randomUUID();
   database.exec("BEGIN IMMEDIATE");
   try {
     database.prepare(`INSERT INTO vault_document
-      (id, office_id, case_id, scope, original_name, stored_name, mime_type, byte_size, sha256, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(id, officeId, caseId ?? null, scope, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, userId);
+      (id, office_id, case_id, folder_id, scope, original_name, stored_name, mime_type, byte_size, sha256, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(id, officeId, caseId ?? null, folderId, scope, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, userId);
     database.prepare(`INSERT INTO vault_document_version
       (id, office_id, document_id, version, original_name, stored_name, mime_type, byte_size, sha256, created_by, is_active)
       VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 1)`)

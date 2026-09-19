@@ -13,7 +13,15 @@ export const ALLOWED_EXTENSIONS: Record<string, string> = {
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   '.csv': 'text/csv',
   '.txt': 'text/plain',
+  // Images are read by OCR like a scanned page, so they are searchable for every model; a model
+  // with vision additionally receives the picture itself.
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
 };
+
+export const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const UPLOAD_REF_TTL_MS = 30 * 60 * 1000;
@@ -32,7 +40,7 @@ export function validatedFileName(fileName: string) {
   const extension = extname(file).toLowerCase();
   if (extension === '.msg') throw new CapabilityError('INVALID', 'Arquivos .msg ainda não são compatíveis. Exporte o e-mail como .eml.');
   const mimeType = ALLOWED_EXTENSIONS[extension];
-  if (!mimeType) throw new CapabilityError('INVALID', 'Envie PDF, DOCX, EML, XLSX, CSV ou TXT.');
+  if (!mimeType) throw new CapabilityError('INVALID', 'Envie PDF, DOCX, EML, XLSX, CSV, TXT ou uma imagem PNG, JPG ou WEBP.');
   if (!file || file === extension) throw new CapabilityError('INVALID', 'O arquivo precisa ter um nome válido.');
   return { file, extension, mimeType };
 }

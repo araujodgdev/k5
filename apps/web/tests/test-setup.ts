@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,14 +19,11 @@ export const testDb = new DatabaseSync(":memory:");
 testDb.exec("PRAGMA foreign_keys = ON;");
 testDb.exec("CREATE TABLE IF NOT EXISTS user (id TEXT PRIMARY KEY, email TEXT NOT NULL, name TEXT NOT NULL);");
 testDb.exec("CREATE TABLE IF NOT EXISTS session (id TEXT PRIMARY KEY, user_id TEXT, userId TEXT, expires_at INTEGER);");
-testDb.exec(readFileSync(new URL("../db/migrations/0001_offices.sql", import.meta.url), "utf8"));
-testDb.exec(readFileSync(new URL("../db/migrations/0002_platform.sql", import.meta.url), "utf8"));
-testDb.exec(readFileSync(new URL("../db/migrations/0003_vault.sql", import.meta.url), "utf8"));
-testDb.exec(readFileSync(new URL("../db/migrations/0004_ai_workspace.sql", import.meta.url), "utf8"));
-testDb.exec(readFileSync(new URL("../db/migrations/0005_ai_providers.sql", import.meta.url), "utf8"));
-testDb.exec(readFileSync(new URL("../db/migrations/0006_vault_knowledge_index.sql", import.meta.url), "utf8"));
-testDb.exec(readFileSync(new URL("../db/migrations/0007_upload_refs_and_index_jobs.sql", import.meta.url), "utf8"));
-testDb.exec(readFileSync(new URL("../db/migrations/0008_ai_connection_embedding.sql", import.meta.url), "utf8"));
+// Every migration in order, read from the directory: a new file is part of the schema under test
+// the moment it exists, instead of when someone remembers to add a line here.
+for (const name of readdirSync(new URL("../db/migrations", import.meta.url)).filter((file) => file.endsWith(".sql")).sort()) {
+  testDb.exec(readFileSync(new URL(`../db/migrations/${name}`, import.meta.url), "utf8"));
+}
 
 (globalThis as unknown as { k5Database: DatabaseSync }).k5Database = testDb;
 

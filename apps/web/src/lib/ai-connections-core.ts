@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   credentialHint, credentialNeedsReencryption, CredentialDecryptError, decryptCredential, encryptCredential, type CredentialKeyring,
 } from "./platform-crypto";
+import { defaultChatModel, defaultEmbeddingModel } from "./ai-defaults";
 
 type MasterKey = Uint8Array | CredentialKeyring;
 
@@ -199,9 +200,25 @@ export function resolveOfficeModelConfigFromDatabase(
   }
 
   const column = `${task}_model`;
-  const row = db.prepare(`SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL AND ${column} IS NOT NULL ORDER BY updated_at DESC, id LIMIT 1`).get(officeId) as Row | undefined;
-  if (!row || !row.encrypted_api_key) throw new AiConnectionError("not_found", `Nenhum modelo ativo configurado para ${task}.`);
-  return { provider: row.provider, modelId: row[column as keyof Row] as string, apiKey: readSecret(row.encrypted_api_key, key), connectionId: row.id };
+  const assigned = db.prepare(`SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL AND ${column} IS NOT NULL ORDER BY updated_at DESC, id LIMIT 1`).get(officeId) as Row | undefined;
+  if (assigned?.encrypted_api_key) {
+    return { provider: assigned.provider, modelId: assigned[column as keyof Row] as string, apiKey: readSecret(assigned.encrypted_api_key, key), connectionId: assigned.id };
+  }
+
+  // No explicit assignment: the office registers a provider and a credential, and K5 supplies the
+  // model. Embedding is the stricter case — only providers with an embeddings endpoint qualify, so
+  // an office whose single connection is Anthropic gets a clear "not configured" instead of a
+  // request the provider cannot answer.
+  const candidates = db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL ORDER BY updated_at DESC, id").all(officeId) as Row[];
+  for (const row of candidates) {
+    if (!row.encrypted_api_key) continue;
+    const modelId = task === "embedding" ? defaultEmbeddingModel(row.provider) : defaultChatModel(row.provider);
+    if (!modelId) continue;
+    return { provider: row.provider, modelId, apiKey: readSecret(row.encrypted_api_key, key), connectionId: row.id };
+  }
+  throw new AiConnectionError("not_found", task === "embedding"
+    ? "Nenhuma conexão ativa oferece embeddings neste escritório."
+    : "Nenhuma conexão de IA ativa neste escritório.");
 }
 
 export type ResolvedModelConfig = {
@@ -219,9 +236,10 @@ export async function testAiConnection(
   const row = db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
   if (!row || !row.encrypted_api_key) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   if (!row.enabled) throw new AiConnectionError("disabled", "Ative a conexão antes de testar.");
-  const task = requestedTask ?? AI_TASKS.find((item) => row[`${item}_model`]);
-  const modelId = task ? row[`${task}_model`] : null;
-  if (!task || !modelId) throw new AiConnectionError("invalid", "Salve um modelo para a tarefa antes de testar.");
+  const task = requestedTask ?? AI_TASKS.find((item) => row[`${item}_model`]) ?? "chat";
+  // A connection with no assignment is the normal case now: the test uses the model K5 would use.
+  const modelId = row[`${task}_model`] ?? (task === "embedding" ? defaultEmbeddingModel(row.provider) : defaultChatModel(row.provider));
+  if (!modelId) throw new AiConnectionError("invalid", "Este provider não tem um modelo padrão para esta tarefa.");
   const details = { task, provider: row.provider, modelId };
   let config: ResolvedModelConfig;
   try { config = { provider: row.provider, modelId, apiKey: readSecret(row.encrypted_api_key, key), connectionId: row.id }; } catch (error) {

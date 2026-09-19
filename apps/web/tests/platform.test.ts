@@ -15,6 +15,7 @@ import {
   parseCredentialKey, parseCredentialKeyring,
 } from "../src/lib/platform-crypto";
 import { resolveModelConfig } from "@mastra/core/llm";
+import { DEFAULT_CHAT_MODEL } from "../src/lib/ai-defaults";
 import { modelFor } from "../src/lib/ai-providers";
 
 function fixture() {
@@ -166,7 +167,8 @@ test("connection test accepts any enabled connection, hides provider failures an
   const ok = async (config: { apiKey: string; modelId: string }) => { sent.push(`${config.apiKey}:${config.modelId}`); };
   assert.deepEqual(await testAiConnection(db, key, admin, officeA, extraction.id, undefined, ok), { task: "extraction", modelId: "claude-extract" });
   assert.deepEqual(sent, ["sk-extract-test-secret:claude-extract"]);
-  await assert.rejects(testAiConnection(db, key, admin, officeA, extraction.id, "chat", ok), (error) => error instanceof AiConnectionError && error.code === "invalid");
+  // No chat assignment: the test uses the model K5 would use for this provider.
+  assert.deepEqual(await testAiConnection(db, key, admin, officeA, extraction.id, "chat", ok), { task: "chat", modelId: DEFAULT_CHAT_MODEL.anthropic });
   await assert.rejects(testAiConnection(db, key, admin, officeA, other.id, undefined, ok), (error) => error instanceof AiConnectionError && error.code === "not_found");
   const leaky = async () => { throw new Error("401 Incorrect API key provided: sk-cha****cret"); };
   await assert.rejects(testAiConnection(db, key, admin, officeA, chat.id, "chat", leaky), (error) => error instanceof AiConnectionError && error.code === "provider"
@@ -175,7 +177,7 @@ test("connection test accepts any enabled connection, hides provider failures an
   await assert.rejects(testAiConnection(db, key, admin, officeA, chat.id, "chat", ok), (error) => error instanceof AiConnectionError && error.code === "disabled");
   const rows = db.prepare("SELECT actor_user_id, office_id, connection_id, details_json FROM platform_audit_log WHERE action = 'ai_connection.tested' ORDER BY rowid").all() as Array<{ actor_user_id: string; office_id: string; connection_id: string; details_json: string }>;
   assert.deepEqual(rows.map((row) => [row.actor_user_id, row.office_id, row.connection_id, JSON.parse(row.details_json).task, JSON.parse(row.details_json).result]), [
-    [admin, officeA, extraction.id, "extraction", "ok"], [admin, officeA, chat.id, "chat", "failed"],
+    [admin, officeA, extraction.id, "extraction", "ok"], [admin, officeA, extraction.id, "chat", "ok"], [admin, officeA, chat.id, "chat", "failed"],
   ]);
   assert.equal(/sk-|Incorrect/.test(JSON.stringify(rows)), false);
 });
@@ -237,10 +239,12 @@ test("concurrent resolution per office uses its own credential and never falls b
   const disabled = await Promise.allSettled([resolve(officeA), resolve(officeB)]);
   assert.ok(disabled[0].status === "fulfilled" && disabled[0].value.apiKey === "sk-office-a-only");
   assert.ok(disabled[1].status === "rejected" && disabled[1].reason instanceof AiConnectionError && disabled[1].reason.code === "not_found");
+  // Clearing the assignment no longer disables the office: K5 supplies the model for the provider,
+  // and only the credential is the office's to configure.
   updateAiConnection(db, key, admin, officeB, b.id, { enabled: true, models: { chat: null, extraction: null, drafting: null } });
-  const missing = await Promise.allSettled([resolve(officeB), resolve(officeA)]);
-  assert.ok(missing[0].status === "rejected" && missing[0].reason instanceof AiConnectionError && missing[0].reason.code === "not_found");
-  assert.equal(missing[1].status, "fulfilled");
+  const cleared = await Promise.allSettled([resolve(officeB), resolve(officeA)]);
+  assert.ok(cleared[0].status === "fulfilled" && cleared[0].value.modelId === DEFAULT_CHAT_MODEL.anthropic);
+  assert.equal(cleared[1].status, "fulfilled");
 });
 
 test("every supported provider can be stored and resolved with its own credential", () => {
@@ -269,9 +273,14 @@ test("dynamic model resolution allows user to select model from active connectio
     models: { chat: null, extraction: null, drafting: null },
   });
 
-  // Calling without requestedModel and without task model throws not_found
+  // Without a requested model the office still resolves: K5 owns the default for the provider.
+  const fallback = resolveOfficeModelConfigFromDatabase(db, key, officeA, "chat");
+  assert.equal(fallback.provider, "inception");
+  assert.equal(fallback.modelId, DEFAULT_CHAT_MODEL.inception);
+
+  // Embedding is stricter: a provider with no embeddings endpoint is not silently substituted.
   assert.throws(
-    () => resolveOfficeModelConfigFromDatabase(db, key, officeA, "chat"),
+    () => resolveOfficeModelConfigFromDatabase(db, key, officeA, "embedding"),
     (err) => err instanceof AiConnectionError && err.code === "not_found"
   );
 

@@ -32,11 +32,29 @@ const uuid = z.string().uuid();
  */
 const idempotencyKey = z.string().min(8).max(128).optional();
 const documentIds = z.array(identifier).min(1).max(100);
+const caseClient = z.object({
+  name: z.string().trim().max(180).nullish(),
+  document: z.string().trim().max(40).nullish(),
+  email: z.string().trim().max(200).nullish(),
+  phone: z.string().trim().max(40).nullish(),
+  notes: z.string().trim().max(4000).nullish(),
+});
 
-export const caseDto = z.object({ id: z.string(), name: z.string(), createdAt: z.string() });
+export const caseDto = z.object({
+  id: z.string(), name: z.string(), description: z.string().nullable(), createdAt: z.string(), updatedAt: z.string(),
+  client: z.object({
+    name: z.string().nullable(), document: z.string().nullable(), email: z.string().nullable(),
+    phone: z.string().nullable(), notes: z.string().nullable(),
+  }),
+  documentCount: z.number(),
+});
+export const folderDto = z.object({
+  id: z.string(), caseId: z.string(), parentId: z.string().nullable(), name: z.string(),
+  createdAt: z.string(), documentCount: z.number(), folderCount: z.number(),
+});
 export const documentDto = z.object({
   id: z.string(), name: z.string(), caseId: z.string().nullable(), caseName: z.string().nullable(),
-  scope: z.enum(['library', 'case']), status: z.enum(['queued', 'processing', 'ready', 'failed']),
+  folderId: z.string().nullable(), scope: z.enum(['library', 'case']), status: z.enum(['queued', 'processing', 'ready', 'failed']),
   progress: z.number(), errorMessage: z.string().nullable(), sourceCount: z.number(), createdAt: z.string(),
   version: z.number().optional(),
 });
@@ -64,14 +82,25 @@ export const capabilities = {
   },
   k5_vault_create_case: {
     module: 'vault', effect: 'write', roles: writers,
-    description: 'Cria um caso no Cofre. Se já existir um caso com o mesmo nome, devolve o existente em vez de duplicar.',
-    input: z.object({ name: z.string().trim().min(2).max(180).describe('Nome do caso, por exemplo "Silva vs. Construtora Horizonte".'), idempotencyKey }),
+    description: 'Cria um caso no Cofre, que funciona como uma pasta do escritório. Se já existir um caso com o mesmo nome, devolve o existente em vez de duplicar.',
+    input: z.object({
+      name: z.string().trim().min(2).max(180).describe('Nome do caso, por exemplo "Silva vs. Construtora Horizonte".'),
+      description: z.string().trim().max(4000).nullish().describe('Resumo do caso.'),
+      client: caseClient.nullish().describe('Dados do cliente; opcionais e usados apenas para identificação interna.'),
+      idempotencyKey,
+    }),
     output: z.object({ case: caseDto, created: z.boolean() }),
   },
   k5_vault_update_case: {
     module: 'vault', effect: 'write', roles: writers,
-    description: 'Atualiza o nome de um caso existente no Cofre.',
-    input: z.object({ caseId: identifier, name: z.string().trim().min(2).max(180), idempotencyKey }),
+    description: 'Atualiza nome, descrição ou dados do cliente de um caso existente. Campos omitidos permanecem como estão.',
+    input: z.object({
+      caseId: identifier,
+      name: z.string().trim().min(2).max(180).optional(),
+      description: z.string().trim().max(4000).nullish(),
+      client: caseClient.nullish(),
+      idempotencyKey,
+    }),
     output: z.object({ case: caseDto }),
   },
   k5_vault_delete_case: {
@@ -86,6 +115,7 @@ export const capabilities = {
     input: z.object({
       scope: z.enum(['library', 'case']).optional().describe('Filtra por biblioteca ou por casos.'),
       caseId: identifier.optional().describe('Identificador de um caso listado por k5_vault_list_cases.'),
+      folderId: identifier.nullish().describe('Subpasta do caso; null lista apenas a raiz do caso.'),
       limit: z.number().int().min(1).max(50).default(20),
     }),
     output: z.object({ documents: z.array(documentDto), total: z.number() }),
@@ -97,11 +127,12 @@ export const capabilities = {
   },
   k5_vault_update_document: {
     module: 'vault', effect: 'write', roles: writers,
-    description: 'Atualiza o nome ou move o documento entre caso e biblioteca.',
+    description: 'Atualiza o nome do documento ou o move entre caso, subpasta e biblioteca.',
     input: z.object({
       documentId: identifier,
       name: z.string().trim().min(1).max(255).optional(),
       caseId: identifier.nullable().optional(),
+      folderId: identifier.nullable().optional().describe('Subpasta do caso; null devolve o documento à raiz do caso.'),
       idempotencyKey,
     }),
     output: z.object({ document: documentDto }),
@@ -136,16 +167,36 @@ export const capabilities = {
       uploadRef: uuid.describe('Referência devolvida pelo envio de arquivo; o agente nunca informa um caminho.'),
       scope: z.enum(['library', 'case']),
       caseId: identifier.optional(),
+      folderId: identifier.nullish().describe('Subpasta do caso onde o arquivo deve ficar.'),
       idempotencyKey,
     }),
     output: z.object({ document: documentDto }),
   },
+  k5_vault_list_folders: {
+    module: 'vault', effect: 'read', roles: readers,
+    description: 'Lista as subpastas de um caso. Sem parentId, devolve as pastas da raiz do caso.',
+    input: z.object({ caseId: identifier, parentId: identifier.nullish() }),
+    output: z.object({ folders: z.array(folderDto), path: z.array(folderDto) }),
+  },
+  k5_vault_create_folder: {
+    module: 'vault', effect: 'write', roles: writers,
+    description: 'Cria uma subpasta dentro de um caso do Cofre.',
+    input: z.object({ caseId: identifier, name: z.string().trim().min(1).max(120), parentId: identifier.nullish(), idempotencyKey }),
+    output: z.object({ folder: folderDto }),
+  },
+  k5_vault_delete_folder: {
+    module: 'vault', effect: 'write', roles: writers,
+    description: 'Remove uma subpasta. Os documentos e as pastas filhas sobem um nível em vez de serem excluídos.',
+    input: z.object({ folderId: identifier, idempotencyKey }),
+    output: z.object({ success: z.boolean() }),
+  },
   k5_knowledge_search: {
     module: 'knowledge', effect: 'read', roles: readers,
-    description: 'Busca trechos nos documentos autorizados e devolve as fontes com a localização de origem. Informe os documentos do escopo da conversa.',
+    description: 'Busca trechos nos documentos do Cofre e devolve as fontes com a localização de origem. Sem documentIds, busca em todos os casos e na biblioteca do escritório.',
     input: z.object({
       query: z.string().trim().min(2).max(500).describe('Pergunta ou termos a buscar, em português.'),
-      documentIds: documentIds.describe('Documentos autorizados para esta busca.'),
+      documentIds: documentIds.optional().describe('Restringe a busca a estes documentos. Omita para buscar em todo o Cofre.'),
+      caseId: identifier.optional().describe('Restringe a busca aos documentos de um caso.'),
       limit: z.number().int().min(1).max(12).default(8),
     }),
     output: z.object({

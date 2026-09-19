@@ -35,12 +35,23 @@ const routes: Record<CapabilityName, Route> = {
   k5_vault_create_case: { method: 'POST', path: () => '/api/vault/cases', body: (i) => i },
   k5_vault_update_case: { method: 'PATCH', path: (i) => `/api/vault/cases/${id(i.caseId)}`, body: (i) => i },
   k5_vault_delete_case: { method: 'DELETE', path: (i) => `/api/vault/cases/${id(i.caseId)}`, body: (i) => i },
+  k5_vault_list_folders: {
+    method: 'GET',
+    path: (i) => {
+      const params = new URLSearchParams({ caseId: String(i.caseId ?? '') });
+      if (i.parentId) params.set('parentId', String(i.parentId));
+      return `/api/vault/folders?${params}`;
+    },
+  },
+  k5_vault_create_folder: { method: 'POST', path: () => '/api/vault/folders', body: (i) => i },
+  k5_vault_delete_folder: { method: 'DELETE', path: (i) => `/api/vault/folders/${id(i.folderId)}`, body: (i) => i },
   k5_vault_list_documents: {
     method: 'GET',
     path: (i) => {
       const params = new URLSearchParams();
       if (i.scope) params.set('scope', String(i.scope));
       if (i.caseId) params.set('caseId', String(i.caseId));
+      if (i.folderId !== undefined) params.set('folderId', i.folderId === null ? 'root' : String(i.folderId));
       if (i.limit) params.set('limit', String(i.limit));
       const query = params.toString();
       return query ? `/api/vault/documents?${query}` : '/api/vault/documents';

@@ -1,20 +1,16 @@
 import { apiWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
-import { updateCase, deleteCase } from '@/lib/application/vault-service';
+import { deleteCase } from '@/lib/application/vault-service';
+import { handleCapability } from '@/lib/capability-route';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
 
 type Context = { params: Promise<{ id: string }> };
 
+/** Title, description and the optional client block; anything omitted keeps its stored value. */
 export async function PATCH(request: Request, context: Context) {
-  try {
-    const workspace = await apiWorkspace(request, true);
-    const body = z.object({ name: z.string().trim().min(2).max(180) }).parse(await limitedJson(request));
-    const caseId = (await context.params).id;
-    const result = updateCase(workspaceContext(workspace), { caseId, name: body.name });
-    return Response.json(result);
-  } catch (error) { return apiError(error); }
+  return handleCapability(request, 'k5_vault_update_case', { caseId: (await context.params).id });
 }
 
 export async function DELETE(request: Request, context: Context) {
@@ -25,7 +21,7 @@ export async function DELETE(request: Request, context: Context) {
     try {
       body = z.object({ targetCaseId: z.string().optional(), approvalId: z.string().optional() }).parse(await limitedJson(request));
     } catch {
-      // Empty body is allowed if no targetCaseId/approvalId yet provided
+      // Empty body is allowed: the caller may not have an approval or a destination case yet.
     }
     const result = deleteCase(workspaceContext(workspace), { caseId, targetCaseId: body.targetCaseId, approvalId: body.approvalId });
     return Response.json(result);

@@ -34,10 +34,26 @@ export async function searchKnowledgeEngine(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_search'>,
 ): Promise<SearchKnowledgeResult> {
-  const { query, documentIds } = input;
+  const { query } = input;
   const limit = input.limit ?? 8;
+
+  /**
+   * Without an explicit list the scope is the office's own Cofre — every case and the library —
+   * because that is what the assistant is expected to know. It is still an office-scoped read:
+   * the ids are selected here, from this office's ready documents, never taken from the caller.
+   */
+  const documentIds = input.documentIds?.length
+    ? input.documentIds
+    : (database.prepare(
+        `SELECT id FROM vault_document
+         WHERE office_id = ? AND deleted_at IS NULL AND status = 'ready'${input.caseId ? ' AND case_id = ?' : ''}
+         ORDER BY updated_at DESC LIMIT 400`,
+      ).all(...(input.caseId ? [context.officeId, input.caseId] : [context.officeId])) as Array<{ id: string }>).map((row) => String(row.id));
+
   if (!documentIds.length) {
-    throw new CapabilityError('SCOPE_REQUIRED', 'Informe ao menos um documento autorizado no escopo.');
+    throw new CapabilityError('SCOPE_REQUIRED', input.documentIds?.length
+      ? 'Informe ao menos um documento autorizado no escopo.'
+      : 'Não há documentos processados no Cofre deste escritório.');
   }
 
   const unique = [...new Set(documentIds)];

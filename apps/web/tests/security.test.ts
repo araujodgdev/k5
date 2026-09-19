@@ -12,6 +12,7 @@ import * as uploadsService from "../src/lib/application/uploads-service";
 import { withIdempotency } from "../src/lib/application/idempotency-service";
 import { assertStorageKey, storageKey } from "../src/lib/storage";
 import { findVaultDocument, listVaultDocuments, retryVaultDocument, VaultHttpError } from "../src/lib/vault";
+import { isTrustedOrigin } from "../src/lib/trusted-origins";
 
 function seedOffices() {
   const userLawyer = randomUUID();
@@ -207,4 +208,32 @@ test("publication: no adapter may offer a capability marked unpublished", () => 
 
   // Role still decides the rest.
   assert.ok(!publishedCapabilitiesForRole("reviewer", "agent").includes("k5_vault_delete_document"));
+});
+
+test("origins: the wildcard the tunnel default declares is honoured, and nothing wider", () => {
+  const patterns = ["http://localhost:3000", "https://*.trycloudflare.com"];
+
+  // The exact app URL and a quick tunnel of the configured zone.
+  assert.equal(isTrustedOrigin("http://localhost:3000", patterns), true);
+  assert.equal(isTrustedOrigin("https://going-officials-kenny-axis.trycloudflare.com", patterns), true);
+
+  // One label only: neither the apex nor a deeper subdomain is covered by `*.`.
+  assert.equal(isTrustedOrigin("https://trycloudflare.com", patterns), false);
+  assert.equal(isTrustedOrigin("https://a.b.trycloudflare.com", patterns), false);
+
+  // A suffix that merely ends in the same characters is a different host.
+  assert.equal(isTrustedOrigin("https://eviltrycloudflare.com", patterns), false);
+  assert.equal(isTrustedOrigin("https://trycloudflare.com.evil.test", patterns), false);
+
+  // Scheme and port are part of an origin and are never wildcarded.
+  assert.equal(isTrustedOrigin("http://tunnel.trycloudflare.com", patterns), false);
+  assert.equal(isTrustedOrigin("https://tunnel.trycloudflare.com:8443", patterns), false);
+  assert.equal(isTrustedOrigin("http://localhost:3001", patterns), false);
+
+  // A missing header, a path, or anything that is not an origin fails closed.
+  assert.equal(isTrustedOrigin(null, patterns), false);
+  assert.equal(isTrustedOrigin("", patterns), false);
+  assert.equal(isTrustedOrigin("http://localhost:3000/api/chat", patterns), false);
+  assert.equal(isTrustedOrigin("null", patterns), false);
+  assert.equal(isTrustedOrigin("https://going-officials-kenny-axis.trycloudflare.com", []), false);
 });

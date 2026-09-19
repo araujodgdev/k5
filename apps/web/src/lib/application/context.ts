@@ -5,7 +5,14 @@ import { CapabilityError } from '@/lib/capabilities/errors';
 import { capabilities, type CapabilityName } from '@/lib/capabilities/contracts';
 
 /** Trusted context, always built on the server from the session. The model never supplies these fields. */
-export type WorkspaceContext = { userId: string; officeId: string; role: OfficeRole; sessionId?: string };
+export type WorkspaceContext = {
+  userId: string;
+  officeId: string;
+  role: OfficeRole;
+  sessionId?: string;
+  /** The model the person selected for this turn. Absent means K5's default for the provider. */
+  model?: { provider: string; modelId: string };
+};
 
 export function workspaceContext(workspace: {
   user: { id: string };

@@ -20,7 +20,7 @@ export function openResource(
         const found = database.prepare('SELECT 1 FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL').get(resourceId, context.officeId);
         if (!found) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
       }
-      path = resourceId ? `/app/vault?caseId=${encodeURIComponent(resourceId)}` : '/app/vault';
+      path = resourceId ? `/app/vault/cases/${encodeURIComponent(resourceId)}` : '/app/vault';
       break;
     case 'document':
       if (resourceId) {
