@@ -88,6 +88,11 @@ O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
   editor em `/app/documents/[id]`, com exportação DOCX no timbrado do modelo.
 - **Worker:** processamento de documentos, cronologias e minutas roda fora da requisição.
   Em outro terminal, execute `pnpm worker` na raiz. Sem ele, os itens ficam na fila.
+- **Infraestrutura judicial (fundação):** vínculo de processos, coleta de publicações,
+  proveniência e caixa interna de eventos. A coleta roda em um worker próprio,
+  `pnpm judicial:worker`, separado do worker de documentos porque OCR e coleta competem por
+  recursos diferentes. Nenhuma fonte contata um tribunal antes de ser habilitada por um
+  operador; veja [a nota de implementação](../../docs/infra-judicial-implementacao.md).
 
 ## Verificação
 

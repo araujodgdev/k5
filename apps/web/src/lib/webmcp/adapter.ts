@@ -93,6 +93,56 @@ const routes: Record<CapabilityName, Route> = {
   k5_conversations_create: { method: 'POST', path: () => '/api/conversations', body: (i) => i },
   k5_conversations_delete: { method: 'DELETE', path: (i) => `/api/conversations/${id(i.conversationId)}` },
   k5_context_set_sources: { method: 'POST', path: () => '/api/knowledge/scope', body: (i) => i },
+  k5_judicial_list_sources: {
+    method: 'GET',
+    path: (i) => {
+      const params = new URLSearchParams();
+      if (i.purpose) params.set('purpose', String(i.purpose));
+      if (i.enabledOnly) params.set('enabledOnly', 'true');
+      const query = params.toString();
+      return query ? `/api/judicial/sources?${query}` : '/api/judicial/sources';
+    },
+  },
+  k5_judicial_list_links: {
+    method: 'GET',
+    path: (i) => {
+      const params = new URLSearchParams();
+      if (i.caseId) params.set('caseId', String(i.caseId));
+      if (i.activeOnly !== undefined) params.set('activeOnly', String(i.activeOnly));
+      const query = params.toString();
+      return query ? `/api/judicial/links?${query}` : '/api/judicial/links';
+    },
+  },
+  k5_judicial_link_case: { method: 'POST', path: () => '/api/judicial/links', body: (i) => i },
+  // Unpublished to both adapters, but the map is exhaustive by design: a capability that later
+  // becomes publishable must not reach this table without a route already written for it.
+  k5_judicial_confirm_link: { method: 'PATCH', path: (i) => `/api/judicial/links/${id(i.linkId)}`, body: (i) => i },
+  k5_judicial_unlink_case: { method: 'DELETE', path: (i) => `/api/judicial/links/${id(i.linkId)}`, body: (i) => i },
+  k5_judicial_list_publications: {
+    method: 'GET',
+    path: (i) => {
+      const params = new URLSearchParams();
+      if (i.caseId) params.set('caseId', String(i.caseId));
+      if (i.linkId) params.set('linkId', String(i.linkId));
+      if (i.limit) params.set('limit', String(i.limit));
+      const query = params.toString();
+      return query ? `/api/judicial/publications?${query}` : '/api/judicial/publications';
+    },
+  },
+  k5_judicial_get_publication: { method: 'GET', path: (i) => `/api/judicial/publications/${id(i.publicationId)}` },
+  k5_judicial_request_refresh: { method: 'POST', path: (i) => `/api/judicial/links/${id(i.linkId)}/refresh`, body: (i) => i },
+  k5_judicial_get_job: { method: 'GET', path: (i) => `/api/judicial/jobs/${id(i.jobId)}` },
+  k5_judicial_list_alerts: {
+    method: 'GET',
+    path: (i) => {
+      const params = new URLSearchParams();
+      if (i.unreadOnly) params.set('unreadOnly', 'true');
+      if (i.limit) params.set('limit', String(i.limit));
+      const query = params.toString();
+      return query ? `/api/judicial/alerts?${query}` : '/api/judicial/alerts';
+    },
+  },
+  k5_judicial_mark_alert_read: { method: 'PATCH', path: (i) => `/api/judicial/alerts/${id(i.alertId)}`, body: (i) => i },
   k5_ui_open_resource: { method: 'POST', path: () => '/api/ui/open', body: (i) => i },
   k5_session_end_global: { method: 'POST', path: () => '/api/session/global-logout' },
 };

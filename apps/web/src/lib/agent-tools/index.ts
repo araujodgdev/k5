@@ -17,6 +17,7 @@ import * as citations from '@/lib/application/citations-service';
 import * as knowledge from '@/lib/application/knowledge-service';
 import * as ui from '@/lib/application/ui-service';
 import * as platform from '@/lib/application/platform-service';
+import * as judicial from '@/lib/application/judicial-service';
 import { endGlobalSession } from '@/lib/application/ui-service';
 
 type Executor = (context: WorkspaceContext, input: never) => unknown;
@@ -59,6 +60,17 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_conversations_create: conversations.createNewConversation,
   k5_conversations_delete: conversations.deleteConversation,
   k5_context_set_sources: knowledge.setScopeSources,
+  k5_judicial_list_sources: judicial.listJudicialSources,
+  k5_judicial_list_links: judicial.listJudicialLinks,
+  k5_judicial_link_case: judicial.linkJudicialCase,
+  k5_judicial_confirm_link: judicial.confirmJudicialLink,
+  k5_judicial_unlink_case: judicial.unlinkJudicialCase,
+  k5_judicial_list_publications: judicial.listJudicialPublications,
+  k5_judicial_get_publication: judicial.getJudicialPublication,
+  k5_judicial_request_refresh: judicial.requestJudicialRefresh,
+  k5_judicial_get_job: judicial.getJudicialJob,
+  k5_judicial_list_alerts: judicial.listJudicialAlerts,
+  k5_judicial_mark_alert_read: judicial.markJudicialAlertRead,
   k5_ui_open_resource: ui.openResource,
   k5_session_end_global: () => endGlobalSession(),
 };
@@ -200,6 +212,17 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_conversations_create: 'Criou uma nova conversa',
     k5_conversations_delete: 'Excluiu uma conversa',
     k5_context_set_sources: 'Definiu o escopo de documentos',
+    k5_judicial_list_sources: 'Consultou as fontes judiciais',
+    k5_judicial_list_links: 'Consultou os processos vinculados',
+    k5_judicial_link_case: 'Propôs vínculo de processo',
+    k5_judicial_confirm_link: 'Confirmou vínculo de processo',
+    k5_judicial_unlink_case: 'Removeu vínculo de processo',
+    k5_judicial_list_publications: 'Consultou publicações coletadas',
+    k5_judicial_get_publication: 'Abriu uma publicação',
+    k5_judicial_request_refresh: 'Solicitou atualização de processo',
+    k5_judicial_get_job: 'Consultou uma coleta',
+    k5_judicial_list_alerts: 'Consultou a caixa de eventos',
+    k5_judicial_mark_alert_read: 'Marcou evento como lido',
     k5_ui_open_resource: 'Abriu recurso na interface',
     k5_session_end_global: 'Encerrou todas as sessões',
     k5_platform_list_offices: 'Consultou escritórios na plataforma',
@@ -211,14 +234,18 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
   };
   const label = labels[name] ?? 'Executou uma operação';
   if (failed) return `${label}: não foi possível concluir`;
-  const detail = describe(result);
+  const detail = describe(name, result);
   return detail ? `${label}: ${detail}` : label;
 }
 
-function describe(result: unknown): string {
+function describe(name: string, result: unknown): string {
   if (!result || typeof result !== 'object') return '';
   const value = result as Record<string, unknown>;
-  if (Array.isArray(value.sources)) return `${value.sources.length} trecho(s)`;
+  // `sources` means retrieved excerpts for knowledge search and court installations for the
+  // judicial catalog, so the capability name settles it before the shape is read.
+  if (Array.isArray(value.sources)) {
+    return name === 'k5_judicial_list_sources' ? `${value.sources.length} fonte(s)` : `${value.sources.length} trecho(s)`;
+  }
   if (Array.isArray(value.cases)) return `${value.cases.length} caso(s)`;
   if (Array.isArray(value.folders)) return `${value.folders.length} pasta(s)`;
   if (Array.isArray(value.documents)) return `${value.documents.length} documento(s)`;
@@ -226,6 +253,11 @@ function describe(result: unknown): string {
   if (Array.isArray(value.versions)) return `${value.versions.length} versão(ões)`;
   if (Array.isArray(value.conversations)) return `${value.conversations.length} conversa(s)`;
   if (Array.isArray(value.candidates)) return `${value.candidates.length} candidato(s)`;
+  if (Array.isArray(value.links)) return `${value.links.length} vínculo(s)`;
+  if (Array.isArray(value.publications)) return `${value.publications.length} publicação(ões)`;
+  if (Array.isArray(value.alerts)) return `${value.alerts.length} evento(s)`;
+  if (value.link && typeof value.link === 'object') return String((value.link as { cnjNumber?: string | null }).cnjNumber ?? 'vínculo');
+  if (value.job && typeof value.job === 'object') return String((value.job as { status?: string }).status ?? '');
   if (value.case && typeof value.case === 'object') return String((value.case as { name?: string }).name ?? '');
   if (value.run && typeof value.run === 'object') return String((value.run as { status?: string }).status ?? '');
   if (value.document && typeof value.document === 'object') return String((value.document as { name?: string }).name ?? '');

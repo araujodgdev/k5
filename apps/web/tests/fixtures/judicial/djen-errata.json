@@ -1,0 +1,15 @@
+{
+  "status": "success",
+  "count": 1,
+  "items": [
+    {
+      "id": "djen-synth-0001-err",
+      "numeroProcesso": "0000001-05.2025.8.26.0100",
+      "numeroEdicao": "3210",
+      "numeroPagina": "114",
+      "dataDisponibilizacao": "2026-09-12",
+      "tipoComunicacao": "Errata",
+      "texto": "Errata: onde se leu fls. 12, leia-se fls. 21."
+    }
+  ]
+}
