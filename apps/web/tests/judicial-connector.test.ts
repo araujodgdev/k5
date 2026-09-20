@@ -171,6 +171,29 @@ test("DJEN listChanges: a list with no valid CNJ number is refused rather than w
     () => connector.listChanges!(inst, { ...WINDOW, cnjNumbers: ["numero-invalido"] }),
     (error: unknown) => error instanceof ConnectorError && error.code === "unsupported",
   );
+  await assert.rejects(
+    () => connector.listChanges!(inst, { ...WINDOW, cnjNumbers: [] }),
+    (error: unknown) => error instanceof ConnectorError && error.code === "unsupported",
+  );
+});
+
+test("DJEN fetchPublication: preserves raw payload when response fails schema normalization", async () => {
+  const inst = installation();
+  const malformed = "{ not valid json";
+  const map = new Map<string, { contentType?: string; body: string; status?: number }>();
+  map.set(fixtureKey(inst.id, "GET", "api/v1/comunicacao/pub-999"), { body: malformed });
+  const connector = createDjenConnector(fixtureTransport(map));
+
+  await assert.rejects(
+    () => connector.fetchPublication!(inst, "pub-999"),
+    (error: unknown) => {
+      assert(error instanceof ConnectorError);
+      assert.equal(error.code, "schema_changed");
+      assert.equal(error.rawPayload?.body, malformed);
+      assert.equal(error.rawPayloads?.[0]?.body, malformed);
+      return true;
+    },
+  );
 });
 
 test("DJEN listChanges: source errors arrive as structured codes, with retryability decided", async () => {
@@ -237,7 +260,9 @@ test("transport: a literal internal address never passes, allowlisted or not", a
 test("transport: the private-range classifier covers the addresses an SSRF actually aims at", () => {
   for (const address of [
     "127.0.0.1", "10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.1.1",
-    "169.254.169.254", "0.0.0.0", "100.64.0.1", "::1", "fe80::1", "fd00::1", "::ffff:127.0.0.1",
+    "169.254.169.254", "0.0.0.0", "100.64.0.1", "198.51.100.1", "::1", "::",
+    "fe80::1", "fe90::1", "febf::1", "fec0::1", "fd00::1",
+    "::ffff:127.0.0.1", "::ffff:7f00:1", "::127.0.0.1", "::7f00:1", "2001:db8::1",
   ]) {
     assert.equal(isPrivateAddress(address), true, `${address} deveria ser privado`);
   }

@@ -36,12 +36,12 @@ export function currentTransport(): Transport {
   return transportOverride ?? liveTransport;
 }
 
-export function connectorFor(installation: InstallationRef): JudicialConnector {
+export function connectorFor(installation: InstallationRef, transport?: Transport): JudicialConnector {
   const factory = factories[installation.kind];
   if (!factory) {
     throw new ConnectorError('unsupported', `Ainda não há conector implementado para fontes do tipo ${installation.kind}.`);
   }
-  return factory(currentTransport());
+  return factory(transport ?? currentTransport());
 }
 
 export function hasConnectorFor(kind: SourceKind): boolean {

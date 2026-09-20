@@ -1,8 +1,8 @@
 import 'server-only';
 import { ConnectorError, permits, type ConnectorResult, type NormalizedPublication } from '../contracts';
-import { connectorFor } from '../connectors';
+import { connectorFor, currentTransport, hasConnectorFor, DJEN_PARSER_VERSION, type Transport } from '../connectors';
 import { findInstallation } from '../repositories/installations';
-import { ingestPublications, recordSyncFailureAlert } from '../repositories/evidence';
+import { ingestPublications, persistSnapshot, recordSyncFailureAlert } from '../repositories/evidence';
 import { findSubscriptionById, recordSubscriptionSuccess, subscriptionStillAuthorized, setSubscriptionStatus } from '../repositories/subscriptions';
 import { recordAudit } from '../repositories/audit';
 import {
@@ -50,6 +50,33 @@ export async function processNextJudicialJob(now = Date.now()): Promise<CollectO
     return await runJob(job, leaseOwner, now);
   } catch (error) {
     const connectorError = asConnectorError(error);
+    const installation = findInstallation(job.installationId);
+    const rawPayloadsToPersist = connectorError.rawPayloads ?? (connectorError.rawPayload ? [connectorError.rawPayload] : []);
+    const parserVersion = installation && hasConnectorFor(installation.kind)
+      ? connectorFor(installation).parserVersion
+      : DJEN_PARSER_VERSION;
+    for (const raw of rawPayloadsToPersist) {
+      try {
+        persistSnapshot({
+          officeId: job.officeId,
+          installationId: job.installationId,
+          jobId: job.id,
+          operation: job.operation,
+          contentType: raw.contentType,
+          body: raw.body,
+          parserVersion,
+          requestSummary: {
+            windowFrom: job.windowFrom,
+            windowTo: job.windowTo,
+          },
+          visibility: installation?.authKind === 'none' ? 'public' : 'restricted',
+          usageConditions: installation?.permissions,
+        });
+      } catch {
+        // Keep moving so job fails/quarantines even if secondary snapshot write fails
+      }
+    }
+
     const { retrying, terminalStatus } = failJob(job.id, leaseOwner, {
       code: connectorError.code,
       message: connectorError.message,
@@ -110,15 +137,6 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     }
   }
 
-  const budget = reserveRequestBudget(job.officeId, installation, now);
-  if (!budget.allowed) {
-    throw new ConnectorError(
-      'rate_limited',
-      budget.reason === 'daily_budget' ? 'Orçamento diário desta fonte esgotado.' : 'Intervalo mínimo entre requisições não respeitado.',
-      Math.ceil(budget.retryAfterMs / 1000),
-    );
-  }
-
   if (job.operation !== 'listChanges') {
     throw new ConnectorError('unsupported', `Operação ainda não implementada no coletor: ${job.operation}`);
   }
@@ -126,7 +144,30 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     throw new ConnectorError('unsupported', 'Coleta incremental exige uma janela.');
   }
 
-  const connector = connectorFor(installation);
+  let requestCount = 0;
+  const baseTransport = currentTransport();
+  const budgetedTransport: Transport = {
+    mode: baseTransport.mode,
+    async request(inst, path, init) {
+      while (true) {
+        const budget = reserveRequestBudget(job.officeId, inst, Date.now());
+        if (budget.allowed) break;
+        if (requestCount > 0 && budget.reason === 'rate_limit' && budget.retryAfterMs <= 10_000) {
+          await new Promise((resolve) => setTimeout(resolve, budget.retryAfterMs + 20));
+          continue;
+        }
+        throw new ConnectorError(
+          'rate_limited',
+          budget.reason === 'daily_budget' ? 'Orçamento diário desta fonte esgotado.' : 'Intervalo mínimo entre requisições não respeitado.',
+          Math.ceil(budget.retryAfterMs / 1000),
+        );
+      }
+      requestCount += 1;
+      return baseTransport.request(inst, path, init);
+    },
+  };
+
+  const connector = connectorFor(installation, budgetedTransport);
   if (!connector.listChanges) throw new ConnectorError('unsupported', 'Este conector não oferece consulta incremental.');
 
   const cnjNumbers = Array.isArray(job.request.cnjNumbers)
@@ -138,6 +179,23 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     windowTo: job.windowTo,
     cursor: job.cursor,
     cnjNumbers,
+    onRawPayload: (raw) => {
+      persistSnapshot({
+        officeId: job.officeId,
+        installationId: installation.id,
+        jobId: job.id,
+        operation: job.operation,
+        contentType: raw.contentType,
+        body: raw.body,
+        parserVersion: connector.parserVersion,
+        requestSummary: {
+          windowFrom: job.windowFrom,
+          windowTo: job.windowTo,
+        },
+        visibility: installation.authKind === 'none' ? 'public' : 'restricted',
+        usageConditions: installation.permissions,
+      });
+    },
   });
 
   renewLease(job.id, leaseOwner, Date.now());

@@ -1,7 +1,13 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
-import type { ConnectorResult, InstallationRef, NormalizedPublication } from '../contracts';
+import {
+  ConnectorError,
+  type ConnectorOperation,
+  type ConnectorResult,
+  type InstallationRef,
+  type NormalizedPublication,
+} from '../contracts';
 import { alertDedupeKey, payloadHash, publicationFingerprint } from '../normalization/fingerprint';
 import { nowIso } from '../normalization/dates';
 
@@ -37,48 +43,100 @@ export type IngestPublicationsInput = {
   historical: boolean;
 };
 
+function resolveLinkForPublication(
+  officeId: string,
+  installationId: string,
+  cnjNumber: string | null,
+  fallbackLinkId: string | null,
+): string | null {
+  if (cnjNumber) {
+    const row = database.prepare(`
+      SELECT id FROM judicial_case_link
+      WHERE office_id = ? AND installation_id = ? AND cnj_number = ?
+        AND status = 'active' AND confirmation = 'confirmed'
+      ORDER BY created_at DESC LIMIT 1
+    `).get(officeId, installationId, cnjNumber) as { id: string } | undefined;
+    if (row) return row.id;
+  }
+  return fallbackLinkId;
+}
+
+export function persistSnapshot(input: {
+  officeId: string;
+  installationId: string;
+  jobId: string | null;
+  operation: ConnectorOperation;
+  contentType: string;
+  body: string;
+  parserVersion?: string;
+  requestSummary?: Record<string, unknown>;
+  visibility?: 'public' | 'restricted';
+  usageConditions?: Record<string, unknown>;
+  collectedAt?: string;
+}): string {
+  const hash = payloadHash(input.body);
+  const existing = database.prepare(
+    'SELECT id FROM judicial_snapshot WHERE office_id = ? AND installation_id = ? AND sha256 = ? LIMIT 1',
+  ).get(input.officeId, input.installationId, hash) as { id: string } | undefined;
+  if (existing) {
+    if (input.jobId) {
+      database.prepare('UPDATE judicial_snapshot SET job_id = COALESCE(job_id, ?) WHERE id = ?')
+        .run(input.jobId, existing.id);
+    }
+    return existing.id;
+  }
+
+  const oversized = Buffer.byteLength(input.body) > INLINE_PAYLOAD_LIMIT;
+  if (oversized) {
+    throw new ConnectorError('unsupported', 'Payload acima de 512 KiB recusado: armazenamento de objetos não disponível para snapshots.');
+  }
+
+  const id = randomUUID();
+  database.prepare(`
+    INSERT INTO judicial_snapshot (
+      id, office_id, installation_id, job_id, operation, request_summary,
+      payload, storage_key, content_type, byte_size, sha256, parser_version,
+      collected_at, visibility, usage_conditions
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id, input.officeId, input.installationId, input.jobId, input.operation,
+    JSON.stringify(input.requestSummary ?? {}),
+    input.body,
+    null,
+    input.contentType, Buffer.byteLength(input.body), hash,
+    input.parserVersion ?? 'unknown', input.collectedAt ?? nowIso(),
+    input.visibility ?? 'restricted',
+    JSON.stringify(input.usageConditions ?? {}),
+  );
+  return id;
+}
+
 function insertSnapshots(input: IngestPublicationsInput): string[] {
   const ids: string[] = [];
   for (const raw of input.result.rawPayloads) {
-    const hash = payloadHash(raw.body);
-    // A byte-identical page already stored for this installation is the same evidence; storing
-    // it again would inflate the archive without recording anything new.
-    const existing = database.prepare(
-      'SELECT id FROM judicial_snapshot WHERE office_id = ? AND installation_id = ? AND sha256 = ? LIMIT 1',
-    ).get(input.officeId, input.installation.id, hash) as { id: string } | undefined;
-    if (existing) { ids.push(existing.id); continue; }
-
-    const id = randomUUID();
-    const oversized = Buffer.byteLength(raw.body) > INLINE_PAYLOAD_LIMIT;
-    database.prepare(`
-      INSERT INTO judicial_snapshot (
-        id, office_id, installation_id, job_id, operation, request_summary,
-        payload, storage_key, content_type, byte_size, sha256, parser_version,
-        collected_at, visibility, usage_conditions
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id, input.officeId, input.installation.id, input.jobId, input.result.source.operation,
-      JSON.stringify({
+    const id = persistSnapshot({
+      officeId: input.officeId,
+      installationId: input.installation.id,
+      jobId: input.jobId,
+      operation: input.result.source.operation,
+      contentType: raw.contentType,
+      body: raw.body,
+      parserVersion: input.result.source.parserVersion,
+      requestSummary: {
         windowFrom: input.result.coverage.windowFrom,
         windowTo: input.result.coverage.windowTo,
         pagesFetched: input.result.coverage.pagesFetched,
-      }),
-      oversized ? null : raw.body,
-      // Object storage for an oversized page is a later step; refusing to inline it is the honest
-      // behaviour until that path exists, and the caller sees the failure rather than a truncation.
-      oversized ? `judicial/${input.officeId}/${id}` : null,
-      raw.contentType, Buffer.byteLength(raw.body), hash,
-      input.result.source.parserVersion, input.result.source.collectedAt,
-      // A gazette is public; a response obtained with an office credential is not.
-      input.installation.authKind === 'none' ? 'public' : 'restricted',
-      JSON.stringify(input.installation.permissions),
-    );
+      },
+      collectedAt: input.result.source.collectedAt,
+      visibility: input.installation.authKind === 'none' ? 'public' : 'restricted',
+      usageConditions: input.installation.permissions,
+    });
     ids.push(id);
   }
   return ids;
 }
 
-function upsertSourceRecord(input: IngestPublicationsInput, publication: NormalizedPublication, sourceId: string): string {
+function upsertSourceRecord(input: IngestPublicationsInput, publication: NormalizedPublication, sourceId: string, linkId: string | null): string {
   const id = randomUUID();
   database.prepare(`
     INSERT INTO judicial_source_record (
@@ -89,7 +147,7 @@ function upsertSourceRecord(input: IngestPublicationsInput, publication: Normali
       last_seen_at = CURRENT_TIMESTAMP,
       link_id = COALESCE(judicial_source_record.link_id, excluded.link_id),
       source_updated_at = COALESCE(excluded.source_updated_at, judicial_source_record.source_updated_at)
-  `).run(id, input.officeId, input.installation.id, input.linkId, sourceId, publication.cnjNumber, publication.sourceUpdatedAt);
+  `).run(id, input.officeId, input.installation.id, linkId, sourceId, publication.cnjNumber, publication.sourceUpdatedAt);
 
   const row = database.prepare(
     'SELECT id FROM judicial_source_record WHERE office_id = ? AND installation_id = ? AND source_record_id = ?',
@@ -108,17 +166,25 @@ export function ingestPublications(input: IngestPublicationsInput): IngestOutcom
   database.exec('BEGIN IMMEDIATE');
   try {
     outcome.snapshotIds = insertSnapshots(input);
-    // Every publication from this run points at the page it came from, so a reader can always
-    // reach the original bytes behind a normalized row.
-    const snapshotId = outcome.snapshotIds[0] ?? null;
-    if (!snapshotId && input.result.items.length) {
+
+    if (!outcome.snapshotIds.length && input.result.items.length) {
       throw new Error('Publicação sem snapshot de origem; a coleta não pode ser publicada.');
     }
 
     for (const publication of input.result.items) {
+      const snapshotId = (publication.rawPayloadIndex !== undefined && outcome.snapshotIds[publication.rawPayloadIndex])
+        ? outcome.snapshotIds[publication.rawPayloadIndex]
+        : (outcome.snapshotIds[0] ?? null);
+
+      if (!snapshotId) {
+        throw new Error('Publicação sem snapshot de origem; a coleta não pode ser publicada.');
+      }
+
+      const resolvedLinkId = resolveLinkForPublication(input.officeId, input.installation.id, publication.cnjNumber, input.linkId);
+
       const fingerprint = publicationFingerprint(publication);
       const sourceId = publication.sourcePublicationId ?? fingerprint.value;
-      const recordId = upsertSourceRecord(input, publication, sourceId);
+      const recordId = upsertSourceRecord(input, publication, sourceId, resolvedLinkId);
 
       // The earlier version of a corrected entry, matched on the proceeding and the edition.
       const supersedes = publication.revisionKind === 'original' ? null : (database.prepare(
@@ -138,7 +204,7 @@ export function ingestPublications(input: IngestPublicationsInput): IngestOutcom
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(office_id, installation_id, fingerprint) DO NOTHING
       `).run(
-        id, input.officeId, input.installation.id, recordId, input.linkId, snapshotId,
+        id, input.officeId, input.installation.id, recordId, resolvedLinkId, snapshotId,
         publication.sourcePublicationId, publication.cnjNumber, publication.edition, publication.page,
         publication.officialHash, publication.body,
         publication.madeAvailableOn, publication.publishedOn, publication.sourceUpdatedAt,
@@ -157,7 +223,7 @@ export function ingestPublications(input: IngestPublicationsInput): IngestOutcom
         VALUES (?, ?, ?, ?, 'publication', ?, ?, ?)
         ON CONFLICT(office_id, dedupe_key) DO NOTHING
       `).run(
-        randomUUID(), input.officeId, input.linkId, eventKind, id,
+        randomUUID(), input.officeId, resolvedLinkId, eventKind, id,
         summarize(input.installation, publication),
         alertDedupeKey(eventKind, 'publication', fingerprint.value),
       );

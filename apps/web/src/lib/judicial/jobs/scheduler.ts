@@ -1,6 +1,6 @@
 import 'server-only';
 import { findInstallation } from '../repositories/installations';
-import { confirmedCnjNumbers } from '../repositories/links';
+import { confirmedCnjNumbers, findCaseLink } from '../repositories/links';
 import {
   deferSubscription,
   listDueSubscriptions,
@@ -9,6 +9,7 @@ import {
   type Subscription,
 } from '../repositories/subscriptions';
 import { overlappingWindow, nowIso } from '../normalization/dates';
+import { ConnectorError } from '../contracts';
 import { enqueueJob } from './queue';
 
 /**
@@ -61,7 +62,16 @@ export function scheduleDueSubscriptions(now = Date.now(), limit = 20): Schedule
     }
 
     if (subscription.targetKind === 'publications_by_case') {
-      const numbers = confirmedCnjNumbers(subscription.officeId, installation.id);
+      let numbers: string[] = [];
+      if (subscription.linkId) {
+        const link = findCaseLink(subscription.officeId, subscription.linkId);
+        if (link && link.status === 'active' && link.confirmation === 'confirmed' && link.cnjNumber) {
+          numbers = [link.cnjNumber];
+        }
+      } else {
+        numbers = confirmedCnjNumbers(subscription.officeId, installation.id);
+      }
+
       if (!numbers.length) {
         // Nothing confirmed to ask about. Backing off is correct; a broad sweep with no filter
         // would be discovery the office never authorized.
@@ -115,7 +125,25 @@ export function scheduleBackfill(input: {
     ? input.from.slice(0, 10)
     : new Date(Date.parse(`${to}T00:00:00Z`) - BACKFILL_DEFAULT_DAYS * 86_400_000).toISOString().slice(0, 10);
 
-  const numbers = confirmedCnjNumbers(input.officeId, input.installationId);
+  let numbers: string[] = [];
+  if (input.linkId) {
+    const link = findCaseLink(input.officeId, input.linkId);
+    if (link && link.status === 'active' && link.confirmation === 'confirmed' && link.cnjNumber) {
+      numbers = [link.cnjNumber];
+    }
+  } else {
+    numbers = confirmedCnjNumbers(input.officeId, input.installationId);
+  }
+
+  if (!numbers.length) {
+    throw new ConnectorError(
+      'human_action_required',
+      input.linkId
+        ? 'O processo vinculado ainda não está confirmado para consulta.'
+        : 'Nenhum processo confirmado para consulta nesta fonte.',
+    );
+  }
+
   const { job, created } = enqueueJob({
     officeId: input.officeId,
     installationId: input.installationId,

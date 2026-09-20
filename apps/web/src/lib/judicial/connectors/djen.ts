@@ -250,10 +250,10 @@ export function createDjenConnector(transport: Transport): JudicialConnector {
       }
 
       // One request per linked proceeding when the office gave a list, one broad sweep otherwise.
-      const numbers = request.cnjNumbers?.length
+      const numbers = request.cnjNumbers !== undefined
         ? request.cnjNumbers.map((value) => stripCnjPunctuation(value)).filter((value) => value.length === 20)
         : [undefined];
-      if (request.cnjNumbers?.length && !numbers.filter(Boolean).length) {
+      if (request.cnjNumbers !== undefined && !numbers.length) {
         throw new ConnectorError('unsupported', 'Nenhum número CNJ válido na solicitação.');
       }
 
@@ -275,8 +275,32 @@ export function createDjenConnector(transport: Transport): JudicialConnector {
             },
           });
 
-          rawPayloads.push({ contentType: response.contentType, body: response.body });
-          const parsed = normalizeCommunications(response.body);
+          const rawIndex = rawPayloads.length;
+          const rawEntry = { contentType: response.contentType, body: response.body };
+          rawPayloads.push(rawEntry);
+          if (request.onRawPayload) {
+            await request.onRawPayload(rawEntry);
+          }
+
+          let parsed: ReturnType<typeof normalizeCommunications>;
+          try {
+            parsed = normalizeCommunications(response.body);
+          } catch (error) {
+            if (error instanceof ConnectorError) {
+              throw new ConnectorError(
+                error.code,
+                error.message,
+                error.retryAfterSeconds,
+                rawEntry,
+                [...rawPayloads],
+              );
+            }
+            throw error;
+          }
+
+          for (const item of parsed.items) {
+            item.rawPayloadIndex = rawIndex;
+          }
           items.push(...parsed.items);
           coverage.rejected += parsed.rejected;
           coverage.pagesFetched += 1;
@@ -312,14 +336,31 @@ export function createDjenConnector(transport: Transport): JudicialConnector {
     async fetchPublication(installation, sourcePublicationId): Promise<ConnectorResult<NormalizedPublication>> {
       const collectedAt = nowIso();
       const response = await transport.request(installation, `${COMMUNICATION_PATH}/${encodeURIComponent(sourcePublicationId)}`);
-      const parsed = normalizeCommunications(response.body);
+      const rawEntry = { contentType: response.contentType, body: response.body };
+      let parsed: ReturnType<typeof normalizeCommunications>;
+      try {
+        parsed = normalizeCommunications(response.body);
+      } catch (error) {
+        if (error instanceof ConnectorError) {
+          throw new ConnectorError(
+            error.code,
+            error.message,
+            error.retryAfterSeconds,
+            rawEntry,
+            [rawEntry],
+          );
+        }
+        throw error;
+      }
       if (!parsed.items.length) throw new ConnectorError('not_found_in_source', 'Comunicação não encontrada nesta fonte.');
+      const item = parsed.items[0];
+      item.rawPayloadIndex = 0;
       return {
-        items: parsed.items.slice(0, 1),
+        items: [item],
         cursor: null,
         coverage: { ...emptyCoverage(), pagesFetched: 1, rejected: parsed.rejected, totalReported: 1 },
         source: { installationId: installation.id, operation: 'fetchPublication', parserVersion: DJEN_PARSER_VERSION, collectedAt },
-        rawPayloads: [{ contentType: response.contentType, body: response.body }],
+        rawPayloads: [rawEntry],
       };
     },
 

@@ -79,14 +79,21 @@ export const connectorErrorCodes = [
 export type ConnectorErrorCode = (typeof connectorErrorCodes)[number];
 
 export class ConnectorError extends Error {
+  public rawPayload?: { contentType: string; body: string };
+  public rawPayloads?: Array<{ contentType: string; body: string }>;
+
   constructor(
     public readonly code: ConnectorErrorCode,
     message: string,
     /** Seconds the source asked us to wait, when it said so. */
     public readonly retryAfterSeconds?: number,
+    rawPayload?: { contentType: string; body: string },
+    rawPayloads?: Array<{ contentType: string; body: string }>,
   ) {
     super(message);
     this.name = 'ConnectorError';
+    this.rawPayload = rawPayload;
+    this.rawPayloads = rawPayloads;
   }
 }
 
@@ -198,6 +205,7 @@ export const normalizedPublicationSchema = z.object({
   publishedOn: z.string().nullable(),
   sourceUpdatedAt: z.string().nullable(),
   revisionKind: z.enum(['original', 'republication', 'errata']),
+  rawPayloadIndex: z.number().int().nonnegative().optional(),
 });
 export type NormalizedPublication = z.infer<typeof normalizedPublicationSchema>;
 
@@ -271,6 +279,7 @@ export type ListChangesRequest = {
   cnjNumbers?: string[];
   maxPages?: number;
   credential?: string;
+  onRawPayload?: (payload: { contentType: string; body: string }) => void | Promise<void>;
 };
 
 /**

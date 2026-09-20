@@ -6,14 +6,16 @@ import test from "node:test";
 
 import type { WorkspaceContext } from "../src/lib/application/context";
 import { CapabilityError } from "../src/lib/capabilities/errors";
+import { ConnectorError } from "../src/lib/judicial/contracts";
 import { capabilityNames, publishedCapabilitiesForRole } from "../src/lib/capabilities/contracts";
 import { runCapability } from "../src/lib/agent-tools";
 import * as judicial from "../src/lib/application/judicial-service";
 import { upsertInstallation } from "../src/lib/judicial/repositories/installations";
 import { createCaseLink, confirmCaseLink, listCaseLinks, unlinkCase } from "../src/lib/judicial/repositories/links";
 import { createSubscription, listDueSubscriptions, subscriptionStillAuthorized, findSubscriptionById } from "../src/lib/judicial/repositories/subscriptions";
-import { claimJob, completeJob, enqueueJob, failJob, findJob, reserveRequestBudget, MAX_ATTEMPTS } from "../src/lib/judicial/jobs/queue";
-import { scheduleDueSubscriptions } from "../src/lib/judicial/jobs/scheduler";
+import { claimJob, completeJob, enqueueJob, failJob, findJob, reserveRequestBudget, requestsUsedToday, MAX_ATTEMPTS } from "../src/lib/judicial/jobs/queue";
+import { ingestPublications } from "../src/lib/judicial/repositories/evidence";
+import { scheduleDueSubscriptions, scheduleBackfill } from "../src/lib/judicial/jobs/scheduler";
 import { processNextJudicialJob } from "../src/lib/judicial/jobs/collector";
 import { fixtureKey } from "../src/lib/judicial/connectors/transport";
 import { setFixtureTransport, resetTransport } from "../src/lib/judicial/connectors";
@@ -615,4 +617,312 @@ test("durability: a job completed by its lease holder cannot be completed twice"
   // A stale worker returning with the same owner after the lease was released changes nothing.
   assert.equal(completeJob(job.id, claimed.leaseOwner), false);
   assert.equal(completeJob(job.id, "outro-dono"), false);
+});
+
+test("collector: malformed upstream response is preserved in judicial_snapshot when job is quarantined", async () => {
+  const { officeA, lawyerA, caseA } = seed();
+  clearQueue();
+  clearBudget();
+  const installation = source();
+  const { link } = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
+    cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
+  });
+
+  const malformedBody = fixture("djen-schema-changed.json");
+  stub([{ installationId: installation.id, numero: VALID, body: malformedBody }]);
+
+  const { job } = enqueueJob({
+    officeId: officeA, installationId: installation.id, linkId: link.id,
+    kind: "manual", operation: "listChanges",
+    request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY,
+  });
+
+  const outcome = await processNextJudicialJob();
+  assert.equal(outcome?.status, "quarantined");
+  assert.equal(findJob(officeA, job.id)?.status, "quarantined");
+
+  // The malformed response MUST be preserved in judicial_snapshot for operator diagnosis
+  const snapshot = testDb.prepare(
+    "SELECT payload, sha256 FROM judicial_snapshot WHERE office_id = ? AND job_id = ?",
+  ).get(officeA, job.id) as { payload: string; sha256: string } | undefined;
+
+  assert.notEqual(snapshot, undefined, "o snapshot da resposta malformada deve estar salvo");
+  assert.equal(snapshot?.payload, malformedBody);
+});
+
+test("provenance: publications across multiple pages/responses retain their respective matching snapshot ID", () => {
+  const { officeA, lawyerA, caseA } = seed();
+  const installation = source();
+  const { link } = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
+    cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
+  });
+
+  const page1Body = JSON.stringify({
+    status: "success",
+    count: 1,
+    items: [{
+      id: "pub-p1",
+      numeroProcesso: VALID,
+      numeroEdicao: "100",
+      dataDisponibilizacao: "2026-09-10",
+      texto: "Publicação da página 1",
+    }],
+  });
+  const page2Body = JSON.stringify({
+    status: "success",
+    count: 1,
+    items: [{
+      id: "pub-p2",
+      numeroProcesso: VALID,
+      numeroEdicao: "101",
+      dataDisponibilizacao: "2026-09-11",
+      texto: "Publicação da página 2",
+    }],
+  });
+
+  const outcome = ingestPublications({
+    officeId: officeA,
+    installation,
+    linkId: link.id,
+    jobId: "job-multi-page",
+    historical: false,
+    result: {
+      cursor: null,
+      coverage: { truncated: false, pagesFetched: 2, totalReported: 2, windowFrom: TODAY, windowTo: TODAY, rejected: 0 },
+      source: { installationId: installation.id, operation: "listChanges", parserVersion: "test", collectedAt: new Date().toISOString() },
+      rawPayloads: [
+        { contentType: "application/json", body: page1Body },
+        { contentType: "application/json", body: page2Body },
+      ],
+      items: [
+        {
+          sourcePublicationId: "pub-p1",
+          cnjNumber: VALID,
+          edition: "100",
+          page: null,
+          officialHash: null,
+          body: "Publicação da página 1",
+          madeAvailableOn: "2026-09-10",
+          publishedOn: null,
+          sourceUpdatedAt: null,
+          revisionKind: "original",
+          rawPayloadIndex: 0,
+        },
+        {
+          sourcePublicationId: "pub-p2",
+          cnjNumber: VALID,
+          edition: "101",
+          page: null,
+          officialHash: null,
+          body: "Publicação da página 2",
+          madeAvailableOn: "2026-09-11",
+          publishedOn: null,
+          sourceUpdatedAt: null,
+          revisionKind: "original",
+          rawPayloadIndex: 1,
+        },
+      ],
+    },
+  });
+
+  assert.equal(outcome.snapshotIds.length, 2);
+  assert.notEqual(outcome.snapshotIds[0], outcome.snapshotIds[1]);
+
+  const p1 = testDb.prepare("SELECT snapshot_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-p1'").get(officeA) as { snapshot_id: string };
+  const p2 = testDb.prepare("SELECT snapshot_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-p2'").get(officeA) as { snapshot_id: string };
+
+  assert.equal(p1.snapshot_id, outcome.snapshotIds[0], "publicação da página 1 aponta para o snapshot 1");
+  assert.equal(p2.snapshot_id, outcome.snapshotIds[1], "publicação da página 2 aponta para o snapshot 2");
+});
+
+test("scheduler: an individual case subscription schedules collection only for that case's linked CNJ", () => {
+  const { officeA, lawyerA, caseA, caseB } = seed();
+  const installation = source();
+  const linkA = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true }).link;
+  createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseB, installationId: installation.id, cnjNumber: VALID_OTHER, nativeNumber: null, degree: "first", confirmed: true });
+
+  clearQueue();
+  const { subscription } = createSubscription({
+    officeId: officeA, installationId: installation.id, linkId: linkA.id,
+    targetKind: "publications_by_case", authorizedBy: lawyerA,
+  });
+
+  const outcome = scheduleDueSubscriptions();
+  assert.equal(outcome.queued, 1);
+
+  const queuedJob = testDb.prepare(
+    "SELECT request FROM judicial_sync_job WHERE office_id = ? AND subscription_id = ?",
+  ).get(officeA, subscription.id) as { request: string };
+
+  const parsedRequest = JSON.parse(queuedJob.request) as { cnjNumbers: string[] };
+  assert.deepEqual(parsedRequest.cnjNumbers, [VALID], "apenas o CNJ vinculado a esta assinatura deve ser consultado");
+  assert.equal(parsedRequest.cnjNumbers.includes(VALID_OTHER), false, "não deve incluir o CNJ do outro caso");
+});
+
+test("collector: budget is reserved and enforced for each physical transport request", async () => {
+  const { officeA, lawyerA, caseA } = seed();
+  clearQueue();
+  clearBudget();
+  // Set rateLimit high so spacing doesn't block, but dailyRequestBudget is strictly 2
+  const installation = source({ rateLimitPerMinute: 600, dailyRequestBudget: 2 });
+  const { link } = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
+    cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
+  });
+
+  stub([
+    { installationId: installation.id, numero: VALID, body: fixture("djen-empty.json") },
+    { installationId: installation.id, numero: VALID_OTHER, body: fixture("djen-empty.json") },
+  ]);
+
+  enqueueJob({
+    officeId: officeA, installationId: installation.id, linkId: link.id,
+    kind: "manual", operation: "listChanges",
+    request: { cnjNumbers: [VALID, VALID_OTHER] }, windowFrom: TODAY, windowTo: TODAY,
+  });
+
+  await processNextJudicialJob();
+  // 2 physical transport requests were made (1 for VALID, 1 for VALID_OTHER)
+  assert.equal(requestsUsedToday(officeA, installation.id), 2);
+
+  // Now daily budget (2) is completely exhausted. A third request must fail immediately.
+  const { job: job2 } = enqueueJob({
+    officeId: officeA, installationId: installation.id, linkId: link.id,
+    kind: "manual", operation: "listChanges",
+    request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY,
+  });
+
+  const outcome2 = await processNextJudicialJob();
+  assert.equal(outcome2?.status, "retrying");
+  assert.equal(findJob(officeA, job2.id)?.errorCode, "rate_limited");
+  assert.match(findJob(officeA, job2.id)?.errorMessage ?? "", /Orçamento diário/);
+});
+
+test("evidence: an oversized response rejects the transaction and does not write a synthetic storage key", () => {
+  const { officeA, lawyerA, caseA } = seed();
+  const installation = source();
+  const { link } = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
+    cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
+  });
+
+  // Create a payload larger than 512 KiB
+  const bigBody = "x".repeat(513 * 1024);
+
+  assert.throws(
+    () => ingestPublications({
+      officeId: officeA,
+      installation,
+      linkId: link.id,
+      jobId: "job-oversized",
+      historical: false,
+      result: {
+        cursor: null,
+        coverage: { truncated: false, pagesFetched: 1, totalReported: 0, windowFrom: TODAY, windowTo: TODAY, rejected: 0 },
+        source: { installationId: installation.id, operation: "listChanges", parserVersion: "test", collectedAt: new Date().toISOString() },
+        rawPayloads: [{ contentType: "text/plain", body: bigBody }],
+        items: [],
+      },
+    }),
+    (error: unknown) => error instanceof ConnectorError && error.code === "unsupported",
+  );
+
+  // Assert no snapshot was committed with a synthetic storage key
+  const snapshotCount = testDb.prepare(
+    "SELECT count(*) as count FROM judicial_snapshot WHERE office_id = ? AND job_id = 'job-oversized'",
+  ).get(officeA) as { count: number };
+  assert.equal(snapshotCount.count, 0, "nenhum snapshot deve ser persistido quando excede o limite");
+});
+
+test("cross-case isolation: publications belonging to another confirmed case resolve to that case link rather than the job's fallback link", () => {
+  const { officeA, lawyerA, caseA, caseB } = seed();
+  const installation = source();
+  const { link: linkA } = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
+    cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
+  });
+  const { link: linkB } = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseB, installationId: installation.id,
+    cnjNumber: VALID_OTHER, nativeNumber: null, degree: "first", confirmed: true,
+  });
+
+  const outcome = ingestPublications({
+    officeId: officeA,
+    installation,
+    linkId: linkA.id, // Job was run with linkA
+    jobId: "job-cross-case-test",
+    historical: false,
+    result: {
+      cursor: null,
+      coverage: { truncated: false, pagesFetched: 1, totalReported: 2, windowFrom: TODAY, windowTo: TODAY, rejected: 0 },
+      source: { installationId: installation.id, operation: "listChanges", parserVersion: "test", collectedAt: new Date().toISOString() },
+      rawPayloads: [{ contentType: "application/json", body: '{"items":[]}' }],
+      items: [
+        {
+          sourcePublicationId: "pub-case-a",
+          cnjNumber: VALID,
+          edition: "500",
+          page: null,
+          officialHash: null,
+          body: "Publicação do caso A",
+          madeAvailableOn: TODAY,
+          publishedOn: null,
+          sourceUpdatedAt: null,
+          revisionKind: "original",
+          rawPayloadIndex: 0,
+        },
+        {
+          sourcePublicationId: "pub-case-b",
+          cnjNumber: VALID_OTHER, // Belongs to Case B!
+          edition: "501",
+          page: null,
+          officialHash: null,
+          body: "Publicação do caso B",
+          madeAvailableOn: TODAY,
+          publishedOn: null,
+          sourceUpdatedAt: null,
+          revisionKind: "original",
+          rawPayloadIndex: 0,
+        },
+      ],
+    },
+  });
+
+  assert.equal(outcome.inserted, 2);
+  const pubA = testDb.prepare(
+    "SELECT link_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-case-a'",
+  ).get(officeA) as { link_id: string | null };
+
+  const pubB = testDb.prepare(
+    "SELECT link_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-case-b'",
+  ).get(officeA) as { link_id: string | null };
+
+  assert.equal(pubA.link_id, linkA.id, "publicação do caso A deve ser atribuída ao linkA");
+  assert.equal(pubB.link_id, linkB.id, "publicação do caso B deve ser atribuída ao linkB e nunca ao linkA");
+
+  const alertB = testDb.prepare(
+    "SELECT link_id FROM judicial_alert WHERE office_id = ? AND subject_id = (SELECT id FROM judicial_publication WHERE source_publication_id = 'pub-case-b')",
+  ).get(officeA) as { link_id: string | null };
+
+  assert.equal(alertB.link_id, linkB.id, "alerta do caso B deve ser direcionado para linkB");
+});
+
+test("scheduler: scheduleBackfill rejects unconfirmed case link rather than doing an unauthorized broad sweep", () => {
+  const { officeA, lawyerA, caseA } = seed();
+  const installation = source();
+  const { link: pendingLink } = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
+    cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: false,
+  });
+
+  assert.throws(
+    () => scheduleBackfill({
+      officeId: officeA,
+      installationId: installation.id,
+      linkId: pendingLink.id,
+    }),
+    (error: unknown) => error instanceof ConnectorError && error.code === "human_action_required",
+  );
 });

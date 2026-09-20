@@ -1,5 +1,7 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
+import https from 'node:https';
+import type { IncomingHttpHeaders } from 'node:http';
 import { ConnectorError, type InstallationRef } from '../contracts';
 
 /**
@@ -52,32 +54,103 @@ export class TransportBlockedError extends ConnectorError {
   }
 }
 
+function isPrivateIPv4(clean: string): boolean {
+  const octets = clean.split('.').map(Number);
+  if (octets.length !== 4 || octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return true;
+  const [a, b, c] = octets;
+  if (a === 0 || a === 10 || a === 127) return true;
+  if (a === 169 && b === 254) return true; // link-local 169.254.0.0/16
+  if (a === 172 && b >= 16 && b <= 31) return true; // private 172.16.0.0/12
+  if (a === 192 && b === 168) return true; // private 192.168.0.0/16
+  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64.0.0/10
+  if (a === 192 && b === 0 && c === 0) return true; // IETF protocol assignments 192.0.0.0/24
+  if (a === 192 && b === 0 && c === 2) return true; // TEST-NET-1 192.0.2.0/24
+  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking 198.18.0.0/15
+  if (a === 198 && b === 51 && c === 100) return true; // TEST-NET-2 198.51.100.0/24
+  if (a === 203 && b === 0 && c === 113) return true; // TEST-NET-3 203.0.113.0/24
+  if (a >= 224) return true; // multicast 224.0.0.0/4 and reserved 240.0.0.0/4
+  return false;
+}
+
+function parseIpv6Hextets(clean: string): number[] | null {
+  const zoneIndex = clean.indexOf('%');
+  let normalized = (zoneIndex >= 0 ? clean.slice(0, zoneIndex) : clean).toLowerCase();
+
+  const lastColon = normalized.lastIndexOf(':');
+  if (lastColon >= 0) {
+    const tail = normalized.slice(lastColon + 1);
+    if (tail.includes('.')) {
+      const parts = tail.split('.').map(Number);
+      if (parts.length === 4 && parts.every((p) => !Number.isNaN(p) && p >= 0 && p <= 255)) {
+        const h1 = (((parts[0] << 8) | parts[1]) >>> 0).toString(16);
+        const h2 = (((parts[2] << 8) | parts[3]) >>> 0).toString(16);
+        normalized = normalized.slice(0, lastColon) + ':' + h1 + ':' + h2;
+      } else {
+        return null;
+      }
+    }
+  }
+
+  const halves = normalized.split('::');
+  if (halves.length > 2) return null;
+
+  const left = halves[0] ? halves[0].split(':').map((h) => parseInt(h, 16)) : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(':').map((h) => parseInt(h, 16)) : [];
+
+  if (left.some(Number.isNaN) || right.some(Number.isNaN)) return null;
+
+  if (halves.length === 2) {
+    const fill = 8 - (left.length + right.length);
+    if (fill < 0) return null;
+    return [...left, ...new Array(fill).fill(0), ...right];
+  }
+  if (left.length !== 8) return null;
+  return left;
+}
+
 /**
  * Anything that is not a routable public address. Reaching a court never requires talking to
  * loopback, link-local, or a cloud metadata endpoint, so all of them are refused outright.
  */
 export function isPrivateAddress(address: string): boolean {
-  const family = isIP(address);
+  const clean = address.replace(/^\[|\]$/g, '');
+  const family = isIP(clean);
   if (family === 4) {
-    const octets = address.split('.').map(Number);
-    const [a, b] = octets;
-    if (octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) return true;
-    if (a === 0 || a === 10 || a === 127) return true;
-    if (a === 169 && b === 254) return true; // link-local, including 169.254.169.254
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
-    if (a === 192 && b === 0) return true; // IETF protocol assignments
-    if (a >= 224) return true; // multicast and reserved
-    return false;
+    return isPrivateIPv4(clean);
   }
   if (family === 6) {
-    const value = address.toLowerCase();
-    if (value === '::' || value === '::1') return true;
-    if (value.startsWith('fe80') || value.startsWith('fc') || value.startsWith('fd')) return true;
-    // IPv4-mapped addresses carry the v4 rules with them.
-    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(value);
-    if (mapped) return isPrivateAddress(mapped[1]);
+    const hextets = parseIpv6Hextets(clean);
+    if (!hextets) return true;
+
+    // Unspecified (::)
+    if (hextets.every((h) => h === 0)) return true;
+    // Loopback (::1)
+    if (hextets.slice(0, 7).every((h) => h === 0) && hextets[7] === 1) return true;
+
+    const [h0, h1, h2, h3, h4, h5, h6, h7] = hextets;
+
+    // IPv4-mapped (::ffff:0:0/96), IPv4-compatible (::/96), or SIIT (::ffff:0:0:0/96)
+    const isIpv4Mapped = h0 === 0 && h1 === 0 && h2 === 0 && h3 === 0 && h4 === 0 && h5 === 0xffff;
+    const isIpv4Compatible = h0 === 0 && h1 === 0 && h2 === 0 && h3 === 0 && h4 === 0 && h5 === 0;
+    const isIpv4Translated = h0 === 0 && h1 === 0 && h2 === 0 && h3 === 0 && h4 === 0xffff && h5 === 0;
+    if (isIpv4Mapped || isIpv4Compatible || isIpv4Translated) {
+      const ipv4Str = [(h6 >> 8) & 0xff, h6 & 0xff, (h7 >> 8) & 0xff, h7 & 0xff].join('.');
+      return isPrivateIPv4(ipv4Str);
+    }
+
+    // IPv6 link-local fe80::/10 (fe80 through febf)
+    if ((h0 & 0xffc0) === 0xfe80) return true;
+    // IPv6 unique-local fc00::/7 (fc00 through fdff)
+    if ((h0 & 0xfe00) === 0xfc00) return true;
+    // IPv6 multicast ff00::/8
+    if ((h0 & 0xff00) === 0xff00) return true;
+    // IPv6 site-local deprecated fec0::/10
+    if ((h0 & 0xffc0) === 0xfec0) return true;
+    // Documentation 2001:db8::/32
+    if (h0 === 0x2001 && h1 === 0x0db8) return true;
+    // Discard prefix 100::/64
+    if (h0 === 0x0100 && h1 === 0 && h2 === 0 && h3 === 0) return true;
+
     return false;
   }
   return true;
@@ -95,19 +168,18 @@ function hostAllowed(installation: InstallationRef, hostname: string): boolean {
 }
 
 /**
- * Resolves the hostname and refuses the request when any answer is private. A name can still be
- * re-resolved to a different address by the time the socket opens; closing that window needs a
- * pinned-IP agent, which is a deliberate follow-up rather than something this function pretends
- * to do. The allowlist above is what keeps the blast radius to hosts an operator approved.
+ * Resolves the hostname and refuses the request when any answer is private. Returns the
+ * validated public address so the socket is pinned directly to it, eliminating DNS rebinding.
  */
-async function assertPublicHost(hostname: string): Promise<void> {
-  if (isIP(hostname)) {
-    if (isPrivateAddress(hostname)) throw new TransportBlockedError('Endereço de rede interna recusado.');
-    return;
+async function assertPublicHost(hostname: string): Promise<string> {
+  const clean = hostname.replace(/^\[|\]$/g, '');
+  if (isIP(clean)) {
+    if (isPrivateAddress(clean)) throw new TransportBlockedError('Endereço de rede interna recusado.');
+    return clean;
   }
   let addresses: Array<{ address: string }>;
   try {
-    addresses = await lookup(hostname, { all: true });
+    addresses = await lookup(clean, { all: true });
   } catch {
     throw new ConnectorError('source_unavailable', 'Não foi possível resolver o endereço da fonte.');
   }
@@ -115,6 +187,7 @@ async function assertPublicHost(hostname: string): Promise<void> {
   if (addresses.some((entry) => isPrivateAddress(entry.address))) {
     throw new TransportBlockedError('A fonte resolveu para um endereço de rede interna.');
   }
+  return addresses[0].address;
 }
 
 function assertUrlAllowed(installation: InstallationRef, url: URL): void {
@@ -130,27 +203,6 @@ function assertContentType(contentType: string): void {
   if (!ALLOWED_CONTENT_TYPES.includes(base)) {
     throw new ConnectorError('schema_changed', `Tipo de conteúdo inesperado da fonte: ${base}`);
   }
-}
-
-/** Reads at most `maxBytes` and aborts rather than buffering whatever the source decided to send. */
-async function readCapped(response: Response, maxBytes: number): Promise<string> {
-  const declared = Number(response.headers.get('content-length') ?? '0');
-  if (declared > maxBytes) throw new ConnectorError('partial', 'Resposta da fonte acima do limite configurado.');
-  const reader = response.body?.getReader();
-  if (!reader) return '';
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > maxBytes) {
-      await reader.cancel();
-      throw new ConnectorError('partial', 'Resposta da fonte acima do limite configurado.');
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks).toString('utf8');
 }
 
 function statusToError(status: number, retryAfter: string | null): ConnectorError {
@@ -170,6 +222,99 @@ function buildUrl(base: string, path: string, query?: TransportRequestInit['quer
     url.searchParams.set(key, String(value));
   }
   return url;
+}
+
+function executeHttpsRequest(
+  url: URL,
+  validatedIp: string,
+  options: {
+    method: string;
+    headers: Record<string, string>;
+    body?: string;
+    signal: AbortSignal;
+    maxBytes: number;
+  },
+): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
+  return new Promise((resolve, reject) => {
+    const rawHostname = url.hostname.replace(/^\[|\]$/g, '');
+    const isIpHost = Boolean(isIP(rawHostname));
+    const ipFamily = isIP(validatedIp);
+
+    const req = https.request({
+      protocol: 'https:',
+      hostname: rawHostname,
+      port: url.port ? Number(url.port) : 443,
+      path: `${url.pathname}${url.search}`,
+      method: options.method,
+      headers: {
+        host: url.host,
+        accept: 'application/json, application/xml;q=0.9, text/plain;q=0.8',
+        'user-agent': 'K5-Judicial/0.1 (+contato: suporte@k5.app)',
+        ...options.headers,
+      },
+      servername: isIpHost ? undefined : rawHostname,
+      lookup: (_host, lookupOpts, callback) => {
+        const cb = typeof lookupOpts === 'function' ? lookupOpts : callback;
+        const opts = typeof lookupOpts === 'object' && lookupOpts !== null ? lookupOpts : {};
+        if (opts.all) {
+          cb(null, [{ address: validatedIp, family: ipFamily }]);
+        } else {
+          cb(null, validatedIp, ipFamily);
+        }
+      },
+      signal: options.signal,
+    });
+
+    req.on('error', (err: Error & { code?: string }) => {
+      if (err.name === 'AbortError' || err.code === 'ABORT_ERR') {
+        reject(new ConnectorError('source_unavailable', 'A fonte não respondeu dentro do tempo limite.'));
+      } else if (err instanceof ConnectorError) {
+        reject(err);
+      } else {
+        reject(new ConnectorError('source_unavailable', 'Falha de rede ao contatar a fonte.'));
+      }
+    });
+
+    req.on('response', (res) => {
+      const declared = Number(res.headers['content-length'] ?? '0');
+      if (declared > options.maxBytes) {
+        req.destroy();
+        reject(new ConnectorError('partial', 'Resposta da fonte acima do limite configurado.'));
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      let size = 0;
+
+      res.on('data', (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > options.maxBytes) {
+          res.destroy();
+          reject(new ConnectorError('partial', 'Resposta da fonte acima do limite configurado.'));
+          return;
+        }
+        chunks.push(chunk);
+      });
+
+      res.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        resolve({
+          status: res.statusCode ?? 200,
+          headers: res.headers,
+          body,
+        });
+      });
+
+      res.on('error', () => {
+        reject(new ConnectorError('source_unavailable', 'Falha de rede ao ler a resposta da fonte.'));
+      });
+    });
+
+    if (options.body !== undefined) {
+      req.write(options.body);
+    }
+    req.end();
+  });
 }
 
 export const liveTransport: Transport = {
@@ -195,42 +340,34 @@ export const liveTransport: Transport = {
     try {
       for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
         assertUrlAllowed(installation, url);
-        await assertPublicHost(url.hostname);
+        const validatedIp = await assertPublicHost(url.hostname);
 
-        let response: Response;
-        try {
-          response = await fetch(url, {
-            method: init.method ?? 'GET',
-            // Following by hand is the point: `redirect: 'follow'` would hand the next hop to the
-            // runtime, past the allowlist and past the private-address check.
-            redirect: 'manual',
-            signal: controller.signal,
-            headers: {
-              accept: 'application/json, application/xml;q=0.9, text/plain;q=0.8',
-              'user-agent': 'K5-Judicial/0.1 (+contato: suporte@k5.app)',
-              ...init.headers,
-            },
-            body: init.body === undefined ? undefined : JSON.stringify(init.body),
-          });
-        } catch (error) {
-          if (error instanceof Error && error.name === 'AbortError') {
-            throw new ConnectorError('source_unavailable', 'A fonte não respondeu dentro do tempo limite.');
-          }
-          throw new ConnectorError('source_unavailable', 'Falha de rede ao contatar a fonte.');
-        }
+        const response = await executeHttpsRequest(url, validatedIp, {
+          method: init.method ?? 'GET',
+          headers: init.headers ?? {},
+          body: init.body === undefined ? undefined : JSON.stringify(init.body),
+          signal: controller.signal,
+          maxBytes,
+        });
 
         if (response.status >= 300 && response.status < 400) {
-          const location = response.headers.get('location');
+          const rawLocation = response.headers.location;
+          const location = Array.isArray(rawLocation) ? rawLocation[0] : rawLocation;
           if (!location) throw new ConnectorError('schema_changed', 'A fonte redirecionou sem destino.');
           url = new URL(location, url);
           continue;
         }
 
-        if (!response.ok) throw statusToError(response.status, response.headers.get('retry-after'));
+        if (response.status < 200 || response.status >= 300) {
+          const rawRetryAfter = response.headers['retry-after'];
+          const retryAfter = Array.isArray(rawRetryAfter) ? rawRetryAfter[0] : (rawRetryAfter ?? null);
+          throw statusToError(response.status, retryAfter);
+        }
 
-        const contentType = response.headers.get('content-type') ?? '';
+        const rawContentType = response.headers['content-type'];
+        const contentType = Array.isArray(rawContentType) ? rawContentType[0] : (rawContentType ?? '');
         assertContentType(contentType);
-        return { status: response.status, contentType, body: await readCapped(response, maxBytes), url: url.toString() };
+        return { status: response.status, contentType, body: response.body, url: url.toString() };
       }
       throw new ConnectorError('source_unavailable', 'A fonte excedeu o número de redirecionamentos permitido.');
     } finally {
