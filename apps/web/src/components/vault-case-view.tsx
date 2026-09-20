@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DocumentRows, UploadControl, usePolledDocuments } from "@/components/vault-files";
+import { JudicialCaseLinks } from "@/components/judicial-case-links";
 import type { OfficeRole } from "@/lib/offices";
 import type { VaultCase, VaultDocument, VaultFolder } from "@/lib/vault";
 
@@ -110,6 +111,10 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
     {failure && <p className="mt-4 flex items-start gap-2 text-sm text-destructive" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{failure}</p>}
 
     <div className="mt-5 min-h-0 overflow-auto">
+      {/* Processes belong to the case, so the panel stays at its root instead of following the
+          person into a subfolder, where it would be noise next to the files. */}
+      {!folderId && <JudicialCaseLinks caseId={vaultCase.id} canWrite={canWrite} />}
+
       {folders.length > 0 && (view === "cards" ? (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {folders.map((folder) => (

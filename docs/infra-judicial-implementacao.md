@@ -87,13 +87,25 @@ independentes. Só `permitido` autoriza; `restrito` e `nao_esclarecido` não.
 | Importação de documentos externos | `fetchDocument` está declarado como efeito `unknown` e não entra no worker genérico. |
 | Movimentos processuais | A tabela existe; o produtor é o conector processual, que depende de F3. |
 | PostgreSQL (F5) | O banco continua SQLite síncrono. A migração é entrega própria. |
-| Interface | As rotas e os serviços existem; as telas do Cofre e da Central de comando não foram construídas nesta entrega. |
 | Peticionamento, ciência e cálculo de prazo | Fora do primeiro produto, por decisão do plano. |
 
 O contrato de requisição e resposta do DJEN foi escrito a partir do formato documentado e **não
 foi confrontado com uma resposta de produção**. É por isso que `parserVersion` é fixado e que todo
 payload original é persistido: quando o contrato real divergir, corrige-se `normalize` e os
 snapshots são relidos, sem consultar o tribunal de novo.
+
+## As telas (seção 9 do plano)
+
+Duas superfícies consomem as mesmas rotas de capacidade, sem acesso próprio ao banco.
+
+| Tela | Onde | O que ela recusa a fazer |
+| --- | --- | --- |
+| Vincular processo | Painel "Processos" na raiz de um caso do Cofre ([`judicial-case-links.tsx`](../apps/web/src/components/judicial-case-links.tsx)) | Confundir a cobertura declarada pela fonte com o que o K5 coletou; concluir que o processo não existe a partir de uma resposta vazia; confirmar um vínculo sem uma pessoa. |
+| Caixa de publicações e mudanças | Central de comando ([`judicial-inbox.tsx`](../apps/web/src/components/judicial-inbox.tsx), rota [`/app/command-center`](../apps/web/src/app/app/command-center/page.tsx)) | Achatar publicação nova, achado histórico de varredura, correção da fonte e falha de atualização em uma só palavra; apresentar um alerta como substituto da intimação oficial. |
+
+Estados cobertos nas duas: carregando, sem vínculo, sem resultado sob os filtros, múltiplos
+registros na mesma fonte, fonte fora do ar ou sem conector, acesso expirado, dados parciais de uma
+varredura truncada e coleta atrasada. A frase sobre intimação oficial fecha as duas telas.
 
 ## Como um operador liga uma fonte
 
