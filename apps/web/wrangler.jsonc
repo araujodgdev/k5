@@ -1,0 +1,51 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "k5-staging",
+  "compatibility_date": "2026-09-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "vinext/server/fetch-handler",
+  "assets": {
+    "directory": "dist/client",
+    "not_found_handling": "none",
+    "binding": "ASSETS"
+  },
+
+  // The three adapters docs/ambientes.md describes, as bindings rather than URLs and keys. A
+  // binding carries its own authorisation, so no staging credential needs to exist in an env file
+  // for the application to reach its own storage.
+  "d1_databases": [
+    {
+      // The transactional store. D1 is SQLite, so db/migrations/*.sql apply unchanged.
+      "binding": "DB",
+      "database_name": "k5-staging",
+      "database_id": "18fcfe5d-05f3-4750-bae2-85731c80884b",
+      "migrations_dir": "db/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      // Vault originals. Keys are minted by storageKey() and never accepted from a request.
+      "binding": "VAULT",
+      "bucket_name": "k5-vault-staging"
+    }
+  ],
+  "vectorize": [
+    {
+      // 1536 dimensions, cosine: must match the embedding model or ingestion fails at upsert.
+      "binding": "KNOWLEDGE",
+      "index_name": "k5-knowledge-staging"
+    }
+  ],
+
+  // No cache binding on purpose. K5 serves per-office authenticated data, and an edge cache in
+  // front of a dynamic multi-tenant response is how one office ends up reading another's.
+  "observability": { "enabled": true },
+
+  "vars": {
+    "NODE_ENV": "production",
+    "VECTOR_INDEX_BACKEND": "vectorize"
+  }
+
+  // Secrets are not here. BETTER_AUTH_SECRET, BETTER_AUTH_URL and K5_CREDENTIALS_KEY are set with
+  // `wrangler secret put`, so they live in Cloudflare and never in the repository.
+}

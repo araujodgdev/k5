@@ -1,0 +1,4 @@
+{
+  "//": "Test files load as CommonJS. The package above is ESM because Vite requires it, and under ESM Node 26 crashes translating some CommonJS dependencies (ERR_INTERNAL_ASSERTION in loadCJSModuleWithModuleLoad). The nearest package.json decides module format, so this file keeps the suite on the loader it already passed on.",
+  "type": "commonjs"
+}
