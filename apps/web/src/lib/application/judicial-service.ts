@@ -126,7 +126,12 @@ export function listJudicialLinks(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_list_links'>,
 ): CapabilityOutput<'k5_judicial_list_links'> {
-  const links = listCaseLinks(context.officeId, { caseId: input.caseId, activeOnly: input.activeOnly ?? true });
+  const links = listCaseLinks(context.officeId, {
+    caseId: input.caseId,
+    activeOnly: input.activeOnly ?? true,
+    limit: input.limit ?? 20,
+    cursor: input.cursor,
+  });
   return { links: links.map(toLinkDto) };
 }
 
@@ -211,7 +216,7 @@ export function listJudicialPublications(
   const publications = listPublications(context.officeId, {
     caseId: input.caseId, linkId: input.linkId, limit: input.limit ?? 20,
   });
-  return { publications: publications.map(toPublicationDto) };
+  return { publications: publications.map(toPublicationDto), untrustedContent: true };
 }
 
 /**

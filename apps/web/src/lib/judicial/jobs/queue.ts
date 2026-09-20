@@ -235,10 +235,10 @@ export function failJob(
   leaseOwner: string,
   error: { code: ConnectorErrorCode; message: string; retryAfterSeconds?: number },
   now = Date.now(),
-): { retrying: boolean; terminalStatus: SyncJob['status'] } {
+): { owned: boolean; retrying: boolean; terminalStatus: SyncJob['status'] } {
   const row = database.prepare('SELECT attempts FROM judicial_sync_job WHERE id = ? AND lease_owner = ?')
     .get(jobId, leaseOwner) as { attempts: number } | undefined;
-  if (!row) return { retrying: false, terminalStatus: 'failed' };
+  if (!row) return { owned: false, retrying: false, terminalStatus: 'failed' };
 
   const needsPerson = error.code === 'unauthorized' || error.code === 'forbidden' || error.code === 'human_action_required';
   // A changed schema is quarantined rather than failed: the raw payloads are already stored, and
@@ -247,7 +247,7 @@ export function failJob(
   const retrying = !needsPerson && !quarantine && isRetryable(error.code) && row.attempts < MAX_ATTEMPTS;
 
   const status: SyncJob['status'] = retrying ? 'queued' : quarantine ? 'quarantined' : 'failed';
-  database.prepare(`
+  const updated = database.prepare(`
     UPDATE judicial_sync_job
     SET status = ?, lease_owner = NULL, lease_until = 0, run_after = ?,
         error_code = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP,
@@ -258,6 +258,7 @@ export function failJob(
     retrying ? now + backoffDelayMs(row.attempts, error.retryAfterSeconds) : 0,
     error.code, error.message, status, jobId, leaseOwner,
   );
+  if (!updated.changes) return { owned: false, retrying: false, terminalStatus: 'failed' };
 
   // A credential that stopped working must stop the standing authorization too, rather than
   // letting the scheduler queue the same rejection every interval.
@@ -268,7 +269,7 @@ export function failJob(
     `).run(error.message, jobId);
   }
 
-  return { retrying, terminalStatus: status };
+  return { owned: true, retrying, terminalStatus: status };
 }
 
 export function cancelJob(officeId: string, jobId: string): boolean {

@@ -88,7 +88,7 @@ export function persistSnapshot(input: {
 
   const oversized = Buffer.byteLength(input.body) > INLINE_PAYLOAD_LIMIT;
   if (oversized) {
-    throw new ConnectorError('unsupported', 'Payload acima de 512 KiB recusado: armazenamento de objetos não disponível para snapshots.');
+    throw new ConnectorError('partial', 'Payload acima de 512 KiB recusado: armazenamento de objetos não disponível para snapshots.');
   }
 
   const id = randomUUID();

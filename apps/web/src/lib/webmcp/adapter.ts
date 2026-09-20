@@ -109,6 +109,8 @@ const routes: Record<CapabilityName, Route> = {
       const params = new URLSearchParams();
       if (i.caseId) params.set('caseId', String(i.caseId));
       if (i.activeOnly !== undefined) params.set('activeOnly', String(i.activeOnly));
+      if (i.limit) params.set('limit', String(i.limit));
+      if (i.cursor) params.set('cursor', String(i.cursor));
       const query = params.toString();
       return query ? `/api/judicial/links?${query}` : '/api/judicial/links';
     },
@@ -215,7 +217,10 @@ export function registerWebMCPCapabilities(role: OfficeRole): () => void {
         readOnlyHint: capability.effect === 'read',
         consequentialHint: capability.effect === 'write',
         // Vault text is someone else's document; it is data, never instructions for the agent.
-        untrustedContentHint: capability.module === 'knowledge' || capability.module === 'citations',
+        untrustedContentHint: capability.module === 'knowledge'
+          || capability.module === 'citations'
+          || name === 'k5_judicial_list_publications'
+          || name === 'k5_judicial_get_publication',
       },
     };
 

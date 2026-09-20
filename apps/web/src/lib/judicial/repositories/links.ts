@@ -61,14 +61,26 @@ export function findCaseLink(officeId: string, linkId: string): CaseLink | undef
   return row ? toLink(row) : undefined;
 }
 
-export function listCaseLinks(officeId: string, filter: { caseId?: string; activeOnly?: boolean } = {}): CaseLink[] {
+export function listCaseLinks(
+  officeId: string,
+  filter: { caseId?: string; activeOnly?: boolean; limit?: number; cursor?: string } = {},
+): CaseLink[] {
   const clauses = ['l.office_id = ?'];
   const params: (string | number | null)[] = [officeId];
   if (filter.caseId) { clauses.push('l.case_id = ?'); params.push(filter.caseId); }
   if (filter.activeOnly) clauses.push("l.status = 'active'");
+  if (filter.cursor) {
+    clauses.push(`(l.created_at, l.id) < (
+      SELECT cursor_link.created_at, cursor_link.id
+      FROM judicial_case_link cursor_link
+      WHERE cursor_link.id = ? AND cursor_link.office_id = ?
+    )`);
+    params.push(filter.cursor, officeId);
+  }
+  const limit = Math.max(1, Math.min(filter.limit ?? 20, 50));
   const rows = database.prepare(
-    `${SELECT_LINK} WHERE ${clauses.join(' AND ')} ORDER BY l.created_at DESC`,
-  ).all(...params) as LinkRow[];
+    `${SELECT_LINK} WHERE ${clauses.join(' AND ')} ORDER BY l.created_at DESC, l.id DESC LIMIT ?`,
+  ).all(...params, limit) as LinkRow[];
   return rows.map(toLink);
 }
 

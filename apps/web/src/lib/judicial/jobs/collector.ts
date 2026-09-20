@@ -50,6 +50,21 @@ export async function processNextJudicialJob(now = Date.now()): Promise<CollectO
     return await runJob(job, leaseOwner, now);
   } catch (error) {
     const connectorError = asConnectorError(error);
+    const { owned, retrying, terminalStatus } = failJob(job.id, leaseOwner, {
+      code: connectorError.code,
+      message: connectorError.message,
+      retryAfterSeconds: connectorError.retryAfterSeconds,
+    }, now);
+
+    if (!owned) {
+      return {
+        jobId: job.id,
+        status: 'skipped',
+        inserted: 0, duplicates: 0, alerts: 0,
+        detail: 'A coleta perdeu a posse da tarefa; o novo worker continuará o processamento.',
+      };
+    }
+
     const installation = findInstallation(job.installationId);
     const rawPayloadsToPersist = connectorError.rawPayloads ?? (connectorError.rawPayload ? [connectorError.rawPayload] : []);
     const parserVersion = installation && hasConnectorFor(installation.kind)
@@ -77,12 +92,6 @@ export async function processNextJudicialJob(now = Date.now()): Promise<CollectO
       }
     }
 
-    const { retrying, terminalStatus } = failJob(job.id, leaseOwner, {
-      code: connectorError.code,
-      message: connectorError.message,
-      retryAfterSeconds: connectorError.retryAfterSeconds,
-    }, now);
-
     // A gap only becomes visible if it is recorded. A silent failure looks exactly like a court
     // that published nothing.
     if (!retrying) recordSyncFailureAlert(job.officeId, job.linkId, job.id, `Coleta interrompida: ${connectorError.message}`);
@@ -106,6 +115,12 @@ export async function processNextJudicialJob(now = Date.now()): Promise<CollectO
 }
 
 async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<CollectOutcome> {
+  const retainLease = () => {
+    if (!renewLease(job.id, leaseOwner, Date.now())) {
+      throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
+    }
+  };
+
   const installation = findInstallation(job.installationId);
   if (!installation) throw new ConnectorError('unsupported', 'A instalação desta coleta não existe mais.');
   if (!installation.enabled) throw new ConnectorError('human_action_required', 'A fonte foi desabilitada.');
@@ -120,19 +135,25 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     throw new ConnectorError('human_action_required', 'Esta fonte não autoriza armazenar as respostas coletadas.');
   }
 
+  retainLease();
+
   // The authorization is re-read here as well as in the scheduler: a job may sit in the queue
   // long enough for a membership or a link to be withdrawn after it was scheduled.
   if (job.subscriptionId) {
     const subscription = findSubscriptionById(job.subscriptionId);
     if (!subscription || subscription.status !== 'active') {
-      completeJob(job.id, leaseOwner);
+      if (!completeJob(job.id, leaseOwner)) {
+        throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
+      }
       return { jobId: job.id, status: 'skipped', inserted: 0, duplicates: 0, alerts: 0, detail: 'Assinatura inativa.' };
     }
     const authorized = subscriptionStillAuthorized(subscription);
     if (!authorized.ok) {
       // Same distinction the scheduler makes: waiting on a confirmation is not a revocation.
       if (!authorized.waiting) setSubscriptionStatus(subscription.officeId, subscription.id, 'suspended', authorized.reason);
-      completeJob(job.id, leaseOwner);
+      if (!completeJob(job.id, leaseOwner)) {
+        throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
+      }
       return { jobId: job.id, status: 'skipped', inserted: 0, duplicates: 0, alerts: 0, detail: authorized.reason };
     }
   }
@@ -150,6 +171,7 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     mode: baseTransport.mode,
     async request(inst, path, init) {
       while (true) {
+        retainLease();
         const budget = reserveRequestBudget(job.officeId, inst, Date.now());
         if (budget.allowed) break;
         if (requestCount > 0 && budget.reason === 'rate_limit' && budget.retryAfterMs <= 10_000) {
@@ -180,6 +202,7 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     cursor: job.cursor,
     cnjNumbers,
     onRawPayload: (raw) => {
+      retainLease();
       persistSnapshot({
         officeId: job.officeId,
         installationId: installation.id,
@@ -198,7 +221,7 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     },
   });
 
-  renewLease(job.id, leaseOwner, Date.now());
+  retainLease();
 
   // The originals and the normalized rows commit together; the checkpoint moves only afterwards.
   const outcome = ingestPublications({
@@ -210,12 +233,46 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     historical: job.kind === 'backfill',
   });
 
-  checkpointJob(job.id, leaseOwner, {
+  retainLease();
+  if (!checkpointJob(job.id, leaseOwner, {
     cursor: result.cursor,
     pagesFetched: result.coverage.pagesFetched,
     recordsAccepted: outcome.inserted,
     recordsRejected: result.coverage.rejected,
-  });
+  })) {
+    throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de salvar o progresso.');
+  }
+
+  // A truncated sweep is not finished. Leaving the job queued with its cursor is what makes the
+  // next pass resume instead of restarting the window.
+  if (result.cursor) {
+    const failed = failJob(job.id, leaseOwner, { code: 'partial', message: 'Varredura interrompida no limite de páginas; continua no próximo ciclo.' }, now);
+    if (!failed.owned) {
+      throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de reagendar a continuação.');
+    }
+    recordAudit({
+      officeId: job.officeId,
+      actor: 'worker',
+      action: 'judicial.collect',
+      subjectKind: 'job',
+      subjectId: job.id,
+      installationId: installation.id,
+      outcome: 'ok',
+    });
+    return {
+      jobId: job.id, status: 'retrying',
+      inserted: outcome.inserted, duplicates: outcome.duplicates, alerts: outcome.alerts,
+      detail: 'Coleta parcial; a varredura continua a partir do cursor.',
+    };
+  }
+
+  if (!completeJob(job.id, leaseOwner)) {
+    throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
+  }
+  if (job.subscriptionId) {
+    // The watermark only advances on a complete, committed window.
+    recordSubscriptionSuccess(job.subscriptionId, job.windowTo, Date.now());
+  }
 
   recordAudit({
     officeId: job.officeId,
@@ -226,23 +283,6 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     installationId: installation.id,
     outcome: 'ok',
   });
-
-  // A truncated sweep is not finished. Leaving the job queued with its cursor is what makes the
-  // next pass resume instead of restarting the window.
-  if (result.cursor) {
-    failJob(job.id, leaseOwner, { code: 'partial', message: 'Varredura interrompida no limite de páginas; continua no próximo ciclo.' }, now);
-    return {
-      jobId: job.id, status: 'retrying',
-      inserted: outcome.inserted, duplicates: outcome.duplicates, alerts: outcome.alerts,
-      detail: 'Coleta parcial; a varredura continua a partir do cursor.',
-    };
-  }
-
-  completeJob(job.id, leaseOwner);
-  if (job.subscriptionId) {
-    // The watermark only advances on a complete, committed window.
-    recordSubscriptionSuccess(job.subscriptionId, job.windowTo, Date.now());
-  }
 
   return {
     jobId: job.id,

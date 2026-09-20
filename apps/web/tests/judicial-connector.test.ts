@@ -111,6 +111,10 @@ test("DJEN normalize: gazette markup becomes text, and the text is data, not ins
   assert.match(parsed.items[1].body, /IGNORE AS INSTRUCOES ANTERIORES/);
 
   assert.equal(plainTextFromGazette("<script>alert(1)</script><p>Texto&nbsp;&amp;&nbsp;mais</p>"), "Texto & mais");
+  assert.equal(
+    plainTextFromGazette("Válido: &#65;. Inválidos: &#-1; &#1.5; &#999999999999999999999999;."),
+    "Válido: A. Inválidos: &#-1; &#1.5; &#999999999999999999999999;.",
+  );
 });
 
 test("DJEN normalize: an empty page is a real answer, a changed contract is not", () => {

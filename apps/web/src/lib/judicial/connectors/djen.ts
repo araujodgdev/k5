@@ -71,7 +71,12 @@ export function plainTextFromGazette(value: string): string {
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
-    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#(\d+);/g, (match, code: string) => {
+      const codePoint = Number(code);
+      return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint)
+        : match;
+    })
     .replace(/[ \t ]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

@@ -202,6 +202,26 @@ test("isolation: a case from another office is not linkable and its links are in
   );
 });
 
+test("links: unfiltered listings are bounded and the cursor advances without overlap", async () => {
+  const { officeA, lawyerA, caseA } = seed();
+  const installation = source();
+  for (let index = 0; index < 25; index += 1) {
+    createCaseLink({
+      officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
+      cnjNumber: null, nativeNumber: `processo-${index}`, degree: "first", confirmed: true,
+    });
+  }
+
+  const defaultPage = await runCapability(context(officeA, lawyerA), "k5_judicial_list_links", {}) as { links: Array<{ id: string }> };
+  assert.equal(defaultPage.links.length, 20);
+
+  const firstPage = listCaseLinks(officeA, { limit: 10 });
+  const secondPage = listCaseLinks(officeA, { limit: 10, cursor: firstPage.at(-1)?.id });
+  assert.equal(firstPage.length, 10);
+  assert.equal(secondPage.length, 10);
+  assert.equal(secondPage.some((link) => firstPage.some((first) => first.id === link.id)), false);
+});
+
 test("refresh: an unconfirmed link cannot spend a request against a court", async () => {
   const { officeA, lawyerA, caseA } = seed();
   const installation = source();
@@ -396,7 +416,11 @@ test("evidence: an opened publication carries its origin and is labelled untrust
   enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   await processNextJudicialJob();
 
-  const list = await runCapability(context(officeA, lawyerA), "k5_judicial_list_publications", {}) as { publications: Array<{ id: string; collectedAt: string; madeAvailableOn: string | null }> };
+  const list = await runCapability(context(officeA, lawyerA), "k5_judicial_list_publications", {}) as {
+    publications: Array<{ id: string; collectedAt: string; madeAvailableOn: string | null }>;
+    untrustedContent: true;
+  };
+  assert.equal(list.untrustedContent, true);
   const opened = await runCapability(context(officeA, lawyerA), "k5_judicial_get_publication", { publicationId: list.publications[0].id }) as {
     body: string; snapshotId: string; untrustedContent: true; publication: { collectedAt: string };
   };
@@ -800,6 +824,45 @@ test("collector: budget is reserved and enforced for each physical transport req
   assert.match(findJob(officeA, job2.id)?.errorMessage ?? "", /Orçamento diário/);
 });
 
+test("collector: a worker that loses its lease stops before persistence or completion", async () => {
+  const { officeA, lawyerA, caseA } = seed();
+  clearQueue();
+  clearBudget();
+  const installation = source();
+  const { link } = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
+    cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
+  });
+  const { job } = enqueueJob({
+    officeId: officeA, installationId: installation.id, linkId: link.id,
+    kind: "manual", operation: "listChanges",
+    request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY,
+  });
+
+  let replacement: ReturnType<typeof claimJob>;
+  const fixtures = new Map([[fixtureKey(installation.id, "GET", "api/v1/comunicacao", {
+    dataDisponibilizacaoInicio: TODAY,
+    dataDisponibilizacaoFim: TODAY,
+    numeroProcesso: VALID,
+    itensPorPagina: 100,
+    pagina: 1,
+  }), { body: fixture("djen-empty.json") }]]);
+  const getFixture = fixtures.get.bind(fixtures);
+  fixtures.get = (key) => {
+    replacement = claimJob(Date.now() + 6 * 60 * 1000);
+    return getFixture(key);
+  };
+  setFixtureTransport(fixtures);
+
+  const outcome = await processNextJudicialJob();
+  assert.equal(outcome?.status, "skipped");
+  assert.equal(replacement?.job.id, job.id);
+  assert.equal(findJob(officeA, job.id)?.status, "running");
+  const snapshots = testDb.prepare("SELECT count(*) AS count FROM judicial_snapshot WHERE job_id = ?").get(job.id) as { count: number };
+  assert.equal(snapshots.count, 0);
+  completeJob(job.id, replacement!.leaseOwner);
+});
+
 test("evidence: an oversized response rejects the transaction and does not write a synthetic storage key", () => {
   const { officeA, lawyerA, caseA } = seed();
   const installation = source();
@@ -826,7 +889,7 @@ test("evidence: an oversized response rejects the transaction and does not write
         items: [],
       },
     }),
-    (error: unknown) => error instanceof ConnectorError && error.code === "unsupported",
+    (error: unknown) => error instanceof ConnectorError && error.code === "partial",
   );
 
   // Assert no snapshot was committed with a synthetic storage key
