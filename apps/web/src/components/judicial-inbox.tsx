@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ErrorText, LATE_COLLECTION_HOURS, OFFICIAL_NOTICE, eventLabels, eventNotes, formatDate,
-  formatDateTime, hoursSince, latestCollectedAt, newIdempotencyKey, readFailure, revisionLabels, sourceAvailability,
-  type ApiFailure, type JudicialAlert, type JudicialLink, type JudicialPublication, type JudicialSource,
+  formatDateTime, hoursSince, newIdempotencyKey, readFailure, revisionLabels, sourceAvailability,
+  type ApiFailure, type JudicialAlert, type JudicialJob, type JudicialLink, type JudicialPublication, type JudicialSource,
 } from "@/components/judicial-common";
 
 /**
@@ -27,7 +27,23 @@ type Loaded = {
   publications: JudicialPublication[];
   links: JudicialLink[];
   sources: JudicialSource[];
+  jobs: JudicialJob[];
 };
+
+async function loadAllLinks(): Promise<JudicialLink[]> {
+  const links: JudicialLink[] = [];
+  let cursor: string | null = null;
+  do {
+    const params = new URLSearchParams({ limit: "50" });
+    if (cursor) params.set("cursor", cursor);
+    const response = await fetch(`/api/judicial/links?${params}`);
+    if (!response.ok) return links;
+    const page = (await response.json()) as { links: JudicialLink[]; nextCursor: string | null };
+    links.push(...page.links);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return links;
+}
 
 export function JudicialInbox({ canWrite, initialCaseId }: { canWrite: boolean; initialCaseId?: string }) {
   const id = useId();
@@ -39,24 +55,35 @@ export function JudicialInbox({ canWrite, initialCaseId }: { canWrite: boolean; 
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [alertsResponse, publicationsResponse, linksResponse, sourcesResponse] = await Promise.all([
-      fetch("/api/judicial/alerts?limit=50"),
-      fetch("/api/judicial/publications?limit=50"),
-      fetch("/api/judicial/links"),
+    const resultParams = new URLSearchParams({ limit: "50" });
+    if (caseId !== ALL) resultParams.set("caseId", caseId);
+    if (sourceId !== ALL) resultParams.set("installationId", sourceId);
+    const alertParams = new URLSearchParams(resultParams);
+    if (unreadOnly) alertParams.set("unreadOnly", "true");
+    const jobParams = new URLSearchParams(resultParams);
+    jobParams.set("status", "completed");
+    jobParams.set("limit", "1");
+
+    const [alertsResponse, publicationsResponse, links, sourcesResponse, jobsResponse] = await Promise.all([
+      fetch(`/api/judicial/alerts?${alertParams}`),
+      fetch(`/api/judicial/publications?${resultParams}`),
+      loadAllLinks(),
       fetch("/api/judicial/sources"),
+      fetch(`/api/judicial/jobs?${jobParams}`),
     ]);
     if (!alertsResponse.ok) {
       setFailure(await readFailure(alertsResponse, "Não foi possível carregar a caixa de eventos."));
-      setData({ alerts: [], publications: [], links: [], sources: [] });
+      setData({ alerts: [], publications: [], links, sources: [], jobs: [] });
       return;
     }
     setData({
       alerts: ((await alertsResponse.json()) as { alerts: JudicialAlert[] }).alerts,
       publications: publicationsResponse.ok ? ((await publicationsResponse.json()) as { publications: JudicialPublication[] }).publications : [],
-      links: linksResponse.ok ? ((await linksResponse.json()) as { links: JudicialLink[] }).links : [],
+      links,
       sources: sourcesResponse.ok ? ((await sourcesResponse.json()) as { sources: JudicialSource[] }).sources : [],
+      jobs: jobsResponse.ok ? ((await jobsResponse.json()) as { jobs: JudicialJob[] }).jobs : [],
     });
-  }, []);
+  }, [caseId, sourceId, unreadOnly]);
 
   // Deferred by a tick so the first render is the loading state rather than a cascading one.
   useEffect(() => {
@@ -90,41 +117,26 @@ export function JudicialInbox({ canWrite, initialCaseId }: { canWrite: boolean; 
     const map = new Map<string, string>();
     for (const link of data?.links ?? []) map.set(link.caseId, link.caseName);
     for (const alert of data?.alerts ?? []) if (alert.caseId && alert.caseName) map.set(alert.caseId, alert.caseName);
+    for (const publication of data?.publications ?? []) {
+      if (publication.caseId && publication.caseName) map.set(publication.caseId, publication.caseName);
+    }
     return [...map].sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
   }, [data]);
 
   const sources = useMemo(() => {
     const map = new Map<string, string>();
     for (const link of data?.links ?? []) map.set(link.installationId, link.courtName);
-    for (const source of data?.sources ?? []) if (map.has(source.id)) map.set(source.id, source.courtName);
+    for (const source of data?.sources ?? []) {
+      if (source.purpose === "publications" || source.purpose === "case_tracking") map.set(source.id, source.courtName);
+    }
     return [...map].sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
   }, [data]);
 
   if (!data) return <p className="py-6 text-sm text-subtle-foreground">Carregando os eventos das fontes…</p>;
 
-  /** An event's source is known only through the publication it points at. */
-  function sourceOfAlert(alert: JudicialAlert): string | undefined {
-    if (alert.subjectKind !== "publication") return undefined;
-    return publicationById.get(alert.subjectId)?.installationId;
-  }
-
-  const alerts = data.alerts.filter((alert) => {
-    if (unreadOnly && alert.read) return false;
-    if (caseId !== ALL && alert.caseId !== caseId) return false;
-    if (sourceId !== ALL && sourceOfAlert(alert) !== sourceId) return false;
-    return true;
-  });
-  const hiddenByUnknownSource = sourceId !== ALL
-    ? data.alerts.filter((alert) => sourceOfAlert(alert) === undefined).length
-    : 0;
-
-  const publications = data.publications.filter((publication) => {
-    if (caseId !== ALL && publication.caseId !== caseId) return false;
-    if (sourceId !== ALL && publication.installationId !== sourceId) return false;
-    return true;
-  });
-
-  const lastCollected = latestCollectedAt(data.publications);
+  const alerts = data.alerts;
+  const publications = data.publications;
+  const lastCollected = data.jobs[0]?.completedAt;
   const lateBy = hoursSince(lastCollected);
   const unavailable = data.sources.filter((source) =>
     source.enabled && (!source.hasConnector || !source.liveTransportEnabled
@@ -171,10 +183,9 @@ export function JudicialInbox({ canWrite, initialCaseId }: { canWrite: boolean; 
         <h2 id={`${id}-eventos`} className="text-sm font-medium">Eventos</h2>
         {alerts.length === 0 ? (
           <p className="py-2 text-sm text-subtle-foreground">
-            {data.alerts.length === 0
+            {caseId === ALL && sourceId === ALL && !unreadOnly
               ? "Nenhum evento registrado ainda. Vincule um processo no Cofre para começar a acompanhar."
               : "Nenhum evento nos filtros escolhidos."}
-            {hiddenByUnknownSource > 0 && ` ${hiddenByUnknownSource} evento(s) não indicam a fonte e ficam fora deste filtro.`}
           </p>
         ) : (
           <div>
@@ -196,7 +207,7 @@ export function JudicialInbox({ canWrite, initialCaseId }: { canWrite: boolean; 
         <h2 id={`${id}-publicacoes`} className="text-sm font-medium">Publicações coletadas</h2>
         {publications.length === 0 ? (
           <p className="py-2 text-sm text-subtle-foreground">
-            {data.publications.length === 0
+            {caseId === ALL && sourceId === ALL
               ? "Nenhuma publicação coletada. Isso não conclui que as fontes nada publicaram: pode não ter havido coleta concluída ainda."
               : "Nenhuma publicação nos filtros escolhidos."}
           </p>

@@ -114,7 +114,7 @@ export const judicialPublicationDto = z.object({
 });
 
 export const judicialJobDto = z.object({
-  id: z.string(), installationId: z.string(), kind: z.string(), operation: z.string(),
+  id: z.string(), installationId: z.string(), linkId: z.string().nullable(), kind: z.string(), operation: z.string(),
   status: z.enum(['queued', 'running', 'completed', 'failed', 'cancelled', 'quarantined']),
   windowFrom: z.string().nullable(), windowTo: z.string().nullable(),
   attempts: z.number(), pagesFetched: z.number(), recordsAccepted: z.number(), recordsRejected: z.number(),
@@ -127,6 +127,7 @@ export const judicialAlertDto = z.object({
   eventKind: z.enum(['new_publication', 'historical_publication', 'new_movement', 'correction', 'sync_failed', 'coverage_gap'])
     .describe('"historical_publication" é achado de backfill, não novidade de hoje.'),
   subjectKind: z.string(), subjectId: z.string(), summary: z.string(),
+  installationId: z.string().nullable(),
   caseId: z.string().nullable(), caseName: z.string().nullable(),
   read: z.boolean(), createdAt: z.string(),
 });
@@ -418,7 +419,12 @@ export const capabilities = {
       limit: z.number().int().min(1).max(50).default(20),
       cursor: identifier.optional(),
     }),
-    output: z.object({ links: z.array(judicialLinkDto) }),
+    output: z.object({
+      links: z.array(judicialLinkDto),
+      nextCursor: z.string().nullable(),
+      jobs: z.array(judicialJobDto),
+      completedJobs: z.array(judicialJobDto),
+    }),
   },
   k5_judicial_link_case: {
     module: 'judicial', effect: 'write', roles: writers,
@@ -453,7 +459,7 @@ export const capabilities = {
     module: 'judicial', effect: 'read', roles: readers,
     description: 'Lista as publicações coletadas para os casos do escritório, da mais recente para a mais antiga. Publicação de diário não substitui intimação oficial.',
     input: z.object({
-      caseId: identifier.optional(), linkId: identifier.optional(),
+      caseId: identifier.optional(), linkId: identifier.optional(), installationId: identifier.optional(),
       limit: z.number().int().min(1).max(50).default(20),
     }),
     output: z.object({
@@ -486,10 +492,24 @@ export const capabilities = {
     input: z.object({ jobId: identifier }),
     output: z.object({ job: judicialJobDto }),
   },
+  k5_judicial_list_jobs: {
+    module: 'judicial', effect: 'read', roles: readers,
+    description: 'Lista coletas judiciais já registradas, com filtros aplicados antes do limite.',
+    input: z.object({
+      caseId: identifier.optional(), linkId: identifier.optional(), installationId: identifier.optional(),
+      status: z.enum(['queued', 'running', 'completed', 'failed', 'cancelled', 'quarantined']).optional(),
+      limit: z.number().int().min(1).max(100).default(20),
+    }),
+    output: z.object({ jobs: z.array(judicialJobDto) }),
+    publish: [],
+  },
   k5_judicial_list_alerts: {
     module: 'judicial', effect: 'read', roles: readers,
     description: 'Lista os eventos observados pelo K5: publicação nova, achado histórico de backfill, correção ou falha de atualização.',
-    input: z.object({ unreadOnly: z.boolean().default(false), limit: z.number().int().min(1).max(50).default(20) }),
+    input: z.object({
+      caseId: identifier.optional(), installationId: identifier.optional(),
+      unreadOnly: z.boolean().default(false), limit: z.number().int().min(1).max(50).default(20),
+    }),
     output: z.object({ alerts: z.array(judicialAlertDto) }),
   },
   k5_judicial_mark_alert_read: {

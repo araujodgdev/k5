@@ -77,7 +77,8 @@ export function listCaseLinks(
     )`);
     params.push(filter.cursor, officeId);
   }
-  const limit = Math.max(1, Math.min(filter.limit ?? 20, 50));
+  // Callers may request one extra row to determine whether a bounded page has a continuation.
+  const limit = Math.max(1, Math.min(filter.limit ?? 20, 51));
   const rows = database.prepare(
     `${SELECT_LINK} WHERE ${clauses.join(' AND ')} ORDER BY l.created_at DESC, l.id DESC LIMIT ?`,
   ).all(...params, limit) as LinkRow[];

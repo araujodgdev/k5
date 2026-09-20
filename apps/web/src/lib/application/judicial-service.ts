@@ -12,7 +12,7 @@ import {
 import {
   findPublication, listAlerts, listPublications, markAlertRead, type PublicationSummary,
 } from '@/lib/judicial/repositories/evidence';
-import { enqueueJob, findJob, type SyncJob } from '@/lib/judicial/jobs/queue';
+import { enqueueJob, findJob, latestJobsForLinks, listJobs, type SyncJob } from '@/lib/judicial/jobs/queue';
 import { recordAudit } from '@/lib/judicial/repositories/audit';
 import { parseCnjNumber } from '@/lib/judicial/normalization/cnj';
 import { nowIso, overlappingWindow } from '@/lib/judicial/normalization/dates';
@@ -97,6 +97,7 @@ function toJobDto(job: SyncJob) {
   return {
     id: job.id,
     installationId: job.installationId,
+    linkId: job.linkId,
     kind: job.kind,
     operation: job.operation,
     status: job.status,
@@ -126,13 +127,21 @@ export function listJudicialLinks(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_list_links'>,
 ): CapabilityOutput<'k5_judicial_list_links'> {
-  const links = listCaseLinks(context.officeId, {
+  const limit = input.limit ?? 20;
+  const rows = listCaseLinks(context.officeId, {
     caseId: input.caseId,
     activeOnly: input.activeOnly ?? true,
-    limit: input.limit ?? 20,
+    limit: limit + 1,
     cursor: input.cursor,
   });
-  return { links: links.map(toLinkDto) };
+  const links = rows.slice(0, limit);
+  const linkIds = links.map((link) => link.id);
+  return {
+    links: links.map(toLinkDto),
+    nextCursor: rows.length > limit ? (links.at(-1)?.id ?? null) : null,
+    jobs: latestJobsForLinks(context.officeId, linkIds).map(toJobDto),
+    completedJobs: latestJobsForLinks(context.officeId, linkIds, true).map(toJobDto),
+  };
 }
 
 /**
@@ -214,7 +223,8 @@ export function listJudicialPublications(
   // Filtering by a link from another office must return nothing, not that office's publications.
   if (input.linkId) requireLink(context, input.linkId);
   const publications = listPublications(context.officeId, {
-    caseId: input.caseId, linkId: input.linkId, limit: input.limit ?? 20,
+    caseId: input.caseId, linkId: input.linkId, installationId: input.installationId,
+    limit: input.limit ?? 20,
   });
   return { publications: publications.map(toPublicationDto), untrustedContent: true };
 }
@@ -303,11 +313,30 @@ export function getJudicialJob(
   return { job: toJobDto(job) };
 }
 
+export function listJudicialJobs(
+  context: WorkspaceContext,
+  input: CapabilityInput<'k5_judicial_list_jobs'>,
+): CapabilityOutput<'k5_judicial_list_jobs'> {
+  const jobs = listJobs(context.officeId, {
+    caseId: input.caseId,
+    linkId: input.linkId,
+    installationId: input.installationId,
+    status: input.status,
+    limit: input.limit ?? 20,
+  });
+  return { jobs: jobs.map(toJobDto) };
+}
+
 export function listJudicialAlerts(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_list_alerts'>,
 ): CapabilityOutput<'k5_judicial_list_alerts'> {
-  const rows = listAlerts(context.officeId, { unreadOnly: input.unreadOnly ?? false, limit: input.limit ?? 20 });
+  const rows = listAlerts(context.officeId, {
+    caseId: input.caseId,
+    installationId: input.installationId,
+    unreadOnly: input.unreadOnly ?? false,
+    limit: input.limit ?? 20,
+  });
   return {
     alerts: rows.map((row) => ({
       id: row.id,
@@ -315,6 +344,7 @@ export function listJudicialAlerts(
       subjectKind: row.subject_kind,
       subjectId: row.subject_id,
       summary: row.summary,
+      installationId: row.installation_id,
       caseId: row.case_id,
       caseName: row.case_name,
       read: row.read_at !== null,

@@ -105,7 +105,10 @@ Duas superfícies consomem as mesmas rotas de capacidade, sem acesso próprio ao
 
 Estados cobertos nas duas: carregando, sem vínculo, sem resultado sob os filtros, múltiplos
 registros na mesma fonte, fonte fora do ar ou sem conector, acesso expirado, dados parciais de uma
-varredura truncada e coleta atrasada. A frase sobre intimação oficial fecha as duas telas.
+varredura truncada e coleta atrasada. Os filtros da caixa são aplicados no servidor antes do
+limite; o histórico persistido das coletas restaura esses estados após recarregar a página, e
+listas de processos com mais de uma página oferecem continuação. A frase sobre intimação oficial
+fecha as duas telas.
 
 ## Como um operador liga uma fonte
 

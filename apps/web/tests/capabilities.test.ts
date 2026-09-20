@@ -65,7 +65,7 @@ function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
 }
 
 test("capabilities contract: complete catalog and role permissions", () => {
-  assert.equal(capabilityNames.length, 49, "All 49 capabilities declared");
+  assert.equal(capabilityNames.length, 50, "All 50 capabilities declared");
 
   const reviewerCaps = capabilitiesForRole("reviewer");
   const lawyerCaps = capabilitiesForRole("lawyer");
@@ -78,8 +78,8 @@ test("capabilities contract: complete catalog and role permissions", () => {
   }
 
   // Lawyers and Admins have all capabilities
-  assert.equal(lawyerCaps.length, 49);
-  assert.equal(adminCaps.length, 49);
+  assert.equal(lawyerCaps.length, 50);
+  assert.equal(adminCaps.length, 50);
 });
 
 test("authorization: dynamic role check and membership revocation", () => {

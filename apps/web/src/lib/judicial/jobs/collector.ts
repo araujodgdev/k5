@@ -174,8 +174,9 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
         retainLease();
         const budget = reserveRequestBudget(job.officeId, inst, Date.now());
         if (budget.allowed) break;
-        if (requestCount > 0 && budget.reason === 'rate_limit' && budget.retryAfterMs <= 10_000) {
+        if (requestCount > 0 && budget.reason === 'rate_limit') {
           await new Promise((resolve) => setTimeout(resolve, budget.retryAfterMs + 20));
+          retainLease();
           continue;
         }
         throw new ConnectorError(

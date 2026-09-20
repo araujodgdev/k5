@@ -331,22 +331,34 @@ export function findPublication(officeId: string, publicationId: string): (Publi
 }
 
 /** Unread items for the internal inbox, newest first. Delivery outside K5 is a separate step. */
-export function listAlerts(officeId: string, options: { unreadOnly?: boolean; limit?: number } = {}) {
+export function listAlerts(
+  officeId: string,
+  options: { caseId?: string; installationId?: string; unreadOnly?: boolean; limit?: number } = {},
+) {
   const clauses = ['a.office_id = ?'];
   const params: (string | number | null)[] = [officeId];
+  if (options.caseId) { clauses.push('l.case_id = ?'); params.push(options.caseId); }
+  if (options.installationId) {
+    clauses.push('COALESCE(p.installation_id, j.installation_id, l.installation_id) = ?');
+    params.push(options.installationId);
+  }
   if (options.unreadOnly) clauses.push('a.read_at IS NULL');
   const limit = Math.max(1, Math.min(options.limit ?? 30, 100));
   return database.prepare(`
     SELECT a.id, a.event_kind, a.subject_kind, a.subject_id, a.summary, a.read_at, a.created_at,
-           a.link_id, l.case_id, c.name AS case_name
+           a.link_id, l.case_id, c.name AS case_name,
+           COALESCE(p.installation_id, j.installation_id, l.installation_id) AS installation_id
     FROM judicial_alert a
     LEFT JOIN judicial_case_link l ON l.id = a.link_id
     LEFT JOIN vault_case c ON c.id = l.case_id
+    LEFT JOIN judicial_publication p ON a.subject_kind = 'publication' AND p.id = a.subject_id
+    LEFT JOIN judicial_sync_job j ON a.subject_kind = 'job' AND j.id = a.subject_id
     WHERE ${clauses.join(' AND ')}
     ORDER BY a.created_at DESC LIMIT ?
   `).all(...params, limit) as Array<{
     id: string; event_kind: string; subject_kind: string; subject_id: string; summary: string;
-    read_at: string | null; created_at: string; link_id: string | null; case_id: string | null; case_name: string | null;
+    read_at: string | null; created_at: string; link_id: string | null; installation_id: string | null;
+    case_id: string | null; case_name: string | null;
   }>;
 }
 

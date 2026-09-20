@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ErrorText, OFFICIAL_NOTICE, collectionAgeSentence, confirmationLabels, degreeLabels, formatDate,
-  jobStatusLabels, latestCollectedAt, newIdempotencyKey, permissionDimensions, permissionLabels,
+  jobStatusLabels, newIdempotencyKey, permissionDimensions, permissionLabels,
   readFailure, sourceAvailability, type ApiFailure, type JudicialJob, type JudicialLink,
   type JudicialPublication, type JudicialSource,
 } from "@/components/judicial-common";
@@ -30,7 +30,23 @@ import {
 const touch = "h-11 md:h-9";
 const degreeOptions = ["first", "second", "superior", "panel", "not_applicable"] as const;
 
-type Loaded = { links: JudicialLink[]; sources: JudicialSource[]; publications: JudicialPublication[] };
+type Loaded = {
+  links: JudicialLink[];
+  sources: JudicialSource[];
+  publications: JudicialPublication[];
+  nextCursor: string | null;
+};
+
+type LinksPage = {
+  links: JudicialLink[];
+  nextCursor: string | null;
+  jobs: JudicialJob[];
+  completedJobs: JudicialJob[];
+};
+
+function jobsByLink(rows: JudicialJob[]): Record<string, JudicialJob> {
+  return Object.fromEntries(rows.flatMap((job) => job.linkId ? [[job.linkId, job]] : []));
+}
 
 export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWrite: boolean }) {
   const headingId = useId();
@@ -39,29 +55,54 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Record<string, JudicialJob>>({});
+  const [completedJobs, setCompletedJobs] = useState<Record<string, JudicialJob>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
     const query = `caseId=${encodeURIComponent(caseId)}`;
     const [linksResponse, sourcesResponse, publicationsResponse] = await Promise.all([
-      fetch(`/api/judicial/links?${query}`),
+      fetch(`/api/judicial/links?${query}&limit=20`),
       fetch("/api/judicial/sources"),
       fetch(`/api/judicial/publications?${query}&limit=50`),
     ]);
     if (!linksResponse.ok) {
       setFailure(await readFailure(linksResponse, "Não foi possível carregar os processos deste caso."));
-      setData({ links: [], sources: [], publications: [] });
+      setData({ links: [], sources: [], publications: [], nextCursor: null });
       return;
     }
-    const links = (await linksResponse.json()) as { links: JudicialLink[] };
+    const links = (await linksResponse.json()) as LinksPage;
     // The catalog and the collected publications are context, not the answer: a failure in either
     // still leaves a usable list of links instead of an empty screen.
     const sources = sourcesResponse.ok ? ((await sourcesResponse.json()) as { sources: JudicialSource[] }).sources : [];
     const publications = publicationsResponse.ok
       ? ((await publicationsResponse.json()) as { publications: JudicialPublication[] }).publications
       : [];
-    setData({ links: links.links, sources, publications });
+    setJobs(jobsByLink(links.jobs));
+    setCompletedJobs(jobsByLink(links.completedJobs));
+    setData({ links: links.links, sources, publications, nextCursor: links.nextCursor });
   }, [caseId]);
+
+  async function loadMore() {
+    if (!data?.nextCursor) return;
+    setLoadingMore(true);
+    setFailure(null);
+    const params = new URLSearchParams({ caseId, limit: "20", cursor: data.nextCursor });
+    const response = await fetch(`/api/judicial/links?${params}`);
+    setLoadingMore(false);
+    if (!response.ok) {
+      setFailure(await readFailure(response, "Não foi possível carregar os demais processos."));
+      return;
+    }
+    const page = (await response.json()) as LinksPage;
+    setJobs((current) => ({ ...current, ...jobsByLink(page.jobs) }));
+    setCompletedJobs((current) => ({ ...current, ...jobsByLink(page.completedJobs) }));
+    setData((current) => current ? {
+      ...current,
+      links: [...current.links, ...page.links],
+      nextCursor: page.nextCursor,
+    } : current);
+  }
 
   // Deferred by a tick so the first render is the loading state rather than a cascading one.
   useEffect(() => {
@@ -156,6 +197,7 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
               source={data.sources.find((source) => source.id === link.installationId)}
               publications={data.publications.filter((publication) => publication.linkId === link.id)}
               job={jobs[link.id]}
+              completedJob={completedJobs[link.id]}
               siblings={bySource.get(link.installationId) ?? 1}
               expanded={expanded === link.id}
               busy={busy === link.id}
@@ -166,6 +208,12 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
               onRefresh={refresh}
             />
           ))}
+          {data.nextCursor && (
+            <Button type="button" variant="ghost" className={`${touch} mt-2`} disabled={loadingMore} onClick={() => void loadMore()}>
+              {loadingMore && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+              Carregar mais processos
+            </Button>
+          )}
         </div>
       )}
 
@@ -202,11 +250,12 @@ function useJobPolling(
   }, [pendingIds, setJobs, onSettled]);
 }
 
-function LinkRow({ link, source, publications, job, siblings, expanded, busy, canWrite, onToggle, onDecide, onUnlink, onRefresh }: {
+function LinkRow({ link, source, publications, job, completedJob, siblings, expanded, busy, canWrite, onToggle, onDecide, onUnlink, onRefresh }: {
   link: JudicialLink;
   source: JudicialSource | undefined;
   publications: JudicialPublication[];
   job: JudicialJob | undefined;
+  completedJob: JudicialJob | undefined;
   siblings: number;
   expanded: boolean;
   busy: boolean;
@@ -219,7 +268,7 @@ function LinkRow({ link, source, publications, job, siblings, expanded, busy, ca
   const panelId = `${link.id}-detalhes`;
   const number = link.cnjNumber ?? link.nativeNumber ?? "Sem número";
   const status = link.confirmation === "confirmed"
-    ? collectionAgeSentence(latestCollectedAt(publications))
+    ? collectionAgeSentence(completedJob?.completedAt)
     : confirmationLabels[link.confirmation];
 
   return (
@@ -247,7 +296,7 @@ function LinkRow({ link, source, publications, job, siblings, expanded, busy, ca
                 <Button type="button" variant="ghost" className={touch} disabled={busy} onClick={() => onDecide(link.id, "rejected")}>Rejeitar</Button>
               </>
             )}
-            {link.confirmation === "confirmed" && (
+            {link.confirmation === "confirmed" && link.cnjNumber && (
               <Button type="button" variant="ghost" className={touch} disabled={busy} onClick={() => onRefresh(link.id)}>
                 {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
                 Atualizar
@@ -265,20 +314,21 @@ function LinkRow({ link, source, publications, job, siblings, expanded, busy, ca
       )}
 
       <div id={panelId} hidden={!expanded} className="pb-4">
-        {expanded && <LinkDetail link={link} source={source} publications={publications} job={job} />}
+        {expanded && <LinkDetail link={link} source={source} publications={publications} job={job} completedJob={completedJob} />}
       </div>
     </div>
   );
 }
 
-function LinkDetail({ link, source, publications, job }: {
+function LinkDetail({ link, source, publications, job, completedJob }: {
   link: JudicialLink;
   source: JudicialSource | undefined;
   publications: JudicialPublication[];
   job: JudicialJob | undefined;
+  completedJob: JudicialJob | undefined;
 }) {
   const latest = publications[0];
-  const emptyAnswer = job?.status === "completed" && job.recordsAccepted === 0;
+  const emptyAnswer = completedJob?.recordsAccepted === 0;
 
   return (
     <div className="grid gap-4 text-sm md:grid-cols-2">
@@ -294,7 +344,7 @@ function LinkDetail({ link, source, publications, job }: {
           term="Cobertura documentada pela fonte"
           detail={`${formatDate(source?.coverage.from)} a ${formatDate(source?.coverage.to)}. É o que a fonte declara cobrir, não o que o K5 já coletou.`}
         />
-        <Field term="Data da consulta" detail={collectionAgeSentence(latestCollectedAt(publications))} />
+        <Field term="Data da consulta" detail={collectionAgeSentence(completedJob?.completedAt)} />
         <Field
           term="Atualização declarada pela fonte"
           detail={latest

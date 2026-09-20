@@ -128,7 +128,7 @@ test.after(() => resetTransport());
 
 test("catalog: every judicial capability has an executor and a sane publication policy", () => {
   const judicialNames = capabilityNames.filter((name) => name.startsWith("k5_judicial_"));
-  assert.equal(judicialNames.length, 11);
+  assert.equal(judicialNames.length, 12);
 
   const lawyerTools = publishedCapabilitiesForRole("lawyer", "agent");
   // Confirming a link authorizes recurring queries to a court; that stays with a person.
@@ -212,14 +212,98 @@ test("links: unfiltered listings are bounded and the cursor advances without ove
     });
   }
 
-  const defaultPage = await runCapability(context(officeA, lawyerA), "k5_judicial_list_links", {}) as { links: Array<{ id: string }> };
+  const defaultPage = await runCapability(context(officeA, lawyerA), "k5_judicial_list_links", {}) as {
+    links: Array<{ id: string }>;
+    nextCursor: string | null;
+  };
   assert.equal(defaultPage.links.length, 20);
+  assert.equal(typeof defaultPage.nextCursor, "string");
+
+  const capabilitySecondPage = await runCapability(context(officeA, lawyerA), "k5_judicial_list_links", {
+    cursor: defaultPage.nextCursor,
+  }) as typeof defaultPage;
+  assert.equal(capabilitySecondPage.links.length, 5);
+  assert.equal(capabilitySecondPage.nextCursor, null);
+  assert.equal(capabilitySecondPage.links.some((link) => defaultPage.links.some((first) => first.id === link.id)), false);
 
   const firstPage = listCaseLinks(officeA, { limit: 10 });
   const secondPage = listCaseLinks(officeA, { limit: 10, cursor: firstPage.at(-1)?.id });
   assert.equal(firstPage.length, 10);
   assert.equal(secondPage.length, 10);
   assert.equal(secondPage.some((link) => firstPage.some((first) => first.id === link.id)), false);
+});
+
+test("inbox filters run before limits and collection state survives a reload", async () => {
+  const { officeA, lawyerA, caseA } = seed();
+  clearQueue();
+  const otherCase = randomUUID();
+  testDb.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, ?, ?)")
+    .run(otherCase, officeA, "Outro caso", lawyerA);
+  const installationA = source();
+  const installationB = source();
+  const linkA = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installationA.id,
+    cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
+  }).link;
+  const linkB = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: otherCase, installationId: installationB.id,
+    cnjNumber: VALID_OTHER, nativeNumber: null, degree: "first", confirmed: true,
+  }).link;
+
+  const ingest = (installation: ReturnType<typeof source>, linkId: string, sourceId: string, cnjNumber: string, date: string) =>
+    ingestPublications({
+      officeId: officeA,
+      installation,
+      linkId,
+      jobId: null,
+      historical: false,
+      result: {
+        cursor: null,
+        coverage: { truncated: false, pagesFetched: 1, totalReported: 1, windowFrom: date, windowTo: date, rejected: 0 },
+        source: { installationId: installation.id, operation: "listChanges", parserVersion: "test", collectedAt: `${date}T12:00:00.000Z` },
+        rawPayloads: [{ contentType: "application/json", body: JSON.stringify({ sourceId }) }],
+        items: [{
+          sourcePublicationId: sourceId, cnjNumber, edition: "1", page: null, officialHash: null,
+          body: sourceId, madeAvailableOn: date, publishedOn: date, sourceUpdatedAt: null,
+          revisionKind: "original", rawPayloadIndex: 0,
+        }],
+      },
+    });
+
+  ingest(installationA, linkA.id, `older-${randomUUID()}`, VALID, "2025-01-01");
+  ingest(installationB, linkB.id, `newer-${randomUUID()}`, VALID_OTHER, "2026-01-01");
+
+  const alerts = judicial.listJudicialAlerts(context(officeA, lawyerA), {
+    caseId: caseA, installationId: installationA.id, unreadOnly: false, limit: 1,
+  });
+  assert.equal(alerts.alerts.length, 1);
+  assert.equal(alerts.alerts[0]?.caseId, caseA);
+  assert.equal(alerts.alerts[0]?.installationId, installationA.id);
+
+  const publications = judicial.listJudicialPublications(context(officeA, lawyerA), {
+    caseId: caseA, installationId: installationA.id, limit: 1,
+  });
+  assert.equal(publications.publications.length, 1);
+  assert.equal(publications.publications[0]?.installationId, installationA.id);
+
+  const queued = enqueueJob({
+    officeId: officeA, installationId: installationA.id, linkId: linkA.id,
+    kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] },
+    windowFrom: TODAY, windowTo: TODAY,
+  });
+  const claimed = claimJob();
+  assert.equal(claimed?.job.id, queued.job.id);
+  assert.equal(completeJob(queued.job.id, claimed!.leaseOwner), true);
+
+  const jobs = judicial.listJudicialJobs(context(officeA, lawyerA), {
+    caseId: caseA, installationId: installationA.id, status: "completed", limit: 1,
+  });
+  assert.equal(jobs.jobs[0]?.id, queued.job.id);
+  assert.equal(jobs.jobs[0]?.linkId, linkA.id);
+
+  const links = judicial.listJudicialLinks(context(officeA, lawyerA), { caseId: caseA, limit: 20, activeOnly: true });
+  assert.equal(links.jobs[0]?.id, queued.job.id);
+  assert.equal(links.completedJobs[0]?.id, queued.job.id);
 });
 
 test("refresh: an unconfirmed link cannot spend a request against a court", async () => {
@@ -822,6 +906,48 @@ test("collector: budget is reserved and enforced for each physical transport req
   assert.equal(outcome2?.status, "retrying");
   assert.equal(findJob(officeA, job2.id)?.errorCode, "rate_limited");
   assert.match(findJob(officeA, job2.id)?.errorMessage ?? "", /Orçamento diário/);
+});
+
+test("collector: configured spacing above ten seconds is awaited between requests", async () => {
+  const { officeA, lawyerA, caseA } = seed();
+  clearQueue();
+  clearBudget();
+  const installation = source({ rateLimitPerMinute: 5, dailyRequestBudget: 10 });
+  const { link } = createCaseLink({
+    officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
+    cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
+  });
+  stub([
+    { installationId: installation.id, numero: VALID, body: fixture("djen-empty.json") },
+    { installationId: installation.id, numero: VALID_OTHER, body: fixture("djen-empty.json") },
+  ]);
+  enqueueJob({
+    officeId: officeA, installationId: installation.id, linkId: link.id,
+    kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID, VALID_OTHER] },
+    windowFrom: TODAY, windowTo: TODAY,
+  });
+
+  const originalNow = Date.now;
+  const originalSetTimeout = globalThis.setTimeout;
+  let clock = originalNow();
+  const waits: number[] = [];
+  Date.now = () => clock;
+  globalThis.setTimeout = ((callback: (...args: unknown[]) => void, delay?: number) => {
+    const milliseconds = Number(delay ?? 0);
+    waits.push(milliseconds);
+    clock += milliseconds;
+    callback();
+    return 0 as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+  try {
+    const outcome = await processNextJudicialJob(clock);
+    assert.equal(outcome?.status, "completed");
+    assert.equal(waits.some((delay) => delay > 10_000), true);
+    assert.equal(requestsUsedToday(officeA, installation.id, clock), 2);
+  } finally {
+    Date.now = originalNow;
+    globalThis.setTimeout = originalSetTimeout;
+  }
 });
 
 test("collector: a worker that loses its lease stops before persistence or completion", async () => {

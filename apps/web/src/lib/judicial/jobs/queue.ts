@@ -78,10 +78,52 @@ export function findJob(officeId: string, jobId: string): SyncJob | undefined {
   return row ? toJob(row) : undefined;
 }
 
-export function listJobs(officeId: string, limit = 20): SyncJob[] {
-  const rows = database.prepare(
-    'SELECT * FROM judicial_sync_job WHERE office_id = ? ORDER BY created_at DESC LIMIT ?',
-  ).all(officeId, Math.max(1, Math.min(limit, 100))) as JobRow[];
+export function listJobs(
+  officeId: string,
+  filter: {
+    caseId?: string;
+    linkId?: string;
+    installationId?: string;
+    status?: SyncJob['status'];
+    limit?: number;
+  } = {},
+): SyncJob[] {
+  const clauses = ['j.office_id = ?'];
+  const params: (string | number)[] = [officeId];
+  if (filter.caseId) { clauses.push('l.case_id = ?'); params.push(filter.caseId); }
+  if (filter.linkId) { clauses.push('j.link_id = ?'); params.push(filter.linkId); }
+  if (filter.installationId) { clauses.push('j.installation_id = ?'); params.push(filter.installationId); }
+  if (filter.status) { clauses.push('j.status = ?'); params.push(filter.status); }
+  const limit = Math.max(1, Math.min(filter.limit ?? 20, 100));
+  const rows = database.prepare(`
+    SELECT j.* FROM judicial_sync_job j
+    LEFT JOIN judicial_case_link l ON l.id = j.link_id
+    WHERE ${clauses.join(' AND ')}
+    ORDER BY j.created_at DESC, j.rowid DESC LIMIT ?
+  `).all(...params, limit) as JobRow[];
+  return rows.map(toJob);
+}
+
+/** One durable status row per visible link, used to restore collection state after a reload. */
+export function latestJobsForLinks(
+  officeId: string,
+  linkIds: string[],
+  completedOnly = false,
+): SyncJob[] {
+  if (linkIds.length === 0) return [];
+  const placeholders = linkIds.map(() => '?').join(', ');
+  const statusClause = completedOnly ? "AND j.status = 'completed'" : '';
+  const rows = database.prepare(`
+    SELECT ranked.* FROM (
+      SELECT j.*, ROW_NUMBER() OVER (
+        PARTITION BY j.link_id ORDER BY j.created_at DESC, j.rowid DESC
+      ) AS row_number
+      FROM judicial_sync_job j
+      WHERE j.office_id = ? AND j.link_id IN (${placeholders}) ${statusClause}
+    ) ranked
+    WHERE ranked.row_number = 1
+    ORDER BY ranked.created_at DESC, ranked.id DESC
+  `).all(officeId, ...linkIds) as JobRow[];
   return rows.map(toJob);
 }
 
