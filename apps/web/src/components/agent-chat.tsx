@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { UIMessage } from "ai";
 import {
   ActionBarPrimitive,
@@ -84,7 +84,38 @@ function unwrapMessages(value: unknown): UIMessage[] {
 
 const MESSAGE_CACHE = "k5.conversation.messages.";
 const LIST_OPEN_KEY = "k5.agent_list_open";
+const LIST_OPEN_EVENT = "k5:agent-list-open";
 const memoryMessages = new Map<string, UIMessage[]>();
+
+/**
+ * Whether the conversation list is open belongs to localStorage, not to React state: it has to
+ * survive a reload, and reading it back in an effect would set state during the first commit.
+ * `storage` only fires in the other tabs, so a write here announces itself to this one.
+ */
+function subscribeListOpen(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(LIST_OPEN_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(LIST_OPEN_EVENT, onStoreChange);
+  };
+}
+
+function readListOpen() {
+  const saved = window.localStorage.getItem(LIST_OPEN_KEY);
+  if (saved === "1" || saved === "0") return saved === "1";
+  return window.matchMedia("(min-width: 768px)").matches;
+}
+
+// The server knows neither the viewport nor the saved choice; the client snapshot corrects it.
+function serverListOpen() {
+  return false;
+}
+
+function writeListOpen(next: boolean) {
+  window.localStorage.setItem(LIST_OPEN_KEY, next ? "1" : "0");
+  window.dispatchEvent(new Event(LIST_OPEN_EVENT));
+}
 
 function cachedMessages(id: string): UIMessage[] | undefined {
   const hit = memoryMessages.get(id);
@@ -450,23 +481,13 @@ export function AgentChat() {
   const [error, setError] = useState("");
   const [context, setContext] = useState<AgentContext>({ caseId: null, documentIds: [] });
   const [contextOpen, setContextOpen] = useState(false);
-  const [listOpen, setListOpen] = useState(false);
+  const listOpen = useSyncExternalStore(subscribeListOpen, readListOpen, serverListOpen);
   const [availableModels, setAvailableModels] = useState<OfficeModelOption[]>([]);
   const [selectedModelKey, setSelectedModelKey] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [audio, setAudio] = useState<Attachment | null>(null);
-  useEffect(() => {
-    const saved = window.localStorage.getItem(LIST_OPEN_KEY);
-    if (saved === "1" || saved === "0") setListOpen(saved === "1");
-    else setListOpen(window.matchMedia("(min-width: 768px)").matches);
-  }, []);
-
   function toggleList() {
-    setListOpen((current) => {
-      const next = !current;
-      window.localStorage.setItem(LIST_OPEN_KEY, next ? "1" : "0");
-      return next;
-    });
+    writeListOpen(!listOpen);
   }
 
   useEffect(() => {
@@ -593,11 +614,6 @@ export function AgentChat() {
 
   useEffect(() => {
     if (!selectedId) return;
-    const cached = cachedMessages(selectedId);
-    if (cached) {
-      setMessages(cached);
-      setLoadedConversationId(selectedId);
-    }
     const controller = new AbortController();
     fetch(`/api/conversations/${encodeURIComponent(selectedId)}`, { signal: controller.signal })
       .then(async (response) => {
@@ -644,13 +660,16 @@ export function AgentChat() {
     onError: setError,
   };
 
-  const waitingForMessages = Boolean(selectedId && loadedConversationId !== selectedId && !cachedMessages(selectedId));
+  // The cache is read during render rather than copied into state by an effect: the conversation
+  // paints from it on the first pass, and the fetched messages take over once they land.
+  const cachedForSelected = selectedId ? cachedMessages(selectedId) : undefined;
+  const visibleMessages = selectedId && loadedConversationId === selectedId ? messages : cachedForSelected ?? [];
+  const waitingForMessages = Boolean(selectedId && loadedConversationId !== selectedId && !cachedForSelected);
 
   function selectConversation(id: string) {
     setSelectedId(id);
     if (window.matchMedia("(max-width: 767px)").matches) {
-      setListOpen(false);
-      window.localStorage.setItem(LIST_OPEN_KEY, "0");
+      writeListOpen(false);
     }
   }
 
@@ -695,9 +714,9 @@ export function AgentChat() {
               <div className="grid flex-1 place-items-center text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Carregando conversa…</span></div>
             ) : selectedId ? (
               <RuntimeThread
-                key={`${selectedId}:${messages.map((message) => message.id).join(",")}`}
+                key={`${selectedId}:${visibleMessages.map((message) => message.id).join(",")}`}
                 conversationId={selectedId}
-                messages={messages}
+                messages={visibleMessages}
                 context={context}
                 selectedModel={selectedModel}
                 audio={audio}
