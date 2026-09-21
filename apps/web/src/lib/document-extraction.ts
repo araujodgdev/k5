@@ -19,24 +19,31 @@ export async function extractDocumentSections(data: Buffer, mimeType: string, na
   }
 }
 
+/**
+ * Text layer first, through unpdf rather than pdfjs-dist directly.
+ *
+ * unpdf carries PDF.js compiled for serverless runtimes — no worker thread, no canvas, no native
+ * addon — so the same call reads a PDF in the Node worker and inside workerd. Importing
+ * pdfjs-dist here instead is what broke every upload in production: vite.config.ts stubs that
+ * package out of the Workers bundle, and the stub has no getDocument.
+ */
 async function extractPdf(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs") as unknown as {
-    getDocument: (options: { data: Uint8Array; disableWorker: boolean }) => { promise: Promise<{ numPages: number; getPage: (number: number) => Promise<{ getTextContent: () => Promise<{ items: Array<{ str?: string }> }> }> }> };
-  };
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(data), disableWorker: true }).promise;
+  const { extractText: extractPdfText } = await import("unpdf");
+  // A fresh copy per call: PDF.js takes ownership of the buffer it is handed, and the OCR
+  // fallback below still needs the original bytes.
+  const { text } = await extractPdfText(new Uint8Array(data), { mergePages: false });
   const sections: ExtractedSection[] = [];
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-    const page = await pdf.getPage(pageNumber);
-    const text = (await page.getTextContent()).items.map((item) => item.str ?? "").join(" ").replace(/\s+/g, " ").trim();
-    if (text) sections.push({ reference: `página:${pageNumber}`, content: text });
+  for (let pageNumber = 1; pageNumber <= text.length; pageNumber++) {
+    const content = text[pageNumber - 1].replace(/\s+/g, " ").trim();
+    if (content) sections.push({ reference: `página:${pageNumber}`, content });
   }
   if (sections.length) return sections;
-  return extractPdfOcr(data, documentId, pdf);
+  return extractPdfOcr(data, documentId);
 }
 
-async function extractPdfOcr(data: Buffer, documentId: string, pdf?: { numPages: number; getPage: (number: number) => Promise<unknown> }): Promise<ExtractedSection[]> {
+async function extractPdfOcr(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
   const endpoint = process.env.VAULT_OCR_URL;
-  if (!endpoint) return extractPdfLocally(data, documentId, pdf);
+  if (!endpoint) return extractPdfLocally(data, documentId);
   let url: URL;
   try { url = new URL(endpoint); } catch { throw new Error("VAULT_OCR_URL não é uma URL válida."); }
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("VAULT_OCR_URL deve usar HTTP ou HTTPS.");
@@ -61,11 +68,11 @@ async function extractPdfOcr(data: Buffer, documentId: string, pdf?: { numPages:
   } finally { clearTimeout(timer); }
 }
 
-async function extractPdfLocally(data: Buffer, documentId: string, existingPdf?: { numPages: number; getPage: (number: number) => Promise<unknown> }): Promise<ExtractedSection[]> {
+async function extractPdfLocally(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs") as unknown as {
     getDocument: (options: { data: Uint8Array; disableWorker: boolean }) => { promise: Promise<{ numPages: number; getPage: (number: number) => Promise<unknown> }> };
   };
-  const pdf = existingPdf ?? await pdfjs.getDocument({ data: new Uint8Array(data), disableWorker: true }).promise;
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(data), disableWorker: true }).promise;
   const { createCanvas } = await import("@napi-rs/canvas") as unknown as { createCanvas: (width: number, height: number) => { getContext: (contextId: "2d") => unknown; toBuffer: (format: "image/png") => Buffer } };
   const { createWorker } = await import("tesseract.js") as unknown as { createWorker: (languages?: string | string[], oem?: number, options?: Record<string, unknown>) => Promise<{ recognize: (image: Buffer) => Promise<{ data: { text: string } }>; terminate: () => Promise<void> }> };
   const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
