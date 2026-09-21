@@ -163,8 +163,8 @@ export const capabilities = {
   },
   k5_vault_delete_case: {
     module: 'vault', effect: 'write', roles: writers,
-    description: 'Remove um caso do Cofre. Requer confirmação/aprovação explícita e reatribuição dos documentos vinculados.',
-    input: z.object({ caseId: identifier, targetCaseId: identifier.optional(), approvalId: z.string().optional(), idempotencyKey }),
+    description: 'Remove um caso do Cofre e, junto, os documentos e as pastas que estão nele. Requer aprovação explícita. Informe targetCaseId para mover os documentos para outro caso em vez de excluí-los.',
+    input: z.object({ caseId: identifier, targetCaseId: identifier.optional().describe('Caso de destino. Com ele os documentos são movidos e sobrevivem; sem ele são excluídos com o caso.'), approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
   k5_vault_list_documents: {

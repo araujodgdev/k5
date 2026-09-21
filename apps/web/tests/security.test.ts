@@ -179,6 +179,66 @@ test("retry: a document left in the queue can be requeued, a live one cannot", a
   );
 });
 
+/** Proposes and approves in one step, the way a confirmation dialog in the interface does. */
+async function approved(context: WorkspaceContext, capability: string, input: Record<string, unknown>) {
+  const proposal = await approvalsService.createApprovalProposal(context, capability, input);
+  await approvalsService.approveProposal(context, proposal.id);
+  return proposal.id;
+}
+
+test("case deletion: the documents filed in a case go with it", async () => {
+  const { lawyer, officeA } = seedOffices();
+  const created = (await vaultService.createCase(lawyer, { name: "Simons vs Hugsfield" })).case;
+  const upload = await seedUpload(lawyer, "peticao.pdf");
+  const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "case", caseId: created.id })).document.id;
+  testDb.prepare("INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, 0, 'página:1', 'texto')")
+    .run(randomUUID(), documentId, officeA);
+
+  await vaultService.deleteCase(lawyer, { caseId: created.id, approvalId: await approved(lawyer, "k5_vault_delete_case", { caseId: created.id }) });
+
+  // Not reassigned to the library: a case that is gone does not leave its filings behind.
+  assert.equal(await findVaultDocument(officeA, documentId), undefined, "gone from every live lookup");
+  assert.equal((await listVaultDocuments(officeA, {})).length, 0, "and from the list the interface renders");
+  const chunks = testDb.prepare("SELECT count(*) AS n FROM vault_document_chunk WHERE document_id=?").get(documentId) as { n: number };
+  assert.equal(Number(chunks.n), 0, "searchability is lost in the same batch as the tombstone");
+
+  // Bytes and vectors are chased afterwards, by a queue that can retry without ever making the
+  // document visible again.
+  const queued = testDb.prepare("SELECT target_kind AS kind FROM vault_deletion_queue WHERE office_id=? AND completed_at IS NULL").all(officeA) as Array<{ kind: string }>;
+  assert.ok(queued.some((row) => row.kind === "vector_document"), "the index entry is queued for removal");
+  assert.ok(queued.some((row) => row.kind === "object"), "so are the stored bytes");
+});
+
+test("case deletion: targetCaseId moves the documents instead of deleting them", async () => {
+  const { lawyer, officeA } = seedOffices();
+  const source = (await vaultService.createCase(lawyer, { name: "Caso de origem" })).case;
+  const target = (await vaultService.createCase(lawyer, { name: "Caso de destino" })).case;
+  const upload = await seedUpload(lawyer, "contrato.pdf");
+  const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "case", caseId: source.id })).document.id;
+
+  const input = { caseId: source.id, targetCaseId: target.id };
+  await vaultService.deleteCase(lawyer, { ...input, approvalId: await approved(lawyer, "k5_vault_delete_case", input) });
+
+  const moved = await findVaultDocument(officeA, documentId);
+  assert.equal(moved?.caseId, target.id, "the escape hatch is what keeps the documents");
+  const queued = testDb.prepare("SELECT count(*) AS n FROM vault_deletion_queue WHERE office_id=?").get(officeA) as { n: number };
+  assert.equal(Number(queued.n), 0, "and nothing is queued for physical removal");
+});
+
+test("case deletion: no approval, no deletion", async () => {
+  const { lawyer, officeA } = seedOffices();
+  const created = (await vaultService.createCase(lawyer, { name: "Caso protegido" })).case;
+  const upload = await seedUpload(lawyer, "sigiloso.pdf");
+  const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "case", caseId: created.id })).document.id;
+
+  // An agent reaching for this gets a proposal to show the person, never a deleted case.
+  await assert.rejects(
+    () => vaultService.deleteCase(lawyer, { caseId: created.id }),
+    (error: unknown) => error instanceof CapabilityError && error.code === "APPROVAL_REQUIRED",
+  );
+  assert.ok(await findVaultDocument(officeA, documentId), "the documents are untouched");
+});
+
 test("idempotency: a reused key with different arguments conflicts instead of replaying", async () => {
   const { lawyer, admin } = seedOffices();
 

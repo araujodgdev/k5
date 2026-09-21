@@ -98,23 +98,51 @@ export async function deleteCase(context: WorkspaceContext, input: CapabilityInp
     if (!target) throw new CapabilityError('NOT_FOUND', 'Caso de destino não encontrado.');
   }
 
-  // Documents are reassigned, never cascade-deleted: removing a folder is not removing its contents.
-  const documentMove = input.targetCaseId
-    ? database.prepare("UPDATE vault_document SET case_id=?, folder_id=NULL, scope='case', updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL")
-      .bind(input.targetCaseId, input.caseId, context.officeId)
-    : database.prepare("UPDATE vault_document SET case_id=NULL, folder_id=NULL, scope='library', updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL")
-      .bind(input.caseId, context.officeId);
+  // Deleting a case deletes what is filed in it. `targetCaseId` is the way to keep the documents:
+  // it moves them to another case first, and then nothing is left for the cascade to take.
+  const doomed = input.targetCaseId ? [] : await database.prepare(
+    'SELECT id FROM vault_document WHERE case_id=? AND office_id=? AND deleted_at IS NULL',
+  ).all(input.caseId, context.officeId) as Array<{ id: string }>;
+  // Read before the batch: the tombstone does not move these rows, but the storage keys have to
+  // be in hand to be queued, and a version's bytes outlive the row that points at them.
+  const keys = doomed.length ? await storedNamesForCase(context.officeId, input.caseId) : [];
+
+  const documentWrites = input.targetCaseId
+    ? [database.prepare("UPDATE vault_document SET case_id=?, folder_id=NULL, scope='case', updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL")
+      .bind(input.targetCaseId, input.caseId, context.officeId)]
+    : [
+      database.prepare("UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP, status='failed', error_message='Caso excluído.', updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL")
+        .bind(input.caseId, context.officeId),
+      // The subqueries still match after the tombstone above: it sets `deleted_at`, not `case_id`.
+      database.prepare("UPDATE knowledge_index_job SET status='cancelled', updated_at=CURRENT_TIMESTAMP WHERE office_id=? AND status IN ('queued','running') AND document_id IN (SELECT id FROM vault_document WHERE case_id=? AND office_id=?)")
+        .bind(context.officeId, input.caseId, context.officeId),
+      database.prepare('DELETE FROM vault_document_chunk WHERE office_id=? AND document_id IN (SELECT id FROM vault_document WHERE case_id=? AND office_id=?)')
+        .bind(context.officeId, input.caseId, context.officeId),
+    ];
 
   // A retry may arrive after the approval was consumed. These idempotent writes land together, so
   // it observes either the live case or the completed deletion, never a partially emptied case.
   await database.batch([
-    documentMove,
+    ...documentWrites,
     database.prepare('UPDATE vault_folder SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL')
       .bind(input.caseId, context.officeId),
     database.prepare('UPDATE vault_case SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL')
       .bind(input.caseId, context.officeId),
   ]);
+
+  // Same order as deleteDocument: the tombstone lands first and is what the interface and the
+  // search obey. Bytes and vectors are chased afterwards, by a queue that can retry.
+  for (const document of doomed) await enqueueDeletion(context.officeId, 'vector_document', document.id);
+  for (const key of keys) await enqueueDeletion(context.officeId, 'object', key);
   return { success: true };
+}
+
+/** Every object key a case's live documents hold, current and historical, without duplicates. */
+async function storedNamesForCase(officeId: string, caseId: string) {
+  const rows = await database.prepare(`SELECT stored_name AS storedName FROM vault_document WHERE case_id=? AND office_id=? AND deleted_at IS NULL
+    UNION SELECT v.stored_name FROM vault_document_version v JOIN vault_document d ON d.id = v.document_id AND d.office_id = v.office_id
+    WHERE d.case_id=? AND d.office_id=? AND d.deleted_at IS NULL`).all(caseId, officeId, caseId, officeId) as Array<{ storedName: string }>;
+  return [...new Set(rows.map((row) => row.storedName).filter(Boolean))];
 }
 
 export async function listDocuments(context: WorkspaceContext, input: CapabilityInput<'k5_vault_list_documents'>): Promise<CapabilityOutput<'k5_vault_list_documents'>> {

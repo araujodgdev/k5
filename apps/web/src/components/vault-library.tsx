@@ -34,6 +34,7 @@ export function VaultLibrary({ initialDocuments, role }: { initialDocuments: Vau
         canWrite={canWrite}
         onError={setFailure}
         onRetried={(documentId) => setDocuments((current) => current.map((item) => item.id === documentId ? { ...item, status: "queued", progress: 0, errorMessage: null } : item))}
+        onDeleted={(documentId) => setDocuments((current) => current.filter((item) => item.id !== documentId))}
         empty="Nenhum arquivo na biblioteca."
       />
     </div>

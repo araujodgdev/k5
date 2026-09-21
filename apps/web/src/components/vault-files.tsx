@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, FileText, LoaderCircle, RotateCw, Upload } from "lucide-react";
+import { Download, FileText, LoaderCircle, RotateCw, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { approveAndRun } from "@/lib/approve-and-run";
 import type { VaultDocument } from "@/lib/vault";
 
 // 44px on touch, compact from md up.
@@ -83,11 +85,12 @@ export function UploadControl({ canWrite, scope, caseId, folderId, disabled, onU
   );
 }
 
-export function DocumentRows({ documents, canWrite, showOrigin, onRetried, onError, empty }: {
+export function DocumentRows({ documents, canWrite, showOrigin, onRetried, onDeleted, onError, empty }: {
   documents: VaultDocument[];
   canWrite: boolean;
   showOrigin?: boolean;
   onRetried: (documentId: string) => void;
+  onDeleted: (documentId: string) => void;
   onError: (message: string) => void;
   empty: string;
 }) {
@@ -100,6 +103,18 @@ export function DocumentRows({ documents, canWrite, showOrigin, onRetried, onErr
       return;
     }
     onRetried(documentId);
+  }
+
+  async function remove(documentId: string) {
+    onError("");
+    const failure = await approveAndRun("k5_vault_delete_document", { documentId }, (approvalId) =>
+      fetch(`/api/vault/documents/${documentId}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ approvalId }),
+      }));
+    if (failure) { onError(failure); return; }
+    onDeleted(documentId);
   }
 
   if (!documents.length) return <p className="py-10 text-sm text-subtle-foreground">{empty}</p>;
@@ -124,12 +139,35 @@ export function DocumentRows({ documents, canWrite, showOrigin, onRetried, onErr
             <Button asChild variant="ghost" size="icon-sm" className={touchIcon}>
               <a href={`/api/vault/documents/${document.id}/download`} aria-label={`Baixar ${document.name}`}><Download aria-hidden="true" /></a>
             </Button>
-            {document.status === "failed" && canWrite && (
+            {(document.status === "failed" || document.status === "queued") && canWrite && (
               <Button type="button" variant="ghost" size="icon-sm" className={touchIcon} onClick={() => void retry(document.id)} aria-label={`Reenviar ${document.name}`}><RotateCw aria-hidden="true" /></Button>
             )}
+            {canWrite && <DocumentDelete name={document.name} onConfirm={() => void remove(document.id)} />}
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+function DocumentDelete({ name, onConfirm }: { name: string; onConfirm: () => void }) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="ghost" size="icon-sm" className={touchIcon} aria-label={`Excluir ${name}`}><Trash2 aria-hidden="true" /></Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir {name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            O arquivo sai do Cofre e da busca, e as versões anteriores vão junto. Não dá para desfazer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>Excluir documento</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
