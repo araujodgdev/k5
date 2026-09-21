@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+export class NotificationRequestError extends Error {
+  constructor(public readonly status: number, message: string) { super(message); }
+}
+
 export const notificationCategories = ['agenda', 'vault', 'documents', 'judicial', 'system'] as const;
 export type NotificationCategory = typeof notificationCategories[number];
 

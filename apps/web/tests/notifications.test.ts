@@ -123,6 +123,14 @@ test('notifications: case following is personal and the inbox rollout switch hid
   testDb.prepare('UPDATE notification_rollout SET inbox_enabled=0 WHERE office_id=?').run(value.officeId);
   assert.equal((await listNotifications(value.recipient, { unreadOnly: false, limit: 25 }, testDatabase)).notifications.length, 0);
   assert.equal(await unreadCount(value.recipient, testDatabase), 0);
+  testDb.prepare('UPDATE notification_rollout SET capture_enabled=0 WHERE office_id=?').run(value.officeId);
+  const blockedEvent = randomUUID();
+  const [capture] = await testDatabase.batch([eventInsertStatement(testDatabase, {
+    id: blockedEvent, officeId: value.officeId, eventType: 'judicial.publication.new', sourceKind: 'case', sourceId: caseId,
+    sourceVersion: 2, actorUserId: null, intendedRecipientIds: [value.recipientId], data: {},
+    dedupeKey: `capture-off:${blockedEvent}`, createdAt: now, expiresAt: null,
+  })]);
+  assert.equal(capture.changes, 0);
   assert.deepEqual(await setCaseFollowState(value.recipient, caseId, false, testDatabase), { following: false });
 });
 

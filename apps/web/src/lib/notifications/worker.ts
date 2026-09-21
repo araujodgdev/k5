@@ -43,7 +43,8 @@ export async function projectNextNotification(db: Database = defaultDatabase, no
   const event = await db.prepare(`UPDATE notification_event
     SET projection_state='leased',lease_token=?,lease_until=?,projection_attempts=projection_attempts+1
     WHERE id=(SELECT id FROM notification_event
-      WHERE projection_state='pending' OR (projection_state='leased' AND lease_until<?)
+      WHERE (projection_state='pending' OR (projection_state='leased' AND lease_until<?))
+        AND COALESCE((SELECT capture_enabled FROM notification_rollout ro WHERE ro.office_id=notification_event.office_id),1)=1
       ORDER BY created_at,id LIMIT 1)
     RETURNING id,office_id,event_type,source_kind,source_id,intended_recipients_json,created_at,
       expires_at,historical,push_eligible,lease_token`).get<ClaimedEvent>(token, leaseUntil, now);
@@ -157,7 +158,7 @@ export async function emitNextReminder(db: Database = defaultDatabase, now = new
   const eventType = reminder.rule === 'task_due' ? 'agenda.task.due' : 'agenda.meeting.soon';
   const eventId = randomUUID();
   const dedupe = `reminder:${reminder.id}`;
-  await db.batch([
+  const results = await db.batch([
     eventInsertStatement(db, {
       id: eventId, officeId: reminder.office_id, eventType, sourceKind: 'activity', sourceId: reminder.activity_id,
       sourceVersion: reminder.activity_version, actorUserId: null, intendedRecipientIds: [reminder.user_id],
@@ -168,7 +169,7 @@ export async function emitNextReminder(db: Database = defaultDatabase, now = new
       AND EXISTS(SELECT 1 FROM notification_event WHERE office_id=? AND dedupe_key=?)`)
       .bind(now, reminder.id, reminder.office_id, dedupe),
   ]);
-  return true;
+  return results[0].changes > 0;
 }
 
 type DeliveryRow = {

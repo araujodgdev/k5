@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { database } from '@/lib/database';
 import type { WorkspaceContext } from './context';
-import { notificationPreferenceInput, pushSubscriptionInput } from '@/lib/notifications/contracts';
+import { NotificationRequestError, notificationPreferenceInput, pushSubscriptionInput } from '@/lib/notifications/contracts';
 import {
   archiveNotification, getNotificationPreferences, listNotifications, listPushSubscriptions,
   markAllNotificationsRead, markNotificationRead, pushConfigurationView, registerPushSubscription,
@@ -28,8 +28,12 @@ export async function queueTestNotification(context: WorkspaceContext, subscript
   const subscription = await database.prepare(`SELECT id FROM push_subscription
     WHERE id=? AND office_id=? AND user_id=? AND state='active'`)
     .get<{ id: string }>(subscriptionId, context.officeId, context.userId);
-  if (!subscription) throw new Error('Dispositivo não encontrado.');
+  if (!subscription) throw new NotificationRequestError(404, 'Dispositivo não encontrado.');
   const now = new Date().toISOString();
+  const recent = await database.prepare(`SELECT 1 FROM notification_event
+    WHERE office_id=? AND actor_user_id=? AND event_type='system.push.test' AND created_at>=? LIMIT 1`)
+    .get(context.officeId, context.userId, new Date(Date.parse(now) - 60_000).toISOString());
+  if (recent) throw new NotificationRequestError(429, 'Aguarde um minuto antes de enviar outro teste.');
   const expiresAt = new Date(Date.parse(now) + 10 * 60_000).toISOString();
   const eventId = randomUUID();
   await database.batch([

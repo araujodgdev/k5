@@ -2,7 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database as defaultDatabase, type BoundStatement, type Database } from '@/lib/database';
 import type { WorkspaceContext } from '@/lib/application/context';
-import type { NotificationCategory, NotificationEventType, NotificationPreferenceInput, NotificationView, PushSubscriptionInput } from './contracts';
+import { NotificationRequestError, type NotificationCategory, type NotificationEventType, type NotificationPreferenceInput, type NotificationView, type PushSubscriptionInput } from './contracts';
 import { categoryForEvent, eventCopy, isTimeZone } from './policy';
 import { endpointHash, encryptPushSubscription, publicPushConfiguration, validatePushSubscription } from './subscriptions';
 
@@ -83,7 +83,7 @@ export async function listNotifications(context: WorkspaceContext, input: {
   const params: unknown[] = [context.officeId, context.userId];
   if (input.unreadOnly) clauses.push('r.read_at IS NULL');
   const cursor = decodeCursor(input.cursor);
-  if (input.cursor && !cursor) throw new Error('Cursor de notificações inválido.');
+  if (input.cursor && !cursor) throw new NotificationRequestError(400, 'Cursor de notificações inválido.');
   if (cursor) {
     clauses.push('(r.created_at < ? OR (r.created_at = ? AND r.event_id < ?))');
     params.push(cursor[0], cursor[0], cursor[1]);
@@ -171,11 +171,11 @@ export async function getNotificationPreferences(context: WorkspaceContext, db: 
 export async function updateNotificationPreferences(context: WorkspaceContext, input: NotificationPreferenceInput, db: Database = defaultDatabase) {
   const current = await getNotificationPreferences(context, db);
   const timezone = input.timezone ?? current.timezone;
-  if (!isTimeZone(timezone)) throw new Error('Fuso horário inválido.');
+  if (!isTimeZone(timezone)) throw new NotificationRequestError(400, 'Fuso horário inválido.');
   const quietEnabled = input.quietEnabled ?? current.quietEnabled;
   const quietStart = input.quietStart === undefined ? current.quietStart : input.quietStart;
   const quietEnd = input.quietEnd === undefined ? current.quietEnd : input.quietEnd;
-  if (quietEnabled && (!quietStart || !quietEnd)) throw new Error('Informe o início e o fim do horário de silêncio.');
+  if (quietEnabled && (!quietStart || !quietEnd)) throw new NotificationRequestError(400, 'Informe o início e o fim do horário de silêncio.');
   const categories = { ...current.categories, ...input.categories };
   await db.prepare(`UPDATE notification_preference SET timezone=?,quiet_enabled=?,quiet_start=?,quiet_end=?,
     push_enabled=?,categories_json=?,channels_json=?,config_version=config_version+1,updated_at=?
@@ -199,17 +199,22 @@ export async function registerPushSubscription(context: WorkspaceContext, raw: P
   await ensureNotificationDefaults(context, db);
   const input = validatePushSubscription(raw);
   const config = publicPushConfiguration();
-  if (!config.available || input.vapidKeyId !== config.keyId) throw new Error('A configuração de push mudou. Atualize a página e tente novamente.');
+  if (!config.available || input.vapidKeyId !== config.keyId) throw new NotificationRequestError(409, 'A configuração de push mudou. Atualize a página e tente novamente.');
   const hash = endpointHash(input.endpoint);
   const owner = await db.prepare('SELECT office_id,user_id FROM push_subscription WHERE endpoint_hash=?')
     .get<{ office_id: string; user_id: string }>(hash);
   if (owner && (owner.office_id !== context.officeId || owner.user_id !== context.userId)) {
-    throw new Error('Este dispositivo está associado a outra conta. Saia dela antes de ativar as notificações.');
+    throw new NotificationRequestError(409, 'Este dispositivo está associado a outra conta. Saia dela antes de ativar as notificações.');
   }
   const id = randomUUID();
   const now = new Date().toISOString();
   const existingDevice = await db.prepare(`SELECT id,endpoint_hash FROM push_subscription
     WHERE office_id=? AND user_id=? AND device_id=?`).get<{ id: string; endpoint_hash: string }>(context.officeId, context.userId, input.deviceId);
+  if (!existingDevice) {
+    const active = await db.prepare(`SELECT count(*) AS total FROM push_subscription
+      WHERE office_id=? AND user_id=? AND state='active'`).get<{ total: number }>(context.officeId, context.userId);
+    if (Number(active?.total ?? 0) >= 10) throw new NotificationRequestError(429, 'Revogue um dispositivo antigo antes de ativar outro.');
+  }
   if (existingDevice && existingDevice.endpoint_hash !== hash) {
     const result = await db.prepare(`UPDATE push_subscription SET device_label=?,endpoint_hash=?,encrypted_subscription=?,
       vapid_key_id=?,auth_generation=?,state='active',revoked_at=NULL,last_error_code=NULL,last_reconciled_at=?
@@ -219,7 +224,7 @@ export async function registerPushSubscription(context: WorkspaceContext, raw: P
       input.authorizationGeneration, now, existingDevice.id, context.officeId, context.userId,
       context.officeId, context.userId, input.authorizationGeneration,
     );
-    if (!result.changes) throw new Error('A autorização deste dispositivo expirou. Atualize a página e tente novamente.');
+    if (!result.changes) throw new NotificationRequestError(409, 'A autorização deste dispositivo expirou. Atualize a página e tente novamente.');
     return { subscriptions: await listPushSubscriptions(context, db) };
   }
   const result = await db.prepare(`INSERT INTO push_subscription(
@@ -236,7 +241,7 @@ export async function registerPushSubscription(context: WorkspaceContext, raw: P
     .run(id, context.officeId, context.userId, input.deviceId, input.deviceLabel ?? null, hash,
       encryptPushSubscription(input), input.vapidKeyId, input.authorizationGeneration, now, now,
       context.officeId, context.userId, input.authorizationGeneration);
-  if (!result.changes) throw new Error('A autorização deste dispositivo expirou. Atualize a página e tente novamente.');
+  if (!result.changes) throw new NotificationRequestError(409, 'A autorização deste dispositivo expirou. Atualize a página e tente novamente.');
   return { subscriptions: await listPushSubscriptions(context, db) };
 }
 

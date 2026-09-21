@@ -207,7 +207,7 @@ test("PWA: push shows only generic copy, notifies tabs, and opens the guarded ro
   assert.equal(sw.notifications.length, 1);
   assert.equal(sw.notifications[0].title, "K5");
   assert.equal(sw.notifications[0].options.body, "Você tem uma atualização no K5.");
-  assert.deepEqual(messages, [{ type: "K5_NOTIFICATION", id }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(messages)), [{ type: "K5_NOTIFICATION", id }]);
 
   let closed = false;
   await sw.dispatch("notificationclick", { notification: { data: { notificationId: id }, close: () => { closed = true; } } });

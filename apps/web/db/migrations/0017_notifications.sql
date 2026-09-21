@@ -180,3 +180,13 @@ CREATE TABLE notification_rollout (
   reminders_enabled INTEGER NOT NULL DEFAULT 1 CHECK(reminders_enabled IN (0, 1)),
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Enforce the capture kill switch at the persistence boundary so every producer, including
+-- background workers, gets the same behavior without relying on a pre-read.
+CREATE TRIGGER notification_event_capture_gate
+BEFORE INSERT ON notification_event
+WHEN NEW.event_type<>'system.push.test'
+  AND COALESCE((SELECT capture_enabled FROM notification_rollout WHERE office_id=NEW.office_id),1)=0
+BEGIN
+  SELECT RAISE(IGNORE);
+END;

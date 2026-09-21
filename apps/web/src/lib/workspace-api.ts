@@ -7,6 +7,7 @@ import { ZodError } from 'zod';
 import { VaultHttpError } from './vault';
 import { AiConnectionError } from './ai-connections-core';
 import { CredentialKeyError } from './platform-crypto';
+import { NotificationRequestError } from './notifications/contracts';
 
 import { CapabilityError, statusForCapabilityError } from './capabilities/errors';
 import { isTrustedOrigin } from './trusted-origins';
@@ -37,6 +38,7 @@ export function apiError(error: unknown) {
     return Response.json({ error: 'Não foi possível concluir. Confira a configuração ou tente novamente.' }, { status: 500 });
   }
   if (error instanceof CredentialKeyError) return Response.json({ error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.' }, { status: 503 });
+  if (error instanceof NotificationRequestError) return Response.json({ error: error.message }, { status: error.status });
   if (error instanceof ZodError || error instanceof SyntaxError) return Response.json({ error: 'Confira os dados enviados.' }, { status: 400 });
   // Keep the public response deliberately generic, but preserve enough private Worker telemetry
   // to diagnose production-only adapter failures without logging request bodies or credentials.

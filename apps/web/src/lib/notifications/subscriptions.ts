@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { encryptCredential, decryptCredential, parseCredentialKeyring } from '@/lib/platform-crypto';
-import type { PushSubscriptionInput } from './contracts';
+import { NotificationRequestError, type PushSubscriptionInput } from './contracts';
 
 const allowedExactHosts = new Set([
   'fcm.googleapis.com',
@@ -17,20 +17,20 @@ function allowedHost(host: string) {
 }
 
 function base64UrlBytes(value: string): Buffer {
-  if (!/^[A-Za-z0-9_-]+={0,2}$/.test(value)) throw new Error('Chave da inscrição inválida.');
+  if (!/^[A-Za-z0-9_-]+={0,2}$/.test(value)) throw new NotificationRequestError(400, 'Chave da inscrição inválida.');
   return Buffer.from(value.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 }
 
 export function validatePushSubscription(input: PushSubscriptionInput) {
   let endpoint: URL;
-  try { endpoint = new URL(input.endpoint); } catch { throw new Error('Endpoint de push inválido.'); }
+  try { endpoint = new URL(input.endpoint); } catch { throw new NotificationRequestError(400, 'Endpoint de push inválido.'); }
   if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.port) {
-    throw new Error('Endpoint de push não permitido.');
+    throw new NotificationRequestError(400, 'Endpoint de push não permitido.');
   }
   const host = endpoint.hostname.toLowerCase();
-  if (!allowedHost(host)) throw new Error('Provedor de push não permitido.');
+  if (!allowedHost(host)) throw new NotificationRequestError(400, 'Provedor de push não permitido.');
   if (base64UrlBytes(input.keys.p256dh).byteLength !== 65 || base64UrlBytes(input.keys.auth).byteLength !== 16) {
-    throw new Error('Chaves da inscrição inválidas.');
+    throw new NotificationRequestError(400, 'Chaves da inscrição inválidas.');
   }
   return { ...input, endpoint: endpoint.href };
 }
