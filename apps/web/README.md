@@ -67,6 +67,26 @@ usar esse contexto autenticado e verificar o papel correspondente.
 O papel `reviewer` apenas consulta Cofre e documentos. Convites, recuperação de senha e
 verificação de e-mail ainda não foram implementados.
 
+## Tarefas e Agenda
+
+`/app/agenda` substitui Pesquisa e reúne tarefas, calendário com agenda do dia e CRM de
+clientes. A migração `0012_agenda.sql` adiciona clientes, vínculos com casos e atividades.
+Dados de clientes existentes nos casos do Cofre são preservados, sem importação automática.
+
+Administrador e advogado podem cadastrar e editar; revisor apenas consulta. Referências
+a clientes, casos e responsáveis são verificadas no escritório autenticado. Atualizações
+exigem a versão lida; tarefas concluídas e reuniões canceladas permanecem no histórico.
+Tarefas usam datas civis opcionais; reuniões exigem início e fim com offset, persistidos em
+UTC e apresentados no fuso do navegador. Não há cálculo automático de prazos judiciais.
+
+As nove capacidades `k5_crm_*` e `k5_agenda_*` usam o mesmo executor da interface,
+Mastra e WebMCP. Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
+escritas verificam origem e papel. Chaves de idempotência evitam criação duplicada em
+repetições, inclusive simultâneas. `k5_ui_open_resource` abre agenda, cliente e atividade.
+O botão **Atualizar** recarrega alterações realizadas pelo agente ou por outro integrante.
+
+Escopo e próximas etapas: [plano de Tarefas e Agenda](../../docs/plano-tarefas-agenda.md).
+
 ## IA e documentos
 
 O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).

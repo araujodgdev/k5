@@ -67,7 +67,7 @@ export async function assertCapabilityAllowed(context: WorkspaceContext, name: C
   if (!current) throw new CapabilityError('FORBIDDEN', 'Seu acesso a este escritório foi removido.');
   if (!(capability.roles as readonly OfficeRole[]).includes(current.role)) {
     throw new CapabilityError('FORBIDDEN', capability.effect === 'write'
-      ? 'Seu papel permite apenas consultar os documentos.'
+      ? 'Seu papel permite apenas consultas.'
       : 'Esta operação não está disponível para o seu papel.');
   }
   return { ...context, role: current.role };

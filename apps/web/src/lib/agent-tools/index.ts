@@ -18,12 +18,22 @@ import * as knowledge from '@/lib/application/knowledge-service';
 import * as ui from '@/lib/application/ui-service';
 import * as platform from '@/lib/application/platform-service';
 import * as judicial from '@/lib/application/judicial-service';
+import * as agenda from '@/lib/application/agenda-service';
 import { endGlobalSession } from '@/lib/application/ui-service';
 
 type Executor = (context: WorkspaceContext, input: never) => unknown;
 
 /** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_crm_list_clients: agenda.listClients,
+  k5_crm_get_client: agenda.getClient,
+  k5_crm_create_client: agenda.createClient,
+  k5_crm_update_client: agenda.updateClient,
+  k5_agenda_list_members: agenda.listMembers,
+  k5_agenda_list_activities: agenda.listActivities,
+  k5_agenda_get_activity: agenda.getActivity,
+  k5_agenda_create_activity: agenda.createActivity,
+  k5_agenda_update_activity: agenda.updateActivity,
   k5_vault_list_cases: vault.listCases,
   k5_vault_create_case: vault.createCase,
   k5_vault_update_case: vault.updateCase,
@@ -177,6 +187,15 @@ export function platformAgentTools(context: WorkspaceContext) {
 /** Short pt-BR line describing what a finished tool call did, stored with the conversation. */
 export function toolSummary(name: string, result: unknown, failed: boolean): string {
   const labels: Record<string, string> = {
+    k5_crm_list_clients: 'Consultou os clientes',
+    k5_crm_get_client: 'Consultou um cliente',
+    k5_crm_create_client: 'Cadastrou um cliente',
+    k5_crm_update_client: 'Atualizou um cliente',
+    k5_agenda_list_members: 'Consultou os responsáveis',
+    k5_agenda_list_activities: 'Consultou tarefas e reuniões',
+    k5_agenda_get_activity: 'Consultou uma atividade',
+    k5_agenda_create_activity: 'Criou uma atividade',
+    k5_agenda_update_activity: 'Atualizou uma atividade',
     k5_vault_list_cases: 'Consultou os casos do Cofre',
     k5_vault_create_case: 'Criou um caso no Cofre',
     k5_vault_update_case: 'Atualizou um caso no Cofre',

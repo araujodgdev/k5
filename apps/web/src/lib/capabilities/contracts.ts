@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { agendaCapabilities } from './agenda';
 import type { OfficeRole } from '@/lib/offices';
 
 /**
@@ -10,7 +11,7 @@ import type { OfficeRole } from '@/lib/offices';
 export type CapabilitySurface = 'agent' | 'webmcp';
 
 export type Capability = {
-  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial';
+  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda';
   description: string;
   effect: 'read' | 'write';
   roles: readonly OfficeRole[];
@@ -133,6 +134,7 @@ export const judicialAlertDto = z.object({
 });
 
 export const capabilities = {
+  ...agendaCapabilities,
   k5_vault_list_cases: {
     module: 'vault', effect: 'read', roles: readers,
     description: 'Lista os casos do Cofre do escritório, do mais recente ao mais antigo.',
@@ -396,7 +398,7 @@ export const capabilities = {
     module: 'ui', effect: 'read', roles: readers,
     description: 'Resolve a URL segura da interface K5 para abrir um recurso no navegador.',
     input: z.object({
-      resourceType: z.enum(['case', 'document', 'run', 'artifact', 'vault']),
+      resourceType: z.enum(['case', 'document', 'run', 'artifact', 'vault', 'agenda', 'client', 'activity']),
       resourceId: identifier.optional(),
     }),
     output: z.object({ path: z.string() }),

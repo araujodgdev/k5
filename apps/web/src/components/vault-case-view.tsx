@@ -93,6 +93,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
         {vaultCase.description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{vaultCase.description}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" asChild><Link href={`/app/agenda?caseId=${encodeURIComponent(vaultCase.id)}`}>Tarefas e Agenda</Link></Button>
         {!folderId && (
           <div className="flex gap-1" role="group" aria-label="Seção do caso">
             <Button type="button" variant="ghost" className={section === "files" ? "bg-accent text-foreground" : ""} aria-pressed={section === "files"} onClick={() => setSection("files")}>Arquivos</Button>

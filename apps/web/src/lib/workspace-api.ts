@@ -17,7 +17,7 @@ export async function apiWorkspace(request: Request, write = false) {
   const workspace = await requireWorkspace();
   if (write) {
     if (!isTrustedOrigin(request.headers.get('origin'))) throw new ApiError(403, 'Origem não autorizada.');
-    if ((workspace.office).role === 'reviewer') throw new ApiError(403, 'Seu papel permite apenas consultar os documentos.');
+    if ((workspace.office).role === 'reviewer') throw new ApiError(403, 'Seu papel permite apenas consultas.');
   }
   return workspace;
 }

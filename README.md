@@ -68,15 +68,21 @@ Os testes de autenticação usam bancos SQLite em memória, separados dos dados 
 | `/app/command-center` | Início (em breve) |
 | `/app/agents` | Agentes |
 | `/app/vault` | Cofre |
-| `/app/research` | Pesquisa |
+| `/app/agenda` | Tarefas, agenda e clientes |
+| `/app/research` | Redireciona para Tarefas e Agenda |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/platform/clients` | Administração da plataforma (conexões de IA por escritório) |
 
-As áreas de `/app` exigem sessão válida no servidor. Agentes e Cofre estão implementados;
-Início e Pesquisa exibem “Em breve”. `/platform` exige o papel de administrador da plataforma.
+As áreas de `/app` exigem sessão válida no servidor. Agentes, Cofre e Tarefas e Agenda estão implementados;
+Início exibe “Em breve”. `/platform` exige o papel de administrador da plataforma.
 Tarefas de documentos precisam do worker (`pnpm worker`) em execução; veja
 [`apps/web/README.md`](apps/web/README.md).
 A interface usa pt-BR, tema claro e sidebar responsiva.
+
+Tarefas e Agenda reúne clientes, vínculos com casos do Cofre, tarefas e reuniões internas,
+com operações também disponíveis ao agente e ao WebMCP. Veja o
+[plano do módulo](docs/plano-tarefas-agenda.md). A agenda ainda não sincroniza calendários
+externos nem envia convites ou lembretes.
 
 ## Configuração e dados
 

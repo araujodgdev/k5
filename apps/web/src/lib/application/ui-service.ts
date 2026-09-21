@@ -12,6 +12,18 @@ export async function openResource(
   let path = '/app';
 
   switch (resourceType) {
+    case 'agenda':
+      path = '/app/agenda';
+      break;
+    case 'client':
+    case 'activity': {
+      if (!resourceId) throw new CapabilityError('INVALID', 'Informe o registro.');
+      const table = resourceType === 'client' ? 'crm_client' : 'agenda_activity';
+      const found = await database.prepare(`SELECT 1 FROM ${table} WHERE id=? AND office_id=?`).get(resourceId, context.officeId);
+      if (!found) throw new CapabilityError('NOT_FOUND', 'Registro não encontrado.');
+      path = `/app/agenda?${resourceType === 'client' ? 'clientId' : 'activityId'}=${encodeURIComponent(resourceId)}`;
+      break;
+    }
     case 'vault':
       path = '/app/vault';
       break;

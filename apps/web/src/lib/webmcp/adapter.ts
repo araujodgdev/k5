@@ -31,6 +31,15 @@ const id = (value: unknown) => encodeURIComponent(String(value ?? ''));
  * may not exist or may not belong to this office.
  */
 const routes: Record<CapabilityName, Route> = {
+  k5_crm_list_clients: { method: 'POST', path: () => '/api/agenda/clients/list', body: i => i },
+  k5_crm_get_client: { method: 'POST', path: () => '/api/agenda/clients/get', body: i => i },
+  k5_crm_create_client: { method: 'POST', path: () => '/api/agenda/clients/create', body: i => i },
+  k5_crm_update_client: { method: 'POST', path: () => '/api/agenda/clients/update', body: i => i },
+  k5_agenda_list_members: { method: 'POST', path: () => '/api/agenda/members/list', body: i => i },
+  k5_agenda_list_activities: { method: 'POST', path: () => '/api/agenda/activities/list', body: i => i },
+  k5_agenda_get_activity: { method: 'POST', path: () => '/api/agenda/activities/get', body: i => i },
+  k5_agenda_create_activity: { method: 'POST', path: () => '/api/agenda/activities/create', body: i => i },
+  k5_agenda_update_activity: { method: 'POST', path: () => '/api/agenda/activities/update', body: i => i },
   k5_vault_list_cases: { method: 'GET', path: () => '/api/vault/cases' },
   k5_vault_create_case: { method: 'POST', path: () => '/api/vault/cases', body: (i) => i },
   k5_vault_update_case: { method: 'PATCH', path: (i) => `/api/vault/cases/${id(i.caseId)}`, body: (i) => i },
