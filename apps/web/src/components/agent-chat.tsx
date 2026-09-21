@@ -524,15 +524,22 @@ export function AgentChat() {
       const result = (await response.json().catch(() => null)) as { error?: string; document?: { id: string } } | null;
       if (!response.ok || !result?.document) throw new Error(result?.error ?? "Não foi possível enviar o arquivo.");
       const documentId = result.document.id;
-      setContext((current) => ({ ...current, documentIds: [...current.documentIds, documentId] }));
+      let ready = false;
       for (let attempt = 0; attempt < 40; attempt += 1) {
         const check = await fetch(`/api/vault/documents/${encodeURIComponent(documentId)}`, { cache: "no-store" });
         const payload = (await check.json().catch(() => null)) as { document?: { status?: string; errorMessage?: string | null } } | null;
         const status = payload?.document?.status;
-        if (status === "ready") break;
+        if (status === "ready") {
+          ready = true;
+          break;
+        }
         if (status === "failed") throw new Error(payload?.document?.errorMessage || "Não foi possível processar o arquivo.");
         await new Promise((resolve) => window.setTimeout(resolve, 1500));
       }
+      // The retrieval rejects a source that is not ready, so the document only joins this
+      // conversation once the extraction finished: a timeout leaves it in the Cofre, not here.
+      if (!ready) throw new Error("O arquivo ainda está em processamento. Ele foi salvo no Cofre; selecione-o em Fontes quando estiver pronto.");
+      setContext((current) => ({ ...current, documentIds: [...current.documentIds, documentId] }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível enviar o arquivo.");
     } finally {
@@ -685,7 +692,7 @@ export function AgentChat() {
           )}
           <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", listOpen && "max-md:hidden")}>
             {loading || waitingForMessages ? (
-              <div className="grid flex-1 place-items-center text-sm text-muted-foreground"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />Carregando conversa…</span></div>
+              <div className="grid flex-1 place-items-center text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Carregando conversa…</span></div>
             ) : selectedId ? (
               <RuntimeThread
                 key={`${selectedId}:${messages.map((message) => message.id).join(",")}`}

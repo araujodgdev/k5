@@ -47,8 +47,11 @@ export async function POST(request: Request) {
     });
     const officeId = context.officeId;
     const documentId = document.id;
-    after(() => {
-      void processDocumentIfQueued(officeId, documentId).then(async (started) => {
+    // Awaited, not fire-and-forget: `after` only keeps the runtime alive for the promise it is
+    // handed, and a dropped chain here leaves the document queued forever.
+    after(async () => {
+      try {
+        const started = await processDocumentIfQueued(officeId, documentId);
         if (!started) return;
         try {
           const { processNextIndexJob } = await import("@/lib/knowledge/indexing");
@@ -56,9 +59,9 @@ export async function POST(request: Request) {
         } catch {
           // Lexical search is already available once extraction finishes.
         }
-      }).catch((error) => {
+      } catch (error) {
         console.error("Ingestão após envio:", error instanceof Error ? error.message : error);
-      });
+      }
     });
     // Public projection only: the stored key, the office id and the lease never leave the server.
     return Response.json({ document: publicDocument(document) }, { status: 201 });
