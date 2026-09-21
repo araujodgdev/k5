@@ -251,7 +251,7 @@ export async function processNextDeletion(): Promise<boolean> {
   };
 
   try {
-    if (row.kind === 'object') await objectStorage().delete(row.ref);
+    if (row.kind === 'object') await (await objectStorage()).delete(row.ref);
     else await (await vectorIndex()).removeDocument(row.officeId, row.ref);
     await close();
   } catch (error) {
@@ -261,7 +261,7 @@ export async function processNextDeletion(): Promise<boolean> {
     // filesystem that was merely busy has to come back through the retry path, because closing
     // on it would leave the bytes of a deleted document on disk with nothing left to chase them.
     if (error instanceof StorageError && error.code === 'invalid_key' && row.kind === 'object') {
-      const storage = objectStorage();
+      const storage = await objectStorage();
       if (!storage.deleteLegacy) {
         await close('backend sem caminho legado: nada a remover');
         return true;

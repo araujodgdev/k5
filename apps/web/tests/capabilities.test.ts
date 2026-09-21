@@ -10,7 +10,7 @@ import {
   publishedCapabilitiesForRole,
 } from "../src/lib/capabilities/contracts";
 import { CapabilityError } from "../src/lib/capabilities/errors";
-import { assertCapabilityAllowed, type WorkspaceContext } from "../src/lib/application/context";
+import { assertCapabilityAllowed, resetSessionColumnCacheForTests, type WorkspaceContext } from "../src/lib/application/context";
 import * as vaultService from "../src/lib/application/vault-service";
 import * as artifactsService from "../src/lib/application/artifacts-service";
 import * as conversationsService from "../src/lib/application/conversations-service";
@@ -103,6 +103,21 @@ test("authorization: dynamic role check and membership revocation", async () => 
   await assert.rejects(
     () => assertCapabilityAllowed(adminCtx, "k5_vault_list_cases"),
     (err: unknown) => err instanceof CapabilityError && err.code === "FORBIDDEN"
+  );
+});
+
+test("authorization: a live session is checked by its resolved column", async () => {
+  const { userAdmin, officeA } = seedFixture();
+  const sessionId = randomUUID();
+  testDb.prepare("INSERT INTO session (id, user_id) VALUES (?, ?)").run(sessionId, userAdmin);
+  resetSessionColumnCacheForTests();
+  const context: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator", sessionId };
+
+  await assert.doesNotReject(() => assertCapabilityAllowed(context, "k5_vault_list_cases"));
+  testDb.prepare("DELETE FROM session WHERE id = ?").run(sessionId);
+  await assert.rejects(
+    () => assertCapabilityAllowed(context, "k5_vault_list_cases"),
+    (error: unknown) => error instanceof CapabilityError && error.code === "UNAUTHENTICATED",
   );
 });
 

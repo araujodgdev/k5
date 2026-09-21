@@ -10,7 +10,7 @@ import * as vaultService from "../src/lib/application/vault-service";
 import * as approvalsService from "../src/lib/application/approvals-service";
 import * as uploadsService from "../src/lib/application/uploads-service";
 import { withIdempotency } from "../src/lib/application/idempotency-service";
-import { assertStorageKey, storageKey } from "../src/lib/storage";
+import { assertStorageKey, objectStorage, resetObjectStorageForTests, storageKey } from "../src/lib/storage";
 import { findVaultDocument, listVaultDocuments, retryVaultDocument, VaultHttpError } from "../src/lib/vault";
 import { isTrustedOrigin } from "../src/lib/trusted-origins";
 
@@ -69,6 +69,41 @@ test("storage: a caller-supplied key cannot escape the vault root", async () => 
   assert.throws(() => assertStorageKey("../../segredo.pdf"), /inválida/);
   assert.throws(() => assertStorageKey("arquivo-solto.pdf"), /inválida/);
   assert.ok(assertStorageKey(storageKey(officeA, randomUUID(), ".pdf")));
+});
+
+test("storage: the Worker R2 binding is preferred without S3 credentials", async () => {
+  const previous = { ...process.env };
+  process.env.VAULT_STORAGE_BACKEND = "r2";
+  delete process.env.R2_BUCKET;
+  delete process.env.R2_ACCOUNT_ID;
+  delete process.env.R2_ACCESS_KEY_ID;
+  delete process.env.R2_SECRET_ACCESS_KEY;
+
+  const objects = new Map<string, Uint8Array>();
+  resetObjectStorageForTests(undefined, {
+    async put(key, value) {
+      objects.set(key, new Uint8Array(value.buffer, value.byteOffset, value.byteLength).slice());
+    },
+    async get(key) {
+      const value = objects.get(key);
+      return value ? { arrayBuffer: async () => value.slice().buffer } : null;
+    },
+    async delete(key) {
+      objects.delete(key);
+    },
+  });
+
+  try {
+    const storage = await objectStorage();
+    const key = storageKey(randomUUID(), randomUUID(), ".txt");
+    await storage.put(key, Buffer.from("binding-r2"));
+    assert.equal((await storage.get(key)).toString(), "binding-r2");
+    await storage.delete(key);
+    await assert.rejects(() => storage.get(key), /não encontrado/);
+  } finally {
+    process.env = previous;
+    resetObjectStorageForTests(undefined);
+  }
 });
 
 test("uploads: a reference is single use and bound to its office and its person", async () => {

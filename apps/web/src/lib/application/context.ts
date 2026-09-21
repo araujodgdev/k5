@@ -55,8 +55,8 @@ export async function assertCapabilityAllowed(context: WorkspaceContext, name: C
   const capability = capabilities[name];
 
   if (context.sessionId) {
-    const column = sessionIdColumn();
-    if (await column) {
+    const column = await sessionIdColumn();
+    if (column) {
       const live = await database.prepare(`SELECT 1 FROM session WHERE ${column} = ?`).get(context.sessionId);
       if (!live) throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente para continuar.');
     }

@@ -23,12 +23,13 @@ devolveria menos resultados do que o pedido, ou resultados de outro escritório.
 
 | Variável | Local | Docker | Staging |
 | --- | --- | --- | --- |
-| `DATABASE_PATH` | `.data/k5.sqlite` | `/data/k5.sqlite` | `/data/k5.sqlite` |
+| `DATABASE_PATH` | `.data/k5.sqlite` | `/data/k5.sqlite` | — (usa binding D1 `DB`) |
 | `VAULT_STORAGE_PATH` | `.data/uploads` | `/data/uploads` | — (usa R2) |
+| `VAULT_STORAGE_BACKEND` | ausente (arquivos) | ausente (arquivos) | `r2` |
 | `VECTOR_INDEX_BACKEND` | ausente (SQLite) | `pgvector` | `vectorize` |
-| `VECTOR_DATABASE_URL` | — | container `vectors` | Neon |
-| `R2_BUCKET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | — | — | obrigatórias |
-| `CF_ACCOUNT_ID`, `VECTORIZE_INDEX`, `CF_API_TOKEN` | — | — | somente verificação/worker Node |
+| `VECTOR_DATABASE_URL` | — | container `vectors` | — |
+| `R2_BUCKET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | — | — | somente worker Node/diagnóstico; o Worker web usa `VAULT` |
+| `CF_ACCOUNT_ID`, `VECTORIZE_INDEX`, `CF_API_TOKEN` | — | — | somente worker Node/diagnóstico; o Worker web usa `KNOWLEDGE` |
 | `NEXT_PUBLIC_WEBMCP_ENABLED` | opcional | opcional | opcional |
 
 Sem `VECTOR_INDEX_BACKEND` o índice é o SQLite local: força bruta exata sobre o escopo
@@ -66,13 +67,16 @@ SQLite e os originais do Cofre dividem o volume `appdata`; `docker compose down`
 
 ## 3. Staging na Cloudflare
 
-Recursos já provisionados na conta `bf552f67bcf46921dbe4137ee0ff8980`:
+Staging web: <https://k5-staging.k5-web.workers.dev>. Recursos provisionados na conta
+`bf552f67bcf46921dbe4137ee0ff8980`:
 
-- Índice Vectorize `k5-knowledge-staging`, 1536 dimensões, métrica cosseno, com índices de
-  metadados em `generationId` e `documentId`.
+- Worker `k5-staging`;
+- D1 `k5-staging`;
+- R2 `k5-vault-staging`;
+- Vectorize `k5-knowledge-staging`, 1536 dimensões, métrica cosseno.
 
-O restante exige passos que só uma pessoa pode dar (habilitar o R2 no painel, criar conta na Neon,
-gerar tokens). O assistente cobre todos eles:
+Os bindings web dispensam chaves REST. `verify-staging.ts` continua disponível para diagnosticar
+acesso S3/REST dos processos Node quando essas credenciais forem configuradas:
 
 ```bash
 bash scripts/staging-setup.sh
@@ -109,11 +113,12 @@ de 22 segundos numa verificação de ponta a ponta. Duas consequências:
 - Uma busca feita na janela entre o upsert e a indexação não encontra o vetor. Ela degrada para
   lexical e diz por quê, em vez de afirmar que não há evidência.
 
-## O que ainda não está feito
+## O que ainda roda fora do Worker web
 
-- **A aplicação não roda em Workers.** `node:sqlite`, uploads em disco e o laço do worker são de
-  Node. Os adaptadores existem para que essa migração seja mecânica, mas ela não foi feita.
-- **Não há workflow de deploy.** O CI roda lint, typecheck, test e build em cada pull request, e
-  recusa alterações em migrações já aplicadas. Publicar em staging ainda é manual.
-- **Hyperdrive é opcional hoje.** Enquanto a aplicação for Node, o adaptador pgvector fala direto
-  com a Neon. Hyperdrive passa a importar quando houver Workers.
+- **OCR, extração e trabalhos de IA.** `scripts/worker.ts` continua Node porque a pilha de OCR
+  inclui módulo nativo. Sem esse processo, os uploads ficam enfileirados, embora seus originais
+  permaneçam duráveis no R2.
+- **Coleta judicial.** `scripts/judicial-worker.ts` continua sendo um processo Node separado.
+- **Automação dos workers de fundo.** Levar esses laços para Cloudflare requer Queues/Workflows,
+  Cron Triggers e, para OCR, um serviço compatível ou externo. O deploy do Worker web já é
+  executável por `pnpm --filter @k5/web deploy:vinext`.

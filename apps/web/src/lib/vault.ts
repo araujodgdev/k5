@@ -329,7 +329,7 @@ export async function readVaultOriginal(document: Pick<DocumentRow, "storedName"
     } catch { throw new VaultHttpError(404, "Arquivo original não encontrado."); }
   }
   try {
-    return await objectStorage().get(key);
+    return await (await objectStorage()).get(key);
   } catch (error) {
     if (error instanceof StorageError && error.code === "not_found") throw new VaultHttpError(404, "Arquivo original não encontrado.");
     throw new VaultHttpError(503, "Armazenamento de documentos indisponível.");

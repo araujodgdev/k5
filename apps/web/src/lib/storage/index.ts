@@ -16,6 +16,13 @@ export interface ObjectStorage {
   deleteLegacy?(key: string): Promise<void>;
 }
 
+/** The narrow subset of an R2 bucket binding used by the Vault storage adapter. */
+export interface R2BucketBinding {
+  put(key: string, value: ArrayBufferView): Promise<unknown>;
+  get(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> } | null>;
+  delete(key: string): Promise<unknown>;
+}
+
 export class StorageError extends Error {
   constructor(public readonly code: 'invalid_key' | 'not_found' | 'backend', message: string) { super(message); }
 }
@@ -134,21 +141,89 @@ class R2ObjectStorage implements ObjectStorage {
   }
 }
 
-let cached: ObjectStorage | undefined;
+/** R2 through the capability binding injected into the Cloudflare Worker. */
+class BoundR2ObjectStorage implements ObjectStorage {
+  constructor(private readonly binding: R2BucketBinding) {}
 
-export function objectStorage(): ObjectStorage {
+  async put(key: string, data: Buffer) {
+    try {
+      await this.binding.put(assertStorageKey(key), data);
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      throw new StorageError('backend', 'Armazenamento de documentos indisponível.');
+    }
+  }
+
+  async get(key: string) {
+    try {
+      const object = await this.binding.get(assertStorageKey(key));
+      if (!object) throw new StorageError('not_found', 'Arquivo original não encontrado.');
+      return Buffer.from(await object.arrayBuffer());
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      throw new StorageError('backend', 'Armazenamento de documentos indisponível.');
+    }
+  }
+
+  async delete(key: string) {
+    try {
+      await this.binding.delete(assertStorageKey(key));
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      throw new StorageError('backend', 'Armazenamento de documentos indisponível.');
+    }
+  }
+}
+
+let cached: ObjectStorage | undefined;
+let resolving: Promise<ObjectStorage> | undefined;
+let testR2Binding: R2BucketBinding | undefined;
+
+async function workerR2Binding(): Promise<R2BucketBinding | undefined> {
+  try {
+    const { env } = await import(/* webpackIgnore: true */ 'cloudflare:workers');
+    return env.VAULT as R2BucketBinding | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveObjectStorage(): Promise<ObjectStorage> {
   if (cached) return cached;
   const bucket = process.env.R2_BUCKET;
   const accountId = process.env.R2_ACCOUNT_ID;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  cached = bucket && accountId && accessKeyId && secretAccessKey
-    ? new R2ObjectStorage({ accountId, bucket, accessKeyId, secretAccessKey })
-    : new LocalObjectStorage(resolve(process.env.VAULT_STORAGE_PATH ?? resolve(process.cwd(), '.data', 'uploads')));
-  return cached;
+
+  const binding = testR2Binding ?? await workerR2Binding();
+  if (binding) return new BoundR2ObjectStorage(binding);
+  if (bucket && accountId && accessKeyId && secretAccessKey) {
+    return new R2ObjectStorage({ accountId, bucket, accessKeyId, secretAccessKey });
+  }
+  if (process.env.VAULT_STORAGE_BACKEND === 'r2') {
+    throw new Error("R2 foi solicitado, mas o binding 'VAULT' e as credenciais S3 não estão disponíveis.");
+  }
+  return new LocalObjectStorage(resolve(process.env.VAULT_STORAGE_PATH ?? resolve(process.cwd(), '.data', 'uploads')));
+}
+
+export async function objectStorage(): Promise<ObjectStorage> {
+  if (cached) return cached;
+  resolving ??= resolveObjectStorage();
+  try {
+    cached = await resolving;
+    return cached;
+  } finally {
+    resolving = undefined;
+  }
 }
 
 /** Tests and the worker build their own instance instead of reaching for the module singleton. */
 export function localObjectStorage(root: string): ObjectStorage {
   return new LocalObjectStorage(resolve(root));
+}
+
+export function resetObjectStorageForTests(storage?: ObjectStorage, binding?: R2BucketBinding) {
+  cached = storage;
+  resolving = undefined;
+  testR2Binding = binding;
 }

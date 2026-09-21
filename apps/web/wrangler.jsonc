@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "k5-staging",
+  "account_id": "bf552f67bcf46921dbe4137ee0ff8980",
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat"],
   "main": "vinext/server/fetch-handler",
@@ -39,11 +40,16 @@
 
   // No cache binding on purpose. K5 serves per-office authenticated data, and an edge cache in
   // front of a dynamic multi-tenant response is how one office ends up reading another's.
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "persist": true },
+    "traces": { "enabled": true, "persist": true }
+  },
 
   "vars": {
     "NODE_ENV": "production",
-    "VECTOR_INDEX_BACKEND": "vectorize"
+    "VECTOR_INDEX_BACKEND": "vectorize",
+    "VAULT_STORAGE_BACKEND": "r2"
   }
 
   // Secrets are not here. BETTER_AUTH_SECRET, BETTER_AUTH_URL and K5_CREDENTIALS_KEY are set with

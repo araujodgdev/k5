@@ -59,7 +59,8 @@ export async function createUploadRef(context: WorkspaceContext, file: File): Pr
 
   const id = randomUUID();
   const key = storageKey(context.officeId, id, extension);
-  await objectStorage().put(key, data);
+  const storage = await objectStorage();
+  await storage.put(key, data);
 
   const sha256 = createHash('sha256').update(data).digest('hex');
   try {
@@ -70,7 +71,7 @@ export async function createUploadRef(context: WorkspaceContext, file: File): Pr
   } catch (error) {
     // The row is what makes the object findable; without it the sweep has nothing to walk and the
     // bytes are unreachable forever. Undo the write before surfacing the failure.
-    await objectStorage().delete(key).catch(() => undefined);
+    await storage.delete(key).catch(() => undefined);
     throw error;
   }
 

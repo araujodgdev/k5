@@ -33,6 +33,13 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       updateAge: 0,
       cookieCache: { enabled: false },
     },
+    advanced: {
+      ipAddress: {
+        // Cloudflare overwrites this header at the edge, so it is safe to use for per-client
+        // authentication rate limits without trusting a caller-controlled forwarded chain.
+        ipAddressHeaders: ["cf-connecting-ip"],
+      },
+    },
     rateLimit: {
       enabled: true,
       storage: "database",

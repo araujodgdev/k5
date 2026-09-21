@@ -1,7 +1,11 @@
-# Deploy na Cloudflare: o que existe e o que falta
+# Deploy na Cloudflare
 
-Data: 20/09/2026. Acompanha [ambientes.md](ambientes.md), que descreve os três modos de execução, e
+Atualizado em 21/09/2026. Acompanha [ambientes.md](ambientes.md), que descreve os três modos de execução, e
 registra a migração para Cloudflare Workers via [vinext](https://vinext.dev).
+
+O staging web está publicado em <https://k5-staging.k5-web.workers.dev>. D1, R2, Vectorize,
+assets, autenticação e secrets são bindings ou configuração nativa do Worker. OCR, extração,
+geração de documentos e coleta judicial continuam nos processos Node descritos abaixo.
 
 O alvo escolhido é **Workers**, não Containers. A decisão tem consequências que este documento
 registra antes de qualquer instrução, porque elas definem o tamanho do trabalho.
@@ -116,28 +120,33 @@ que acontecer.
 Workers, ambos aceitos pela versão 1.7 — e `db` é a costura assíncrona do K5, usada pelo hook que
 provisiona o escritório. `authStore()` resolve o primeiro a partir do mesmo backend do segundo.
 
-## O que ainda bloqueia
+## Processamento em segundo plano
 
-| Bloqueio | Natureza |
+| Componente | Execução |
 | --- | --- |
-| OCR e extração | `@napi-rs/canvas` é nativo e não roda em workerd; `pdfjs-dist` e `tesseract.js` vão junto. Essas etapas continuam no worker Node. |
-| Laço do worker | `scripts/worker.ts` e `judicial-worker.ts` são processos longos. Em Workers viram Cron Triggers e Queues. |
-| Credenciais de deploy | O canal autenticado disponível não tem permissão para emitir tokens (`9109`). `wrangler deploy` precisa de `wrangler login` ou de um token criado no painel. |
+| Web, autenticação e operações do Cofre | Worker `k5-staging` |
+| Banco, originais e busca vetorial | bindings `DB`, `VAULT` e `KNOWLEDGE` |
+| OCR e extração | worker Node; `@napi-rs/canvas` não roda em workerd |
+| Cronologias, minutas, limpeza e coleta judicial | `scripts/worker.ts` e `scripts/judicial-worker.ts`; a migração futura para Cloudflare exige Queues/Workflows e Cron Triggers |
 
-## Ordem do trabalho restante
+## Publicação
 
-1. Backend de `ObjectStorage` sobre binding R2, ao lado do backend S3 que já existe.
-2. Worker: Cron e Queues para o que roda em Workers; o que precisa de OCR fica em Node.
-3. `wrangler secret put` para `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` e `K5_CREDENTIALS_KEY`.
-4. `pnpm --filter @k5/web build:vinext` para gerar o bundle.
-5. `pnpm --filter @k5/web deploy:vinext` para aplicar primeiro as migrações remotas do D1 e,
-   somente se todas concluírem, publicar o Worker. O script executa
-   `wrangler d1 migrations apply DB --remote --config wrangler.jsonc` antes do deploy; não publique
-   o bundle isoladamente, pois uma versão nova pode depender de tabelas ainda ausentes.
+Os três secrets obrigatórios são `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` e
+`K5_CREDENTIALS_KEY`. Eles ficam no Cloudflare, nunca no arquivo versionado. Para publicar:
 
-O Cofre ainda grava no backend de sistema de arquivos, então um deploy agora serve as rotas
-autenticadas, mas perde os originais enviados quando o isolate morre. O passo 1 é o que falta
-antes de staging valer como staging.
+```bash
+pnpm --filter @k5/web build:vinext
+pnpm --filter @k5/web deploy:vinext
+```
+
+O segundo comando lê o `account_id` do `wrangler.jsonc`, aplica primeiro as migrações remotas do
+D1 e só então publica o bundle. Não publique o bundle isoladamente: uma versão nova pode depender
+de tabelas ainda ausentes.
+
+O adaptador de objetos prefere o binding R2 `VAULT` no Worker e falha explicitamente se
+`VAULT_STORAGE_BACKEND=r2` foi solicitado sem binding nem credenciais S3. Em 21/09/2026, a
+verificação ao vivo criou um caso no D1 e completou upload, ingestão e download dos mesmos bytes
+pelo R2 (`201`, `201`, `200`).
 
 ## Notas de configuração
 
