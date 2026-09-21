@@ -31,6 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { AgentSourcesPanel, type AgentContext } from "@/components/agent-sources-panel";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -38,13 +39,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DOCUMENT_ACCEPT, IMAGE_ACCEPT, type Modalities } from "@/lib/ai-modalities";
+import { cn } from "@/lib/utils";
 
 export type OfficeModelOption = {
   provider: string;
@@ -79,6 +80,44 @@ function unwrapMessages(value: unknown): UIMessage[] {
   if (!value || typeof value !== "object") return [];
   const messages = (value as { messages?: unknown }).messages;
   return Array.isArray(messages) ? (messages as UIMessage[]) : [];
+}
+
+const MESSAGE_CACHE = "k5.conversation.messages.";
+const LIST_OPEN_KEY = "k5.agent_list_open";
+const memoryMessages = new Map<string, UIMessage[]>();
+
+function cachedMessages(id: string): UIMessage[] | undefined {
+  const hit = memoryMessages.get(id);
+  if (hit) return hit;
+  try {
+    const raw = sessionStorage.getItem(MESSAGE_CACHE + id);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as UIMessage[];
+    if (!Array.isArray(parsed)) return;
+    memoryMessages.set(id, parsed);
+    return parsed;
+  } catch {
+    return;
+  }
+}
+
+function storeMessages(id: string, next: UIMessage[]) {
+  memoryMessages.set(id, next);
+  try {
+    sessionStorage.setItem(MESSAGE_CACHE + id, JSON.stringify(next));
+  } catch {
+    /* Quota is not worth failing the conversation over. */
+  }
+}
+
+function formatUpdatedAt(iso: string) {
+  const delta = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(delta) || delta < 45_000) return "Agora";
+  const minutes = Math.round(delta / 60_000);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
 }
 
 function chatErrorMessage(error: unknown): string {
@@ -123,7 +162,15 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="group mx-auto w-full max-w-3xl px-4 py-4 md:px-8">
       <div className="max-w-[72ch] text-sm leading-7 text-foreground">
+        <MessagePrimitive.If hasContent={false}>
+          <p className="text-subtle-foreground" aria-live="polite">Pensando…</p>
+        </MessagePrimitive.If>
         <MessagePrimitive.Parts components={assistantParts} />
+        <MessagePrimitive.If last>
+          <AuiIf condition={(state) => state.thread.isRunning}>
+            <span className="mt-3 inline-block h-3 w-1.5 animate-pulse bg-foreground motion-reduce:animate-none" aria-label="Respondendo" />
+          </AuiIf>
+        </MessagePrimitive.If>
         <MessagePrimitive.Error>
           <p className="mt-2 text-sm text-destructive" role="alert">Não foi possível concluir a resposta. Tente novamente.</p>
         </MessagePrimitive.Error>
@@ -403,10 +450,25 @@ export function AgentChat() {
   const [error, setError] = useState("");
   const [context, setContext] = useState<AgentContext>({ caseId: null, documentIds: [] });
   const [contextOpen, setContextOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const [availableModels, setAvailableModels] = useState<OfficeModelOption[]>([]);
   const [selectedModelKey, setSelectedModelKey] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [audio, setAudio] = useState<Attachment | null>(null);
+  useEffect(() => {
+    const saved = window.localStorage.getItem(LIST_OPEN_KEY);
+    if (saved === "1" || saved === "0") setListOpen(saved === "1");
+    else setListOpen(window.matchMedia("(min-width: 768px)").matches);
+  }, []);
+
+  function toggleList() {
+    setListOpen((current) => {
+      const next = !current;
+      window.localStorage.setItem(LIST_OPEN_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/ai/models")
@@ -461,7 +523,16 @@ export function AgentChat() {
       const response = await fetch("/api/vault/documents", { method: "POST", body });
       const result = (await response.json().catch(() => null)) as { error?: string; document?: { id: string } } | null;
       if (!response.ok || !result?.document) throw new Error(result?.error ?? "Não foi possível enviar o arquivo.");
-      setContext((current) => ({ ...current, documentIds: [...current.documentIds, result.document!.id] }));
+      const documentId = result.document.id;
+      setContext((current) => ({ ...current, documentIds: [...current.documentIds, documentId] }));
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const check = await fetch(`/api/vault/documents/${encodeURIComponent(documentId)}`, { cache: "no-store" });
+        const payload = (await check.json().catch(() => null)) as { document?: { status?: string; errorMessage?: string | null } } | null;
+        const status = payload?.document?.status;
+        if (status === "ready") break;
+        if (status === "failed") throw new Error(payload?.document?.errorMessage || "Não foi possível processar o arquivo.");
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível enviar o arquivo.");
     } finally {
@@ -488,7 +559,9 @@ export function AgentChat() {
     const conversation = unwrapConversation(await response.json());
     if (!conversation) throw new Error("A nova conversa não retornou um identificador.");
     setConversations((current) => [conversation, ...current.filter((item) => item.id !== conversation.id)]);
+    storeMessages(conversation.id, []);
     setMessages([]);
+    setLoadedConversationId(conversation.id);
     setSelectedId(conversation.id);
     return conversation;
   }, []);
@@ -513,14 +586,26 @@ export function AgentChat() {
 
   useEffect(() => {
     if (!selectedId) return;
+    const cached = cachedMessages(selectedId);
+    if (cached) {
+      setMessages(cached);
+      setLoadedConversationId(selectedId);
+    }
     const controller = new AbortController();
     fetch(`/api/conversations/${encodeURIComponent(selectedId)}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Não foi possível abrir esta conversa.");
-        setMessages(unwrapMessages(await response.json()));
+        const next = unwrapMessages(await response.json());
+        storeMessages(selectedId, next);
+        setMessages(next);
         setLoadedConversationId(selectedId);
       })
-      .catch((cause) => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Não foi possível abrir esta conversa."); })
+      .catch((cause) => {
+        if (controller.signal.aborted) return;
+        setError(cause instanceof Error ? cause.message : "Não foi possível abrir esta conversa.");
+        setMessages(cachedMessages(selectedId) ?? []);
+        setLoadedConversationId(selectedId);
+      });
     return () => controller.abort();
   }, [selectedId]);
 
@@ -552,24 +637,29 @@ export function AgentChat() {
     onError: setError,
   };
 
+  const waitingForMessages = Boolean(selectedId && loadedConversationId !== selectedId && !cachedMessages(selectedId));
+
+  function selectConversation(id: string) {
+    setSelectedId(id);
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setListOpen(false);
+      window.localStorage.setItem(LIST_OPEN_KEY, "0");
+    }
+  }
+
   return (
     <TooltipProvider>
       <div className="flex min-h-0 flex-1 flex-col">
         <header className="flex min-h-16 items-center justify-between gap-3 border-b px-4 md:px-8">
           <div className="flex min-w-0 items-center gap-2">
-            <Sheet>
-              <SheetTrigger asChild><Button variant="ghost" size="icon" aria-label="Abrir histórico"><History /></Button></SheetTrigger>
-              <SheetContent side="left" showCloseButton={false} className="gap-0 bg-background">
-                <ConversationHistory conversations={conversations} selectedId={selectedId} onSelect={setSelectedId} onCreate={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} onDelete={(id) => void removeConversation(id)} />
-              </SheetContent>
-            </Sheet>
             <h1 className="display truncate text-[28px]">Agentes</h1>
+            <Button variant="ghost" size="icon" aria-label={listOpen ? "Recolher conversas" : "Mostrar conversas"} aria-expanded={listOpen} onClick={toggleList}><History /></Button>
+            <Button variant="ghost" size="icon" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
           </div>
           <div className="flex items-center gap-1.5">
-            <Button variant="ghost" size="icon" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
             <Sheet open={contextOpen} onOpenChange={setContextOpen}>
               <SheetTrigger asChild><Button variant="outline"><FileStack />Fontes{selectedCount > 0 ? ` (${selectedCount})` : ""}</Button></SheetTrigger>
-              <SheetContent side="right" showCloseButton={false} className="gap-0 bg-background sm:max-w-md">
+              <SheetContent side="right" showCloseButton={false} className="min-w-0 overflow-x-hidden gap-0 bg-background sm:max-w-md">
                 <SheetHeader className="sr-only"><SheetTitle>Fontes desta conversa</SheetTitle></SheetHeader>
                 <AgentSourcesPanel context={context} onChange={setContext} onClose={() => setContextOpen(false)} />
               </SheetContent>
@@ -578,42 +668,80 @@ export function AgentChat() {
         </header>
 
         {error && <p className="flex items-start gap-2 border-b px-4 py-2 text-sm text-destructive md:px-8" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
-        {loading || (selectedId !== null && loadedConversationId !== selectedId) ? (
-          <div className="grid flex-1 place-items-center text-sm text-muted-foreground"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />Carregando conversa…</span></div>
-        ) : selectedId ? (
-          <RuntimeThread key={`${selectedId}:${messages.map((message) => message.id).join(",")}`} conversationId={selectedId} messages={messages} context={context} selectedModel={selectedModel} audio={audio} onAudioSent={clearAudio} tools={composerTools} onFinish={() => void loadConversations().catch(() => undefined)} onError={setError} />
-        ) : (
-          <div className="grid flex-1 place-items-center px-6 text-center text-sm text-subtle-foreground">Nenhuma conversa disponível.</div>
-        )}
+
+        <div className="flex min-h-0 flex-1">
+          {listOpen && (
+            <aside className="flex min-h-0 w-full shrink-0 flex-col border-b md:w-72 md:border-r md:border-b-0">
+              {loading && conversations.length === 0 ? (
+                <div className="grid gap-2 p-3" aria-hidden="true">
+                  <Skeleton className="h-16 w-full rounded-2xl" />
+                  <Skeleton className="h-16 w-full rounded-2xl" />
+                  <Skeleton className="h-16 w-full rounded-2xl" />
+                </div>
+              ) : (
+                <ConversationCards conversations={conversations} selectedId={selectedId} onSelect={selectConversation} onDelete={(id) => void removeConversation(id)} />
+              )}
+            </aside>
+          )}
+          <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", listOpen && "max-md:hidden")}>
+            {loading || waitingForMessages ? (
+              <div className="grid flex-1 place-items-center text-sm text-muted-foreground"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />Carregando conversa…</span></div>
+            ) : selectedId ? (
+              <RuntimeThread
+                key={`${selectedId}:${messages.map((message) => message.id).join(",")}`}
+                conversationId={selectedId}
+                messages={messages}
+                context={context}
+                selectedModel={selectedModel}
+                audio={audio}
+                onAudioSent={clearAudio}
+                tools={composerTools}
+                onFinish={() => {
+                  void loadConversations().catch(() => undefined);
+                  void fetch(`/api/conversations/${encodeURIComponent(selectedId)}`)
+                    .then(async (response) => {
+                      if (!response.ok) return;
+                      storeMessages(selectedId, unwrapMessages(await response.json()));
+                    })
+                    .catch(() => undefined);
+                }}
+                onError={setError}
+              />
+            ) : (
+              <div className="grid flex-1 place-items-center px-6 text-center text-sm text-subtle-foreground">Nenhuma conversa disponível.</div>
+            )}
+          </div>
+        </div>
       </div>
     </TooltipProvider>
   );
 }
 
-function ConversationHistory({ conversations, selectedId, onSelect, onCreate, onDelete }: {
+function ConversationCards({ conversations, selectedId, onSelect, onDelete }: {
   conversations: Conversation[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onCreate: () => void;
   onDelete: (id: string) => void;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between border-b px-4 py-4">
-        <SheetTitle>Conversas</SheetTitle>
-        <SheetClose asChild><Button variant="ghost" size="icon" aria-label="Fechar histórico"><X /></Button></SheetClose>
-      </div>
-      <div className="p-3"><Button className="w-full" onClick={onCreate}><MessageSquarePlus />Nova conversa</Button></div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-        {conversations.length === 0 && <p className="px-2 py-6 text-sm text-subtle-foreground">Seu histórico aparecerá aqui.</p>}
+    <div className="min-h-0 flex-1 overflow-y-auto p-3">
+      {conversations.length === 0 && <p className="px-2 py-6 text-sm text-subtle-foreground">Seu histórico aparecerá aqui.</p>}
+      <div className="grid gap-2">
         {conversations.map((conversation) => (
-          <div key={conversation.id} className="group flex items-center border-b">
-            <SheetClose asChild>
-              <button type="button" onClick={() => onSelect(conversation.id)} aria-current={selectedId === conversation.id ? "page" : undefined} className="min-h-12 min-w-0 flex-1 truncate px-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:font-medium">
-                {conversation.title || "Nova conversa"}
-              </button>
-            </SheetClose>
-            <Button variant="ghost" size="icon-sm" className="size-11 md:size-7" onClick={() => onDelete(conversation.id)} aria-label={`Excluir ${conversation.title || "conversa"}`}><Trash2 /></Button>
+          <div key={conversation.id} className="relative">
+            <button
+              type="button"
+              onClick={() => onSelect(conversation.id)}
+              aria-current={selectedId === conversation.id ? "page" : undefined}
+              className={cn(
+                "grid w-full gap-1 rounded-2xl border p-3 pr-11 text-left outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
+                selectedId === conversation.id && "bg-accent",
+              )}
+            >
+              <span className="truncate text-sm font-medium">{conversation.title || "Nova conversa"}</span>
+              <span className="text-[13px] text-subtle-foreground">{formatUpdatedAt(conversation.updatedAt)}</span>
+            </button>
+            <Button variant="ghost" size="icon-sm" className="absolute top-2 right-2 size-11 md:size-7" onClick={() => onDelete(conversation.id)} aria-label={`Excluir ${conversation.title || "conversa"}`}><Trash2 /></Button>
           </div>
         ))}
       </div>

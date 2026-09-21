@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useState, type FormEvent } from "react";
 import { ChevronRight, LoaderCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -153,7 +152,10 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
   if (!data) {
     return (
       <section aria-labelledby={headingId} className="border-b py-5">
-        <h2 id={headingId} className="text-sm font-medium">Processos</h2>
+        <div className="min-w-0">
+          <h2 id={headingId} className="text-sm font-medium">Processos acompanhados</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">Vincule um número CNJ a este caso para coletar publicações e acompanhar atualizações da fonte.</p>
+        </div>
         <p className="py-3 text-sm text-subtle-foreground">Carregando os processos vinculados…</p>
       </section>
     );
@@ -165,7 +167,10 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
   return (
     <section aria-labelledby={headingId} className="border-b py-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id={headingId} className="text-sm font-medium">Processos</h2>
+        <div className="min-w-0">
+          <h2 id={headingId} className="text-sm font-medium">Processos acompanhados</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">Vincule um número CNJ a este caso para coletar publicações e acompanhar atualizações da fonte.</p>
+        </div>
         {canWrite && (
           <Button type="button" variant="outline" className={touch} aria-expanded={adding} onClick={() => { setAdding((value) => !value); setFailure(null); }}>
             {adding ? "Fechar" : "Vincular processo"}
@@ -186,7 +191,7 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
 
       {data.links.length === 0 ? (
         <p className="py-3 text-sm text-subtle-foreground">
-          Nenhum processo vinculado a este caso. Vincule um número para acompanhar as publicações da fonte.
+          Nenhum processo vinculado. Use Vincular processo para informar o número e a fonte; as publicações coletadas aparecem nesta lista.
         </p>
       ) : (
         <div className="mt-3">
@@ -387,11 +392,8 @@ function LinkDetail({ link, source, publications, job, completedJob }: {
 
         <p className="text-[13px] text-muted-foreground">
           {publications.length > 0
-            ? `${publications.length} publicação(ões) coletada(s) para este processo. `
-            : "Nenhuma publicação coletada para este processo ainda. "}
-          <Link href={`/app/command-center?caso=${encodeURIComponent(link.caseId)}`} className="rounded-md underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            Ver na Central de comando
-          </Link>
+            ? `${publications.length} publicação(ões) coletada(s) para este processo.`
+            : "Nenhuma publicação coletada para este processo ainda."}
         </p>
       </div>
     </div>

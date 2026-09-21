@@ -1,9 +1,7 @@
 export const appNavigation = [
-  { slug: "command-center", label: "Central de comando", short: "Início" },
+  { slug: "command-center", label: "Início", short: "Início" },
   { slug: "agents", label: "Agentes", short: "Agentes" },
-  { slug: "spaces", label: "Espaços", short: "Espaços" },
   { slug: "vault", label: "Cofre", short: "Cofre" },
-  { slug: "contract-intelligence", label: "Inteligência contratual", short: "Contratos" },
   { slug: "research", label: "Pesquisa", short: "Pesquisa" },
 ] as const;
 

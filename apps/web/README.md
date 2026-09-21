@@ -36,7 +36,7 @@ as migrações explicitamente; não use o gerador local de segredos.
 
 - `/api/auth/[...all]` hospeda os endpoints do Better Auth.
 - Cadastro exige nome, escritório, e-mail e senha de 8 a 128 caracteres.
-- Após cadastro ou login, `/app` leva a `/app/command-center`.
+- Após cadastro ou login, `/app` leva ao Início em `/app/command-center`.
 - O servidor valida a sessão no layout e em cada página protegida.
 - Senhas usam o hash scrypt do Better Auth. Cookies são HttpOnly, SameSite=Lax e
   Secure quando a origem usa HTTPS.

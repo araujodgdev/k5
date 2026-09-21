@@ -13,7 +13,7 @@ export function Reveal({ children, className }: { children: React.ReactNode; cla
   useGSAP(() => {
     const mm = gsap.matchMedia();
     mm.add("(prefers-reduced-motion: no-preference)", () => {
-      gsap.from("[data-reveal]", { autoAlpha: 0, y: 14, duration: .7, ease: "power3.out", stagger: .06, clearProps: "transform,opacity,visibility" });
+      gsap.from("[data-reveal]", { autoAlpha: 0.4, y: 8, duration: .35, ease: "power3.out", stagger: .04, clearProps: "transform,opacity,visibility" });
     });
     return () => mm.revert();
   }, { scope });
