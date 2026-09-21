@@ -64,18 +64,16 @@ Os testes de autenticação usam bancos SQLite em memória, separados dos dados 
 | --- | --- |
 | `/sign-in` | Entrar |
 | `/sign-up` | Criar conta |
-| `/app` | Redireciona para a central de comando |
-| `/app/command-center` | Central de comando |
+| `/app` | Redireciona para o Início |
+| `/app/command-center` | Início (em breve) |
 | `/app/agents` | Agentes |
-| `/app/spaces` | Espaços |
 | `/app/vault` | Cofre |
-| `/app/contract-intelligence` | Inteligência contratual |
 | `/app/research` | Pesquisa |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/platform/clients` | Administração da plataforma (conexões de IA por escritório) |
 
 As áreas de `/app` exigem sessão válida no servidor. Agentes e Cofre estão implementados;
-as demais exibem “Em breve”. `/platform` exige o papel de administrador da plataforma.
+Início e Pesquisa exibem “Em breve”. `/platform` exige o papel de administrador da plataforma.
 Tarefas de documentos precisam do worker (`pnpm worker`) em execução; veja
 [`apps/web/README.md`](apps/web/README.md).
 A interface usa pt-BR, tema claro e sidebar responsiva.

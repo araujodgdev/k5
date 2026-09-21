@@ -6,11 +6,15 @@ export const metadata = { title: "Cofre" };
 
 export default async function VaultPage() {
   const { office } = await requireVaultWorkspace();
+  const [initialCases, libraryCount] = await Promise.all([
+    listVaultCases(office.officeId),
+    countVaultDocuments(office.officeId, { scope: "library" }),
+  ]);
   return (
     <Reveal className="flex min-h-0 flex-1 flex-col">
       <VaultBrowser
-        initialCases={await listVaultCases(office.officeId)}
-        libraryCount={await countVaultDocuments(office.officeId, { scope: "library" })}
+        initialCases={initialCases}
+        libraryCount={libraryCount}
         role={office.role}
       />
     </Reveal>

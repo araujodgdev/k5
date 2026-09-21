@@ -97,20 +97,20 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
         <h2 className="text-base font-medium">Fontes desta conversa</h2>
         {onClose && <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar fontes"><X /></Button>}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-5 [&>*]:min-w-0">
         {attached.length === 0 && (
           <p className="text-sm text-subtle-foreground">
             Nenhum arquivo anexado. O assistente ainda pode procurar em todo o Cofre; anexe algo para restringir a conversa a esses arquivos.
           </p>
         )}
         {attached.map((document) => (
-          <div key={document.id} className="flex min-h-12 items-center gap-3 border-b py-2 text-sm last:border-b-0">
+          <div key={document.id} className="flex min-h-12 min-w-0 items-center gap-3 border-b py-2 text-sm last:border-b-0">
             <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="min-w-0 flex-1">
               <span className="block truncate">{document.name}</span>
@@ -120,24 +120,26 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
           </div>
         ))}
 
-        <div className="mt-7 grid gap-3">
+        <div className="mt-7 flex min-w-0 flex-col gap-3">
           <h3 className="text-sm font-medium">Adicionar do Cofre</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1.5">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-1.5">
               <Label htmlFor="sources-case">Caso</Label>
               <Select value={caseFilter} onValueChange={setCaseFilter}>
-                <SelectTrigger id="sources-case" className="w-full"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="sources-case" className="w-full max-w-full overflow-hidden [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent position="popper">
                   <SelectItem value={ALL_CASES}>Todos os casos e a biblioteca</SelectItem>
                   {cases.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-1.5">
+            <div className="flex min-w-0 flex-col gap-1.5">
               <Label htmlFor="sources-search">Buscar</Label>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle-foreground" aria-hidden="true" />
-                <Input id="sources-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nome do arquivo" className="pl-9" />
+                <Input id="sources-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nome do arquivo" className="h-11 pl-9 md:h-9" />
               </div>
             </div>
           </div>
@@ -147,13 +149,13 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
           {!loading && !loadError && available.length === 0 && (
             <p className="py-3 text-sm text-subtle-foreground">Nada mais para anexar aqui. <Link href="/app/vault" className="underline underline-offset-2">Abrir o Cofre</Link>.</p>
           )}
-          <div>
+          <div className="min-w-0">
             {available.slice(0, 60).map((document) => (
               <button
                 key={document.id}
                 type="button"
                 onClick={() => toggle(document.id)}
-                className="flex min-h-12 w-full items-center gap-3 border-b py-2 text-left text-sm outline-none last:border-b-0 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex min-h-12 min-w-0 w-full items-center gap-3 border-b py-2 text-left text-sm outline-none last:border-b-0 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span className="min-w-0 flex-1">

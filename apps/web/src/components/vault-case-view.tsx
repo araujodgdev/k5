@@ -33,6 +33,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
   const query = `caseId=${encodeURIComponent(vaultCase.id)}&folderId=${folderId ? encodeURIComponent(folderId) : "root"}`;
   const { documents, setDocuments } = usePolledDocuments(query, initialDocuments);
   const [view, setView] = useState<View>("list");
+  const [section, setSection] = useState<"files" | "processes">("files");
   const [failure, setFailure] = useState("");
   const [folderName, setFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -91,17 +92,27 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
         {vaultCase.description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{vaultCase.description}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1" role="group" aria-label="Modo de exibição">
-          <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "cards"} onClick={() => setView("cards")} aria-label="Ver em cartões"><LayoutGrid aria-hidden="true" /></Button>
-          <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "list"} onClick={() => setView("list")} aria-label="Ver em lista"><List aria-hidden="true" /></Button>
-        </div>
-        {canWrite && <Button type="button" variant="outline" aria-expanded={creatingFolder} onClick={() => { setCreatingFolder((value) => !value); setFailure(""); }}><FolderPlus aria-hidden="true" />Nova pasta</Button>}
-        <UploadControl canWrite={canWrite} scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={(document) => setDocuments((current) => [document, ...current])} />
+        {!folderId && (
+          <div className="flex gap-1" role="group" aria-label="Seção do caso">
+            <Button type="button" variant="ghost" className={section === "files" ? "bg-accent text-foreground" : ""} aria-pressed={section === "files"} onClick={() => setSection("files")}>Arquivos</Button>
+            <Button type="button" variant="ghost" className={section === "processes" ? "bg-accent text-foreground" : ""} aria-pressed={section === "processes"} onClick={() => setSection("processes")}>Processos</Button>
+          </div>
+        )}
+        {section === "files" && (
+          <>
+            <div className="flex gap-1" role="group" aria-label="Modo de exibição">
+              <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "cards"} onClick={() => setView("cards")} aria-label="Ver em cartões"><LayoutGrid aria-hidden="true" /></Button>
+              <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "list"} onClick={() => setView("list")} aria-label="Ver em lista"><List aria-hidden="true" /></Button>
+            </div>
+            {canWrite && <Button type="button" variant="outline" aria-expanded={creatingFolder} onClick={() => { setCreatingFolder((value) => !value); setFailure(""); }}><FolderPlus aria-hidden="true" />Nova pasta</Button>}
+            <UploadControl canWrite={canWrite} scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={(document) => setDocuments((current) => [document, ...current])} />
+          </>
+        )}
         {canWrite && <Button type="button" variant="ghost" aria-expanded={editing} onClick={() => setEditing((value) => !value)}>{editing ? "Fechar detalhes" : "Detalhes"}</Button>}
       </div>
     </div>
 
-    {creatingFolder && canWrite && <form onSubmit={submitFolder} className="flex flex-wrap items-end gap-3 border-b py-4">
+    {section === "files" && creatingFolder && canWrite && <form onSubmit={submitFolder} className="flex flex-wrap items-end gap-3 border-b py-4">
       <div className="grid gap-1.5"><Label htmlFor="folder-name">Nome da pasta</Label><Input id="folder-name" value={folderName} onChange={(event) => setFolderName(event.target.value)} maxLength={120} className="min-w-56" required /></div>
       <Button type="submit" disabled={!folderName.trim()}>Criar pasta</Button>
     </form>}
@@ -111,11 +122,9 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
     {failure && <p className="mt-4 flex items-start gap-2 text-sm text-destructive" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{failure}</p>}
 
     <div className="mt-5 min-h-0 overflow-auto">
-      {/* Processes belong to the case, so the panel stays at its root instead of following the
-          person into a subfolder, where it would be noise next to the files. */}
-      {!folderId && <JudicialCaseLinks caseId={vaultCase.id} canWrite={canWrite} />}
+      {!folderId && section === "processes" && <JudicialCaseLinks caseId={vaultCase.id} canWrite={canWrite} />}
 
-      {folders.length > 0 && (view === "cards" ? (
+      {section === "files" && folders.length > 0 && (view === "cards" ? (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {folders.map((folder) => (
             <div key={folder.id} className="relative">
@@ -141,6 +150,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
         </div>
       ))}
 
+      {section === "files" && (
       <DocumentRows
         documents={documents}
         canWrite={canWrite}
@@ -148,6 +158,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
         onRetried={(documentId) => setDocuments((current) => current.map((item) => item.id === documentId ? { ...item, status: "queued", progress: 0, errorMessage: null } : item))}
         empty={folderId ? "Esta pasta está vazia." : "Nenhum arquivo neste caso ainda."}
       />
+      )}
     </div>
   </div>;
 }

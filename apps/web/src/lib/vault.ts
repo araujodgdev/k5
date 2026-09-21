@@ -473,3 +473,16 @@ export async function processNextVaultDocument(): Promise<boolean> {
   await processDocument(claimed.document.id, claimed.document.officeId, claimed.owner);
   return true;
 }
+
+/** Claims one specific queued document so an upload can be extracted without waiting for the worker. */
+export async function processDocumentIfQueued(officeId: string, documentId: string): Promise<boolean> {
+  const owner = randomUUID();
+  const claimed = await database.prepare(`UPDATE vault_document
+      SET status = 'processing', progress = CASE WHEN progress > 0 THEN progress ELSE 1 END,
+        lease_owner = ?, lease_expires_at = datetime('now', '+5 minutes'), error_message = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND office_id = ? AND status = 'queued' AND deleted_at IS NULL
+      RETURNING id`).get<{ id: string }>(owner, documentId, officeId);
+  if (!claimed) return false;
+  await processDocument(documentId, officeId, owner);
+  return true;
+}
