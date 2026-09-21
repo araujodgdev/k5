@@ -5,11 +5,13 @@ import { database } from '@/lib/database';
 import { getDocumentChunks } from '@/lib/vault';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { WorkspaceContext } from '@/lib/application/context';
+import { assertCapabilityAllowed } from '@/lib/application/context';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 
 import { embedQuery, EmbeddingUnavailableError } from './embedding-provider';
 import { activeGeneration } from './indexing';
 import { vectorIndex } from './vector-index';
+import { rerank } from '@/lib/typesafe/rerank';
 
 export type SearchKnowledgeResult = CapabilityOutput<'k5_knowledge_search'>;
 
@@ -59,8 +61,8 @@ export async function searchKnowledgeEngine(
   const unique = [...new Set(documentIds)];
   const marks = unique.map(() => '?').join(',');
   const validDocs = await database.prepare(
-    `SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND id IN (${marks})`,
-  ).all(context.officeId, ...unique) as Array<{ id: string; name: string; status: string }>;
+    `SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND id IN (${marks})${input.caseId ? ' AND case_id=?' : ''}`,
+  ).all(context.officeId, ...unique, ...(input.caseId ? [input.caseId] : [])) as Array<{ id: string; name: string; status: string }>;
 
   if (validDocs.length !== unique.length) {
     throw new CapabilityError('NOT_FOUND', 'Um ou mais documentos selecionados não pertencem a este escritório ou foram excluídos.');
@@ -120,7 +122,7 @@ export async function searchKnowledgeEngine(
 
         hits.forEach((hit, rank) => {
           const row = byId.get(hit.chunkId);
-          if (!row) return;
+          if (!row || !nameMap.has(row.documentId)) return;
           const rrf = 1 / (RRF_K + rank + 1);
           const existing = scoreMap.get(hit.chunkId);
           if (existing) { existing.score += rrf; return; }
@@ -146,10 +148,25 @@ export async function searchKnowledgeEngine(
     }
   }
 
-  const sources = Array.from(scoreMap.values())
+  const candidates = Array.from(scoreMap.values())
     .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
+    .slice(0, Math.max(limit, 24))
     .map(({ sourceId, documentId, documentName, sourceLabel, text }) => ({ sourceId, documentId, documentName, sourceLabel, text }));
+  // Exclusion/version changes during retrieval must not send obsolete text to another provider.
+  const currentCandidates = async () => {
+    if (!candidates.length) return new Map<string, string>();
+    const ids = candidates.map(source => source.sourceId);
+    const fresh = await database.prepare(`SELECT c.id,c.content FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
+      WHERE d.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND c.id IN (${ids.map(() => '?').join(',')})${input.caseId ? ' AND d.case_id=?' : ''}`)
+      .all<{ id: string; content: string }>(context.officeId, ...ids, ...(input.caseId ? [input.caseId] : []));
+    return new Map(fresh.map(row => [row.id, row.content.slice(0, MAX_TEXT)]));
+  };
+  const current = await currentCandidates();
+  await assertCapabilityAllowed(context, 'k5_knowledge_search');
+  const ranked = await rerank(context, query, candidates.filter(source => current.get(source.sourceId) === source.text), { signal: context.signal });
+  await assertCapabilityAllowed(context, 'k5_knowledge_search');
+  const after = await currentCandidates();
+  const sources = ranked.sources.filter(source => after.get(source.sourceId) === source.text).slice(0, limit);
 
   // The query itself is not retained: a hash identifies repeats without storing what was asked.
   try {
@@ -165,5 +182,5 @@ export async function searchKnowledgeEngine(
     // Retrieval audit must never fail the user query.
   }
 
-  return { sources, degraded, ...(degraded && degradedReason ? { degradedReason } : {}) };
+  return { sources, degraded, reranking: { status: ranked.status, applied: ranked.applied, ...(ranked.reason ? { reason: ranked.reason } : {}) }, ...(degraded && degradedReason ? { degradedReason } : {}) };
 }

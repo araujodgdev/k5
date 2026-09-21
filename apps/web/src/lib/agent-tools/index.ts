@@ -19,12 +19,20 @@ import * as ui from '@/lib/application/ui-service';
 import * as platform from '@/lib/application/platform-service';
 import * as judicial from '@/lib/application/judicial-service';
 import * as agenda from '@/lib/application/agenda-service';
+import { getVerification, requestVerification } from '@/lib/typesafe/verification';
+import { interpretAgenda, getProposal, listProposals, applyProposal } from '@/lib/typesafe/agenda';
 import { endGlobalSession } from '@/lib/application/ui-service';
 
 type Executor = (context: WorkspaceContext, input: never) => unknown;
 
 /** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_agenda_interpret: interpretAgenda,
+  k5_agenda_get_proposal: getProposal,
+  k5_agenda_list_proposals: listProposals,
+  k5_agenda_apply_proposal: applyProposal,
+  k5_artifacts_get_verification: getVerification,
+  k5_artifacts_verify: requestVerification,
   k5_crm_list_clients: agenda.listClients,
   k5_crm_get_client: agenda.getClient,
   k5_crm_create_client: agenda.createClient,
@@ -132,7 +140,7 @@ function toolFor(name: CapabilityName, context: WorkspaceContext) {
     description: capability.description,
     inputSchema: capability.input,
     outputSchema: capability.output,
-    execute: async (input: unknown) => runCapability(context, name, input),
+    execute: async (input: unknown) => runCapability({ ...context, invocation: 'agent' }, name, input),
   });
 }
 
@@ -187,6 +195,11 @@ export function platformAgentTools(context: WorkspaceContext) {
 /** Short pt-BR line describing what a finished tool call did, stored with the conversation. */
 export function toolSummary(name: string, result: unknown, failed: boolean): string {
   const labels: Record<string, string> = {
+    k5_agenda_interpret: 'Preparou uma sugestão para revisar na Agenda',
+    k5_agenda_get_proposal: 'Consultou uma sugestão de agenda',
+    k5_agenda_list_proposals: 'Consultou as sugestões de agenda',
+    k5_artifacts_get_verification: 'Consultou a sustentação nas fontes',
+    k5_artifacts_verify: 'Solicitou a verificação documental',
     k5_crm_list_clients: 'Consultou os clientes',
     k5_crm_get_client: 'Consultou um cliente',
     k5_crm_create_client: 'Cadastrou um cliente',

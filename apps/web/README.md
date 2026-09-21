@@ -79,8 +79,10 @@ exigem a versão lida; tarefas concluídas e reuniões canceladas permanecem no 
 Tarefas usam datas civis opcionais; reuniões exigem início e fim com offset, persistidos em
 UTC e apresentados no fuso do navegador. Não há cálculo automático de prazos judiciais.
 
-As nove capacidades `k5_crm_*` e `k5_agenda_*` usam o mesmo executor da interface,
-Mastra e WebMCP. Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
+As capacidades `k5_crm_*` e `k5_agenda_*` usam o mesmo executor da interface,
+Mastra e WebMCP. Agentes preparam sugestões por `k5_agenda_interpret`; criação,
+alteração e confirmação de atividades ficam disponíveis somente na interface humana.
+Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
 escritas verificam origem e papel. Chaves de idempotência evitam criação duplicada em
 repetições, inclusive simultâneas. `k5_ui_open_resource` abre agenda, cliente e atividade.
 O botão **Atualizar** recarrega alterações realizadas pelo agente ou por outro integrante.
@@ -108,6 +110,13 @@ O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
   editor em `/app/documents/[id]`, com exportação DOCX no timbrado do modelo.
 - **Worker:** processamento de documentos, cronologias e minutas roda fora da requisição.
   Em outro terminal, execute `pnpm worker` na raiz. Sem ele, os itens ficam na fila.
+- **TypeSafe/Jev:** configure a conexão por escritório em `/platform/clients/[officeId]/ai`.
+  Reranking do Cofre, verificação documental e sugestões da Agenda possuem modos
+  independentes: desligado, avaliar sem aplicar e ativado. Todos começam desligados.
+  A chave usa a mesma cifra/rotação das demais conexões; não existe chave global
+  de produção em variável de ambiente. Jev não aparece no seletor de modelos do chat.
+  A verificação documental roda no worker e nunca aprova uma minuta automaticamente.
+  Veja [operação e validação TypeSafe](../../docs/typesafe-implementacao.md).
 - **Infraestrutura judicial (fundação):** vínculo de processos, coleta de publicações,
   proveniência e caixa interna de eventos. A coleta roda em um worker próprio,
   `pnpm judicial:worker`, separado do worker de documentos porque OCR e coleta competem por

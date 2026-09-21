@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createCipheriv, randomBytes, randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
@@ -22,10 +22,9 @@ import { nodeSqliteDatabase } from "../src/lib/db/node-sqlite";
 function fixture() {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON; CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL, name TEXT NOT NULL);");
-  db.exec(readFileSync(new URL("../db/migrations/0001_offices.sql", import.meta.url), "utf8"));
-  db.exec(readFileSync(new URL("../db/migrations/0002_platform.sql", import.meta.url), "utf8"));
-  db.exec(readFileSync(new URL("../db/migrations/0005_ai_providers.sql", import.meta.url), "utf8"));
-  db.exec(readFileSync(new URL("../db/migrations/0008_ai_connection_embedding.sql", import.meta.url), "utf8"));
+  for (const file of readdirSync(new URL('../db/migrations/', import.meta.url)).filter(name => name.endsWith('.sql')).sort()) {
+    db.exec(readFileSync(new URL(`../db/migrations/${file}`, import.meta.url), 'utf8'));
+  }
   const admin = randomUUID(), outsider = randomUUID(), officeA = randomUUID(), officeB = randomUUID();
   db.prepare("INSERT INTO user (id,email,name) VALUES (?,?,?),(?,?,?)").run(admin, "admin@example.test", "Admin", outsider, "other@example.test", "Other");
   db.prepare("INSERT INTO office (id,name) VALUES (?,?),(?,?)").run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia");

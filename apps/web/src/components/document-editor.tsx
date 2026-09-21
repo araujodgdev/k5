@@ -15,6 +15,7 @@ import {
   Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DocumentVerification } from './document-verification';
 
 type ArtifactReference = {
   id?: string;
@@ -222,6 +223,7 @@ export function DocumentEditor({ artifactId }: { artifactId: string }) {
             )}
           </section>
 
+          <DocumentVerification artifactId={artifact.id} version={artifact.version} dirty={dirty} />
           <section className="mt-8 border-t pt-5">
             <h2 className="font-medium">Fontes</h2>
             {references.length === 0 ? <p className="mt-3 text-sm text-subtle-foreground">Nenhuma fonte vinculada.</p> : (

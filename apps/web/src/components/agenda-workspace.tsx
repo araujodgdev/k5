@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { AgendaEditor, agendaCall, localDate, selectStyle, type Choice } from './agenda-forms';
 import type { OfficeRole } from '@/lib/offices';
 import type { AgendaActivity, CrmClient } from '@/lib/capabilities/agenda';
+import { AgendaSuggestions } from './agenda-suggestions';
 
 type View = 'tasks' | 'calendar' | 'clients';
 type Editor = { mode: 'activity'; activity?: AgendaActivity } | { mode: 'client'; client?: CrmClient };
@@ -35,8 +36,8 @@ function Calendar({ day, onChange }: { day: string; onChange: (value: string) =>
   </section>;
 }
 
-export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialActivityId }: {
-  role: OfficeRole; initialCaseId: string; initialClientId: string; initialActivityId: string;
+export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialActivityId, initialProposalId = '' }: {
+  role: OfficeRole; initialCaseId: string; initialClientId: string; initialActivityId: string; initialProposalId?: string;
 }) {
   const canWrite = role !== 'reviewer';
   const [view, setView] = useState<View>('tasks');
@@ -142,6 +143,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       {view !== 'clients' && <select aria-label="Filtrar por cliente" value={clientId} onChange={event => { setClientId(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">Todos os clientes</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
       <select aria-label={view === 'clients' ? 'Filtrar relacionamento' : 'Filtrar situação'} value={status} onChange={event => { setStatus(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">{view === 'clients' ? 'Todos os relacionamentos' : 'Todas as situações'}</option>{Object.entries(view === 'clients' ? stageLabels : statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
     </div>
+    {canWrite && optionsReady && view !== 'clients' && <AgendaSuggestions cases={cases} clients={clients} members={members} day={day} timeZone={timeZone} initialProposalId={initialProposalId} refreshed={refresh} />}
     {(failure || optionsFailure || detailFailure) && <div className="mb-4 flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-destructive">{failure || optionsFailure || detailFailure}</p><Button variant="outline" onClick={refresh}>Tentar novamente</Button></div>}
     {clientId && view !== 'clients' && clients.some(c => c.id === clientId) && <div className="mb-4"><Button variant="outline" onClick={() => inspect({ mode: 'client', client: clients.find(c => c.id === clientId)! })}>Dados de {findName(clients, clientId)}</Button></div>}
     <div className={view === 'calendar' ? 'flex flex-col gap-8 md:flex-row' : ''}>

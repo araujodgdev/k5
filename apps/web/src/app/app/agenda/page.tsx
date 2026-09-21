@@ -7,5 +7,5 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   const { office } = await requireWorkspace();
   const params = await searchParams;
   const value = (key: string) => typeof params[key] === 'string' ? params[key] as string : '';
-  return <AgendaWorkspace key={JSON.stringify([value('caseId'), value('clientId'), value('activityId')])} role={office.role} initialCaseId={value('caseId')} initialClientId={value('clientId')} initialActivityId={value('activityId')} />;
+  return <AgendaWorkspace key={JSON.stringify([value('caseId'), value('clientId'), value('activityId'), value('proposalId')])} role={office.role} initialCaseId={value('caseId')} initialClientId={value('clientId')} initialActivityId={value('activityId')} initialProposalId={value('proposalId')} />;
 }
