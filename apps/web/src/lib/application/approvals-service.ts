@@ -59,22 +59,32 @@ export async function createApprovalProposal(
 }
 
 export async function approveProposal(context: WorkspaceContext, approvalId: string): Promise<ApprovalRow> {
+  const now = Date.now();
   const row = await database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
     .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
-  if (row.expires_at < Date.now()) throw new CapabilityError('CONFLICT', 'A solicitação de aprovação expirou.');
+  if (row.expires_at < now) throw new CapabilityError('CONFLICT', 'A solicitação de aprovação expirou.');
   if (row.status !== 'pending') throw new CapabilityError('CONFLICT', `A solicitação está ${row.status}.`);
 
-  await database.prepare("UPDATE capability_approval SET status='approved' WHERE id=?").run(approvalId);
-  return await database.prepare('SELECT * FROM capability_approval WHERE id=?').get(approvalId) as ApprovalRow;
+  const transitioned = await database.prepare(
+    "UPDATE capability_approval SET status='approved' WHERE id=? AND office_id=? AND user_id=? AND status='pending' AND expires_at>=? RETURNING *",
+  ).get(approvalId, context.officeId, context.userId, now) as ApprovalRow | undefined;
+  if (!transitioned) throw new CapabilityError('CONFLICT', 'A solicitação já foi decidida.');
+  return transitioned;
 }
 
 export async function rejectProposal(context: WorkspaceContext, approvalId: string): Promise<ApprovalRow> {
+  const now = Date.now();
   const row = await database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
     .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
-  await database.prepare("UPDATE capability_approval SET status='rejected' WHERE id=?").run(approvalId);
-  return await database.prepare('SELECT * FROM capability_approval WHERE id=?').get(approvalId) as ApprovalRow;
+  if (row.expires_at < now) throw new CapabilityError('CONFLICT', 'A solicitação de aprovação expirou.');
+  if (row.status !== 'pending') throw new CapabilityError('CONFLICT', `A solicitação está ${row.status}.`);
+  const transitioned = await database.prepare(
+    "UPDATE capability_approval SET status='rejected' WHERE id=? AND office_id=? AND user_id=? AND status='pending' AND expires_at>=? RETURNING *",
+  ).get(approvalId, context.officeId, context.userId, now) as ApprovalRow | undefined;
+  if (!transitioned) throw new CapabilityError('CONFLICT', 'A solicitação já foi decidida.');
+  return transitioned;
 }
 
 export async function getApprovalProposal(context: WorkspaceContext, approvalId: string): Promise<ApprovalRow> {
@@ -91,7 +101,8 @@ export async function requireAndConsumeApproval(
   inputForProposal: Record<string, unknown>,
   targetResourceId?: string | null,
   targetVersion?: number | null,
-  description = 'Esta operação requer confirmação explícita antes de ser executada.'
+  description = 'Esta operação requer confirmação explícita antes de ser executada.',
+  options: { allowConsumedRetry?: boolean } = {},
 ) {
   if (!approvalId) {
     const proposal = await createApprovalProposal(context, capabilityName, inputForProposal, targetResourceId, targetVersion);
@@ -103,7 +114,13 @@ export async function requireAndConsumeApproval(
   if (!row) throw new CapabilityError('NOT_FOUND', 'Código de aprovação não encontrado.');
   if (row.expires_at < Date.now()) throw new CapabilityError('CONFLICT', 'Esta aprovação expirou. Solicite uma nova confirmação.');
   if (row.capability_name !== capabilityName) throw new CapabilityError('FORBIDDEN', 'Aprovação inválida para esta operação.');
-  if (row.status === 'consumed') throw new CapabilityError('CONFLICT', 'Esta aprovação já foi utilizada.');
+  if (row.status === 'consumed') {
+    const sameResource = !targetResourceId || !row.target_resource_id || row.target_resource_id === targetResourceId;
+    const sameVersion = targetVersion === undefined || targetVersion === null || row.target_version === null || row.target_version === targetVersion;
+    const sameInput = row.normalized_input === canonicalInput(inputForProposal);
+    if (options.allowConsumedRetry && sameResource && sameVersion && sameInput) return;
+    throw new CapabilityError('CONFLICT', 'Esta aprovação já foi utilizada.');
+  }
   if (targetResourceId && row.target_resource_id && row.target_resource_id !== targetResourceId) {
     throw new CapabilityError('FORBIDDEN', 'A aprovação não corresponde ao recurso alvo indicado.');
   }
@@ -119,5 +136,12 @@ export async function requireAndConsumeApproval(
   const consumed = await database.prepare(
     "UPDATE capability_approval SET status='consumed', consumed_at=CURRENT_TIMESTAMP WHERE id=? AND status='approved'",
   ).run(approvalId);
-  if (!consumed.changes) throw new CapabilityError('CONFLICT', 'Esta aprovação já foi utilizada.');
+  if (!consumed.changes) {
+    if (options.allowConsumedRetry) {
+      const latest = await database.prepare('SELECT status FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
+        .get(approvalId, context.officeId, context.userId) as Pick<ApprovalRow, 'status'> | undefined;
+      if (latest?.status === 'consumed') return;
+    }
+    throw new CapabilityError('CONFLICT', 'Esta aprovação já foi utilizada.');
+  }
 }

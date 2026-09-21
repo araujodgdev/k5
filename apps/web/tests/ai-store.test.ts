@@ -110,3 +110,27 @@ test("updateArtifact enforces optimistic version conflicts", async () => {
   const history = db.prepare("SELECT version FROM ai_artifact_version WHERE artifact_id = ? ORDER BY version").all(artifactId) as Array<{ version: number }>;
   assert.deepEqual(history.map(h => h.version), [2]);
 });
+
+test("updateArtifact rolls back the artifact when history cannot be recorded", async () => {
+  const { db, database, userA, officeA } = fixture();
+  const owner = { officeId: officeA, userId: userA };
+  const runId = randomUUID();
+  db.prepare(`INSERT INTO ai_run (id, office_id, user_id, kind, input, lease_token) VALUES (?,?,?,?,?,?)`)
+    .run(runId, officeA, userA, "draft", "{}", randomUUID());
+  const artifactId = randomUUID();
+  db.prepare(`INSERT INTO ai_artifact (id, office_id, user_id, run_id, title, content) VALUES (?,?,?,?,?,?)`)
+    .run(artifactId, officeA, userA, runId, "Minuta", "v1");
+  db.exec(`CREATE TRIGGER reject_artifact_history BEFORE INSERT ON ai_artifact_version
+    BEGIN SELECT RAISE(ABORT, 'history failure'); END;`);
+
+  await assert.rejects(
+    () => updateArtifact(database, owner, artifactId, "Minuta revisada", "v2", 1),
+    /history failure/,
+  );
+
+  const artifact = await ownedArtifact(database, owner, artifactId);
+  assert.equal(artifact?.version, 1);
+  assert.equal(artifact?.title, "Minuta");
+  assert.equal(artifact?.content, "v1");
+  assert.equal(db.prepare("SELECT count(*) AS total FROM ai_artifact_version WHERE artifact_id=?").get(artifactId)!.total, 0);
+});

@@ -59,14 +59,18 @@ export function d1Database(binding: D1Binding): Database {
       await binding.exec(sql.replace(/\r\n/g, "\n"));
     },
     async batch(statements: readonly BoundStatement[]) {
-      if (statements.length === 0) return;
-      await binding.batch(
+      if (statements.length === 0) return [];
+      const results = await binding.batch(
         statements.map(entry =>
           entry.params.length === 0
             ? binding.prepare(entry.sql)
             : binding.prepare(entry.sql).bind(...entry.params),
         ),
       );
+      return results.map(({ meta }) => ({
+        changes: meta.changes ?? 0,
+        lastInsertRowid: meta.last_row_id ?? 0,
+      }));
     },
     async close() {
       // The binding is owned by the runtime, not by this process.

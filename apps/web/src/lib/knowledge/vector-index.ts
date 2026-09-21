@@ -186,8 +186,40 @@ function batched<T>(items: readonly T[], size: number): T[][] {
   return batches;
 }
 
-/** Cloudflare Vectorize over the REST API, namespaced per office. */
-class VectorizeIndex implements VectorIndex {
+type VectorizeMatch = { score?: number; metadata?: unknown };
+
+export interface VectorizeBinding {
+  upsert(vectors: Array<{ id: string; values: number[]; namespace: string; metadata: Record<string, string> }>): Promise<unknown>;
+  query(vector: number[], options: {
+    topK: number;
+    namespace: string;
+    returnMetadata: 'indexed';
+    filter: { generationId: { $eq: string }; documentId: { $in: string[] } };
+  }): Promise<{ matches?: VectorizeMatch[] }>;
+  deleteByIds(ids: string[]): Promise<unknown>;
+}
+
+function mergeVectorizeMatches(responses: Array<{ matches?: VectorizeMatch[] }>, topK: number): VectorHit[] {
+  const best = new Map<string, number>();
+  for (const response of responses) {
+    for (const match of response.matches ?? []) {
+      const metadata = match.metadata;
+      const chunkId = metadata && typeof metadata === 'object' && 'chunkId' in metadata
+        ? (metadata as { chunkId?: unknown }).chunkId
+        : undefined;
+      if (typeof chunkId !== 'string') continue;
+      const score = Number(match.score);
+      if (!best.has(chunkId) || score > best.get(chunkId)!) best.set(chunkId, score);
+    }
+  }
+  return [...best.entries()]
+    .map(([chunkId, score]) => ({ chunkId, score }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+}
+
+/** Cloudflare Vectorize over the REST API, used by Node workers outside the Workers runtime. */
+class RestVectorizeIndex implements VectorIndex {
   readonly kind = 'vectorize' as const;
 
   constructor(private readonly config: { accountId: string; indexName: string; apiToken: string }) {}
@@ -229,25 +261,9 @@ class VectorizeIndex implements VectorIndex {
         namespace: officeId,
         returnMetadata: 'indexed',
         filter: { generationId: { $eq: generationId }, documentId: { $in: documentIds } },
-      }) as Promise<{ result?: { matches?: Array<{ score: number; metadata?: { chunkId?: string } }> } }>),
+      }) as Promise<{ result?: { matches?: VectorizeMatch[] } }>),
     );
-
-    const best = new Map<string, number>();
-    for (const body of responses) {
-      for (const match of body.result?.matches ?? []) {
-        const chunkId = match.metadata?.chunkId;
-        if (typeof chunkId !== 'string') continue;
-        const score = Number(match.score);
-        // A chunk belongs to exactly one document, so it can only come back from one partition;
-        // the guard is here so a duplicate would keep its best score rather than its last.
-        if (!best.has(chunkId) || score > best.get(chunkId)!) best.set(chunkId, score);
-      }
-    }
-
-    return [...best.entries()]
-      .map(([chunkId, score]) => ({ chunkId, score }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, options.topK);
+    return mergeVectorizeMatches(responses.map((body) => body.result ?? {}), options.topK);
   }
 
   async removeDocument(officeId: string, documentId: string) {
@@ -273,25 +289,97 @@ class VectorizeIndex implements VectorIndex {
   }
 }
 
-let cached: VectorIndex | undefined;
+/** Cloudflare Vectorize through the Worker binding declared in wrangler.jsonc. */
+class BoundVectorizeIndex implements VectorIndex {
+  readonly kind = 'vectorize' as const;
 
-export function vectorIndex(): VectorIndex {
-  if (cached) return cached;
-  const backend = process.env.VECTOR_INDEX_BACKEND;
-  if (backend === 'vectorize' && process.env.CF_ACCOUNT_ID && process.env.VECTORIZE_INDEX && process.env.CF_API_TOKEN) {
-    cached = new VectorizeIndex({
-      accountId: process.env.CF_ACCOUNT_ID,
-      indexName: process.env.VECTORIZE_INDEX,
-      apiToken: process.env.CF_API_TOKEN,
-    });
-  } else if (backend === 'pgvector' && process.env.VECTOR_DATABASE_URL) {
-    cached = new PgVectorIndex(process.env.VECTOR_DATABASE_URL);
-  } else {
-    cached = new SqliteVectorIndex();
+  constructor(private readonly binding: VectorizeBinding) {}
+
+  async upsert(officeId: string, generationId: string, records: VectorRecord[]) {
+    if (!records.length) return;
+    await this.binding.upsert(records.map((record) => ({
+      id: `${generationId}:${record.chunkId}`,
+      values: Array.from(record.embedding),
+      namespace: officeId,
+      metadata: { officeId, generationId, documentId: record.documentId, chunkId: record.chunkId },
+    })));
   }
-  return cached;
+
+  async query(officeId: string, generationId: string, embedding: Float32Array, options: VectorQuery) {
+    if (!options.documentIds.length) return [];
+    const responses = await Promise.all(
+      batched(options.documentIds, VECTORIZE_FILTER_VALUES).map((documentIds) => this.binding.query(Array.from(embedding), {
+        topK: options.topK,
+        namespace: officeId,
+        returnMetadata: 'indexed',
+        filter: { generationId: { $eq: generationId }, documentId: { $in: documentIds } },
+      })),
+    );
+    return mergeVectorizeMatches(responses, options.topK);
+  }
+
+  async removeDocument(officeId: string, documentId: string) {
+    const ids = await database.prepare('SELECT chunk_id AS chunkId, generation_id AS generationId FROM vault_document_chunk_vector WHERE office_id = ? AND document_id = ?')
+      .all(officeId, documentId) as Array<{ chunkId: string; generationId: string }>;
+    await this.deleteIds(ids.map((row) => `${row.generationId}:${row.chunkId}`));
+  }
+
+  async removeGeneration(officeId: string, generationId: string) {
+    const ids = await database.prepare('SELECT chunk_id AS chunkId FROM vault_document_chunk_vector WHERE office_id = ? AND generation_id = ?')
+      .all(officeId, generationId) as Array<{ chunkId: string }>;
+    await this.deleteIds(ids.map((row) => `${generationId}:${row.chunkId}`));
+  }
+
+  private async deleteIds(ids: string[]) {
+    for (const batch of batched(ids, VECTORIZE_DELETE_IDS)) await this.binding.deleteByIds(batch);
+  }
 }
 
-export function resetVectorIndexForTests(index?: VectorIndex) {
+let cached: VectorIndex | undefined;
+let resolving: Promise<VectorIndex> | undefined;
+let testVectorizeBinding: VectorizeBinding | undefined;
+
+async function workerVectorizeBinding(): Promise<VectorizeBinding | undefined> {
+  try {
+    const { env } = await import(/* webpackIgnore: true */ 'cloudflare:workers');
+    return env.KNOWLEDGE as VectorizeBinding | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveVectorIndex(): Promise<VectorIndex> {
+  if (cached) return cached;
+  const backend = process.env.VECTOR_INDEX_BACKEND;
+  if (backend === 'vectorize') {
+    const binding = testVectorizeBinding ?? await workerVectorizeBinding();
+    if (binding) return new BoundVectorizeIndex(binding);
+    if (process.env.CF_ACCOUNT_ID && process.env.VECTORIZE_INDEX && process.env.CF_API_TOKEN) {
+      return new RestVectorizeIndex({
+        accountId: process.env.CF_ACCOUNT_ID,
+        indexName: process.env.VECTORIZE_INDEX,
+        apiToken: process.env.CF_API_TOKEN,
+      });
+    }
+    throw new Error("Vectorize foi solicitado, mas o binding 'KNOWLEDGE' e as credenciais REST não estão disponíveis.");
+  }
+  if (backend === 'pgvector' && process.env.VECTOR_DATABASE_URL) return new PgVectorIndex(process.env.VECTOR_DATABASE_URL);
+  return new SqliteVectorIndex();
+}
+
+export async function vectorIndex(): Promise<VectorIndex> {
+  if (cached) return cached;
+  resolving ??= resolveVectorIndex();
+  try {
+    cached = await resolving;
+    return cached;
+  } finally {
+    resolving = undefined;
+  }
+}
+
+export function resetVectorIndexForTests(index?: VectorIndex, binding?: VectorizeBinding) {
   cached = index;
+  resolving = undefined;
+  testVectorizeBinding = binding;
 }

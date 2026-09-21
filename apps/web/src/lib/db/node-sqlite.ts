@@ -43,13 +43,17 @@ export function nodeSqliteDatabase(db: DatabaseSync): Database {
       db.exec(sql);
     },
     async batch(statements: readonly BoundStatement[]) {
-      if (statements.length === 0) return;
+      if (statements.length === 0) return [];
       // A real transaction, which is what this backend has and D1 does not. IMMEDIATE takes the
       // write lock up front so two workers cannot both begin and then collide on the first write.
       db.exec("BEGIN IMMEDIATE");
       try {
-        for (const entry of statements) db.prepare(entry.sql).run(...(entry.params as never[]));
+        const results = statements.map((entry) => {
+          const result = db.prepare(entry.sql).run(...(entry.params as never[]));
+          return { changes: Number(result.changes), lastInsertRowid: Number(result.lastInsertRowid) };
+        });
         db.exec("COMMIT");
+        return results;
       } catch (error) {
         db.exec("ROLLBACK");
         throw error;

@@ -100,7 +100,7 @@ export async function searchKnowledgeEngine(
   } else {
     try {
       const { embedding } = await embedQuery(context.officeId, query);
-      const hits = await vectorIndex().query(context.officeId, generation.id, embedding, {
+      const hits = await (await vectorIndex()).query(context.officeId, generation.id, embedding, {
         documentIds: unique,
         topK: Math.max(limit * 3, 24),
       });

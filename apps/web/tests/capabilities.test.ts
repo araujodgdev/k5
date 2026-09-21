@@ -145,6 +145,57 @@ test("vault service: idempotent case creation, update and deletion with approval
   );
 });
 
+test("vault deletion clears stale folders when documents move to another case", async () => {
+  const { userLawyer, officeA } = seedFixture();
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const source = await vaultService.createCase(context, { name: `Origem ${randomUUID()}` });
+  const target = await vaultService.createCase(context, { name: `Destino ${randomUUID()}` });
+  const folder = await vaultService.createFolder(context, { caseId: source.case.id, name: "Pasta antiga" });
+  const documentId = randomUUID();
+  testDb.prepare(`
+    INSERT INTO vault_document
+      (id, office_id, case_id, folder_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
+    VALUES (?, ?, ?, ?, 'case', 'prova.pdf', ?, 'application/pdf', 10, 'sha', 'ready', ?)
+  `).run(documentId, officeA, source.case.id, folder.folder.id, `stored-${documentId}.pdf`, userLawyer);
+
+  const proposal = await approvalsService.createApprovalProposal(context, "k5_vault_delete_case", {
+    caseId: source.case.id,
+    targetCaseId: target.case.id,
+  });
+  await approvalsService.approveProposal(context, proposal.id);
+  await vaultService.deleteCase(context, { caseId: source.case.id, targetCaseId: target.case.id, approvalId: proposal.id });
+
+  const moved = testDb.prepare("SELECT case_id AS caseId, folder_id AS folderId FROM vault_document WHERE id=?").get(documentId) as { caseId: string; folderId: string | null };
+  assert.equal(moved.caseId, target.case.id);
+  assert.equal(moved.folderId, null);
+});
+
+test("vault deletion can resume after approval consumption", async () => {
+  const { userLawyer, officeA } = seedFixture();
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const source = await vaultService.createCase(context, { name: `Retomavel ${randomUUID()}` });
+  const proposal = await approvalsService.createApprovalProposal(context, "k5_vault_delete_case", { caseId: source.case.id });
+  await approvalsService.approveProposal(context, proposal.id);
+
+  const originalBatch = testDatabase.batch.bind(testDatabase);
+  testDatabase.batch = async () => { throw new Error("injected batch failure"); };
+  try {
+    await assert.rejects(
+      () => vaultService.deleteCase(context, { caseId: source.case.id, approvalId: proposal.id }),
+      /injected batch failure/,
+    );
+  } finally {
+    testDatabase.batch = originalBatch;
+  }
+
+  assert.equal((await approvalsService.getApprovalProposal(context, proposal.id)).status, "consumed");
+  assert.ok(testDb.prepare("SELECT id FROM vault_case WHERE id=? AND deleted_at IS NULL").get(source.case.id));
+
+  const retried = await vaultService.deleteCase(context, { caseId: source.case.id, approvalId: proposal.id });
+  assert.equal(retried.success, true);
+  assert.equal(testDb.prepare("SELECT id FROM vault_case WHERE id=? AND deleted_at IS NULL").get(source.case.id), undefined);
+});
+
 test("vault document service: versions, tombstone and office isolation", async () => {
   const { userLawyer, userOfficeB, officeA, officeB } = seedFixture();
   const contextA: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
@@ -455,12 +506,12 @@ test("knowledge engine: vectors fuse with lexical hits and tombstones stay out",
 
   // The index adapter stores float32 blobs; the query vector is produced by the server, never
   // by the caller, so the test drives the adapter the same way the worker does.
-  await vectorIndex().upsert(officeA, genId, [
+  await (await vectorIndex()).upsert(officeA, genId, [
     { chunkId: chunkId1, documentId: docId, embedding: Float32Array.from([1, 0, 0]) },
     { chunkId: chunkId2, documentId: docId, embedding: Float32Array.from([0, 1, 0]) },
   ]);
 
-  const hits = await vectorIndex().query(officeA, genId, Float32Array.from([0, 1, 0]), { documentIds: [docId], topK: 5 });
+  const hits = await (await vectorIndex()).query(officeA, genId, Float32Array.from([0, 1, 0]), { documentIds: [docId], topK: 5 });
   assert.equal(hits[0]?.chunkId, chunkId2, "cosine similarity ranks the semantically closest chunk first");
 
   // Without an embedding profile the search degrades to lexical, and says so.

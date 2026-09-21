@@ -237,7 +237,7 @@ test("vectorize: a scope wider than one filter batch is queried whole, not trunc
   }) as unknown as typeof globalThis.fetch;
 
   try {
-    const hits = await vectorIndex().query("escritorio", "geracao", new Float32Array([1, 0]), { documentIds, topK: 10 });
+    const hits = await (await vectorIndex()).query("escritorio", "geracao", new Float32Array([1, 0]), { documentIds, topK: 10 });
 
     assert.equal(seen.length, 2, "the scope is fanned out across requests");
     assert.deepEqual(seen.flat().sort(), [...documentIds].sort(), "every document in scope reaches the index");
@@ -248,6 +248,50 @@ test("vectorize: a scope wider than one filter batch is queried whole, not trunc
     assert.deepEqual(hits.map((hit) => hit.score), [...hits.map((hit) => hit.score)].sort((a, b) => b - a));
   } finally {
     globalThis.fetch = realFetch;
+    process.env = previous;
+    resetVectorIndexForTests(undefined);
+  }
+});
+
+test("vectorize: an explicit backend never silently falls back to SQLite", async () => {
+  const previous = { ...process.env };
+  process.env.VECTOR_INDEX_BACKEND = "vectorize";
+  delete process.env.CF_ACCOUNT_ID;
+  delete process.env.VECTORIZE_INDEX;
+  delete process.env.CF_API_TOKEN;
+  resetVectorIndexForTests(undefined);
+
+  try {
+    await assert.rejects(() => vectorIndex(), /Vectorize/);
+  } finally {
+    process.env = previous;
+    resetVectorIndexForTests(undefined);
+  }
+});
+
+test("vectorize: the Worker binding is preferred without REST credentials", async () => {
+  const previous = { ...process.env };
+  process.env.VECTOR_INDEX_BACKEND = "vectorize";
+  delete process.env.CF_ACCOUNT_ID;
+  delete process.env.VECTORIZE_INDEX;
+  delete process.env.CF_API_TOKEN;
+  const queries: unknown[] = [];
+  resetVectorIndexForTests(undefined, {
+    upsert: async () => ({}),
+    query: async (_vector, options) => {
+      queries.push(options);
+      return { matches: [{ score: 0.9, metadata: { chunkId: "chunk-binding" } }] };
+    },
+    deleteByIds: async () => ({}),
+  });
+
+  try {
+    const index = await vectorIndex();
+    const hits = await index.query("office", "generation", new Float32Array([1, 0]), { documentIds: ["document"], topK: 5 });
+    assert.equal(index.kind, "vectorize");
+    assert.deepEqual(hits, [{ chunkId: "chunk-binding", score: 0.9 }]);
+    assert.equal(queries.length, 1);
+  } finally {
     process.env = previous;
     resetVectorIndexForTests(undefined);
   }

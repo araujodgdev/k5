@@ -28,11 +28,13 @@ devolveria menos resultados do que o pedido, ou resultados de outro escritório.
 | `VECTOR_INDEX_BACKEND` | ausente (SQLite) | `pgvector` | `vectorize` |
 | `VECTOR_DATABASE_URL` | — | container `vectors` | Neon |
 | `R2_BUCKET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | — | — | obrigatórias |
-| `CF_ACCOUNT_ID`, `VECTORIZE_INDEX`, `CF_API_TOKEN` | — | — | obrigatórias |
+| `CF_ACCOUNT_ID`, `VECTORIZE_INDEX`, `CF_API_TOKEN` | — | — | somente verificação/worker Node |
 | `NEXT_PUBLIC_WEBMCP_ENABLED` | opcional | opcional | opcional |
 
 Sem `VECTOR_INDEX_BACKEND` o índice é o SQLite local: força bruta exata sobre o escopo
 selecionado, correta e suficiente para desenvolvimento, inadequada para um acervo real.
+No Worker, `VECTOR_INDEX_BACKEND=vectorize` usa diretamente o binding `KNOWLEDGE`; as credenciais
+REST acima existem apenas para processos Node e para `verify-staging.ts`.
 
 ## 1. Local, sem Docker
 

@@ -196,6 +196,23 @@ test("approval: a colleague cannot approve a proposal addressed to someone else"
   );
 });
 
+test("approval: concurrent decisions cannot overwrite the first transition", async () => {
+  const { lawyer } = seedOffices();
+  const proposal = await approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", { documentId: "doc-race" });
+
+  // Both calls reach their first await before either continuation runs. Rejection is deliberately
+  // started first, so an unconditional approval update would overwrite it on the next microtask.
+  const [rejected, approved] = await Promise.allSettled([
+    approvalsService.rejectProposal(lawyer, proposal.id),
+    approvalsService.approveProposal(lawyer, proposal.id),
+  ]);
+
+  assert.equal(rejected.status, "fulfilled");
+  assert.equal(approved.status, "rejected");
+  assert.ok(approved.status === "rejected" && approved.reason instanceof CapabilityError && approved.reason.code === "CONFLICT");
+  assert.equal((await approvalsService.getApprovalProposal(lawyer, proposal.id)).status, "rejected");
+});
+
 test("publication: no adapter may offer a capability marked unpublished", () => {
   const agentNames = publishedCapabilitiesForRole("administrator", "agent");
   const browserNames = publishedCapabilitiesForRole("administrator", "webmcp");

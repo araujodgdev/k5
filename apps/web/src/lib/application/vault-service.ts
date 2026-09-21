@@ -89,23 +89,31 @@ export async function deleteCase(context: WorkspaceContext, input: CapabilityInp
     input.caseId,
     null,
     'Exclusão de caso no Cofre requer aprovação explícita.',
+    { allowConsumedRetry: true },
   );
 
-  // Documents are reassigned, never cascade-deleted: removing a folder is not removing its contents.
   if (input.targetCaseId) {
-    const target = await database.prepare('SELECT id FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL').get(input.targetCaseId, context.officeId);
+    const target = await database.prepare('SELECT id FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL')
+      .get(input.targetCaseId, context.officeId);
     if (!target) throw new CapabilityError('NOT_FOUND', 'Caso de destino não encontrado.');
-    await database.prepare('UPDATE vault_document SET case_id=?, updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL')
-      .run(input.targetCaseId, input.caseId, context.officeId);
-  } else {
-    await database.prepare("UPDATE vault_document SET case_id=NULL, scope='library', updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL")
-      .run(input.caseId, context.officeId);
   }
 
-  // The case's own folder tree goes with it; the documents were already reassigned above.
-  await database.prepare('UPDATE vault_folder SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL').run(input.caseId, context.officeId);
-  await database.prepare('UPDATE vault_document SET folder_id=NULL WHERE case_id=? AND office_id=?').run(input.caseId, context.officeId);
-  await database.prepare('UPDATE vault_case SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=?').run(input.caseId, context.officeId);
+  // Documents are reassigned, never cascade-deleted: removing a folder is not removing its contents.
+  const documentMove = input.targetCaseId
+    ? database.prepare("UPDATE vault_document SET case_id=?, folder_id=NULL, scope='case', updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL")
+      .bind(input.targetCaseId, input.caseId, context.officeId)
+    : database.prepare("UPDATE vault_document SET case_id=NULL, folder_id=NULL, scope='library', updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL")
+      .bind(input.caseId, context.officeId);
+
+  // A retry may arrive after the approval was consumed. These idempotent writes land together, so
+  // it observes either the live case or the completed deletion, never a partially emptied case.
+  await database.batch([
+    documentMove,
+    database.prepare('UPDATE vault_folder SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND deleted_at IS NULL')
+      .bind(input.caseId, context.officeId),
+    database.prepare('UPDATE vault_case SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL')
+      .bind(input.caseId, context.officeId),
+  ]);
   return { success: true };
 }
 

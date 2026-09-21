@@ -54,17 +54,23 @@ export function publicArtifact(row: ArtifactRow) {
 /**
  * Saves an edit, or returns null when someone else saved first.
  *
- * The conditional `UPDATE ... RETURNING` is the whole concurrency control: `version=?` means only
- * one of two simultaneous saves changes a row, and the loser gets no row back rather than
- * overwriting. That is atomic on its own, so no lock is held across the two writes — which is
- * what lets this run on D1.
- *
- * The history row is written after, keyed by the version the update just minted. It can only
- * duplicate a version if the same update succeeded twice, which the version guard prevents.
+ * The conditional history insert and artifact update share one atomic batch. If another save won
+ * first, both statements change zero rows; if either write fails, D1/SQLite rolls both back.
  */
 export async function updateArtifact(db: Database, owner: Owner, id: string, title: string, content: string, version: number) {
-  const row = await db.prepare(`UPDATE ai_artifact SET title=?,content=?,version=version+1,status='needs_review',updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND user_id=? AND version=? RETURNING *`).get(title, content, id, owner.officeId, owner.userId, version) as ArtifactRow | undefined;
-  if (!row) return null;
-  await db.prepare('INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id) VALUES(?,?,?,?,?)').run(id, row.version, title, content, owner.userId);
-  return row;
+  const current = await db.prepare('SELECT * FROM ai_artifact WHERE id=? AND office_id=? AND user_id=? AND version=?')
+    .get(id, owner.officeId, owner.userId, version) as ArtifactRow | undefined;
+  if (!current) return null;
+
+  const [history] = await db.batch([
+    db.prepare(`INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id)
+      SELECT id,version+1,?,?,? FROM ai_artifact
+      WHERE id=? AND office_id=? AND user_id=? AND version=?`)
+      .bind(title, content, owner.userId, id, owner.officeId, owner.userId, version),
+    db.prepare(`UPDATE ai_artifact SET title=?,content=?,version=version+1,status='needs_review',updated_at=CURRENT_TIMESTAMP
+      WHERE id=? AND office_id=? AND user_id=? AND version=?`)
+      .bind(title, content, id, owner.officeId, owner.userId, version),
+  ]);
+  if (history.changes !== 1) return null;
+  return { ...current, title, content, version: version + 1, status: 'needs_review' };
 }

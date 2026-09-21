@@ -128,8 +128,12 @@ provisiona o escritório. `authStore()` resolve o primeiro a partir do mesmo bac
 
 1. Backend de `ObjectStorage` sobre binding R2, ao lado do backend S3 que já existe.
 2. Worker: Cron e Queues para o que roda em Workers; o que precisa de OCR fica em Node.
-3. `wrangler secret put` para `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` e `K5_CREDENTIALS_KEY`,
-   seguido de `wrangler deploy`.
+3. `wrangler secret put` para `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` e `K5_CREDENTIALS_KEY`.
+4. `pnpm --filter @k5/web build:vinext` para gerar o bundle.
+5. `pnpm --filter @k5/web deploy:vinext` para aplicar primeiro as migrações remotas do D1 e,
+   somente se todas concluírem, publicar o Worker. O script executa
+   `wrangler d1 migrations apply DB --remote --config wrangler.jsonc` antes do deploy; não publique
+   o bundle isoladamente, pois uma versão nova pode depender de tabelas ainda ausentes.
 
 O Cofre ainda grava no backend de sistema de arquivos, então um deploy agora serve as rotas
 autenticadas, mas perde os originais enviados quando o isolate morre. O passo 1 é o que falta

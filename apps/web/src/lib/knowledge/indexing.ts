@@ -147,7 +147,7 @@ async function claimIndexJob(): Promise<{ job: JobRow; owner: string } | undefin
  */
 async function runIndexJob(job: JobRow, owner: string): Promise<void> {
   const profile = await embeddingProfile(job.office_id);
-  const index = vectorIndex();
+  const index = await vectorIndex();
   let cursor = Number(job.cursor_ordinal);
   let done = Number(job.chunks_done);
 
@@ -252,7 +252,7 @@ export async function processNextDeletion(): Promise<boolean> {
 
   try {
     if (row.kind === 'object') await objectStorage().delete(row.ref);
-    else await vectorIndex().removeDocument(row.officeId, row.ref);
+    else await (await vectorIndex()).removeDocument(row.officeId, row.ref);
     await close();
   } catch (error) {
     // A reference the current key format rejects belongs to a document stored before the adapter

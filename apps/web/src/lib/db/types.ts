@@ -49,7 +49,7 @@ export interface Database {
    * queued job, for instance — the replacement is a single conditional `UPDATE ... RETURNING`,
    * which is atomic on its own and says the same thing without pretending to hold a lock.
    */
-  batch(statements: readonly BoundStatement[]): Promise<void>;
+  batch(statements: readonly BoundStatement[]): Promise<RunResult[]>;
   /** Releases the handle. A no-op where connections are not owned by the process. */
   close(): Promise<void>;
 }
