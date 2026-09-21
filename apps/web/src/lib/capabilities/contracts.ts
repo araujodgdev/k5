@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { agendaCapabilities } from './agenda';
+import { verificationCapabilities } from './verification';
 import type { OfficeRole } from '@/lib/offices';
 
 /**
@@ -135,6 +136,7 @@ export const judicialAlertDto = z.object({
 
 export const capabilities = {
   ...agendaCapabilities,
+  ...verificationCapabilities,
   k5_vault_list_cases: {
     module: 'vault', effect: 'read', roles: readers,
     description: 'Lista os casos do Cofre do escritório, do mais recente ao mais antigo.',
@@ -257,12 +259,13 @@ export const capabilities = {
       query: z.string().trim().min(2).max(500).describe('Pergunta ou termos a buscar, em português.'),
       documentIds: documentIds.optional().describe('Restringe a busca a estes documentos. Omita para buscar em todo o Cofre.'),
       caseId: identifier.optional().describe('Restringe a busca aos documentos de um caso.'),
-      limit: z.number().int().min(1).max(12).default(8),
+      limit: z.number().int().min(1).max(24).default(8),
     }),
     output: z.object({
       sources: z.array(sourceDto),
       degraded: z.boolean().describe('Verdadeiro quando a busca foi apenas lexical.'),
       degradedReason: z.string().optional().describe('Por que a busca semântica não foi usada.'),
+      reranking: z.object({ status: z.enum(['evaluated', 'disabled', 'unavailable', 'budget_exceeded']), applied: z.boolean(), reason: z.string().optional() }).optional(),
     }),
   },
   k5_knowledge_get_source: {

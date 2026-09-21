@@ -65,7 +65,7 @@ function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
 }
 
 test("capabilities contract: complete catalog and role permissions", () => {
-  assert.equal(capabilityNames.length, 59, "All 59 capabilities declared");
+  assert.equal(capabilityNames.length, 65, "All 65 capabilities declared");
 
   const reviewerCaps = capabilitiesForRole("reviewer");
   const lawyerCaps = capabilitiesForRole("lawyer");
@@ -78,8 +78,8 @@ test("capabilities contract: complete catalog and role permissions", () => {
   }
 
   // Lawyers and Admins have all capabilities
-  assert.equal(lawyerCaps.length, 59);
-  assert.equal(adminCaps.length, 59);
+  assert.equal(lawyerCaps.length, 65);
+  assert.equal(adminCaps.length, 65);
 });
 
 test("authorization: dynamic role check and membership revocation", async () => {
@@ -605,7 +605,7 @@ test("webmcp: every published capability has a route, a schema and typed failure
         stableReference: "página:1", scope: "library",
         installationId: randomUUID(), linkId: randomUUID(), publicationId: randomUUID(),
         jobId: randomUUID(), alertId: randomUUID(), number: "0000001-05.2025.8.26.0100",
-        clientId: randomUUID(), activityId: randomUUID(), kind: 'task',
+        clientId: randomUUID(), activityId: randomUUID(), kind: 'task', message: 'Criar tarefa de revisão', proposalId: randomUUID(),
       });
       assert.equal(result.ok, true, `${name} should reach a route: ${JSON.stringify(result)}`);
     }

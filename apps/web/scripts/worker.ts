@@ -4,6 +4,7 @@ if (existsSync('.env.local')) process.loadEnvFile('.env.local');
 async function main() {
   const { processNextVaultDocument } = await import('../src/lib/vault');
   const { processNextRun } = await import('../src/lib/document-workflows');
+  const { processNextVerification } = await import('../src/lib/typesafe/verification');
   const { processNextIndexJob, processNextDeletion } = await import('../src/lib/knowledge/indexing');
   const { sweepExpiredUploadRefs } = await import('../src/lib/application/uploads-service');
   const { sweepExpiredSecretRefs } = await import('../src/lib/application/secrets-service');
@@ -19,6 +20,7 @@ async function main() {
       const ingested = await processNextVaultDocument();
       const indexed = await processNextIndexJob();
       const processed = await processNextRun();
+      const verified = await processNextVerification();
       const deleted = await processNextDeletion();
 
       // Expired references are swept on a slow cadence; they are cleanup, not queue work.
@@ -29,7 +31,7 @@ async function main() {
       }
 
       if (process.argv.includes('--once')) break;
-      if (!ingested && !indexed && !processed && !deleted) await new Promise(resolve => setTimeout(resolve, 1500));
+      if (!ingested && !indexed && !processed && !deleted && !verified) await new Promise(resolve => setTimeout(resolve, 1500));
     } catch (error) {
       // The message is what makes an ingestion or indexing failure diagnosable; swallowing it
       // leaves a queue that stalls with no way to find out why.

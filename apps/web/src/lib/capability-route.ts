@@ -23,7 +23,7 @@ export async function handleCapability(
     } else if (request.method === 'DELETE') {
       body = (await limitedJson(request).catch(() => ({}))) as Record<string, unknown>;
     }
-    const result = await runCapability(workspaceContext(workspace), name, { ...body, ...extra });
+    const result = await runCapability({ ...workspaceContext(workspace), signal: request.signal, ...(request.headers.get('x-k5-surface') === 'webmcp' ? { invocation: 'webmcp' as const } : {}) }, name, { ...body, ...extra });
     return Response.json(result, { status: write && request.method === 'POST' ? 201 : 200 });
   } catch (error) { return apiError(error); }
 }

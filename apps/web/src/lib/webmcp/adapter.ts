@@ -31,6 +31,12 @@ const id = (value: unknown) => encodeURIComponent(String(value ?? ''));
  * may not exist or may not belong to this office.
  */
 const routes: Record<CapabilityName, Route> = {
+  k5_agenda_interpret: { method: 'POST', path: () => '/api/agenda/proposals/interpret', body: i => i },
+  k5_agenda_get_proposal: { method: 'POST', path: () => '/api/agenda/proposals/get', body: i => i },
+  k5_agenda_list_proposals: { method: 'POST', path: () => '/api/agenda/proposals/list', body: i => i },
+  k5_agenda_apply_proposal: { method: 'POST', path: () => '/api/agenda/proposals/apply', body: i => i },
+  k5_artifacts_get_verification: { method: 'GET', path: i => `/api/artifacts/${id(i.artifactId)}/verification` },
+  k5_artifacts_verify: { method: 'POST', path: i => `/api/artifacts/${id(i.artifactId)}/verification`, body: i => i },
   k5_crm_list_clients: { method: 'POST', path: () => '/api/agenda/clients/list', body: i => i },
   k5_crm_get_client: { method: 'POST', path: () => '/api/agenda/clients/get', body: i => i },
   k5_crm_create_client: { method: 'POST', path: () => '/api/agenda/clients/create', body: i => i },
@@ -182,6 +188,7 @@ export async function executeViaHttp(
   name: CapabilityName,
   rawInput: Record<string, unknown>,
   signal?: AbortSignal,
+  surface?: 'webmcp',
 ): Promise<WebMCPResult> {
   const capability = capabilities[name];
 
@@ -197,7 +204,7 @@ export async function executeViaHttp(
   try {
     const response = await fetch(route.path(input), {
       method: route.method,
-      headers: route.body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: { ...(route.body ? { 'Content-Type': 'application/json' } : {}), ...(surface ? { 'x-k5-surface': surface } : {}) },
       body: route.body ? JSON.stringify(route.body(input)) : undefined,
       signal,
     });
@@ -252,7 +259,7 @@ export function registerWebMCPCapabilities(role: OfficeRole): () => void {
     try {
       const registered = context.registerTool(
         definition,
-        async (input, execution) => executeViaHttp(name, input ?? {}, execution?.signal),
+        async (input, execution) => executeViaHttp(name, input ?? {}, execution?.signal, 'webmcp'),
         { signal: lifetime.signal },
       );
 

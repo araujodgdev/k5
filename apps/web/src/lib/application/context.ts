@@ -10,6 +10,10 @@ export type WorkspaceContext = {
   officeId: string;
   role: OfficeRole;
   sessionId?: string;
+  /** Set by server adapters, never read from capability inputs. */
+  invocation?: 'agent' | 'webmcp';
+  signal?: AbortSignal;
+  agendaConfirmation?: { proposalId: string; hash: string };
   /** The model the person selected for this turn. Absent means K5's default for the provider. */
   model?: { provider: string; modelId: string };
 };
@@ -53,6 +57,9 @@ async function sessionIdColumn(): Promise<string | null> {
  */
 export async function assertCapabilityAllowed(context: WorkspaceContext, name: CapabilityName) {
   const capability = capabilities[name];
+  if (context.invocation && ['k5_agenda_create_activity', 'k5_agenda_update_activity', 'k5_agenda_apply_proposal'].includes(name)) {
+    throw new CapabilityError('APPROVAL_REQUIRED', 'Prepare uma sugestão para a pessoa revisar e salvar na Agenda.');
+  }
 
   if (context.sessionId) {
     const column = await sessionIdColumn();

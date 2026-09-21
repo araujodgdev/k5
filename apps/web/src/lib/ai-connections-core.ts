@@ -268,7 +268,7 @@ export async function testAiConnection(
 }
 
 async function pendingReencryption(db: Database, keyring: CredentialKeyring) {
-  const rows = await db.prepare("SELECT id, office_id, encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL AND encrypted_api_key IS NOT NULL").all() as Array<{ id: string; office_id: string; encrypted_api_key: string }>;
+  const rows = await db.prepare("SELECT 'ai_connection' AS kind,id,office_id,encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL AND encrypted_api_key IS NOT NULL UNION ALL SELECT 'typesafe_connection' AS kind,office_id AS id,office_id,encrypted_api_key FROM typesafe_connection WHERE encrypted_api_key IS NOT NULL").all() as Array<{ kind: 'ai_connection' | 'typesafe_connection'; id: string; office_id: string; encrypted_api_key: string }>;
   return { total: rows.length, pending: rows.filter((row) => { try { return credentialNeedsReencryption(row.encrypted_api_key, keyring); } catch { return true; } }) };
 }
 
@@ -283,7 +283,7 @@ export async function countSecretsNeedingReencryption(db: Database, keyring: Cre
 export async function reencryptAiConnectionSecrets(db: Database, keyring: CredentialKeyring, actorUserId: string) {
   const { total, pending } = await pendingReencryption(db, keyring);
   const writes = pending.flatMap((row) => [
-    db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?")
+    db.prepare(row.kind === 'typesafe_connection' ? "UPDATE typesafe_connection SET encrypted_api_key = ? WHERE office_id = ?" : "UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?")
       .bind(encryptCredential(readSecret(row.encrypted_api_key, keyring), keyring), row.id),
     auditStatement(db, actorUserId, row.office_id, row.id, "ai_connection.master_key_reencrypted", { keyId: keyring.current.id }),
   ]);

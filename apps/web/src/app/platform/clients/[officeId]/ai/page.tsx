@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { PlatformConnections } from "@/components/platform-connections";
 import { getOfficeForPlatform, listAiConnections } from "@/lib/ai-connections-core";
 import { requirePlatformPage } from "@/lib/platform";
+import { TypesafeSettings } from '@/components/typesafe-settings';
+import { connectionView } from '@/lib/typesafe/config';
 
 export const metadata = { title: "Conexões de IA" };
 
@@ -19,6 +21,7 @@ export default async function ClientAiPage({ params }: PageProps<"/platform/clie
         <div><h1 className="display text-[28px]">Conexões de IA</h1><p className="mt-1 text-muted-foreground">{office.name}</p></div>
       </div>
       <PlatformConnections officeId={office.id} initialConnections={await listAiConnections(context.db, office.id)} />
+      <TypesafeSettings officeId={office.id} initial={await connectionView(office.id)} />
     </section>
   );
 }

@@ -6,8 +6,12 @@ import { database } from './database';
 import { selectedSources } from './ai-sources';
 import { generateStructured } from './ai-runtime';
 import { citationCandidates, quoteIsPresent, type SourceChunk, type CitationCandidate } from './ai-policy';
-import { assembleDraftSection, chronologyEvents, composeChronology, composeDraft, divergenceKinds, validateDivergences, type Divergence, type DraftSection, type Extraction, type SourceRef } from './document-composition';
+import { assembleDraftSection, chronologyEvents, composeChronology, composeDraft, divergenceKinds, escapeMarkdown, validateDivergences, type Divergence, type DraftSection, type Extraction, type SourceRef } from './document-composition';
 import { claimRun, type RunRow } from './ai-store';
+import { searchKnowledgeEngine } from './knowledge/retrieval';
+import { enqueueVerification } from './typesafe/verification';
+import type { VerificationUnit } from './typesafe/verification-contracts';
+import { ownedArtifact } from './ai-store';
 
 /** The model the person chose when the run was queued; absent falls back to K5's provider default. */
 const runModel = (run: RunRow) => run.model_provider && run.model_id ? { provider: run.model_provider, modelId: run.model_id } : undefined;
@@ -105,20 +109,26 @@ async function draft(run: RunRow, input: RunInput, template: SourceChunk[], sour
     await saveCheckpoint(run, 'outline', outline);
   }
   const sections: DraftSection[] = [];
+  const verificationUnits: VerificationUnit[] = [];
   const paragraphSchema = z.object({ paragraphs: z.array(z.object({ text: z.string(), evidence: z.array(z.object({ sourceId: z.string(), quote: z.string() })).max(8) })).max(30), gaps: z.array(z.string()).max(20) });
   for (let i = 0; i < outline.sections.length; i++) {
     await stillAuthorized(run);
     const section = outline.sections[i];
     let result = await checkpoint<z.infer<typeof paragraphSchema>>(run, `draft:${i}`);
     if (!result) {
-      const retrieved = (await selectedSources(run.office_id, input.documentIds, section.search)).slice(0, 24);
+      const member = await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?').get<{ role: 'administrator' | 'lawyer' }>(run.office_id, run.user_id);
+      const retrieved = (await searchKnowledgeEngine({ officeId: run.office_id, userId: run.user_id, role: member!.role }, { query: section.search.slice(0, 500), documentIds: input.documentIds, limit: 24 })).sources
+        .map(source => ({ id: source.sourceId, sourceLabel: source.sourceLabel, text: source.text }));
       result = await generateStructured(run.office_id, run.user_id, 'drafting', `Redija a seção '${section.heading}': ${section.purpose}. Pedido: ${input.instructions}\nNão inclua NENHUMA citação ou referência jurídica; os textos autorizados serão anexados pelo sistema. Cada parágrafo factual precisa de evidence com sourceId (o identificador entre colchetes) e citação literal de pelo menos 12 caracteres. Não escreva identificadores nem referências de fonte no texto; o sistema as adiciona. Sem evidência, escreva [PENDENTE DE INFORMAÇÃO], não invente nomes, datas, números ou pedidos específicos. Use escrita formal coerente com o modelo.\nEstilo (não fatos): ${template.map(t => t.text).join('\n').slice(0, 12000)}\nFONTES DO CASO:\n${retrieved.map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 90000)}`, paragraphSchema, runModel(run));
       await saveCheckpoint(run, `draft:${i}`, result);
     }
-    sections.push(assembleDraftSection(section.heading, i, result, sources));
+    const assembled = assembleDraftSection(section.heading, i, result, sources);
+    sections.push(assembled);
+    verificationUnits.push(...result.paragraphs.filter(paragraph => assembled.markdown.includes(paragraph.text))
+      .map((paragraph, n) => ({ id: `section-${i}-paragraph-${n}`, text: paragraph.text, evidence: paragraph.evidence })));
     await progress(run, Math.round(65 + (i + 1) / outline.sections.length * 25));
   }
-  return composeDraft(outline.title, sections, approved);
+  return { ...composeDraft(outline.title, sections, approved), verificationUnits };
 }
 
 async function executeRun(run: RunRow) {
@@ -135,6 +145,7 @@ async function executeRun(run: RunRow) {
   } });
   const compose = createStep({ id: 'compose', inputSchema: idSchema, outputSchema: idSchema, execute: async () => {
     let title: string, content: string, issues: string[], refs: SourceRef[];
+    let verificationUnits: VerificationUnit[];
     if (input.kind === 'chronology') {
       // Every selected chunk must have been extracted: similarity search alone does not guarantee coverage.
       const extracted = await Promise.all(sources.map(s => checkpoint<Extraction>(run, `extract:${s.id}`)));
@@ -142,8 +153,10 @@ async function executeRun(run: RunRow) {
       await progress(run, 70);
       const review = await reviewDivergences(run, extracted as Extraction[]);
       ({ title, content, issues, refs } = composeChronology(extracted as Extraction[], sources, review.divergences, review.note ? [review.note] : []));
+      verificationUnits = chronologyEvents(extracted as Extraction[]).filter(event => content.includes(escapeMarkdown(event.description)))
+        .map(event => ({ id: `event-${event.index}`, text: `${event.date ?? 'Data não informada'}: ${event.description}`, evidence: [{ sourceId: event.sourceId, quote: event.quote }] }));
     } else {
-      ({ title, content, issues, refs } = await draft(run, input, template, sources, approved));
+      ({ title, content, issues, refs, verificationUnits } = await draft(run, input, template, sources, approved));
     }
     await stillAuthorized(run);
     const existing = await database.prepare('SELECT id FROM ai_artifact WHERE run_id=?').get(run.id);
@@ -153,6 +166,9 @@ async function executeRun(run: RunRow) {
         .run(artifactId, run.office_id, run.user_id, run.id, title, content, JSON.stringify(refs), JSON.stringify(issues), 'needs_review', input.templateId ?? null);
       await database.prepare('INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id) VALUES(?,1,?,?,?)').run(artifactId, title, content, run.user_id);
     }
+    const artifact = await ownedArtifact(database, { officeId: run.office_id, userId: run.user_id }, artifactId);
+    if (artifact && artifact.title === title && artifact.content === content)
+      await enqueueVerification({ officeId: run.office_id, userId: run.user_id }, artifact, verificationUnits);
     await database.prepare("UPDATE ai_run SET status='completed',progress=100,artifact_id=?,lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=?").run(artifactId, run.id, run.lease_token);
     return { runId: run.id };
   } });
