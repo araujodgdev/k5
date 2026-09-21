@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { assertSameOrigin, createVaultDocument, listVaultDocuments, processDocumentIfQueued, publicDocument, requireVaultWorkspace, requireVaultWriteRole, VaultHttpError } from "@/lib/vault";
+import { assertSameOrigin, createVaultDocument, drainQueuedDocument, listVaultDocuments, publicDocument, requireVaultWorkspace, requireVaultWriteRole, VaultHttpError } from "@/lib/vault";
 import { vaultErrorResponse } from "@/lib/vault-api";
 import { workspaceContext } from "@/lib/application/context";
 import { consumeUploadRef, createUploadRef } from "@/lib/application/uploads-service";
@@ -47,22 +47,9 @@ export async function POST(request: Request) {
     });
     const officeId = context.officeId;
     const documentId = document.id;
-    // Awaited, not fire-and-forget: `after` only keeps the runtime alive for the promise it is
-    // handed, and a dropped chain here leaves the document queued forever.
-    after(async () => {
-      try {
-        const started = await processDocumentIfQueued(officeId, documentId);
-        if (!started) return;
-        try {
-          const { processNextIndexJob } = await import("@/lib/knowledge/indexing");
-          await processNextIndexJob();
-        } catch {
-          // Lexical search is already available once extraction finishes.
-        }
-      } catch (error) {
-        console.error("Ingestão após envio:", error instanceof Error ? error.message : error);
-      }
-    });
+    // The arrow returns the promise rather than dropping it: `after` only keeps the runtime alive
+    // for the promise it is handed, and a dropped chain here leaves the document queued forever.
+    after(() => drainQueuedDocument(officeId, documentId));
     // Public projection only: the stored key, the office id and the lease never leave the server.
     return Response.json({ document: publicDocument(document) }, { status: 201 });
   } catch (error) { return vaultErrorResponse(error); }

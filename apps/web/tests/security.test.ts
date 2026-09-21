@@ -159,6 +159,26 @@ test("tombstone: a deleted document cannot be resurrected through retry", async 
   assert.ok(Number(queued.n) >= 1, "physical cleanup is queued after the tombstone, not instead of it");
 });
 
+test("retry: a document left in the queue can be requeued, a live one cannot", async () => {
+  const { lawyer, officeA } = seedOffices();
+  const upload = await seedUpload(lawyer, "parado.pdf");
+  const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "library" })).document.id;
+
+  // Ingestion on Workers is kicked by the request that queues the document. When that kick never
+  // lands the row sits in `queued`, and rejecting it here would leave the interface with a stuck
+  // document and no button that does anything about it.
+  assert.equal((await findVaultDocument(officeA, documentId))?.status, "queued");
+  await retryVaultDocument(officeA, documentId);
+  assert.equal((await findVaultDocument(officeA, documentId))?.status, "queued", "still claimable");
+
+  // `processing` is someone else's lease, and `ready` is work that is done. Neither is stuck.
+  testDb.prepare("UPDATE vault_document SET status='processing' WHERE id=?").run(documentId);
+  await assert.rejects(
+    () => retryVaultDocument(officeA, documentId),
+    (error: unknown) => error instanceof VaultHttpError && error.status === 409,
+  );
+});
+
 test("idempotency: a reused key with different arguments conflicts instead of replaying", async () => {
   const { lawyer, admin } = seedOffices();
 

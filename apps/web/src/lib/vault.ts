@@ -344,12 +344,16 @@ export async function readVaultDocumentFile(officeId: string, documentId: string
 }
 
 export async function retryVaultDocument(officeId: string, documentId: string) {
-  // `deleted_at IS NULL` is the point: deletion parks the row in `failed`, which is exactly the
-  // state this transition accepts, so without it a tombstone could be reprocessed back into view.
+  // `queued` alongside `failed`: a document whose ingestion never started is stuck in exactly the
+  // same way as one that threw, and on Workers it stays that way until a request drains it. The
+  // row is already in the target state, so this is a no-op that lets the caller kick it.
+  //
+  // `deleted_at IS NULL` is the point of the rest: deletion parks the row in `failed`, which is
+  // a state this transition accepts, so without it a tombstone could be reprocessed back into view.
   const result = await database.prepare(`UPDATE vault_document
     SET status = 'queued', progress = 0, error_message = NULL, lease_owner = NULL, lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP
-    WHERE office_id = ? AND id = ? AND status = 'failed' AND deleted_at IS NULL`).run(officeId, documentId);
-  if (!result.changes) throw new VaultHttpError(409, "Somente documentos com falha podem ser reenviados.");
+    WHERE office_id = ? AND id = ? AND status IN ('failed', 'queued') AND deleted_at IS NULL`).run(officeId, documentId);
+  if (!result.changes) throw new VaultHttpError(409, "Somente documentos com falha ou na fila podem ser reenviados.");
 }
 
 export async function getDocumentChunks(officeId: string, documentIds: string[], query?: string): Promise<DocumentChunk[]> {
@@ -472,6 +476,31 @@ export async function processNextVaultDocument(): Promise<boolean> {
   if (!claimed) return false;
   await processDocument(claimed.document.id, claimed.document.officeId, claimed.owner);
   return true;
+}
+
+/**
+ * Extracts the document this request just queued, then indexes it.
+ *
+ * Callers hand this to `after`, so it settles in the background of their own request. On
+ * Cloudflare that is the only thing that drains the queue: `scripts/worker.ts` is a long-running
+ * Node process and no such process exists in a Worker, so a document nobody kicks here keeps the
+ * status “na fila” forever. Every path that moves a document to `queued` owes it this call.
+ *
+ * Failures are logged rather than thrown: `processDocument` has already written the reason onto
+ * the row, which is where the interface reads it from, and nothing is left to catch this.
+ */
+export async function drainQueuedDocument(officeId: string, documentId: string) {
+  try {
+    if (!await processDocumentIfQueued(officeId, documentId)) return;
+    try {
+      const { processNextIndexJob } = await import("@/lib/knowledge/indexing");
+      await processNextIndexJob();
+    } catch {
+      // Lexical search is already available once extraction finishes.
+    }
+  } catch (error) {
+    console.error("Ingestão após envio:", error instanceof Error ? error.message : error);
+  }
 }
 
 /** Claims one specific queued document so an upload can be extracted without waiting for the worker. */
