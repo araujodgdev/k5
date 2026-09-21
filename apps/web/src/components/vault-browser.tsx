@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CaseDelete } from "@/components/vault-case-delete";
 import type { OfficeRole } from "@/lib/offices";
 import type { VaultCase } from "@/lib/vault";
 
@@ -37,6 +38,7 @@ export function VaultBrowser({ initialCases, libraryCount, role }: { initialCase
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState("");
   const canWrite = role !== "reviewer";
+  const drop = (caseId: string) => setCases((current) => current.filter((item) => item.id !== caseId));
 
   async function submitCase(event: FormEvent) {
     event.preventDefault();
@@ -97,27 +99,33 @@ export function VaultBrowser({ initialCases, libraryCount, role }: { initialCase
             <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(libraryCount)}</span>
           </Link>
           {cases.map((item) => (
-            <Link key={item.id} href={`/app/vault/cases/${item.id}`} className="grid min-h-28 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
-              <span className="flex items-center gap-2 font-medium"><FolderClosed className="size-4 text-muted-foreground" aria-hidden="true" /><span className="truncate">{item.name}</span></span>
-              <span className="line-clamp-2 text-sm text-muted-foreground">{item.description || item.client.name || "Sem descrição"}</span>
-              <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(item.documentCount)} · {formatDate(item.updatedAt)}</span>
-            </Link>
+            <div key={item.id} className="relative">
+              <Link href={`/app/vault/cases/${item.id}`} className="grid min-h-28 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
+                <span className="flex items-center gap-2 font-medium"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate pr-8">{item.name}</span></span>
+                <span className="line-clamp-2 text-sm text-muted-foreground">{item.description || item.client.name || "Sem descrição"}</span>
+                <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(item.documentCount)} · {formatDate(item.updatedAt)}</span>
+              </Link>
+              {canWrite && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} className="absolute top-2 right-2" />}
+            </div>
           ))}
         </div>
       ) : (
         <div>
-          <div className="hidden grid-cols-[minmax(240px,1fr)_120px_120px] gap-4 border-b pb-2 text-[13px] text-muted-foreground md:grid"><span>Pasta</span><span>Arquivos</span><span>Atualizado</span></div>
+          <div className="hidden gap-4 border-b pb-2 text-[13px] text-muted-foreground md:grid md:grid-cols-[minmax(240px,1fr)_120px_120px_44px]"><span>Pasta</span><span>Arquivos</span><span>Atualizado</span><span className="sr-only">Ações</span></div>
           <Link href="/app/vault/library" className="grid min-h-12 grid-cols-[minmax(0,1fr)] items-center gap-4 border-b py-2 text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(240px,1fr)_120px_120px]">
             <span className="flex min-w-0 items-center gap-2"><Library className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate">Biblioteca</span></span>
             <span className="hidden text-muted-foreground md:block">{libraryCount}</span>
             <span className="hidden text-muted-foreground md:block">—</span>
           </Link>
           {cases.map((item) => (
-            <Link key={item.id} href={`/app/vault/cases/${item.id}`} className="grid min-h-12 grid-cols-[minmax(0,1fr)] items-center gap-4 border-b py-2 text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(240px,1fr)_120px_120px]">
-              <span className="flex min-w-0 items-center gap-2"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate">{item.name}</span></span>
-              <span className="hidden text-muted-foreground md:block">{item.documentCount}</span>
-              <span className="hidden text-muted-foreground md:block">{formatDate(item.updatedAt)}</span>
-            </Link>
+            <div key={item.id} className="flex items-center border-b">
+              <Link href={`/app/vault/cases/${item.id}`} className="grid min-h-12 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] items-center gap-4 py-2 text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(240px,1fr)_120px_120px]">
+                <span className="flex min-w-0 items-center gap-2"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate">{item.name}</span></span>
+                <span className="hidden text-muted-foreground md:block">{item.documentCount}</span>
+                <span className="hidden text-muted-foreground md:block">{formatDate(item.updatedAt)}</span>
+              </Link>
+              {canWrite && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} />}
+            </div>
           ))}
         </div>
       )}

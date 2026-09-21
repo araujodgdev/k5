@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DocumentRows, UploadControl, usePolledDocuments } from "@/components/vault-files";
-import { approveAndRun } from "@/lib/approve-and-run";
+import { CaseDelete } from "@/components/vault-case-delete";
 import { JudicialCaseLinks } from "@/components/judicial-case-links";
 import type { OfficeRole } from "@/lib/offices";
 import type { VaultCase, VaultDocument, VaultFolder } from "@/lib/vault";
@@ -63,19 +63,6 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
     router.refresh();
   }
 
-  async function removeCase() {
-    setFailure("");
-    const failure = await approveAndRun("k5_vault_delete_case", { caseId: vaultCase.id }, (approvalId) =>
-      fetch(`/api/vault/cases/${vaultCase.id}`, {
-        method: "DELETE",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ approvalId }),
-      }));
-    if (failure) { setFailure(failure); return; }
-    router.push("/app/vault");
-    router.refresh();
-  }
-
   async function removeFolder(id: string) {
     setFailure("");
     const response = await fetch(`/api/vault/folders/${id}`, { method: "DELETE" });
@@ -123,7 +110,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
           </>
         )}
         {canWrite && <Button type="button" variant="ghost" aria-expanded={editing} onClick={() => setEditing((value) => !value)}>{editing ? "Fechar detalhes" : "Detalhes"}</Button>}
-        {canWrite && <CaseDelete name={vaultCase.name} documentCount={vaultCase.documentCount} onConfirm={() => void removeCase()} />}
+        {canWrite && <CaseDelete caseId={vaultCase.id} name={vaultCase.name} documentCount={vaultCase.documentCount} onError={setFailure} onDeleted={() => { router.push("/app/vault"); router.refresh(); }} />}
       </div>
     </div>
 
@@ -177,30 +164,6 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
       )}
     </div>
   </div>;
-}
-
-function CaseDelete({ name, documentCount, onConfirm }: { name: string; documentCount: number; onConfirm: () => void }) {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button type="button" variant="ghost" size="icon-sm" className="size-11 shrink-0 md:size-8" aria-label={`Excluir caso ${name}`}><Trash2 aria-hidden="true" /></Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Excluir o caso {name}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {documentCount === 0
-              ? "As pastas do caso vão junto. Não dá para desfazer."
-              : `${countLabel(documentCount)} e as pastas do caso são excluídos junto, e saem da busca. Não dá para desfazer.`}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={onConfirm}>Excluir caso</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
 }
 
 function FolderDelete({ name, onConfirm, className }: { name: string; onConfirm: () => void; className?: string }) {
