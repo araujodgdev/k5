@@ -57,13 +57,15 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
   const [completedJobs, setCompletedJobs] = useState<Record<string, JudicialJob>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [following, setFollowing] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     const query = `caseId=${encodeURIComponent(caseId)}`;
-    const [linksResponse, sourcesResponse, publicationsResponse] = await Promise.all([
+    const [linksResponse, sourcesResponse, publicationsResponse, followResponse] = await Promise.all([
       fetch(`/api/judicial/links?${query}&limit=20`),
       fetch("/api/judicial/sources"),
       fetch(`/api/judicial/publications?${query}&limit=50`),
+      fetch(`/api/notifications/follows?${query}`, { cache: "no-store" }),
     ]);
     if (!linksResponse.ok) {
       setFailure(await readFailure(linksResponse, "Não foi possível carregar os processos deste caso."));
@@ -77,6 +79,7 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
     const publications = publicationsResponse.ok
       ? ((await publicationsResponse.json()) as { publications: JudicialPublication[] }).publications
       : [];
+    if (followResponse.ok) setFollowing(((await followResponse.json()) as { following: boolean }).following);
     setJobs(jobsByLink(links.jobs));
     setCompletedJobs(jobsByLink(links.completedJobs));
     setData({ links: links.links, sources, publications, nextCursor: links.nextCursor });
@@ -147,6 +150,23 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
     setExpanded(linkId);
   }
 
+  async function toggleFollowing() {
+    if (following === null) return;
+    setBusy("following");
+    setFailure(null);
+    const response = await fetch("/api/notifications/follows", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ caseId, following: !following }),
+    });
+    setBusy(null);
+    if (!response.ok) {
+      setFailure(await readFailure(response, "Não foi possível alterar as notificações deste caso."));
+      return;
+    }
+    setFollowing(((await response.json()) as { following: boolean }).following);
+  }
+
   useJobPolling(jobs, setJobs, load);
 
   if (!data) {
@@ -171,11 +191,18 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
           <h2 id={headingId} className="text-sm font-medium">Processos acompanhados</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">Vincule um número CNJ a este caso para coletar publicações e acompanhar atualizações da fonte.</p>
         </div>
-        {canWrite && (
-          <Button type="button" variant="outline" className={touch} aria-expanded={adding} onClick={() => { setAdding((value) => !value); setFailure(null); }}>
-            {adding ? "Fechar" : "Vincular processo"}
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {following !== null && (
+            <Button type="button" variant="ghost" className={touch} disabled={busy === "following"} aria-pressed={following} onClick={() => void toggleFollowing()}>
+              {busy === "following" ? "Salvando…" : following ? "Notificações ativas" : "Receber notificações"}
+            </Button>
+          )}
+          {canWrite && (
+            <Button type="button" variant="outline" className={touch} aria-expanded={adding} onClick={() => { setAdding((value) => !value); setFailure(null); }}>
+              {adding ? "Fechar" : "Vincular processo"}
+            </Button>
+          )}
+        </div>
       </div>
 
       <ErrorText failure={failure} />

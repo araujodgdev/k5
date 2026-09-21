@@ -205,8 +205,25 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
     if (!held.changes) throw new Error('A tarefa de indexação perdeu sua concessão.');
   }
 
-  await database.prepare("UPDATE knowledge_index_job SET status = 'completed', error = NULL, lease_owner = NULL, lease_until = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND lease_owner = ?")
-    .run(job.id, owner);
+  const completedAt = new Date().toISOString();
+  await database.batch([
+    database.prepare("UPDATE knowledge_index_job SET status = 'completed', error = NULL, lease_until = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND lease_owner = ?")
+      .bind(job.id, owner),
+    database.prepare(`INSERT INTO notification_event(
+      id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+      intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+    ) SELECT ?,j.office_id,'vault.index.ready',1,'document',j.document_id,NULL,NULL,
+      json_array(d.created_by),?, ?,0,1,?,? FROM knowledge_index_job j
+      JOIN vault_document d ON d.id=j.document_id AND d.office_id=j.office_id
+      WHERE j.id=? AND j.office_id=? AND j.status='completed' AND j.lease_owner=?
+      ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+        randomUUID(), JSON.stringify({ stage: 'search_index' }), `index:${job.id}:attempt:${owner}:completed`,
+        completedAt, new Date(Date.parse(completedAt) + 24 * 60 * 60 * 1000).toISOString(),
+        job.id, job.office_id, owner,
+      ),
+    database.prepare(`UPDATE knowledge_index_job SET lease_owner=NULL WHERE id=? AND office_id=? AND status='completed' AND lease_owner=?`)
+      .bind(job.id, job.office_id, owner),
+  ]);
   await publishGenerationIfComplete(job.office_id, job.generation_id);
 }
 
@@ -222,10 +239,33 @@ export async function processNextIndexJob(): Promise<boolean> {
     // late, and without this guard it would push the job back to 'queued' underneath the worker
     // that legitimately reclaimed it - interrupting live indexing and paying for the same
     // embeddings twice. The write simply no-ops when the lease has moved on.
-    await database.prepare(
-      `UPDATE knowledge_index_job SET status = ?, error = ?, lease_owner = NULL, lease_until = 0, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND lease_owner = ?`,
-    ).run(terminal ? 'failed' : 'queued', message, claimed.job.id, claimed.owner);
+    if (!terminal) {
+      await database.prepare(
+        `UPDATE knowledge_index_job SET status = 'queued', error = ?, lease_owner = NULL, lease_until = 0, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND lease_owner = ?`,
+      ).run(message, claimed.job.id, claimed.owner);
+    } else {
+      const failedAt = new Date().toISOString();
+      await database.batch([
+        database.prepare(`UPDATE knowledge_index_job SET status='failed',error=?,lease_until=0,updated_at=CURRENT_TIMESTAMP
+          WHERE id=? AND lease_owner=?`).bind(message, claimed.job.id, claimed.owner),
+        database.prepare(`INSERT INTO notification_event(
+          id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+          intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+        ) SELECT ?,j.office_id,'vault.index.failed',1,'document',j.document_id,NULL,NULL,
+          json_array(d.created_by),?,?,0,1,?,? FROM knowledge_index_job j
+          JOIN vault_document d ON d.id=j.document_id AND d.office_id=j.office_id
+          WHERE j.id=? AND j.office_id=? AND j.status='failed' AND j.lease_owner=?
+          ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+            randomUUID(), JSON.stringify({ stage: 'search_index' }),
+            `index:${claimed.job.id}:attempt:${claimed.owner}:failed`, failedAt,
+            new Date(Date.parse(failedAt) + 24 * 60 * 60 * 1000).toISOString(),
+            claimed.job.id, claimed.job.office_id, claimed.owner,
+          ),
+        database.prepare(`UPDATE knowledge_index_job SET lease_owner=NULL WHERE id=? AND office_id=? AND status='failed' AND lease_owner=?`)
+          .bind(claimed.job.id, claimed.job.office_id, claimed.owner),
+      ]);
+    }
   }
   return true;
 }

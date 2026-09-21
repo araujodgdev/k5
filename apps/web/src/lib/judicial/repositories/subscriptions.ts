@@ -103,20 +103,35 @@ export async function createSubscription(input: CreateSubscriptionInput): Promis
         "UPDATE judicial_subscription SET status = 'active', suspended_reason = NULL, next_run_at = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       ).run(existing.id);
     }
+    if (existing.link_id) {
+      await database.prepare(`INSERT INTO notification_follow(id,office_id,case_id,user_id,started_at)
+        SELECT ?,l.office_id,l.case_id,?,CURRENT_TIMESTAMP FROM judicial_case_link l
+        WHERE l.id=? AND l.office_id=?
+          AND NOT EXISTS(SELECT 1 FROM notification_follow f WHERE f.office_id=l.office_id
+            AND f.case_id=l.case_id AND f.user_id=? AND f.ended_at IS NULL)`)
+        .run(randomUUID(), input.authorizedBy, existing.link_id, input.officeId, input.authorizedBy);
+    }
     return { subscription: (await findSubscriptionById(existing.id))!, created: false };
   }
 
   const id = randomUUID();
-  await database.prepare(`
+  const writes = [database.prepare(`
     INSERT INTO judicial_subscription (
       id, office_id, installation_id, connection_id, link_id, target_kind, filters,
       interval_minutes, daily_request_budget, authorized_by, next_run_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-  `).run(
+  `).bind(
     id, input.officeId, input.installationId, input.connectionId ?? null, input.linkId,
     input.targetKind, JSON.stringify(input.filters ?? {}),
     input.intervalMinutes ?? 360, input.dailyRequestBudget ?? 50, input.authorizedBy,
-  );
+  )];
+  if (input.linkId) writes.push(database.prepare(`INSERT INTO notification_follow(id,office_id,case_id,user_id,started_at)
+    SELECT ?,l.office_id,l.case_id,?,CURRENT_TIMESTAMP FROM judicial_case_link l
+    WHERE l.id=? AND l.office_id=?
+      AND NOT EXISTS(SELECT 1 FROM notification_follow f WHERE f.office_id=l.office_id
+        AND f.case_id=l.case_id AND f.user_id=? AND f.ended_at IS NULL)`)
+    .bind(randomUUID(), input.authorizedBy, input.linkId, input.officeId, input.authorizedBy));
+  await database.batch(writes);
   return { subscription: (await findSubscriptionById(id))!, created: true };
 }
 

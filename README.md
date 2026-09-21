@@ -46,6 +46,7 @@ pnpm typecheck
 pnpm test
 pnpm worker
 pnpm judicial:worker                                             # coleta judicial, fila separada
+pnpm notifications:worker                                        # caixa, lembretes e Web Push
 pnpm judicial:admin list                                         # fontes judiciais cadastradas
 pnpm platform:admin grant --email usuario@exemplo.com
 pnpm --filter @k5/web start
@@ -69,6 +70,7 @@ Os testes de autenticação usam bancos SQLite em memória, separados dos dados 
 | `/app/agents` | Agentes |
 | `/app/vault` | Cofre |
 | `/app/agenda` | Tarefas, agenda e clientes |
+| `/app/notifications` | Caixa pessoal e preferências de notificações |
 | `/app/research` | Redireciona para Tarefas e Agenda |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/platform/clients` | Administração da plataforma (conexões de IA por escritório) |

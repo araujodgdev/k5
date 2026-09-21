@@ -28,6 +28,52 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") event.waitUntil(self.skipWaiting());
+  if (event.data?.type === "CLOSE_K5_NOTIFICATIONS") {
+    event.waitUntil(self.registration.getNotifications().then((items) => Promise.all(items.map((item) => item.close()))));
+  }
+});
+
+self.addEventListener("push", (event) => {
+  event.waitUntil((async () => {
+    let payload;
+    try { payload = event.data?.json(); } catch { return; }
+    if (!payload || payload.version !== 1 || typeof payload.id !== "string" || !/^[A-Za-z0-9-]{8,128}$/.test(payload.id)) return;
+    if (typeof payload.expiresAt === "string" && Date.parse(payload.expiresAt) <= Date.now()) return;
+    const tag = typeof payload.tag === "string" && /^[A-Za-z0-9_-]{1,32}$/.test(payload.tag) ? payload.tag : `k5-${payload.id.slice(0, 24)}`;
+    await self.registration.showNotification("K5", {
+      body: "Você tem uma atualização no K5.",
+      tag,
+      renotify: false,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { notificationId: payload.id },
+    });
+    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "window" });
+    for (const client of clients) client.postMessage({ type: "K5_NOTIFICATION", id: payload.id });
+  })());
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const id = event.notification.data?.notificationId;
+  if (typeof id !== "string" || !/^[A-Za-z0-9-]{8,128}$/.test(id)) return;
+  event.waitUntil((async () => {
+    const path = `/api/notifications/${encodeURIComponent(id)}/open`;
+    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "window" });
+    const visible = clients.find((client) => "focus" in client);
+    if (visible) {
+      await visible.focus();
+      if ("navigate" in visible) await visible.navigate(path);
+      return;
+    }
+    await self.clients.openWindow(path);
+  })());
+});
+
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(self.clients.matchAll({ includeUncontrolled: true, type: "window" }).then((clients) => {
+    for (const client of clients) client.postMessage({ type: "K5_PUSH_SUBSCRIPTION_CHANGED" });
+  }));
 });
 
 self.addEventListener("fetch", (event) => {

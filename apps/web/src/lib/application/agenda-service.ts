@@ -4,13 +4,16 @@ import { database, type BoundStatement } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput as Input } from '@/lib/capabilities/contracts';
 import { activityData, activityDto, crmClientDto, type CrmClient } from '@/lib/capabilities/agenda';
+import { agendaEventStatement } from '@/lib/notifications/events';
 import type { WorkspaceContext } from './context';
 
 const clientColumns = 'id, name, email, phone, notes, stage, version, created_at AS createdAt, updated_at AS updatedAt';
 const activityColumns = 'id, kind, title, notes, status, due_on AS dueOn, starts_at AS startsAt, ends_at AS endsAt, client_id AS clientId, case_id AS caseId, assignee_id AS assigneeId, version, created_at AS createdAt, updated_at AS updatedAt';
 const missing = () => new CapabilityError('NOT_FOUND', 'Registro não encontrado neste escritório.');
 const conflict = () => new CapabilityError('CONFLICT', 'Este registro mudou. Atualize a página e tente novamente.');
-const mutationToken = (context: WorkspaceContext) => context.agendaConfirmation ? `${context.agendaConfirmation.proposalId}:${context.agendaConfirmation.hash}` : null;
+const mutationToken = (context: WorkspaceContext) => context.agendaConfirmation
+  ? `${context.agendaConfirmation.proposalId}:${context.agendaConfirmation.hash}`
+  : randomUUID();
 const creationId = (context: WorkspaceContext, kind: string, key?: string) => key
   ? createHash('sha256').update(JSON.stringify([context.officeId, context.userId, kind, key])).digest('hex')
   : randomUUID();
@@ -123,8 +126,15 @@ export async function createActivity(context: WorkspaceContext, input: Input<'k5
   value.endsAt = value.endsAt ? new Date(value.endsAt).toISOString() : null;
   await validateReferences(context, value);
   const id = creationId(context, 'activity', input.idempotencyKey); const now = new Date().toISOString();
-  const inserted = await commitActivity(context, id, database.prepare('INSERT INTO agenda_activity(id,office_id,kind,title,notes,status,due_on,starts_at,ends_at,client_id,case_id,assignee_id,created_by,created_at,updated_at,mutation_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING')
-    .bind(id, context.officeId, value.kind, value.title, value.notes, value.status, value.dueOn, value.startsAt, value.endsAt, value.clientId, value.caseId, value.assigneeId, context.userId, now, now, mutationToken(context)));
+  const token = mutationToken(context);
+  const event = agendaEventStatement(database, {
+    officeId: context.officeId, activityId: id, activityVersion: 1, mutationToken: token,
+    actorUserId: context.userId, eventType: 'agenda.activity.assigned',
+    intendedRecipientIds: value.assigneeId ? [value.assigneeId] : [],
+    data: { activityTitle: value.title, assigneeId: value.assigneeId, previousAssigneeId: null }, createdAt: now,
+  });
+  const inserted = await commitActivity(context, id, token, database.prepare('INSERT INTO agenda_activity(id,office_id,kind,title,notes,status,due_on,starts_at,ends_at,client_id,case_id,assignee_id,created_by,created_at,updated_at,mutation_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING')
+    .bind(id, context.officeId, value.kind, value.title, value.notes, value.status, value.dueOn, value.startsAt, value.endsAt, value.clientId, value.caseId, value.assigneeId, context.userId, now, now, token), [event]);
   const result = await getActivity(context, { activityId: id });
   if (!inserted.changes && JSON.stringify(activityData.parse(result.activity)) !== JSON.stringify(value)) throw conflict();
   return result;
@@ -138,21 +148,42 @@ export async function updateActivity(context: WorkspaceContext, input: Input<'k5
   value.endsAt = value.endsAt ? new Date(value.endsAt).toISOString() : null;
   // Only revalidate references being assigned; old records remain editable after a member leaves.
   await validateReferences(context, input);
-  const result = await commitActivity(context, input.activityId, database.prepare('UPDATE agenda_activity SET kind=?,title=?,notes=?,status=?,due_on=?,starts_at=?,ends_at=?,client_id=?,case_id=?,assignee_id=?,version=version+1,updated_at=?,mutation_token=? WHERE id=? AND office_id=? AND version=?')
-    .bind(value.kind, value.title, value.notes, value.status, value.dueOn, value.startsAt, value.endsAt, value.clientId, value.caseId, value.assigneeId, new Date().toISOString(), mutationToken(context), input.activityId, context.officeId, input.version));
+  const creator = await database.prepare('SELECT created_by FROM agenda_activity WHERE id=? AND office_id=?')
+    .get<{ created_by: string }>(input.activityId, context.officeId);
+  const token = mutationToken(context);
+  const now = new Date().toISOString();
+  const assignmentChanged = activity.assigneeId !== value.assigneeId;
+  const relevantChanged = assignmentChanged || activity.status !== value.status || activity.dueOn !== value.dueOn
+    || activity.startsAt !== value.startsAt || activity.endsAt !== value.endsAt;
+  const recipients = assignmentChanged
+    ? [activity.assigneeId, value.assigneeId, creator?.created_by]
+    : [creator?.created_by, value.assigneeId];
+  const events = relevantChanged ? [agendaEventStatement(database, {
+    officeId: context.officeId, activityId: input.activityId, activityVersion: input.version + 1,
+    mutationToken: token, actorUserId: context.userId,
+    eventType: assignmentChanged ? 'agenda.activity.assigned' : 'agenda.activity.changed',
+    intendedRecipientIds: recipients.filter((id): id is string => Boolean(id)),
+    data: {
+      activityTitle: value.title, assigneeId: value.assigneeId,
+      previousAssigneeId: activity.assigneeId, status: value.status,
+    },
+    createdAt: now,
+  })] : [];
+  const result = await commitActivity(context, input.activityId, token, database.prepare('UPDATE agenda_activity SET kind=?,title=?,notes=?,status=?,due_on=?,starts_at=?,ends_at=?,client_id=?,case_id=?,assignee_id=?,version=version+1,updated_at=?,mutation_token=? WHERE id=? AND office_id=? AND version=?')
+    .bind(value.kind, value.title, value.notes, value.status, value.dueOn, value.startsAt, value.endsAt, value.clientId, value.caseId, value.assigneeId, now, token, input.activityId, context.officeId, input.version), events);
   if (!result.changes) throw conflict();
   return getActivity(context, input);
 }
 
 /** Activity and the exact confirmation receipt commit atomically, including crash/retry recovery. */
-async function commitActivity(context: WorkspaceContext, activityId: string, mutation: BoundStatement) {
+async function commitActivity(context: WorkspaceContext, activityId: string, token: string, mutation: BoundStatement, extra: BoundStatement[] = []) {
   const confirmation = context.agendaConfirmation;
-  const writes = [mutation];
+  const writes = [mutation, ...extra];
   if (confirmation) writes.push(database.prepare(`UPDATE agenda_proposal SET status='applied',result=(
     SELECT json_object('activity',json_object('id',id,'kind',kind,'title',title,'notes',notes,'status',status,
     'dueOn',due_on,'startsAt',starts_at,'endsAt',ends_at,'clientId',client_id,'caseId',case_id,'assigneeId',assignee_id,
     'version',version,'createdAt',created_at,'updatedAt',updated_at)) FROM agenda_activity WHERE id=? AND office_id=? AND mutation_token=?)
     WHERE id=? AND office_id=? AND user_id=? AND confirmation_hash=? AND EXISTS(SELECT 1 FROM agenda_activity WHERE id=? AND office_id=? AND mutation_token=?)`)
-    .bind(activityId, context.officeId, mutationToken(context), confirmation.proposalId, context.officeId, context.userId, confirmation.hash, activityId, context.officeId, mutationToken(context)));
+    .bind(activityId, context.officeId, token, confirmation.proposalId, context.officeId, context.userId, confirmation.hash, activityId, context.officeId, token));
   return (await database.batch(writes))[0];
 }

@@ -7,6 +7,7 @@ const source = readFileSync(new URL("../scripts/service-worker.js", import.meta.
 type WorkerEvent = {
   request?: { url: string; method: string; mode: string; headers: Headers };
   data?: unknown;
+  notification?: { data?: { notificationId?: string }; close(): void };
   waitUntil: (promise: Promise<unknown>) => void;
   respondWith: (promise: Promise<Response>) => void;
 };
@@ -14,7 +15,7 @@ type WorkerEvent = {
 type CacheBuckets = Map<string, Map<string, Response>>;
 
 function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [] }: {
-  version?: string; buckets?: CacheBuckets; clients?: { id: string }[];
+  version?: string; buckets?: CacheBuckets; clients?: Record<string, unknown>[];
 } = {}) {
   const listeners = new Map<string, (event: WorkerEvent) => void>();
   const cached = new Map<string, Response>();
@@ -23,6 +24,8 @@ function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [] }:
   let networkCalls = 0;
   let offline = false;
   let skipped = false;
+  const notifications: { title: string; options: Record<string, unknown>; closed: boolean }[] = [];
+  let openedWindow: string | null = null;
   let response = new Response("network");
   Object.defineProperty(response, "type", { value: "basic" });
   const key = (request: string | { url: string }) => typeof request === "string" ? request : request.url;
@@ -40,12 +43,19 @@ function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [] }:
     self: {
       location: { origin: "https://k5.test" },
       addEventListener: (name: string, handler: (event: WorkerEvent) => void) => listeners.set(name, handler),
+      registration: {
+        showNotification: async (title: string, options: Record<string, unknown>) => { notifications.push({ title, options, closed: false }); },
+        getNotifications: async () => notifications.map((notification) => ({ close: () => { notification.closed = true; } })),
+      },
       clients: {
         claim: async () => {},
         matchAll: async (options: unknown) => {
-          assert.deepEqual(JSON.parse(JSON.stringify(options)), { includeUncontrolled: true, type: "all" });
+          const normalized = JSON.parse(JSON.stringify(options)) as { includeUncontrolled?: boolean; type?: string };
+          assert.equal(normalized.includeUncontrolled, true);
+          assert.ok(normalized.type === "all" || normalized.type === "window");
           return clients;
         },
+        openWindow: async (path: string) => { openedWindow = path; },
       },
       skipWaiting: async () => { skipped = true; },
     },
@@ -76,8 +86,9 @@ function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [] }:
     return result;
   }
   return {
-    cached, deleted, dispatch, buckets,
+    cached, deleted, dispatch, buckets, notifications,
     get networkCalls() { return networkCalls; },
+    get openedWindow() { return openedWindow; },
     get skipped() { return skipped; },
     setOffline() { offline = true; },
     setResponse(value: Response) { response = value; },
@@ -186,4 +197,23 @@ test("PWA: public assets can be reused offline", async () => {
   sw.setOffline();
   assert.equal(await (await sw.fetch("/_next/static/app.js"))?.text(), "network");
   assert.equal(sw.networkCalls, 1);
+});
+
+test("PWA: push shows only generic copy, notifies tabs, and opens the guarded route", async () => {
+  const messages: unknown[] = [];
+  const sw = worker({ clients: [{ postMessage: (message: unknown) => messages.push(message) }] });
+  const id = "018f52e1-9a6d-7c31-a123-123456789abc";
+  await sw.dispatch("push", { data: { json: () => ({ version: 1, id, tag: "agenda-window", expiresAt: "2099-01-01T00:00:00.000Z" }) } });
+  assert.equal(sw.notifications.length, 1);
+  assert.equal(sw.notifications[0].title, "K5");
+  assert.equal(sw.notifications[0].options.body, "Você tem uma atualização no K5.");
+  assert.deepEqual(messages, [{ type: "K5_NOTIFICATION", id }]);
+
+  let closed = false;
+  await sw.dispatch("notificationclick", { notification: { data: { notificationId: id }, close: () => { closed = true; } } });
+  assert.equal(closed, true);
+  assert.equal(sw.openedWindow, `/api/notifications/${id}/open`);
+
+  await sw.dispatch("push", { data: { json: () => ({ version: 1, id: "invalid id", title: "segredo" }) } });
+  assert.equal(sw.notifications.length, 1);
 });

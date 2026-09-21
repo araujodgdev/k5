@@ -5,6 +5,7 @@ import { z } from "zod";
 import { signUpSchema } from "./auth-validation";
 import type { Database } from "./database";
 import { ensureOfficeForUser } from "./offices";
+import { revokePushSubscriptionsForUser } from "./notifications/revocation";
 
 /** Whatever Better Auth can talk to directly: a `node:sqlite` handle, a D1 binding, a dialect. */
 export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
@@ -59,7 +60,12 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
         }
         if (ctx.path === "/sign-out") {
           const session = await getSessionFromCtx(ctx, { disableCookieCache: true });
-          if (session) await ctx.context.internalAdapter.deleteUserSessions(session.user.id);
+          if (session) {
+            // Server revocation wins the race with a stale in-flight subscription request because
+            // it advances the authorization generation before deleting every session.
+            await revokePushSubscriptionsForUser(db, session.user.id);
+            await ctx.context.internalAdapter.deleteUserSessions(session.user.id);
+          }
         }
       }),
     },

@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "k5-notifications-staging",
+  "account_id": "bf552f67bcf46921dbe4137ee0ff8980",
+  "compatibility_date": "2026-09-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/workers/notifications.ts",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "k5-staging",
+      "database_id": "18fcfe5d-05f3-4750-bae2-85731c80884b",
+      "migrations_dir": "db/migrations"
+    }
+  ],
+  "triggers": { "crons": ["* * * * *"] },
+  "queues": {
+    "producers": [{ "binding": "NOTIFICATION_QUEUE", "queue": "k5-notifications-staging" }],
+    "consumers": [{ "queue": "k5-notifications-staging", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 3 }]
+  },
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "persist": true }
+  }
+}

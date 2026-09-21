@@ -99,8 +99,26 @@ export async function processNextVerification(options: { send?: DecisionTranspor
     const lease = await database.prepare("SELECT 1 FROM artifact_verification WHERE id=? AND lease_token=? AND status='running' AND lease_until>?").get(job.id, token, Date.now());
     return Boolean(member && lease && await isCurrent(job, units));
   };
-  const finish = (status: string) => database.prepare('UPDATE artifact_verification SET status=?,results=?,checked=?,lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=?')
-    .run(status, JSON.stringify(results), results.filter(r => r.outcome !== 'unavailable').length, job.id, token);
+  const finish = async (status: string) => {
+    const writes = [database.prepare('UPDATE artifact_verification SET status=?,results=?,checked=?,lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=?')
+      .bind(status, JSON.stringify(results), results.filter(r => r.outcome !== 'unavailable').length, job.id, token)];
+    if (job.mode !== 'shadow' && (status === 'completed' || status === 'incomplete')) {
+      const createdAt = new Date().toISOString();
+      writes.push(database.prepare(`INSERT INTO notification_event(
+        id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+        intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+      ) SELECT ?,?,'documents.verification.available',1,'artifact',?,?,NULL,?,?,?,0,1,?,?
+        WHERE EXISTS(SELECT 1 FROM artifact_verification WHERE id=? AND office_id=? AND user_id=?
+          AND artifact_id=? AND status=? AND lease_token=?)
+        ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+          randomUUID(), job.office_id, job.artifact_id, job.artifact_version,
+          JSON.stringify([job.user_id]), JSON.stringify({ status }), `verification:${job.id}:${status}`,
+          createdAt, new Date(Date.parse(createdAt) + 24 * 60 * 60 * 1000).toISOString(),
+          job.id, job.office_id, job.user_id, job.artifact_id, status, token,
+        ));
+    }
+    await database.batch(writes);
+  };
   try {
     if (!await allowed()) { await finish('stale'); return true; }
     const config = await getConnection(owner.officeId);
