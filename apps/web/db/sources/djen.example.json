@@ -1,0 +1,27 @@
+{
+  "kind": "djen",
+  "courtCode": "DJEN",
+  "courtName": "Diario de Justica Eletronico Nacional",
+  "degree": "not_applicable",
+  "system": "not_applicable",
+  "purpose": "publications",
+  "baseUrl": "https://comunicaapi.pje.jus.br/",
+  "contractVersion": "a confirmar em F0",
+  "authKind": "none",
+  "discoveryStatus": "candidate",
+  "permissions": {
+    "query": "nao_esclarecido",
+    "cache": "nao_esclarecido",
+    "documents": "nao_esclarecido",
+    "redistribution": "nao_esclarecido",
+    "ai": "nao_esclarecido"
+  },
+  "permissionEvidence": "Nenhuma condicao de uso confirmada ate aqui. Preencher com a URL e a data do documento oficial que responder cada dimensao, conforme a secao 4.2 passo 6 do plano.",
+  "allowedHosts": ["comunicaapi.pje.jus.br"],
+  "rateLimitPerMinute": 10,
+  "dailyRequestBudget": 500,
+  "coverageFrom": null,
+  "coverageTo": null,
+  "documentationUrl": "https://www.cnj.jus.br/modelo-nacional-de-interoperabilidade/",
+  "notes": "Ficha de exemplo. O endereco e a versao do contrato NAO foram homologados: registrar esta ficha nao autoriza acesso real. O comando enable --live e recusado enquanto houver dimensao nao esclarecida."
+}

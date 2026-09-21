@@ -19,6 +19,7 @@ import * as approvalsService from "../src/lib/application/approvals-service";
 import { withIdempotency } from "../src/lib/application/idempotency-service";
 import { agentTools, toolSummary } from "../src/lib/agent-tools";
 import { registerWebMCPCapabilities, executeViaHttp } from "../src/lib/webmcp/adapter";
+import { strictBooleanQueryParam } from "../src/lib/query-params";
 import * as uploadsService from "../src/lib/application/uploads-service";
 import { vectorIndex } from "../src/lib/knowledge/vector-index";
 import * as uiService from "../src/lib/application/ui-service";
@@ -64,7 +65,7 @@ function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
 }
 
 test("capabilities contract: complete catalog and role permissions", () => {
-  assert.equal(capabilityNames.length, 38, "All 38 capabilities declared");
+  assert.equal(capabilityNames.length, 50, "All 50 capabilities declared");
 
   const reviewerCaps = capabilitiesForRole("reviewer");
   const lawyerCaps = capabilitiesForRole("lawyer");
@@ -77,8 +78,8 @@ test("capabilities contract: complete catalog and role permissions", () => {
   }
 
   // Lawyers and Admins have all capabilities
-  assert.equal(lawyerCaps.length, 38);
-  assert.equal(adminCaps.length, 38);
+  assert.equal(lawyerCaps.length, 50);
+  assert.equal(adminCaps.length, 50);
 });
 
 test("authorization: dynamic role check and membership revocation", () => {
@@ -359,10 +360,10 @@ test("agent tools: mastra tools creation and summary formatting", () => {
 });
 
 test("webmcp: registration adapter handles mock browser modelContext", () => {
-  const registered: string[] = [];
+  const registered: Array<{ name: string; hints?: { untrustedContentHint?: boolean } }> = [];
   const mockContext = {
-    registerTool: (def: { name: string }) => {
-      registered.push(def.name);
+    registerTool: (def: { name: string; hints?: { untrustedContentHint?: boolean } }) => {
+      registered.push(def);
       return { unregister: () => {} };
     },
   };
@@ -374,14 +375,29 @@ test("webmcp: registration adapter handles mock browser modelContext", () => {
 
   const cleanup = registerWebMCPCapabilities("reviewer");
   // A reviewer registers exactly the read capabilities published to the browser.
-  assert.deepEqual(registered.sort(), publishedCapabilitiesForRole("reviewer", "webmcp").sort());
-  assert.ok(registered.includes("k5_vault_list_cases"));
-  assert.ok(!registered.includes("k5_vault_create_case"));
+  assert.deepEqual(registered.map((definition) => definition.name).sort(), publishedCapabilitiesForRole("reviewer", "webmcp").sort());
+  assert.ok(registered.some((definition) => definition.name === "k5_vault_list_cases"));
+  assert.ok(!registered.some((definition) => definition.name === "k5_vault_create_case"));
+  assert.equal(registered.find((definition) => definition.name === "k5_judicial_list_publications")?.hints?.untrustedContentHint, true);
+  assert.equal(registered.find((definition) => definition.name === "k5_judicial_get_publication")?.hints?.untrustedContentHint, true);
 
   assert.doesNotThrow(() => cleanup());
 
   delete (globalThis as unknown as { window?: unknown }).window;
   delete (globalThis as unknown as { document?: unknown }).document;
+});
+
+test("capability routes: boolean query parameters accept only one exact true or false", () => {
+  assert.equal(strictBooleanQueryParam(undefined, "activeOnly"), undefined);
+  assert.equal(strictBooleanQueryParam("true", "activeOnly"), true);
+  assert.equal(strictBooleanQueryParam("false", "activeOnly"), false);
+
+  for (const value of ["TRUE", "1", "", ["true", "false"]]) {
+    assert.throws(
+      () => strictBooleanQueryParam(value, "activeOnly"),
+      (error: unknown) => error instanceof CapabilityError && error.code === "INVALID",
+    );
+  }
 });
 
 test("approval security: rejects modified target resource or modified input arguments", () => {
@@ -521,6 +537,8 @@ test("webmcp: every published capability has a route, a schema and typed failure
         documentIds: [randomUUID()], query: "teste", name: "nome do caso", title: "titulo",
         content: "conteudo", version: 1, instructions: "instrucoes", resourceType: "vault",
         stableReference: "página:1", scope: "library",
+        installationId: randomUUID(), linkId: randomUUID(), publicationId: randomUUID(),
+        jobId: randomUUID(), alertId: randomUUID(), number: "0000001-05.2025.8.26.0100",
       });
       assert.equal(result.ok, true, `${name} should reach a route: ${JSON.stringify(result)}`);
     }

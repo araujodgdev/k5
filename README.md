@@ -45,6 +45,8 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm worker
+pnpm judicial:worker                                             # coleta judicial, fila separada
+pnpm judicial:admin list                                         # fontes judiciais cadastradas
 pnpm platform:admin grant --email usuario@exemplo.com
 pnpm --filter @k5/web start
 

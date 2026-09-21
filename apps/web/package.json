@@ -11,6 +11,8 @@
     "db:setup": "tsx scripts/setup.ts",
     "test": "tsx --test tests/*.test.ts",
     "worker": "node --conditions=react-server --import tsx scripts/worker.ts",
+    "judicial:worker": "node --conditions=react-server --import tsx scripts/judicial-worker.ts",
+    "judicial:admin": "node --conditions=react-server --import tsx scripts/judicial-admin.ts",
     "platform:admin": "tsx scripts/platform-admin.ts"
   },
   "dependencies": {
