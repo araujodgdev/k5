@@ -9,7 +9,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
+      "outputs": ["dist/**", "build/**", ".next/**", "!.next/cache/**", "!.next/dev/**", "public/sw.js"]
     },
     "lint": {
       "dependsOn": ["^lint"]

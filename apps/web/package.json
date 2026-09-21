@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "pnpm db:setup && next dev",
-    "build": "next build",
+    "build": "tsx scripts/generate-service-worker.ts && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
@@ -16,9 +16,9 @@
     "judicial:admin": "node --conditions=react-server --import tsx scripts/judicial-admin.ts",
     "platform:admin": "tsx scripts/platform-admin.ts",
     "dev:vinext": "vinext dev --port 3001",
-    "build:vinext": "vinext build",
+    "build:vinext": "tsx scripts/generate-service-worker.ts && vinext build",
     "start:vinext": "wrangler dev --config dist/server/wrangler.json",
-    "deploy:vinext": "tsx scripts/deploy-cloudflare.ts"
+    "deploy:vinext": "tsx scripts/generate-service-worker.ts && tsx scripts/deploy-cloudflare.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.105",
@@ -48,6 +48,7 @@
     "mammoth": "^1.12.3",
     "marked": "^18.0.13",
     "next": "16.3.5",
+    "next-themes": "^0.4.6",
     "pdfjs-dist": "^6.3.289",
     "pg": "^8.23.0",
     "pizzip": "^3.2.0",
