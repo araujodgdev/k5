@@ -13,8 +13,15 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE).map((key) => caches.delete(key)));
+    // skipWaiting/claim can leave old application code running in other tabs.
+    // Include clients still controlled by the previous worker (and web workers).
+    // Without per-client build tracking, retain every prior version until an
+    // activation sees no clients at all. Never evict by age or number of builds.
+    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "all" });
+    if (clients.length === 0) {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE).map((key) => caches.delete(key)));
+    }
     await self.clients.claim();
   })());
 });
@@ -31,7 +38,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(async () =>
-      (await caches.match(OFFLINE)) ?? new Response("Sem conexão. Tente novamente.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } })
+      (await (await caches.open(CACHE)).match(OFFLINE)) ?? new Response("Sem conexão. Tente novamente.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } })
     ));
     return;
   }
@@ -42,6 +49,16 @@ self.addEventListener("fetch", (event) => {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(request);
     if (cached) return cached;
+    // Only content-addressed Next assets may fall back across releases. Public
+    // files with stable URLs (especially offline.html) belong to this version.
+    if (staticAsset) {
+      const keys = await caches.keys();
+      for (const key of keys.reverse()) {
+        if (!key.startsWith(PREFIX) || key === CACHE) continue;
+        const previous = await (await caches.open(key)).match(request);
+        if (previous) return previous;
+      }
+    }
     const response = await fetch(request);
     if (response.ok && response.type === "basic" && !response.redirected && !/private|no-store/i.test(response.headers.get("Cache-Control") ?? "")) {
       // Cache storage may be full or disabled; the network response still works.

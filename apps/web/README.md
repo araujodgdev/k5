@@ -149,7 +149,13 @@ com **Tentar novamente**. Trabalhar com os dados do escritório exige internet.
 Notificações push e edição offline com sincronização não fazem parte desta implementação.
 
 Uma nova versão aguarda a ação **Atualizar agora**. Salve alterações antes de aceitar;
-outras abas não são recarregadas automaticamente. O servidor entrega `/sw.js` sem
+outras abas não são recarregadas automaticamente. Os caches de versões anteriores
+são preservados enquanto houver clientes abertos, e arquivos estáticos com hash
+podem ser lidos desses caches mesmo se já tiverem saído do servidor. A limpeza ocorre
+somente em uma ativação sem clientes; não há limite por idade ou quantidade de versões
+que possa interromper uma aba antiga. A tela offline e os ícones usam a versão atual.
+Recursos nunca armazenados ainda dependem do servidor e da retenção dos arquivos no deploy.
+O servidor entrega `/sw.js` sem
 cache HTTP. Preserve esse comportamento no proxy/CDN.
 
 Para validar, rode `pnpm db:setup`, `pnpm build` e `pnpm --filter @k5/web start`.
@@ -160,6 +166,9 @@ O teste de navegador pode ser repetido com
 `pnpm --filter @k5/web exec tsx scripts/verify-pwa.ts` contra esse servidor local.
 Com `PWA_TEST_UPDATE=1`, o teste também simula uma nova versão local e confirma que
 outra aba mantém seu formulário. O arquivo gerado é restaurado ao final.
+O teste isolado `pnpm --filter @k5/web exec tsx scripts/verify-pwa-update.ts` inicia
+um servidor temporário e verifica duas atualizações com abas abertas: remove os JS/CSS
+antigos do servidor e confirma carregamento pelo cache, sem perder o formulário.
 
 ## Verificação
 
