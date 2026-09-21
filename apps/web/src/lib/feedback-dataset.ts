@@ -11,6 +11,7 @@ type AnnotationRow = {
   id: string; campaign_id: string; user_id: string; model_a: string; model_b: string;
   preference: FeedbackInput['preference']; assessment_a: string; assessment_b: string;
   comment: string; created_at: string; rubric_version: string; prior_exposure: number;
+  training_consent_purpose: string | null; training_consent_version: number | null;
 };
 const sha256 = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 const artifactId = (r: { files: { memo: { sha256: string }; tracker: { sha256: string } } }) => sha256(JSON.stringify([r.files.memo.sha256, r.files.tracker.sha256]));
@@ -37,7 +38,7 @@ export async function feedbackDataset(db: Database, userId: string) {
       id: row.id, campaignId: row.campaign_id,
       annotator: sha256(`feedback-annotator-v1:${row.user_id}`),
       createdAt: row.created_at, rubricVersion: row.rubric_version,
-      consent: { purpose: 'prepare_ai_training_data', version: 1 },
+      consent: { purpose: row.training_consent_purpose, version: row.training_consent_version },
       protocol: { assignment: 'stable_pair_and_order', identitiesHiddenUntilVote: true, priorExposure: Boolean(row.prior_exposure) },
       presented: { a: artifactId(a), b: artifactId(b) },
       preference: row.preference,

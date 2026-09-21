@@ -77,6 +77,7 @@ test('feedback downloads match real artifacts, keep blind filenames and reject t
   assert.equal((await feedbackFile(db, context, 'sources', 'zip')).contentType, 'application/zip');
   await assert.rejects(feedbackFile(db, context, '../mercury', 'memo'), { status: 404 });
   await assert.rejects(feedbackFile(db, context, 'a', 'memo', 'old-round'), { status: 409 });
+  await assert.rejects(feedbackFile(db, context, 'sources', 'zip', 'old-round'), { status: 409 });
   assert.throws(() => assertSameOrigin(new Request('https://k5.test/api/feedback', { headers: { origin: 'https://evil.test' } })), { status: 403 });
   assert.throws(() => assertSameOrigin(new Request('https://k5.test/api/feedback')), { status: 403 });
 });
@@ -106,6 +107,7 @@ test('dataset export requires platform access and consent; preferences are not a
   assert.equal(annotation.preferenceCandidate.trainingReady, false);
   assert.equal(annotation.assessments.a.accuracy, null);
   assert.equal(annotation.protocol.priorExposure, false);
+  assert.deepEqual(annotation.consent, { purpose: 'prepare_ai_training_data', version: 1 });
   assert.ok(!JSON.stringify(dataset).includes(optedIn.userId));
   assert.ok(!JSON.stringify(dataset).includes(optedIn.officeId));
   assert.ok(!dataset.annotations.some(a => a.id === (testDb.prepare('SELECT id FROM model_feedback WHERE user_id=?').get(legacy.userId) as { id: string }).id));
@@ -129,4 +131,23 @@ test('ties remain ties and prior-round exposure is recorded in the dataset', asy
   assert.equal(row.preference, 'tie');
   assert.equal(row.preferenceCandidate, null);
   assert.equal(row.protocol.priorExposure, true);
+});
+
+test('consent metadata is stored at submission, preserved on retry and exported from the record', async () => {
+  const admin = fixture(), context = fixture();
+  testDb.prepare('INSERT INTO platform_admin (user_id) VALUES (?)').run(admin.userId);
+  await submitFeedback(db, context, { ...input, trainingConsent: true });
+  const stored = () => testDb.prepare('SELECT id, training_consent, training_consent_purpose, training_consent_version FROM model_feedback WHERE user_id=?').get(context.userId)!;
+  assert.equal(stored().training_consent_purpose, 'prepare_ai_training_data');
+  assert.equal(stored().training_consent_version, 1);
+  // Represent a record captured under different historical terms.
+  testDb.prepare('UPDATE model_feedback SET training_consent_purpose=?, training_consent_version=? WHERE user_id=?').run('historical-purpose', 2, context.userId);
+  const original = stored();
+  assert.equal((await submitFeedback(db, context, { ...input, trainingConsent: false })).saved, false);
+  assert.deepEqual(stored(), original);
+  const exported = async () => (await feedbackDataset(db, admin.userId)).annotations.find(a => a.id === original.id)!.consent;
+  assert.deepEqual(await exported(), { purpose: 'historical-purpose', version: 2 });
+  // Records predating metadata capture must not acquire fabricated terms on export.
+  testDb.prepare('UPDATE model_feedback SET training_consent_purpose=NULL, training_consent_version=NULL WHERE user_id=?').run(context.userId);
+  assert.deepEqual(await exported(), { purpose: null, version: null });
 });

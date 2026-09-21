@@ -53,12 +53,13 @@ export async function submitFeedback(db: Database, context: FeedbackContext, inp
   const priorExposure = await isPlatformAdmin(db, context.userId) || await db.prepare('SELECT 1 FROM model_feedback WHERE user_id = ? AND campaign_id <> ? LIMIT 1').get(context.userId, pilot.id);
   // Immutable after reveal. Concurrent retries never replace the first blind vote.
   const result = await db.prepare(`INSERT INTO model_feedback
-    (id, campaign_id, office_id, user_id, model_a, model_b, preference, preferred_model, assessment_a, assessment_b, comment, training_consent, prior_exposure)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (id, campaign_id, office_id, user_id, model_a, model_b, preference, preferred_model, assessment_a, assessment_b, comment, training_consent, prior_exposure, training_consent_purpose, training_consent_version)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(campaign_id, office_id, user_id) DO NOTHING`).run(
     randomUUID(), pilot.id, context.officeId, context.userId, a.key, b.key, data.preference,
     data.preference === 'a' ? a.key : data.preference === 'b' ? b.key : null,
     JSON.stringify(data.a), JSON.stringify(data.b), data.comment, data.trainingConsent ? 1 : 0, priorExposure ? 1 : 0,
+    'prepare_ai_training_data', 1,
   );
   return { saved: result.changes > 0, view: await feedbackView(db, context) };
 }

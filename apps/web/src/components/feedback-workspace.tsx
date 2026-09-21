@@ -103,7 +103,7 @@ export function FeedbackWorkspace({ initial }: { initial: FeedbackView }) {
         <p className="mt-2 text-sm text-muted-foreground">Piloto Harvey LAB · 13 documentos sintéticos em inglês · Memorando e planilha de riscos</p>
         <details className="mt-3"><summary className="w-fit cursor-pointer rounded-md py-2 text-sm underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2">Ler a tarefa e consultar as fontes</summary>
           <div className="mt-3 max-w-4xl text-sm"><Markdown text={view.instructions} /></div>
-          <div className="mt-3 flex flex-wrap gap-3"><a download className={linkStyle} href="/api/feedback/files/sources/zip">Baixar os 13 documentos de origem</a><a className={linkStyle} href="https://github.com/harveyai/harvey-labs" target="_blank" rel="noreferrer">Sobre o Harvey LAB</a></div>
+          <div className="mt-3 flex flex-wrap gap-3"><a download className={linkStyle} href={`/api/feedback/files/sources/zip?campaign=${encodeURIComponent(view.campaignId)}`}>Baixar os 13 documentos de origem</a><a className={linkStyle} href="https://github.com/harveyai/harvey-labs" target="_blank" rel="noreferrer">Sobre o Harvey LAB</a></div>
         </details>
       </section>
       <div ref={status} tabIndex={-1} role="status" className="scroll-mt-4 outline-none">

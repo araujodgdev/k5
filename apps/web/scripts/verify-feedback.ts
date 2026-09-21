@@ -36,6 +36,10 @@ try {
   await expect(page.getByRole('heading', { name: 'Avaliar respostas', exact: true })).toBeVisible();
   await expect(page.getByText('Mercury 2.5', { exact: true })).toHaveCount(0);
   const blind = await (await context.request.get('/api/feedback')).json();
+  const sourcesHref = `/api/feedback/files/sources/zip?campaign=${encodeURIComponent(blind.campaignId)}`;
+  await expect(page.getByRole('link', { name: 'Baixar os 13 documentos de origem', includeHidden: true })).toHaveAttribute('href', sourcesHref);
+  expect((await context.request.get(sourcesHref)).status()).toBe(200);
+  expect((await context.request.get('/api/feedback/files/sources/zip?campaign=old-round')).status()).toBe(409);
   expect(JSON.stringify(blind)).not.toMatch(/mercury|deepseek|inception|muse spark|inputTokens|outputTokens/i);
   expect((await context.request.post('/api/feedback', { headers: { origin: 'https://evil.test' }, data: {} })).status()).toBe(403);
   const doc = await context.request.get('/api/feedback/files/a/memo');
