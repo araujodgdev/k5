@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { CircleAlert, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { ThemeSwitch } from "@/components/theme-provider";
+import { InstallApp } from "@/components/pwa-provider";
 import { Reveal } from "@/components/reveal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,8 +71,9 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
   return (
     <main className="grid min-h-dvh grid-rows-[auto_1fr] bg-canvas px-5 py-4 md:px-8 md:py-6">
-      <header className="flex h-10 items-center">
+      <header className="flex min-h-11 flex-wrap items-center justify-between gap-2 pt-[env(safe-area-inset-top)]">
         <Link href="/" aria-label="K5"><Logo height={18} /></Link>
+        <div className="flex items-center gap-1"><InstallApp /><ThemeSwitch /></div>
       </header>
       <section className="w-full max-w-[360px] place-self-center py-8 md:py-12" aria-labelledby="auth-title">
         <Reveal>

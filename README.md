@@ -77,7 +77,8 @@ As áreas de `/app` exigem sessão válida no servidor. Agentes, Cofre e Tarefas
 Início exibe “Em breve”. `/platform` exige o papel de administrador da plataforma.
 Tarefas de documentos precisam do worker (`pnpm worker`) em execução; veja
 [`apps/web/README.md`](apps/web/README.md).
-A interface usa pt-BR, tema claro e sidebar responsiva.
+A interface usa pt-BR, temas claro/escuro (ou o tema do sistema) e sidebar responsiva.
+O K5 pode ser instalado como PWA; veja [instalação e funcionamento offline](apps/web/README.md#pwa-e-temas).
 
 Tarefas e Agenda reúne clientes, vínculos com casos do Cofre, tarefas e reuniões internas,
 com operações também disponíveis ao agente e ao WebMCP. Veja o

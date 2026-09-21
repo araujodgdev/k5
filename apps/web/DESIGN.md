@@ -41,6 +41,19 @@ Set in `:root` in `globals.css`. Use them through Tailwind classes such as `bg-c
 
 Controls are 44px tall on touch (`size="lg"`), and shadcn's default 36px on desktop.
 
+## Dark theme and installation
+
+The `.dark` overrides in `globals.css` use the same warm neutral ramp: canvas
+`#171715`, content `#20201e`, text `#f3f3ef`, secondary text `#b5b5ad`, and borders
+`#393935`. Primary controls invert to light ink. Continue using semantic tokens;
+do not add per-component color overrides. Dialogs and sheets inherit these tokens.
+
+`ThemeSwitch` offers Sistema, Claro, and Escuro with a native keyboard-accessible
+select. It lives in the sidebar footer, mobile Mais sheet, auth header, and platform
+header. The preference follows the system by default and persists per browser.
+`InstallApp` shares the same quiet controls. Installation help is a dialog; offline
+and pending-update notices use a single floating surface and plain pt-BR text.
+
 ## Type
 
 - **Sans**: Inter, everywhere. 14px body, 13px meta, 12px field errors. Weights 400 and 500.
@@ -62,7 +75,7 @@ Prefer a shadcn primitive over new markup. Add one with `pnpm dlx shadcn@latest 
 - **App shell** (`src/app/app/layout.tsx`): sidebar plus a rounded content surface on desktop; on mobile a sticky header, full-bleed content with `pb-dock`, and a fixed tab bar.
 - **Mobile tab bar**: 4 sections plus "Mais". The active tab is a black icon tile. The list is `mobileTabs` in `src/lib/navigation.ts`. It slides away while the page scrolls down and returns on the way up, so reading gets the full height.
 - **Bottom sheets** float: inset 8px from the side edges, above the tab bar, rounded and bordered. That geometry is plain CSS in `globals.css` (`[data-slot="sheet-content"][data-side="bottom"]`), unlayered so it beats the utility classes, with a static `bottom` fallback before the `env()` one.
-- **Overlays dim, they don't blur.** `backdrop-filter` breaks stacking in some Safari versions, which can hide the panel behind the blur layer. A flat `bg-foreground/25` is also cheaper on a phone.
+- **Overlays dim, they don't blur.** `backdrop-filter` breaks stacking in some Safari versions, which can hide the panel behind the blur layer. A flat `bg-overlay/40` is also cheaper on a phone and stays dark in both themes.
 - **Agent chat** (`/app/agents`, `src/components/agent-chat.tsx`): an empty conversation area with the composer docked at the bottom. The container is `flex-1` inside the flex column shell — never `h-full`, which has no definite height to resolve against and pushes the composer to the top. The composer is `sticky bottom-0`, `max-w-3xl`, rounded-2xl with `--shadow-float`. Don't add a logo, shortcut tiles, or navigation to the chat content. The command center is not a chat.
 - **Composer controls** live inside the composer, on a row under the input: attach, microphone, model. The page header keeps only the conversation actions. A control the current model cannot support stays visible and disabled, with a tooltip saying why — hiding it would make the model's limits invisible.
 - **Answers are Markdown** (`src/components/markdown.tsx`), rendered from tokens into React elements, never into HTML. Headings, lists, tables and code inside an answer are content and are exempt from the list ban above, which is about UI chrome.

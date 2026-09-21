@@ -7,6 +7,8 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { Ellipsis, LogOut } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { ThemeSwitch } from "@/components/theme-provider";
+import { InstallApp } from "@/components/pwa-provider";
 import { navIcons } from "@/components/nav-icons";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -26,6 +28,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
   const navRef = useRef<HTMLUListElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
   const tabbarRef = useRef<HTMLElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const placed = useRef(false);
 
   useEffect(() => {
@@ -128,6 +131,8 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="px-2">
+            <ThemeSwitch />
+            <InstallApp />
             {platformAdmin && <Link href="/platform" className="rounded-md px-2 py-2 text-sm text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">Administração da plataforma</Link>}
             {error && <p role="alert" className="px-2 text-destructive text-xs">{error}</p>}
             <SidebarMenu>
@@ -154,12 +159,12 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
           const active = pathname === href;
           return <TabItem key={slug} href={href} icon={<Icon className="size-[18px]" aria-hidden="true" />} label={item.short} active={active} />;
         })}
-        <TabItem icon={<Ellipsis className="size-[18px]" aria-hidden="true" />} label="Mais" active={overflowActive} onClick={() => setSheetOpen(true)} aria-haspopup="dialog" aria-expanded={sheetOpen} />
+        <TabItem ref={moreButtonRef} icon={<Ellipsis className="size-[18px]" aria-hidden="true" />} label="Mais" active={overflowActive} onClick={() => setSheetOpen(true)} aria-haspopup="dialog" aria-expanded={sheetOpen} />
       </nav>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="gap-1 p-2">
-          <SheetTitle className="sr-only">Mais opções</SheetTitle>
+        <SheetContent side="bottom" className="gap-1 p-2" onCloseAutoFocus={(event) => { event.preventDefault(); moreButtonRef.current?.focus(); }}>
+          <SheetTitle className="px-3 py-2 pr-12 font-sans text-sm">Mais opções</SheetTitle>
           {overflow.map((item) => {
             const href = `/app/${item.slug}`;
             const Icon = navIcons[item.slug];
@@ -172,6 +177,8 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
             );
           })}
           <Separator className="my-1.5" />
+          <ThemeSwitch />
+          <InstallApp />
           {platformAdmin && <Link href="/platform" onClick={() => setSheetOpen(false)} className="flex min-h-12 items-center rounded-md px-3 text-base text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">Administração da plataforma</Link>}
           {error && <p role="alert" className="px-3 text-destructive text-xs">{error}</p>}
           <button onClick={logout} disabled={pending} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-base text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground disabled:opacity-60">
