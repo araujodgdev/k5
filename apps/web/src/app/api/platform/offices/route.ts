@@ -5,6 +5,6 @@ import { platformErrorResponse } from "../_shared";
 export async function GET(request: Request) {
   try {
     const { db } = await requirePlatformRequest(request);
-    return Response.json({ offices: listOfficesForPlatform(db) });
+    return Response.json({ offices: await listOfficesForPlatform(db) });
   } catch (error) { return platformErrorResponse(error); }
 }

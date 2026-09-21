@@ -17,24 +17,24 @@ async function main() {
   const { database } = await import("../src/lib/database");
   const { findUserForPlatformGrant, grantPlatformAdmin, isPlatformAdmin, revokePlatformAdmin } = await import("../src/lib/platform-core");
 
-  const user = findUserForPlatformGrant(database, flag === "--email" ? { email: value } : { id: value });
+  const user = await findUserForPlatformGrant(database, flag === "--email" ? { email: value } : { id: value });
   if (!user) {
     console.error("Usuário não encontrado. O administrador deve ser um usuário já cadastrado.");
     process.exit(1);
   }
 
   if (action === "rotate-key") {
-    if (!isPlatformAdmin(database, user.id)) {
+    if (!await isPlatformAdmin(database, user.id)) {
       console.error("A rotação exige um administrador da plataforma como responsável.");
       process.exit(1);
     }
-    const result = reencryptAiConnectionSecrets(database, parseCredentialKeyring(), user.id);
+    const result = await reencryptAiConnectionSecrets(database, parseCredentialKeyring(), user.id);
     console.log(`Chave ativa ${result.keyId}: ${result.reencrypted} de ${result.total} credenciais recriptografadas.`);
     if (process.env.K5_CREDENTIALS_PREVIOUS_KEYS) console.log("Após validar as conexões, remova K5_CREDENTIALS_PREVIOUS_KEYS do ambiente.");
     return;
   }
 
-  const changed = action === "grant" ? grantPlatformAdmin(database, user.id) : revokePlatformAdmin(database, user.id);
+  const changed = action === "grant" ? await grantPlatformAdmin(database, user.id) : await revokePlatformAdmin(database, user.id);
   console.log(changed
     ? `${action === "grant" ? "Acesso concedido" : "Acesso revogado"}: ${user.email} (${user.id})`
     : `Nenhuma alteração: ${user.email} (${user.id})`);

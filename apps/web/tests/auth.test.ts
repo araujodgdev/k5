@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { getMigrations } from "better-auth/db/migration";
 import { createAuth } from "../src/lib/auth-core";
+import { nodeSqliteDatabase } from "../src/lib/db/node-sqlite";
 import { ensureOfficeForUser, findOfficeForUser } from "../src/lib/offices";
 
 const origin = "http://localhost:3000";
@@ -13,7 +14,9 @@ const password = "Senha-teste-2026!";
 async function fixture() {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
-  const auth = createAuth(db, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600 });
+  // Better Auth gets the raw handle; K5's own code gets the same database through its async seam.
+  const database = nodeSqliteDatabase(db);
+  const auth = createAuth(db, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600 });
   await (await getMigrations(auth.options)).runMigrations();
   db.exec(readFileSync(new URL("../db/migrations/0001_offices.sql", import.meta.url), "utf8"));
   async function request(path: string, body?: object, cookie = "", requestOrigin = origin) {
@@ -30,11 +33,11 @@ async function fixture() {
     assert.equal(result.response.status, 200, JSON.stringify(result.data));
     return result;
   }
-  return { db, auth, request, signup };
+  return { db, database, auth, request, signup };
 }
 
 test("cadastro cria sessão, hash forte e escritório com administrador", async (t) => {
-  const { db, request, signup } = await fixture();
+  const { db, database, request, signup } = await fixture();
   t.after(() => db.close());
   const result = await signup();
   assert.match(result.response.headers.get("set-cookie") ?? "", /HttpOnly/i);
@@ -45,10 +48,10 @@ test("cadastro cria sessão, hash forte e escritório com administrador", async 
   assert.ok(account?.password);
   assert.notEqual(account.password, password);
   assert.ok(String(account.password).length > 80);
-  const office = findOfficeForUser(db, result.data.user.id);
+  const office = await findOfficeForUser(database, result.data.user.id);
   assert.equal(office?.officeName, "Silva Advocacia");
   assert.equal(office?.role, "administrator");
-  ensureOfficeForUser(db, { id: result.data.user.id, officeName: "Não deve duplicar" });
+  await ensureOfficeForUser(database, { id: result.data.user.id, officeName: "Não deve duplicar" });
   assert.equal(db.prepare("SELECT count(*) AS total FROM office").get()?.total, 1);
 });
 
@@ -80,17 +83,17 @@ test("login recusa senha incorreta e aceita credenciais válidas", async (t) => 
 });
 
 test("escritório A não acessa B e cadastro não aceita escritório ou papel fornecido pelo cliente", async (t) => {
-  const { db, signup } = await fixture();
+  const { db, database, signup } = await fixture();
   t.after(() => db.close());
   const a = await signup();
-  const officeA = findOfficeForUser(db, a.data.user.id)!;
+  const officeA = (await findOfficeForUser(database, a.data.user.id))!;
   const b = await signup("bruno@example.test", { officeName: "Bruno Advocacia", officeId: officeA.officeId, role: "reviewer" });
-  const officeB = findOfficeForUser(db, b.data.user.id)!;
+  const officeB = (await findOfficeForUser(database, b.data.user.id))!;
   assert.notEqual(officeA.officeId, officeB.officeId);
   assert.equal(officeB.role, "administrator");
-  assert.equal(findOfficeForUser(db, a.data.user.id, officeB.officeId), undefined);
-  assert.equal(findOfficeForUser(db, b.data.user.id, officeA.officeId), undefined);
-  assert.equal(findOfficeForUser(db, "usuario-inexistente", officeA.officeId), undefined);
+  assert.equal(await findOfficeForUser(database, a.data.user.id, officeB.officeId), undefined);
+  assert.equal(await findOfficeForUser(database, b.data.user.id, officeA.officeId), undefined);
+  assert.equal(await findOfficeForUser(database, "usuario-inexistente", officeA.officeId), undefined);
   assert.throws(() => db.prepare("UPDATE office_member SET role = 'superadmin'").run());
 });
 

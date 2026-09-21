@@ -23,8 +23,8 @@ async function main() {
 
       // Expired references are swept on a slow cadence; they are cleanup, not queue work.
       if (Date.now() > sweepAt) {
-        sweepExpiredUploadRefs();
-        sweepExpiredSecretRefs();
+        await sweepExpiredUploadRefs();
+        await sweepExpiredSecretRefs();
         sweepAt = Date.now() + 60_000;
       }
 

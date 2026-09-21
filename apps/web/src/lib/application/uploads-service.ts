@@ -63,7 +63,7 @@ export async function createUploadRef(context: WorkspaceContext, file: File): Pr
 
   const sha256 = createHash('sha256').update(data).digest('hex');
   try {
-    database.prepare(`
+    await database.prepare(`
       INSERT INTO vault_upload_ref (id, office_id, user_id, storage_key, original_name, mime_type, byte_size, sha256, expires_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(id, context.officeId, context.userId, key, name, mimeType, data.byteLength, sha256, Date.now() + UPLOAD_REF_TTL_MS);
@@ -81,8 +81,8 @@ export async function createUploadRef(context: WorkspaceContext, file: File): Pr
  * Single use, bound to the office and the person who uploaded it, and expiring. Consumption is a
  * conditional UPDATE so two concurrent tool calls cannot both claim the same file.
  */
-export function consumeUploadRef(context: WorkspaceContext, refId: string): UploadRef {
-  const claimed = database.prepare(`
+export async function consumeUploadRef(context: WorkspaceContext, refId: string): Promise<UploadRef> {
+  const claimed = await database.prepare(`
     UPDATE vault_upload_ref SET consumed_at = CURRENT_TIMESTAMP
     WHERE id = ? AND office_id = ? AND user_id = ? AND consumed_at IS NULL AND expires_at > ?
   `).run(refId, context.officeId, context.userId, Date.now());
@@ -90,14 +90,14 @@ export function consumeUploadRef(context: WorkspaceContext, refId: string): Uplo
   if (!claimed.changes) {
     // Scoped to the same person as the claim above. An office-wide diagnostic would answer
     // "expired" for someone else's reference, which is both wrong and a disclosure that it exists.
-    const own = database.prepare('SELECT consumed_at, expires_at FROM vault_upload_ref WHERE id = ? AND office_id = ? AND user_id = ?')
+    const own = await database.prepare('SELECT consumed_at, expires_at FROM vault_upload_ref WHERE id = ? AND office_id = ? AND user_id = ?')
       .get(refId, context.officeId, context.userId) as { consumed_at: string | null; expires_at: number } | undefined;
     if (!own) throw new CapabilityError('NOT_FOUND', 'Referência de upload não encontrada. Envie o arquivo novamente.');
     if (own.consumed_at) throw new CapabilityError('CONFLICT', 'Este arquivo já foi adicionado ao Cofre.');
     throw new CapabilityError('CONFLICT', 'A referência de upload expirou. Envie o arquivo novamente.');
   }
 
-  const row = database.prepare(`
+  const row = await database.prepare(`
     SELECT id, storage_key AS storageKey, original_name AS originalName, mime_type AS mimeType,
            byte_size AS byteSize, sha256
     FROM vault_upload_ref WHERE id = ?
@@ -119,22 +119,22 @@ export function consumeUploadRef(context: WorkspaceContext, refId: string): Uplo
  * unclaimed and the person can simply try again. Without this the upload is lost to them and its
  * bytes are invisible to the sweep, which only walks unclaimed references.
  */
-export function releaseUploadRef(context: WorkspaceContext, refId: string): void {
-  database.prepare(
+export async function releaseUploadRef(context: WorkspaceContext, refId: string): Promise<void> {
+  await database.prepare(
     'UPDATE vault_upload_ref SET consumed_at = NULL WHERE id = ? AND office_id = ? AND user_id = ? AND consumed_at IS NOT NULL',
   ).run(refId, context.officeId, context.userId);
 }
 
 /** Expired references leave bytes behind; the worker collects them through the deletion queue. */
-export function sweepExpiredUploadRefs(limit = 50): number {
-  const stale = database.prepare(
+export async function sweepExpiredUploadRefs(limit = 50): Promise<number> {
+  const stale = await database.prepare(
     'SELECT id, office_id AS officeId, storage_key AS storageKey FROM vault_upload_ref WHERE consumed_at IS NULL AND expires_at < ? LIMIT ?',
   ).all(Date.now(), limit) as Array<{ id: string; officeId: string; storageKey: string }>;
 
   for (const row of stale) {
-    database.prepare('INSERT INTO vault_deletion_queue (id, office_id, target_kind, target_ref) VALUES (?, ?, ?, ?)')
+    await database.prepare('INSERT INTO vault_deletion_queue (id, office_id, target_kind, target_ref) VALUES (?, ?, ?, ?)')
       .run(randomUUID(), row.officeId, 'object', row.storageKey);
-    database.prepare('DELETE FROM vault_upload_ref WHERE id = ?').run(row.id);
+    await database.prepare('DELETE FROM vault_upload_ref WHERE id = ?').run(row.id);
   }
   return stale.length;
 }

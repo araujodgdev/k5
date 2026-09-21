@@ -12,7 +12,7 @@ export async function POST(request: Request, context: Context) {
     const workspace = await apiWorkspace(request, true);
     const artifactId = (await context.params).id;
     const body = z.object({ version: z.number().int().positive() }).parse(await limitedJson(request));
-    const result = restoreArtifactVersion(workspaceContext(workspace), { artifactId, version: body.version });
+    const result = await restoreArtifactVersion(workspaceContext(workspace), { artifactId, version: body.version });
     return Response.json(result);
   } catch (error) { return apiError(error); }
 }

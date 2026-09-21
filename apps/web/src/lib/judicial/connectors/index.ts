@@ -24,8 +24,11 @@ const factories: Partial<Record<SourceKind, (transport: Transport) => JudicialCo
 let transportOverride: Transport | null = null;
 
 // Not named `use*`: that prefix marks a React hook, and these are module-level switches.
-export function setFixtureTransport(fixtures: Map<string, { contentType?: string; body: string; status?: number }>): void {
-  transportOverride = fixtureTransport(fixtures);
+export function setFixtureTransport(
+  fixtures: Map<string, { contentType?: string; body: string; status?: number }>,
+  onRequest?: () => Promise<void> | void,
+): void {
+  transportOverride = fixtureTransport(fixtures, onRequest);
 }
 
 export function resetTransport(): void {

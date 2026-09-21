@@ -37,26 +37,26 @@ function refreshKey(subscription: Subscription, windowFrom: string, windowTo: st
   return `sub:${subscription.id}:${windowFrom}:${windowTo}`;
 }
 
-export function scheduleDueSubscriptions(now = Date.now(), limit = 20): ScheduleOutcome {
+export async function scheduleDueSubscriptions(now = Date.now(), limit = 20): Promise<ScheduleOutcome> {
   const outcome: ScheduleOutcome = { considered: 0, queued: 0, skipped: [] };
 
-  for (const subscription of listDueSubscriptions(now, limit)) {
+  for (const subscription of await listDueSubscriptions(now, limit)) {
     outcome.considered += 1;
 
     // Re-read the authorization before spending a request, not when the subscription was created.
-    const authorized = subscriptionStillAuthorized(subscription);
+    const authorized = await subscriptionStillAuthorized(subscription);
     if (!authorized.ok) {
       // A link still awaiting review will probably be confirmed; the subscription waits for it.
       // A revoked membership or a deleted link will not resolve itself and needs a person.
-      if (authorized.waiting) deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
-      else setSubscriptionStatus(subscription.officeId, subscription.id, 'suspended', authorized.reason);
+      if (authorized.waiting) await deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
+      else await setSubscriptionStatus(subscription.officeId, subscription.id, 'suspended', authorized.reason);
       outcome.skipped.push({ subscriptionId: subscription.id, reason: authorized.reason });
       continue;
     }
 
-    const installation = findInstallation(subscription.installationId);
+    const installation = await findInstallation(subscription.installationId);
     if (!installation || !installation.enabled) {
-      setSubscriptionStatus(subscription.officeId, subscription.id, 'suspended', 'A fonte foi desabilitada.');
+      await setSubscriptionStatus(subscription.officeId, subscription.id, 'suspended', 'A fonte foi desabilitada.');
       outcome.skipped.push({ subscriptionId: subscription.id, reason: 'installation_disabled' });
       continue;
     }
@@ -64,24 +64,24 @@ export function scheduleDueSubscriptions(now = Date.now(), limit = 20): Schedule
     if (subscription.targetKind === 'publications_by_case') {
       let numbers: string[] = [];
       if (subscription.linkId) {
-        const link = findCaseLink(subscription.officeId, subscription.linkId);
-        if (link && link.status === 'active' && link.confirmation === 'confirmed' && link.cnjNumber) {
+        const link = await findCaseLink(subscription.officeId, subscription.linkId);
+        if (link?.status === 'active' && link.confirmation === 'confirmed' && link.cnjNumber) {
           numbers = [link.cnjNumber];
         }
       } else {
-        numbers = confirmedCnjNumbers(subscription.officeId, installation.id);
+        numbers = await confirmedCnjNumbers(subscription.officeId, installation.id);
       }
 
       if (!numbers.length) {
         // Nothing confirmed to ask about. Backing off is correct; a broad sweep with no filter
         // would be discovery the office never authorized.
-        deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
+        await deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
         outcome.skipped.push({ subscriptionId: subscription.id, reason: 'no_confirmed_links' });
         continue;
       }
 
       const window = overlappingWindow(subscription.watermark, nowIso(), REFRESH_OVERLAP_DAYS);
-      const { created } = enqueueJob({
+      const { created } = await enqueueJob({
         officeId: subscription.officeId,
         installationId: installation.id,
         subscriptionId: subscription.id,
@@ -96,14 +96,14 @@ export function scheduleDueSubscriptions(now = Date.now(), limit = 20): Schedule
 
       // Move the next tick out whether or not a new job was created: an existing pending job for
       // this window is already the work this tick would have asked for.
-      deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
+      await deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
       if (created) outcome.queued += 1;
       else outcome.skipped.push({ subscriptionId: subscription.id, reason: 'already_pending' });
       continue;
     }
 
     outcome.skipped.push({ subscriptionId: subscription.id, reason: 'target_kind_not_implemented' });
-    deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
+    await deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
   }
 
   return outcome;
@@ -113,13 +113,13 @@ export function scheduleDueSubscriptions(now = Date.now(), limit = 20): Schedule
  * Queues a historical sweep. Kept separate from the refresh queue (section 7) so a month of
  * backfill cannot delay today's publications, and so its findings are announced as history.
  */
-export function scheduleBackfill(input: {
+export async function scheduleBackfill(input: {
   officeId: string;
   installationId: string;
   linkId: string | null;
   from?: string;
   to?: string;
-}): { jobId: string; created: boolean; windowFrom: string; windowTo: string } {
+}): Promise<{ jobId: string; created: boolean; windowFrom: string; windowTo: string }> {
   const to = (input.to ?? nowIso()).slice(0, 10);
   const from = input.from
     ? input.from.slice(0, 10)
@@ -127,12 +127,12 @@ export function scheduleBackfill(input: {
 
   let numbers: string[] = [];
   if (input.linkId) {
-    const link = findCaseLink(input.officeId, input.linkId);
-    if (link && link.status === 'active' && link.confirmation === 'confirmed' && link.cnjNumber) {
+    const link = await findCaseLink(input.officeId, input.linkId);
+    if (link?.status === 'active' && link.confirmation === 'confirmed' && link.cnjNumber) {
       numbers = [link.cnjNumber];
     }
   } else {
-    numbers = confirmedCnjNumbers(input.officeId, input.installationId);
+    numbers = await confirmedCnjNumbers(input.officeId, input.installationId);
   }
 
   if (!numbers.length) {
@@ -144,7 +144,7 @@ export function scheduleBackfill(input: {
     );
   }
 
-  const { job, created } = enqueueJob({
+  const { job, created } = await enqueueJob({
     officeId: input.officeId,
     installationId: input.installationId,
     linkId: input.linkId,

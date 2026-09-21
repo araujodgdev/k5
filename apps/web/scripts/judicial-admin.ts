@@ -70,7 +70,7 @@ async function main() {
   const { hasConnectorFor } = await import('../src/lib/judicial/connectors');
 
   if (action === 'list') {
-    const installations = listInstallations();
+    const installations = await listInstallations();
     if (!installations.length) {
       console.log('Nenhuma fonte judicial cadastrada. Use: pnpm judicial:admin register --file <ficha.json>');
       return;
@@ -114,7 +114,7 @@ async function main() {
     }
 
     // Registering never turns a source on. Enabling is a separate command on purpose.
-    const installation = upsertInstallation({ ...sheet, allowedHosts: hosts, enabled: false, liveTransportEnabled: false });
+    const installation = await upsertInstallation({ ...sheet, allowedHosts: hosts, enabled: false, liveTransportEnabled: false });
     console.log(`Fonte registrada: ${installation.id}`);
     console.log(`  ${installation.courtCode} · ${installation.purpose} · estágio ${installation.discoveryStatus}`);
     console.log('  Continua desabilitada. Use: pnpm judicial:admin enable <id>');
@@ -127,14 +127,14 @@ async function main() {
   if (action === 'enable' || action === 'disable') {
     const [id, ...flags] = rest;
     if (!id || flags.some((flag) => flag !== '--live')) usage();
-    const installation = findInstallation(id);
+    const installation = await findInstallation(id);
     if (!installation) {
       console.error('Fonte não encontrada. Use: pnpm judicial:admin list');
       process.exit(1);
     }
 
     if (action === 'disable') {
-      setInstallationStatus(id, 'suspended', false, false);
+      await setInstallationStatus(id, 'suspended', false, false);
       console.log(`Fonte suspensa: ${installation.courtCode}. Os registros já coletados foram preservados.`);
       return;
     }
@@ -155,7 +155,7 @@ async function main() {
       }
     }
 
-    setInstallationStatus(id, live ? 'pilot' : installation.discoveryStatus, true, live);
+    await setInstallationStatus(id, live ? 'pilot' : installation.discoveryStatus, true, live);
     console.log(`Fonte habilitada: ${installation.courtCode}.`);
     console.log(live
       ? '  Acesso real à rede liberado, restrito aos hosts aprovados desta instalação.'

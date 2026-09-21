@@ -46,21 +46,21 @@ function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
   return uploadsService.createUploadRef(context, file);
 }
 
-test("storage: a caller-supplied key cannot escape the vault root", () => {
+test("storage: a caller-supplied key cannot escape the vault root", async () => {
   const { lawyer, officeA } = seedOffices();
 
   // Ingest used to write `${uploadRef}.pdf` straight into stored_name, so a traversal sequence in
   // the reference became a readable path on the next download. References are uuids the server
   // minted, and anything else is refused before a row exists.
   for (const hostile of ["../../../../etc/passwd", "..\\..\\..\\windows\\win.ini", "../uploads/outro-escritorio"]) {
-    assert.throws(
+    await assert.rejects(
       () => vaultService.ingestUpload(lawyer, { uploadRef: hostile, scope: "library" }),
       "a path fragment is not a valid upload reference",
     );
   }
 
   // A well-formed but unknown reference is equally refused: existence is checked, not assumed.
-  assert.throws(
+  await assert.rejects(
     () => vaultService.ingestUpload(lawyer, { uploadRef: randomUUID(), scope: "library" }),
     (error: unknown) => error instanceof CapabilityError && error.code === "NOT_FOUND",
   );
@@ -75,21 +75,21 @@ test("uploads: a reference is single use and bound to its office and its person"
   const { lawyer, admin, beta } = seedOffices();
   const upload = await seedUpload(lawyer, "peticao.pdf");
 
-  assert.throws(
+  await assert.rejects(
     () => vaultService.ingestUpload(beta, { uploadRef: upload.id, scope: "library" }),
     (error: unknown) => error instanceof CapabilityError && error.code === "NOT_FOUND",
     "another office cannot claim this upload",
   );
-  assert.throws(
+  await assert.rejects(
     () => vaultService.ingestUpload(admin, { uploadRef: upload.id, scope: "library" }),
     (error: unknown) => error instanceof CapabilityError && error.code === "NOT_FOUND",
     "another member cannot claim an upload they did not make",
   );
 
-  const first = vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "library" });
+  const first = await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "library" });
   assert.ok(first.document.id);
 
-  assert.throws(
+  await assert.rejects(
     () => vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "library" }),
     (error: unknown) => error instanceof CapabilityError && error.code === "CONFLICT",
     "one reference ingests one file, once",
@@ -99,21 +99,21 @@ test("uploads: a reference is single use and bound to its office and its person"
 test("tombstone: a deleted document cannot be resurrected through retry", async () => {
   const { lawyer, officeA } = seedOffices();
   const upload = await seedUpload(lawyer, "sigiloso.pdf");
-  const documentId = vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "library" }).document.id;
+  const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "library" })).document.id;
 
-  const proposal = approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", { documentId });
-  approvalsService.approveProposal(lawyer, proposal.id);
-  vaultService.deleteDocument(lawyer, { documentId, approvalId: proposal.id });
+  const proposal = await approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", { documentId });
+  await approvalsService.approveProposal(lawyer, proposal.id);
+  await vaultService.deleteDocument(lawyer, { documentId, approvalId: proposal.id });
 
   // Deletion parks the row in `failed`, which is exactly the state retry accepts. Without the
   // tombstone check the worker would re-extract the original and put it back into search.
-  assert.throws(
+  await assert.rejects(
     () => retryVaultDocument(officeA, documentId),
     (error: unknown) => error instanceof VaultHttpError && error.status === 409,
   );
-  assert.equal(findVaultDocument(officeA, documentId), undefined, "gone from every live lookup");
+  assert.equal(await findVaultDocument(officeA, documentId), undefined, "gone from every live lookup");
   assert.equal(
-    listVaultDocuments(officeA, {}).some((document) => document.id === documentId),
+    (await listVaultDocuments(officeA, {})).some((document) => document.id === documentId),
     false,
     "and from the list the interface renders",
   );
@@ -124,23 +124,23 @@ test("tombstone: a deleted document cannot be resurrected through retry", async 
   assert.ok(Number(queued.n) >= 1, "physical cleanup is queued after the tombstone, not instead of it");
 });
 
-test("idempotency: a reused key with different arguments conflicts instead of replaying", () => {
+test("idempotency: a reused key with different arguments conflicts instead of replaying", async () => {
   const { lawyer, admin } = seedOffices();
 
   let calls = 0;
-  const run = () => { calls += 1; return { calls, value: "ok" }; };
+  const run = () => { calls += 1; return Promise.resolve({ calls, value: "ok" }); };
   const key = `key-${randomUUID()}`;
 
-  assert.equal(withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Alfa" }, run).calls, 1);
-  assert.equal(withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Alfa" }, run).calls, 1);
+  assert.equal((await withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Alfa" }, run)).calls, 1);
+  assert.equal((await withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Alfa" }, run)).calls, 1);
   assert.equal(calls, 1, "a replay returns the stored response without running again");
 
-  assert.throws(
+  await assert.rejects(
     () => withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Beta" }, run),
     (error: unknown) => error instanceof CapabilityError && error.code === "CONFLICT",
     "different arguments under the same key is a conflict, not a stale replay",
   );
-  assert.throws(
+  await assert.rejects(
     () => withIdempotency(lawyer, "k5_conversations_create", key, { name: "Alfa" }, run),
     (error: unknown) => error instanceof CapabilityError && error.code === "CONFLICT",
     "a key minted for one capability does not answer for another",
@@ -148,21 +148,21 @@ test("idempotency: a reused key with different arguments conflicts instead of re
 
   // Keys are scoped per person: a colleague reusing the same string runs their own call rather
   // than receiving someone else's stored response body.
-  assert.equal(withIdempotency(admin, "k5_vault_create_case", key, { name: "Gama" }, run).calls, 2);
+  assert.equal((await withIdempotency(admin, "k5_vault_create_case", key, { name: "Gama" }, run)).calls, 2);
 });
 
-test("approval: a nested argument change invalidates the approval", () => {
+test("approval: a nested argument change invalidates the approval", async () => {
   const { lawyer } = seedOffices();
 
-  const proposal = approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", {
+  const proposal = await approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", {
     documentId: "doc-1",
     options: { mode: "replace", keepHistory: true },
   });
-  approvalsService.approveProposal(lawyer, proposal.id);
+  await approvalsService.approveProposal(lawyer, proposal.id);
 
   // `JSON.stringify(obj, Object.keys(obj).sort())` reads like a sort but is a recursive property
   // filter, so nested fields dropped out of the canonical form and changing one went unnoticed.
-  assert.throws(
+  await assert.rejects(
     () => approvalsService.requireAndConsumeApproval(lawyer, "k5_vault_delete_document", proposal.id, {
       documentId: "doc-1",
       options: { mode: "delete", keepHistory: true },
@@ -171,12 +171,12 @@ test("approval: a nested argument change invalidates the approval", () => {
   );
 
   // Reordering the same values is still the same request.
-  approvalsService.requireAndConsumeApproval(lawyer, "k5_vault_delete_document", proposal.id, {
+  await approvalsService.requireAndConsumeApproval(lawyer, "k5_vault_delete_document", proposal.id, {
     options: { keepHistory: true, mode: "replace" },
     documentId: "doc-1",
   });
 
-  assert.throws(
+  await assert.rejects(
     () => approvalsService.requireAndConsumeApproval(lawyer, "k5_vault_delete_document", proposal.id, {
       options: { keepHistory: true, mode: "replace" },
       documentId: "doc-1",
@@ -186,11 +186,11 @@ test("approval: a nested argument change invalidates the approval", () => {
   );
 });
 
-test("approval: a colleague cannot approve a proposal addressed to someone else", () => {
+test("approval: a colleague cannot approve a proposal addressed to someone else", async () => {
   const { lawyer, admin } = seedOffices();
-  const proposal = approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", { documentId: "doc-2" });
+  const proposal = await approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", { documentId: "doc-2" });
 
-  assert.throws(
+  await assert.rejects(
     () => approvalsService.approveProposal(admin, proposal.id),
     (error: unknown) => error instanceof CapabilityError && error.code === "NOT_FOUND",
   );

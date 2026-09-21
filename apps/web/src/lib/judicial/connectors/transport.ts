@@ -383,10 +383,18 @@ export const liveTransport: Transport = {
  */
 export function fixtureTransport(
   fixtures: Map<string, { contentType?: string; body: string; status?: number }>,
+  /**
+   * Awaited before the fixture is answered, so a test can make something happen mid-request —
+   * another worker taking the lease, for instance. It has to be a hook here rather than a wrapper
+   * around `fixtures.get`, because the database is asynchronous and work started from a
+   * synchronous `get` would not have landed by the time the response is handled.
+   */
+  onRequest?: () => Promise<void> | void,
 ): Transport {
   return {
     mode: 'fixture',
     async request(installation, path, init = {}) {
+      await onRequest?.();
       const key = fixtureKey(installation.id, init.method ?? 'GET', path, init.query);
       const fixture = fixtures.get(key);
       if (!fixture) throw new ConnectorError('not_found_in_source', `Sem fixture para ${key}`);

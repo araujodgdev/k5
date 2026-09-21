@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const folder = url.searchParams.get("folderId");
     return Response.json({
-      documents: listVaultDocuments(office.officeId, {
+      documents: await listVaultDocuments(office.officeId, {
         scope: url.searchParams.get("scope"),
         caseId: url.searchParams.get("caseId"),
         // `folderId=root` is how the browser asks for a case's own level, as distinct from "any folder".
@@ -38,8 +38,8 @@ export async function POST(request: Request) {
     const upload = await createUploadRef(context, file);
     // Consumed here, in the same request that created it: an unclaimed reference is garbage the
     // sweeper is entitled to delete, and it would take this document's bytes with it.
-    consumeUploadRef(context, upload.id);
-    const document = createVaultDocument(context.officeId, context.userId, upload, {
+    await consumeUploadRef(context, upload.id);
+    const document = await createVaultDocument(context.officeId, context.userId, upload, {
       scope: String(form.get("scope") ?? ""),
       caseId: typeof form.get("caseId") === "string" ? String(form.get("caseId")) : null,
       folderId: typeof form.get("folderId") === "string" ? String(form.get("folderId")) : null,

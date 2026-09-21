@@ -17,31 +17,32 @@ async function main() {
     process.env.K5_CREDENTIALS_KEY = key;
     console.log('Chave local de criptografia criada. Preserve seu backup junto aos dados.');
   }
-  const { database } = await import("../src/lib/database");
+  const { authStore, database } = await import("../src/lib/database");
   const { createAuth } = await import("../src/lib/auth-core");
   const secret = process.env.BETTER_AUTH_SECRET;
   if (!secret || secret.length < 32) throw new Error("Defina BETTER_AUTH_SECRET com pelo menos 32 caracteres.");
-  const auth = createAuth(database, { secret, baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000", idleSeconds: Number(process.env.SESSION_IDLE_SECONDS ?? 28800) });
+  const store = await authStore() as Parameters<typeof createAuth>[0];
+  const auth = createAuth(store, database, { secret, baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000", idleSeconds: Number(process.env.SESSION_IDLE_SECONDS ?? 28800) });
   const { runMigrations } = await getMigrations(auth.options);
   await runMigrations();
   // Each file runs once and is recorded; rebuild migrations cannot be replayed over their own result.
-  database.exec('CREATE TABLE IF NOT EXISTS schema_migration (name TEXT PRIMARY KEY NOT NULL, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
-  const applied = new Set(database.prepare('SELECT name FROM schema_migration').all().map(row => String(row.name)));
+  await database.exec('CREATE TABLE IF NOT EXISTS schema_migration (name TEXT PRIMARY KEY NOT NULL, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
+  const applied = new Set((await database.prepare('SELECT name FROM schema_migration').all()).map(row => String(row.name)));
   for (const name of readdirSync(resolve('db/migrations')).filter(name => name.endsWith('.sql')).sort()) {
     if (applied.has(name)) continue;
-    database.exec(readFileSync(resolve('db/migrations', name), 'utf8'));
-    database.prepare('INSERT INTO schema_migration (name) VALUES (?)').run(name);
+    await database.exec(readFileSync(resolve('db/migrations', name), 'utf8'));
+    await database.prepare('INSERT INTO schema_migration (name) VALUES (?)').run(name);
   }
   console.log("SQLite pronto: autenticação, escritórios e vínculos de acesso.");
   try {
     const { parseCredentialKeyring } = await import("../src/lib/platform-crypto");
     const { countSecretsNeedingReencryption } = await import("../src/lib/ai-connections-core");
-    const pending = countSecretsNeedingReencryption(database, parseCredentialKeyring());
+    const pending = await countSecretsNeedingReencryption(database, parseCredentialKeyring());
     if (pending) console.log(`${pending} credenciais de IA usam uma chave mestra anterior. Execute pnpm platform:admin rotate-key --email <administrador>.`);
   } catch {
     console.log("Não foi possível verificar a chave mestra das credenciais de IA. Confira K5_CREDENTIALS_KEY e K5_CREDENTIALS_PREVIOUS_KEYS.");
   }
-  database.close();
+  await database.close();
 }
 
 main().catch(() => {

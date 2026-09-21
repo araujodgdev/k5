@@ -68,7 +68,7 @@ async function extractPdfLocally(data: Buffer, documentId: string, existingPdf?:
   const pdf = existingPdf ?? await pdfjs.getDocument({ data: new Uint8Array(data), disableWorker: true }).promise;
   const { createCanvas } = await import("@napi-rs/canvas") as unknown as { createCanvas: (width: number, height: number) => { getContext: (contextId: "2d") => unknown; toBuffer: (format: "image/png") => Buffer } };
   const { createWorker } = await import("tesseract.js") as unknown as { createWorker: (languages?: string | string[], oem?: number, options?: Record<string, unknown>) => Promise<{ recognize: (image: Buffer) => Promise<{ data: { text: string } }>; terminate: () => Promise<void> }> };
-  const completed = new Map((database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
+  const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
   const sections: ExtractedSection[] = [];
   let worker: Awaited<ReturnType<typeof createWorker>> | undefined;
   try {
@@ -83,7 +83,7 @@ async function extractPdfLocally(data: Buffer, documentId: string, existingPdf?:
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
       const text = (await worker.recognize(canvas.toBuffer("image/png"))).data.text.replace(/\s+/g, " ").trim();
       if (text) {
-        database.prepare("INSERT OR REPLACE INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?)").run(documentId, reference, text);
+        await database.prepare("INSERT OR REPLACE INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?)").run(documentId, reference, text);
         sections.push({ reference, content: text });
       }
     }

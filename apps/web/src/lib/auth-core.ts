@@ -1,14 +1,23 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { BetterAuthOptions } from "better-auth";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { z } from "zod";
 import { signUpSchema } from "./auth-validation";
+import type { Database } from "./database";
 import { ensureOfficeForUser } from "./offices";
 
-export function createAuth(db: DatabaseSync, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[] }) {
+/** Whatever Better Auth can talk to directly: a `node:sqlite` handle, a D1 binding, a dialect. */
+export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
+
+/**
+ * Better Auth owns its own tables and reaches them through `store`, while the office provisioning
+ * hook writes K5's tables through `db`. They are the same database; the two handles exist because
+ * Better Auth needs a backend it recognises and K5 needs the async seam in `db/types.ts`.
+ */
+export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[] }) {
   return betterAuth({
     appName: "K5",
-    database: db,
+    database: store,
     secret: settings.secret,
     baseURL: settings.baseURL,
     trustedOrigins: [settings.baseURL, ...(settings.extraOrigins ?? [])],
@@ -49,7 +58,7 @@ export function createAuth(db: DatabaseSync, settings: { secret: string; baseURL
     },
     databaseHooks: {
       user: { create: { after: async (user) => {
-        ensureOfficeForUser(db, { id: user.id, officeName: (user as typeof user & { officeName: string }).officeName });
+        await ensureOfficeForUser(db, { id: user.id, officeName: (user as typeof user & { officeName: string }).officeName });
       } } },
     },
   });

@@ -19,6 +19,7 @@
     "platform:admin": "pnpm --filter @k5/web platform:admin"
   },
   "devDependencies": {
-    "turbo": "2.10.13"
+    "turbo": "2.10.13",
+    "wrangler": "^4.135.0"
   }
 }

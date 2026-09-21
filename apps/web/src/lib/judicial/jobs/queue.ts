@@ -73,12 +73,12 @@ function toJob(row: JobRow): SyncJob {
   };
 }
 
-export function findJob(officeId: string, jobId: string): SyncJob | undefined {
-  const row = database.prepare('SELECT * FROM judicial_sync_job WHERE id = ? AND office_id = ?').get(jobId, officeId) as JobRow | undefined;
+export async function findJob(officeId: string, jobId: string): Promise<SyncJob | undefined> {
+  const row = await database.prepare('SELECT * FROM judicial_sync_job WHERE id = ? AND office_id = ?').get(jobId, officeId) as JobRow | undefined;
   return row ? toJob(row) : undefined;
 }
 
-export function listJobs(
+export async function listJobs(
   officeId: string,
   filter: {
     caseId?: string;
@@ -87,7 +87,7 @@ export function listJobs(
     status?: SyncJob['status'];
     limit?: number;
   } = {},
-): SyncJob[] {
+): Promise<SyncJob[]> {
   const clauses = ['j.office_id = ?'];
   const params: (string | number)[] = [officeId];
   if (filter.caseId) { clauses.push('l.case_id = ?'); params.push(filter.caseId); }
@@ -95,7 +95,7 @@ export function listJobs(
   if (filter.installationId) { clauses.push('j.installation_id = ?'); params.push(filter.installationId); }
   if (filter.status) { clauses.push('j.status = ?'); params.push(filter.status); }
   const limit = Math.max(1, Math.min(filter.limit ?? 20, 100));
-  const rows = database.prepare(`
+  const rows = await database.prepare(`
     SELECT j.* FROM judicial_sync_job j
     LEFT JOIN judicial_case_link l ON l.id = j.link_id
     WHERE ${clauses.join(' AND ')}
@@ -105,15 +105,15 @@ export function listJobs(
 }
 
 /** One durable status row per visible link, used to restore collection state after a reload. */
-export function latestJobsForLinks(
+export async function latestJobsForLinks(
   officeId: string,
   linkIds: string[],
   completedOnly = false,
-): SyncJob[] {
+): Promise<SyncJob[]> {
   if (linkIds.length === 0) return [];
   const placeholders = linkIds.map(() => '?').join(', ');
   const statusClause = completedOnly ? "AND j.status = 'completed'" : '';
-  const rows = database.prepare(`
+  const rows = await database.prepare(`
     SELECT ranked.* FROM (
       SELECT j.*, ROW_NUMBER() OVER (
         PARTITION BY j.link_id ORDER BY j.created_at DESC, j.rowid DESC
@@ -146,17 +146,17 @@ export type EnqueueInput = {
  * still pending reuses that job (section 7): the person gets the result they asked for without a
  * second request being spent against the source's budget.
  */
-export function enqueueJob(input: EnqueueInput): { job: SyncJob; created: boolean } {
+export async function enqueueJob(input: EnqueueInput): Promise<{ job: SyncJob; created: boolean }> {
   const key = input.idempotencyKey ?? null;
   if (key) {
-    const pending = database.prepare(
+    const pending = await database.prepare(
       "SELECT * FROM judicial_sync_job WHERE office_id = ? AND idempotency_key = ? AND status IN ('queued','running')",
     ).get(input.officeId, key) as JobRow | undefined;
     if (pending) return { job: toJob(pending), created: false };
   }
 
   const id = randomUUID();
-  database.prepare(`
+  await database.prepare(`
     INSERT INTO judicial_sync_job (
       id, office_id, subscription_id, installation_id, link_id, kind, operation, request,
       window_from, window_to, idempotency_key
@@ -173,8 +173,8 @@ export function enqueueJob(input: EnqueueInput): { job: SyncJob; created: boolea
   );
 
   const row = key
-    ? database.prepare('SELECT * FROM judicial_sync_job WHERE office_id = ? AND idempotency_key = ?').get(input.officeId, key) as JobRow
-    : database.prepare('SELECT * FROM judicial_sync_job WHERE id = ?').get(id) as JobRow;
+    ? await database.prepare('SELECT * FROM judicial_sync_job WHERE office_id = ? AND idempotency_key = ?').get(input.officeId, key) as JobRow
+    : await database.prepare('SELECT * FROM judicial_sync_job WHERE id = ?').get(id) as JobRow;
   return { job: toJob(row), created: row.id === id };
 }
 
@@ -183,64 +183,63 @@ export function enqueueJob(input: EnqueueInput): { job: SyncJob; created: boolea
  * it already spent stays spent, so a job that keeps killing workers eventually stops instead of
  * looping forever.
  */
-export function claimJob(now = Date.now()): { job: SyncJob; leaseOwner: string } | undefined {
+export async function claimJob(now = Date.now()): Promise<{ job: SyncJob; leaseOwner: string } | undefined> {
   const owner = randomUUID();
-  database.exec('BEGIN IMMEDIATE');
-  try {
-    // A job whose lease expired with its attempts already exhausted can never be claimed again by
-    // the query below; without this it would sit in 'running' forever with nobody working it.
-    database.prepare(`
-      UPDATE judicial_sync_job
-      SET status = 'failed', lease_owner = NULL, lease_until = 0, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
-          error_code = COALESCE(error_code, 'source_unavailable'),
-          error_message = COALESCE(error_message, 'A coleta esgotou as tentativas sem concluir.')
-      WHERE status = 'running' AND lease_until < ? AND attempts >= ?
-    `).run(now, MAX_ATTEMPTS);
 
-    const row = database.prepare(`
-      SELECT j.* FROM judicial_sync_job j
+  // A job whose lease expired with its attempts already exhausted can never be claimed again by
+  // the statement below; without this it would sit in 'running' forever with nobody working it.
+  // It runs on its own because it touches different rows than the claim and needs no ordering
+  // with it: at worst a sweep and a claim interleave and the next call finishes the job off.
+  await database.prepare(`
+    UPDATE judicial_sync_job
+    SET status = 'failed', lease_owner = NULL, lease_until = 0, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
+        error_code = COALESCE(error_code, 'source_unavailable'),
+        error_message = COALESCE(error_message, 'A coleta esgotou as tentativas sem concluir.')
+    WHERE status = 'running' AND lease_until < ? AND attempts >= ?
+  `).run(now, MAX_ATTEMPTS);
+
+  // The claim is one conditional UPDATE: the sub-select picks the job and the outer WHERE
+  // re-checks the same eligibility, inside a single statement. Two workers racing here cannot
+  // both take the lease — the loser updates no rows and gets nothing back — and that holds
+  // without the interactive transaction D1 does not offer.
+  const eligible = "(status = 'queued' OR (status = 'running' AND lease_until < ?)) AND attempts < ? AND run_after <= ?";
+  const row = await database.prepare(`
+    UPDATE judicial_sync_job
+    SET status = 'running', lease_owner = ?, lease_until = ?, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP
+    WHERE id = (
+      SELECT j.id FROM judicial_sync_job j
       JOIN judicial_source_installation i ON i.id = j.installation_id
       WHERE (j.status = 'queued' OR (j.status = 'running' AND j.lease_until < ?))
         AND j.attempts < ? AND j.run_after <= ? AND i.enabled = 1
       -- Routine refreshes go first: a long backfill must not starve today's publications.
       ORDER BY CASE j.kind WHEN 'manual' THEN 0 WHEN 'refresh' THEN 1 ELSE 2 END, j.created_at
       LIMIT 1
-    `).get(now, MAX_ATTEMPTS, now) as JobRow | undefined;
+    )
+      AND ${eligible}
+    RETURNING *
+  `).get<JobRow>(owner, now + LEASE_MS, now, MAX_ATTEMPTS, now, now, MAX_ATTEMPTS, now);
 
-    if (!row) { database.exec('COMMIT'); return undefined; }
-
-    const claimed = database.prepare(`
-      UPDATE judicial_sync_job
-      SET status = 'running', lease_owner = ?, lease_until = ?, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND (lease_until < ? OR lease_owner IS NULL)
-    `).run(owner, now + LEASE_MS, row.id, now);
-    if (!claimed.changes) { database.exec('COMMIT'); return undefined; }
-
-    database.exec('COMMIT');
-    return { job: { ...toJob(row), attempts: row.attempts + 1, status: 'running' }, leaseOwner: owner };
-  } catch (error) {
-    database.exec('ROLLBACK');
-    throw error;
-  }
+  // RETURNING hands back the row as it now stands, so the attempt is already counted.
+  return row ? { job: toJob(row), leaseOwner: owner } : undefined;
 }
 
 /** Extends the lease of a job still making progress, so a long sweep is not stolen mid-run. */
-export function renewLease(jobId: string, leaseOwner: string, now = Date.now()): boolean {
-  return database.prepare(
+export async function renewLease(jobId: string, leaseOwner: string, now = Date.now()): Promise<boolean> {
+  return (await database.prepare(
     'UPDATE judicial_sync_job SET lease_until = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND lease_owner = ?',
-  ).run(now + LEASE_MS, jobId, leaseOwner).changes > 0;
+  ).run(now + LEASE_MS, jobId, leaseOwner)).changes > 0;
 }
 
 /**
  * Advances the checkpoint. Only called after the data it covers is committed (section 7 step 6),
  * because a cursor saved before its records are durable is how a window gets skipped.
  */
-export function checkpointJob(
+export async function checkpointJob(
   jobId: string,
   leaseOwner: string,
   progress: { cursor: string | null; pagesFetched: number; recordsAccepted: number; recordsRejected: number },
-): boolean {
-  return database.prepare(`
+): Promise<boolean> {
+  return (await database.prepare(`
     UPDATE judicial_sync_job
     SET cursor = ?, pages_fetched = pages_fetched + ?, records_accepted = records_accepted + ?,
         records_rejected = records_rejected + ?, updated_at = CURRENT_TIMESTAMP
@@ -248,16 +247,16 @@ export function checkpointJob(
   `).run(
     progress.cursor, progress.pagesFetched, progress.recordsAccepted, progress.recordsRejected,
     jobId, leaseOwner,
-  ).changes > 0;
+  )).changes > 0;
 }
 
-export function completeJob(jobId: string, leaseOwner: string): boolean {
-  return database.prepare(`
+export async function completeJob(jobId: string, leaseOwner: string): Promise<boolean> {
+  return (await database.prepare(`
     UPDATE judicial_sync_job
     SET status = 'completed', lease_owner = NULL, lease_until = 0, completed_at = CURRENT_TIMESTAMP,
         error_code = NULL, error_message = NULL, updated_at = CURRENT_TIMESTAMP
     WHERE id = ? AND lease_owner = ?
-  `).run(jobId, leaseOwner).changes > 0;
+  `).run(jobId, leaseOwner)).changes > 0;
 }
 
 /** Exponential backoff with jitter, so a source coming back does not meet every worker at once. */
@@ -272,13 +271,13 @@ export function backoffDelayMs(attempts: number, retryAfterSeconds?: number): nu
  * forbidden source is not a transient condition: retrying it just burns the source's patience,
  * so those go straight to a terminal state that asks for a person.
  */
-export function failJob(
+export async function failJob(
   jobId: string,
   leaseOwner: string,
   error: { code: ConnectorErrorCode; message: string; retryAfterSeconds?: number },
   now = Date.now(),
-): { owned: boolean; retrying: boolean; terminalStatus: SyncJob['status'] } {
-  const row = database.prepare('SELECT attempts FROM judicial_sync_job WHERE id = ? AND lease_owner = ?')
+): Promise<{ owned: boolean; retrying: boolean; terminalStatus: SyncJob['status'] }> {
+  const row = await database.prepare('SELECT attempts FROM judicial_sync_job WHERE id = ? AND lease_owner = ?')
     .get(jobId, leaseOwner) as { attempts: number } | undefined;
   if (!row) return { owned: false, retrying: false, terminalStatus: 'failed' };
 
@@ -289,7 +288,7 @@ export function failJob(
   const retrying = !needsPerson && !quarantine && isRetryable(error.code) && row.attempts < MAX_ATTEMPTS;
 
   const status: SyncJob['status'] = retrying ? 'queued' : quarantine ? 'quarantined' : 'failed';
-  const updated = database.prepare(`
+  const updated = await database.prepare(`
     UPDATE judicial_sync_job
     SET status = ?, lease_owner = NULL, lease_until = 0, run_after = ?,
         error_code = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP,
@@ -305,7 +304,7 @@ export function failJob(
   // A credential that stopped working must stop the standing authorization too, rather than
   // letting the scheduler queue the same rejection every interval.
   if (needsPerson) {
-    database.prepare(`
+    await database.prepare(`
       UPDATE judicial_subscription SET status = 'suspended', suspended_reason = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = (SELECT subscription_id FROM judicial_sync_job WHERE id = ?) AND status = 'active'
     `).run(error.message, jobId);
@@ -314,60 +313,59 @@ export function failJob(
   return { owned: true, retrying, terminalStatus: status };
 }
 
-export function cancelJob(officeId: string, jobId: string): boolean {
-  return database.prepare(`
+export async function cancelJob(officeId: string, jobId: string): Promise<boolean> {
+  return (await database.prepare(`
     UPDATE judicial_sync_job
     SET status = 'cancelled', lease_owner = NULL, lease_until = 0, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
     WHERE id = ? AND office_id = ? AND status IN ('queued','running')
-  `).run(jobId, officeId).changes > 0;
+  `).run(jobId, officeId)).changes > 0;
 }
 
 /**
  * Reserves one request against both budgets before it is made. The counter lives in the database
  * precisely because a per-process limiter multiplied by the number of workers is not a limit.
  */
-export function reserveRequestBudget(
+export async function reserveRequestBudget(
   officeId: string,
   installation: { id: string; dailyRequestBudget: number; rateLimitPerMinute: number },
   now = Date.now(),
-): { allowed: true } | { allowed: false; reason: 'daily_budget' | 'rate_limit'; retryAfterMs: number } {
+): Promise<{ allowed: true } | { allowed: false; reason: 'daily_budget' | 'rate_limit'; retryAfterMs: number }> {
   const day = new Date(now).toISOString().slice(0, 10);
   const minimumSpacingMs = Math.ceil(60_000 / installation.rateLimitPerMinute);
 
-  database.exec('BEGIN IMMEDIATE');
-  try {
-    const row = database.prepare(
-      'SELECT requests, last_request_at FROM judicial_rate_budget WHERE installation_id = ? AND office_id = ? AND day = ?',
-    ).get(installation.id, officeId, day) as { requests: number; last_request_at: number } | undefined;
+  // Both limits are enforced inside the upsert, so the check and the increment are one statement.
+  // Reading first and writing after would let two workers both see room and both spend it, and a
+  // lock held across the two is the thing D1 has no answer for. A refused reservation writes
+  // nothing and returns no row; only then is the stored row read, to say which limit refused.
+  const granted = await database.prepare(`
+    INSERT INTO judicial_rate_budget (installation_id, office_id, day, requests, last_request_at)
+    VALUES (?, ?, ?, 1, ?)
+    ON CONFLICT(installation_id, office_id, day) DO UPDATE SET
+      requests = judicial_rate_budget.requests + 1, last_request_at = excluded.last_request_at
+    WHERE judicial_rate_budget.requests < ?
+      AND excluded.last_request_at - judicial_rate_budget.last_request_at >= ?
+    RETURNING requests
+  `).get<{ requests: number }>(
+    installation.id, officeId, day, now, installation.dailyRequestBudget, minimumSpacingMs,
+  );
+  if (granted) return { allowed: true };
 
-    if (row && row.requests >= installation.dailyRequestBudget) {
-      database.exec('COMMIT');
-      // Tomorrow, not in a minute: the day's allowance is spent.
-      const midnight = Date.parse(`${day}T00:00:00Z`) + 86_400_000;
-      return { allowed: false, reason: 'daily_budget', retryAfterMs: Math.max(1000, midnight - now) };
-    }
-    if (row && now - row.last_request_at < minimumSpacingMs) {
-      database.exec('COMMIT');
-      return { allowed: false, reason: 'rate_limit', retryAfterMs: minimumSpacingMs - (now - row.last_request_at) };
-    }
+  const row = await database.prepare(
+    'SELECT requests, last_request_at FROM judicial_rate_budget WHERE installation_id = ? AND office_id = ? AND day = ?',
+  ).get(installation.id, officeId, day) as { requests: number; last_request_at: number } | undefined;
 
-    database.prepare(`
-      INSERT INTO judicial_rate_budget (installation_id, office_id, day, requests, last_request_at)
-      VALUES (?, ?, ?, 1, ?)
-      ON CONFLICT(installation_id, office_id, day) DO UPDATE SET
-        requests = judicial_rate_budget.requests + 1, last_request_at = excluded.last_request_at
-    `).run(installation.id, officeId, day, now);
-    database.exec('COMMIT');
-    return { allowed: true };
-  } catch (error) {
-    database.exec('ROLLBACK');
-    throw error;
+  if (row && row.requests >= installation.dailyRequestBudget) {
+    // Tomorrow, not in a minute: the day's allowance is spent.
+    const midnight = Date.parse(`${day}T00:00:00Z`) + 86_400_000;
+    return { allowed: false, reason: 'daily_budget', retryAfterMs: Math.max(1000, midnight - now) };
   }
+  const since = row ? now - row.last_request_at : minimumSpacingMs;
+  return { allowed: false, reason: 'rate_limit', retryAfterMs: Math.max(1, minimumSpacingMs - since) };
 }
 
-export function requestsUsedToday(officeId: string, installationId: string, now = Date.now()): number {
+export async function requestsUsedToday(officeId: string, installationId: string, now = Date.now()): Promise<number> {
   const day = new Date(now).toISOString().slice(0, 10);
-  const row = database.prepare(
+  const row = await database.prepare(
     'SELECT requests FROM judicial_rate_budget WHERE installation_id = ? AND office_id = ? AND day = ?',
   ).get(installationId, officeId, day) as { requests: number } | undefined;
   return row?.requests ?? 0;

@@ -9,7 +9,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/platfo
     const { db, user } = await requirePlatformRequest(request, { mutation: true });
     const { officeId, connectionId } = await context.params;
     const patch = await readPlatformJson(request, connectionPatchSchema);
-    return Response.json({ connection: updateAiConnection(db, parseCredentialKeyring(), user.id, officeId, connectionId, patch) });
+    return Response.json({ connection: await updateAiConnection(db, parseCredentialKeyring(), user.id, officeId, connectionId, patch) });
   } catch (error) { return platformErrorResponse(error); }
 }
 
@@ -17,7 +17,7 @@ export async function DELETE(request: Request, context: RouteContext<"/api/platf
   try {
     const { db, user } = await requirePlatformRequest(request, { mutation: true });
     const { officeId, connectionId } = await context.params;
-    deleteAiConnection(db, user.id, officeId, connectionId);
+    await deleteAiConnection(db, user.id, officeId, connectionId);
     return new Response(null, { status: 204 });
   } catch (error) { return platformErrorResponse(error); }
 }

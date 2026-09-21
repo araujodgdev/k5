@@ -42,7 +42,7 @@ function asConnectorError(error: unknown): ConnectorError {
  * can back off instead of spinning.
  */
 export async function processNextJudicialJob(now = Date.now()): Promise<CollectOutcome | undefined> {
-  const claimed = claimJob(now);
+  const claimed = await claimJob(now);
   if (!claimed) return undefined;
   const { job, leaseOwner } = claimed;
 
@@ -50,7 +50,7 @@ export async function processNextJudicialJob(now = Date.now()): Promise<CollectO
     return await runJob(job, leaseOwner, now);
   } catch (error) {
     const connectorError = asConnectorError(error);
-    const { owned, retrying, terminalStatus } = failJob(job.id, leaseOwner, {
+    const { owned, retrying, terminalStatus } = await failJob(job.id, leaseOwner, {
       code: connectorError.code,
       message: connectorError.message,
       retryAfterSeconds: connectorError.retryAfterSeconds,
@@ -65,14 +65,14 @@ export async function processNextJudicialJob(now = Date.now()): Promise<CollectO
       };
     }
 
-    const installation = findInstallation(job.installationId);
+    const installation = await findInstallation(job.installationId);
     const rawPayloadsToPersist = connectorError.rawPayloads ?? (connectorError.rawPayload ? [connectorError.rawPayload] : []);
     const parserVersion = installation && hasConnectorFor(installation.kind)
       ? connectorFor(installation).parserVersion
       : DJEN_PARSER_VERSION;
     for (const raw of rawPayloadsToPersist) {
       try {
-        persistSnapshot({
+        await persistSnapshot({
           officeId: job.officeId,
           installationId: job.installationId,
           jobId: job.id,
@@ -94,8 +94,8 @@ export async function processNextJudicialJob(now = Date.now()): Promise<CollectO
 
     // A gap only becomes visible if it is recorded. A silent failure looks exactly like a court
     // that published nothing.
-    if (!retrying) recordSyncFailureAlert(job.officeId, job.linkId, job.id, `Coleta interrompida: ${connectorError.message}`);
-    recordAudit({
+    if (!retrying) await recordSyncFailureAlert(job.officeId, job.linkId, job.id, `Coleta interrompida: ${connectorError.message}`);
+    await recordAudit({
       officeId: job.officeId,
       actor: 'worker',
       action: 'judicial.collect',
@@ -115,13 +115,13 @@ export async function processNextJudicialJob(now = Date.now()): Promise<CollectO
 }
 
 async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<CollectOutcome> {
-  const retainLease = () => {
-    if (!renewLease(job.id, leaseOwner, Date.now())) {
+  const retainLease = async () => {
+    if (!await renewLease(job.id, leaseOwner, Date.now())) {
       throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
     }
   };
 
-  const installation = findInstallation(job.installationId);
+  const installation = await findInstallation(job.installationId);
   if (!installation) throw new ConnectorError('unsupported', 'A instalação desta coleta não existe mais.');
   if (!installation.enabled) throw new ConnectorError('human_action_required', 'A fonte foi desabilitada.');
 
@@ -135,23 +135,23 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     throw new ConnectorError('human_action_required', 'Esta fonte não autoriza armazenar as respostas coletadas.');
   }
 
-  retainLease();
+  await retainLease();
 
   // The authorization is re-read here as well as in the scheduler: a job may sit in the queue
   // long enough for a membership or a link to be withdrawn after it was scheduled.
   if (job.subscriptionId) {
-    const subscription = findSubscriptionById(job.subscriptionId);
+    const subscription = await findSubscriptionById(job.subscriptionId);
     if (!subscription || subscription.status !== 'active') {
-      if (!completeJob(job.id, leaseOwner)) {
+      if (!await completeJob(job.id, leaseOwner)) {
         throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
       }
       return { jobId: job.id, status: 'skipped', inserted: 0, duplicates: 0, alerts: 0, detail: 'Assinatura inativa.' };
     }
-    const authorized = subscriptionStillAuthorized(subscription);
+    const authorized = await subscriptionStillAuthorized(subscription);
     if (!authorized.ok) {
       // Same distinction the scheduler makes: waiting on a confirmation is not a revocation.
-      if (!authorized.waiting) setSubscriptionStatus(subscription.officeId, subscription.id, 'suspended', authorized.reason);
-      if (!completeJob(job.id, leaseOwner)) {
+      if (!authorized.waiting) await setSubscriptionStatus(subscription.officeId, subscription.id, 'suspended', authorized.reason);
+      if (!await completeJob(job.id, leaseOwner)) {
         throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
       }
       return { jobId: job.id, status: 'skipped', inserted: 0, duplicates: 0, alerts: 0, detail: authorized.reason };
@@ -171,12 +171,12 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     mode: baseTransport.mode,
     async request(inst, path, init) {
       while (true) {
-        retainLease();
-        const budget = reserveRequestBudget(job.officeId, inst, Date.now());
+        await retainLease();
+        const budget = await reserveRequestBudget(job.officeId, inst, Date.now());
         if (budget.allowed) break;
         if (requestCount > 0 && budget.reason === 'rate_limit') {
           await new Promise((resolve) => setTimeout(resolve, budget.retryAfterMs + 20));
-          retainLease();
+          await retainLease();
           continue;
         }
         throw new ConnectorError(
@@ -202,9 +202,9 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     windowTo: job.windowTo,
     cursor: job.cursor,
     cnjNumbers,
-    onRawPayload: (raw) => {
-      retainLease();
-      persistSnapshot({
+    onRawPayload: async (raw) => {
+      await retainLease();
+      await persistSnapshot({
         officeId: job.officeId,
         installationId: installation.id,
         jobId: job.id,
@@ -222,10 +222,10 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     },
   });
 
-  retainLease();
+  await retainLease();
 
   // The originals and the normalized rows commit together; the checkpoint moves only afterwards.
-  const outcome = ingestPublications({
+  const outcome = await ingestPublications({
     officeId: job.officeId,
     installation,
     linkId: job.linkId,
@@ -234,8 +234,8 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     historical: job.kind === 'backfill',
   });
 
-  retainLease();
-  if (!checkpointJob(job.id, leaseOwner, {
+  await retainLease();
+  if (!await checkpointJob(job.id, leaseOwner, {
     cursor: result.cursor,
     pagesFetched: result.coverage.pagesFetched,
     recordsAccepted: outcome.inserted,
@@ -247,11 +247,11 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
   // A truncated sweep is not finished. Leaving the job queued with its cursor is what makes the
   // next pass resume instead of restarting the window.
   if (result.cursor) {
-    const failed = failJob(job.id, leaseOwner, { code: 'partial', message: 'Varredura interrompida no limite de páginas; continua no próximo ciclo.' }, now);
+    const failed = await failJob(job.id, leaseOwner, { code: 'partial', message: 'Varredura interrompida no limite de páginas; continua no próximo ciclo.' }, now);
     if (!failed.owned) {
       throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de reagendar a continuação.');
     }
-    recordAudit({
+    await recordAudit({
       officeId: job.officeId,
       actor: 'worker',
       action: 'judicial.collect',
@@ -267,15 +267,15 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     };
   }
 
-  if (!completeJob(job.id, leaseOwner)) {
+  if (!await completeJob(job.id, leaseOwner)) {
     throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
   }
   if (job.subscriptionId) {
     // The watermark only advances on a complete, committed window.
-    recordSubscriptionSuccess(job.subscriptionId, job.windowTo, Date.now());
+    await recordSubscriptionSuccess(job.subscriptionId, job.windowTo, Date.now());
   }
 
-  recordAudit({
+  await recordAudit({
     officeId: job.officeId,
     actor: 'worker',
     action: 'judicial.collect',

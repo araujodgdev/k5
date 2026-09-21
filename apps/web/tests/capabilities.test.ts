@@ -1,4 +1,4 @@
-import { testDb } from "./test-setup";
+import { testDb , testDatabase } from "./test-setup";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import test from "node:test";
@@ -82,17 +82,17 @@ test("capabilities contract: complete catalog and role permissions", () => {
   assert.equal(adminCaps.length, 50);
 });
 
-test("authorization: dynamic role check and membership revocation", () => {
+test("authorization: dynamic role check and membership revocation", async () => {
   const { userAdmin, userReviewer, officeA } = seedFixture();
 
   const adminCtx: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator" };
   const reviewerCtx: WorkspaceContext = { officeId: officeA, userId: userReviewer, role: "reviewer" };
 
   // Admin can do write operations
-  assert.doesNotThrow(() => assertCapabilityAllowed(adminCtx, "k5_vault_create_case"));
+  await assert.doesNotReject(() => assertCapabilityAllowed(adminCtx, "k5_vault_create_case"));
 
   // Reviewer cannot do write operations
-  assert.throws(
+  await assert.rejects(
     () => assertCapabilityAllowed(reviewerCtx, "k5_vault_create_case"),
     (err: unknown) => err instanceof CapabilityError && err.code === "FORBIDDEN"
   );
@@ -100,46 +100,46 @@ test("authorization: dynamic role check and membership revocation", () => {
   // Revoke user membership from office
   testDb.prepare("DELETE FROM office_member WHERE user_id=? AND office_id=?").run(userAdmin, officeA);
 
-  assert.throws(
+  await assert.rejects(
     () => assertCapabilityAllowed(adminCtx, "k5_vault_list_cases"),
     (err: unknown) => err instanceof CapabilityError && err.code === "FORBIDDEN"
   );
 });
 
-test("vault service: idempotent case creation, update and deletion with approval", () => {
+test("vault service: idempotent case creation, update and deletion with approval", async () => {
   const { userLawyer, officeA } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   // 1. Create case
-  const res1 = vaultService.createCase(context, { name: "Caso Silva vs. Souza" });
+  const res1 = await vaultService.createCase(context, { name: "Caso Silva vs. Souza" });
   assert.equal(res1.created, true);
   assert.equal(res1.case.name, "Caso Silva vs. Souza");
 
   // 2. Repeat creation -> Idempotent
-  const res2 = vaultService.createCase(context, { name: "caso silva vs. souza" });
+  const res2 = await vaultService.createCase(context, { name: "caso silva vs. souza" });
   assert.equal(res2.created, false);
   assert.equal(res2.case.id, res1.case.id);
 
   // 3. Update case
-  const updated = vaultService.updateCase(context, { caseId: res1.case.id, name: "Caso Silva vs. Souza e Filhos" });
+  const updated = await vaultService.updateCase(context, { caseId: res1.case.id, name: "Caso Silva vs. Souza e Filhos" });
   assert.equal(updated.case.name, "Caso Silva vs. Souza e Filhos");
 
   // 4. Delete case without approval -> Fails with APPROVAL_REQUIRED and creates proposal
-  assert.throws(
+  await assert.rejects(
     () => vaultService.deleteCase(context, { caseId: res1.case.id }),
     (err: unknown) => err instanceof CapabilityError && err.code === "APPROVAL_REQUIRED"
   );
 
   // 5. Approve proposal and delete case
-  const proposal = approvalsService.createApprovalProposal(context, "k5_vault_delete_case", { caseId: res1.case.id });
-  approvalsService.approveProposal(context, proposal.id);
+  const proposal = await approvalsService.createApprovalProposal(context, "k5_vault_delete_case", { caseId: res1.case.id });
+  await approvalsService.approveProposal(context, proposal.id);
 
-  const deleted = vaultService.deleteCase(context, { caseId: res1.case.id, approvalId: proposal.id });
+  const deleted = await vaultService.deleteCase(context, { caseId: res1.case.id, approvalId: proposal.id });
   assert.equal(deleted.success, true);
 
   // Consumed approval cannot be re-used
-  const anotherCase = vaultService.createCase(context, { name: "Outro Caso Para Excluir" });
-  assert.throws(
+  const anotherCase = await vaultService.createCase(context, { name: "Outro Caso Para Excluir" });
+  await assert.rejects(
     () => vaultService.deleteCase(context, { caseId: anotherCase.case.id, approvalId: proposal.id }),
     (err: unknown) => err instanceof CapabilityError && err.code === "CONFLICT"
   );
@@ -151,35 +151,35 @@ test("vault document service: versions, tombstone and office isolation", async (
   const contextB: WorkspaceContext = { officeId: officeB, userId: userOfficeB, role: "lawyer" };
 
   // Ingest document for Office A through a real, server-issued upload reference
-  const ingested = vaultService.ingestUpload(contextA, {
+  const ingested = await vaultService.ingestUpload(contextA, {
     uploadRef: (await seedUpload(contextA, "contrato.pdf")).id,
     scope: "library",
   });
   assert.ok(ingested.document.id);
 
   // Office B cannot access Office A document
-  assert.throws(
+  await assert.rejects(
     () => vaultService.getDocument(contextB, { documentId: ingested.document.id }),
     (err: unknown) => err instanceof CapabilityError && err.code === "NOT_FOUND"
   );
 
   // Add document version
-  const v2 = vaultService.addDocumentVersion(contextA, {
+  const v2 = await vaultService.addDocumentVersion(contextA, {
     documentId: ingested.document.id,
     uploadRef: (await seedUpload(contextA, "contrato-v2.pdf")).id,
   });
   assert.equal(v2.version, 2, "version 2 follows the version 1 recorded at ingestion");
 
   // Delete document requires approval
-  assert.throws(
+  await assert.rejects(
     () => vaultService.deleteDocument(contextA, { documentId: ingested.document.id }),
     (err: unknown) => err instanceof CapabilityError && err.code === "APPROVAL_REQUIRED"
   );
 
-  const proposal = approvalsService.createApprovalProposal(contextA, "k5_vault_delete_document", { documentId: ingested.document.id });
-  approvalsService.approveProposal(contextA, proposal.id);
+  const proposal = await approvalsService.createApprovalProposal(contextA, "k5_vault_delete_document", { documentId: ingested.document.id });
+  await approvalsService.approveProposal(contextA, proposal.id);
 
-  const deleted = vaultService.deleteDocument(contextA, { documentId: ingested.document.id, approvalId: proposal.id });
+  const deleted = await vaultService.deleteDocument(contextA, { documentId: ingested.document.id, approvalId: proposal.id });
   assert.equal(deleted.success, true);
 });
 
@@ -224,7 +224,7 @@ test("knowledge engine: hybrid retrieval, source inspection and audit", async ()
   assert.equal(audit.degraded, 1);
 
   // 3. Inspect source with adjacent context
-  const sourceResult = knowledgeService.getKnowledgeSource(context, {
+  const sourceResult = await knowledgeService.getKnowledgeSource(context, {
     documentId: docId,
     stableReference: "página:1",
   });
@@ -232,39 +232,39 @@ test("knowledge engine: hybrid retrieval, source inspection and audit", async ()
   assert.match(sourceResult.source.adjacentContext ?? "", /São Paulo/);
 
   // 4. Index status
-  const status = knowledgeService.getKnowledgeIndexStatus(context, { documentId: docId });
+  const status = await knowledgeService.getKnowledgeIndexStatus(context, { documentId: docId });
   assert.equal(status.status, "ready");
   assert.equal(status.vectorIndexed, false);
 
   // 5. Reindex without an embedding profile is refused instead of falsely reporting success
-  assert.throws(
+  await assert.rejects(
     () => knowledgeService.reindexKnowledge(context, { documentId: docId }),
     (err: unknown) => err instanceof CapabilityError && err.code === "NOT_READY",
     "no embedding profile means no queue, and saying so beats returning enqueued: true"
   );
 });
 
-test("idempotency: cached execution prevents duplicated writes", () => {
+test("idempotency: cached execution prevents duplicated writes", async () => {
   const { userLawyer, officeA } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   let counter = 0;
   const executeOperation = () => {
     counter++;
-    return { counter, value: "sucesso" };
+    return Promise.resolve({ counter, value: "sucesso" });
   };
 
   const key = `test-idempotency-key-${randomUUID()}`;
-  const r1 = withIdempotency(context, "custom_op", key, { a: 1 }, executeOperation);
+  const r1 = await withIdempotency(context, "custom_op", key, { a: 1 }, executeOperation);
   assert.equal(r1.counter, 1);
 
   // Second call with same key returns cached result without incrementing counter
-  const r2 = withIdempotency(context, "custom_op", key, { a: 1 }, executeOperation);
+  const r2 = await withIdempotency(context, "custom_op", key, { a: 1 }, executeOperation);
   assert.equal(r2.counter, 1);
   assert.equal(counter, 1);
 });
 
-test("artifacts service: version history and rollback restoration", () => {
+test("artifacts service: version history and rollback restoration", async () => {
   const { userLawyer, officeA } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
@@ -287,7 +287,7 @@ test("artifacts service: version history and rollback restoration", () => {
   `).run(artifactId, userLawyer);
 
   // 1. Update artifact to version 2
-  const updated = artifactsService.saveArtifact(context, {
+  const updated = await artifactsService.saveArtifact(context, {
     artifactId,
     title: "Minuta Atualizada",
     content: "Conteúdo da versão 2 com aditivos",
@@ -296,13 +296,13 @@ test("artifacts service: version history and rollback restoration", () => {
   assert.equal(updated.artifact.version, 2);
 
   // 2. List versions
-  const versions = artifactsService.listArtifactVersions(context, { artifactId });
+  const versions = await artifactsService.listArtifactVersions(context, { artifactId });
   assert.equal(versions.versions.length, 2);
   assert.equal(versions.versions[0].version, 2);
   assert.equal(versions.versions[1].version, 1);
 
   // 3. Restore version 1 (generates version 3 with version 1's content)
-  const restored = artifactsService.restoreArtifactVersion(context, {
+  const restored = await artifactsService.restoreArtifactVersion(context, {
     artifactId,
     version: 1,
   });
@@ -310,16 +310,16 @@ test("artifacts service: version history and rollback restoration", () => {
   assert.equal(restored.artifact.content, "Conteúdo da versão 1");
 });
 
-test("conversations service: lifecycle and processing locking", () => {
+test("conversations service: lifecycle and processing locking", async () => {
   const { userLawyer, officeA } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   // Create conversation
-  const created = conversationsService.createNewConversation(context, { title: "Dúvidas Tributárias" });
+  const created = await conversationsService.createNewConversation(context, { title: "Dúvidas Tributárias" });
   assert.equal(created.conversation.title, "Dúvidas Tributárias");
 
   // Get conversation
-  const got = conversationsService.getConversation(context, { conversationId: created.conversation.id });
+  const got = await conversationsService.getConversation(context, { conversationId: created.conversation.id });
   assert.equal(got.conversation.title, "Dúvidas Tributárias");
 
   // Mark conversation busy (processing)
@@ -327,14 +327,14 @@ test("conversations service: lifecycle and processing locking", () => {
     .run(Date.now() + 60_000, created.conversation.id);
 
   // Deletion blocked while busy
-  assert.throws(
+  await assert.rejects(
     () => conversationsService.deleteConversation(context, { conversationId: created.conversation.id }),
     (err: unknown) => err instanceof CapabilityError && err.code === "CONFLICT"
   );
 
   // Free conversation and delete
   testDb.prepare("UPDATE ai_conversation SET busy_until=0 WHERE id=?").run(created.conversation.id);
-  const deleted = conversationsService.deleteConversation(context, { conversationId: created.conversation.id });
+  const deleted = await conversationsService.deleteConversation(context, { conversationId: created.conversation.id });
   assert.equal(deleted.success, true);
 });
 
@@ -400,29 +400,29 @@ test("capability routes: boolean query parameters accept only one exact true or 
   }
 });
 
-test("approval security: rejects modified target resource or modified input arguments", () => {
+test("approval security: rejects modified target resource or modified input arguments", async () => {
   const { userLawyer, officeA } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
-  const c1 = vaultService.createCase(context, { name: "Caso Original" });
-  const c2 = vaultService.createCase(context, { name: "Caso Invasor" });
+  const c1 = await vaultService.createCase(context, { name: "Caso Original" });
+  const c2 = await vaultService.createCase(context, { name: "Caso Invasor" });
 
   // Proposal created for c1
-  const proposal = approvalsService.createApprovalProposal(context, "k5_vault_delete_case", { caseId: c1.case.id });
-  approvalsService.approveProposal(context, proposal.id);
+  const proposal = await approvalsService.createApprovalProposal(context, "k5_vault_delete_case", { caseId: c1.case.id });
+  await approvalsService.approveProposal(context, proposal.id);
 
   // Attempting to consume proposal intended for c1 to delete c2 fails with FORBIDDEN
-  assert.throws(
+  await assert.rejects(
     () => vaultService.deleteCase(context, { caseId: c2.case.id, approvalId: proposal.id }),
     (err: unknown) => err instanceof CapabilityError && err.code === "FORBIDDEN"
   );
 
   // Proposal with targetCaseId
-  const proposalWithTarget = approvalsService.createApprovalProposal(context, "k5_vault_delete_case", { caseId: c1.case.id, targetCaseId: c2.case.id });
-  approvalsService.approveProposal(context, proposalWithTarget.id);
+  const proposalWithTarget = await approvalsService.createApprovalProposal(context, "k5_vault_delete_case", { caseId: c1.case.id, targetCaseId: c2.case.id });
+  await approvalsService.approveProposal(context, proposalWithTarget.id);
 
   // Attempting to consume with different targetCaseId fails with FORBIDDEN
-  assert.throws(
+  await assert.rejects(
     () => vaultService.deleteCase(context, { caseId: c1.case.id, targetCaseId: "different-target", approvalId: proposalWithTarget.id }),
     (err: unknown) => err instanceof CapabilityError && err.code === "FORBIDDEN"
   );
@@ -477,11 +477,11 @@ test("knowledge engine: vectors fuse with lexical hits and tombstones stay out",
   );
 });
 
-test("knowledge scope: updating sources for a conversation does not duplicate rows", () => {
+test("knowledge scope: updating sources for a conversation does not duplicate rows", async () => {
   const { userLawyer, officeA } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
-  const conv = conversationsService.createNewConversation(context, { title: "Escopo Conversa" });
+  const conv = await conversationsService.createNewConversation(context, { title: "Escopo Conversa" });
   const docId = randomUUID();
   testDb.prepare(`
     INSERT INTO vault_document (id, office_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
@@ -489,16 +489,16 @@ test("knowledge scope: updating sources for a conversation does not duplicate ro
   `).run(docId, officeA, userLawyer);
 
   // Set scope once
-  knowledgeService.setScopeSources(context, { conversationId: conv.conversation.id, documentIds: [docId] });
+  await knowledgeService.setScopeSources(context, { conversationId: conv.conversation.id, documentIds: [docId] });
 
   // Set scope second time with same conversation
-  knowledgeService.setScopeSources(context, { conversationId: conv.conversation.id, documentIds: [docId] });
+  await knowledgeService.setScopeSources(context, { conversationId: conv.conversation.id, documentIds: [docId] });
 
   const rows = testDb.prepare("SELECT count(*) AS n FROM knowledge_scope WHERE office_id=? AND conversation_id=?").get(officeA, conv.conversation.id) as { n: number };
   assert.equal(rows.n, 1, "There must only be 1 scope record per conversation");
 });
 
-test("ui service: openResource validates resource access and throws NOT_FOUND on cross-office or invalid IDs", () => {
+test("ui service: openResource validates resource access and throws NOT_FOUND on cross-office or invalid IDs", async () => {
   const { userLawyer, officeA, officeB } = seedFixture();
   const contextA: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
@@ -507,14 +507,14 @@ test("ui service: openResource validates resource access and throws NOT_FOUND on
     .run(foreignCaseId, officeB, userLawyer);
 
   // Office A attempting to open Office B's case is refused
-  assert.throws(
+  await assert.rejects(
     () => uiService.openResource(contextA, { resourceType: "case", resourceId: foreignCaseId }),
     (err: unknown) => err instanceof CapabilityError && err.code === "NOT_FOUND"
   );
 
   // Valid internal case resolves path
-  const localCase = vaultService.createCase(contextA, { name: "Caso Alfa Local" });
-  const res = uiService.openResource(contextA, { resourceType: "case", resourceId: localCase.case.id });
+  const localCase = await vaultService.createCase(contextA, { name: "Caso Alfa Local" });
+  const res = await uiService.openResource(contextA, { resourceType: "case", resourceId: localCase.case.id });
   assert.equal(res.path, `/app/vault/cases/${encodeURIComponent(localCase.case.id)}`);
 });
 
@@ -561,21 +561,21 @@ test("webmcp: every published capability has a route, a schema and typed failure
   }
 });
 
-test("platform service: create, list, and delete AI connection operations", () => {
+test("platform service: create, list, and delete AI connection operations", async () => {
   process.env.K5_CREDENTIALS_KEY = randomBytes(32).toString("base64");
   const { userAdmin, officeA } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator" };
 
   // Make user a platform admin
-  grantPlatformAdmin(testDb, userAdmin);
+  await grantPlatformAdmin(testDatabase, userAdmin);
 
   // 1. Create connection
-  const created = platformService.platformCreateConnection(context, {
+  const created = await platformService.platformCreateConnection(context, {
     officeId: officeA,
     name: "Conexão Teste OpenAI",
     provider: "openai",
     // The key reached the server through a human form; the tool only carries the reference.
-    secretRef: createSecretRef(userAdmin, "sk-test-fake-key-12345").id,
+    secretRef: (await createSecretRef(userAdmin, "sk-test-fake-key-12345")).id,
     enabled: true,
     models: { chat: "gpt-4o", extraction: null, drafting: null, embedding: null },
   });
@@ -583,12 +583,12 @@ test("platform service: create, list, and delete AI connection operations", () =
   assert.equal(created.connection.provider, "openai");
 
   // 2. List connections
-  const list = platformService.platformListConnections(context, { officeId: officeA });
+  const list = await platformService.platformListConnections(context, { officeId: officeA });
   const found = list.connections.find(c => c.id === created.connection.id);
   assert.ok(found);
 
   // 3. Update connection
-  const updated = platformService.platformUpdateConnection(context, {
+  const updated = await platformService.platformUpdateConnection(context, {
     officeId: officeA,
     connectionId: created.connection.id,
     name: "Conexão Teste OpenAI v2",
@@ -597,7 +597,7 @@ test("platform service: create, list, and delete AI connection operations", () =
   assert.equal(updated.connection.name, "Conexão Teste OpenAI v2");
 
   // 4. Delete connection
-  const deleted = platformService.platformDeleteConnection(context, {
+  const deleted = await platformService.platformDeleteConnection(context, {
     officeId: officeA,
     connectionId: created.connection.id,
   });
@@ -605,12 +605,12 @@ test("platform service: create, list, and delete AI connection operations", () =
 });
 
 
-test("vault drive: a case carries its client data and folders stay inside their own case", () => {
+test("vault drive: a case carries its client data and folders stay inside their own case", async () => {
   const { userLawyer, officeA, officeB, userOfficeB } = seedFixture();
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
   const other: WorkspaceContext = { officeId: officeB, userId: userOfficeB, role: "lawyer" };
 
-  const created = vaultService.createCase(context, {
+  const created = await vaultService.createCase(context, {
     name: `Drive ${randomUUID()}`,
     description: "Ação de rescisão contratual.",
     client: { name: "Maria Silva", document: "123.456.789-00", email: "maria@example.test" },
@@ -621,28 +621,28 @@ test("vault drive: a case carries its client data and folders stay inside their 
   assert.equal(created.case.documentCount, 0);
 
   // A partial update keeps what it does not mention.
-  const renamed = vaultService.updateCase(context, { caseId: created.case.id, name: "Caso renomeado" });
+  const renamed = await vaultService.updateCase(context, { caseId: created.case.id, name: "Caso renomeado" });
   assert.equal(renamed.case.name, "Caso renomeado");
   assert.equal(renamed.case.client.name, "Maria Silva");
   assert.equal(renamed.case.description, "Ação de rescisão contratual.");
 
-  const root = vaultService.createFolder(context, { caseId: created.case.id, name: "Petições" });
-  const child = vaultService.createFolder(context, { caseId: created.case.id, name: "2026", parentId: root.folder.id });
+  const root = await vaultService.createFolder(context, { caseId: created.case.id, name: "Petições" });
+  const child = await vaultService.createFolder(context, { caseId: created.case.id, name: "2026", parentId: root.folder.id });
   assert.equal(child.folder.parentId, root.folder.id);
-  assert.deepEqual(vaultService.listFolders(context, { caseId: created.case.id }).folders.map((f) => f.name), ["Petições"]);
-  assert.deepEqual(vaultService.listFolders(context, { caseId: created.case.id, parentId: root.folder.id }).path.map((f) => f.name), ["Petições"]);
+  assert.deepEqual((await vaultService.listFolders(context, { caseId: created.case.id })).folders.map((f) => f.name), ["Petições"]);
+  assert.deepEqual((await vaultService.listFolders(context, { caseId: created.case.id, parentId: root.folder.id })).path.map((f) => f.name), ["Petições"]);
 
   // Siblings cannot share a name, and a folder of another office is not addressable from here.
-  assert.throws(() => vaultService.createFolder(context, { caseId: created.case.id, name: "Petições" }), (error) => error instanceof CapabilityError && error.code === "NOT_READY");
-  const foreign = vaultService.createCase(other, { name: `Beta ${randomUUID()}` });
-  assert.throws(
+  await assert.rejects(() => vaultService.createFolder(context, { caseId: created.case.id, name: "Petições" }), (error) => error instanceof CapabilityError && error.code === "NOT_READY");
+  const foreign = await vaultService.createCase(other, { name: `Beta ${randomUUID()}` });
+  await assert.rejects(
     () => vaultService.createFolder(context, { caseId: foreign.case.id, name: "Qualquer" }),
     (error) => error instanceof CapabilityError && error.code === "NOT_FOUND",
   );
 
   // Removing a folder moves its contents up instead of deleting them.
-  vaultService.deleteFolder(context, { folderId: root.folder.id });
-  assert.deepEqual(vaultService.listFolders(context, { caseId: created.case.id }).folders.map((f) => f.name), ["2026"]);
+  await vaultService.deleteFolder(context, { folderId: root.folder.id });
+  assert.deepEqual((await vaultService.listFolders(context, { caseId: created.case.id })).folders.map((f) => f.name), ["2026"]);
 });
 
 test("knowledge engine: an empty scope searches this office's Cofre and never another's", async () => {

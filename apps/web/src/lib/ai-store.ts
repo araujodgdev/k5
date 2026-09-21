@@ -1,18 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import type { DatabaseSync } from 'node:sqlite';
+import type { Database } from './database';
 import type { UIMessage } from 'ai';
 
 export type Owner = { officeId: string; userId: string };
 export type RunRow = { id: string; office_id: string; user_id: string; kind: 'chronology' | 'draft'; input: string; status: string; progress: number; error: string | null; artifact_id: string | null; lease_token: string; attempts: number; model_provider: string | null; model_id: string | null; created_at: string };
 export type ArtifactRow = { id: string; office_id: string; user_id: string; title: string; content: string; version: number; status: string; source_refs: string; validation_issues: string; template_id: string | null; run_id: string };
 
-export function createConversation(db: DatabaseSync, owner: Owner) {
+export async function createConversation(db: Database, owner: Owner) {
   const id = randomUUID();
-  db.prepare('INSERT INTO ai_conversation(id,office_id,user_id,title) VALUES(?,?,?,?)').run(id, owner.officeId, owner.userId, 'Nova conversa');
+  await db.prepare('INSERT INTO ai_conversation(id,office_id,user_id,title) VALUES(?,?,?,?)').run(id, owner.officeId, owner.userId, 'Nova conversa');
   return { id, title: 'Nova conversa', updatedAt: new Date().toISOString() };
 }
-export function conversation(db: DatabaseSync, owner: Owner, id: string) {
-  const row = db.prepare('SELECT id,title,updated_at AS updatedAt,messages FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?').get(id, owner.officeId, owner.userId) as { id: string; title: string; updatedAt: string; messages: string } | undefined;
+export async function conversation(db: Database, owner: Owner, id: string) {
+  const row = await db.prepare('SELECT id,title,updated_at AS updatedAt,messages FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?').get(id, owner.officeId, owner.userId) as { id: string; title: string; updatedAt: string; messages: string } | undefined;
   return row ? { conversation: { id: row.id, title: row.title, updatedAt: row.updatedAt }, messages: JSON.parse(row.messages) as UIMessage[] } : null;
 }
 /**
@@ -27,37 +27,44 @@ export function mergeHistory(stored: UIMessage[], incoming: UIMessage): UIMessag
   if (index === -1) return [...stored, incoming];
   return [...stored.slice(0, index), incoming];
 }
-export function saveMessages(db: DatabaseSync, owner: Owner, id: string, messages: UIMessage[]) {
+export async function saveMessages(db: Database, owner: Owner, id: string, messages: UIMessage[]) {
   const first = messages.find(m => m.role === 'user')?.parts.find(p => p.type === 'text');
   const title = first?.type === 'text' ? first.text.slice(0, 80) : 'Nova conversa';
-  db.prepare('UPDATE ai_conversation SET messages=?,title=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND user_id=?').run(JSON.stringify(messages), title, id, owner.officeId, owner.userId);
+  await db.prepare('UPDATE ai_conversation SET messages=?,title=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND user_id=?').run(JSON.stringify(messages), title, id, owner.officeId, owner.userId);
 }
-export function claimRun(db: DatabaseSync): RunRow | undefined {
+export async function claimRun(db: Database): Promise<RunRow | undefined> {
   const now = Date.now();
   const token = randomUUID();
-  return db.prepare(`UPDATE ai_run SET status='running',lease_until=?,lease_token=?,attempts=attempts+1,updated_at=CURRENT_TIMESTAMP
+  return await db.prepare(`UPDATE ai_run SET status='running',lease_until=?,lease_token=?,attempts=attempts+1,updated_at=CURRENT_TIMESTAMP
     WHERE id=(SELECT id FROM ai_run WHERE (status='queued' OR (status='running' AND lease_until<?)) AND attempts<5 ORDER BY created_at LIMIT 1)
     RETURNING *`).get(now + 300_000, token, now) as RunRow | undefined;
 }
-export function ownedRun(db: DatabaseSync, owner: Owner, id: string) {
-  return db.prepare('SELECT * FROM ai_run WHERE id=? AND office_id=? AND user_id=?').get(id, owner.officeId, owner.userId) as RunRow | undefined;
+export async function ownedRun(db: Database, owner: Owner, id: string) {
+  return await db.prepare('SELECT * FROM ai_run WHERE id=? AND office_id=? AND user_id=?').get(id, owner.officeId, owner.userId) as RunRow | undefined;
 }
 export function publicRun(row: RunRow) {
   return { id: row.id, kind: row.kind, status: row.status, progress: row.progress, error: row.error, artifactId: row.artifact_id, createdAt: row.created_at };
 }
-export function ownedArtifact(db: DatabaseSync, owner: Owner, id: string) {
-  return db.prepare('SELECT * FROM ai_artifact WHERE id=? AND office_id=? AND user_id=?').get(id, owner.officeId, owner.userId) as ArtifactRow | undefined;
+export async function ownedArtifact(db: Database, owner: Owner, id: string) {
+  return await db.prepare('SELECT * FROM ai_artifact WHERE id=? AND office_id=? AND user_id=?').get(id, owner.officeId, owner.userId) as ArtifactRow | undefined;
 }
 export function publicArtifact(row: ArtifactRow) {
   return { id: row.id, title: row.title, content: row.content, version: row.version, status: row.status, references: JSON.parse(row.source_refs), validationIssues: JSON.parse(row.validation_issues) };
 }
-export function updateArtifact(db: DatabaseSync, owner: Owner, id: string, title: string, content: string, version: number) {
-  db.exec('SAVEPOINT artifact_edit');
-  try {
-    const row = db.prepare(`UPDATE ai_artifact SET title=?,content=?,version=version+1,status='needs_review',updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND user_id=? AND version=? RETURNING *`).get(title, content, id, owner.officeId, owner.userId, version) as ArtifactRow | undefined;
-    if (!row) { db.exec('RELEASE artifact_edit'); return null; }
-    db.prepare('INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id) VALUES(?,?,?,?,?)').run(id, row.version, title, content, owner.userId);
-    db.exec('RELEASE artifact_edit');
-    return row;
-  } catch (error) { db.exec('ROLLBACK TO artifact_edit; RELEASE artifact_edit'); throw error; }
+/**
+ * Saves an edit, or returns null when someone else saved first.
+ *
+ * The conditional `UPDATE ... RETURNING` is the whole concurrency control: `version=?` means only
+ * one of two simultaneous saves changes a row, and the loser gets no row back rather than
+ * overwriting. That is atomic on its own, so no lock is held across the two writes — which is
+ * what lets this run on D1.
+ *
+ * The history row is written after, keyed by the version the update just minted. It can only
+ * duplicate a version if the same update succeeded twice, which the version guard prevents.
+ */
+export async function updateArtifact(db: Database, owner: Owner, id: string, title: string, content: string, version: number) {
+  const row = await db.prepare(`UPDATE ai_artifact SET title=?,content=?,version=version+1,status='needs_review',updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND user_id=? AND version=? RETURNING *`).get(title, content, id, owner.officeId, owner.userId, version) as ArtifactRow | undefined;
+  if (!row) return null;
+  await db.prepare('INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id) VALUES(?,?,?,?,?)').run(id, row.version, title, content, owner.userId);
+  return row;
 }

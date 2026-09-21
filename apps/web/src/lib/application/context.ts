@@ -34,10 +34,10 @@ let sessionTableColumn: string | null | undefined;
  * is discovered once instead of guessed per call. An unknown shape disables the check rather than
  * failing every tool call: the membership check below still runs.
  */
-function sessionIdColumn(): string | null {
+async function sessionIdColumn(): Promise<string | null> {
   if (sessionTableColumn !== undefined) return sessionTableColumn;
   try {
-    const columns = database.prepare("SELECT name FROM pragma_table_info('session')").all() as Array<{ name: string }>;
+    const columns = await database.prepare("SELECT name FROM pragma_table_info('session')").all() as Array<{ name: string }>;
     const names = new Set(columns.map((column) => String(column.name)));
     sessionTableColumn = names.has('id') ? 'id' : null;
   } catch {
@@ -51,18 +51,18 @@ function sessionIdColumn(): string | null {
  * of a long conversation must not keep authorizing writes after the role changed, the member was
  * removed, or the person signed out everywhere mid-turn.
  */
-export function assertCapabilityAllowed(context: WorkspaceContext, name: CapabilityName) {
+export async function assertCapabilityAllowed(context: WorkspaceContext, name: CapabilityName) {
   const capability = capabilities[name];
 
   if (context.sessionId) {
     const column = sessionIdColumn();
-    if (column) {
-      const live = database.prepare(`SELECT 1 FROM session WHERE ${column} = ?`).get(context.sessionId);
+    if (await column) {
+      const live = await database.prepare(`SELECT 1 FROM session WHERE ${column} = ?`).get(context.sessionId);
       if (!live) throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente para continuar.');
     }
   }
 
-  const current = database.prepare('SELECT role FROM office_member WHERE user_id=? AND office_id=?')
+  const current = await database.prepare('SELECT role FROM office_member WHERE user_id=? AND office_id=?')
     .get(context.userId, context.officeId) as { role: OfficeRole } | undefined;
   if (!current) throw new CapabilityError('FORBIDDEN', 'Seu acesso a este escritório foi removido.');
   if (!(capability.roles as readonly OfficeRole[]).includes(current.role)) {

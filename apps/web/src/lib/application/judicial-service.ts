@@ -25,14 +25,14 @@ import { nowIso, overlappingWindow } from '@/lib/judicial/normalization/dates';
  * cannot hold on one path and be missing on another.
  */
 
-function requireLink(context: WorkspaceContext, linkId: string): CaseLink {
-  const link = findCaseLink(context.officeId, linkId);
+async function requireLink(context: WorkspaceContext, linkId: string): Promise<CaseLink> {
+  const link = await findCaseLink(context.officeId, linkId);
   if (!link) throw new CapabilityError('NOT_FOUND', 'Vínculo não encontrado neste escritório.');
   return link;
 }
 
-function requireInstallation(installationId: string): InstallationRef {
-  const installation = findInstallation(installationId);
+async function requireInstallation(installationId: string): Promise<InstallationRef> {
+  const installation = await findInstallation(installationId);
   if (!installation) throw new CapabilityError('NOT_FOUND', 'Fonte judicial não encontrada.');
   return installation;
 }
@@ -114,21 +114,21 @@ function toJobDto(job: SyncJob) {
   };
 }
 
-export function listJudicialSources(
+export async function listJudicialSources(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_list_sources'>,
-): CapabilityOutput<'k5_judicial_list_sources'> {
+): Promise<CapabilityOutput<'k5_judicial_list_sources'>> {
   void context;
-  const sources = listInstallations({ purpose: input.purpose, enabledOnly: input.enabledOnly ?? false });
+  const sources = await listInstallations({ purpose: input.purpose, enabledOnly: input.enabledOnly ?? false });
   return { sources: sources.map(toSourceDto) };
 }
 
-export function listJudicialLinks(
+export async function listJudicialLinks(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_list_links'>,
-): CapabilityOutput<'k5_judicial_list_links'> {
+): Promise<CapabilityOutput<'k5_judicial_list_links'>> {
   const limit = input.limit ?? 20;
-  const rows = listCaseLinks(context.officeId, {
+  const rows = await listCaseLinks(context.officeId, {
     caseId: input.caseId,
     activeOnly: input.activeOnly ?? true,
     limit: limit + 1,
@@ -139,8 +139,8 @@ export function listJudicialLinks(
   return {
     links: links.map(toLinkDto),
     nextCursor: rows.length > limit ? (links.at(-1)?.id ?? null) : null,
-    jobs: latestJobsForLinks(context.officeId, linkIds).map(toJobDto),
-    completedJobs: latestJobsForLinks(context.officeId, linkIds, true).map(toJobDto),
+    jobs: (await latestJobsForLinks(context.officeId, linkIds)).map(toJobDto),
+    completedJobs: (await latestJobsForLinks(context.officeId, linkIds, true)).map(toJobDto),
   };
 }
 
@@ -148,15 +148,15 @@ export function listJudicialLinks(
  * Proposes a link. It is deliberately not possible to create a confirmed link here: confirmation
  * is what authorizes recurring queries against a court, and the plan keeps that with a person.
  */
-export function linkJudicialCase(
+export async function linkJudicialCase(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_link_case'>,
-): CapabilityOutput<'k5_judicial_link_case'> {
-  const vaultCase = database.prepare('SELECT id FROM vault_case WHERE id = ? AND office_id = ? AND deleted_at IS NULL')
+): Promise<CapabilityOutput<'k5_judicial_link_case'>> {
+  const vaultCase = await database.prepare('SELECT id FROM vault_case WHERE id = ? AND office_id = ? AND deleted_at IS NULL')
     .get(input.caseId, context.officeId);
   if (!vaultCase) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado no Cofre deste escritório.');
 
-  const installation = requireInstallation(input.installationId);
+  const installation = await requireInstallation(input.installationId);
   if (installation.purpose === 'vocabulary') {
     throw new CapabilityError('INVALID', 'Esta fonte é um vocabulário e não acompanha processos.');
   }
@@ -167,7 +167,7 @@ export function linkJudicialCase(
   // source's own identity instead of being rejected or promoted onto the CNJ index.
   const nativeNumber = parsed.ok ? null : input.number.trim();
 
-  const { link, created } = createCaseLink({
+  const { link, created } = await createCaseLink({
     officeId: context.officeId,
     userId: context.userId,
     caseId: input.caseId,
@@ -178,7 +178,7 @@ export function linkJudicialCase(
     confirmed: false,
   });
 
-  recordAudit({
+  await recordAudit({
     officeId: context.officeId, userId: context.userId, actor: 'user',
     action: 'judicial.link_case', subjectKind: 'link', subjectId: link.id, installationId: installation.id,
   });
@@ -186,15 +186,15 @@ export function linkJudicialCase(
   return { link: toLinkDto(link), created, numberKind: parsed.ok ? 'cnj' : 'native' };
 }
 
-export function confirmJudicialLink(
+export async function confirmJudicialLink(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_confirm_link'>,
-): CapabilityOutput<'k5_judicial_confirm_link'> {
-  requireLink(context, input.linkId);
-  const link = confirmCaseLink(context.officeId, input.linkId, context.userId, input.decision);
+): Promise<CapabilityOutput<'k5_judicial_confirm_link'>> {
+  await requireLink(context, input.linkId);
+  const link = await confirmCaseLink(context.officeId, input.linkId, context.userId, input.decision);
   if (!link) throw new CapabilityError('NOT_FOUND', 'Vínculo não encontrado neste escritório.');
 
-  recordAudit({
+  await recordAudit({
     officeId: context.officeId, userId: context.userId, actor: 'user',
     action: `judicial.link_${input.decision}`, subjectKind: 'link', subjectId: link.id,
     installationId: link.installationId,
@@ -203,26 +203,26 @@ export function confirmJudicialLink(
   return { link: toLinkDto(link) };
 }
 
-export function unlinkJudicialCase(
+export async function unlinkJudicialCase(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_unlink_case'>,
-): CapabilityOutput<'k5_judicial_unlink_case'> {
-  const link = requireLink(context, input.linkId);
-  const success = unlinkCase(context.officeId, input.linkId);
-  recordAudit({
+): Promise<CapabilityOutput<'k5_judicial_unlink_case'>> {
+  const link = await requireLink(context, input.linkId);
+  const success = await unlinkCase(context.officeId, input.linkId);
+  await recordAudit({
     officeId: context.officeId, userId: context.userId, actor: 'user',
     action: 'judicial.unlink_case', subjectKind: 'link', subjectId: link.id, installationId: link.installationId,
   });
   return { success };
 }
 
-export function listJudicialPublications(
+export async function listJudicialPublications(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_list_publications'>,
-): CapabilityOutput<'k5_judicial_list_publications'> {
+): Promise<CapabilityOutput<'k5_judicial_list_publications'>> {
   // Filtering by a link from another office must return nothing, not that office's publications.
-  if (input.linkId) requireLink(context, input.linkId);
-  const publications = listPublications(context.officeId, {
+  if (input.linkId) await requireLink(context, input.linkId);
+  const publications = await listPublications(context.officeId, {
     caseId: input.caseId, linkId: input.linkId, installationId: input.installationId,
     limit: input.limit ?? 20,
   });
@@ -234,14 +234,14 @@ export function listJudicialPublications(
  * third-party document, and a gazette entry that contains something shaped like an instruction is
  * still just text that was published.
  */
-export function getJudicialPublication(
+export async function getJudicialPublication(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_get_publication'>,
-): CapabilityOutput<'k5_judicial_get_publication'> {
-  const publication = findPublication(context.officeId, input.publicationId);
+): Promise<CapabilityOutput<'k5_judicial_get_publication'>> {
+  const publication = await findPublication(context.officeId, input.publicationId);
   if (!publication) throw new CapabilityError('NOT_FOUND', 'Publicação não encontrada neste escritório.');
 
-  recordAudit({
+  await recordAudit({
     officeId: context.officeId, userId: context.userId, actor: 'user',
     action: 'judicial.open_publication', subjectKind: 'publication', subjectId: publication.id,
     installationId: publication.installationId,
@@ -259,11 +259,11 @@ export function getJudicialPublication(
  * Queues a manual refresh. The window, the filters and the installation are all derived from the
  * confirmed link, so a caller cannot widen the sweep or aim it at a different court.
  */
-export function requestJudicialRefresh(
+export async function requestJudicialRefresh(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_request_refresh'>,
-): CapabilityOutput<'k5_judicial_request_refresh'> {
-  const link = requireLink(context, input.linkId);
+): Promise<CapabilityOutput<'k5_judicial_request_refresh'>> {
+  const link = await requireLink(context, input.linkId);
   if (link.status !== 'active') throw new CapabilityError('CONFLICT', 'Este vínculo não está ativo.');
   if (link.confirmation !== 'confirmed') {
     throw new CapabilityError('APPROVAL_REQUIRED', 'Confirme o vínculo antes de solicitar atualização desta fonte.');
@@ -272,7 +272,7 @@ export function requestJudicialRefresh(
     throw new CapabilityError('SCOPE_REQUIRED', 'Esta fonte consulta por número CNJ; o vínculo tem apenas identidade nativa.');
   }
 
-  const installation = requireInstallation(link.installationId);
+  const installation = await requireInstallation(link.installationId);
   if (!installation.enabled) throw new CapabilityError('NOT_READY', 'Esta fonte está desabilitada.');
   if (!hasConnectorFor(installation.kind)) {
     throw new CapabilityError('NOT_READY', 'Ainda não há conector implementado para este tipo de fonte.');
@@ -282,7 +282,7 @@ export function requestJudicialRefresh(
   }
 
   const window = overlappingWindow(null, nowIso(), 2);
-  const { job, created } = enqueueJob({
+  const { job, created } = await enqueueJob({
     officeId: context.officeId,
     installationId: installation.id,
     linkId: link.id,
@@ -296,7 +296,7 @@ export function requestJudicialRefresh(
     idempotencyKey: `manual:${link.id}:${window.from}:${window.to}`,
   });
 
-  recordAudit({
+  await recordAudit({
     officeId: context.officeId, userId: context.userId, actor: 'user',
     action: 'judicial.request_refresh', subjectKind: 'job', subjectId: job.id, installationId: installation.id,
   });
@@ -304,20 +304,20 @@ export function requestJudicialRefresh(
   return { job: toJobDto(job), created };
 }
 
-export function getJudicialJob(
+export async function getJudicialJob(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_get_job'>,
-): CapabilityOutput<'k5_judicial_get_job'> {
-  const job = findJob(context.officeId, input.jobId);
+): Promise<CapabilityOutput<'k5_judicial_get_job'>> {
+  const job = await findJob(context.officeId, input.jobId);
   if (!job) throw new CapabilityError('NOT_FOUND', 'Coleta não encontrada neste escritório.');
   return { job: toJobDto(job) };
 }
 
-export function listJudicialJobs(
+export async function listJudicialJobs(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_list_jobs'>,
-): CapabilityOutput<'k5_judicial_list_jobs'> {
-  const jobs = listJobs(context.officeId, {
+): Promise<CapabilityOutput<'k5_judicial_list_jobs'>> {
+  const jobs = await listJobs(context.officeId, {
     caseId: input.caseId,
     linkId: input.linkId,
     installationId: input.installationId,
@@ -327,11 +327,11 @@ export function listJudicialJobs(
   return { jobs: jobs.map(toJobDto) };
 }
 
-export function listJudicialAlerts(
+export async function listJudicialAlerts(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_list_alerts'>,
-): CapabilityOutput<'k5_judicial_list_alerts'> {
-  const rows = listAlerts(context.officeId, {
+): Promise<CapabilityOutput<'k5_judicial_list_alerts'>> {
+  const rows = await listAlerts(context.officeId, {
     caseId: input.caseId,
     installationId: input.installationId,
     unreadOnly: input.unreadOnly ?? false,
@@ -353,11 +353,11 @@ export function listJudicialAlerts(
   };
 }
 
-export function markJudicialAlertRead(
+export async function markJudicialAlertRead(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_judicial_mark_alert_read'>,
-): CapabilityOutput<'k5_judicial_mark_alert_read'> {
-  return { success: markAlertRead(context.officeId, input.alertId) };
+): Promise<CapabilityOutput<'k5_judicial_mark_alert_read'>> {
+  return { success: await markAlertRead(context.officeId, input.alertId) };
 }
 
 /** Connector failures reach the product as stable domain codes, never as a provider message. */

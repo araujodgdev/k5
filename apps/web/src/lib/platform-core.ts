@@ -1,32 +1,32 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { Database } from "./database";
 import { z } from "zod";
 import { AiConnectionError } from "./ai-connections-core";
 import { CredentialKeyError } from "./platform-crypto";
 
-export function isPlatformAdmin(db: DatabaseSync, userId: string): boolean {
-  return Boolean(db.prepare("SELECT 1 FROM platform_admin WHERE user_id = ?").get(userId));
+export async function isPlatformAdmin(db: Database, userId: string): Promise<boolean> {
+  return Boolean(await db.prepare("SELECT 1 FROM platform_admin WHERE user_id = ?").get(userId));
 }
 
-export function assertPlatformAdmin(db: DatabaseSync, userId: string): void {
-  if (!isPlatformAdmin(db, userId)) throw new PlatformRequestError(403, "Acesso restrito aos administradores da plataforma.");
+export async function assertPlatformAdmin(db: Database, userId: string): Promise<void> {
+  if (!await isPlatformAdmin(db, userId)) throw new PlatformRequestError(403, "Acesso restrito aos administradores da plataforma.");
 }
 
-export function findUserForPlatformGrant(db: DatabaseSync, identifier: { email?: string; id?: string }) {
+export async function findUserForPlatformGrant(db: Database, identifier: { email?: string; id?: string }) {
   const email = identifier.email?.trim().toLowerCase();
   const id = identifier.id?.trim();
   if ((email ? 1 : 0) + (id ? 1 : 0) !== 1) throw new Error("Informe exatamente um e-mail ou ID de usuário.");
-  return db.prepare(`SELECT id, email, name FROM user WHERE ${email ? "lower(email) = ?" : "id = ?"}`).get((email ?? id)!) as
+  return await db.prepare(`SELECT id, email, name FROM user WHERE ${email ? "lower(email) = ?" : "id = ?"}`).get((email ?? id)!) as
     | { id: string; email: string; name: string }
     | undefined;
 }
 
-export function grantPlatformAdmin(db: DatabaseSync, userId: string, grantedByUserId: string | null = null): boolean {
-  const result = db.prepare("INSERT OR IGNORE INTO platform_admin (user_id, granted_by_user_id) VALUES (?, ?)").run(userId, grantedByUserId);
+export async function grantPlatformAdmin(db: Database, userId: string, grantedByUserId: string | null = null): Promise<boolean> {
+  const result = await db.prepare("INSERT OR IGNORE INTO platform_admin (user_id, granted_by_user_id) VALUES (?, ?)").run(userId, grantedByUserId);
   return result.changes > 0;
 }
 
-export function revokePlatformAdmin(db: DatabaseSync, userId: string): boolean {
-  const result = db.prepare("DELETE FROM platform_admin WHERE user_id = ?").run(userId);
+export async function revokePlatformAdmin(db: Database, userId: string): Promise<boolean> {
+  const result = await db.prepare("DELETE FROM platform_admin WHERE user_id = ?").run(userId);
   return result.changes > 0;
 }
 
@@ -47,12 +47,12 @@ export class PlatformRequestError extends Error {
 
 // Session and role are read on every request, so revoking either applies to the next operation.
 export async function authorizePlatformRequest<U extends { id: string }>(
-  db: DatabaseSync, getSession: (headers: Headers) => Promise<{ user: U } | null>, request: Request, options: { mutation?: boolean } = {},
+  db: Database, getSession: (headers: Headers) => Promise<{ user: U } | null>, request: Request, options: { mutation?: boolean } = {},
 ) {
   if (options.mutation) assertSameOrigin(request);
   const session = await getSession(request.headers);
   if (!session) throw new PlatformRequestError(401, "Entre novamente para continuar.");
-  assertPlatformAdmin(db, session.user.id);
+  await assertPlatformAdmin(db, session.user.id);
   return { user: session.user, db };
 }
 

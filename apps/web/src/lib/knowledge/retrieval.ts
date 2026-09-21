@@ -44,7 +44,7 @@ export async function searchKnowledgeEngine(
    */
   const documentIds = input.documentIds?.length
     ? input.documentIds
-    : (database.prepare(
+    : (await database.prepare(
         `SELECT id FROM vault_document
          WHERE office_id = ? AND deleted_at IS NULL AND status = 'ready'${input.caseId ? ' AND case_id = ?' : ''}
          ORDER BY updated_at DESC LIMIT 400`,
@@ -58,7 +58,7 @@ export async function searchKnowledgeEngine(
 
   const unique = [...new Set(documentIds)];
   const marks = unique.map(() => '?').join(',');
-  const validDocs = database.prepare(
+  const validDocs = await database.prepare(
     `SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND id IN (${marks})`,
   ).all(context.officeId, ...unique) as Array<{ id: string; name: string; status: string }>;
 
@@ -72,9 +72,9 @@ export async function searchKnowledgeEngine(
   const scoreMap = new Map<string, ScoredSource>();
 
   // 1. Lexical (FTS5/BM25).
-  let lexicalChunks: ReturnType<typeof getDocumentChunks> = [];
+  let lexicalChunks: Awaited<ReturnType<typeof getDocumentChunks>> = [];
   try {
-    lexicalChunks = getDocumentChunks(context.officeId, unique, query);
+    lexicalChunks = await getDocumentChunks(context.officeId, unique, query);
   } catch (error) {
     throw new CapabilityError('INVALID', error instanceof Error ? error.message : 'Falha na recuperação lexical.');
   }
@@ -94,7 +94,7 @@ export async function searchKnowledgeEngine(
   let strategy = 'lexical';
   let degradedReason: string | undefined;
 
-  const generation = activeGeneration(context.officeId);
+  const generation = await activeGeneration(context.officeId);
   if (!generation) {
     degradedReason = 'Nenhum índice semântico ativo para este escritório.';
   } else {
@@ -110,7 +110,7 @@ export async function searchKnowledgeEngine(
         const hitMarks = hitIds.map(() => '?').join(',');
         // Re-read from the business database: the index is derived data and never the authority
         // on what this office may currently see.
-        const rows = database.prepare(
+        const rows = await database.prepare(
           `SELECT c.id, c.document_id AS documentId, c.stable_reference AS stableReference, c.content
            FROM vault_document_chunk c
            JOIN vault_document d ON d.id = c.document_id AND d.office_id = c.office_id
@@ -153,7 +153,7 @@ export async function searchKnowledgeEngine(
 
   // The query itself is not retained: a hash identifies repeats without storing what was asked.
   try {
-    database.prepare(`
+    await database.prepare(`
       INSERT INTO knowledge_retrieval_audit (id, office_id, user_id, query, strategy, degraded, document_count, source_count)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(

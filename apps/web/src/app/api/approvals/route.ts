@@ -9,9 +9,9 @@ export const runtime = 'nodejs';
 export async function GET(request: Request) {
   try {
     const workspace = await apiWorkspace(request);
-    const rows = database.prepare(
+    const rows = await database.prepare(
       "SELECT * FROM capability_approval WHERE office_id=? AND user_id=? AND status='pending' AND expires_at > ? ORDER BY created_at DESC"
-    ).all(workspace.office.officeId, workspace.user.id, Date.now());
+    ).all((workspace.office).officeId, workspace.user.id, Date.now());
     return Response.json({ approvals: rows });
   } catch (error) { return apiError(error); }
 }
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       ttlMs: z.number().optional(),
     }).parse(await limitedJson(request));
 
-    const proposal = createApprovalProposal(
+    const proposal = await createApprovalProposal(
       workspaceContext(workspace),
       body.capabilityName,
       body.input,

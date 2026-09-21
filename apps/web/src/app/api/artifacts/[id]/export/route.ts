@@ -6,7 +6,7 @@ import { readVaultDocumentFile } from '@/lib/vault';
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { office, user } = await apiWorkspace(request);
-    const artifact = ownedArtifact(database, { officeId: office.officeId, userId: user.id }, (await context.params).id);
+    const artifact = await ownedArtifact(database, { officeId: office.officeId, userId: user.id }, (await context.params).id);
     if (!artifact) throw new ApiError(404, 'Documento não encontrado.');
     const file = artifact.template_id ? await readVaultDocumentFile(office.officeId, artifact.template_id) : undefined;
     const template = file?.name.toLowerCase().endsWith('.docx') ? file.buffer : undefined;

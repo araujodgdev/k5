@@ -97,18 +97,18 @@ export function toInstallationRef(row: InstallationRow): InstallationRef {
   });
 }
 
-export function findInstallation(id: string): InstallationRef | undefined {
-  const row = database.prepare(`SELECT ${SELECT_COLUMNS} FROM judicial_source_installation WHERE id = ?`).get(id) as InstallationRow | undefined;
+export async function findInstallation(id: string): Promise<InstallationRef | undefined> {
+  const row = await database.prepare(`SELECT ${SELECT_COLUMNS} FROM judicial_source_installation WHERE id = ?`).get(id) as InstallationRow | undefined;
   return row ? toInstallationRef(row) : undefined;
 }
 
-export function listInstallations(filter: { purpose?: SourcePurpose; enabledOnly?: boolean } = {}): InstallationRef[] {
+export async function listInstallations(filter: { purpose?: SourcePurpose; enabledOnly?: boolean } = {}): Promise<InstallationRef[]> {
   const clauses: string[] = [];
   const params: (string | number | null)[] = [];
   if (filter.purpose) { clauses.push('purpose = ?'); params.push(filter.purpose); }
   if (filter.enabledOnly) clauses.push('enabled = 1');
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-  const rows = database.prepare(
+  const rows = await database.prepare(
     `SELECT ${SELECT_COLUMNS} FROM judicial_source_installation ${where} ORDER BY court_code, degree, purpose`,
   ).all(...params) as InstallationRow[];
   return rows.map(toInstallationRef);
@@ -142,7 +142,7 @@ export type InstallationInput = {
  * Registers or updates an installation. Both switches default to off: an operator turns a source
  * on deliberately after the discovery routine, and enabling live egress is a second, separate act.
  */
-export function upsertInstallation(input: InstallationInput): InstallationRef {
+export async function upsertInstallation(input: InstallationInput): Promise<InstallationRef> {
   const permissions = {
     query: input.permissions?.query ?? 'nao_esclarecido',
     cache: input.permissions?.cache ?? 'nao_esclarecido',
@@ -151,7 +151,7 @@ export function upsertInstallation(input: InstallationInput): InstallationRef {
     ai: input.permissions?.ai ?? 'nao_esclarecido',
   };
 
-  database.prepare(`
+  await database.prepare(`
     INSERT INTO judicial_source_installation (
       id, kind, court_code, court_name, degree, system, purpose, coverage_from, coverage_to,
       base_url, contract_version, auth_kind, discovery_status,
@@ -192,7 +192,7 @@ export function upsertInstallation(input: InstallationInput): InstallationRef {
     input.notes ?? null, input.documentationUrl ?? null,
   );
 
-  const row = database.prepare(
+  const row = await database.prepare(
     `SELECT ${SELECT_COLUMNS} FROM judicial_source_installation
      WHERE kind = ? AND court_code = ? AND degree = ? AND system = ? AND purpose = ?`,
   ).get(input.kind, input.courtCode, input.degree, input.system, input.purpose) as InstallationRow;
@@ -203,8 +203,8 @@ export function upsertInstallation(input: InstallationInput): InstallationRef {
  * Suspends a source. Section 13: a rollback turns the source off and keeps the records; it never
  * deletes what was already collected and never pretends to undo an external act.
  */
-export function setInstallationStatus(id: string, status: DiscoveryStatus, enabled: boolean, liveTransportEnabled: boolean): void {
-  database.prepare(
+export async function setInstallationStatus(id: string, status: DiscoveryStatus, enabled: boolean, liveTransportEnabled: boolean): Promise<void> {
+  await database.prepare(
     `UPDATE judicial_source_installation
      SET discovery_status = ?, enabled = ?, live_transport_enabled = ?, updated_at = CURRENT_TIMESTAMP
      WHERE id = ?`,

@@ -17,7 +17,7 @@ export default async function CommandCenterPage({ searchParams }: Props) {
     <Reveal className="mx-auto w-full max-w-5xl px-5 py-6 md:px-12 md:py-11">
       <h1 className="display text-[30px] md:text-[28px]" data-reveal>Central de comando</h1>
       <div data-reveal>
-        <JudicialInbox canWrite={office.role !== "reviewer"} initialCaseId={caso} />
+        <JudicialInbox canWrite={(office).role !== "reviewer"} initialCaseId={caso} />
       </div>
     </Reveal>
   );

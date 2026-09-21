@@ -56,15 +56,15 @@ function toLink(row: LinkRow): CaseLink {
   };
 }
 
-export function findCaseLink(officeId: string, linkId: string): CaseLink | undefined {
-  const row = database.prepare(`${SELECT_LINK} WHERE l.id = ? AND l.office_id = ?`).get(linkId, officeId) as LinkRow | undefined;
+export async function findCaseLink(officeId: string, linkId: string): Promise<CaseLink | undefined> {
+  const row = await database.prepare(`${SELECT_LINK} WHERE l.id = ? AND l.office_id = ?`).get(linkId, officeId) as LinkRow | undefined;
   return row ? toLink(row) : undefined;
 }
 
-export function listCaseLinks(
+export async function listCaseLinks(
   officeId: string,
   filter: { caseId?: string; activeOnly?: boolean; limit?: number; cursor?: string } = {},
-): CaseLink[] {
+): Promise<CaseLink[]> {
   const clauses = ['l.office_id = ?'];
   const params: (string | number | null)[] = [officeId];
   if (filter.caseId) { clauses.push('l.case_id = ?'); params.push(filter.caseId); }
@@ -79,7 +79,7 @@ export function listCaseLinks(
   }
   // Callers may request one extra row to determine whether a bounded page has a continuation.
   const limit = Math.max(1, Math.min(filter.limit ?? 20, 51));
-  const rows = database.prepare(
+  const rows = await database.prepare(
     `${SELECT_LINK} WHERE ${clauses.join(' AND ')} ORDER BY l.created_at DESC, l.id DESC LIMIT ?`,
   ).all(...params, limit) as LinkRow[];
   return rows.map(toLink);
@@ -89,8 +89,8 @@ export function listCaseLinks(
  * CNJ numbers of the proceedings a sweep may ask about. Only confirmed, active links: an
  * unreviewed guess must not become a query sent to a court on the office's behalf.
  */
-export function confirmedCnjNumbers(officeId: string, installationId: string): string[] {
-  const rows = database.prepare(
+export async function confirmedCnjNumbers(officeId: string, installationId: string): Promise<string[]> {
+  const rows = await database.prepare(
     `SELECT DISTINCT cnj_number FROM judicial_case_link
      WHERE office_id = ? AND installation_id = ? AND status = 'active'
        AND confirmation = 'confirmed' AND cnj_number IS NOT NULL`,
@@ -114,8 +114,8 @@ export type CreateLinkInput = {
  * Creates the link, or returns the existing one. Re-linking the same proceeding to the same case
  * is not an error and must not produce a second row; a link previously unlinked comes back active.
  */
-export function createCaseLink(input: CreateLinkInput): { link: CaseLink; created: boolean } {
-  const existing = database.prepare(
+export async function createCaseLink(input: CreateLinkInput): Promise<{ link: CaseLink; created: boolean }> {
+  const existing = await database.prepare(
     `SELECT id, status FROM judicial_case_link
      WHERE office_id = ? AND case_id = ? AND installation_id = ?
        AND COALESCE(cnj_number, '') = ? AND COALESCE(native_number, '') = ?`,
@@ -124,13 +124,13 @@ export function createCaseLink(input: CreateLinkInput): { link: CaseLink; create
 
   if (existing) {
     if (existing.status !== 'active') {
-      database.prepare("UPDATE judicial_case_link SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(existing.id);
+      await database.prepare("UPDATE judicial_case_link SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(existing.id);
     }
-    return { link: findCaseLink(input.officeId, existing.id)!, created: false };
+    return { link: (await findCaseLink(input.officeId, existing.id))!, created: false };
   }
 
   const id = randomUUID();
-  database.prepare(`
+  await database.prepare(`
     INSERT INTO judicial_case_link (
       id, office_id, case_id, installation_id, cnj_number, native_number, degree,
       confirmation, confirmed_by, confirmed_at, created_by
@@ -142,11 +142,11 @@ export function createCaseLink(input: CreateLinkInput): { link: CaseLink; create
     input.confirmed ? new Date().toISOString() : null,
     input.userId,
   );
-  return { link: findCaseLink(input.officeId, id)!, created: true };
+  return { link: (await findCaseLink(input.officeId, id))!, created: true };
 }
 
-export function confirmCaseLink(officeId: string, linkId: string, userId: string, confirmation: 'confirmed' | 'rejected'): CaseLink | undefined {
-  database.prepare(
+export async function confirmCaseLink(officeId: string, linkId: string, userId: string, confirmation: 'confirmed' | 'rejected'): Promise<CaseLink | undefined> {
+  await database.prepare(
     `UPDATE judicial_case_link
      SET confirmation = ?, confirmed_by = ?, confirmed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
      WHERE id = ? AND office_id = ?`,
@@ -159,16 +159,16 @@ export function confirmCaseLink(officeId: string, linkId: string, userId: string
  * already collected in place: they are evidence of what a gazette actually published, and erasing
  * them because a link was corrected would destroy the record rather than fix it.
  */
-export function unlinkCase(officeId: string, linkId: string): boolean {
-  const result = database.prepare(
+export async function unlinkCase(officeId: string, linkId: string): Promise<boolean> {
+  const result = await database.prepare(
     "UPDATE judicial_case_link SET status = 'unlinked', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND status <> 'unlinked'",
   ).run(linkId, officeId);
   if (result.changes) {
     // Recurring collection is authorized by the link; withdrawing the link withdraws it.
-    database.prepare(
+    await database.prepare(
       "UPDATE judicial_subscription SET status = 'cancelled', suspended_reason = 'Vínculo removido', updated_at = CURRENT_TIMESTAMP WHERE office_id = ? AND link_id = ? AND status <> 'cancelled'",
     ).run(officeId, linkId);
-    database.prepare(
+    await database.prepare(
       "UPDATE judicial_sync_job SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE office_id = ? AND link_id = ? AND status IN ('queued','running')",
     ).run(officeId, linkId);
   }

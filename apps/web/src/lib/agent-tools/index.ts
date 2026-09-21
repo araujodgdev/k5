@@ -91,7 +91,7 @@ export async function runCapability<N extends CapabilityName>(
   rawInput: unknown,
 ): Promise<unknown> {
   const capability: Capability = capabilities[name];
-  const authorized = assertCapabilityAllowed(context, name);
+  const authorized = await assertCapabilityAllowed(context, name);
   const input = capability.input.parse(rawInput) as Record<string, unknown>;
 
   const execute = async () => {

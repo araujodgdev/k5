@@ -56,23 +56,22 @@ class SqliteVectorIndex implements VectorIndex {
       VALUES (?, ?, ?, ?, ?, '', ?)
       ON CONFLICT(chunk_id, generation_id) DO UPDATE SET embedding_blob = excluded.embedding_blob
     `);
-    for (const record of records) {
-      statement.run(
-        `${generationId}:${record.chunkId}`,
-        officeId,
-        record.documentId,
-        record.chunkId,
-        generationId,
-        encodeEmbedding(record.embedding),
-      );
-    }
+    // One batch: a partially written generation reports vectors it cannot answer with.
+    await database.batch(records.map((record) => statement.bind(
+      `${generationId}:${record.chunkId}`,
+      officeId,
+      record.documentId,
+      record.chunkId,
+      generationId,
+      encodeEmbedding(record.embedding),
+    )));
   }
 
   async query(officeId: string, generationId: string, embedding: Float32Array, options: VectorQuery) {
     if (!options.documentIds.length) return [];
     const marks = options.documentIds.map(() => '?').join(',');
     // Scope is pushed into SQL; only the vectors of the authorized documents are ever read.
-    const rows = database.prepare(`
+    const rows = await database.prepare(`
       SELECT chunk_id AS chunkId, embedding_blob AS blob
       FROM vault_document_chunk_vector
       WHERE office_id = ? AND generation_id = ? AND document_id IN (${marks}) AND embedding_blob IS NOT NULL
@@ -89,11 +88,11 @@ class SqliteVectorIndex implements VectorIndex {
   }
 
   async removeDocument(officeId: string, documentId: string) {
-    database.prepare('DELETE FROM vault_document_chunk_vector WHERE office_id = ? AND document_id = ?').run(officeId, documentId);
+    await database.prepare('DELETE FROM vault_document_chunk_vector WHERE office_id = ? AND document_id = ?').run(officeId, documentId);
   }
 
   async removeGeneration(officeId: string, generationId: string) {
-    database.prepare('DELETE FROM vault_document_chunk_vector WHERE office_id = ? AND generation_id = ?').run(officeId, generationId);
+    await database.prepare('DELETE FROM vault_document_chunk_vector WHERE office_id = ? AND generation_id = ?').run(officeId, generationId);
   }
 }
 
@@ -253,14 +252,14 @@ class VectorizeIndex implements VectorIndex {
 
   async removeDocument(officeId: string, documentId: string) {
     // Vectorize deletes by id; the SQL side holds the chunk ids that belong to the document.
-    const ids = database.prepare('SELECT chunk_id AS chunkId, generation_id AS generationId FROM vault_document_chunk_vector WHERE office_id = ? AND document_id = ?')
+    const ids = await database.prepare('SELECT chunk_id AS chunkId, generation_id AS generationId FROM vault_document_chunk_vector WHERE office_id = ? AND document_id = ?')
       .all(officeId, documentId) as Array<{ chunkId: string; generationId: string }>;
     if (!ids.length) return;
     await this.deleteIds(ids.map((row) => `${row.generationId}:${row.chunkId}`));
   }
 
   async removeGeneration(officeId: string, generationId: string) {
-    const ids = database.prepare('SELECT chunk_id AS chunkId FROM vault_document_chunk_vector WHERE office_id = ? AND generation_id = ?')
+    const ids = await database.prepare('SELECT chunk_id AS chunkId FROM vault_document_chunk_vector WHERE office_id = ? AND generation_id = ?')
       .all(officeId, generationId) as Array<{ chunkId: string }>;
     if (!ids.length) return;
     await this.deleteIds(ids.map((row) => `${generationId}:${row.chunkId}`));

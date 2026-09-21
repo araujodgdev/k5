@@ -9,8 +9,8 @@ export default async function VaultPage() {
   return (
     <Reveal className="flex min-h-0 flex-1 flex-col">
       <VaultBrowser
-        initialCases={listVaultCases(office.officeId)}
-        libraryCount={countVaultDocuments(office.officeId, { scope: "library" })}
+        initialCases={await listVaultCases(office.officeId)}
+        libraryCount={await countVaultDocuments(office.officeId, { scope: "library" })}
         role={office.role}
       />
     </Reveal>

@@ -43,14 +43,14 @@ export type IngestPublicationsInput = {
   historical: boolean;
 };
 
-function resolveLinkForPublication(
+async function resolveLinkForPublication(
   officeId: string,
   installationId: string,
   cnjNumber: string | null,
   fallbackLinkId: string | null,
-): string | null {
+): Promise<string | null> {
   if (cnjNumber) {
-    const row = database.prepare(`
+    const row = await database.prepare(`
       SELECT id FROM judicial_case_link
       WHERE office_id = ? AND installation_id = ? AND cnj_number = ?
         AND status = 'active' AND confirmation = 'confirmed'
@@ -61,7 +61,7 @@ function resolveLinkForPublication(
   return fallbackLinkId;
 }
 
-export function persistSnapshot(input: {
+export async function persistSnapshot(input: {
   officeId: string;
   installationId: string;
   jobId: string | null;
@@ -73,14 +73,14 @@ export function persistSnapshot(input: {
   visibility?: 'public' | 'restricted';
   usageConditions?: Record<string, unknown>;
   collectedAt?: string;
-}): string {
+}): Promise<string> {
   const hash = payloadHash(input.body);
-  const existing = database.prepare(
+  const existing = await database.prepare(
     'SELECT id FROM judicial_snapshot WHERE office_id = ? AND installation_id = ? AND sha256 = ? LIMIT 1',
   ).get(input.officeId, input.installationId, hash) as { id: string } | undefined;
   if (existing) {
     if (input.jobId) {
-      database.prepare('UPDATE judicial_snapshot SET job_id = COALESCE(job_id, ?) WHERE id = ?')
+      await database.prepare('UPDATE judicial_snapshot SET job_id = COALESCE(job_id, ?) WHERE id = ?')
         .run(input.jobId, existing.id);
     }
     return existing.id;
@@ -92,7 +92,7 @@ export function persistSnapshot(input: {
   }
 
   const id = randomUUID();
-  database.prepare(`
+  await database.prepare(`
     INSERT INTO judicial_snapshot (
       id, office_id, installation_id, job_id, operation, request_summary,
       payload, storage_key, content_type, byte_size, sha256, parser_version,
@@ -111,10 +111,10 @@ export function persistSnapshot(input: {
   return id;
 }
 
-function insertSnapshots(input: IngestPublicationsInput): string[] {
+async function insertSnapshots(input: IngestPublicationsInput): Promise<string[]> {
   const ids: string[] = [];
   for (const raw of input.result.rawPayloads) {
-    const id = persistSnapshot({
+    const id = await persistSnapshot({
       officeId: input.officeId,
       installationId: input.installation.id,
       jobId: input.jobId,
@@ -136,9 +136,9 @@ function insertSnapshots(input: IngestPublicationsInput): string[] {
   return ids;
 }
 
-function upsertSourceRecord(input: IngestPublicationsInput, publication: NormalizedPublication, sourceId: string, linkId: string | null): string {
+async function upsertSourceRecord(input: IngestPublicationsInput, publication: NormalizedPublication, sourceId: string, linkId: string | null): Promise<string> {
   const id = randomUUID();
-  database.prepare(`
+  await database.prepare(`
     INSERT INTO judicial_source_record (
       id, office_id, installation_id, link_id, source_record_id, record_kind,
       cnj_number, native_number, source_updated_at
@@ -149,91 +149,94 @@ function upsertSourceRecord(input: IngestPublicationsInput, publication: Normali
       source_updated_at = COALESCE(excluded.source_updated_at, judicial_source_record.source_updated_at)
   `).run(id, input.officeId, input.installation.id, linkId, sourceId, publication.cnjNumber, publication.sourceUpdatedAt);
 
-  const row = database.prepare(
+  const row = await database.prepare(
     'SELECT id FROM judicial_source_record WHERE office_id = ? AND installation_id = ? AND source_record_id = ?',
   ).get(input.officeId, input.installation.id, sourceId) as { id: string };
   return row.id;
 }
 
 /**
- * Commits one collection run. Everything below runs inside a single transaction so a crash
- * between the snapshot and the alert cannot leave a publication visible with no record of where
- * it came from, or an alert pointing at a publication that was never written.
+ * Commits one collection run.
+ *
+ * There is no enclosing transaction, because the run reads between its writes — resolving a link,
+ * looking up the entry a correction supersedes — and D1 has no interactive transaction to hold
+ * across that. What replaces it is ordering plus idempotency:
+ *
+ * - Snapshots are written first, so a publication can never exist without the evidence it came
+ *   from. A crash after them leaves snapshots with no publication, which is spare evidence, not a
+ *   publication nobody can trace.
+ * - Each publication is written before its alert, so an alert can never point at a row that was
+ *   never written. A crash between them loses an inbox entry, not a record.
+ * - Every write is idempotent — publications on their fingerprint, alerts on their dedupe key —
+ *   so the next pass over the same window finishes what an interrupted one started. The refresh
+ *   window deliberately overlaps for exactly this reason.
  */
-export function ingestPublications(input: IngestPublicationsInput): IngestOutcome {
+export async function ingestPublications(input: IngestPublicationsInput): Promise<IngestOutcome> {
   const outcome: IngestOutcome = { snapshotIds: [], inserted: 0, duplicates: 0, revisions: 0, alerts: 0 };
 
-  database.exec('BEGIN IMMEDIATE');
-  try {
-    outcome.snapshotIds = insertSnapshots(input);
+  outcome.snapshotIds = await insertSnapshots(input);
 
-    if (!outcome.snapshotIds.length && input.result.items.length) {
+  if (!outcome.snapshotIds.length && input.result.items.length) {
+    throw new Error('Publicação sem snapshot de origem; a coleta não pode ser publicada.');
+  }
+
+  for (const publication of input.result.items) {
+    const snapshotId = (publication.rawPayloadIndex !== undefined && outcome.snapshotIds[publication.rawPayloadIndex])
+      ? outcome.snapshotIds[publication.rawPayloadIndex]
+      : (outcome.snapshotIds[0] ?? null);
+
+    if (!snapshotId) {
       throw new Error('Publicação sem snapshot de origem; a coleta não pode ser publicada.');
     }
 
-    for (const publication of input.result.items) {
-      const snapshotId = (publication.rawPayloadIndex !== undefined && outcome.snapshotIds[publication.rawPayloadIndex])
-        ? outcome.snapshotIds[publication.rawPayloadIndex]
-        : (outcome.snapshotIds[0] ?? null);
+    const resolvedLinkId = await resolveLinkForPublication(input.officeId, input.installation.id, publication.cnjNumber, input.linkId);
 
-      if (!snapshotId) {
-        throw new Error('Publicação sem snapshot de origem; a coleta não pode ser publicada.');
-      }
+    const fingerprint = publicationFingerprint(publication);
+    const sourceId = publication.sourcePublicationId ?? fingerprint.value;
+    const recordId = await upsertSourceRecord(input, publication, sourceId, resolvedLinkId);
 
-      const resolvedLinkId = resolveLinkForPublication(input.officeId, input.installation.id, publication.cnjNumber, input.linkId);
+    // The earlier version of a corrected entry, matched on the proceeding and the edition.
+    const supersedes = publication.revisionKind === 'original' ? null : (await database.prepare(
+      `SELECT id FROM judicial_publication
+       WHERE office_id = ? AND installation_id = ? AND COALESCE(cnj_number,'') = ?
+         AND COALESCE(edition,'') = ? AND revision_kind = 'original'
+       ORDER BY created_at DESC LIMIT 1`,
+    ).get(input.officeId, input.installation.id, publication.cnjNumber ?? '', publication.edition ?? '') as { id: string } | undefined)?.id ?? null;
 
-      const fingerprint = publicationFingerprint(publication);
-      const sourceId = publication.sourcePublicationId ?? fingerprint.value;
-      const recordId = upsertSourceRecord(input, publication, sourceId, resolvedLinkId);
+    const id = randomUUID();
+    const result = await database.prepare(`
+      INSERT INTO judicial_publication (
+        id, office_id, installation_id, record_id, link_id, snapshot_id, source_publication_id,
+        cnj_number, edition, page, official_hash, body,
+        made_available_on, published_on, source_updated_at,
+        version, supersedes_id, revision_kind, fingerprint
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(office_id, installation_id, fingerprint) DO NOTHING
+    `).run(
+      id, input.officeId, input.installation.id, recordId, resolvedLinkId, snapshotId,
+      publication.sourcePublicationId, publication.cnjNumber, publication.edition, publication.page,
+      publication.officialHash, publication.body,
+      publication.madeAvailableOn, publication.publishedOn, publication.sourceUpdatedAt,
+      supersedes ? 2 : 1, supersedes, publication.revisionKind, fingerprint.value,
+    );
 
-      // The earlier version of a corrected entry, matched on the proceeding and the edition.
-      const supersedes = publication.revisionKind === 'original' ? null : (database.prepare(
-        `SELECT id FROM judicial_publication
-         WHERE office_id = ? AND installation_id = ? AND COALESCE(cnj_number,'') = ?
-           AND COALESCE(edition,'') = ? AND revision_kind = 'original'
-         ORDER BY created_at DESC LIMIT 1`,
-      ).get(input.officeId, input.installation.id, publication.cnjNumber ?? '', publication.edition ?? '') as { id: string } | undefined)?.id ?? null;
+    if (!result.changes) { outcome.duplicates += 1; continue; }
+    outcome.inserted += 1;
+    if (publication.revisionKind !== 'original') outcome.revisions += 1;
 
-      const id = randomUUID();
-      const result = database.prepare(`
-        INSERT INTO judicial_publication (
-          id, office_id, installation_id, record_id, link_id, snapshot_id, source_publication_id,
-          cnj_number, edition, page, official_hash, body,
-          made_available_on, published_on, source_updated_at,
-          version, supersedes_id, revision_kind, fingerprint
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(office_id, installation_id, fingerprint) DO NOTHING
-      `).run(
-        id, input.officeId, input.installation.id, recordId, resolvedLinkId, snapshotId,
-        publication.sourcePublicationId, publication.cnjNumber, publication.edition, publication.page,
-        publication.officialHash, publication.body,
-        publication.madeAvailableOn, publication.publishedOn, publication.sourceUpdatedAt,
-        supersedes ? 2 : 1, supersedes, publication.revisionKind, fingerprint.value,
-      );
-
-      if (!result.changes) { outcome.duplicates += 1; continue; }
-      outcome.inserted += 1;
-      if (publication.revisionKind !== 'original') outcome.revisions += 1;
-
-      const eventKind = publication.revisionKind !== 'original'
-        ? 'correction'
-        : input.historical ? 'historical_publication' : 'new_publication';
-      const alert = database.prepare(`
-        INSERT INTO judicial_alert (id, office_id, link_id, event_kind, subject_kind, subject_id, summary, dedupe_key)
-        VALUES (?, ?, ?, ?, 'publication', ?, ?, ?)
-        ON CONFLICT(office_id, dedupe_key) DO NOTHING
-      `).run(
-        randomUUID(), input.officeId, resolvedLinkId, eventKind, id,
-        summarize(input.installation, publication),
-        alertDedupeKey(eventKind, 'publication', fingerprint.value),
-      );
-      if (alert.changes) outcome.alerts += 1;
-    }
-
-    database.exec('COMMIT');
-  } catch (error) {
-    database.exec('ROLLBACK');
-    throw error;
+    const eventKind = publication.revisionKind !== 'original'
+      ? 'correction'
+      : input.historical ? 'historical_publication' : 'new_publication';
+    const alert = await database.prepare(`
+      INSERT INTO judicial_alert (id, office_id, link_id, event_kind, subject_kind, subject_id, summary, dedupe_key)
+      VALUES (?, ?, ?, ?, 'publication', ?, ?, ?)
+      ON CONFLICT(office_id, dedupe_key) DO NOTHING
+    `).run(
+      randomUUID(), input.officeId, resolvedLinkId, eventKind, id,
+      summarize(input.installation, publication),
+      alertDedupeKey(eventKind, 'publication', fingerprint.value),
+    );
+    if (alert.changes) outcome.alerts += 1;
   }
   return outcome;
 }
@@ -306,32 +309,32 @@ function toSummary(row: PublicationRow, excerptLength: number): PublicationSumma
   };
 }
 
-export function listPublications(
+export async function listPublications(
   officeId: string,
   filter: { caseId?: string; linkId?: string; installationId?: string; limit?: number } = {},
-): PublicationSummary[] {
+): Promise<PublicationSummary[]> {
   const clauses = ['p.office_id = ?'];
   const params: (string | number | null)[] = [officeId];
   if (filter.caseId) { clauses.push('l.case_id = ?'); params.push(filter.caseId); }
   if (filter.linkId) { clauses.push('p.link_id = ?'); params.push(filter.linkId); }
   if (filter.installationId) { clauses.push('p.installation_id = ?'); params.push(filter.installationId); }
   const limit = Math.max(1, Math.min(filter.limit ?? 25, 100));
-  const rows = database.prepare(
+  const rows = await database.prepare(
     `${SELECT_PUBLICATION} WHERE ${clauses.join(' AND ')}
      ORDER BY COALESCE(p.made_available_on, p.published_on) DESC, p.created_at DESC LIMIT ?`,
   ).all(...params, limit) as PublicationRow[];
   return rows.map((row) => toSummary(row, 400));
 }
 
-export function findPublication(officeId: string, publicationId: string): (PublicationSummary & { body: string }) | undefined {
-  const row = database.prepare(`${SELECT_PUBLICATION} WHERE p.id = ? AND p.office_id = ?`)
+export async function findPublication(officeId: string, publicationId: string): Promise<(PublicationSummary & { body: string }) | undefined> {
+  const row = await database.prepare(`${SELECT_PUBLICATION} WHERE p.id = ? AND p.office_id = ?`)
     .get(publicationId, officeId) as PublicationRow | undefined;
   if (!row) return undefined;
   return { ...toSummary(row, 400), body: row.body };
 }
 
 /** Unread items for the internal inbox, newest first. Delivery outside K5 is a separate step. */
-export function listAlerts(
+export async function listAlerts(
   officeId: string,
   options: { caseId?: string; installationId?: string; unreadOnly?: boolean; limit?: number } = {},
 ) {
@@ -344,7 +347,7 @@ export function listAlerts(
   }
   if (options.unreadOnly) clauses.push('a.read_at IS NULL');
   const limit = Math.max(1, Math.min(options.limit ?? 30, 100));
-  return database.prepare(`
+  return await database.prepare(`
     SELECT a.id, a.event_kind, a.subject_kind, a.subject_id, a.summary, a.read_at, a.created_at,
            a.link_id, l.case_id, c.name AS case_name,
            COALESCE(p.installation_id, j.installation_id, l.installation_id) AS installation_id
@@ -362,14 +365,14 @@ export function listAlerts(
   }>;
 }
 
-export function markAlertRead(officeId: string, alertId: string): boolean {
-  return database.prepare('UPDATE judicial_alert SET read_at = ? WHERE id = ? AND office_id = ? AND read_at IS NULL')
-    .run(nowIso(), alertId, officeId).changes > 0;
+export async function markAlertRead(officeId: string, alertId: string): Promise<boolean> {
+  return (await database.prepare('UPDATE judicial_alert SET read_at = ? WHERE id = ? AND office_id = ? AND read_at IS NULL')
+    .run(nowIso(), alertId, officeId)).changes > 0;
 }
 
 /** Records a failed run so the gap stays visible instead of looking like a quiet day. */
-export function recordSyncFailureAlert(officeId: string, linkId: string | null, jobId: string, detail: string): void {
-  database.prepare(`
+export async function recordSyncFailureAlert(officeId: string, linkId: string | null, jobId: string, detail: string): Promise<void> {
+  await database.prepare(`
     INSERT INTO judicial_alert (id, office_id, link_id, event_kind, subject_kind, subject_id, summary, dedupe_key)
     VALUES (?, ?, ?, 'sync_failed', 'job', ?, ?, ?)
     ON CONFLICT(office_id, dedupe_key) DO NOTHING

@@ -17,15 +17,15 @@ import { CapabilityError } from '@/lib/capabilities/errors';
 import { consumeSecretRef } from './secrets-service';
 import type { WorkspaceContext } from './context';
 
-function assertPlatformAdmin(context: WorkspaceContext) {
-  if (!isPlatformAdmin(database, context.userId)) {
+async function assertPlatformAdmin(context: WorkspaceContext) {
+  if (!await isPlatformAdmin(database, context.userId)) {
     throw new CapabilityError('FORBIDDEN', 'Apenas administradores da plataforma podem executar operações de plataforma.');
   }
 }
 
-export function platformListOffices(context: WorkspaceContext, input?: { limit?: number }) {
-  assertPlatformAdmin(context);
-  const rows = listOfficesForPlatform(database).slice(0, input?.limit ?? 50);
+export async function platformListOffices(context: WorkspaceContext, input?: { limit?: number }) {
+  await assertPlatformAdmin(context);
+  const rows = (await listOfficesForPlatform(database)).slice(0, input?.limit ?? 50);
 
   return {
     offices: rows.map(r => ({
@@ -37,9 +37,9 @@ export function platformListOffices(context: WorkspaceContext, input?: { limit?:
   };
 }
 
-export function platformListConnections(context: WorkspaceContext, input: { officeId: string }) {
-  assertPlatformAdmin(context);
-  const connections = listAiConnections(database, input.officeId);
+export async function platformListConnections(context: WorkspaceContext, input: { officeId: string }) {
+  await assertPlatformAdmin(context);
+  const connections = await listAiConnections(database, input.officeId);
   return {
     connections: connections.map(c => ({
       id: c.id,
@@ -52,7 +52,7 @@ export function platformListConnections(context: WorkspaceContext, input: { offi
 }
 
 export async function platformTestConnection(context: WorkspaceContext, input: { officeId: string; connectionId: string; task?: 'chat' | 'extraction' | 'drafting' | 'embedding' }) {
-  assertPlatformAdmin(context);
+  await assertPlatformAdmin(context);
   try {
     const result = await testAiConnection(database, parseCredentialKeyring(), context.userId, input.officeId, input.connectionId, input.task, testModelCredential);
     return {
@@ -74,7 +74,7 @@ export async function platformTestConnection(context: WorkspaceContext, input: {
  * The key arrives as a reference to something a human already submitted, never as a tool
  * argument. Consuming it here is also what stops a caller from replaying the same reference.
  */
-export function platformCreateConnection(context: WorkspaceContext, input: {
+export async function platformCreateConnection(context: WorkspaceContext, input: {
   officeId: string;
   name: string;
   provider: AiProvider;
@@ -82,10 +82,10 @@ export function platformCreateConnection(context: WorkspaceContext, input: {
   enabled?: boolean;
   models?: { chat?: string | null; extraction?: string | null; drafting?: string | null; embedding?: string | null };
 }) {
-  assertPlatformAdmin(context);
-  const apiKey = consumeSecretRef(context.userId, input.secretRef);
+  await assertPlatformAdmin(context);
+  const apiKey = await consumeSecretRef(context.userId, input.secretRef);
   try {
-    const connection = createAiConnection(database, parseCredentialKeyring(), context.userId, input.officeId, {
+    const connection = await createAiConnection(database, parseCredentialKeyring(), context.userId, input.officeId, {
       name: input.name,
       provider: input.provider,
       apiKey,
@@ -111,7 +111,7 @@ export function platformCreateConnection(context: WorkspaceContext, input: {
   }
 }
 
-export function platformUpdateConnection(context: WorkspaceContext, input: {
+export async function platformUpdateConnection(context: WorkspaceContext, input: {
   officeId: string;
   connectionId: string;
   name?: string;
@@ -120,10 +120,10 @@ export function platformUpdateConnection(context: WorkspaceContext, input: {
   enabled?: boolean;
   models?: { chat?: string | null; extraction?: string | null; drafting?: string | null; embedding?: string | null };
 }) {
-  assertPlatformAdmin(context);
-  const apiKey = input.secretRef ? consumeSecretRef(context.userId, input.secretRef) : undefined;
+  await assertPlatformAdmin(context);
+  const apiKey = input.secretRef ? await consumeSecretRef(context.userId, input.secretRef) : undefined;
   try {
-    const connection = updateAiConnection(database, parseCredentialKeyring(), context.userId, input.officeId, input.connectionId, {
+    const connection = await updateAiConnection(database, parseCredentialKeyring(), context.userId, input.officeId, input.connectionId, {
       name: input.name,
       provider: input.provider,
       apiKey,
@@ -149,10 +149,10 @@ export function platformUpdateConnection(context: WorkspaceContext, input: {
   }
 }
 
-export function platformDeleteConnection(context: WorkspaceContext, input: { officeId: string; connectionId: string }) {
-  assertPlatformAdmin(context);
+export async function platformDeleteConnection(context: WorkspaceContext, input: { officeId: string; connectionId: string }) {
+  await assertPlatformAdmin(context);
   try {
-    deleteAiConnection(database, context.userId, input.officeId, input.connectionId);
+    await deleteAiConnection(database, context.userId, input.officeId, input.connectionId);
     return { success: true };
   } catch (error) {
     if (error instanceof AiConnectionError) {

@@ -8,7 +8,7 @@ export const metadata = { title: "Clientes da plataforma" };
 export default async function PlatformClientsPage() {
   const context = await requirePlatformPage();
   if (!context) notFound();
-  const offices = listOfficesForPlatform(context.db);
+  const offices = await listOfficesForPlatform(context.db);
   return (
     <section className="mx-auto max-w-5xl">
       <h1 className="display text-[28px]">Clientes</h1>

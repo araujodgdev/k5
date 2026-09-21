@@ -15,14 +15,14 @@ export async function searchKnowledge(
   return searchKnowledgeEngine(context, input);
 }
 
-export function getKnowledgeSource(
+export async function getKnowledgeSource(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_get_source'>
-): CapabilityOutput<'k5_knowledge_get_source'> {
-  const doc = findVaultDocument(context.officeId, input.documentId);
+): Promise<CapabilityOutput<'k5_knowledge_get_source'>> {
+  const doc = await findVaultDocument(context.officeId, input.documentId);
   if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
 
-  const targetChunk = database.prepare(
+  const targetChunk = await database.prepare(
     'SELECT * FROM vault_document_chunk WHERE office_id=? AND document_id=? AND stable_reference=?'
   ).get(context.officeId, input.documentId, input.stableReference) as {
     id: string;
@@ -36,7 +36,7 @@ export function getKnowledgeSource(
   }
 
   // Fetch bounded adjacent context (one ordinal before and one ordinal after)
-  const adjacentRows = database.prepare(
+  const adjacentRows = await database.prepare(
     `SELECT stable_reference, content FROM vault_document_chunk
      WHERE office_id=? AND document_id=? AND ordinal IN (?, ?) ORDER BY ordinal`
   ).all(context.officeId, input.documentId, targetChunk.ordinal - 1, targetChunk.ordinal + 1) as Array<{
@@ -58,24 +58,24 @@ export function getKnowledgeSource(
   };
 }
 
-export function getKnowledgeIndexStatus(
+export async function getKnowledgeIndexStatus(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_get_index_status'>
-): CapabilityOutput<'k5_knowledge_get_index_status'> {
-  const doc = findVaultDocument(context.officeId, input.documentId);
+): Promise<CapabilityOutput<'k5_knowledge_get_index_status'>> {
+  const doc = await findVaultDocument(context.officeId, input.documentId);
   if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
 
-  const generation = activeGeneration(context.officeId);
+  const generation = await activeGeneration(context.officeId);
 
   let vectorIndexed = false;
   if (generation) {
-    const count = Number(database.prepare(
+    const count = Number((await database.prepare(
       'SELECT count(*) AS n FROM vault_document_chunk_vector WHERE office_id=? AND document_id=? AND generation_id=?'
-    ).get(context.officeId, doc.id, generation.id)?.n ?? 0);
+    ).get(context.officeId, doc.id, generation.id))?.n ?? 0);
     vectorIndexed = count > 0;
   }
 
-  const job = database.prepare(
+  const job = await database.prepare(
     'SELECT status, chunks_done AS done, chunks_total AS total, error FROM knowledge_index_job WHERE office_id=? AND document_id=? ORDER BY updated_at DESC LIMIT 1'
   ).get(context.officeId, input.documentId) as { status: string; done: number; total: number; error: string | null } | undefined;
 
@@ -97,16 +97,16 @@ export function getKnowledgeIndexStatus(
  * Actually enqueues durable work. Returning `enqueued: true` after creating a row and scheduling
  * nothing is a false success: the caller is told indexing will happen and it never does.
  */
-export function reindexKnowledge(
+export async function reindexKnowledge(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_reindex'>
-): CapabilityOutput<'k5_knowledge_reindex'> {
-  const doc = findVaultDocument(context.officeId, input.documentId);
+): Promise<CapabilityOutput<'k5_knowledge_reindex'>> {
+  const doc = await findVaultDocument(context.officeId, input.documentId);
   if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
   if (doc.status !== 'ready') throw new CapabilityError('NOT_READY', `O documento "${doc.name}" ainda está em processamento.`);
 
   // Extraction is not redone: the chunks already exist and only the embeddings are recomputed.
-  const queued = enqueueIndexJob(context.officeId, input.documentId);
+  const queued = await enqueueIndexJob(context.officeId, input.documentId);
   if (!queued) {
     throw new CapabilityError(
       'NOT_READY',
@@ -121,28 +121,28 @@ export function reindexKnowledge(
   };
 }
 
-export function setScopeSources(
+export async function setScopeSources(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_context_set_sources'>
-): CapabilityOutput<'k5_context_set_sources'> {
+): Promise<CapabilityOutput<'k5_context_set_sources'>> {
   const marks = input.documentIds.map(() => '?').join(',');
-  const valid = database.prepare(
+  const valid = await database.prepare(
     `SELECT id FROM vault_document WHERE office_id=? AND deleted_at IS NULL AND id IN (${marks})`
   ).all(context.officeId, ...input.documentIds) as Array<{ id: string }>;
 
   const validatedIds = valid.map(v => v.id);
 
   if (input.conversationId) {
-    const existing = database.prepare(
+    const existing = await database.prepare(
       'SELECT id FROM knowledge_scope WHERE office_id=? AND conversation_id=?'
     ).get(context.officeId, input.conversationId) as { id: string } | undefined;
 
     if (existing) {
-      database.prepare(
+      await database.prepare(
         'UPDATE knowledge_scope SET document_ids=?, updated_at=CURRENT_TIMESTAMP WHERE id=?'
       ).run(JSON.stringify(validatedIds), existing.id);
     } else {
-      database.prepare(`
+      await database.prepare(`
         INSERT INTO knowledge_scope (id, office_id, user_id, conversation_id, document_ids)
         VALUES (?, ?, ?, ?, ?)
       `).run(

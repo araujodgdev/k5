@@ -29,8 +29,8 @@ export type OfficeModelOption = {
  * and those cannot. Each entry carries what the model accepts as input so the composer can disable
  * the attachment and microphone controls instead of failing at the provider.
  */
-export function listOfficeAvailableModels(officeId: string): OfficeModelOption[] {
-  const connections = listAiConnections(database, officeId).filter((c) => c.enabled);
+export async function listOfficeAvailableModels(officeId: string): Promise<OfficeModelOption[]> {
+  const connections = (await listAiConnections(database, officeId)).filter((c) => c.enabled);
   if (connections.length === 0) return [];
   const catalog = providerCatalog();
   const options: OfficeModelOption[] = [];

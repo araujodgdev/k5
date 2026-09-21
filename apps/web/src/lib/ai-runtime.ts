@@ -58,8 +58,8 @@ export async function testModelCredential(config: ModelCredential) {
   if (result.error || result.finishReason === 'error') throw new Error('Provider test failed.');
 }
 
-export function recordUsage(officeId: string, userId: string | null, config: ModelCredential & { connectionId: string }, task: string, status: string, usage?: { inputTokens?: number; outputTokens?: number }) {
-  database.prepare('INSERT INTO ai_usage(id,office_id,user_id,connection_id,provider,model_id,task,status,input_tokens,output_tokens) VALUES(?,?,?,?,?,?,?,?,?,?)')
+export async function recordUsage(officeId: string, userId: string | null, config: ModelCredential & { connectionId: string }, task: string, status: string, usage?: { inputTokens?: number; outputTokens?: number }) {
+  await database.prepare('INSERT INTO ai_usage(id,office_id,user_id,connection_id,provider,model_id,task,status,input_tokens,output_tokens) VALUES(?,?,?,?,?,?,?,?,?,?)')
     .run(randomUUID(), officeId, userId, config.connectionId, config.provider, config.modelId, task, status, usage?.inputTokens ?? null, usage?.outputTokens ?? null);
 }
 
@@ -77,10 +77,10 @@ export async function generateStructured<T extends z.ZodType>(officeId: string, 
       abortSignal: AbortSignal.timeout(180_000),
       modelSettings: { maxOutputTokens: 12000 },
     });
-    recordUsage(officeId, userId, config, task, 'completed', result.usage);
+    await recordUsage(officeId, userId, config, task, 'completed', result.usage);
     return schema.parse(result.object);
   } catch {
-    recordUsage(officeId, userId, config, task, 'failed');
+    await recordUsage(officeId, userId, config, task, 'failed');
     throw new Error('A análise falhou. Confira a conexão de IA e tente novamente.');
   }
 }

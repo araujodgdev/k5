@@ -33,7 +33,7 @@ async function main() {
     try {
       // Scheduling is cheap and runs on its own cadence; the collector is what costs a request.
       if (Date.now() >= scheduleAt) {
-        const scheduled = scheduleDueSubscriptions();
+        const scheduled = await scheduleDueSubscriptions();
         if (scheduled.queued) console.log(`Agendadas ${scheduled.queued} coleta(s).`);
         for (const skipped of scheduled.skipped) {
           console.log(`Assinatura ${skipped.subscriptionId} ignorada: ${skipped.reason}`);

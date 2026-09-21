@@ -7,7 +7,7 @@ export function requirePlatformRequest(request: Request, options: { mutation?: b
   return authorizePlatformRequest(database, (headers) => auth.api.getSession({ headers }), request, options);
 }
 
-export function userHasPlatformAccess(userId: string): boolean {
+export function userHasPlatformAccess(userId: string): Promise<boolean> {
   return isPlatformAdmin(database, userId);
 }
 
@@ -15,6 +15,6 @@ export async function requirePlatformPage() {
   const { getSession } = await import("./session");
   const session = await getSession();
   if (!session) return null;
-  if (!isPlatformAdmin(database, session.user.id)) return null;
+  if (!await isPlatformAdmin(database, session.user.id)) return null;
   return { user: session.user, db: database };
 }

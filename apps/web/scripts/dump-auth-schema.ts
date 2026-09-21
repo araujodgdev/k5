@@ -13,6 +13,7 @@ import { rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { getMigrations } from "better-auth/db/migration";
 import { createAuth } from "../src/lib/auth-core";
+import { nodeSqliteDatabase } from "../src/lib/db/node-sqlite";
 
 /** Parents before children, so the file also reads in dependency order. */
 const TABLE_ORDER = ["user", "session", "account", "verification", "rateLimit"];
@@ -33,7 +34,7 @@ async function main() {
   const db = new DatabaseSync(probe);
   try {
     // Throwaway credentials: nothing is served from this database, only its shape is read.
-    const auth = createAuth(db, { secret: "x".repeat(48), baseURL: "http://localhost:3000", idleSeconds: 28800 });
+    const auth = createAuth(db, nodeSqliteDatabase(db), { secret: "x".repeat(48), baseURL: "http://localhost:3000", idleSeconds: 28800 });
     const { runMigrations } = await getMigrations(auth.options);
     await runMigrations();
 

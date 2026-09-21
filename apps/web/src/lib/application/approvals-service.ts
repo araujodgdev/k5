@@ -36,55 +36,55 @@ function canonicalInput(input: Record<string, unknown>): string {
   return JSON.stringify(canonicalize(input));
 }
 
-export function createApprovalProposal(
+export async function createApprovalProposal(
   context: WorkspaceContext,
   capabilityName: string,
   input: Record<string, unknown>,
   targetResourceId?: string | null,
   targetVersion?: number | null,
   ttlMs = 600_000,
-): ApprovalRow {
+): Promise<ApprovalRow> {
   const id = randomUUID();
   const inferredResourceId = targetResourceId ?? (input.caseId as string | undefined) ?? (input.documentId as string | undefined) ?? (input.artifactId as string | undefined) ?? null;
   const inferredVersion = targetVersion ?? (typeof input.version === 'number' ? input.version : null);
   const normalizedInput = canonicalInput(input);
   const expiresAt = Date.now() + ttlMs;
 
-  database.prepare(`
+  await database.prepare(`
     INSERT INTO capability_approval (id, office_id, user_id, capability_name, normalized_input, target_resource_id, target_version, status, expires_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
   `).run(id, context.officeId, context.userId, capabilityName, normalizedInput, inferredResourceId, inferredVersion, expiresAt);
 
-  return database.prepare('SELECT * FROM capability_approval WHERE id=?').get(id) as ApprovalRow;
+  return await database.prepare('SELECT * FROM capability_approval WHERE id=?').get(id) as ApprovalRow;
 }
 
-export function approveProposal(context: WorkspaceContext, approvalId: string): ApprovalRow {
-  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
+export async function approveProposal(context: WorkspaceContext, approvalId: string): Promise<ApprovalRow> {
+  const row = await database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
     .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
   if (row.expires_at < Date.now()) throw new CapabilityError('CONFLICT', 'A solicitação de aprovação expirou.');
   if (row.status !== 'pending') throw new CapabilityError('CONFLICT', `A solicitação está ${row.status}.`);
 
-  database.prepare("UPDATE capability_approval SET status='approved' WHERE id=?").run(approvalId);
-  return database.prepare('SELECT * FROM capability_approval WHERE id=?').get(approvalId) as ApprovalRow;
+  await database.prepare("UPDATE capability_approval SET status='approved' WHERE id=?").run(approvalId);
+  return await database.prepare('SELECT * FROM capability_approval WHERE id=?').get(approvalId) as ApprovalRow;
 }
 
-export function rejectProposal(context: WorkspaceContext, approvalId: string): ApprovalRow {
-  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
+export async function rejectProposal(context: WorkspaceContext, approvalId: string): Promise<ApprovalRow> {
+  const row = await database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
     .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
-  database.prepare("UPDATE capability_approval SET status='rejected' WHERE id=?").run(approvalId);
-  return database.prepare('SELECT * FROM capability_approval WHERE id=?').get(approvalId) as ApprovalRow;
+  await database.prepare("UPDATE capability_approval SET status='rejected' WHERE id=?").run(approvalId);
+  return await database.prepare('SELECT * FROM capability_approval WHERE id=?').get(approvalId) as ApprovalRow;
 }
 
-export function getApprovalProposal(context: WorkspaceContext, approvalId: string): ApprovalRow {
-  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
+export async function getApprovalProposal(context: WorkspaceContext, approvalId: string): Promise<ApprovalRow> {
+  const row = await database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
     .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
   return row;
 }
 
-export function requireAndConsumeApproval(
+export async function requireAndConsumeApproval(
   context: WorkspaceContext,
   capabilityName: string,
   approvalId: string | undefined,
@@ -94,11 +94,11 @@ export function requireAndConsumeApproval(
   description = 'Esta operação requer confirmação explícita antes de ser executada.'
 ) {
   if (!approvalId) {
-    const proposal = createApprovalProposal(context, capabilityName, inputForProposal, targetResourceId, targetVersion);
+    const proposal = await createApprovalProposal(context, capabilityName, inputForProposal, targetResourceId, targetVersion);
     throw new CapabilityError('APPROVAL_REQUIRED', `${description} Proposta registrada [id: ${proposal.id}].`);
   }
 
-  const row = database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
+  const row = await database.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=?')
     .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Código de aprovação não encontrado.');
   if (row.expires_at < Date.now()) throw new CapabilityError('CONFLICT', 'Esta aprovação expirou. Solicite uma nova confirmação.');
@@ -116,7 +116,7 @@ export function requireAndConsumeApproval(
   }
   if (row.status !== 'approved') throw new CapabilityError('APPROVAL_REQUIRED', 'A operação ainda não foi aprovada pelo usuário.');
 
-  const consumed = database.prepare(
+  const consumed = await database.prepare(
     "UPDATE capability_approval SET status='consumed', consumed_at=CURRENT_TIMESTAMP WHERE id=? AND status='approved'",
   ).run(approvalId);
   if (!consumed.changes) throw new CapabilityError('CONFLICT', 'Esta aprovação já foi utilizada.');

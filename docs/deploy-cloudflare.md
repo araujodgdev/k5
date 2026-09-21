@@ -78,29 +78,62 @@ pacote primitivo, que agora é dependência explícita.
 Isso também explica por que remover `(auth)`, `app`, `platform` ou `api` não adiantava: o
 `not-found.tsx` estava presente em todas essas tentativas.
 
+## A camada de dados agora é assíncrona
+
+A costura está em [`src/lib/db/types.ts`](../apps/web/src/lib/db/types.ts), no mesmo padrão de
+adaptador que `ObjectStorage` e `VectorIndex` já usam, com dois backends:
+[`d1.ts`](../apps/web/src/lib/db/d1.ts) em Workers e
+[`node-sqlite.ts`](../apps/web/src/lib/db/node-sqlite.ts) para testes, desenvolvimento e o worker
+Node. [`database.ts`](../apps/web/src/lib/database.ts) escolhe um na primeira consulta, e o ponto
+de chamada não muda: `await database.prepare(...)` lê igual nos dois.
+
+As interfaces mantêm de propósito a forma de argumentos do `node:sqlite` — `get(...params)`,
+`all(...params)`, `run(...params)` — e o SQL não muda: os dois backends usam `?`. Isso importa
+mais do que parece, porque esses statements carregam o escopo por `office_id` que impede um
+escritório de ler o do outro, e reescrevê-los à mão é como isso se quebra.
+
+**As fronteiras transacionais foram redesenhadas, não adaptadas.** D1 não tem transação
+interativa, então nenhuma delas continua sendo um bloco entre `BEGIN` e `COMMIT`:
+
+| Fronteira | Substituição |
+| --- | --- |
+| Reivindicar documento, job de indexação ou job de coleta | `UPDATE ... RETURNING` condicional: um sub-select escolhe a linha e o `WHERE` externo reconfere a mesma condição, num único statement. Dois workers não saem os dois com a concessão. |
+| Reservar orçamento de requisições | Upsert com `WHERE` no `DO UPDATE`: o limite diário e o espaçamento são conferidos dentro do próprio incremento. Recusa não escreve nada e não devolve linha. |
+| Escritas que precisam cair juntas (documento + versão, pasta + filhos, tombstone + índice, corrida + citações, geração + aposentadoria da anterior) | `batch()`, que é atômico. |
+| Recriptografar segredos com a chave nova | A recriptografia acontece em memória antes do `batch`: um segredo ilegível estoura antes de qualquer linha ser escrita, que era a garantia do SAVEPOINT. |
+| Gravar uma coleta (`ingestPublications`) | Ordem mais idempotência, porque a rotina lê entre as escritas. Snapshot antes da publicação, publicação antes do alerta, e todo write é idempotente — a janela de refresh se sobrepõe justamente para que a passagem seguinte termine o que uma interrompida começou. |
+
+**O lint passou a cobrir o que o TypeScript não vê.** Com o banco assíncrono, um `await` esquecido
+numa escrita é uma escrita que pode nunca acontecer, e o compilador fica calado quando o resultado
+é descartado. `no-floating-promises`, `await-thenable` e `no-misused-promises` estão ligados com
+verificação de tipos em [`eslint.config.mjs`](../apps/web/eslint.config.mjs). Eles encontraram
+autorizações que nunca bloqueavam (`assertPlatformAdmin` sem `await`), rotas que serializavam uma
+promessa pendente como `{}`, e `assert.throws` sobre chamadas assíncronas, que passa aconteça o
+que acontecer.
+
+**Better Auth recebe o handle que reconhece.** `createAuth(store, db, ...)` separa as duas coisas:
+`store` é o que Better Auth fala diretamente — o handle `node:sqlite` no Node, o binding D1 em
+Workers, ambos aceitos pela versão 1.7 — e `db` é a costura assíncrona do K5, usada pelo hook que
+provisiona o escritório. `authStore()` resolve o primeiro a partir do mesmo backend do segundo.
+
 ## O que ainda bloqueia
 
 | Bloqueio | Natureza |
 | --- | --- |
-| Camada de dados síncrona | 264 statements preparados em 36 arquivos usam `node:sqlite` `DatabaseSync`. D1 é assíncrono: cada chamada vira `await`. **É o bloqueio principal: o bundle compila, mas ainda fala com `node:sqlite`.** |
-| Transações interativas | `BEGIN IMMEDIATE`/`COMMIT` e SAVEPOINTs em 5 arquivos. D1 não tem transação interativa, só `batch()`. Reivindicar job na fila, gravar uma corrida de coleta e remover documento com tombstone precisam virar CAS com `RETURNING` ou lote atômico — é redesenho, não `await` mecânico. |
 | OCR e extração | `@napi-rs/canvas` é nativo e não roda em workerd; `pdfjs-dist` e `tesseract.js` vão junto. Essas etapas continuam no worker Node. |
 | Laço do worker | `scripts/worker.ts` e `judicial-worker.ts` são processos longos. Em Workers viram Cron Triggers e Queues. |
 | Credenciais de deploy | O canal autenticado disponível não tem permissão para emitir tokens (`9109`). `wrangler deploy` precisa de `wrangler login` ou de um token criado no painel. |
 
 ## Ordem do trabalho restante
 
-1. Abrir uma costura de banco assíncrona, no mesmo padrão de adaptador que `ObjectStorage` e
-   `VectorIndex` já usam, com dois backends: `node:sqlite` para testes e worker, D1 para Workers.
-2. Converter os 264 statements, redesenhando as cinco fronteiras transacionais.
-3. Backend de `ObjectStorage` sobre binding R2, ao lado do backend S3 que já existe.
-4. Worker: Cron e Queues para o que roda em Workers; o que precisa de OCR fica em Node.
-5. `wrangler secret put` para `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` e `K5_CREDENTIALS_KEY`,
+1. Backend de `ObjectStorage` sobre binding R2, ao lado do backend S3 que já existe.
+2. Worker: Cron e Queues para o que roda em Workers; o que precisa de OCR fica em Node.
+3. `wrangler secret put` para `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` e `K5_CREDENTIALS_KEY`,
    seguido de `wrangler deploy`.
 
-Até o passo 2 estar feito, publicar não adianta: o Worker compila, sobe e falha na primeira
-consulta, porque `node:sqlite` não existe em workerd. Um deploy antes disso produziria uma URL que
-responde erro em toda rota autenticada.
+O Cofre ainda grava no backend de sistema de arquivos, então um deploy agora serve as rotas
+autenticadas, mas perde os originais enviados quando o isolate morre. O passo 1 é o que falta
+antes de staging valer como staging.
 
 ## Notas de configuração
 

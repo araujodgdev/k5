@@ -11,7 +11,7 @@ export async function GET(request: Request, context: Context) {
   try {
     const workspace = await apiWorkspace(request);
     const documentId = (await context.params).id;
-    const result = getDocument(workspaceContext(workspace), { documentId });
+    const result = await getDocument(workspaceContext(workspace), { documentId });
     return Response.json(result);
   } catch (error) { return apiError(error); }
 }
@@ -24,7 +24,7 @@ export async function PATCH(request: Request, context: Context) {
       name: z.string().trim().min(1).max(255).optional(),
       caseId: z.string().nullable().optional(),
     }).parse(await limitedJson(request));
-    const result = updateDocument(workspaceContext(workspace), { documentId, name: body.name, caseId: body.caseId });
+    const result = await updateDocument(workspaceContext(workspace), { documentId, name: body.name, caseId: body.caseId });
     return Response.json(result);
   } catch (error) { return apiError(error); }
 }
@@ -39,7 +39,7 @@ export async function DELETE(request: Request, context: Context) {
     } catch {
       // Empty body allowed
     }
-    const result = deleteDocument(workspaceContext(workspace), { documentId, approvalId: body.approvalId });
+    const result = await deleteDocument(workspaceContext(workspace), { documentId, approvalId: body.approvalId });
     return Response.json(result);
   } catch (error) { return apiError(error); }
 }

@@ -4,11 +4,11 @@ import { citationCandidates } from '@/lib/ai-policy';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
 
-export function listCandidates(
+export async function listCandidates(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_citations_list_candidates'>
-): CapabilityOutput<'k5_citations_list_candidates'> {
-  const sources = selectedSources(context.officeId, input.documentIds);
+): Promise<CapabilityOutput<'k5_citations_list_candidates'>> {
+  const sources = await selectedSources(context.officeId, input.documentIds);
   const candidates = citationCandidates(sources);
   return {
     candidates: candidates.map(c => ({

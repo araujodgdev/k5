@@ -11,7 +11,7 @@ export async function GET(request: Request, context: Context) {
   try {
     const workspace = await apiWorkspace(request);
     const id = (await context.params).id;
-    const proposal = getApprovalProposal(workspaceContext(workspace), id);
+    const proposal = await getApprovalProposal(workspaceContext(workspace), id);
     return Response.json({ proposal });
   } catch (error) { return apiError(error); }
 }
@@ -23,7 +23,7 @@ export async function POST(request: Request, context: Context) {
     const body = z.object({ action: z.enum(['approve', 'reject']) }).parse(await limitedJson(request));
 
     const ctx = workspaceContext(workspace);
-    const result = body.action === 'approve' ? approveProposal(ctx, id) : rejectProposal(ctx, id);
+    const result = body.action === 'approve' ? await approveProposal(ctx, id) : await rejectProposal(ctx, id);
     return Response.json({ proposal: result });
   } catch (error) { return apiError(error); }
 }

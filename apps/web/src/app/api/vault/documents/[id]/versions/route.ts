@@ -12,7 +12,7 @@ export async function POST(request: Request, context: Context) {
     const workspace = await apiWorkspace(request, true);
     const documentId = (await context.params).id;
     const body = z.object({ uploadRef: z.string().min(1) }).parse(await limitedJson(request));
-    const result = addDocumentVersion(workspaceContext(workspace), { documentId, uploadRef: body.uploadRef });
+    const result = await addDocumentVersion(workspaceContext(workspace), { documentId, uploadRef: body.uploadRef });
     return Response.json(result, { status: 201 });
   } catch (error) { return apiError(error); }
 }

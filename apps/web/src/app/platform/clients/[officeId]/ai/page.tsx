@@ -10,7 +10,7 @@ export default async function ClientAiPage({ params }: PageProps<"/platform/clie
   const context = await requirePlatformPage();
   if (!context) notFound();
   const { officeId } = await params;
-  const office = getOfficeForPlatform(context.db, officeId);
+  const office = await getOfficeForPlatform(context.db, officeId);
   if (!office) notFound();
   return (
     <section className="mx-auto max-w-5xl">
@@ -18,7 +18,7 @@ export default async function ClientAiPage({ params }: PageProps<"/platform/clie
       <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div><h1 className="display text-[28px]">Conexões de IA</h1><p className="mt-1 text-muted-foreground">{office.name}</p></div>
       </div>
-      <PlatformConnections officeId={office.id} initialConnections={listAiConnections(context.db, office.id)} />
+      <PlatformConnections officeId={office.id} initialConnections={await listAiConnections(context.db, office.id)} />
     </section>
   );
 }

@@ -23,7 +23,7 @@ export async function DELETE(request: Request, context: Context) {
     } catch {
       // Empty body is allowed: the caller may not have an approval or a destination case yet.
     }
-    const result = deleteCase(workspaceContext(workspace), { caseId, targetCaseId: body.targetCaseId, approvalId: body.approvalId });
+    const result = await deleteCase(workspaceContext(workspace), { caseId, targetCaseId: body.targetCaseId, approvalId: body.approvalId });
     return Response.json(result);
   } catch (error) { return apiError(error); }
 }

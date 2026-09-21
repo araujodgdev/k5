@@ -52,8 +52,8 @@ export async function POST(request: Request) {
     const body = schema.parse(await limitedJson(request));
     const id = body.conversationId ?? body.id;
     if (!id) throw new ApiError(400, 'Selecione uma conversa.');
-    const owner = { officeId: office.officeId, userId: user.id };
-    const stored = conversation(database, owner, id);
+    const owner = { officeId: (office).officeId, userId: user.id };
+    const stored = await conversation(database, owner, id);
     if (!stored) throw new ApiError(404, 'Conversa não encontrada.');
     if (body.message.role !== 'user') throw new ApiError(400, 'Envie uma mensagem.');
     const text = body.message.parts.filter(p => p.type === 'text').map(p => p.text ?? '').join('\n').trim();
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     // can pass the ids to the retrieval tool. Content is no longer pre-injected: pasting 70k
     // characters into the instructions *and* registering a search tool pays for both.
     const scopeDocuments = body.documentIds.length
-      ? listVaultDocuments(office.officeId, {}).filter((doc) => body.documentIds.includes(doc.id))
+      ? (await listVaultDocuments((office).officeId, {})).filter((doc) => body.documentIds.includes(doc.id))
       : [];
     const scope = scopeDocuments.length
       ? `Arquivos anexados a esta conversa (use estes identificadores nas ferramentas):\n${scopeDocuments.map((doc) => `${doc.id} — ${doc.name} (${doc.status})`).join('\n')}`
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
     const tools = agentTools(context);
     const { agent, config } = await createOfficeAgent(
-      office.officeId,
+      (office).officeId,
       'chat',
       [
         conversationStyle, groundedInstructions, toolInstructions,
@@ -84,15 +84,15 @@ export async function POST(request: Request) {
       tools,
       body.model,
     );
-    const locked = database.prepare('UPDATE ai_conversation SET busy_until=? WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(Date.now() + 240_000, id, office.officeId, user.id, Date.now());
+    const locked = await database.prepare('UPDATE ai_conversation SET busy_until=? WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(Date.now() + 240_000, id, (office).officeId, user.id, Date.now());
     if (!locked.changes) throw new ApiError(409, 'Aguarde a resposta atual.');
     let messages: UIMessage[];
     try {
       const input: UIMessage = { id: body.message.id, role: 'user', parts: [{ type: 'text', text }] };
       messages = mergeHistory(stored.messages, input);
-      saveMessages(database, owner, id, messages);
+      await saveMessages(database, owner, id, messages);
     } catch (error) {
-      database.prepare('UPDATE ai_conversation SET busy_until=0 WHERE id=? AND office_id=?').run(id, office.officeId);
+      await database.prepare('UPDATE ai_conversation SET busy_until=0 WHERE id=? AND office_id=?').run(id, (office).officeId);
       throw error;
     }
     const stream = createUIMessageStream({
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
           if (modalities.image) {
             // Bounded on purpose: three images is a readable exhibit, thirty is a bill.
             for (const document of scopeDocuments.filter((doc) => doc.mimeType.startsWith('image/')).slice(0, 3)) {
-              const row = findVaultDocument(office.officeId, document.id);
+              const row = await findVaultDocument(office.officeId, document.id);
               if (!row) continue;
               try {
                 const bytes = await readVaultOriginal(row);
@@ -204,20 +204,20 @@ export async function POST(request: Request) {
           }
           if (buffer) emit(buffer);
           if (halted) emit(halted);
-          recordUsage(office.officeId, user.id, config, 'chat', 'completed', await response.usage);
+          await recordUsage(office.officeId, user.id, config, 'chat', 'completed', await response.usage);
         } catch (error) {
           const aborted = request.signal.aborted;
           const message = aborted ? '\n[Resposta interrompida.]' : '\n[Não foi possível concluir a resposta. Tente novamente.]';
           if (!answer.endsWith(message)) { answer += message; writer.write({ type: 'text-delta', id: partId, delta: message }); }
-          recordUsage(office.officeId, user.id, config, 'chat', aborted ? 'cancelled' : 'failed');
+          await recordUsage(office.officeId, user.id, config, 'chat', aborted ? 'cancelled' : 'failed');
           void error;
         } finally {
           const parts: UIMessage['parts'] = [
             ...steps.map((step, index) => ({ type: 'data-tool' as const, id: `${messageId}-${index}`, data: step })),
             { type: 'text' as const, text: answer },
           ];
-          saveMessages(database, owner, id, [...messages, { id: messageId, role: 'assistant', parts }]);
-          database.prepare('UPDATE ai_conversation SET busy_until=0 WHERE id=? AND office_id=?').run(id, office.officeId);
+          await saveMessages(database, owner, id, [...messages, { id: messageId, role: 'assistant', parts }]);
+          await database.prepare('UPDATE ai_conversation SET busy_until=0 WHERE id=? AND office_id=?').run(id, (office).officeId);
         }
         writer.write({ type: 'text-end', id: partId });
         writer.write({ type: 'finish' });

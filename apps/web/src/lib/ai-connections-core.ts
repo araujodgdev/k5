@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { DatabaseSync } from "node:sqlite";
+import type { Database } from "./database";
 import { z } from "zod";
 import {
   credentialHint, credentialNeedsReencryption, CredentialDecryptError, decryptCredential, encryptCredential, type CredentialKeyring,
@@ -78,60 +78,72 @@ function toView(row: Row) {
   };
 }
 
-function audit(db: DatabaseSync, actorUserId: string, officeId: string | null, connectionId: string | null, action: string, details: object = {}) {
-  db.prepare("INSERT INTO platform_audit_log (id, actor_user_id, office_id, connection_id, action, details_json) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(randomUUID(), actorUserId, officeId, connectionId, action, JSON.stringify(details));
+const AUDIT_SQL = "INSERT INTO platform_audit_log (id, actor_user_id, office_id, connection_id, action, details_json) VALUES (?, ?, ?, ?, ?, ?)";
+
+async function audit(db: Database, actorUserId: string, officeId: string | null, connectionId: string | null, action: string, details: object = {}) {
+  await db.prepare(AUDIT_SQL).run(randomUUID(), actorUserId, officeId, connectionId, action, JSON.stringify(details));
 }
 
-function assignTasksExclusively(db: DatabaseSync, officeId: string, connectionId: string, models: Record<AiTask, string | null>) {
-  for (const task of AI_TASKS) {
-    if (models[task]) db.prepare(`UPDATE ai_connection SET ${task}_model = NULL, updated_at = CURRENT_TIMESTAMP WHERE office_id = ? AND id <> ? AND deleted_at IS NULL AND ${task}_model IS NOT NULL`).run(officeId, connectionId);
-  }
+/** The same row as `audit`, bound rather than executed, for callers writing inside a batch. */
+function auditStatement(db: Database, actorUserId: string, officeId: string | null, connectionId: string | null, action: string, details: object = {}) {
+  return db.prepare(AUDIT_SQL).bind(randomUUID(), actorUserId, officeId, connectionId, action, JSON.stringify(details));
 }
 
-export function listOfficesForPlatform(db: DatabaseSync) {
-  return db.prepare(`SELECT o.id, o.name, o.created_at AS createdAt,
+/**
+ * Clears each task assignment from every other connection of the office.
+ *
+ * Returns bound statements rather than running them, so the exclusivity, the write it protects
+ * and the audit row all land in one batch: between them, an office would otherwise have two
+ * connections claiming the same task, and whichever one a request read first would win.
+ */
+function releaseTaskAssignments(db: Database, officeId: string, connectionId: string, models: Record<AiTask, string | null>) {
+  return AI_TASKS.filter((task) => models[task]).map((task) =>
+    db.prepare(`UPDATE ai_connection SET ${task}_model = NULL, updated_at = CURRENT_TIMESTAMP WHERE office_id = ? AND id <> ? AND deleted_at IS NULL AND ${task}_model IS NOT NULL`)
+      .bind(officeId, connectionId));
+}
+
+export async function listOfficesForPlatform(db: Database) {
+  return await db.prepare(`SELECT o.id, o.name, o.created_at AS createdAt,
     count(c.id) AS connectionCount,
     sum(CASE WHEN c.enabled = 1 AND c.deleted_at IS NULL THEN 1 ELSE 0 END) AS enabledConnectionCount
     FROM office o LEFT JOIN ai_connection c ON c.office_id = o.id AND c.deleted_at IS NULL
     GROUP BY o.id ORDER BY o.name COLLATE NOCASE`).all() as Array<{ id: string; name: string; createdAt: string; connectionCount: number; enabledConnectionCount: number }>;
 }
 
-export function getOfficeForPlatform(db: DatabaseSync, officeId: string) {
-  return db.prepare("SELECT id, name, created_at AS createdAt FROM office WHERE id = ?").get(officeId) as { id: string; name: string; createdAt: string } | undefined;
+export async function getOfficeForPlatform(db: Database, officeId: string) {
+  return await db.prepare("SELECT id, name, created_at AS createdAt FROM office WHERE id = ?").get(officeId) as { id: string; name: string; createdAt: string } | undefined;
 }
 
-export function listAiConnections(db: DatabaseSync, officeId: string): AiConnectionView[] {
-  return (db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND deleted_at IS NULL ORDER BY name COLLATE NOCASE").all(officeId) as Row[]).map(toView);
+export async function listAiConnections(db: Database, officeId: string): Promise<AiConnectionView[]> {
+  return (await db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND deleted_at IS NULL ORDER BY name COLLATE NOCASE").all(officeId) as Row[]).map(toView);
 }
 
-export function createAiConnection(db: DatabaseSync, key: MasterKey, actorUserId: string, officeId: string, input: Omit<ConnectionInput, "models"> & { models?: ConnectionPatch["models"] }): AiConnectionView {
-  if (!getOfficeForPlatform(db, officeId)) throw new AiConnectionError("not_found", "Escritório não encontrado.");
+export async function createAiConnection(db: Database, key: MasterKey, actorUserId: string, officeId: string, input: Omit<ConnectionInput, "models"> & { models?: ConnectionPatch["models"] }): Promise<AiConnectionView> {
+  if (!await getOfficeForPlatform(db, officeId)) throw new AiConnectionError("not_found", "Escritório não encontrado.");
   const id = randomUUID();
   const name = validateName(input.name);
   const provider = validateProvider(input.provider);
   const models = cleanModels(input.models);
   const apiKey = input.apiKey?.trim();
   if (!apiKey) throw new AiConnectionError("invalid", "Informe a chave do provider.");
-  db.exec("SAVEPOINT create_ai_connection");
   try {
-    assignTasksExclusively(db, officeId, id, models);
-    db.prepare(`INSERT INTO ai_connection
-      (id, office_id, name, provider, encrypted_api_key, api_key_hint, chat_model, extraction_model, drafting_model, embedding_model, enabled)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(id, officeId, name, provider, encryptCredential(apiKey, key), credentialHint(apiKey), models.chat, models.extraction, models.drafting, models.embedding, input.enabled === false ? 0 : 1);
-    audit(db, actorUserId, officeId, id, "ai_connection.created", { name, provider, enabled: input.enabled !== false, models });
-    db.exec("RELEASE create_ai_connection");
+    await db.batch([
+      ...releaseTaskAssignments(db, officeId, id, models),
+      db.prepare(`INSERT INTO ai_connection
+        (id, office_id, name, provider, encrypted_api_key, api_key_hint, chat_model, extraction_model, drafting_model, embedding_model, enabled)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(id, officeId, name, provider, encryptCredential(apiKey, key), credentialHint(apiKey), models.chat, models.extraction, models.drafting, models.embedding, input.enabled === false ? 0 : 1),
+      auditStatement(db, actorUserId, officeId, id, "ai_connection.created", { name, provider, enabled: input.enabled !== false, models }),
+    ]);
   } catch (error) {
-    db.exec("ROLLBACK TO create_ai_connection; RELEASE create_ai_connection");
     if (String(error).includes("UNIQUE constraint failed")) throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome neste escritório.");
     throw error;
   }
-  return listAiConnections(db, officeId).find((item) => item.id === id)!;
+  return (await listAiConnections(db, officeId)).find((item) => item.id === id)!;
 }
 
-export function updateAiConnection(db: DatabaseSync, key: MasterKey, actorUserId: string, officeId: string, connectionId: string, patch: ConnectionPatch): AiConnectionView {
-  const current = db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
+export async function updateAiConnection(db: Database, key: MasterKey, actorUserId: string, officeId: string, connectionId: string, patch: ConnectionPatch): Promise<AiConnectionView> {
+  const current = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   const name = patch.name === undefined ? current.name : validateName(patch.name);
   const provider = patch.provider === undefined ? current.provider : validateProvider(patch.provider);
@@ -141,31 +153,31 @@ export function updateAiConnection(db: DatabaseSync, key: MasterKey, actorUserId
   const encrypted = apiKey ? encryptCredential(apiKey, key) : current.encrypted_api_key;
   const hint = apiKey ? credentialHint(apiKey) : current.api_key_hint;
   const enabled = patch.enabled === undefined ? current.enabled : patch.enabled ? 1 : 0;
-  db.exec("SAVEPOINT update_ai_connection");
   try {
-    assignTasksExclusively(db, officeId, connectionId, models);
-    db.prepare(`UPDATE ai_connection SET name = ?, provider = ?, encrypted_api_key = ?, api_key_hint = ?, chat_model = ?, extraction_model = ?, drafting_model = ?, embedding_model = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?`)
-      .run(name, provider, encrypted, hint, models.chat, models.extraction, models.drafting, models.embedding, enabled, connectionId, officeId);
-    audit(db, actorUserId, officeId, connectionId, apiKey ? "ai_connection.key_rotated" : "ai_connection.updated", { name, provider, enabled: Boolean(enabled), models });
-    db.exec("RELEASE update_ai_connection");
+    await db.batch([
+      ...releaseTaskAssignments(db, officeId, connectionId, models),
+      db.prepare(`UPDATE ai_connection SET name = ?, provider = ?, encrypted_api_key = ?, api_key_hint = ?, chat_model = ?, extraction_model = ?, drafting_model = ?, embedding_model = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?`)
+        .bind(name, provider, encrypted, hint, models.chat, models.extraction, models.drafting, models.embedding, enabled, connectionId, officeId),
+      auditStatement(db, actorUserId, officeId, connectionId, apiKey ? "ai_connection.key_rotated" : "ai_connection.updated", { name, provider, enabled: Boolean(enabled), models }),
+    ]);
   } catch (error) {
-    db.exec("ROLLBACK TO update_ai_connection; RELEASE update_ai_connection");
     if (String(error).includes("UNIQUE constraint failed")) throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome neste escritório.");
     throw error;
   }
-  return listAiConnections(db, officeId).find((item) => item.id === connectionId)!;
+  return (await listAiConnections(db, officeId)).find((item) => item.id === connectionId)!;
 }
 
-export function deleteAiConnection(db: DatabaseSync, actorUserId: string, officeId: string, connectionId: string): void {
-  const current = db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
+export async function deleteAiConnection(db: Database, actorUserId: string, officeId: string, connectionId: string): Promise<void> {
+  const current = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   if (current.chat_model || current.extraction_model || current.drafting_model || current.embedding_model) throw new AiConnectionError("in_use", "Remova as atribuições de modelos antes de excluir a conexão.");
-  db.exec("SAVEPOINT delete_ai_connection");
-  try {
-    db.prepare("UPDATE ai_connection SET encrypted_api_key = NULL, enabled = 0, deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?").run(connectionId, officeId);
-    audit(db, actorUserId, officeId, connectionId, "ai_connection.deleted", { name: current.name, provider: current.provider });
-    db.exec("RELEASE delete_ai_connection");
-  } catch (error) { db.exec("ROLLBACK TO delete_ai_connection; RELEASE delete_ai_connection"); throw error; }
+  // The secret is erased and the deletion is recorded together: a connection whose key is gone
+  // with no audit row is a deletion nobody can account for.
+  await db.batch([
+    db.prepare("UPDATE ai_connection SET encrypted_api_key = NULL, enabled = 0, deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?")
+      .bind(connectionId, officeId),
+    auditStatement(db, actorUserId, officeId, connectionId, "ai_connection.deleted", { name: current.name, provider: current.provider }),
+  ]);
 }
 
 function readSecret(payload: string, key: MasterKey) {
@@ -175,8 +187,8 @@ function readSecret(payload: string, key: MasterKey) {
   }
 }
 
-export function resolveOfficeModelConfigFromDatabase(
-  db: DatabaseSync,
+export async function resolveOfficeModelConfigFromDatabase(
+  db: Database,
   key: MasterKey,
   officeId: string,
   task: AiTask,
@@ -185,7 +197,7 @@ export function resolveOfficeModelConfigFromDatabase(
   if (!AI_TASKS.includes(task)) throw new AiConnectionError("invalid", "Perfil de tarefa inválido.");
 
   if (requestedModel?.provider && requestedModel?.modelId) {
-    const row = db.prepare(
+    const row = await db.prepare(
       "SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL AND provider = ? ORDER BY updated_at DESC, id LIMIT 1"
     ).get(officeId, requestedModel.provider) as Row | undefined;
     if (!row || !row.encrypted_api_key) {
@@ -200,7 +212,7 @@ export function resolveOfficeModelConfigFromDatabase(
   }
 
   const column = `${task}_model`;
-  const assigned = db.prepare(`SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL AND ${column} IS NOT NULL ORDER BY updated_at DESC, id LIMIT 1`).get(officeId) as Row | undefined;
+  const assigned = await db.prepare(`SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL AND ${column} IS NOT NULL ORDER BY updated_at DESC, id LIMIT 1`).get(officeId) as Row | undefined;
   if (assigned?.encrypted_api_key) {
     return { provider: assigned.provider, modelId: assigned[column as keyof Row] as string, apiKey: readSecret(assigned.encrypted_api_key, key), connectionId: assigned.id };
   }
@@ -209,7 +221,7 @@ export function resolveOfficeModelConfigFromDatabase(
   // model. Embedding is the stricter case — only providers with an embeddings endpoint qualify, so
   // an office whose single connection is Anthropic gets a clear "not configured" instead of a
   // request the provider cannot answer.
-  const candidates = db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL ORDER BY updated_at DESC, id").all(officeId) as Row[];
+  const candidates = await db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL ORDER BY updated_at DESC, id").all(officeId) as Row[];
   for (const row of candidates) {
     if (!row.encrypted_api_key) continue;
     const modelId = task === "embedding" ? defaultEmbeddingModel(row.provider) : defaultChatModel(row.provider);
@@ -230,10 +242,10 @@ export type ResolvedModelConfig = {
 
 // Tests any enabled connection of the office with its own model, independent of which connection currently serves the task.
 export async function testAiConnection(
-  db: DatabaseSync, key: MasterKey, actorUserId: string, officeId: string, connectionId: string, requestedTask: AiTask | undefined,
+  db: Database, key: MasterKey, actorUserId: string, officeId: string, connectionId: string, requestedTask: AiTask | undefined,
   send: (config: ResolvedModelConfig) => Promise<unknown>,
 ) {
-  const row = db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
+  const row = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
   if (!row || !row.encrypted_api_key) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   if (!row.enabled) throw new AiConnectionError("disabled", "Ative a conexão antes de testar.");
   const task = requestedTask ?? AI_TASKS.find((item) => row[`${item}_model`]) ?? "chat";
@@ -243,37 +255,38 @@ export async function testAiConnection(
   const details = { task, provider: row.provider, modelId };
   let config: ResolvedModelConfig;
   try { config = { provider: row.provider, modelId, apiKey: readSecret(row.encrypted_api_key, key), connectionId: row.id }; } catch (error) {
-    audit(db, actorUserId, officeId, connectionId, "ai_connection.tested", { ...details, result: "failed", reason: "credential" });
+    await audit(db, actorUserId, officeId, connectionId, "ai_connection.tested", { ...details, result: "failed", reason: "credential" });
     throw error;
   }
   try { await send(config); } catch {
     // Provider errors may echo request data or masked keys: never propagate or log their text.
-    audit(db, actorUserId, officeId, connectionId, "ai_connection.tested", { ...details, result: "failed", reason: "provider" });
+    await audit(db, actorUserId, officeId, connectionId, "ai_connection.tested", { ...details, result: "failed", reason: "provider" });
     throw new AiConnectionError("provider", "O provider recusou a requisição de teste. Confira a chave e o modelo.");
   }
-  audit(db, actorUserId, officeId, connectionId, "ai_connection.tested", { ...details, result: "ok" });
+  await audit(db, actorUserId, officeId, connectionId, "ai_connection.tested", { ...details, result: "ok" });
   return { task, modelId };
 }
 
-function pendingReencryption(db: DatabaseSync, keyring: CredentialKeyring) {
-  const rows = db.prepare("SELECT id, office_id, encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL AND encrypted_api_key IS NOT NULL").all() as Array<{ id: string; office_id: string; encrypted_api_key: string }>;
+async function pendingReencryption(db: Database, keyring: CredentialKeyring) {
+  const rows = await db.prepare("SELECT id, office_id, encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL AND encrypted_api_key IS NOT NULL").all() as Array<{ id: string; office_id: string; encrypted_api_key: string }>;
   return { total: rows.length, pending: rows.filter((row) => { try { return credentialNeedsReencryption(row.encrypted_api_key, keyring); } catch { return true; } }) };
 }
 
-export function countSecretsNeedingReencryption(db: DatabaseSync, keyring: CredentialKeyring): number {
-  return pendingReencryption(db, keyring).pending.length;
+export async function countSecretsNeedingReencryption(db: Database, keyring: CredentialKeyring): Promise<number> {
+  return (await pendingReencryption(db, keyring)).pending.length;
 }
 
-// Re-encrypts every stored secret with the current master key in one transaction; any unreadable secret aborts all changes.
-export function reencryptAiConnectionSecrets(db: DatabaseSync, keyring: CredentialKeyring, actorUserId: string) {
-  const { total, pending } = pendingReencryption(db, keyring);
-  db.exec("SAVEPOINT reencrypt_ai_connections");
-  try {
-    for (const row of pending) {
-      db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?").run(encryptCredential(readSecret(row.encrypted_api_key, keyring), keyring), row.id);
-      audit(db, actorUserId, row.office_id, row.id, "ai_connection.master_key_reencrypted", { keyId: keyring.current.id });
-    }
-    db.exec("RELEASE reencrypt_ai_connections");
-  } catch (error) { db.exec("ROLLBACK TO reencrypt_ai_connections; RELEASE reencrypt_ai_connections"); throw error; }
+// Re-encrypts every stored secret with the current master key in one batch; any unreadable secret
+// aborts all changes. Re-encryption happens in memory first, so a secret this key cannot read
+// throws before a single row is written — the guarantee the old SAVEPOINT provided, without
+// needing a lock D1 does not offer.
+export async function reencryptAiConnectionSecrets(db: Database, keyring: CredentialKeyring, actorUserId: string) {
+  const { total, pending } = await pendingReencryption(db, keyring);
+  const writes = pending.flatMap((row) => [
+    db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?")
+      .bind(encryptCredential(readSecret(row.encrypted_api_key, keyring), keyring), row.id),
+    auditStatement(db, actorUserId, row.office_id, row.id, "ai_connection.master_key_reencrypted", { keyId: keyring.current.id }),
+  ]);
+  await db.batch(writes);
   return { total, reencrypted: pending.length, keyId: keyring.current.id };
 }

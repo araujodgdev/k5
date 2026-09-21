@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const context = workspaceContext(workspace);
     const url = new URL(request.url);
     const limit = Number(url.searchParams.get('limit') || 100);
-    return Response.json(listRuns(context, { limit }));
+    return Response.json(await listRuns(context, { limit }));
   } catch (e) { return apiError(e); }
 }
 

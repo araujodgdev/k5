@@ -61,7 +61,7 @@ function ledger(officeId: string, documentId: string, chunkId: string, generatio
   ).run(`${generationId}:${chunkId}`, officeId, documentId, chunkId, generationId);
 }
 
-test("publication: a generation whose jobs did not all succeed does not replace a complete one", () => {
+test("publication: a generation whose jobs did not all succeed does not replace a complete one", async () => {
   const { officeId, userId } = seedOffice();
   const generationId = seedGeneration(officeId);
   const good = seedDocument(officeId, userId);
@@ -73,16 +73,16 @@ test("publication: a generation whose jobs did not all succeed does not replace 
 
   // One document indexed and one that did not. Publishing here retires the previous index in
   // favour of one that answers confidently while omitting everything in the failed document.
-  assert.equal(publishGenerationIfComplete(officeId, generationId), false, "a failed job blocks publication");
+  assert.equal(await publishGenerationIfComplete(officeId, generationId), false, "a failed job blocks publication");
 
   // Re-queueing is the recovery path, and it must not publish while that work is still pending.
   testDb.prepare("UPDATE knowledge_index_job SET status = 'queued', attempts = 0, error = NULL WHERE id = ?").run(failed);
-  assert.equal(publishGenerationIfComplete(officeId, generationId), false, "a re-queued job still blocks");
+  assert.equal(await publishGenerationIfComplete(officeId, generationId), false, "a re-queued job still blocks");
 
   // A cancelled job means the document was deleted: it has nothing left to contribute, so it must
   // not hold the generation hostage either.
   testDb.prepare("UPDATE knowledge_index_job SET status = 'cancelled' WHERE id = ?").run(failed);
-  assert.equal(publishGenerationIfComplete(officeId, generationId), true, "a deleted document does not block");
+  assert.equal(await publishGenerationIfComplete(officeId, generationId), true, "a deleted document does not block");
   const generation = testDb.prepare("SELECT status FROM knowledge_index_generation WHERE id = ?")
     .get(generationId) as { status: string };
   assert.equal(generation.status, "active");
@@ -108,7 +108,7 @@ test("indexing: a job that exhausted its attempts while running reaches a termin
   assert.equal(row.leaseOwner, null);
   assert.match(String(row.error), /tentativas/);
 
-  assert.equal(publishGenerationIfComplete(officeId, generationId), false, "and it is visible to publication as unfinished");
+  assert.equal(await publishGenerationIfComplete(officeId, generationId), false, "and it is visible to publication as unfinished");
 });
 
 test("indexing: a worker that lost its lease cannot overwrite the outcome of the one that took it", async () => {
@@ -145,7 +145,7 @@ test("uploads: a destination the server rejects does not cost the person their u
   const upload = await uploadsService.createUploadRef(context, file);
 
   // A case id that does not exist: ingestion fails after the reference was already claimed.
-  assert.throws(
+  await assert.rejects(
     () => vaultService.ingestUpload(context, { uploadRef: upload.id, scope: "case", caseId: randomUUID() }),
     (error: unknown) => error instanceof CapabilityError,
   );
@@ -157,7 +157,7 @@ test("uploads: a destination the server rejects does not cost the person their u
   // The bytes are still there and the reference still works, so retrying with a valid destination
   // succeeds rather than stranding an object no row can ever reach.
   const ingested = vaultService.ingestUpload(context, { uploadRef: upload.id, scope: "library" });
-  assert.ok(ingested.document.id);
+  assert.ok((await ingested).document.id);
 });
 
 test("deletion: a legacy flat name is removed and its queue entry closes", async () => {

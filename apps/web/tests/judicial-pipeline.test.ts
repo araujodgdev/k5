@@ -145,7 +145,7 @@ test("catalog: every judicial capability has an executor and a sane publication 
 
 test("linking: a proposed link never starts confirmed, whoever proposed it", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
+  const installation = await source();
   const result = await runCapability(context(officeA, lawyerA), "k5_judicial_link_case", {
     caseId: caseA, installationId: installation.id, number: "0000001-05.2025.8.26.0100", degree: "first",
   }) as Awaited<ReturnType<typeof judicial.linkJudicialCase>>;
@@ -165,7 +165,7 @@ test("linking: a proposed link never starts confirmed, whoever proposed it", asy
 
 test("linking: an unverifiable number is kept as native identity, not rejected", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
+  const installation = await source();
   const result = await runCapability(context(officeA, lawyerA), "k5_judicial_link_case", {
     caseId: caseA, installationId: installation.id, number: "583.00.2011.123456-7", degree: "first",
   }) as Awaited<ReturnType<typeof judicial.linkJudicialCase>>;
@@ -177,17 +177,17 @@ test("linking: an unverifiable number is kept as native identity, not rejected",
 
 test("isolation: a case from another office is not linkable and its links are invisible", async () => {
   const { officeA, lawyerA, caseB, officeB, lawyerB } = seed();
-  const installation = source();
+  const installation = await source();
 
   // The office comes from the trusted context, so naming another office's case finds nothing.
   await assert.rejects(
-    () => runCapability(context(officeA, lawyerA), "k5_judicial_link_case", {
+    async () => runCapability(context(officeA, lawyerA), "k5_judicial_link_case", {
       caseId: caseB, installationId: installation.id, number: VALID, degree: "first",
     }),
     (error: unknown) => error instanceof CapabilityError && error.code === "NOT_FOUND",
   );
 
-  const { link } = createCaseLink({
+  const { link } = await createCaseLink({
     officeId: officeB, userId: lawyerB, caseId: caseB, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
@@ -204,9 +204,9 @@ test("isolation: a case from another office is not linkable and its links are in
 
 test("links: unfiltered listings are bounded and the cursor advances without overlap", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
+  const installation = await source();
   for (let index = 0; index < 25; index += 1) {
-    createCaseLink({
+    await createCaseLink({
       officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
       cnjNumber: null, nativeNumber: `processo-${index}`, degree: "first", confirmed: true,
     });
@@ -226,8 +226,8 @@ test("links: unfiltered listings are bounded and the cursor advances without ove
   assert.equal(capabilitySecondPage.nextCursor, null);
   assert.equal(capabilitySecondPage.links.some((link) => defaultPage.links.some((first) => first.id === link.id)), false);
 
-  const firstPage = listCaseLinks(officeA, { limit: 10 });
-  const secondPage = listCaseLinks(officeA, { limit: 10, cursor: firstPage.at(-1)?.id });
+  const firstPage = await listCaseLinks(officeA, { limit: 10 });
+  const secondPage = await listCaseLinks(officeA, { limit: 10, cursor: firstPage.at(-1)?.id });
   assert.equal(firstPage.length, 10);
   assert.equal(secondPage.length, 10);
   assert.equal(secondPage.some((link) => firstPage.some((first) => first.id === link.id)), false);
@@ -239,19 +239,19 @@ test("inbox filters run before limits and collection state survives a reload", a
   const otherCase = randomUUID();
   testDb.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, ?, ?)")
     .run(otherCase, officeA, "Outro caso", lawyerA);
-  const installationA = source();
-  const installationB = source();
-  const linkA = createCaseLink({
+  const installationA = await source();
+  const installationB = await source();
+  const linkA = (await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installationA.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
-  }).link;
-  const linkB = createCaseLink({
+  })).link;
+  const linkB = (await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: otherCase, installationId: installationB.id,
     cnjNumber: VALID_OTHER, nativeNumber: null, degree: "first", confirmed: true,
-  }).link;
+  })).link;
 
-  const ingest = (installation: ReturnType<typeof source>, linkId: string, sourceId: string, cnjNumber: string, date: string) =>
-    ingestPublications({
+  const ingest = async (installation: Awaited<ReturnType<typeof source>>, linkId: string, sourceId: string, cnjNumber: string, date: string) =>
+    await ingestPublications({
       officeId: officeA,
       installation,
       linkId,
@@ -270,46 +270,46 @@ test("inbox filters run before limits and collection state survives a reload", a
       },
     });
 
-  ingest(installationA, linkA.id, `older-${randomUUID()}`, VALID, "2025-01-01");
-  ingest(installationB, linkB.id, `newer-${randomUUID()}`, VALID_OTHER, "2026-01-01");
+  await ingest(installationA, linkA.id, `older-${randomUUID()}`, VALID, "2025-01-01");
+  await ingest(installationB, linkB.id, `newer-${randomUUID()}`, VALID_OTHER, "2026-01-01");
 
-  const alerts = judicial.listJudicialAlerts(context(officeA, lawyerA), {
+  const alerts = await judicial.listJudicialAlerts(context(officeA, lawyerA), {
     caseId: caseA, installationId: installationA.id, unreadOnly: false, limit: 1,
   });
   assert.equal(alerts.alerts.length, 1);
   assert.equal(alerts.alerts[0]?.caseId, caseA);
   assert.equal(alerts.alerts[0]?.installationId, installationA.id);
 
-  const publications = judicial.listJudicialPublications(context(officeA, lawyerA), {
+  const publications = await judicial.listJudicialPublications(context(officeA, lawyerA), {
     caseId: caseA, installationId: installationA.id, limit: 1,
   });
   assert.equal(publications.publications.length, 1);
   assert.equal(publications.publications[0]?.installationId, installationA.id);
 
-  const queued = enqueueJob({
+  const queued = await enqueueJob({
     officeId: officeA, installationId: installationA.id, linkId: linkA.id,
     kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] },
     windowFrom: TODAY, windowTo: TODAY,
   });
-  const claimed = claimJob();
+  const claimed = await claimJob();
   assert.equal(claimed?.job.id, queued.job.id);
-  assert.equal(completeJob(queued.job.id, claimed!.leaseOwner), true);
+  assert.equal(await completeJob(queued.job.id, claimed!.leaseOwner), true);
 
-  const jobs = judicial.listJudicialJobs(context(officeA, lawyerA), {
+  const jobs = await judicial.listJudicialJobs(context(officeA, lawyerA), {
     caseId: caseA, installationId: installationA.id, status: "completed", limit: 1,
   });
   assert.equal(jobs.jobs[0]?.id, queued.job.id);
   assert.equal(jobs.jobs[0]?.linkId, linkA.id);
 
-  const links = judicial.listJudicialLinks(context(officeA, lawyerA), { caseId: caseA, limit: 20, activeOnly: true });
+  const links = await judicial.listJudicialLinks(context(officeA, lawyerA), { caseId: caseA, limit: 20, activeOnly: true });
   assert.equal(links.jobs[0]?.id, queued.job.id);
   assert.equal(links.completedJobs[0]?.id, queued.job.id);
 });
 
 test("refresh: an unconfirmed link cannot spend a request against a court", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
-  const { link } = createCaseLink({
+  const installation = await source();
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: false,
   });
@@ -319,7 +319,7 @@ test("refresh: an unconfirmed link cannot spend a request against a court", asyn
     (error: unknown) => error instanceof CapabilityError && error.code === "APPROVAL_REQUIRED",
   );
 
-  confirmCaseLink(officeA, link.id, lawyerA, "confirmed");
+  await confirmCaseLink(officeA, link.id, lawyerA, "confirmed");
   const queued = await runCapability(context(officeA, lawyerA), "k5_judicial_request_refresh", { linkId: link.id }) as { job: { id: string; status: string }; created: boolean };
   assert.equal(queued.created, true);
   assert.equal(queued.job.status, "queued", "a coleta nunca roda dentro da requisição");
@@ -332,8 +332,8 @@ test("refresh: an unconfirmed link cannot spend a request against a court", asyn
 
 test("refresh: a source whose terms are unclear is not collected from", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source({ permissions: { query: "nao_esclarecido", cache: "nao_esclarecido" } });
-  const { link } = createCaseLink({
+  const installation = await source({ permissions: { query: "nao_esclarecido", cache: "nao_esclarecido" } });
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
@@ -347,8 +347,8 @@ test("refresh: a source whose terms are unclear is not collected from", async ()
 test("collection: originals, publications and alerts land together and a replay adds nothing", async () => {
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();
-  const installation = source();
-  const { link } = createCaseLink({
+  const installation = await source();
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
@@ -368,7 +368,7 @@ test("collection: originals, publications and alerts land together and a replay 
 
   // Running the identical window again is exactly what a retry does. It must be inert.
   clearBudget();
-  const { job } = enqueueJob({
+  const { job } = await enqueueJob({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     kind: "manual", operation: "listChanges",
     request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY,
@@ -389,31 +389,31 @@ test("collection: the minimum spacing turns away a second sweep instead of askin
   clearQueue();
   clearBudget();
   // One request per minute for this source: the second job in the same second must not go out.
-  const installation = source({ rateLimitPerMinute: 1 });
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const installation = await source({ rateLimitPerMinute: 1 });
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
   stub([{ installationId: installation.id, numero: VALID, body: fixture("djen-page-1.json") }]);
 
-  enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
+  await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   assert.equal((await processNextJudicialJob())?.status, "completed");
 
-  const second = enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "backfill", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: "2026-08-01", windowTo: "2026-08-31" }).job;
+  const second = (await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "backfill", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: "2026-08-01", windowTo: "2026-08-31" })).job;
   const throttled = await processNextJudicialJob();
   assert.equal(throttled?.jobId, second.id);
   assert.equal(throttled?.status, "retrying", "o trabalho volta para a fila, não falha");
-  assert.equal(findJob(officeA, second.id)?.errorCode, "rate_limited");
+  assert.equal((await findJob(officeA, second.id))?.errorCode, "rate_limited");
 });
 
 test("collection: a backfill finding announces history, not news from today", async () => {
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();
-  const installation = source();
-  const { link } = createCaseLink({
+  const installation = await source();
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
   stub([{ installationId: installation.id, numero: VALID, from: "2026-08-01", to: "2026-08-31", body: fixture("djen-page-1.json") }]);
 
-  enqueueJob({
+  await enqueueJob({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     kind: "backfill", operation: "listChanges",
     request: { cnjNumbers: [VALID] }, windowFrom: "2026-08-01", windowTo: "2026-08-31",
@@ -429,19 +429,19 @@ test("collection: a backfill finding announces history, not news from today", as
 test("collection: an errata is a new version related to the original, never an overwrite", async () => {
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();
-  const installation = source();
-  const { link } = createCaseLink({
+  const installation = await source();
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
 
   stub([{ installationId: installation.id, numero: VALID, body: fixture("djen-page-1.json") }]);
-  enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
+  await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   await processNextJudicialJob();
 
   clearBudget();
   stub([{ installationId: installation.id, numero: VALID, body: fixture("djen-errata.json") }]);
-  enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
+  await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   const outcome = await processNextJudicialJob();
   assert.equal(outcome?.inserted, 1);
 
@@ -465,13 +465,13 @@ test("collection: an errata is a new version related to the original, never an o
 test("collection: two offices tracking the same proceeding keep separate evidence", async () => {
   const { officeA, officeB, lawyerA, lawyerB, caseA, caseB } = seed();
   clearQueue();
-  const installation = source();
-  const linkA = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true }).link;
-  const linkB = createCaseLink({ officeId: officeB, userId: lawyerB, caseId: caseB, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true }).link;
+  const installation = await source();
+  const linkA = (await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true })).link;
+  const linkB = (await createCaseLink({ officeId: officeB, userId: lawyerB, caseId: caseB, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true })).link;
 
   stub([{ installationId: installation.id, numero: VALID, body: fixture("djen-page-1.json") }]);
-  enqueueJob({ officeId: officeA, installationId: installation.id, linkId: linkA.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
-  enqueueJob({ officeId: officeB, installationId: installation.id, linkId: linkB.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
+  await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: linkA.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
+  await enqueueJob({ officeId: officeB, installationId: installation.id, linkId: linkB.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   await processNextJudicialJob();
   clearBudget();
   await processNextJudicialJob();
@@ -494,10 +494,10 @@ test("collection: two offices tracking the same proceeding keep separate evidenc
 test("evidence: an opened publication carries its origin and is labelled untrusted", async () => {
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();
-  const installation = source();
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
   stub([{ installationId: installation.id, numero: VALID, body: fixture("djen-page-1.json") }]);
-  enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
+  await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   await processNextJudicialJob();
 
   const list = await runCapability(context(officeA, lawyerA), "k5_judicial_list_publications", {}) as {
@@ -518,159 +518,159 @@ test("evidence: an opened publication carries its origin and is labelled untrust
   assert.notEqual(injected, undefined);
 });
 
-test("queue: a lease is exclusive, and an exhausted job stops instead of looping", () => {
+test("queue: a lease is exclusive, and an exhausted job stops instead of looping", async () => {
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();
-  const installation = source();
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
-  const { job } = enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY });
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const { job } = await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY });
 
-  const first = claimJob();
+  const first = await claimJob();
   assert.equal(first?.job.id, job.id);
   assert.equal(first?.job.attempts, 1);
   // A second worker arriving while the lease still holds must find nothing, not the same job.
-  assert.equal(claimJob(), undefined);
+  assert.equal(await claimJob(), undefined);
 
   // A worker that dies leaves an expired lease with its attempt already spent. Time has to move
   // past the lease on each pass, otherwise the job is simply still leased to the previous owner.
   const hour = 60 * 60 * 1000;
   for (let attempt = 2; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const reclaimed = claimJob(Date.now() + attempt * hour);
+    const reclaimed = await claimJob(Date.now() + attempt * hour);
     assert.equal(reclaimed?.job.id, job.id, `tentativa ${attempt} deveria ser reivindicável`);
     assert.equal(reclaimed?.job.attempts, attempt);
   }
 
   // Attempts exhausted: the next sweep fails it explicitly instead of leaving it 'running'
   // forever with nobody working it.
-  assert.equal(claimJob(Date.now() + (MAX_ATTEMPTS + 1) * hour), undefined, "esgotadas as tentativas, ninguém mais reivindica");
-  assert.equal(findJob(officeA, job.id)?.status, "failed");
-  assert.match(findJob(officeA, job.id)?.errorMessage ?? "", /esgotou as tentativas/);
+  assert.equal(await claimJob(Date.now() + (MAX_ATTEMPTS + 1) * hour), undefined, "esgotadas as tentativas, ninguém mais reivindica");
+  assert.equal((await findJob(officeA, job.id))?.status, "failed");
+  assert.match((await findJob(officeA, job.id))?.errorMessage ?? "", /esgotou as tentativas/);
 });
 
-test("queue: a rejected credential stops the subscription instead of retrying forever", () => {
+test("queue: a rejected credential stops the subscription instead of retrying forever", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
-  const { subscription } = createSubscription({
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const { subscription } = await createSubscription({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     targetKind: "publications_by_case", authorizedBy: lawyerA,
   });
-  const { job } = enqueueJob({
+  const { job } = await enqueueJob({
     officeId: officeA, installationId: installation.id, subscriptionId: subscription.id, linkId: link.id,
     kind: "refresh", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY,
   });
 
-  const claimed = claimJob();
+  const claimed = await claimJob();
   assert.equal(claimed?.job.id, job.id);
-  const outcome = failJob(job.id, claimed!.leaseOwner, { code: "unauthorized", message: "A fonte recusou a credencial." });
+  const outcome = await failJob(job.id, claimed!.leaseOwner, { code: "unauthorized", message: "A fonte recusou a credencial." });
 
   assert.equal(outcome.retrying, false, "credencial recusada não é condição transitória");
-  assert.equal(findJob(officeA, job.id)?.status, "failed");
-  assert.equal(findSubscriptionById(subscription.id)?.status, "suspended", "a assinatura pede intervenção humana");
+  assert.equal((await findJob(officeA, job.id))?.status, "failed");
+  assert.equal((await findSubscriptionById(subscription.id))?.status, "suspended", "a assinatura pede intervenção humana");
 });
 
-test("queue: a changed schema is quarantined, a rate limit is rescheduled", () => {
+test("queue: a changed schema is quarantined, a rate limit is rescheduled", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
 
-  const quarantined = enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY }).job;
-  const claimA = claimJob()!;
+  const quarantined = (await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY })).job;
+  const claimA = (await claimJob())!;
   // The payloads are already stored; the fix is a parser change, not another request.
-  failJob(quarantined.id, claimA.leaseOwner, { code: "schema_changed", message: "Formato inesperado." });
-  assert.equal(findJob(officeA, quarantined.id)?.status, "quarantined");
+  await failJob(quarantined.id, claimA.leaseOwner, { code: "schema_changed", message: "Formato inesperado." });
+  assert.equal((await findJob(officeA, quarantined.id))?.status, "quarantined");
 
-  const limited = enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "backfill", operation: "listChanges", request: {}, windowFrom: "2026-01-01", windowTo: "2026-01-05" }).job;
-  const claimB = claimJob()!;
-  const outcome = failJob(limited.id, claimB.leaseOwner, { code: "rate_limited", message: "429", retryAfterSeconds: 120 });
+  const limited = (await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "backfill", operation: "listChanges", request: {}, windowFrom: "2026-01-01", windowTo: "2026-01-05" })).job;
+  const claimB = (await claimJob())!;
+  const outcome = await failJob(limited.id, claimB.leaseOwner, { code: "rate_limited", message: "429", retryAfterSeconds: 120 });
   assert.equal(outcome.retrying, true);
-  assert.equal(findJob(officeA, limited.id)?.status, "queued");
+  assert.equal((await findJob(officeA, limited.id))?.status, "queued");
   // Retry-After is obeyed, so the job is not eligible again immediately.
-  assert.equal(claimJob(), undefined);
+  assert.equal(await claimJob(), undefined);
 });
 
-test("budget: the daily ceiling and the minimum spacing are enforced in the database", () => {
+test("budget: the daily ceiling and the minimum spacing are enforced in the database", async () => {
   const { officeA } = seed();
-  const installation = source({ rateLimitPerMinute: 1, dailyRequestBudget: 2 });
+  const installation = await source({ rateLimitPerMinute: 1, dailyRequestBudget: 2 });
   const shape = { id: installation.id, dailyRequestBudget: 2, rateLimitPerMinute: 1 };
   const now = Date.parse("2026-09-18T10:00:00Z");
 
-  assert.deepEqual(reserveRequestBudget(officeA, shape, now), { allowed: true });
+  assert.deepEqual(await reserveRequestBudget(officeA, shape, now), { allowed: true });
   // One request per minute means the next one is not due yet, however many workers ask.
-  const spaced = reserveRequestBudget(officeA, shape, now + 1_000);
+  const spaced = await reserveRequestBudget(officeA, shape, now + 1_000);
   assert.equal(spaced.allowed, false);
   if (!spaced.allowed) assert.equal(spaced.reason, "rate_limit");
 
-  assert.deepEqual(reserveRequestBudget(officeA, shape, now + 61_000), { allowed: true });
-  const exhausted = reserveRequestBudget(officeA, shape, now + 122_000);
+  assert.deepEqual(await reserveRequestBudget(officeA, shape, now + 61_000), { allowed: true });
+  const exhausted = await reserveRequestBudget(officeA, shape, now + 122_000);
   assert.equal(exhausted.allowed, false);
   if (!exhausted.allowed) assert.equal(exhausted.reason, "daily_budget");
 });
 
-test("scheduler: a subscription with nothing confirmed asks the court nothing", () => {
+test("scheduler: a subscription with nothing confirmed asks the court nothing", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: false });
-  const { subscription } = createSubscription({
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: false });
+  const { subscription } = await createSubscription({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     targetKind: "publications_by_case", authorizedBy: lawyerA,
   });
 
-  const outcome = scheduleDueSubscriptions();
+  const outcome = await scheduleDueSubscriptions();
   const mine = outcome.skipped.find((entry) => entry.subscriptionId === subscription.id);
   assert.match(mine?.reason ?? "", /aguarda confirmação/);
   assert.equal(outcome.queued, 0, "nenhuma consulta é enviada a um tribunal por um vínculo não confirmado");
 
   // Waiting on a review is not a revocation: the subscription is deferred, so confirming the
   // link later actually resumes collection instead of leaving a permanently suspended row.
-  assert.equal(findSubscriptionById(subscription.id)?.status, "active");
-  assert.equal(findSubscriptionById(subscription.id)!.nextRunAt > Date.now(), true);
+  assert.equal((await findSubscriptionById(subscription.id))?.status, "active");
+  assert.equal((await findSubscriptionById(subscription.id))!.nextRunAt > Date.now(), true);
 
-  confirmCaseLink(officeA, link.id, lawyerA, "confirmed");
+  await confirmCaseLink(officeA, link.id, lawyerA, "confirmed");
   testDb.prepare("UPDATE judicial_subscription SET next_run_at = 0 WHERE id = ?").run(subscription.id);
-  const resumed = scheduleDueSubscriptions();
+  const resumed = await scheduleDueSubscriptions();
   assert.equal(resumed.queued >= 1, true, "confirmado o vínculo, a assinatura volta a agendar");
 });
 
-test("scheduler: losing the membership that authorized a subscription suspends it", () => {
+test("scheduler: losing the membership that authorized a subscription suspends it", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
-  const { subscription } = createSubscription({
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const { subscription } = await createSubscription({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     targetKind: "publications_by_case", authorizedBy: lawyerA,
   });
-  assert.deepEqual(subscriptionStillAuthorized(findSubscriptionById(subscription.id)!), { ok: true });
+  assert.deepEqual(await subscriptionStillAuthorized((await findSubscriptionById(subscription.id))!), { ok: true });
 
   testDb.prepare("DELETE FROM office_member WHERE user_id = ? AND office_id = ?").run(lawyerA, officeA);
 
-  const revoked = subscriptionStillAuthorized(findSubscriptionById(subscription.id)!);
+  const revoked = await subscriptionStillAuthorized((await findSubscriptionById(subscription.id))!);
   assert.equal(revoked.ok, false);
 
-  scheduleDueSubscriptions();
-  assert.equal(findSubscriptionById(subscription.id)?.status, "suspended");
-  assert.equal(listDueSubscriptions().some((entry) => entry.id === subscription.id), false);
+  await scheduleDueSubscriptions();
+  assert.equal((await findSubscriptionById(subscription.id))?.status, "suspended");
+  assert.equal((await listDueSubscriptions()).some((entry) => entry.id === subscription.id), false);
 });
 
 test("unlinking: collection stops and the evidence already gathered is kept", async () => {
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();
-  const installation = source();
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
-  const { subscription } = createSubscription({
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const { subscription } = await createSubscription({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     targetKind: "publications_by_case", authorizedBy: lawyerA,
   });
   stub([{ installationId: installation.id, numero: VALID, body: fixture("djen-page-1.json") }]);
-  enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
+  await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   await processNextJudicialJob();
 
-  const pending = enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "refresh", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY }).job;
-  assert.equal(unlinkCase(officeA, link.id), true);
+  const pending = (await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "refresh", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY })).job;
+  assert.equal(await unlinkCase(officeA, link.id), true);
 
-  assert.equal(findSubscriptionById(subscription.id)?.status, "cancelled", "a autorização recorrente cai junto");
-  assert.equal(findJob(officeA, pending.id)?.status, "cancelled");
-  assert.equal(listCaseLinks(officeA, { activeOnly: true }).some((item) => item.id === link.id), false);
+  assert.equal((await findSubscriptionById(subscription.id))?.status, "cancelled", "a autorização recorrente cai junto");
+  assert.equal((await findJob(officeA, pending.id))?.status, "cancelled");
+  assert.equal((await listCaseLinks(officeA, { activeOnly: true })).some((item) => item.id === link.id), false);
 
   // The publications stay: they are evidence of what a gazette published, not a consequence of
   // the link still existing.
@@ -680,8 +680,8 @@ test("unlinking: collection stops and the evidence already gathered is kept", as
 
 test("authorization: a reviewer reads judicial data and writes none of it", async () => {
   const { officeA, lawyerA, reviewerA, caseA } = seed();
-  const installation = source();
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
 
   const read = await runCapability(context(officeA, reviewerA, "reviewer"), "k5_judicial_list_links", {}) as { links: unknown[] };
   assert.equal(Array.isArray(read.links), true);
@@ -701,7 +701,7 @@ test("authorization: a reviewer reads judicial data and writes none of it", asyn
 
 test("authorization: a membership revoked mid-turn stops the next judicial write", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
+  const installation = await source();
   const trusted = context(officeA, lawyerA);
 
   await runCapability(trusted, "k5_judicial_link_case", { caseId: caseA, installationId: installation.id, number: VALID, degree: "first" });
@@ -709,30 +709,30 @@ test("authorization: a membership revoked mid-turn stops the next judicial write
 
   // The context was built before the removal; the check is re-read, not trusted from earlier.
   await assert.rejects(
-    () => runCapability(trusted, "k5_judicial_link_case", { caseId: caseA, installationId: installation.id, number: VALID_OTHER, degree: "first" }),
+    async () => runCapability(trusted, "k5_judicial_link_case", { caseId: caseA, installationId: installation.id, number: VALID_OTHER, degree: "first" }),
     (error: unknown) => error instanceof CapabilityError && error.code === "FORBIDDEN",
   );
 });
 
-test("durability: a job completed by its lease holder cannot be completed twice", () => {
+test("durability: a job completed by its lease holder cannot be completed twice", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
-  const { link } = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
-  const { job } = enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY });
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const { job } = await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY });
 
-  const claimed = claimJob()!;
-  assert.equal(completeJob(job.id, claimed.leaseOwner), true);
+  const claimed = (await claimJob())!;
+  assert.equal(await completeJob(job.id, claimed.leaseOwner), true);
   // A stale worker returning with the same owner after the lease was released changes nothing.
-  assert.equal(completeJob(job.id, claimed.leaseOwner), false);
-  assert.equal(completeJob(job.id, "outro-dono"), false);
+  assert.equal(await completeJob(job.id, claimed.leaseOwner), false);
+  assert.equal(await completeJob(job.id, "outro-dono"), false);
 });
 
 test("collector: malformed upstream response is preserved in judicial_snapshot when job is quarantined", async () => {
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();
   clearBudget();
-  const installation = source();
-  const { link } = createCaseLink({
+  const installation = await source();
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
@@ -740,7 +740,7 @@ test("collector: malformed upstream response is preserved in judicial_snapshot w
   const malformedBody = fixture("djen-schema-changed.json");
   stub([{ installationId: installation.id, numero: VALID, body: malformedBody }]);
 
-  const { job } = enqueueJob({
+  const { job } = await enqueueJob({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     kind: "manual", operation: "listChanges",
     request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY,
@@ -748,7 +748,7 @@ test("collector: malformed upstream response is preserved in judicial_snapshot w
 
   const outcome = await processNextJudicialJob();
   assert.equal(outcome?.status, "quarantined");
-  assert.equal(findJob(officeA, job.id)?.status, "quarantined");
+  assert.equal((await findJob(officeA, job.id))?.status, "quarantined");
 
   // The malformed response MUST be preserved in judicial_snapshot for operator diagnosis
   const snapshot = testDb.prepare(
@@ -759,10 +759,10 @@ test("collector: malformed upstream response is preserved in judicial_snapshot w
   assert.equal(snapshot?.payload, malformedBody);
 });
 
-test("provenance: publications across multiple pages/responses retain their respective matching snapshot ID", () => {
+test("provenance: publications across multiple pages/responses retain their respective matching snapshot ID", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
-  const { link } = createCaseLink({
+  const installation = await source();
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
@@ -790,7 +790,7 @@ test("provenance: publications across multiple pages/responses retain their resp
     }],
   });
 
-  const outcome = ingestPublications({
+  const outcome = await ingestPublications({
     officeId: officeA,
     installation,
     linkId: link.id,
@@ -845,19 +845,19 @@ test("provenance: publications across multiple pages/responses retain their resp
   assert.equal(p2.snapshot_id, outcome.snapshotIds[1], "publicação da página 2 aponta para o snapshot 2");
 });
 
-test("scheduler: an individual case subscription schedules collection only for that case's linked CNJ", () => {
+test("scheduler: an individual case subscription schedules collection only for that case's linked CNJ", async () => {
   const { officeA, lawyerA, caseA, caseB } = seed();
-  const installation = source();
-  const linkA = createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true }).link;
-  createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseB, installationId: installation.id, cnjNumber: VALID_OTHER, nativeNumber: null, degree: "first", confirmed: true });
+  const installation = await source();
+  const linkA = (await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true })).link;
+  await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseB, installationId: installation.id, cnjNumber: VALID_OTHER, nativeNumber: null, degree: "first", confirmed: true });
 
   clearQueue();
-  const { subscription } = createSubscription({
+  const { subscription } = await createSubscription({
     officeId: officeA, installationId: installation.id, linkId: linkA.id,
     targetKind: "publications_by_case", authorizedBy: lawyerA,
   });
 
-  const outcome = scheduleDueSubscriptions();
+  const outcome = await scheduleDueSubscriptions();
   assert.equal(outcome.queued, 1);
 
   const queuedJob = testDb.prepare(
@@ -874,8 +874,8 @@ test("collector: budget is reserved and enforced for each physical transport req
   clearQueue();
   clearBudget();
   // Set rateLimit high so spacing doesn't block, but dailyRequestBudget is strictly 2
-  const installation = source({ rateLimitPerMinute: 600, dailyRequestBudget: 2 });
-  const { link } = createCaseLink({
+  const installation = await source({ rateLimitPerMinute: 600, dailyRequestBudget: 2 });
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
@@ -885,7 +885,7 @@ test("collector: budget is reserved and enforced for each physical transport req
     { installationId: installation.id, numero: VALID_OTHER, body: fixture("djen-empty.json") },
   ]);
 
-  enqueueJob({
+  await enqueueJob({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     kind: "manual", operation: "listChanges",
     request: { cnjNumbers: [VALID, VALID_OTHER] }, windowFrom: TODAY, windowTo: TODAY,
@@ -893,10 +893,10 @@ test("collector: budget is reserved and enforced for each physical transport req
 
   await processNextJudicialJob();
   // 2 physical transport requests were made (1 for VALID, 1 for VALID_OTHER)
-  assert.equal(requestsUsedToday(officeA, installation.id), 2);
+  assert.equal(await requestsUsedToday(officeA, installation.id), 2);
 
   // Now daily budget (2) is completely exhausted. A third request must fail immediately.
-  const { job: job2 } = enqueueJob({
+  const { job: job2 } = await enqueueJob({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     kind: "manual", operation: "listChanges",
     request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY,
@@ -904,16 +904,16 @@ test("collector: budget is reserved and enforced for each physical transport req
 
   const outcome2 = await processNextJudicialJob();
   assert.equal(outcome2?.status, "retrying");
-  assert.equal(findJob(officeA, job2.id)?.errorCode, "rate_limited");
-  assert.match(findJob(officeA, job2.id)?.errorMessage ?? "", /Orçamento diário/);
+  assert.equal((await findJob(officeA, job2.id))?.errorCode, "rate_limited");
+  assert.match((await findJob(officeA, job2.id))?.errorMessage ?? "", /Orçamento diário/);
 });
 
 test("collector: configured spacing above ten seconds is awaited between requests", async () => {
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();
   clearBudget();
-  const installation = source({ rateLimitPerMinute: 5, dailyRequestBudget: 10 });
-  const { link } = createCaseLink({
+  const installation = await source({ rateLimitPerMinute: 5, dailyRequestBudget: 10 });
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
@@ -921,7 +921,7 @@ test("collector: configured spacing above ten seconds is awaited between request
     { installationId: installation.id, numero: VALID, body: fixture("djen-empty.json") },
     { installationId: installation.id, numero: VALID_OTHER, body: fixture("djen-empty.json") },
   ]);
-  enqueueJob({
+  await enqueueJob({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID, VALID_OTHER] },
     windowFrom: TODAY, windowTo: TODAY,
@@ -943,7 +943,7 @@ test("collector: configured spacing above ten seconds is awaited between request
     const outcome = await processNextJudicialJob(clock);
     assert.equal(outcome?.status, "completed");
     assert.equal(waits.some((delay) => delay > 10_000), true);
-    assert.equal(requestsUsedToday(officeA, installation.id, clock), 2);
+    assert.equal(await requestsUsedToday(officeA, installation.id, clock), 2);
   } finally {
     Date.now = originalNow;
     globalThis.setTimeout = originalSetTimeout;
@@ -954,18 +954,17 @@ test("collector: a worker that loses its lease stops before persistence or compl
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();
   clearBudget();
-  const installation = source();
-  const { link } = createCaseLink({
+  const installation = await source();
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
-  const { job } = enqueueJob({
+  const { job } = await enqueueJob({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     kind: "manual", operation: "listChanges",
     request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY,
   });
 
-  let replacement: ReturnType<typeof claimJob>;
   const fixtures = new Map([[fixtureKey(installation.id, "GET", "api/v1/comunicacao", {
     dataDisponibilizacaoInicio: TODAY,
     dataDisponibilizacaoFim: TODAY,
@@ -973,26 +972,27 @@ test("collector: a worker that loses its lease stops before persistence or compl
     itensPorPagina: 100,
     pagina: 1,
   }), { body: fixture("djen-empty.json") }]]);
-  const getFixture = fixtures.get.bind(fixtures);
-  fixtures.get = (key) => {
-    replacement = claimJob(Date.now() + 6 * 60 * 1000);
-    return getFixture(key);
-  };
-  setFixtureTransport(fixtures);
+
+  // Another worker takes the lease while the request is in flight, and the steal is complete
+  // before the response comes back — which is the situation the collector has to survive.
+  let replacement: Awaited<ReturnType<typeof claimJob>>;
+  setFixtureTransport(fixtures, async () => {
+    replacement ??= await claimJob(Date.now() + 6 * 60 * 1000);
+  });
 
   const outcome = await processNextJudicialJob();
   assert.equal(outcome?.status, "skipped");
   assert.equal(replacement?.job.id, job.id);
-  assert.equal(findJob(officeA, job.id)?.status, "running");
+  assert.equal((await findJob(officeA, job.id))?.status, "running");
   const snapshots = testDb.prepare("SELECT count(*) AS count FROM judicial_snapshot WHERE job_id = ?").get(job.id) as { count: number };
   assert.equal(snapshots.count, 0);
-  completeJob(job.id, replacement!.leaseOwner);
+  await completeJob(job.id, replacement!.leaseOwner);
 });
 
-test("evidence: an oversized response rejects the transaction and does not write a synthetic storage key", () => {
+test("evidence: an oversized response rejects the transaction and does not write a synthetic storage key", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
-  const { link } = createCaseLink({
+  const installation = await source();
+  const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
@@ -1000,7 +1000,7 @@ test("evidence: an oversized response rejects the transaction and does not write
   // Create a payload larger than 512 KiB
   const bigBody = "x".repeat(513 * 1024);
 
-  assert.throws(
+  await assert.rejects(
     () => ingestPublications({
       officeId: officeA,
       installation,
@@ -1025,19 +1025,19 @@ test("evidence: an oversized response rejects the transaction and does not write
   assert.equal(snapshotCount.count, 0, "nenhum snapshot deve ser persistido quando excede o limite");
 });
 
-test("cross-case isolation: publications belonging to another confirmed case resolve to that case link rather than the job's fallback link", () => {
+test("cross-case isolation: publications belonging to another confirmed case resolve to that case link rather than the job's fallback link", async () => {
   const { officeA, lawyerA, caseA, caseB } = seed();
-  const installation = source();
-  const { link: linkA } = createCaseLink({
+  const installation = await source();
+  const { link: linkA } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true,
   });
-  const { link: linkB } = createCaseLink({
+  const { link: linkB } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseB, installationId: installation.id,
     cnjNumber: VALID_OTHER, nativeNumber: null, degree: "first", confirmed: true,
   });
 
-  const outcome = ingestPublications({
+  const outcome = await ingestPublications({
     officeId: officeA,
     installation,
     linkId: linkA.id, // Job was run with linkA
@@ -1098,15 +1098,15 @@ test("cross-case isolation: publications belonging to another confirmed case res
   assert.equal(alertB.link_id, linkB.id, "alerta do caso B deve ser direcionado para linkB");
 });
 
-test("scheduler: scheduleBackfill rejects unconfirmed case link rather than doing an unauthorized broad sweep", () => {
+test("scheduler: scheduleBackfill rejects unconfirmed case link rather than doing an unauthorized broad sweep", async () => {
   const { officeA, lawyerA, caseA } = seed();
-  const installation = source();
-  const { link: pendingLink } = createCaseLink({
+  const installation = await source();
+  const { link: pendingLink } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
     cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: false,
   });
 
-  assert.throws(
+  await assert.rejects(
     () => scheduleBackfill({
       officeId: officeA,
       installationId: installation.id,

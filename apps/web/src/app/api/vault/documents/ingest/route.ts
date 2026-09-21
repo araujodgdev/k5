@@ -13,7 +13,7 @@ export async function POST(request: Request) {
       scope: z.enum(['library', 'case']),
       caseId: z.string().optional(),
     }).parse(await limitedJson(request));
-    const result = ingestUpload(workspaceContext(workspace), body);
+    const result = await ingestUpload(workspaceContext(workspace), body);
     return Response.json(result, { status: 201 });
   } catch (error) { return apiError(error); }
 }

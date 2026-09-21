@@ -20,8 +20,8 @@ export type AuditEntry = {
   outcome?: 'ok' | 'denied' | 'error';
 };
 
-export function recordAudit(entry: AuditEntry): void {
-  database.prepare(`
+export async function recordAudit(entry: AuditEntry): Promise<void> {
+  await database.prepare(`
     INSERT INTO judicial_access_audit (
       id, office_id, user_id, actor, action, subject_kind, subject_id, installation_id, purpose, outcome
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -34,8 +34,8 @@ export function recordAudit(entry: AuditEntry): void {
   );
 }
 
-export function listAudit(officeId: string, limit = 50) {
-  return database.prepare(
+export async function listAudit(officeId: string, limit = 50) {
+  return await database.prepare(
     'SELECT id, user_id, actor, action, subject_kind, subject_id, installation_id, purpose, outcome, created_at FROM judicial_access_audit WHERE office_id = ? ORDER BY created_at DESC LIMIT ?',
   ).all(officeId, Math.max(1, Math.min(limit, 200))) as Array<{
     id: string; user_id: string | null; actor: string; action: string; subject_kind: string;

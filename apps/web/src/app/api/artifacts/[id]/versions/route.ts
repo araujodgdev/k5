@@ -10,7 +10,7 @@ export async function GET(request: Request, context: Context) {
   try {
     const workspace = await apiWorkspace(request);
     const artifactId = (await context.params).id;
-    const result = listArtifactVersions(workspaceContext(workspace), { artifactId });
+    const result = await listArtifactVersions(workspaceContext(workspace), { artifactId });
     return Response.json(result);
   } catch (error) { return apiError(error); }
 }

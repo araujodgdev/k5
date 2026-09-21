@@ -28,10 +28,13 @@ export class EmbeddingUnavailableError extends Error {
 }
 
 /** Resolves the office's embedding profile, or explains why semantic search is unavailable. */
-export function embeddingProfile(officeId: string): EmbeddingProfile {
+export async function embeddingProfile(officeId: string): Promise<EmbeddingProfile> {
   let config;
   try {
-    config = resolveOfficeModelConfig(officeId, 'embedding');
+    // Awaited inside the try: the resolution is asynchronous, so a rejection reaches this catch
+    // only if the promise is settled here. Left un-awaited, the AiConnectionError would escape
+    // past it and reach callers that only know how to answer EmbeddingUnavailableError.
+    config = await resolveOfficeModelConfig(officeId, 'embedding');
   } catch (error) {
     if (error instanceof AiConnectionError) {
       throw new EmbeddingUnavailableError('Nenhuma conexão de IA compatível com embeddings está ativa neste escritório.');
@@ -96,7 +99,7 @@ export async function embedTexts(profile: EmbeddingProfile, inputs: string[]): P
 
 /** One query vector. The model never supplies this: the server embeds the query it was given. */
 export async function embedQuery(officeId: string, query: string): Promise<{ embedding: Float32Array; profile: EmbeddingProfile }> {
-  const profile = embeddingProfile(officeId);
+  const profile = await embeddingProfile(officeId);
   const [embedding] = await embedTexts(profile, [query]);
   if (!embedding) throw new EmbeddingUnavailableError('Não foi possível gerar o vetor da consulta.');
   return { embedding, profile };
