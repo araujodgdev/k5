@@ -16,6 +16,8 @@ import type { WorkspaceContext } from '../src/lib/application/context';
 import { ownedArtifact } from '../src/lib/ai-store';
 import { createCredentialKeyring, decryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
 import { reencryptAiConnectionSecrets } from '../src/lib/ai-connections-core';
+import { runWorkerQueues } from '../src/lib/worker-scheduler';
+import { enqueueDeletion, processNextDeletion } from '../src/lib/knowledge/indexing';
 
 function fixture(role: WorkspaceContext['role'] = 'lawyer') {
   const officeId = randomUUID(); const userId = randomUUID();
@@ -102,6 +104,40 @@ test('typesafe: rerank shadow preserves RRF and enabled preserves source identit
   await configure(context);
   assert.deepEqual((await rerank(context, 'consulta', sources, { send })).sources.map(s => s.sourceId), ['b', 'a']);
   assert.deepEqual((await rerank(context, 'consulta', sources, { send: async () => { throw new Error('down'); } })).sources, sources);
+});
+
+test('typesafe: two rerank batches can share an office with concurrency one', async () => {
+  const context = fixture(); await configure(context, { concurrency: 1 });
+  const sources = [{ sourceId: 'a', text: 'a'.repeat(12000) }, { sourceId: 'b', text: 'b'.repeat(12000) }];
+  let calls = 0; let active = 0; let maximum = 0;
+  const ranked = await rerank(context, 'consulta', sources, { send: async (_key, req) => {
+    const score = calls++ === 0 ? 0 : 3;
+    maximum = Math.max(maximum, ++active);
+    await new Promise(resolve => setImmediate(resolve));
+    active--;
+    return { model: req.model, usage: { input_tokens: 100, output_tokens: 0 }, answers: {
+      source_0: { type: 'score', score, confidence: 1, probabilities: { '0': Number(score === 0), '1': 0, '2': 0, '3': Number(score === 3) } },
+    } };
+  } });
+  assert.equal(ranked.status, 'evaluated', JSON.stringify({ status: ranked.status, reason: ranked.reason, calls }));
+  assert.equal(calls, 2); assert.equal(maximum, 1); assert.equal(ranked.applied, true);
+  assert.deepEqual(ranked.sources.map(source => source.sourceId), ['b', 'a']);
+});
+
+test('agenda dates: rejected DST times have an actionable Portuguese error', () => {
+  for (const [day, time] of [['2026-03-08', '02:30'], ['2026-11-01', '01:30']]) {
+    assert.throws(() => localInstant(day, time, 'America/New_York'), /horário.*Escolha outro horário/);
+  }
+});
+
+test('typesafe: cancelling a multi-batch rerank preserves the baseline and skips remaining calls', async () => {
+  const context = fixture(); await configure(context, { concurrency: 1 });
+  const sources = [{ sourceId: 'a', text: 'a'.repeat(12000) }, { sourceId: 'b', text: 'b'.repeat(12000) }];
+  const controller = new AbortController(); let calls = 0;
+  const result = await rerank(context, 'consulta', sources, { signal: controller.signal, send: async (_key, req) => {
+    calls++; controller.abort(); return response(req);
+  } });
+  assert.equal(calls, 1); assert.equal(result.applied, false); assert.deepEqual(result.sources, sources);
 });
 test('agenda interpretation: no mutation, no invented meeting end, owner-scoped suggestions', async () => {
   const context = fixture(); const other = fixture(); await configure(context);
@@ -224,7 +260,44 @@ test('typesafe: an incomplete reranking batch leaves the entire baseline unchang
   const ranked = await rerank(context, 'consulta', sources, { send: async (_key, req) => {
     if (++calls === 2) throw new Error('temporary'); return response(req);
   } });
-  assert.equal(calls, 3); assert.equal(ranked.applied, false); assert.deepEqual(ranked.sources, sources);
+  assert.equal(calls, 2); assert.equal(ranked.applied, false); assert.deepEqual(ranked.sources, sources);
+});
+
+test('worker scheduling: a blocked verification does not delay pending deletion or subsequent work', async () => {
+  const context = fixture(); await configure(context); const data = await documentFixture(context);
+  await enqueueVerification(context, data.artifact, Array.from({ length: 9 }, (_, i) => ({ ...data.units[0], id: `p${i}` })));
+  // A nonexistent legacy object is still a real deletion-queue item; cleanup must close it.
+  await enqueueDeletion(context.officeId, 'object', `missing-${randomUUID()}.txt`);
+  let release!: () => void; const blocked = new Promise<void>(resolve => { release = resolve; });
+  let entered!: () => void; const started = new Promise<void>(resolve => { entered = resolve; });
+  let progressed!: () => void; const progress = new Promise<void>(resolve => { progressed = resolve; });
+  let stopping = false; let passes = 0;
+  const errors: unknown[] = [];
+  const running = runWorkerQueues({
+    processDocuments: async () => { passes++; return false; },
+    verifyDocuments: () => processNextVerification({ send: async (_key, req) => { entered(); await blocked; return response(req); } }),
+    maintain: async () => {
+      const worked = await processNextDeletion();
+      if (passes > 1) progressed();
+      return worked;
+    },
+    stopping: () => stopping, once: false, onError: error => errors.push(error),
+    sleep: () => new Promise(resolve => setTimeout(resolve, 1)),
+  });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await started;
+    // No provider timer: hold its promise until the assertions have inspected queue progress.
+    await Promise.race([progress, new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('Subsequent worker passes remained blocked')), 1000);
+    })]);
+    const deletion = testDb.prepare('SELECT completed_at FROM vault_deletion_queue WHERE office_id=?').get(context.officeId)!;
+    assert.ok(deletion.completed_at, 'Deletion remained pending behind the provider request');
+    assert.ok(passes > 1, 'Subsequent worker passes remained blocked');
+  } finally { clearTimeout(timer); stopping = true; release(); await running; }
+  assert.deepEqual(errors, []);
+  const report = (await getVerification(context, { artifactId: data.artifact.id })).verification!;
+  assert.equal(report.checked, 4); assert.equal(report.total, 9); assert.equal(report.status, 'queued');
 });
 
 test('typesafe: key rotation includes decision connections in the atomic batch', async () => {

@@ -25,7 +25,16 @@ A reserva é conservadora (bytes UTF-8, perguntas e margem de resposta), não um
 de faturamento. Tentativas continuam reservadas após timeout. Uso retornado pelo serviço,
 duração, versão, hash e status ficam em `typesafe_evaluation`; prompts e respostas brutas
 não ficam nessa tabela. Três falhas consecutivas abrem o circuito por 30 segundos.
-Não há retries do SDK. Limites por chamada: RAG 2 s, Agenda 5 s, Documentos 10 s.
+Não há retries do SDK. Limites: RAG 2 s por busca; Agenda 5 s e Documentos 10 s por chamada.
+Os lotes de uma mesma busca RAG são sequenciais e compartilham o limite total de 2 s,
+permitindo operar com concorrência por escritório igual a um. Falha ou cancelamento
+interrompe os lotes restantes e preserva a ordenação original por inteiro.
+
+A verificação documental roda em um ciclo assíncrono independente dentro do mesmo
+processo `pnpm worker`, com no máximo uma verificação em andamento por processo.
+Esperar pelo fornecedor não bloqueia exclusões, limpeza ou os próximos ciclos de
+processamento. Leases, checkpoints e limites por escritório continuam aplicáveis.
+O desligamento aguarda o trabalho em andamento; `--once` executa um ciclo de cada fila.
 
 ## Comportamento entregue
 
@@ -94,9 +103,10 @@ independente, revisar tratamento/retenção do fornecedor e calibrar critérios 
 ## Validação de engenharia
 
 - `pnpm db:setup`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`.
-- 178 testes: isolamento, papéis, cifra/rotação, limites concorrentes, timeout, circuito,
+- 184 testes: isolamento, papéis, cifra/rotação, limites concorrentes, timeout, circuito,
   fallback por lote, confirmação concorrente, rollback do recibo, referências externas,
-  conflitos de versão, DST, checkpoints, lease e revogação durante a verificação.
+  conflitos de versão, DST com erro em pt-BR, checkpoints, lease e revogação durante a
+  verificação; lotes com concorrência um, cancelamento, independência das filas e shutdown.
 - Build `pnpm --filter @k5/web build:vinext` para o alvo Cloudflare.
 - Playwright em produção local: revisão antes de gravar, recibo após confirmação,
   configuração cifrada/teste real/remoção de chave, layouts 1440×1000 e 390×844,

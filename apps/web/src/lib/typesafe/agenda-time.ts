@@ -5,7 +5,12 @@ export function validTimeZone(value: string) {
 }
 export function localInstant(day: string, time: string, timeZone: string) {
   // Reject both nonexistent and repeated local times; the person must disambiguate.
-  return Temporal.PlainDateTime.from(`${day}T${time}`).toZonedDateTime(timeZone, { disambiguation: 'reject' }).toInstant().toString();
+  if (!validTimeZone(timeZone)) throw new RangeError('Informe um fuso horário válido.');
+  let local: Temporal.PlainDateTime;
+  try { local = Temporal.PlainDateTime.from(`${day}T${time}`, { overflow: 'reject' }); }
+  catch { throw new RangeError('Informe uma data e um horário válidos.'); }
+  try { return local.toZonedDateTime(timeZone, { disambiguation: 'reject' }).toInstant().toString(); }
+  catch { throw new RangeError('Esse horário não existe ou se repete na mudança de horário de verão desse fuso. Escolha outro horário válido.'); }
 }
 export function temporalCandidates(message: string, referenceAt: string, timeZone: string) {
   const dates = new Set<string>(); const times = new Set<string>(); const questions: string[] = [];

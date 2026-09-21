@@ -27,12 +27,17 @@ export async function rerank<T extends { sourceId: string; text: string }>(
   }
   if (batch.length) batches.push(batch);
   if (batches.length > 4) return { sources, status: 'budget_exceeded', reason: 'context_limit', applied: false };
-  const results = await Promise.all(batches.map(items => evaluate(context, 'rag', {
-    state: { query, sources: items.map(({ sourceId, text }) => ({ sourceId, text })) },
-    questions: relevanceQuestions(items.length), questionVersion: relevanceVersion,
-  }, { ...options, signal })));
-  const failed = results.find(result => result.status !== 'evaluated');
-  if (failed) return { sources, status: failed.status, reason: failed.reason, applied: false };
+  // Release each reservation before the next batch, including offices with concurrency=1.
+  // All batches share the original deadline; a failure preserves the entire baseline.
+  const results: Evaluation[] = [];
+  for (const items of batches) {
+    const result = await evaluate(context, 'rag', {
+      state: { query, sources: items.map(({ sourceId, text }) => ({ sourceId, text })) },
+      questions: relevanceQuestions(items.length), questionVersion: relevanceVersion,
+    }, { ...options, signal });
+    if (result.status !== 'evaluated') return { sources, status: result.status, reason: result.reason, applied: false };
+    results.push(result);
+  }
   const scored = batches.flatMap((items, n) => items.map((source, i) => {
     const answer = results[n].response!.answers[`source_${i}`];
     return { source, score: answer.type === 'score' ? answer.score : 0 };
