@@ -17,7 +17,8 @@ import { authClient } from "@/lib/auth-client";
 import { appNavigation, mobileTabs } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
-gsap.registerPlugin(useGSAP);
+// Registration wakes GSAP's ticker; Workers forbid timers during SSR imports.
+if (typeof window !== "undefined") gsap.registerPlugin(useGSAP);
 
 export function AppSidebar({ officeName, platformAdmin = false }: { officeName: string; platformAdmin?: boolean }) {
   const pathname = usePathname();

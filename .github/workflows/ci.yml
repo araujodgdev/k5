@@ -34,9 +34,10 @@ jobs:
       - run: pnpm test
 
       - name: Build
-        # The build must compile without reaching a database or a provider. These are throwaway
-        # values for compilation only; staging secrets never enter a pull request build.
+        # Initialize an isolated SQLite database before parallel page collection.
+        # These values are for compilation only; staging secrets stay out of PR builds.
         env:
+          DATABASE_PATH: .data/ci-build.sqlite
           BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
           BETTER_AUTH_URL: http://localhost:3000
           K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnVu
@@ -46,7 +47,9 @@ jobs:
           NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
           SENTRY_ENABLED: 'false'
           NEXT_PUBLIC_SENTRY_ENABLED: 'false'
-        run: pnpm build
+        run: |
+          pnpm db:setup
+          pnpm build
 
   migrations:
     # Migrations are append-only: editing a file that already ran leaves every existing database

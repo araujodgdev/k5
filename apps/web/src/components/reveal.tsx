@@ -4,7 +4,8 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
-gsap.registerPlugin(useGSAP);
+// Registration wakes GSAP's ticker; Workers forbid timers during SSR imports.
+if (typeof window !== "undefined") gsap.registerPlugin(useGSAP);
 
 /** Fades and lifts every `[data-reveal]` descendant in order on mount. */
 export function Reveal({ children, className }: { children: React.ReactNode; className?: string }) {
