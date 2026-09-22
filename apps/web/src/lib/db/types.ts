@@ -1,7 +1,7 @@
 /**
  * The database seam.
  *
- * K5 ran on `node:sqlite`, whose API is synchronous. D1 is the same SQLite dialect reached over a
+ * Lume ran on `node:sqlite`, whose API is synchronous. D1 is the same SQLite dialect reached over a
  * binding, and every call is asynchronous. This interface is the narrow waist between the two, in
  * the same shape as the `ObjectStorage` and `VectorIndex` adapters: the application depends on the
  * interface, and which backend answers is an environment decision rather than a code change.

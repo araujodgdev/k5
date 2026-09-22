@@ -1,8 +1,8 @@
-# K5 design system
+# Lume design system
 
 The interface steps back so the office's work stays in front. It should feel quiet, precise, and a little editorial: warm neutrals, black ink, one serif voice for titles.
 
-The UI is built on [shadcn/ui](https://ui.shadcn.com) (Radix, `radix-nova` preset) with Tailwind v4. Primitives live in `src/components/ui/` and are ours to edit. The K5 palette is set on the shadcn tokens in `src/app/globals.css`, so every primitive inherits it. Style with Tailwind utilities, and don't hardcode hex values.
+The UI is built on [shadcn/ui](https://ui.shadcn.com) (Radix, `radix-nova` preset) with Tailwind v4. Primitives live in `src/components/ui/` and are ours to edit. The Lume palette is set on the shadcn tokens in `src/app/globals.css`, so every primitive inherits it. Style with Tailwind utilities, and don't hardcode hex values.
 
 ## Principles
 
@@ -63,7 +63,7 @@ and pending-update notices use a single floating surface and plain pt-BR text.
 
 ## Logo
 
-`<Logo height={n} />` in `src/components/logo.tsx` is the traced K5 mark. It inherits `currentColor`. Sizes are 16px in the sidebar, 15px in the mobile header, and 18px on auth. `src/app/icon.svg` is the favicon. Don't put the logo inside page content.
+`<Logo height={n} />` in `src/components/logo.tsx` is the Lume wordmark: the geometric symbol beside a Newsreader nameplate. `<LumeMark />` in `src/components/lume-mark.tsx` is the symbol by itself, built from an open L and a diagonal beam of light. Both inherit `currentColor`. Use the full wordmark in the shell, auth and platform headers; use the symbol for the Lume module and compact surfaces. `public/lume.svg` is the standalone vector, while `src/app/icon.svg` provides the dark rounded app icon used to generate the favicon and PWA assets. Keep the symbol paths in sync. Don't put the logo inside page content.
 
 ## Components
 
@@ -77,7 +77,7 @@ Prefer a shadcn primitive over new markup. Add one with `pnpm dlx shadcn@latest 
 - **Mobile tab bar**: 4 sections plus "Mais". The active tab is a black icon tile. The list is `mobileTabs` in `src/lib/navigation.ts`. It slides away while the page scrolls down and returns on the way up, so reading gets the full height.
 - **Bottom sheets** float: inset 8px from the side edges, above the tab bar, rounded and bordered. That geometry is plain CSS in `globals.css` (`[data-slot="sheet-content"][data-side="bottom"]`), unlayered so it beats the utility classes, with a static `bottom` fallback before the `env()` one.
 - **Overlays dim, they don't blur.** `backdrop-filter` breaks stacking in some Safari versions, which can hide the panel behind the blur layer. A flat `bg-overlay/40` is also cheaper on a phone and stays dark in both themes.
-- **Agent chat** (`/app/agents`, `src/components/agent-chat.tsx`): an empty conversation area with the composer docked at the bottom. The container is `flex-1` inside the flex column shell — never `h-full`, which has no definite height to resolve against and pushes the composer to the top. The shell has a definite `100dvh` height on this route; only the thread viewport scrolls. The composer is `sticky bottom-0`, `max-w-3xl`, rounded-2xl with `--shadow-float`. After scrolling more than 240px from the end, a minimal arrow returns to the latest content and the input compacts without hiding controls or its draft. Respect reduced motion. Lume uses the custom `AgentMark` SVG in navigation: a geometric L with a diagonal light beam and an open corner, readable at 16px and 18px. The standalone asset is `public/lume.svg`; keep both drawings in sync. Don't add a logo, shortcut tiles, or navigation to the chat content. The command center is not a chat.
+- **Agent chat** (`/app/agents`, `src/components/agent-chat.tsx`): an empty conversation area with the composer docked at the bottom. The container is `flex-1` inside the flex column shell — never `h-full`, which has no definite height to resolve against and pushes the composer to the top. The shell has a definite `100dvh` height on this route; only the thread viewport scrolls. The composer is `sticky bottom-0`, `max-w-3xl`, rounded-2xl with `--shadow-float`. After scrolling more than 240px from the end, a minimal arrow returns to the latest content and the input compacts without hiding controls or its draft. Respect reduced motion. The Lume module uses the shared `<LumeMark />` symbol in navigation, readable at 16px and 18px. Don't add a second logo, shortcut tiles, or navigation to the chat content. The command center is not a chat.
 - **Composer controls** live inside the composer, on a row under the input: attach, microphone, model. The page header keeps only the conversation actions. A control the current model cannot support stays visible and disabled, with a tooltip saying why — hiding it would make the model's limits invisible.
 - **Answers are Markdown** (`src/components/markdown.tsx`), rendered from tokens into React elements, never into HTML. Headings, lists, tables and code inside an answer are content and are exempt from the list ban above, which is about UI chrome.
 - **Cofre** (`/app/vault`): a drive. The home lists the library and the cases; a case has its own page with breadcrumbs, its subfolders, and its files. Cards and list are two views of the same level, toggled in the header — the card is the item itself, not a container wrapped around one. Client data sits behind a disclosure labelled "Dados do cliente (opcional)" and is never required to file a document.

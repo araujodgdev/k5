@@ -1,6 +1,10 @@
-﻿# @k5/web
+# @k5/web
 
 Next.js App Router com Better Auth, SQLite, TypeScript e Tailwind CSS.
+
+O produto se chama **Lume**. Identificadores técnicos existentes — como o pacote
+`@k5/web`, variáveis `K5_*`, capabilities `k5_*` e nomes de recursos de infraestrutura —
+permanecem estáveis por compatibilidade e não aparecem como marca na interface.
 
 ## Ambiente local
 
@@ -131,7 +135,7 @@ no rodapé da sidebar, em **Mais** no celular e no cabeçalho da plataforma.
 A escolha fica neste navegador e acompanha as outras abas; **Sistema** segue as
 mudanças de aparência do dispositivo. A preferência é aplicada antes da hidratação.
 
-Use **Instalar K5** para instalar em navegadores compatíveis. No iPhone/iPad, use
+Use **Instalar Lume** para instalar em navegadores compatíveis. No iPhone/iPad, use
 Safari → Compartilhar → Adicionar à Tela de Início. O manifesto define abertura em
 janela própria, ícones normais/maskable e atalhos para Lume, Cofre e Agenda.
 Instalação e service worker exigem HTTPS em produção (localhost funciona para testes).
@@ -203,8 +207,8 @@ expiração, renovação, cookies forjados, logout global, origem e limite de te
 O comando de produção é `pnpm --filter @k5/web start`, após setup e build.
 A UI usa fontes do sistema e não precisa baixar fontes durante o build.
 
-## Vis?o geral e valida??o de interface
+## Visão geral e validação de interface
 
-O In?cio re?ne tarefas pendentes at? hoje, pr?ximas reuni?es, clientes ativos, casos e conversas pessoais. Permite concluir tarefas e abrir os formul?rios existentes. As vis?es da agenda aceitam `?view=tasks`, `?view=calendar` e `?view=clients`; `action=new` abre o cadastro correspondente para quem pode editar. Clientes t?m uma p?gina pr?pria em `/app/agenda/clients/[id]`.
+O Início reúne tarefas pendentes até hoje, próximas reuniões, clientes ativos, casos e conversas pessoais. Permite concluir tarefas e abrir os formulários existentes. As visões da agenda aceitam `?view=tasks`, `?view=calendar` e `?view=clients`; `action=new` abre o cadastro correspondente para quem pode editar. Clientes têm uma página própria em `/app/agenda/clients/[id]`.
 
-Com o servidor local em execu??o, rode `pnpm --filter @k5/web exec tsx scripts/verify-workspace-ui.ts` na raiz. O script reutiliza a conta de valida??o (ou `PWA_TEST_EMAIL` / `PWA_TEST_PASSWORD`), intercepta dados de neg?cio com fixtures e n?o cadastra contas nem altera os registros do escrit?rio. Confere menu Mais, chat longo, retorno ao fim, calend?rio, In?cio e detalhes de cliente em desktop/mobile. Capturas ficam em `apps/web/playwright-report/workspace-ui/`.
+Com o servidor local em execução, rode `pnpm --filter @k5/web exec tsx scripts/verify-workspace-ui.ts` na raiz. O script reutiliza a conta de validação (ou `PWA_TEST_EMAIL` / `PWA_TEST_PASSWORD`), intercepta dados de negócio com fixtures e não cadastra contas nem altera os registros do escritório. Confere menu Mais, chat longo, retorno ao fim, calendário, Início e detalhes de cliente em desktop/mobile. Capturas ficam em `apps/web/playwright-report/workspace-ui/`.

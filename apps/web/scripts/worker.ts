@@ -13,7 +13,7 @@ async function main() {
   let stopping = false;
   process.on('SIGINT', () => { stopping = true; });
   process.on('SIGTERM', () => { stopping = true; });
-  console.log('Worker K5 ativo. Aguardando documentos, indexação e tarefas.');
+  console.log('Worker Lume ativo. Aguardando documentos, indexação e tarefas.');
 
   let sweepAt = 0;
   await runWorkerQueues({

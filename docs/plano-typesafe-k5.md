@@ -1,11 +1,11 @@
-# TypeSafe no K5: Cofre/RAG, Documentos e Agenda
+# TypeSafe no Lume: Cofre/RAG, Documentos e Agenda
 
 Status: plano de implementação, com decisões de conexão e Agenda confirmadas pelo usuário em 21/09/2026.
 Este documento planeja as três frentes; não representa funcionalidades já entregues.
 
 ## 1. Resultado esperado e decisões
 
-O K5 usará Jev para julgamentos delimitados sobre informações já autorizadas:
+O Lume usará Jev para julgamentos delimitados sobre informações já autorizadas:
 selecionar evidências relevantes, avaliar se fontes sustentam afirmações e interpretar
 pedidos de agenda. O código continuará responsável por autorização, datas,
 versionamento, persistência e execução. Os modelos atuais continuarão redigindo
@@ -13,7 +13,7 @@ respostas, extraindo acontecimentos e gerando minutas.
 
 | Frente | Resultado para a pessoa | Papel do Jev |
 | --- | --- | --- |
-| Cofre/RAG | Respostas e seções de minutas recebem fontes mais relevantes | Pontuar candidatos recuperados pelo K5 |
+| Cofre/RAG | Respostas e seções de minutas recebem fontes mais relevantes | Pontuar candidatos recuperados pelo Lume |
 | Documentos | Cronologias e minutas mostram afirmações que precisam de revisão, com suas fontes | Julgar sustentação, contradição ou insuficiência de evidência |
 | Agenda | Um pedido em linguagem natural vira uma sugestão preenchida ou uma pergunta específica | Identificar intenção e escolher referências e valores entre candidatos |
 
@@ -64,7 +64,7 @@ versionados de perguntas. Os nomes abaixo são propostas de arquivos, não camin
 - `policy.ts`: composição dos sinais em regras explícitas e testáveis.
 
 Usar o SDK JavaScript oficial, com versão fixada no lockfile após conferir a compatibilidade
-com Node e o runtime de implantação. Os contratos do K5 serão independentes dos DTOs do SDK.
+com Node e o runtime de implantação. Os contratos do Lume serão independentes dos DTOs do SDK.
 Referências: [SDK](https://docs.typesafe.ai/sdk/javascript),
 [API](https://docs.typesafe.ai/api), [primitivas](https://docs.typesafe.ai/primitives).
 
@@ -115,7 +115,7 @@ Não enviar todo o Cofre ou o histórico completo quando bastam candidatos delim
 ## 4. Cofre/RAG
 
 Fluxo: escopo autorizado → candidatos lexicais/vetoriais → RRF → lote de julgamentos
-Jev → ordenação pelo K5 → fontes para a resposta ou seção da minuta.
+Jev → ordenação pelo Lume → fontes para a resposta ou seção da minuta.
 
 1. Separar construção dos candidatos e seleção final dentro da camada de recuperação.
    Revalidar escritório, documento, versão e exclusão antes de enviar texto ao Jev.

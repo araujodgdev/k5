@@ -1,4 +1,4 @@
-# Local development environment for K5.
+# Local development environment for Lume.
 #
 # The split matches the plan's section 7.1: SQLite stays the transactional store while a separate
 # PostgreSQL holds the vector index. That is the same seam staging uses, so a query that works

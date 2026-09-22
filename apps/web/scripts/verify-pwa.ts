@@ -18,7 +18,9 @@ try {
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
   const manifestResponse = await context.request.get("/manifest.webmanifest");
-  const manifest = await manifestResponse.json() as { display: string; start_url: string; icons: { src: string }[] };
+  const manifest = await manifestResponse.json() as { name: string; short_name: string; display: string; start_url: string; icons: { src: string }[] };
+  expect(manifest.name).toBe("Lume — Seu escritório");
+  expect(manifest.short_name).toBe("Lume");
   expect(manifest.display).toBe("standalone");
   expect(manifest.start_url).toBe("/app");
   for (const icon of manifest.icons) expect((await context.request.get(icon.src)).ok()).toBe(true);
@@ -59,12 +61,12 @@ try {
     });
     window.dispatchEvent(event);
   })()`);
-  await page.getByRole("button", { name: "Instalar K5" }).click();
+  await page.getByRole("button", { name: "Instalar Lume" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-install-prompt-called", "true");
-  await page.getByRole("button", { name: "Instalar K5" }).click();
-  await expect(page.getByRole("dialog", { name: "Instalar o K5" })).toBeVisible();
+  await page.getByRole("button", { name: "Instalar Lume" }).click();
+  await expect(page.getByRole("dialog", { name: "Instalar o Lume" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Instalar K5" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Instalar Lume" })).toBeFocused();
 
   // Optional local release simulation. Restore the generated file even on failure.
   if (process.env.PWA_TEST_UPDATE === "1") {
@@ -125,10 +127,10 @@ try {
   await expect(sheet).not.toBeVisible();
   await expect(page.getByRole("button", { name: "Mais", exact: true })).toBeFocused();
   await page.getByRole("button", { name: "Mais", exact: true }).click();
-  await page.getByRole("dialog", { name: "Mais opções" }).getByRole("button", { name: "Instalar K5" }).click();
-  await expect(page.getByRole("dialog", { name: "Instalar o K5" })).toBeVisible();
+  await page.getByRole("dialog", { name: "Mais opções" }).getByRole("button", { name: "Instalar Lume" }).click();
+  await expect(page.getByRole("dialog", { name: "Instalar o Lume" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "Mais opções" }).getByRole("button", { name: "Instalar K5" })).toBeFocused();
+  await expect(page.getByRole("dialog", { name: "Mais opções" }).getByRole("button", { name: "Instalar Lume" })).toBeFocused();
   await page.keyboard.press("Escape");
   await context.setOffline(true);
   await expect(page.getByRole("status")).toContainText("Sem conexão");

@@ -138,7 +138,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
       <SidebarProvider className="hidden min-h-0 w-auto md:block">
         <Sidebar collapsible="none" className="h-dvh sticky top-0 border-0 bg-canvas p-2">
           <SidebarHeader className="gap-3 px-2 pt-3">
-            <Link href="/app" aria-label="K5 — início" className="w-fit rounded-sm"><Logo height={16} /></Link>
+            <Link href="/app" aria-label="Lume — início" className="w-fit rounded-sm"><Logo height={16} /></Link>
             <p className="truncate font-medium text-sm" title={officeName}>{officeName}</p>
           </SidebarHeader>
           <SidebarContent className="px-0 pt-2">
@@ -178,7 +178,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
       </SidebarProvider>
 
       <header className="sticky top-0 z-10 flex items-center gap-3 bg-background/85 px-5 pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
-        <Link href="/app" aria-label="K5 — início" className="flex h-13 items-center"><Logo height={15} /></Link>
+        <Link href="/app" aria-label="Lume — início" className="flex h-13 items-center"><Logo height={15} /></Link>
         <p className="truncate text-muted-foreground" title={officeName}>{officeName}</p>
       </header>
 

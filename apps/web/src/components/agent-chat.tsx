@@ -383,7 +383,7 @@ function ComposerTools({ models, modelKey, onModelChange, modalities, uploading,
   );
 }
 
-function K5Thread({ tools }: { tools: ComposerToolsProps }) {
+function LumeThread({ tools }: { tools: ComposerToolsProps }) {
   const [away, setAway] = useState(false);
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
@@ -475,7 +475,7 @@ function RuntimeThread({ conversationId, messages, context, selectedModel, audio
     onFinish,
     onError: (error) => onError(chatErrorMessage(error)),
   });
-  return <AssistantRuntimeProvider runtime={runtime}><K5Thread tools={tools} /></AssistantRuntimeProvider>;
+  return <AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider>;
 }
 
 export function AgentChat({ initialConversationId = '' }: { initialConversationId?: string }) {

@@ -54,7 +54,7 @@ Receita padrão: R1 para publicações; R2/R3 para processo/documento; R4 para j
 | TJRO | Rondônia | Descobrir instalações e contratos R2/R3; verificar jurisprudência R4 e cobertura DJEN R1. |
 | TJRR | Roraima | Descobrir instalações e contratos R2/R3; verificar jurisprudência R4 e cobertura DJEN R1. |
 | TJSC | Santa Catarina | Descobrir instalações e contratos R2/R3; verificar jurisprudência R4 e cobertura DJEN R1. |
-| TJSP | São Paulo | Documentação de integração fiscal institucional localizada; não prova acesso do K5. Mapear e-SAJ/eproc por período. |
+| TJSP | São Paulo | Documentação de integração fiscal institucional localizada; não prova acesso do Lume. Mapear e-SAJ/eproc por período. |
 | TJSE | Sergipe | Descobrir instalações e contratos R2/R3; verificar jurisprudência R4 e cobertura DJEN R1. |
 | TJTO | Tocantins | Descobrir instalações e contratos R2/R3; verificar jurisprudência R4 e cobertura DJEN R1. |
 

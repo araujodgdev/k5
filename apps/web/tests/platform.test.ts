@@ -167,7 +167,7 @@ test("connection test accepts any enabled connection, hides provider failures an
   const ok = async (config: { apiKey: string; modelId: string }) => { sent.push(`${config.apiKey}:${config.modelId}`); };
   assert.deepEqual(await testAiConnection(database, key, admin, officeA, extraction.id, undefined, ok), { task: "extraction", modelId: "claude-extract" });
   assert.deepEqual(sent, ["sk-extract-test-secret:claude-extract"]);
-  // No chat assignment: the test uses the model K5 would use for this provider.
+  // No chat assignment: the test uses the model Lume would use for this provider.
   assert.deepEqual(await testAiConnection(database, key, admin, officeA, extraction.id, "chat", ok), { task: "chat", modelId: DEFAULT_CHAT_MODEL.anthropic });
   await assert.rejects(testAiConnection(database, key, admin, officeA, other.id, undefined, ok), (error) => error instanceof AiConnectionError && error.code === "not_found");
   const leaky = async () => { throw new Error("401 Incorrect API key provided: sk-cha****cret"); };
@@ -239,7 +239,7 @@ test("concurrent resolution per office uses its own credential and never falls b
   const disabled = await Promise.allSettled([resolve(officeA), resolve(officeB)]);
   assert.ok(disabled[0].status === "fulfilled" && disabled[0].value.apiKey === "sk-office-a-only");
   assert.ok(disabled[1].status === "rejected" && disabled[1].reason instanceof AiConnectionError && disabled[1].reason.code === "not_found");
-  // Clearing the assignment no longer disables the office: K5 supplies the model for the provider,
+  // Clearing the assignment no longer disables the office: Lume supplies the model for the provider,
   // and only the credential is the office's to configure.
   await updateAiConnection(database, key, admin, officeB, b.id, { enabled: true, models: { chat: null, extraction: null, drafting: null } });
   const cleared = await Promise.allSettled([resolve(officeB), resolve(officeA)]);
@@ -273,7 +273,7 @@ test("dynamic model resolution allows user to select model from active connectio
     models: { chat: null, extraction: null, drafting: null },
   });
 
-  // Without a requested model the office still resolves: K5 owns the default for the provider.
+  // Without a requested model the office still resolves: Lume owns the default for the provider.
   const fallback = await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat");
   assert.equal(fallback.provider, "inception");
   assert.equal(fallback.modelId, DEFAULT_CHAT_MODEL.inception);

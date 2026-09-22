@@ -9,11 +9,11 @@ const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const serif = Newsreader({ subsets: ["latin"], variable: "--font-newsreader", style: ["normal", "italic"] });
 
 export const metadata: Metadata = {
-  title: { default: "K5", template: "%s | K5" },
+  title: { default: "Lume", template: "%s | Lume" },
   description: "O espaço de trabalho do seu escritório.",
   robots: { index: false, follow: false },
-  applicationName: "K5",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "K5" },
+  applicationName: "Lume",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Lume" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 

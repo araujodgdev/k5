@@ -39,7 +39,7 @@ Ligados por binding em [`apps/web/wrangler.jsonc`](../apps/web/wrangler.jsonc), 
 chave. Um binding carrega a própria autorização, então nenhuma credencial de staging precisa
 existir em arquivo de ambiente para a aplicação alcançar o próprio armazenamento.
 
-Não há binding de cache, de propósito. O K5 serve dados autenticados por escritório, e um cache de
+Não há binding de cache, de propósito. O Lume serve dados autenticados por escritório, e um cache de
 borda na frente de resposta dinâmica multi-inquilino é como um escritório passa a ler o do outro.
 
 ## O que foi verificado
@@ -117,7 +117,7 @@ que acontecer.
 
 **Better Auth recebe o handle que reconhece.** `createAuth(store, db, ...)` separa as duas coisas:
 `store` é o que Better Auth fala diretamente — o handle `node:sqlite` no Node, o binding D1 em
-Workers, ambos aceitos pela versão 1.7 — e `db` é a costura assíncrona do K5, usada pelo hook que
+Workers, ambos aceitos pela versão 1.7 — e `db` é a costura assíncrona do Lume, usada pelo hook que
 provisiona o escritório. `authStore()` resolve o primeiro a partir do mesmo backend do segundo.
 
 ## Processamento em segundo plano

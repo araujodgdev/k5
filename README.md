@@ -1,4 +1,4 @@
-﻿# K5
+# Lume
 
 Monorepo pnpm + Turborepo. Frontend em Next.js 16, TypeScript e Tailwind CSS.
 Autenticação com Better Auth e SQLite local.
@@ -81,7 +81,7 @@ As áreas de `/app` exigem sessão válida no servidor. Início, Lume, Cofre e T
 Tarefas de documentos precisam do worker (`pnpm worker`) em execução; veja
 [`apps/web/README.md`](apps/web/README.md).
 A interface usa pt-BR, temas claro/escuro (ou o tema do sistema) e sidebar responsiva.
-O K5 pode ser instalado como PWA; veja [instalação e funcionamento offline](apps/web/README.md#pwa-e-temas).
+O Lume pode ser instalado como PWA; veja [instalação e funcionamento offline](apps/web/README.md#pwa-e-temas).
 
 Tarefas e Agenda reúne clientes, vínculos com casos do Cofre, tarefas e reuniões internas,
 com operações também disponíveis ao agente e ao WebMCP. Veja o

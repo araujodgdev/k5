@@ -14,7 +14,7 @@ const password = "Senha-teste-2026!";
 async function fixture() {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
-  // Better Auth gets the raw handle; K5's own code gets the same database through its async seam.
+  // Better Auth gets the raw handle; Lume's own code gets the same database through its async seam.
   const database = nodeSqliteDatabase(db);
   const auth = createAuth(db, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600 });
   await (await getMigrations(auth.options)).runMigrations();

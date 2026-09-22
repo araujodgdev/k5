@@ -1,4 +1,4 @@
-# TypeSafe no K5 — implementação e operação
+# TypeSafe no Lume — implementação e operação
 
 Implementação do [plano integrado](plano-typesafe-k5.md), com a
 [skill TypeSafe](../.agents/skills/typesafe-ai/SKILL.md). SDK fixado em `0.6.0`, modelo

@@ -1,6 +1,6 @@
 # Relatório Definitivo de Validação de Ramo: `fix/agent-rag-webmcp-security`
 
-**Projeto**: K5 — Plataforma Jurídica Integrada  
+**Projeto**: Lume — Plataforma Jurídica Integrada
 **Ramo sob Validação**: `fix/agent-rag-webmcp-security`  
 **Commit SHA Validado**: `38e8fdbcf726afb9b6e857f0f742f14bdeb5577e`  
 **Data de Validação**: 18 de Setembro de 2026  
@@ -14,7 +14,7 @@
 
 ## Resumo Executivo
 
-O presente documento consolida o relatório pericial, definitivo e exaustivo de validação funcional, segurança e conformidade arquitetural do ramo `fix/agent-rag-webmcp-security` do K5. A avaliação foi conduzida sob o protocolo rigoroso de validação empírica e integridade técnica, compreendendo quatro marcos de auditoria independente (M1, M2, M3 e M4), revisões por pares cruzadas, desafios adversariais empíricos e auditorias periciais forenses.
+O presente documento consolida o relatório pericial, definitivo e exaustivo de validação funcional, segurança e conformidade arquitetural do ramo `fix/agent-rag-webmcp-security` do Lume. A avaliação foi conduzida sob o protocolo rigoroso de validação empírica e integridade técnica, compreendendo quatro marcos de auditoria independente (M1, M2, M3 e M4), revisões por pares cruzadas, desafios adversariais empíricos e auditorias periciais forenses.
 
 ### Veredito Final: **APROVADO (STATUS: PASS — 100% PRONTO PARA MERGE)**
 
@@ -101,7 +101,7 @@ Taxa de sucesso:            100,00% (75/75 PASS)
 #### 3. Catálogo de Capacidades, RBAC e Serviços Centrais (`apps/web/tests/capabilities.test.ts`)
 - **Métricas**: 18 testes executados, 18 aprovados, 0 falhas (91 asserções, duração: 1.645 ms).
 - **Mecânica das Asserções**:
-  - Validação completa do catálogo de 38 capacidades declaradas no K5.
+  - Validação completa do catálogo de 38 capacidades declaradas no Lume.
   - Avaliação de controle de acesso baseado em papéis (RBAC), assegurando que usuários com papel de `reviewer` tenham acesso somente-leitura e que operações de escrita exijam `lawyer` ou `administrator`.
   - Criação idempotente de casos no Cofre, atualização de metadados e exclusão condicionada a aprovação humana.
   - Criação de pastas hierárquicas (`vault_folder`) em até 8 níveis de profundidade, associadas estritamente ao seu caso judicial e com re-ancoragem de subitens no nível pai em caso de exclusão de pasta.
@@ -166,7 +166,7 @@ A validação funcional ponta a ponta abrangeu os quatro subsistemas primários 
 
 ```
 +-----------------------------------------------------------------------------------------+
-|                                    SUBSISTEMAS K5                                       |
+|                                    SUBSISTEMAS Lume                                       |
 +-----------------------------+-----------------------------+-----------------------------+
 | 1. Cofre & Armazenamento    | 2. RAG & Conhecimento       | 3. Central de Agentes & IA  |
 | - Árvore Drive (Pastas 8x)  | - Fusão RRF (k=60)          | - Mastra RequestContext     |
@@ -329,10 +329,10 @@ Em observância ao requisito R4, todas as advertências de compilação, eventos
   - Durante as chamadas à rota `POST /api/knowledge/search` no ambiente ativo, a resposta JSON retornou com a flag `degraded: true` e a explicação correspondente em `degradedReason`.
 - **Comportamento Esperado**: A busca deve retornar os trechos relevantes com ranqueamento legítimo sem quebrar a execução do chat, informando com transparência seu estado de operação.
 - **Análise Técnica de Causa Raiz**:
-  - Conforme arquitetura definida em `apps/web/src/lib/knowledge/embedding-provider.ts` (linhas 19–24), apenas provedores específicos (OpenAI com `/v1/embeddings`, Google Gemini com `batchEmbedContents` e Vercel AI Gateway) possuem suporte a vetores semânticos no K5. Provedores como Anthropic, DeepSeek e Inception não expõem modelos de embedding suportados.
+  - Conforme arquitetura definida em `apps/web/src/lib/knowledge/embedding-provider.ts` (linhas 19–24), apenas provedores específicos (OpenAI com `/v1/embeddings`, Google Gemini com `batchEmbedContents` e Vercel AI Gateway) possuem suporte a vetores semânticos no Lume. Provedores como Anthropic, DeepSeek e Inception não expõem modelos de embedding suportados.
   - A conexão de IA ativa no ambiente de teste é a `Inception Principal` (modelo `mercury-2`). Ao tentar vetorizar a query da busca, a rotina detecta a ausência de modelo de embedding para o provedor e lança internamente a exceção controlada `EmbeddingUnavailableError`.
 - **Análise de Resiliência Arquitetural**:
-  - O motor de recuperação do K5 implementa tolerância a falhas nativa: ao capturar `EmbeddingUnavailableError`, ele ativa imediatamente o modo de degradação graciosa.
+  - O motor de recuperação do Lume implementa tolerância a falhas nativa: ao capturar `EmbeddingUnavailableError`, ele ativa imediatamente o modo de degradação graciosa.
   - O motor executa a busca lexical SQLite FTS5 BM25, aplica a fórmula de Fusão de Rank Recíproco (RRF $k=60$) sobre os resultados lexicais, e retorna os trechos mais pertinentes (localizando com precisão a cláusula contratual de multa de 10%).
   - A integridade da plataforma é preservada: o assistente de IA recebe os trechos necessários via ferramenta Mastra e responde ao usuário sem interrupção de serviço.
 
@@ -352,7 +352,7 @@ A branch `fix/agent-rag-webmcp-security` foi submetida a um ciclo completo de ve
 
 > **PARECER FINAL: APROVADO PARA MERGE NA BRANCH PRINCIPAL (`main`)**
 > 
-> O código do ramo `fix/agent-rag-webmcp-security` atende a todos os critérios de qualidade de software, integridade de dados, isolamento multi-tenant e robustez criptográfica exigidos para a aplicação jurídica K5. Não existem impedimentos técnicos, vulnerabilidades de segurança não mitigadas ou regressões funcionais pendentes.
+> O código do ramo `fix/agent-rag-webmcp-security` atende a todos os critérios de qualidade de software, integridade de dados, isolamento multi-tenant e robustez criptográfica exigidos para a aplicação jurídica Lume. Não existem impedimentos técnicos, vulnerabilidades de segurança não mitigadas ou regressões funcionais pendentes.
 
 ---
 

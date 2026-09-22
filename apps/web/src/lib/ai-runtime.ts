@@ -17,7 +17,7 @@ export type ModelTask = 'chat' | 'extraction' | 'drafting';
 function agentFor(config: ModelCredential, instructions: string, tools?: Record<string, unknown>) {
   const agent = new Agent({
     id: 'k5',
-    name: 'K5',
+    name: 'Lume',
     instructions,
     model: ({ requestContext }: { requestContext?: RequestContext }) => {
       const provider = (requestContext?.get('provider') as AiProvider | undefined) ?? config.provider;

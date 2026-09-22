@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS judicial_source_installation (
   -- the separate act of permitting real network egress, which stays off until F0 clears the source.
   enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
   live_transport_enabled INTEGER NOT NULL DEFAULT 0 CHECK (live_transport_enabled IN (0, 1)),
-  -- Published ceiling and the lower budget K5 holds itself to, measured per source, not per worker.
+  -- Published ceiling and the lower budget Lume holds itself to, measured per source, not per worker.
   rate_limit_per_minute INTEGER NOT NULL DEFAULT 10 CHECK (rate_limit_per_minute > 0),
   daily_request_budget INTEGER NOT NULL DEFAULT 500 CHECK (daily_request_budget > 0),
   notes TEXT,
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS judicial_source_record (
   cnj_number TEXT,
   native_number TEXT,
   title TEXT,
-  -- Declared by the source, which is not when K5 saw it.
+  -- Declared by the source, which is not when Lume saw it.
   source_updated_at TEXT,
   first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS judicial_publication (
   page TEXT,
   official_hash TEXT,
   body TEXT NOT NULL,
-  -- Three different dates the sources keep apart, so K5 keeps them apart too.
+  -- Three different dates the sources keep apart, so Lume keeps them apart too.
   made_available_on TEXT,
   published_on TEXT,
   source_updated_at TEXT,

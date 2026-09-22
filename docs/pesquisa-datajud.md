@@ -1,4 +1,4 @@
-# DataJud no K5: oportunidades e limites
+# DataJud no Lume: oportunidades e limites
 
 Pesquisa documental em 18/09/2026. Nenhuma chamada autenticada à API foi executada; nenhuma integração foi implementada.
 
@@ -12,7 +12,7 @@ O melhor encaixe é vincular processos aos casos do Cofre e permitir que o advog
 
 - A API pública disponibiliza metadados de capas e movimentações de processos públicos, resguardando processos sigilosos e dados das partes. A documentação pública não deve ser confundida com o modelo de transferência usado pelos tribunais para alimentar o DataJud. [Visão geral](https://datajud-wiki.cnj.jus.br/api-publica/)
 - O glossário inclui número CNJ, tribunal, grau, ajuizamento, classe e assuntos TPU, órgão julgador, sistema/formato e movimentos com código, descrição, data e complementos. Não lista nomes/CPF/CNPJ de partes nem conteúdo integral de decisões ou peças. O identificador combina tribunal, classe, grau, órgão e número: não tratar todo resultado de um mesmo número como um único registro equivalente. [Glossário](https://datajud-wiki.cnj.jus.br/api-publica/glossario/)
-- `dataHoraUltimaAtualizacao` corresponde à atualização da origem; `@timestamp`, à atualização do documento no índice. São distintos da data de ocorrência de um movimento e da data em que o K5 consultaria a API. [Glossário](https://datajud-wiki.cnj.jus.br/api-publica/glossario/)
+- `dataHoraUltimaAtualizacao` corresponde à atualização da origem; `@timestamp`, à atualização do documento no índice. São distintos da data de ocorrência de um movimento e da data em que o Lume consultaria a API. [Glossário](https://datajud-wiki.cnj.jus.br/api-publica/glossario/)
 - A autenticação usa uma chave pública publicada pelo CNJ, com cabeçalho `Authorization: APIKey <chave>`. O CNJ pode alterá-la. [Acesso](https://datajud-wiki.cnj.jus.br/api-publica/acesso/)
 - As pesquisas são dirigidas a aliases de tribunais, por exemplo `POST https://api-publica.datajud.cnj.jus.br/api_publica_tjsp/_search`, usando JSON Query DSL. Há exemplos oficiais por número CNJ sem formatação e por classe/órgão. [Endpoints](https://datajud-wiki.cnj.jus.br/api-publica/endpoints/), [número](https://datajud-wiki.cnj.jus.br/api-publica/exemplos/exemplo1/), [classe e órgão](https://datajud-wiki.cnj.jus.br/api-publica/exemplos/exemplo2/)
 - A documentação descreve retorno padrão de dez registros, `size` até 10.000 e paginação com `search_after`, `sort` por `@timestamp` e os valores de ordenação do último resultado. Isso não constitui garantia de uma exportação imutável enquanto o índice muda. [Paginação](https://datajud-wiki.cnj.jus.br/api-publica/exemplos/exemplo3/)
@@ -41,4 +41,4 @@ Polling e análise agregada ficariam para depois da validação de cobertura e p
 
 ## Próximo passo recomendado
 
-Esclarecer com o CNJ o uso pretendido no K5 e, com a permissão aplicável definida, avaliar uma pequena amostra representativa dos tribunais de interesse. Medir cobertura, defasagem observada, duplicidade e utilidade da cronologia antes de ampliar o produto. As oportunidades acima são propostas, não capacidades já implementadas ou garantias da API.
+Esclarecer com o CNJ o uso pretendido no Lume e, com a permissão aplicável definida, avaliar uma pequena amostra representativa dos tribunais de interesse. Medir cobertura, defasagem observada, duplicidade e utilidade da cronologia antes de ampliar o produto. As oportunidades acima são propostas, não capacidades já implementadas ou garantias da API.

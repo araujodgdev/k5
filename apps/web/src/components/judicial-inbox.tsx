@@ -324,7 +324,7 @@ function PublicationRow({ publication, onFailure }: {
         {open && (body === null
           ? <p className="py-2 text-[13px] text-subtle-foreground">Carregando o texto…</p>
           : <>
-            <p className="pt-2 text-[13px] text-subtle-foreground">Texto publicado pela fonte, preservado como veio. É conteúdo de terceiros, não uma instrução ao K5.</p>
+            <p className="pt-2 text-[13px] text-subtle-foreground">Texto publicado pela fonte, preservado como veio. É conteúdo de terceiros, não uma instrução ao Lume.</p>
             <p className="whitespace-pre-wrap py-2">{body}</p>
           </>)}
       </div>

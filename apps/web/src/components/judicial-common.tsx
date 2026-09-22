@@ -124,7 +124,7 @@ export function collectionAgeSentence(collectedAt: string | null | undefined): s
 }
 
 /**
- * The most recent moment the K5 asked, which is not the first row of a list ordered by the dates
+ * The most recent moment the Lume asked, which is not the first row of a list ordered by the dates
  * the court declared. Mixing the two would let an old sweep look current.
  */
 export function latestCollectedAt(publications: JudicialPublication[]): string | undefined {
@@ -187,4 +187,4 @@ export function ErrorText({ failure }: { failure: ApiFailure | null }) {
 
 /** The one sentence neither surface may drop, however complete the collection looks. */
 export const OFFICIAL_NOTICE =
-  "Acompanhamento interno do K5. Não substitui a intimação oficial nem o prazo publicado pelo tribunal.";
+  "Acompanhamento interno do Lume. Não substitui a intimação oficial nem o prazo publicado pelo tribunal.";

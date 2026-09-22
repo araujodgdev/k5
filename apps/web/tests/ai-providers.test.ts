@@ -27,7 +27,7 @@ test("every supported provider resolves through the model router and is named in
   }
 });
 
-test("K5 owns the default model of every provider, and it is a model the router knows", () => {
+test("Lume owns the default model of every provider, and it is a model the router knows", () => {
   const catalog = providerCatalog();
   for (const provider of AI_PROVIDERS) {
     const modelId = DEFAULT_CHAT_MODEL[provider];

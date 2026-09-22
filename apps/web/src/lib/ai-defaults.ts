@@ -1,7 +1,7 @@
 import type { AiProvider } from "./ai-connections-core";
 
 /**
- * Models K5 picks, not the office.
+ * Models Lume picks, not the office.
  *
  * The administrator registers a provider and a credential. Which model answers a conversation is
  * the person's choice in the composer; which model builds the semantic index is ours, because the

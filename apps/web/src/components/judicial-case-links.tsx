@@ -21,7 +21,7 @@ import {
  * "Vincular processo" inside a case (section 9 of docs/plano-infra-judicial.md).
  *
  * The screen's job is to keep four things separate that are easy to merge and wrong to merge: the
- * coverage a source documents, what the K5 has actually collected, the date the court declared,
+ * coverage a source documents, what the Lume has actually collected, the date the court declared,
  * and the moment we asked. An empty answer is reported as an empty answer from one source, never
  * as the proceeding not existing.
  */
@@ -381,7 +381,7 @@ function LinkDetail({ link, source, publications, job, completedJob }: {
         />
         <Field
           term="Cobertura documentada pela fonte"
-          detail={`${formatDate(source?.coverage.from)} a ${formatDate(source?.coverage.to)}. É o que a fonte declara cobrir, não o que o K5 já coletou.`}
+          detail={`${formatDate(source?.coverage.from)} a ${formatDate(source?.coverage.to)}. É o que a fonte declara cobrir, não o que o Lume já coletou.`}
         />
         <Field term="Data da consulta" detail={collectionAgeSentence(completedJob?.completedAt)} />
         <Field

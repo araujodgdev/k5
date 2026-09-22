@@ -13,7 +13,7 @@ import { enqueueVerification } from './typesafe/verification';
 import type { VerificationUnit } from './typesafe/verification-contracts';
 import { ownedArtifact } from './ai-store';
 
-/** The model the person chose when the run was queued; absent falls back to K5's provider default. */
+/** The model the person chose when the run was queued; absent falls back to Lume's provider default. */
 const runModel = (run: RunRow) => run.model_provider && run.model_id ? { provider: run.model_provider, modelId: run.model_id } : undefined;
 
 export const runInputSchema = z.object({
@@ -136,7 +136,7 @@ async function executeRun(run: RunRow) {
   const { sources, template } = await validateRunSources(run.office_id, input);
   const approved = await database.prepare('SELECT citation_id AS id,source_text AS text,source_label AS sourceLabel FROM ai_citation_approval WHERE run_id=?').all(run.id) as unknown as CitationCandidate[];
   const idSchema = z.object({ runId: z.string() });
-  // SQL checkpoints are intentionally owned by K5. A worker can recreate this workflow
+  // SQL checkpoints are intentionally owned by Lume. A worker can recreate this workflow
   // after process loss and skip completed per-document / per-section steps.
   const analyze = createStep({ id: 'analyze', inputSchema: idSchema, outputSchema: idSchema, execute: async () => {
     await progress(run, 5);

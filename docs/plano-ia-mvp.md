@@ -1,4 +1,4 @@
-# Plano de IA do MVP K5
+# Plano de IA do MVP Lume
 
 Status: primeira versão das cinco etapas implementada em `apps/web` (setembro de 2026). Pendências de validação:
 
@@ -13,9 +13,9 @@ Status: primeira versão das cinco etapas implementada em `apps/web` (setembro d
 - O advogado seleciona os materiais usados pelo agente.
 - Cronologia baseada nos documentos, com fontes, conflitos e lacunas explícitos.
 - Redação seguindo estrutura, estilo e timbrado do modelo do escritório.
-- Edição de conteúdo e estrutura no K5; exportação DOCX e acabamento no Word. Não exigir fidelidade de paginação do Word no editor web.
+- Edição de conteúdo e estrutura no Lume; exportação DOCX e acabamento no Word. Não exigir fidelidade de paginação do Word no editor web.
 - Não pesquisar legislação ou jurisprudência externa no MVP. Reutilizar citações fornecidas somente mediante seleção explícita do advogado, sem afirmar verificação externa.
-- Chaves dos modelos administradas pelo K5, com configuração de provider e credenciais por cliente (escritório).
+- Chaves dos modelos administradas pelo Lume, com configuração de provider e credenciais por cliente (escritório).
 - Painel privado para administradores da plataforma gerencia essas configurações.
 - Avaliar UI compatível com Mastra, preservando ao máximo a identidade visual existente.
 
@@ -27,9 +27,9 @@ Next.js, React, TypeScript, shadcn/ui, Better Auth e SQLite local. Usuários per
 
 Mastra para agentes, ferramentas e workflows. assistant-ui para a experiência de conversa, integrada ao Mastra através do adaptador AI SDK. A documentação apresenta essa combinação; assistant-ui é uma biblioteca independente, não uma biblioteca própria do Mastra.
 
-Preservar shadcn/ui para navegação, formulários, tabelas e painel administrativo. Adaptar os componentes de conversa aos tokens do K5. Não adotar o visual do Mastra Studio como interface do produto.
+Preservar shadcn/ui para navegação, formulários, tabelas e painel administrativo. Adaptar os componentes de conversa aos tokens do Lume. Não adotar o visual do Mastra Studio como interface do produto.
 
-O backend do K5 permanece responsável por autorização, isolamento de escritórios, seleção de credenciais, arquivos, versões, referências e aprovações. Memória de agente e índices de busca não substituem o banco de negócio.
+O backend do Lume permanece responsável por autorização, isolamento de escritórios, seleção de credenciais, arquivos, versões, referências e aprovações. Memória de agente e índices de busca não substituem o banco de negócio.
 
 A resolução de modelos usa perfis de tarefa, como conversa, extração e redação. Cada perfil aponta para uma configuração autorizada do escritório. Trocar um provider suportado não deve exigir mudança no código da feature. Incluir um provider novo pode exigir um adaptador e validação de capacidades.
 
@@ -49,7 +49,7 @@ O painel lista escritórios e permite gerenciar conexões de IA por escritório:
 - Desativar conexão e excluir seu segredo, preservando metadados necessários à auditoria.
 - Impedir exclusão de uma configuração em uso até desativar ou substituir suas atribuições.
 
-Proposta inicial: uma conexão por escritório/provider, extensível a várias conexões nomeadas. A aplicação cadastra credenciais emitidas no provider; criar ou excluir a conexão no K5 não emite nem revoga automaticamente a chave no fornecedor.
+Proposta inicial: uma conexão por escritório/provider, extensível a várias conexões nomeadas. A aplicação cadastra credenciais emitidas no provider; criar ou excluir a conexão no Lume não emite nem revoga automaticamente a chave no fornecedor.
 
 Segredos criptografados em repouso com chave mestra separada do banco e do segredo do Better Auth, mantida no ambiente ou gerenciador de segredos. Definir versionamento para rotação da chave mestra. Não registrar segredos em logs, traces, mensagens do agente ou erros de SDK.
 
@@ -61,7 +61,7 @@ Auditoria registra ator, escritório, operação, conexão e horário, sem o seg
 
 ## Refactor de UI
 
-Usar assistant-ui inicialmente para mensagens, compositor, streaming, cancelamento e estados de erro. A persistência e as permissões das conversas pertencem ao K5; uma biblioteca de UI não as fornece automaticamente.
+Usar assistant-ui inicialmente para mensagens, compositor, streaming, cancelamento e estados de erro. A persistência e as permissões das conversas pertencem ao Lume; uma biblioteca de UI não as fornece automaticamente.
 
 Adicionar seleção de documentos, fontes, progresso e aprovações conforme os workflows entrarem. A seleção de citações registra o usuário, a fonte, sua versão e o escopo da aprovação. Aprovar um modelo de petição não aprova automaticamente todas as autoridades jurídicas nele contidas.
 
@@ -86,7 +86,7 @@ Tarefas longas precisam continuar sem a aba aberta, registrar cobertura do proce
 ## Sequência de implementação
 
 1. Fundação: Mastra, perfis de modelos, papel de plataforma, armazenamento seguro de credenciais e painel administrativo funcional.
-2. Chat integrado: assistant-ui com visual K5, streaming, histórico autorizado, tratamento de falhas e registro de uso.
+2. Chat integrado: assistant-ui com visual Lume, streaming, histórico autorizado, tratamento de falhas e registro de uso.
 3. Vault: casos, biblioteca, arquivos, processamento durável, extração/OCR, referências e busca autorizada.
 4. Revisão: cronologia verificável, conflitos, lacunas, editor e exportação.
 5. Redação: modelo do escritório, seleção de citações, validação e DOCX com timbrado.
@@ -114,7 +114,7 @@ Tarefas longas precisam continuar sem a aba aberta, registrar cobertura do proce
 
 ## Referências
 
-- [Design do K5](../apps/web/DESIGN.md)
+- [Design do Lume](../apps/web/DESIGN.md)
 - [Autenticação e ambiente](../apps/web/README.md)
 - [Mastra workflows](https://mastra.ai/docs/workflows/overview)
 - [Mastra e bibliotecas de UI](https://github.com/mastra-ai/ui-dojo)

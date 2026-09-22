@@ -8,7 +8,7 @@
 //
 // Loudly means a named export per entry point the application actually calls. A module namespace
 // object cannot be a Proxy, so an unexported name reads back as `undefined` and the call site dies
-// with "(intermediate value).getDocument is not a function" — the caller sees a bug in K5 instead
+// with "(intermediate value).getDocument is not a function" — the caller sees a bug in Lume instead
 // of a step that belongs on the Node worker.
 const unavailable = () => {
   throw new Error(

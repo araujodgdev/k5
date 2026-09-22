@@ -102,6 +102,6 @@ export function eventCopy(type: NotificationEventType, data: Record<string, unkn
     case 'judicial.collection.failed':
       return { title: 'Coleta judicial incompleta', summary: 'Uma fonte acompanhada precisa de atenção.' };
     case 'system.push.test':
-      return { title: 'Notificação de teste', summary: 'Este dispositivo está pronto para receber avisos do K5.' };
+      return { title: 'Notificação de teste', summary: 'Este dispositivo está pronto para receber avisos do Lume.' };
   }
 }

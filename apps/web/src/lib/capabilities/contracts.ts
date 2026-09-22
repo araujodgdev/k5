@@ -90,7 +90,7 @@ export const judicialSourceDto = z.object({
     query: z.string(), cache: z.string(), documents: z.string(), redistribution: z.string(), ai: z.string(),
   }).describe('Condição de uso por dimensão: permitido, restrito, proibido ou nao_esclarecido.'),
   coverage: z.object({ from: z.string().nullable(), to: z.string().nullable() })
-    .describe('Cobertura documentada pela fonte, que não é a cobertura já coletada pelo K5.'),
+    .describe('Cobertura documentada pela fonte, que não é a cobertura já coletada pelo Lume.'),
   hasConnector: z.boolean().describe('Falso quando ainda não existe adaptador implementado para este tipo de fonte.'),
 });
 
@@ -111,7 +111,7 @@ export const judicialPublicationDto = z.object({
   publishedOn: z.string().nullable().describe('Data de publicação; distinta da disponibilização.'),
   revisionKind: z.enum(['original', 'republication', 'errata']),
   supersedesId: z.string().nullable(),
-  collectedAt: z.string().describe('Quando o K5 consultou a fonte.'),
+  collectedAt: z.string().describe('Quando o Lume consultou a fonte.'),
   excerpt: z.string(),
 });
 
@@ -399,7 +399,7 @@ export const capabilities = {
   },
   k5_ui_open_resource: {
     module: 'ui', effect: 'read', roles: readers,
-    description: 'Resolve a URL segura da interface K5 para abrir um recurso no navegador.',
+    description: 'Resolve a URL segura da interface Lume para abrir um recurso no navegador.',
     input: z.object({
       resourceType: z.enum(['case', 'document', 'run', 'artifact', 'vault', 'agenda', 'client', 'activity']),
       resourceId: identifier.optional(),
@@ -510,7 +510,7 @@ export const capabilities = {
   },
   k5_judicial_list_alerts: {
     module: 'judicial', effect: 'read', roles: readers,
-    description: 'Lista os eventos observados pelo K5: publicação nova, achado histórico de backfill, correção ou falha de atualização.',
+    description: 'Lista os eventos observados pelo Lume: publicação nova, achado histórico de backfill, correção ou falha de atualização.',
     input: z.object({
       caseId: identifier.optional(), installationId: identifier.optional(),
       unreadOnly: z.boolean().default(false), limit: z.number().int().min(1).max(50).default(20),

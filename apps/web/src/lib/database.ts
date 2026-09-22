@@ -12,7 +12,7 @@ import type { BoundStatement, Database, PreparedStatement } from "./db/types";
  * the Worker bundle, where it cannot exist.
  */
 
-/** The pair every runtime resolves to: K5's async seam, plus the handle Better Auth recognises. */
+/** The pair every runtime resolves to: Lume's async seam, plus the handle Better Auth recognises. */
 interface Backend {
   database: Database;
   /** A `node:sqlite` handle or a D1 binding — whatever `createAuth` can hand to Better Auth. */

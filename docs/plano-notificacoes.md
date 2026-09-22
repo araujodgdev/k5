@@ -1,10 +1,10 @@
-# Plano de notificações do K5
+# Plano de notificações do Lume
 
 Data do plano: 21/09/2026. Status em 22/09/2026: plano histórico; o sistema de notificações já está implementado.
 
 As seções abaixo preservam a proposta original, incluindo hipóteses, etapas e critérios de aceite anteriores à implementação; não representam o estado atual nem comprovam validação em produção. Para a configuração e o funcionamento implementados, consulte [Notificações no guia do app](../apps/web/README.md#notificações). A seção final registra somente a verificação documental feita na elaboração deste plano.
 
-Escopo confirmado: push no navegador/PWA e caixa de notificações dentro do K5. E-mail, WhatsApp, aplicativos nativos, campanhas de marketing e cálculo automático de prazos judiciais ficam fora deste trabalho.
+Escopo confirmado: push no navegador/PWA e caixa de notificações dentro do Lume. E-mail, WhatsApp, aplicativos nativos, campanhas de marketing e cálculo automático de prazos judiciais ficam fora deste trabalho.
 
 ## Resultado esperado
 
@@ -60,9 +60,9 @@ flowchart LR
   G[Agendador de lembretes] --> C
   F --> H[Worker de envio + VAPID]
   H --> I[Serviço push do navegador]
-  I --> J[Service worker do K5]
+  I --> J[Service worker do Lume]
   J --> K[Aviso do sistema]
-  K --> L[Abrir K5 e verificar acesso]
+  K --> L[Abrir Lume e verificar acesso]
   L --> E
 ```
 
@@ -122,13 +122,13 @@ Endpoints push são destinos de rede fornecidos pelo cliente: exigir HTTPS e hos
 
 Adesão explícita por dispositivo: preparar service worker/configuração antes do clique; chamar a solicitação de permissão diretamente na interação humana; usar `userVisibleOnly: true`; persistir a inscrição autenticada e só então mostrar **Ativadas neste dispositivo**. Se a persistência falhar, mostrar falha recuperável e reconciliar a inscrição existente, sem criar duplicatas.
 
-Reconciliação em login, abertura e retorno ao primeiro plano compara `getSubscription()`, permissão, versão VAPID e estado servidor. `pushsubscriptionchange` é melhoria adicional, não o único mecanismo de recuperação. Uma inscrição revogada pelo K5 exige nova ação de adesão, mesmo quando a permissão do navegador ainda é `granted`.
+Reconciliação em login, abertura e retorno ao primeiro plano compara `getSubscription()`, permissão, versão VAPID e estado servidor. `pushsubscriptionchange` é melhoria adicional, não o único mecanismo de recuperação. Uma inscrição revogada pelo Lume exige nova ação de adesão, mesmo quando a permissão do navegador ainda é `granted`.
 
 **Política proposta de sessão:** adesão push é autorização persistente do dispositivo; expiração por inatividade da sessão não impede lembretes genéricos, nem concede acesso à caixa. Logout explícito global revoga todas as inscrições do usuário; remoção do escritório e desativação de conta também impedem entrega. Aplicar nos caminhos de `authClient.signOut()`, `endGlobalSession()` e demais endpoints de revogação aplicáveis, com política central e teste de corrida inscrição/logout. Serializar a geração de revogação com a validação da sessão usada para inscrever, para uma requisição antiga não reativar o dispositivo. Better Auth continua responsável pelas sessões.
 
 Troca de conta no mesmo navegador encerra a associação anterior e exige nova adesão; não transferir silenciosamente um endpoint. Revogação servidor precede limpeza local para que fechar a aba não a interrompa. Fechar notificações já visíveis no dispositivo atual quando possível. Avisos já aceitos pelo provedor podem chegar depois do logout; por isso o payload de lock screen será sempre genérico no primeiro rollout:
 
-> **K5** — Você tem uma atualização no K5.
+> **Lume** — Você tem uma atualização no Lume.
 
 Payload: versão, ID opaco da notificação/grupo, tag e expiração. Não incluir nomes de clientes, CNJ, títulos de casos/documentos, conteúdo de publicações, nem detalhes de falhas. Clique abre uma rota interna fixa da caixa com ID opaco; o servidor verifica sessão, destinatário e acesso à origem antes de renderizar detalhes ou oferecer navegação. Se precisar entrar novamente, preservar somente retorno interno validado. Outro usuário no mesmo dispositivo não pode resolver o ID.
 

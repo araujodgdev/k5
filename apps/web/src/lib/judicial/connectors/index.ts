@@ -10,7 +10,7 @@ export type { Transport, TransportResponse, TransportRequestInit } from './trans
  * Resolves the adapter for an installation. Only kinds with a real implementation are listed:
  * the plan is explicit that a tool is published once it exists, and that "no API found" must not
  * be dressed up as a working connector. MNI, CKAN and the jurisprudence APIs have contracts in
- * `contracts.ts` and no adapter here, because F3 and F6 depend on access K5 does not yet hold.
+ * `contracts.ts` and no adapter here, because F3 and F6 depend on access Lume does not yet hold.
  */
 const factories: Partial<Record<SourceKind, (transport: Transport) => JudicialConnector>> = {
   djen: createDjenConnector,

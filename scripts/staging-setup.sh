@@ -193,7 +193,7 @@ CF_ACCOUNT="bf552f67bcf46921dbe4137ee0ff8980"
 R2_BUCKET_NAME="k5-vault-staging"
 VECTORIZE_INDEX_NAME="k5-knowledge-staging"
 
-banner "K5 staging: Cloudflare R2 + Vectorize + Neon Postgres"
+banner "Lume staging: Cloudflare R2 + Vectorize + Neon Postgres"
 
 # ── 1 ─────────────────────────────────────────────────────────────────────
 stage "Cloudflare: enable R2"

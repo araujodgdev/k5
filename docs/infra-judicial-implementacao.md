@@ -100,7 +100,7 @@ Duas superfícies consomem as mesmas rotas de capacidade, sem acesso próprio ao
 
 | Tela | Onde | O que ela recusa a fazer |
 | --- | --- | --- |
-| Vincular processo | Painel "Processos" na raiz de um caso do Cofre ([`judicial-case-links.tsx`](../apps/web/src/components/judicial-case-links.tsx)) | Confundir a cobertura declarada pela fonte com o que o K5 coletou; concluir que o processo não existe a partir de uma resposta vazia; confirmar um vínculo sem uma pessoa. |
+| Vincular processo | Painel "Processos" na raiz de um caso do Cofre ([`judicial-case-links.tsx`](../apps/web/src/components/judicial-case-links.tsx)) | Confundir a cobertura declarada pela fonte com o que o Lume coletou; concluir que o processo não existe a partir de uma resposta vazia; confirmar um vínculo sem uma pessoa. |
 | Caixa de publicações e mudanças | Central de comando ([`judicial-inbox.tsx`](../apps/web/src/components/judicial-inbox.tsx), rota [`/app/command-center`](../apps/web/src/app/app/command-center/page.tsx)) | Achatar publicação nova, achado histórico de varredura, correção da fonte e falha de atualização em uma só palavra; apresentar um alerta como substituto da intimação oficial. |
 
 Estados cobertos nas duas: carregando, sem vínculo, sem resultado sob os filtros, múltiplos

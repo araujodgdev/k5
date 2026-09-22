@@ -1,4 +1,4 @@
-# Plano de implementação da infraestrutura de dados judiciais do K5
+# Plano de implementação da infraestrutura de dados judiciais do Lume
 
 Data: 18/09/2026. Status: proposta executável. Esta entrega autoriza o planejamento, não contrata fornecedores, solicita credenciais, contata tribunais ou inicia coleta de processos.
 
@@ -40,9 +40,9 @@ Não modificar arquivos de outras tarefas durante este planejamento. Durante a i
 
 ## 3. Fontes, utilidade e limitações
 
-Os endereços e evidências específicas ficam no [catálogo de fontes](fontes-infra-judicial.md). As linhas abaixo definem a estratégia do K5, não garantias de acesso.
+Os endereços e evidências específicas ficam no [catálogo de fontes](fontes-infra-judicial.md). As linhas abaixo definem a estratégia do Lume, não garantias de acesso.
 
-| Fonte | Dados úteis | Utilidade no K5 | Conexão a investigar | Limite essencial |
+| Fonte | Dados úteis | Utilidade no Lume | Conexão a investigar | Limite essencial |
 | --- | --- | --- | --- | --- |
 | DJEN | Publicações, texto da comunicação e referências/certidões quando disponíveis | Caixa de publicações, vínculo por número CNJ, evidência de publicação | OpenAPI, consulta pública, cadernos e paginação | Não é o conjunto completo de movimentos ou autos. Validar cobertura por tribunal e período. |
 | Diários próprios dos tribunais | Acervo de publicações, inclusive períodos anteriores à adesão ao DJEN | Histórico e preenchimento de lacunas documentadas | API, cadernos PDF/HTML e arquivo oficial | Não presumir que o diário antigo continua sendo a fonte corrente. |
@@ -89,7 +89,7 @@ O [registro nacional](registro-cobertura-judicial.md) contém a lista inicial po
 2. **Encontrar a origem oficial.** Partir do diretório do CNJ e do portal do próprio órgão. Pesquisar no domínio oficial: `API`, `webservice`, `MNI`, `WSDL`, `integração`, `dados abertos`, `consulta processual`, `jurisprudência` e `diário`. Guardar URLs, data e responsável pela investigação.
 3. **Mapear instalações.** Identificar sistemas atuais e legados, primeiro/segundo grau, turmas, seções judiciárias, datas de migração e cobertura histórica. Não inferir sistema pelo nome do tribunal ou pelo padrão da URL.
 4. **Localizar contrato técnico.** Obter OpenAPI, WSDL/XSD, manual ou especificação de exportação. Registrar versão, endpoint de homologação/produção, métodos, filtros, paginação, campos, anexos e efeitos de cada operação. Endpoint observado no navegador fica como não documentado até esclarecimento.
-5. **Determinar acesso.** Público, chave pública, conta institucional, credencial de destinatário ou atuação autorizada de advogado. Confirmar elegibilidade do K5, representação do escritório, expiração, rotação e limites. Nunca reutilizar credenciais pessoais entre clientes.
+5. **Determinar acesso.** Público, chave pública, conta institucional, credencial de destinatário ou atuação autorizada de advogado. Confirmar elegibilidade do Lume, representação do escritório, expiração, rotação e limites. Nunca reutilizar credenciais pessoais entre clientes.
 6. **Determinar uso permitido.** Registrar condições para armazenamento, reprodução, uso comercial, envio a modelos de IA, redistribuição, retenção e exclusão. Se o documento não responder, abrir uma pergunta concreta ao canal oficial; silêncio não é autorização. Não enviar documentos de clientes no contato inicial.
 7. **Contatar quando necessário.** Preparar solicitação à TI/integrações; ouvidoria/SIC para localizar a documentação quando não houver canal técnico. O envio externo será uma ação específica autorizada pelo usuário, não parte automática deste plano.
 8. **Fazer spike limitado.** Com acesso permitido, consultar amostras autorizadas em homologação e depois produção, sem coleta em massa. Testar um registro conhecido, um ausente, paginação, indisponibilidade, restrição e documento corrigido. Não acessar o teor de comunicações com possível ciência durante descoberta genérica.
@@ -99,13 +99,13 @@ O [registro nacional](registro-cobertura-judicial.md) contém a lista inicial po
 
 ### 4.3 Ficha de fonte
 
-Cada instalação terá uma ficha versionada com: ID; órgão/grau/sistema/período; finalidade; portal e canal oficial; proprietário técnico K5; documentação e data de revisão; ambientes e hosts autorizados; versão do contrato; operações e efeitos; autenticação/escopo; condição de uso e evidência; campos; identificadores; cursores; limite publicado e orçamento interno; atualização observada; tamanho máximo de resposta; anexos; retenção; fixtures; monitoramento; custo; dependências e critérios de suspensão.
+Cada instalação terá uma ficha versionada com: ID; órgão/grau/sistema/período; finalidade; portal e canal oficial; proprietário técnico Lume; documentação e data de revisão; ambientes e hosts autorizados; versão do contrato; operações e efeitos; autenticação/escopo; condição de uso e evidência; campos; identificadores; cursores; limite publicado e orçamento interno; atualização observada; tamanho máximo de resposta; anexos; retenção; fixtures; monitoramento; custo; dependências e critérios de suspensão.
 
 Para cada permissão usar `permitido`, `restrito`, `proibido` ou `não esclarecido`, separadamente para consulta, cache, documentos, redistribuição e IA. Não reduzir todas as permissões a um booleano.
 
 Modelo de solicitação a preparar, sem envio nesta entrega:
 
-> Desenvolvemos o K5, software comercial para escritórios de advocacia. Precisamos consultar [dados] de [instalação/grau], para processos vinculados por clientes autorizados, com volume inicial estimado de [volume]. Existe API, MNI ou exportação oficial? Solicitamos documentação, procedimento de habilitação, ambiente de homologação, limites, cobertura e condições para armazenar os dados e utilizá-los em análises por IA. Alguma consulta ou acesso a documentos produz ciência ou outro efeito processual? Há condições específicas para fornecedores de software que operam em nome do escritório?
+> Desenvolvemos o Lume, software comercial para escritórios de advocacia. Precisamos consultar [dados] de [instalação/grau], para processos vinculados por clientes autorizados, com volume inicial estimado de [volume]. Existe API, MNI ou exportação oficial? Solicitamos documentação, procedimento de habilitação, ambiente de homologação, limites, cobertura e condições para armazenar os dados e utilizá-los em análises por IA. Alguma consulta ou acesso a documentos produz ciência ou outro efeito processual? Há condições específicas para fornecedores de software que operam em nome do escritório?
 
 ### 4.4 Receitas por tipo de origem
 
@@ -124,7 +124,7 @@ Modelo de solicitação a preparar, sem envio nesta entrega:
 
 ```mermaid
 flowchart LR
-    UI[UI e agentes K5] --> APP[Serviços autenticados]
+    UI[UI e agentes Lume] --> APP[Serviços autenticados]
     APP --> DB[(Banco de negócio)]
     APP --> JOB[Fila durável e outbox]
     SCH[Agendador de assinaturas] --> JOB
@@ -142,7 +142,7 @@ flowchart LR
 
 Piloto local: Next.js e worker Node existentes, SQLite, armazenamento local e conectores com fixtures. Piloto externo de baixo volume: uma instância de escrita bem definida e armazenamento durável, com limites explícitos; não escalar SQLite com várias réplicas independentes.
 
-Produção: PostgreSQL para negócio, jobs e outbox; armazenamento de objetos compatível com a interface existente; processos separados para web, coleta, parsing/OCR e indexação. A migração do banco inteiro do K5 é uma entrega explícita, com adaptação das queries síncronas e FTS5, Better Auth, transações e testes de isolamento. Não trocar somente a URL do banco nem considerar o índice vetorial como migração concluída. Não introduzir Redis/Kafka no primeiro incremento: medir antes de adicionar outra infraestrutura.
+Produção: PostgreSQL para negócio, jobs e outbox; armazenamento de objetos compatível com a interface existente; processos separados para web, coleta, parsing/OCR e indexação. A migração do banco inteiro do Lume é uma entrega explícita, com adaptação das queries síncronas e FTS5, Better Auth, transações e testes de isolamento. Não trocar somente a URL do banco nem considerar o índice vetorial como migração concluída. Não introduzir Redis/Kafka no primeiro incremento: medir antes de adicionar outra infraestrutura.
 
 Usar o backend de objetos já escolhido pelo projeto, após verificar sua configuração e limites. A seleção de nuvem e região continua pendente; não há provisionamento ou compra nesta entrega. Antes da implantação, ler os guias locais do Next.js e as instruções do provedor escolhido.
 
@@ -180,7 +180,7 @@ Todas as tabelas de negócio e seus índices de autorização carregam `office_i
 | `judicial_alert` e outbox | Evento observado, destinatário autorizado e recibo de entrega idempotente |
 | `judicial_access_audit` | Quem consultou/importou/selecionou evidência, finalidade e IDs; sem conteúdo sensível ou segredo nos logs |
 
-Guardar separadamente: data do fato/movimento, disponibilização, publicação, atualização declarada pela origem, consulta K5 e ingestão K5. Manter fuso/precisão original; não inventar hora para datas sem horário.
+Guardar separadamente: data do fato/movimento, disponibilização, publicação, atualização declarada pela origem, consulta Lume e ingestão Lume. Manter fuso/precisão original; não inventar hora para datas sem horário.
 
 Validar dígitos e formato CNJ, mas preservar números legados e identidades nativas. O número CNJ não deve ser a única chave de uma instância processual. Separar relações de recurso, incidente, origem e migração de sistemas; vincular automaticamente apenas quando houver identificador confiável, caso contrário solicitar revisão.
 
@@ -205,7 +205,7 @@ Backfill separado da fila de atualização, com janela inicial configurável, pr
 
 ## 8. Segurança, acesso e operações com efeito
 
-Reutilizar o modelo de sessão, papéis e cifragem do K5; acrescentar credenciais judiciais como domínio separado de conexões de IA. Segredos e certificados nunca aparecem em ferramentas, prompts, WebMCP ou respostas de leitura. Usar formulário seguro, referência temporária e armazenamento cifrado; definir rotação, expiração e revogação. Preferir credenciais institucionais/delegadas quando a fonte oferecer; não pressupor que senha individual do advogado autoriza operação por terceiros.
+Reutilizar o modelo de sessão, papéis e cifragem do Lume; acrescentar credenciais judiciais como domínio separado de conexões de IA. Segredos e certificados nunca aparecem em ferramentas, prompts, WebMCP ou respostas de leitura. Usar formulário seguro, referência temporária e armazenamento cifrado; definir rotação, expiração e revogação. Preferir credenciais institucionais/delegadas quando a fonte oferecer; não pressupor que senha individual do advogado autoriza operação por terceiros.
 
 Tratar URLs recebidas de fontes e anexos como não confiáveis: hosts aprovados, validação de redirects/DNS, bloqueio de rede interna, limites de download e MIME. Sanitizar HTML; verificar malware, arquivos compactados e PDFs antes de extração; executar parsers em processos com recursos limitados. XML/SOAP deve desabilitar entidades externas. Conteúdo coletado não concede instruções ao agente.
 
@@ -225,7 +225,7 @@ Adicionar “Vincular processo”, escolha de fonte/registro, detalhes de cobert
 
 ### Central de comando
 
-Caixa de publicações e mudanças observadas, com filtros por caso e fonte. Distinguir novo evento, evento histórico recém-coletado, correção e falha de atualização. O primeiro canal é interno ao K5; e-mail/push externos ficam para etapa de preferência e consentimento própria. Alertas não serão apresentados como substitutos de intimações oficiais.
+Caixa de publicações e mudanças observadas, com filtros por caso e fonte. Distinguir novo evento, evento histórico recém-coletado, correção e falha de atualização. O primeiro canal é interno ao Lume; e-mail/push externos ficam para etapa de preferência e consentimento própria. Alertas não serão apresentados como substitutos de intimações oficiais.
 
 ### Pesquisa
 
@@ -306,7 +306,7 @@ Na implementação, rodar da raiz `pnpm lint`, `pnpm typecheck` e `pnpm test`; `
 
 Painel por instalação: última consulta bem-sucedida, watermark, atraso da fila, defasagem observada da fonte, 429/403, schema rejeitado, percentual de falhas, cobertura por operação, documentos importados, custo e versão do conector. Ausência inesperada de dados deve ser detectada, sem equiparar automaticamente “nenhum resultado” a incidente.
 
-SLO interno proposto: publicar item dentro de 15 minutos após sua ingestão íntegra no K5, em 95% dos casos do piloto. Medir separadamente demora para buscar e atraso da própria fonte. RPO inicial proposto de 24 horas e RTO de quatro horas para o piloto; decidir metas definitivas por criticidade antes de vender o serviço. Não apresentar essas metas como disponibilidade do tribunal.
+SLO interno proposto: publicar item dentro de 15 minutos após sua ingestão íntegra no Lume, em 95% dos casos do piloto. Medir separadamente demora para buscar e atraso da própria fonte. RPO inicial proposto de 24 horas e RTO de quatro horas para o piloto; decidir metas definitivas por criticidade antes de vender o serviço. Não apresentar essas metas como disponibilidade do tribunal.
 
 Fórmulas de planejamento:
 
@@ -324,13 +324,13 @@ Runbooks obrigatórios: autenticação expirada, alteração de schema, bloqueio
 1. Dias 1–2: escolher escritórios e tribunal piloto; abrir fichas do registro; definir utilidade e amostra; conferir termos e documentação vigentes de DJEN e tribunal.
 2. Dias 3–4: localizar especificações/credenciais e preparar pedidos de acesso; elaborar contratos, entidades e orçamento; testar somente operações já autorizadas e sem efeito externo.
 3. Dias 5–6: produzir fixtures sanitizadas e relatório de cobertura inicial; implementar fila e proveniência usando fixtures; registrar o que ainda depende de terceiros.
-4. Dias 7–8: primeiro caminho vertical de publicação até evidência no K5; verificar deduplicação e isolamento; sem depender de IA para normalizar.
+4. Dias 7–8: primeiro caminho vertical de publicação até evidência no Lume; verificar deduplicação e isolamento; sem depender de IA para normalizar.
 5. Dias 9–10: demonstrar resultado com dados permitidos ou explicitamente sintéticos, revisar lacunas, definir cronograma do conector processual e recalibrar F1–F5.
 
 Decisões que continuam abertas: tribunais e volume prioritários; titularidade das conexões; condições de IA/retenção por fonte; provedor/região de infraestrutura; orçamento; necessidade de descoberta por pessoa/OAB e eventual Domicílio. Nenhuma impede terminar o desenho ou executar testes sintéticos; cada uma bloqueia apenas o trabalho dependente.
 
 ## 15. Entrega documental e limites da pesquisa
 
-O plano foi confrontado com arquivos reais do K5 e documentação oficial. Especificações e páginas encontradas são pontos de entrada, não evidência de conexão funcional. Alguns portais CNJ retornaram 403 na leitura direta; quando necessário, a pesquisa identifica uso de trechos indexados de fonte oficial. A validação de endpoints de produção, credenciais, cobertura, licenças de cada conjunto e amostras reais faz parte de F0 e dos spikes.
+O plano foi confrontado com arquivos reais do Lume e documentação oficial. Especificações e páginas encontradas são pontos de entrada, não evidência de conexão funcional. Alguns portais CNJ retornaram 403 na leitura direta; quando necessário, a pesquisa identifica uso de trechos indexados de fonte oficial. A validação de endpoints de produção, credenciais, cobertura, licenças de cada conjunto e amostras reais faz parte de F0 e dos spikes.
 
 Esta entrega não executa lint, testes ou build de aplicação, pois altera apenas documentação. A verificação documental cobre links locais, consistência do inventário, Markdown e separação entre comportamento existente, fato documentado e proposta.

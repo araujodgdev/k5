@@ -511,7 +511,7 @@ test("evidence: an opened publication carries its origin and is labelled untrust
 
   assert.equal(opened.untrustedContent, true);
   assert.notEqual(opened.snapshotId, "", "toda publicação resolve para o original preservado");
-  assert.notEqual(opened.publication.collectedAt, null, "quando o K5 consultou é um campo próprio");
+  assert.notEqual(opened.publication.collectedAt, null, "quando o Lume consultou é um campo próprio");
 
   // The injection-shaped text in the fixture is returned as data, with nothing acting on it.
   const injected = list.publications.find((item) => item.madeAvailableOn === "2026-09-10");

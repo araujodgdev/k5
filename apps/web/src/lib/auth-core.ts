@@ -12,12 +12,12 @@ export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
 
 /**
  * Better Auth owns its own tables and reaches them through `store`, while the office provisioning
- * hook writes K5's tables through `db`. They are the same database; the two handles exist because
- * Better Auth needs a backend it recognises and K5 needs the async seam in `db/types.ts`.
+ * hook writes Lume's tables through `db`. They are the same database; the two handles exist because
+ * Better Auth needs a backend it recognises and Lume needs the async seam in `db/types.ts`.
  */
 export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[] }) {
   return betterAuth({
-    appName: "K5",
+    appName: "Lume",
     database: store,
     secret: settings.secret,
     baseURL: settings.baseURL,

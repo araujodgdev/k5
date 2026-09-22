@@ -91,7 +91,7 @@ export function sourceDay(date: SourceDate | null): string | null {
   return date ? date.value.slice(0, 10) : null;
 }
 
-/** The instant K5 acted, always UTC and always at second precision. */
+/** The instant Lume acted, always UTC and always at second precision. */
 export function nowIso(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 }

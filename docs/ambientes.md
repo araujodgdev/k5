@@ -1,6 +1,6 @@
-# Ambientes do K5
+# Ambientes do Lume
 
-Três formas de rodar o K5: local direto, local em Docker e staging na Cloudflare. As três usam o
+Três formas de rodar o Lume: local direto, local em Docker e staging na Cloudflare. As três usam o
 mesmo código de aplicação; o que muda é para onde apontam os dois adaptadores de infraestrutura.
 
 ## Os dois adaptadores

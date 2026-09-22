@@ -2,7 +2,7 @@
  * Which browser origins may perform a write.
  *
  * `BETTER_AUTH_TRUSTED_ORIGINS` is the same list Better Auth is given, and Better Auth accepts a
- * wildcard host (`https://*.trycloudflare.com`, the documented dev-tunnel default). K5's own CSRF
+ * wildcard host (`https://*.trycloudflare.com`, the documented dev-tunnel default). Lume's own CSRF
  * checks compared the header to that string literally, so on a tunnel every write was refused
  * while signing in worked — the two checks have to read the configuration the same way.
  *

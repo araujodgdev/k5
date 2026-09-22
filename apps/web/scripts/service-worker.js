@@ -41,8 +41,8 @@ self.addEventListener("push", (event) => {
     if (!payload || payload.version !== 1 || typeof payload.id !== "string" || !/^[A-Za-z0-9-]{8,128}$/.test(payload.id)) return;
     if (typeof payload.expiresAt === "string" && Date.parse(payload.expiresAt) <= Date.now()) return;
     const tag = typeof payload.tag === "string" && /^[A-Za-z0-9_-]{1,32}$/.test(payload.tag) ? payload.tag : `k5-${payload.id.slice(0, 24)}`;
-    await self.registration.showNotification("K5", {
-      body: "Você tem uma atualização no K5.",
+    await self.registration.showNotification("Lume", {
+      body: "Você tem uma atualização no Lume.",
       tag,
       renotify: false,
       icon: "/icons/icon-192.png",

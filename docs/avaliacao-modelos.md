@@ -74,7 +74,7 @@ A migração `0015_feedback_dataset.sql` adiciona consentimento opcional (desmar
 por padrão), versão da rubrica e possível exposição prévia. Votos antigos não
 recebem consentimento retroativo. Participação em outra rodada ou acesso de
 administrador da plataforma marca possível exposição; isso não detecta conhecimento
-obtido fora do K5. O consentimento é registrado com o voto e permanece imutável.
+obtido fora do Lume. O consentimento é registrado com o voto e permanece imutável.
 
 `/api/platform/feedback?format=dataset` exporta `k5.feedback-dataset.v1`: tarefa,
 ZIP das fontes, arquivos originais, hashes, métricas, parâmetros da execução e

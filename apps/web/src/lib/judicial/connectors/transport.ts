@@ -249,7 +249,7 @@ function executeHttpsRequest(
       headers: {
         host: url.host,
         accept: 'application/json, application/xml;q=0.9, text/plain;q=0.8',
-        'user-agent': 'K5-Judicial/0.1 (+contato: suporte@k5.app)',
+        'user-agent': 'Lume-Judicial/0.1 (+contato: suporte@k5.app)',
         ...options.headers,
       },
       servername: isIpHost ? undefined : rawHostname,

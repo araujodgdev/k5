@@ -245,8 +245,8 @@ test("PWA: push shows only generic copy, notifies tabs, and opens the guarded ro
   const id = "018f52e1-9a6d-7c31-a123-123456789abc";
   await sw.dispatch("push", { data: { json: () => ({ version: 1, id, tag: "agenda-window", expiresAt: "2099-01-01T00:00:00.000Z" }) } });
   assert.equal(sw.notifications.length, 1);
-  assert.equal(sw.notifications[0].title, "K5");
-  assert.equal(sw.notifications[0].options.body, "Você tem uma atualização no K5.");
+  assert.equal(sw.notifications[0].title, "Lume");
+  assert.equal(sw.notifications[0].options.body, "Você tem uma atualização no Lume.");
   assert.deepEqual(JSON.parse(JSON.stringify(messages)), [{ type: "K5_NOTIFICATION", id }]);
 
   let closed = false;

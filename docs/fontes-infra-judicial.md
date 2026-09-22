@@ -1,4 +1,4 @@
-# Fontes oficiais para a infraestrutura judicial do K5
+# Fontes oficiais para a infraestrutura judicial do Lume
 
 Pesquisa em 18/09/2026. Este documento fundamenta a descoberta de conectores; não certifica cobertura nacional nem autorização comercial de todas as fontes. **Documentado** significa declarado pela fonte oficial; **testado** significa resposta observada. Consultas autenticadas, contatos com tribunais e downloads de autos não foram realizados.
 
@@ -63,7 +63,7 @@ Pesquisa em 18/09/2026. Este documento fundamenta a descoberta de conectores; n�
 
 **eproc:** o [TJAC documenta SOAP público](https://www.tjac.jus.br/servicos/consulta-web-service/documentacao-api/) para `listarTabelas`, `consultarDados` e `listarEstrutura`, com WSDL `https://eproc1gws.tjac.jus.br/eproc/wsdl.php?srv=consultarTabela`. Serve para tabelas de domínio; não comprova acesso a autos. Buscar no tribunal-alvo a integração processual específica, normas e elegibilidade; manter versões por grau e sistema.
 
-**e-SAJ:** a [integração fiscal TJSP](https://www.tjsp.jus.br/ProcessoDigitalExecFiscalProc) exige convênio para procuradorias/autarquias. É evidência de serviço institucional, não de disponibilidade ao K5. Confirmar separadamente consulta pública, eventual serviço autorizado e migração para outro sistema.
+**e-SAJ:** a [integração fiscal TJSP](https://www.tjsp.jus.br/ProcessoDigitalExecFiscalProc) exige convênio para procuradorias/autarquias. É evidência de serviço institucional, não de disponibilidade ao Lume. Confirmar separadamente consulta pública, eventual serviço autorizado e migração para outro sistema.
 
 **Projudi:** usar TJAM como primeira investigação documentada. Não copiar seus endpoints ou condições para TJPR/TJGO: localizar seus próprios contratos e regras.
 

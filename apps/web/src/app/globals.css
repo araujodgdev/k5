@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
-   K5 theme. The shadcn tokens carry the K5 palette, so every ui/* component
+   Lume theme. The shadcn tokens carry the Lume palette, so every ui/* component
    inherits it. Rules and rationale live in apps/web/DESIGN.md.
    --------------------------------------------------------------------------- */
 :root {

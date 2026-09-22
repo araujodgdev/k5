@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "K5 — Seu escritório",
-    short_name: "K5",
+    name: "Lume — Seu escritório",
+    short_name: "Lume",
     description: "O espaço de trabalho do seu escritório.",
     lang: "pt-BR",
     start_url: "/app",

@@ -358,7 +358,7 @@ export async function findPublication(officeId: string, publicationId: string): 
   return { ...toSummary(row, 400), body: row.body };
 }
 
-/** Unread items for the internal inbox, newest first. Delivery outside K5 is a separate step. */
+/** Unread items for the internal inbox, newest first. Delivery outside Lume is a separate step. */
 export async function listAlerts(
   officeId: string,
   options: { caseId?: string; installationId?: string; unreadOnly?: boolean; limit?: number } = {},

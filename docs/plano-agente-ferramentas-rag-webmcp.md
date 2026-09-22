@@ -54,7 +54,7 @@ O que continua pendente e **não** deve ser lido como concluído:
 
 ## 1. Resultado esperado
 
-O agente K5 deve conseguir executar as operações que o usuário pode executar no sistema: encontrar documentos, organizar materiais, iniciar análises, acompanhar tarefas, editar resultados e exportar arquivos. O Cofre será a entrada e a fonte de verdade documental do RAG. A aplicação também disponibilizará essas capacidades a agentes de navegador por WebMCP.
+O agente Lume deve conseguir executar as operações que o usuário pode executar no sistema: encontrar documentos, organizar materiais, iniciar análises, acompanhar tarefas, editar resultados e exportar arquivos. O Cofre será a entrada e a fonte de verdade documental do RAG. A aplicação também disponibilizará essas capacidades a agentes de navegador por WebMCP.
 
 A proposta é um catálogo de capacidades com três consumidores: interface convencional, ferramentas Mastra no servidor e ferramentas WebMCP no navegador. As regras de negócio e autorização serão compartilhadas. A cobertura será por operação de produto, não por clique ou elemento visual.
 
@@ -85,10 +85,10 @@ Antes de publicar resultados como ferramentas, corrigir a fronteira de DTOs: a l
 
 ```mermaid
 flowchart TD
-    UI[Interface K5] --> HTTP[Rotas autenticadas Next.js]
+    UI[Interface Lume] --> HTTP[Rotas autenticadas Next.js]
     Browser[Agente do navegador] --> WebMCP[Adaptador WebMCP no cliente]
     WebMCP --> HTTP
-    Chat[Chat K5] --> Mastra[Agente Mastra no servidor]
+    Chat[Chat Lume] --> Mastra[Agente Mastra no servidor]
     Mastra --> Tools[Adaptador de ferramentas Mastra]
     HTTP --> Services[Serviços de aplicação e autorização]
     Tools --> Services
@@ -96,7 +96,7 @@ flowchart TD
     Catalog -.-> Tools
     Catalog -.-> WebMCP
     Services --> SQL[Banco de negócio e auditoria]
-    Services --> Worker[Fila e worker K5]
+    Services --> Worker[Fila e worker Lume]
     Worker --> Vault[Originais, versões e trechos]
     Worker --> Index[Índices lexical e vetorial]
     Services --> Retrieval[Recuperação autorizada]
@@ -108,7 +108,7 @@ Separar os contratos serializáveis dos executores `server-only`. O bundle clien
 
 Extrair regras hoje embutidas nas rotas, sobretudo criação/cancelamento de tarefas e aprovações de citações, para serviços compartilhados. Os serviços recebem contexto confiável criado no servidor. Chamadas do navegador continuam passando pela autenticação e proteção de origem das rotas. Não criar um endpoint que aceite nomes arbitrários de funções para executá-las.
 
-Manter inicialmente o worker e os checkpoints SQL do K5 como responsáveis pela durabilidade. Mastra coordena geração e ferramentas, mas não substitui automaticamente fila, retries, autorização ou persistência. Ferramentas de tarefas longas retornam `runId`/`jobId` e estado; a execução continua fora da requisição de chat.
+Manter inicialmente o worker e os checkpoints SQL do Lume como responsáveis pela durabilidade. Mastra coordena geração e ferramentas, mas não substitui automaticamente fila, retries, autorização ou persistência. Ferramentas de tarefas longas retornam `runId`/`jobId` e estado; a execução continua fora da requisição de chat.
 
 ## 4. Contrato de capacidade e autorização
 
@@ -131,7 +131,7 @@ Para tarefas duráveis, gravar o ator e uma referência de autorização da exec
 
 Operações comuns, reversíveis e solicitadas pelo usuário, como criar um caso, não precisam de confirmação adicional por padrão. Exclusão, substituição de conteúdo existente e operações administrativas sensíveis exibem o efeito concreto antes de executar. A seleção de autoridades jurídicas continua exigindo manifestação humana explícita.
 
-Persistir propostas/aprovações necessárias em registro K5 vinculado a ator, escritório, operação, argumentos normalizados, versão do recurso, prazo e uso único. O modelo pode solicitar uma aprovação; não pode produzi-la nem concedê-la a si próprio. UI, Mastra e WebMCP devem consumir a mesma decisão. Alterar argumentos ou versão invalida a aprovação anterior.
+Persistir propostas/aprovações necessárias em registro Lume vinculado a ator, escritório, operação, argumentos normalizados, versão do recurso, prazo e uso único. O modelo pode solicitar uma aprovação; não pode produzi-la nem concedê-la a si próprio. UI, Mastra e WebMCP devem consumir a mesma decisão. Alterar argumentos ou versão invalida a aprovação anterior.
 
 Idempotência deve sobreviver a recarregamento, retry do provider e regeneração do chat: identificar a intenção persistida e associá-la à operação e aos argumentos, com unicidade no banco. Apenas usar um `toolCallId` novo a cada tentativa não impede duplicação. Resultado ambíguo depois de timeout deve ser consultado antes de repetir uma escrita.
 
@@ -203,7 +203,7 @@ Critério permanente de entrega: toda operação nova de módulo terá serviço 
 
 Usar `createTool` com schemas de entrada/saída e `execute(inputData, context)`. Vincular as ferramentas ao `Agent`, filtradas por contexto e disponibilidade. A API permite ferramentas dinâmicas e seleção via `activeTools`; a autorização efetiva permanece no executor. Esses pontos foram conferidos nas [docs de ferramentas](https://mastra.ai/docs/agents/tools) e nas declarações instaladas de `@mastra/core` 1.67.0.
 
-Usar `RequestContext` para transportar o contexto confiável entre agente, ferramentas e workflows, com `requestContextSchema` para validar sua forma. Isso não autentica o usuário: o contexto nasce da sessão K5 e nunca de um objeto arbitrário recebido no corpo da requisição. Separar os perfis de conversa com ferramentas dos agentes de extração/redação, que continuam com acesso mínimo. [Request context do Mastra](https://mastra.ai/docs/server/request-context).
+Usar `RequestContext` para transportar o contexto confiável entre agente, ferramentas e workflows, com `requestContextSchema` para validar sua forma. Isso não autentica o usuário: o contexto nasce da sessão Lume e nunca de um objeto arbitrário recebido no corpo da requisição. Separar os perfis de conversa com ferramentas dos agentes de extração/redação, que continuam com acesso mínimo. [Request context do Mastra](https://mastra.ai/docs/server/request-context).
 
 Começar registrando o catálogo operacional autorizado completo se couber no orçamento de contexto. Com crescimento, selecionar conjuntos por módulo e manter descoberta de capacidades que permita chegar a todas as operações autorizadas. Seleção deve afetar custo e relevância, sem tornar funcionalidades permanentemente inacessíveis.
 
@@ -213,25 +213,25 @@ Validar tool calling, schemas, streaming e sequência chamada/resultado nos mode
 
 ### 6.2 Streaming, histórico e interação humana
 
-Adotar o adaptador Mastra/AI SDK compatível com a versão instalada ou uma conversão equivalente verificada. `handleChatStream` suporta `version: 'v7'`, que deve ser explícita para o AI SDK 7 do K5; o padrão documentado é v5. Configurar envio de fontes quando aplicável e resultados documentais próprios, sem assumir que o adaptador gere citações automaticamente. [Referência de handleChatStream](https://mastra.ai/reference/ai-sdk/handle-chat-stream).
+Adotar o adaptador Mastra/AI SDK compatível com a versão instalada ou uma conversão equivalente verificada. `handleChatStream` suporta `version: 'v7'`, que deve ser explícita para o AI SDK 7 do Lume; o padrão documentado é v5. Configurar envio de fontes quando aplicável e resultados documentais próprios, sem assumir que o adaptador gere citações automaticamente. [Referência de handleChatStream](https://mastra.ai/reference/ai-sdk/handle-chat-stream).
 
-Preservar eventos de ferramentas, resultado, fonte, erro e aprovação; a UI atual não pode continuar filtrando tudo para texto. Armazenar o histórico canônico no K5, incluindo IDs de chamadas e estados, sem confiar em resultados de ferramentas reenviados pelo cliente. Antes de reenviar evidências antigas ao modelo, revalidar o acesso e reidratar as fontes; remover do contexto trechos cujo acesso foi revogado ou cuja inclusão não pertence ao escopo atual. Histórico não pode funcionar como desvio da política de recuperação.
+Preservar eventos de ferramentas, resultado, fonte, erro e aprovação; a UI atual não pode continuar filtrando tudo para texto. Armazenar o histórico canônico no Lume, incluindo IDs de chamadas e estados, sem confiar em resultados de ferramentas reenviados pelo cliente. Antes de reenviar evidências antigas ao modelo, revalidar o acesso e reidratar as fontes; remover do contexto trechos cujo acesso foi revogado ou cuja inclusão não pertence ao escopo atual. Histórico não pode funcionar como desvio da política de recuperação.
 
 A rota continuará aceitando apenas campos permitidos, reconstruindo histórico e contexto no servidor. Não espalhar o corpo recebido em opções Mastra: cliente/modelo não escolhem ferramentas administrativas, instruções de sistema, contexto autenticado ou aprovação. Preservar o filtro de fundamentação jurídica durante a migração do streaming; fontes estruturadas não dispensam a política existente.
 
-`requireApproval` e APIs de retomada do Mastra podem fornecer a interação do agente. A decisão persistida é do K5 e deve funcionar também via WebMCP. Para a primeira entrega, uma ferramenta pode devolver uma proposta pendente e encerrar o turno; a aprovação autenticada executa a operação idempotente e um novo turno recebe o resultado. Retomar diretamente um run suspenso Mastra exige antes configurar e testar armazenamento persistente e reconstrução após reinício; um `new Mastra()` por requisição não oferece essa garantia sozinho. A API de suspensão exige encerrar o caminho de execução após suspender, sem continuar efeitos posteriores. [Interação humana no Mastra](https://mastra.ai/docs/agents/human-in-the-loop).
+`requireApproval` e APIs de retomada do Mastra podem fornecer a interação do agente. A decisão persistida é do Lume e deve funcionar também via WebMCP. Para a primeira entrega, uma ferramenta pode devolver uma proposta pendente e encerrar o turno; a aprovação autenticada executa a operação idempotente e um novo turno recebe o resultado. Retomar diretamente um run suspenso Mastra exige antes configurar e testar armazenamento persistente e reconstrução após reinício; um `new Mastra()` por requisição não oferece essa garantia sozinho. A API de suspensão exige encerrar o caminho de execução após suspender, sem continuar efeitos posteriores. [Interação humana no Mastra](https://mastra.ai/docs/agents/human-in-the-loop).
 
 Cancelamento de resposta interrompe o streaming e novas chamadas do agente. Tarefas já aceitas continuam visíveis e só são canceladas pela operação própria. Regenerar a resposta não repete mutações confirmadas nem apaga sua auditoria. Proibir execução paralela de escritas conflitantes e usar versão esperada ao editar artefatos.
 
 ## 7. Cofre como entrada do RAG
 
-As primitivas documentadas pelo Mastra cobrem segmentação, embeddings, armazenamento e recuperação; upload, OCR, controle de acesso, versões e retenção continuam como responsabilidades do K5. A integração proposta usa essas primitivas dentro do pipeline existente. [Visão geral do RAG Mastra](https://mastra.ai/reference/rag/overview).
+As primitivas documentadas pelo Mastra cobrem segmentação, embeddings, armazenamento e recuperação; upload, OCR, controle de acesso, versões e retenção continuam como responsabilidades do Lume. A integração proposta usa essas primitivas dentro do pipeline existente. [Visão geral do RAG Mastra](https://mastra.ai/reference/rag/overview).
 
-| API/primitiva verificada | Uso previsto no K5 |
+| API/primitiva verificada | Uso previsto no Lume |
 | --- | --- |
 | [MDocument](https://mastra.ai/reference/rag/document) | Receber conteúdo já extraído e metadados de origem; não substituir automaticamente leitores de PDF/DOCX/planilha. |
 | [Chunking e embeddings](https://mastra.ai/reference/rag/chunking-and-embedding) | Avaliar segmentação por tokens/estrutura e `embedMany`. Há exemplos com `size` e `maxSize` em páginas diferentes: validar a assinatura da versão escolhida. |
-| [createVectorQueryTool](https://mastra.ai/reference/tools/vector-query-tool) | Pode devolver contexto e fontes; usar internamente somente se preservar os filtros obrigatórios. A ferramenta pública K5 controla escopo e índice. |
+| [createVectorQueryTool](https://mastra.ai/reference/tools/vector-query-tool) | Pode devolver contexto e fontes; usar internamente somente se preservar os filtros obrigatórios. A ferramenta pública Lume controla escopo e índice. |
 | [Filtros de metadados](https://mastra.ai/reference/rag/metadata-filters) | Confirmar no backend escolhido a interseção obrigatória escritório/documentos/geração, inclusive conjunto vazio. |
 | [PgVector](https://mastra.ai/reference/vectors/pg) | Candidato a adaptador de índice com upsert, consulta e remoção; validar infraestrutura e comportamento real antes da escolha final. |
 
@@ -256,7 +256,7 @@ Adicionar por migrações incrementais, sem recriar a base local:
 
 IDs de trecho atuais dependem do conteúdo e não substituem uma versão documental explícita. Backfill cria versão inicial para os documentos existentes, mantendo mapeamento dos IDs já citados. Reindexar nunca pode transformar uma referência antiga em um texto diferente. Não indexar automaticamente minutas geradas como evidência factual: ingresso na biblioteca deve ser uma ação explícita com origem/tipo identificados.
 
-**Direção de infraestrutura:** avaliar PostgreSQL com pgvector como alvo de produção, coerente com a migração já prevista no README. Não exigir migrar todo o banco transacional como primeiro passo: um adaptador de índice pode usar PostgreSQL separado enquanto o K5 local mantém SQLite/FTS5. A escolha final depende de ambiente e teste de filtros, exclusão, backup e latência. Um fornecedor vetorial diferente deve satisfazer o mesmo contrato.
+**Direção de infraestrutura:** avaliar PostgreSQL com pgvector como alvo de produção, coerente com a migração já prevista no README. Não exigir migrar todo o banco transacional como primeiro passo: um adaptador de índice pode usar PostgreSQL separado enquanto o Lume local mantém SQLite/FTS5. A escolha final depende de ambiente e teste de filtros, exclusão, backup e latência. Um fornecedor vetorial diferente deve satisfazer o mesmo contrato.
 
 Adicionar perfil `embedding` separado de `chat`, `extraction` e `drafting`, inclusive esquema, UI administrativa, credenciais, uso e teste de conexão. Não presumir que todo provider/modelo atual suporta embeddings. Modelo e dimensão ficam fixos por geração; consultas usam exatamente o mesmo perfil. Trocar modelo cria nova geração, sem misturar vetores incompatíveis. Reranking é opcional e depende de evidência de ganho, orçamento e provider suportado.
 
@@ -298,7 +298,7 @@ WebMCP expõe ferramentas da página para agentes de navegador. Não equivale a 
 
 A documentação do Chrome informa origin trial a partir do Chrome 149 e flag local `chrome://flags/#enable-webmcp-testing`. Há APIs imperativa e declarativa, descoberta mediante visita à página, exigência de isolamento de origem e Permissions Policy `tools`. Isso não estabelece suporte universal nem compatibilidade com qualquer agente externo. [Documentação oficial do Chrome](https://developer.chrome.com/docs/ai/webmcp).
 
-O draft comunitário de 17/09/2026 não é um padrão W3C. Ele define `document.modelContext`, registro assíncrono e ciclo de vida com `AbortSignal`; exemplos antigos com `navigator.modelContext` não devem ser copiados sem conferir o runtime-alvo. O draft deixa `inputSchema` opcional e partes declarativas ainda incompletas; K5 sempre fornecerá schema explícito e verificará o navegador-alvo. [Especificação WebMCP](https://webmachinelearning.github.io/webmcp/).
+O draft comunitário de 17/09/2026 não é um padrão W3C. Ele define `document.modelContext`, registro assíncrono e ciclo de vida com `AbortSignal`; exemplos antigos com `navigator.modelContext` não devem ser copiados sem conferir o runtime-alvo. O draft deixa `inputSchema` opcional e partes declarativas ainda incompletas; Lume sempre fornecerá schema explícito e verificará o navegador-alvo. [Especificação WebMCP](https://webmachinelearning.github.io/webmcp/).
 
 A orientação imperativa atual do Chrome também usa `document.modelContext`: `registerTool` assíncrono, callback `(input, { signal })` e sinal separado de registro para remover a ferramenta. A documentação descreve mudanças de ciclo de vida no Chrome 153 e futura remoção de argumentos JSON em string no 155; isso reforça o teste por versão, sem presumir o navegador instalado. Planejar argumentos como objetos e distinguir remoção de registro de cancelamento de execução. [API imperativa do Chrome](https://developer.chrome.com/docs/ai/webmcp/imperative-api).
 
@@ -308,7 +308,7 @@ Decisão: integração imperativa, isolada em adaptador experimental, com detec�
 
 Criar componente cliente de registro no shell autenticado. Publicar capacidades gerais autorizadas da aplicação e capacidades específicas de página quando seu contexto estiver carregado. Não limitar a cobertura aos botões visíveis na rota atual: usar identificadores validados e navegação interna para alcançar os demais módulos.
 
-Cada callback valida os argumentos, chama uma rota K5 autenticada e devolve resultado serializável pequeno, com erro de domínio previsível. Após mutação, atualizar/inutilizar os dados da UI e mostrar o resultado. Não usar cliques simulados como executor de uma operação que já tem serviço.
+Cada callback valida os argumentos, chama uma rota Lume autenticada e devolve resultado serializável pequeno, com erro de domínio previsível. Após mutação, atualizar/inutilizar os dados da UI e mostrar o resultado. Não usar cliques simulados como executor de uma operação que já tem serviço.
 
 Recalcular o conjunto ao mudar sessão, papel, rota ou recurso. Remover registros/listeners ao desmontar e no logout; tratar dupla montagem do React e registro tardio após desmontagem. Encaminhar cancelamento ao `fetch`, sem prometer desfazer uma escrita já aceita. Sessão expirada resulta em instrução de login; nunca cadastro automático ou fallback anônimo.
 
@@ -318,7 +318,7 @@ Tarefas demoradas retornam recibo e identificador, com ferramenta de consulta de
 
 Para formulários simples, avaliar API declarativa em etapa posterior, sem registrar a mesma ação duas vezes. Chrome documenta `toolname`, `tooldescription`, envio humano sem `toolautosubmit` e resposta de SPA com `SubmitEvent.agentInvoked`/`respondWith`; validar antes de adotar. [API declarativa do Chrome](https://developer.chrome.com/docs/ai/webmcp/declarative-api).
 
-A primeira entrega não depende da conversão de todos os formulários. Não instalar polyfill como prova de suporte nativo; mocks servem para contrato e testes unitários, não para certificar interoperabilidade. Não depender do antigo `requestUserInteraction` de exemplos iniciais: a interação humana proposta é uma operação da UI K5, verificada no runtime escolhido.
+A primeira entrega não depende da conversão de todos os formulários. Não instalar polyfill como prova de suporte nativo; mocks servem para contrato e testes unitários, não para certificar interoperabilidade. Não depender do antigo `requestUserInteraction` de exemplos iniciais: a interação humana proposta é uma operação da UI Lume, verificada no runtime escolhido.
 
 ## 9. Organização prevista do código
 
@@ -391,13 +391,13 @@ Durante a implementação, executar da raiz `pnpm lint`, `pnpm typecheck` e `pnp
 | Banco/índice de produção | PostgreSQL + pgvector, com adaptador e transição preservando SQLite local | Antes da etapa 3; testar filtros, operação e recuperação. |
 | Embedding | Perfil por escritório com modelo/dimensão fixos por geração | Antes do backfill; não escolher somente pelo provider de chat. |
 | Retenção/exclusão | Bloqueio imediato da busca; política explícita para originais, versões, cópias e auditoria | Antes de habilitar exclusão/substituição. |
-| Armazenamento/runner | Reutilizar worker K5 no desenvolvimento; definir storage durável, backups e concorrência em produção | Antes do uso com acervo real em escala. |
+| Armazenamento/runner | Reutilizar worker Lume no desenvolvimento; definir storage durável, backups e concorrência em produção | Antes do uso com acervo real em escala. |
 | WebMCP | Experimental e opcional, navegador/versão testados, sem dependência para uso normal | Spike da etapa 0 e antes de cada rollout. |
 | Acesso de `reviewer` ao chat | Preservar restrição atual | Só mudar mediante decisão específica de produto/permissões. |
 | Módulos placeholder | Sem ferramentas operacionais até existir contrato funcional | Na especificação de cada módulo; gate de cobertura obrigatório. |
 
 ## 13. Registro desta entrega
 
-Pesquisa e leitura do código realizadas em 17/09/2026. O plano distingue comportamento existente, recomendações do K5 e APIs documentadas. Links externos apontam para documentação viva e devem ser reconferidos no spike antes de implementação.
+Pesquisa e leitura do código realizadas em 17/09/2026. O plano distingue comportamento existente, recomendações do Lume e APIs documentadas. Links externos apontam para documentação viva e devem ser reconferidos no spike antes de implementação.
 
 Validação desta entrega documental: 21 links locais conferidos, inventário confrontado com rotas/serviços, cercas Markdown e espaços finais verificados. A entrega final contém apenas este novo plano; a nota intermediária de pesquisa foi incorporada e removida. Nenhuma alteração de aplicação foi realizada. Lint, testes, build, migrações e testes reais de navegador não foram executados por se tratar de documentação; esses comandos são critérios da implementação futura.

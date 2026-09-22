@@ -51,7 +51,7 @@ const WINDOW = { windowFrom: "2026-09-08", windowTo: "2026-09-12" };
 
 test("connector registry: only implemented kinds resolve, and the rest say so plainly", () => {
   assert.equal(hasConnectorFor("djen"), true);
-  // The plan is explicit that these need access K5 does not hold; claiming a connector exists
+  // The plan is explicit that these need access Lume does not hold; claiming a connector exists
   // would be worse than reporting the gap.
   assert.equal(hasConnectorFor("mni"), false);
   assert.equal(hasConnectorFor("ckan"), false);

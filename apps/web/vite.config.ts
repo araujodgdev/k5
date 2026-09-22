@@ -28,7 +28,7 @@ export default defineConfig({
       { find: /^tesseract\.js(\/.*)?$/, replacement: new URL("./empty-stub.js", import.meta.url).pathname },
       // pkce-challenge declares no "workerd" export condition, so resolution fails outright. It
       // arrives only transitively, through @ai-sdk/mcp and shadcn's MCP SDK; nothing in src/ builds
-      // an MCP client, and K5's WebMCP runs in the browser. The stub throws if that ever changes.
+      // an MCP client, and Lume's WebMCP runs in the browser. The stub throws if that ever changes.
       { find: /^pkce-challenge(\/.*)?$/, replacement: new URL("./empty-stub.js", import.meta.url).pathname },
     ],
   },

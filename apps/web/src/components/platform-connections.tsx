@@ -58,7 +58,7 @@ function ExistingConnection({ officeId, connection }: { officeId: string; connec
     catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível concluir a operação."); }
     finally { setBusy(null); }
   }
-  // Tests use the saved credential with the conversation model K5 uses for this provider.
+  // Tests use the saved credential with the conversation model Lume uses for this provider.
   return <article className="border-t py-7 first:border-t-0">
     <div className="mb-5 flex items-start justify-between gap-4"><div className="min-w-0"><h2 className="break-words font-medium">{connection.name}</h2><p className="mt-1 text-muted-foreground text-xs">{providerNames[connection.provider]} · {connection.keyHint}</p></div><span className="shrink-0 text-muted-foreground text-xs">{connection.enabled ? "Ativa" : "Desativada"}</span></div>
     <Fields draft={draft} setDraft={setDraft} keyHint={connection.keyHint} />
@@ -94,7 +94,7 @@ export function PlatformConnections({ officeId, initialConnections }: { officeId
     finally { setBusy(false); }
   }
   return <div className="mt-8">
-    <p className="text-muted-foreground text-sm">O escritório escolhe o modelo da conversa no próprio chat. O modelo de embedding é definido pelo K5 e acompanha a geração do índice.</p>
+    <p className="text-muted-foreground text-sm">O escritório escolhe o modelo da conversa no próprio chat. O modelo de embedding é definido pelo Lume e acompanha a geração do índice.</p>
     <div className="mt-4 flex items-center justify-between gap-4 border-b pb-4"><p className="text-muted-foreground text-sm">{initialConnections.length === 1 ? "1 conexão cadastrada" : `${initialConnections.length} conexões cadastradas`}</p><Button className={touch} aria-expanded={creating} onClick={() => { setCreating((value) => !value); setError(""); }} variant={creating ? "outline" : "default"}>{creating ? "Cancelar" : "Nova conexão"}</Button></div>
     {creating && <form onSubmit={create} className="border-b py-7"><h2 className="mb-5 font-medium">Nova conexão</h2><Fields draft={draft} setDraft={setDraft} requireKey /><div className="mt-5 flex items-center gap-3"><Button type="submit" className={touch} disabled={busy}>{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" />}Criar conexão</Button>{busy && <span className="text-muted-foreground text-xs" role="status">Criando…</span>}</div>{error && <div className="mt-3"><ErrorText message={error} /></div>}</form>}
     <div>{initialConnections.map((connection) => <ExistingConnection key={`${connection.id}:${connection.updatedAt}`} officeId={officeId} connection={connection} />)}</div>

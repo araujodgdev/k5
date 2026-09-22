@@ -28,7 +28,7 @@ O repositório Harvey LAB publica licença MIT, com preservação de avisos. Reg
 
 ## Campos mínimos recomendados
 
-Campos abaixo são proposta para K5, não descrição garantida do schema atual:
+Campos abaixo são proposta para Lume, não descrição garantida do schema atual:
 
 | Entidade | Conteúdo |
 | --- | --- |
@@ -50,6 +50,6 @@ Com três candidatos, selecionar A como melhor sustenta A>B e A>C apenas se os t
 4. **Privacidade:** excluir credenciais, restringir informações do escritório e aplicar a política de autorização, retenção e exclusão também aos exports. Pseudonimização não torna automaticamente os dados anônimos.
 5. **Separação:** agrupar tarefa, versões e documentos relacionados antes de dividir treino/validação/teste. Não dividir aleatoriamente votos do mesmo exemplo entre splits.
 
-A recomendação de split aplica a orientação de validação por grupos: grupos presentes na validação devem estar ausentes do treino. Para K5, propomos grupos por tarefa e família documental, com deduplicação de variantes e verificação de sobreposição. [Validação por grupos do scikit-learn](https://scikit-learn.org/stable/modules/cross_validation.html#cross-validation-iterators-for-grouped-data).
+A recomendação de split aplica a orientação de validação por grupos: grupos presentes na validação devem estar ausentes do treino. Para Lume, propomos grupos por tarefa e família documental, com deduplicação de variantes e verificação de sobreposição. [Validação por grupos do scikit-learn](https://scikit-learn.org/stable/modules/cross_validation.html#cross-validation-iterators-for-grouped-data).
 
 Um piloto com uma tarefa permite validar o fluxo de coleta; não oferece grupos independentes suficientes para medir generalização. Para treinar, ampliar tarefas e fontes, reservar casos inéditos e separar o benchmark de avaliação final. Milhares de votos sobre os mesmos três artefatos aumentam evidência de preferência local, não a diversidade de tarefas.

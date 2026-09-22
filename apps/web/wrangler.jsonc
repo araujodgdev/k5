@@ -38,7 +38,7 @@
     }
   ],
 
-  // No cache binding on purpose. K5 serves per-office authenticated data, and an edge cache in
+  // No cache binding on purpose. Lume serves per-office authenticated data, and an edge cache in
   // front of a dynamic multi-tenant response is how one office ends up reading another's.
   "observability": {
     "enabled": true,

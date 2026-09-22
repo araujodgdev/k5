@@ -72,12 +72,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   return (
     <main className="grid min-h-dvh grid-rows-[auto_1fr] bg-canvas px-5 py-4 md:px-8 md:py-6">
       <header className="flex min-h-11 flex-wrap items-center justify-between gap-2 pt-[env(safe-area-inset-top)]">
-        <Link href="/" aria-label="K5"><Logo height={18} /></Link>
+        <Link href="/" aria-label="Lume"><Logo height={18} /></Link>
         <div className="flex items-center gap-1"><InstallApp /><ThemeSwitch /></div>
       </header>
       <section className="w-full max-w-[360px] place-self-center py-8 md:py-12" aria-labelledby="auth-title">
         <Reveal>
-          <h1 id="auth-title" className="display mb-7 text-[32px] md:mb-8 md:text-4xl" data-reveal>{isSignUp ? "Crie sua conta" : "Entre no K5"}</h1>
+          <h1 id="auth-title" className="display mb-7 text-[32px] md:mb-8 md:text-4xl" data-reveal>{isSignUp ? "Crie sua conta" : "Entre no Lume"}</h1>
           <form onSubmit={submit} noValidate aria-busy={pending} data-reveal>
             <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
               {isSignUp && <>

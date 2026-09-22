@@ -1,5 +1,5 @@
 /**
- * Live Proof Recording and End-to-End Functional Validation Script for K5.
+ * Live Proof Recording and End-to-End Functional Validation Script for Lume.
  *
  * Requirements:
  * 1. Chromium 1280x720 HD video recording (minimum duration >= 20.0s).
@@ -52,7 +52,7 @@ async function sleep(ms: number) {
 
 async function main() {
   console.log('===============================================================');
-  console.log('K5 LIVE PROOF RECORDING & FUNCTIONAL VALIDATION');
+  console.log('Lume LIVE PROOF RECORDING & FUNCTIONAL VALIDATION');
   console.log('Target Base URL:', BASE_URL);
   console.log('Account:', USER_EMAIL);
   console.log('===============================================================');
@@ -207,7 +207,7 @@ async function main() {
     await sleep(1500);
 
     // Type prompt into chat composer
-    const composerInput = page.locator('textarea[placeholder="Pergunte ao K5"], textarea[aria-label="Pergunte ao K5"]');
+    const composerInput = page.locator('textarea[placeholder="Pergunte ao Lume"], textarea[aria-label="Pergunte ao Lume"]');
     await composerInput.waitFor({ state: 'visible', timeout: 10000 });
     await composerInput.fill('Qual é a multa rescisória estipulada no contrato?');
     await sleep(1500);
