@@ -364,7 +364,9 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
         return {
           body: {
             conversationId,
+            caseId: context.caseId,
             documentIds: context.documentIds,
+            researchReferenceIds: context.researchReferenceIds,
             ...(audio ? { attachments: [audio] } : {}),
             message: history.at(-1),
             trigger,
@@ -373,7 +375,7 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
         };
       },
     }),
-    [audio, onAudioSent, context.documentIds, conversationId],
+    [audio, onAudioSent, context.caseId, context.documentIds, context.researchReferenceIds, conversationId],
   );
   // K5 owns the history and thread IDs. The direct adapter avoids a second cloud thread list.
   const chat = useChat({
@@ -397,7 +399,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   const [loadedConversationId, setLoadedConversationId] = useState<string | null>(initialData?.conversation?.id ?? null);
   const hydratedConversation = useRef(initialData?.conversation?.id);
   const [error, setError] = useState("");
-  const [context, setContext] = useState<AgentContext>({ caseId: null, documentIds: [] });
+  const [context, setContext] = useState<AgentContext>({ caseId: null, documentIds: [], researchReferenceIds: [] });
   const [contextOpen, setContextOpen] = useState(false);
   const listOpen = useSyncExternalStore(subscribeListOpen, readListOpen, serverListOpen);
   const [uploading, setUploading] = useState(false);
@@ -532,7 +534,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
     }
   }
 
-  const selectedCount = context.documentIds.length;
+  const selectedCount = context.documentIds.length + context.researchReferenceIds.length;
 
   const composerTools: ComposerToolsProps = {
     modalities,

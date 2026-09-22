@@ -125,6 +125,14 @@ export async function setScopeSources(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_context_set_sources'>
 ): Promise<CapabilityOutput<'k5_context_set_sources'>> {
+  const { selectedResearchSources } = await import('@/lib/ai-sources');
+  const researchReferenceIds = [...new Set(input.researchReferenceIds ?? [])];
+  if (researchReferenceIds.length && !input.caseId)
+    throw new CapabilityError('SCOPE_REQUIRED', 'Selecione o caso das referências.');
+  if (researchReferenceIds.length) await selectedResearchSources(context, input.caseId!, researchReferenceIds);
+  if (input.conversationId && !await database.prepare('SELECT 1 FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?')
+    .get(input.conversationId, context.officeId, context.userId))
+    throw new CapabilityError('NOT_FOUND', 'Conversa não encontrada.');
   const marks = input.documentIds.map(() => '?').join(',');
   const valid = await database.prepare(
     `SELECT id FROM vault_document WHERE office_id=? AND deleted_at IS NULL AND id IN (${marks})`
@@ -134,23 +142,25 @@ export async function setScopeSources(
 
   if (input.conversationId) {
     const existing = await database.prepare(
-      'SELECT id FROM knowledge_scope WHERE office_id=? AND conversation_id=?'
-    ).get(context.officeId, input.conversationId) as { id: string } | undefined;
+      'SELECT id FROM knowledge_scope WHERE office_id=? AND user_id=? AND conversation_id=?'
+    ).get(context.officeId, context.userId, input.conversationId) as { id: string } | undefined;
 
     if (existing) {
       await database.prepare(
-        'UPDATE knowledge_scope SET document_ids=?, updated_at=CURRENT_TIMESTAMP WHERE id=?'
-      ).run(JSON.stringify(validatedIds), existing.id);
+        'UPDATE knowledge_scope SET document_ids=?,case_id=?,research_reference_ids=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND user_id=?'
+      ).run(JSON.stringify(validatedIds), input.caseId ?? null, JSON.stringify(researchReferenceIds), existing.id, context.officeId, context.userId);
     } else {
       await database.prepare(`
-        INSERT INTO knowledge_scope (id, office_id, user_id, conversation_id, document_ids)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO knowledge_scope (id, office_id, user_id, conversation_id, document_ids, case_id, research_reference_ids)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(
         randomUUID(),
         context.officeId,
         context.userId,
         input.conversationId,
-        JSON.stringify(validatedIds)
+        JSON.stringify(validatedIds),
+        input.caseId ?? null,
+        JSON.stringify(researchReferenceIds)
       );
     }
   }
@@ -158,5 +168,7 @@ export async function setScopeSources(
   return {
     success: true,
     documentIds: validatedIds,
+    caseId: input.caseId,
+    researchReferenceIds,
   };
 }

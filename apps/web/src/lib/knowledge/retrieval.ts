@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { database } from '@/lib/database';
 import { getDocumentChunks } from '@/lib/vault';
+import { selectedResearchSources } from '@/lib/ai-sources';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { WorkspaceContext } from '@/lib/application/context';
 import { assertCapabilityAllowed } from '@/lib/application/context';
@@ -38,6 +39,23 @@ export async function searchKnowledgeEngine(
 ): Promise<SearchKnowledgeResult> {
   const { query } = input;
   const limit = input.limit ?? 8;
+  const researchReferenceIds = input.researchReferenceIds ?? [];
+  if (researchReferenceIds.length && !input.caseId)
+    throw new CapabilityError('SCOPE_REQUIRED', 'Selecione o caso das referências.');
+  const researchChunks = researchReferenceIds.length
+    ? await selectedResearchSources(context, input.caseId!, researchReferenceIds, query) : [];
+  const researchOrdered = [
+    ...[...new Set(researchReferenceIds)].flatMap(id => researchChunks.find(chunk => chunk.researchReferenceId === id) ?? []),
+    ...researchChunks.filter(chunk => !researchReferenceIds.some(id => researchChunks.find(first => first.researchReferenceId === id)?.id === chunk.id)),
+  ];
+  const researchDto = researchOrdered.map(chunk => ({
+    sourceId: chunk.id, sourceLabel: chunk.sourceLabel, text: chunk.text.slice(0, MAX_TEXT),
+    sourceType: 'research' as const, researchReferenceId: chunk.researchReferenceId,
+    materialVersionId: chunk.materialVersionId, judgmentId: chunk.judgmentId, researchChunkId: chunk.researchChunkId,
+  }));
+  const coverage = (used: typeof researchDto) => ({ selectedReferences: new Set(researchReferenceIds).size,
+    usedReferences: new Set(used.map(item => item.researchReferenceId)).size,
+    partial: used.length < researchChunks.length || new Set(used.map(item => item.researchReferenceId)).size < new Set(researchReferenceIds).size });
 
   /**
    * Without an explicit list the scope is the office's own Cofre — every case and the library —
@@ -46,6 +64,7 @@ export async function searchKnowledgeEngine(
    */
   const documentIds = input.documentIds?.length
     ? input.documentIds
+    : researchReferenceIds.length ? []
     : (await database.prepare(
         `SELECT id FROM vault_document
          WHERE office_id = ? AND deleted_at IS NULL AND status = 'ready'${input.caseId ? ' AND case_id = ?' : ''}
@@ -53,6 +72,12 @@ export async function searchKnowledgeEngine(
       ).all(...(input.caseId ? [context.officeId, input.caseId] : [context.officeId])) as Array<{ id: string }>).map((row) => String(row.id));
 
   if (!documentIds.length) {
+    if (researchDto.length) {
+      await assertCapabilityAllowed(context, 'k5_knowledge_search');
+      const selected = researchDto.slice(0, limit);
+      return { sources: selected, degraded: false, reranking: { status: 'disabled' as const, applied: false },
+        researchCoverage: coverage(selected) };
+    }
     throw new CapabilityError('SCOPE_REQUIRED', input.documentIds?.length
       ? 'Informe ao menos um documento autorizado no escopo.'
       : 'Não há documentos processados no Cofre deste escritório.');
@@ -166,7 +191,9 @@ export async function searchKnowledgeEngine(
   const ranked = await rerank(context, query, candidates.filter(source => current.get(source.sourceId) === source.text), { signal: context.signal });
   await assertCapabilityAllowed(context, 'k5_knowledge_search');
   const after = await currentCandidates();
-  const sources = ranked.sources.filter(source => after.get(source.sourceId) === source.text).slice(0, limit);
+  const vaultSources = ranked.sources.filter(source => after.get(source.sourceId) === source.text);
+  const selectedResearch = researchDto.slice(0, Math.min(limit, researchReferenceIds.length ? Math.max(1, Math.ceil(limit / 2)) : 0));
+  const sources = [...vaultSources.slice(0, limit - selectedResearch.length).map(source => ({ ...source, sourceType: 'vault' as const })), ...selectedResearch];
 
   // The query itself is not retained: a hash identifies repeats without storing what was asked.
   try {
@@ -182,5 +209,7 @@ export async function searchKnowledgeEngine(
     // Retrieval audit must never fail the user query.
   }
 
-  return { sources, degraded, reranking: { status: ranked.status, applied: ranked.applied, ...(ranked.reason ? { reason: ranked.reason } : {}) }, ...(degraded && degradedReason ? { degradedReason } : {}) };
+  return { sources, degraded, reranking: { status: ranked.status, applied: ranked.applied, ...(ranked.reason ? { reason: ranked.reason } : {}) },
+    ...(researchReferenceIds.length ? { researchCoverage: coverage(selectedResearch) } : {}),
+    ...(degraded && degradedReason ? { degradedReason } : {}) };
 }

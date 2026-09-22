@@ -25,7 +25,7 @@ export async function evaluate(
   const mode = options.test ? 'shadow' : config?.[`${purpose}_mode`] ?? 'off';
   if (!config?.enabled || !config.encrypted_api_key || mode === 'off') return { status: 'disabled', mode };
   const now = Date.now();
-  const deadline = options.deadlineMs ?? ({ rag: 2000, agenda: 5000, documents: 10000 })[purpose];
+  const deadline = options.deadlineMs ?? ({ rag: 2000, agenda: 5000, documents: 10000, research: 10000 })[purpose];
   const signal = AbortSignal.any([AbortSignal.timeout(deadline), ...(options.signal ? [options.signal] : [])]);
   if (signal.aborted || config.circuit_until > now) return { status: 'unavailable', mode, reason: 'temporarily_unavailable' };
   const sizes = Object.values(request.questions).map(q => Buffer.byteLength(JSON.stringify(q)));

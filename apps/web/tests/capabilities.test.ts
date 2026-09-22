@@ -65,7 +65,7 @@ function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
 }
 
 test("capabilities contract: complete catalog and role permissions", () => {
-  assert.equal(capabilityNames.length, 65, "All 65 capabilities declared");
+  assert.equal(new Set(capabilityNames).size, capabilityNames.length, "Capability names are unique");
 
   const reviewerCaps = capabilitiesForRole("reviewer");
   const lawyerCaps = capabilitiesForRole("lawyer");
@@ -78,9 +78,10 @@ test("capabilities contract: complete catalog and role permissions", () => {
   }
 
   // Lawyers and Admins have all capabilities
-  assert.equal(lawyerCaps.length, 65);
-  assert.equal(adminCaps.length, 65);
+  assert.equal(lawyerCaps.length, capabilityNames.length);
+  assert.equal(adminCaps.length, capabilityNames.length);
 });
+
 
 test("authorization: dynamic role check and membership revocation", async () => {
   const { userAdmin, userReviewer, officeA } = seedFixture();
@@ -606,6 +607,7 @@ test("webmcp: every published capability has a route, a schema and typed failure
         installationId: randomUUID(), linkId: randomUUID(), publicationId: randomUUID(),
         jobId: randomUUID(), alertId: randomUUID(), number: "0000001-05.2025.8.26.0100",
         clientId: randomUUID(), activityId: randomUUID(), kind: 'task', message: 'Criar tarefa de revisão', proposalId: randomUUID(),
+        theme: 'guarda da avó', judgmentId: randomUUID(),
       });
       assert.equal(result.ok, true, `${name} should reach a route: ${JSON.stringify(result)}`);
     }

@@ -47,4 +47,5 @@ export const testDatabase: Database = nodeSqliteDatabase(testDb);
 // real adapter instead of a stub that cannot fail the way production would.
 export const testStorageRoot = mkdtempSync(resolve(tmpdir(), "k5-test-storage-"));
 process.env.VAULT_STORAGE_PATH = testStorageRoot;
+process.env.RESEARCH_STORAGE_PATH = resolve(testStorageRoot, 'research');
 process.env.K5_CREDENTIALS_KEY ??= randomBytes(32).toString("base64");

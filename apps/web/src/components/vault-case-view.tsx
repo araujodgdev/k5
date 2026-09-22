@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DocumentRows, UploadControl, usePolledDocuments } from "@/components/vault-files";
 import { CaseDelete } from "@/components/vault-case-delete";
 import { JudicialCaseLinks } from "@/components/judicial-case-links";
+import { ResearchCaseReferences } from "@/components/research-case-references";
 import type { OfficeRole } from "@/lib/offices";
 import type { VaultCase, VaultDocument, VaultFolder } from "@/lib/vault";
 
@@ -21,20 +22,21 @@ function countLabel(count: number) {
   return count === 1 ? "1 arquivo" : `${count} arquivos`;
 }
 
-export function VaultCaseView({ vaultCase, folders, path, initialDocuments, folderId, role }: {
+export function VaultCaseView({ vaultCase, folders, path, initialDocuments, folderId, role, initialSection = 'files' }: {
   vaultCase: VaultCase;
   folders: VaultFolder[];
   path: VaultFolder[];
   initialDocuments: VaultDocument[];
   folderId: string | null;
   role: OfficeRole;
+  initialSection?: 'files' | 'references';
 }) {
   const router = useRouter();
   const canWrite = role !== "reviewer";
   const query = `caseId=${encodeURIComponent(vaultCase.id)}&folderId=${folderId ? encodeURIComponent(folderId) : "root"}`;
   const { documents, setDocuments } = usePolledDocuments(query, initialDocuments);
   const [view, setView] = useState<View>("list");
-  const [section, setSection] = useState<"files" | "processes">("files");
+  const [section, setSection] = useState<"files" | "processes" | "references">(initialSection);
   const [failure, setFailure] = useState("");
   const [folderName, setFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -98,6 +100,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
           <div className="flex gap-1" role="group" aria-label="Seção do caso">
             <Button type="button" variant="ghost" className={section === "files" ? "bg-accent text-foreground" : ""} aria-pressed={section === "files"} onClick={() => setSection("files")}>Arquivos</Button>
             <Button type="button" variant="ghost" className={section === "processes" ? "bg-accent text-foreground" : ""} aria-pressed={section === "processes"} onClick={() => setSection("processes")}>Processos</Button>
+            <Button type="button" variant="ghost" className={section === "references" ? "bg-accent text-foreground" : ""} aria-pressed={section === "references"} onClick={() => setSection("references")}>Referências</Button>
           </div>
         )}
         {section === "files" && (
@@ -126,6 +129,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
 
     <div className="mt-5 min-h-0 overflow-auto">
       {!folderId && section === "processes" && <JudicialCaseLinks caseId={vaultCase.id} canWrite={canWrite} />}
+      {!folderId && section === "references" && <ResearchCaseReferences caseId={vaultCase.id} canWrite={canWrite} />}
 
       {section === "files" && folders.length > 0 && (view === "cards" ? (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

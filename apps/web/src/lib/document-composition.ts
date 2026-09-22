@@ -4,7 +4,8 @@ import { legalMentionsWithoutSource, normalizeEvidence, quoteIsPresent, unauthor
 
 export type ExtractedEvent = { date: string | null; description: string; quote: string };
 export type Extraction = { events: ExtractedEvent[]; gaps: string[]; sourceId: string; sourceLabel: string };
-export type SourceRef = { id: string; documentId?: string; sourceLabel: string; excerpt: string };
+export type SourceRef = { id: string; documentId?: string; sourceLabel: string; excerpt: string;
+  sourceType?: 'vault' | 'research'; researchReferenceId?: string; materialVersionId?: string; judgmentId?: string; researchChunkId?: string };
 export type ChronologyEvent = ExtractedEvent & { index: number; sourceId: string; sourceLabel: string };
 export const divergenceKinds = ['data', 'valor', 'envolvidos', 'outro'] as const;
 export type Divergence = { kind: typeof divergenceKinds[number]; events: number[]; origin: 'regra' | 'revisão' };
@@ -106,7 +107,11 @@ export function validateDivergences(raw: { kind: string; events: number[] }[], e
 
 function collectRef(refs: Map<string, SourceRef>, sources: SourceChunk[], sourceId: string, sourceLabel: string, quote: string) {
   if (refs.has(sourceId)) return;
-  refs.set(sourceId, { id: sourceId, documentId: sources.find(s => s.id === sourceId)?.documentId, sourceLabel: readableLabel(sourceLabel), excerpt: clip(quote, 300) });
+  const source = sources.find(s => s.id === sourceId);
+  refs.set(sourceId, { id: sourceId, documentId: source?.documentId, sourceType: source?.sourceType,
+    researchReferenceId: source?.researchReferenceId, materialVersionId: source?.materialVersionId,
+    judgmentId: source?.judgmentId, researchChunkId: source?.researchChunkId,
+    sourceLabel: readableLabel(sourceLabel), excerpt: clip(quote, 300) });
 }
 
 export function composeChronology(extracted: Extraction[], sources: SourceChunk[], reviewed: Divergence[] = [], notes: string[] = []) {
@@ -183,7 +188,7 @@ export function assembleDraftSection(heading: string, index: number, result: { p
     if (unauthorizedLegalPassages(paragraph.text, []).length) { issues.push(`Fundamentação removida da seção ${safeHeading}; selecione a fonte jurídica.`); return '[FUNDAMENTAÇÃO PENDENTE DE SELEÇÃO]'; }
     const valid = paragraph.evidence.length > 0 && paragraph.evidence.every(e => {
       const source = sources.find(s => s.id === e.sourceId);
-      return !!source && quoteIsPresent(e.quote, source.text);
+      return !!source && source.sourceType !== 'research' && quoteIsPresent(e.quote, source.text);
     });
     if (!valid && !paragraph.text.includes('[PENDENTE')) { issues.push(`Parágrafo sem evidência verificável em ${safeHeading}.`); return '[PENDENTE DE INFORMAÇÃO: parágrafo sem evidência verificável]'; }
     if (!valid) return paragraph.text;
@@ -199,7 +204,10 @@ export function composeDraft(outlineTitle: string, sections: DraftSection[], app
   const title = unauthorizedLegalPassages(outlineTitle, []).length ? 'Minuta documental' : oneLine(outlineTitle) || 'Minuta documental';
   const refs = new Map<string, SourceRef>();
   for (const ref of sections.flatMap(s => s.refs)) if (!refs.has(ref.id)) refs.set(ref.id, ref);
-  for (const c of approved) refs.set(c.id, { id: c.id, documentId: c.documentId, sourceLabel: readableLabel(c.sourceLabel), excerpt: clip(c.text, 300) });
+  for (const c of approved) refs.set(c.id, { id: c.id, documentId: c.documentId, sourceType: c.sourceType,
+    researchReferenceId: c.researchReferenceId, materialVersionId: c.materialVersionId,
+    judgmentId: c.judgmentId, researchChunkId: c.researchChunkId,
+    sourceLabel: readableLabel(c.sourceLabel), excerpt: clip(c.text, 300) });
   const legal = approved.length
     ? `## Fundamentação selecionada pelo advogado\n\n${approved.map(c => `${escapeMarkdown(c.text)}\n\nFonte fornecida: ${escapeMarkdown(readableLabel(c.sourceLabel))}. Sem verificação externa.`).join('\n\n')}`
     : '[FUNDAMENTAÇÃO JURÍDICA PENDENTE DE SELEÇÃO]';

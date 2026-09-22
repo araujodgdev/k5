@@ -14,6 +14,9 @@ export type WorkspaceContext = {
   invocation?: 'agent' | 'webmcp';
   signal?: AbortSignal;
   agendaConfirmation?: { proposalId: string; hash: string };
+  /** Selected by the person for this chat turn; model tools cannot enlarge this public-source scope. */
+  allowedResearchCaseId?: string;
+  allowedResearchReferenceIds?: string[];
 };
 
 export function workspaceContext(workspace: {

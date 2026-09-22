@@ -1,5 +1,5 @@
 import 'server-only';
-import { apiWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
+import { apiWorkspace, apiPersonalWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
 import { capabilities, type CapabilityName } from '@/lib/capabilities/contracts';
 import { runCapability } from '@/lib/agent-tools';
@@ -16,7 +16,9 @@ export async function handleCapability(
 ) {
   try {
     const write = capabilities[name].effect === 'write';
-    const workspace = await apiWorkspace(request, write);
+    const workspace = capabilities[name].module === 'research' && !write
+      ? await apiPersonalWorkspace(request)
+      : await apiWorkspace(request, write);
     let body: Record<string, unknown> = {};
     if (request.method !== 'GET' && request.method !== 'DELETE') {
       body = (await limitedJson(request).catch(() => ({}))) as Record<string, unknown>;
@@ -24,8 +26,15 @@ export async function handleCapability(
       body = (await limitedJson(request).catch(() => ({}))) as Record<string, unknown>;
     }
     const result = await runCapability({ ...workspaceContext(workspace), signal: request.signal, ...(request.headers.get('x-k5-surface') === 'webmcp' ? { invocation: 'webmcp' as const } : {}) }, name, { ...body, ...extra });
-    return Response.json(result, { status: write && request.method === 'POST' ? 201 : 200 });
-  } catch (error) { return apiError(error); }
+    return Response.json(result, {
+      status: write && request.method === 'POST' ? 201 : 200,
+      headers: { 'Cache-Control': 'private, no-store' },
+    });
+  } catch (error) {
+    const response = apiError(error);
+    response.headers.set('Cache-Control', 'private, no-store');
+    return response;
+  }
 }
 
 export function searchParamsInput(request: Request, keys: string[]) {

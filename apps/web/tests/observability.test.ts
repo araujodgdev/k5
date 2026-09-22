@@ -1,9 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
 import type { ErrorEvent, TransactionEvent } from '@sentry/core';
 import { serverOptions } from '../src/lib/observability/options';
 import { beforeBreadcrumb, scrubEvent, telemetryUrl } from '../src/lib/observability/privacy';
 import { sampleRate } from '../src/lib/observability/settings';
+import { observeWorkerTask } from '../src/lib/observability/report';
+
+test('observed worker preserves the task default argument before a SQLite claim', async () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    const row = await observeWorkerTask('research.extract', async (workerId = 'expected-worker') =>
+      db.prepare('SELECT ? AS owner').get(workerId));
+    assert.equal(row?.owner, 'expected-worker');
+  } finally { db.close(); }
+});
 
 test('telemetry is opt-in in development/test, enabled in staging, and can be disabled', () => {
   assert.equal(serverOptions('web', {}).enabled, false);

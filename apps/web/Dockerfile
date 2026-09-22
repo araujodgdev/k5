@@ -34,6 +34,7 @@ ENV NODE_ENV=production
 # node:sqlite needs a writable path that is not inside the build output.
 ENV DATABASE_PATH=/data/k5.sqlite
 ENV VAULT_STORAGE_PATH=/data/uploads
+ENV RESEARCH_STORAGE_PATH=/data/research-objects
 
 COPY --chown=node:node --from=deps /repo/node_modules ./node_modules
 COPY --chown=node:node --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
@@ -46,7 +47,7 @@ COPY --chown=node:node apps/web/scripts ./apps/web/scripts
 COPY --chown=node:node apps/web/src ./apps/web/src
 
 # The runtime user owns /data so the volume is writable without running as root.
-RUN mkdir -p /data/uploads && chown -R node:node /data
+RUN mkdir -p /data/uploads /data/research-objects && chown -R node:node /data
 USER node
 WORKDIR /repo/apps/web
 

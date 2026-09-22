@@ -13,9 +13,13 @@ if (existsSync(resolve('.env.local'))) process.loadEnvFile(resolve('.env.local')
  *   pnpm judicial:admin register --file db/sources/djen.json
  *   pnpm judicial:admin enable <id> [--live]
  *   pnpm judicial:admin disable <id>
+ *   pnpm judicial:admin stj-discover <id> --dataset <slug> --email <operator>
+ *   pnpm judicial:admin stj-enqueue <id> --dataset <slug> --resource <uuid> --email <operator>
+ *   pnpm judicial:admin stj-link <id> --mirror-id <id> --document-id <SeqDocumento>
+ *     --evidence <official URL> --note <reason> --email <operator>
  *
- * `--live` is the separate act of permitting real network egress (section 4.2 step 6). It is
- * refused while any of the five permissions is still unanswered: silence is not authorization.
+ * `--live` is the separate act of permitting real network egress. It checks rights needed
+ * for the source's base action. Document and AI rights are checked at the relevant action.
  */
 
 const permission = z.enum(['permitido', 'restrito', 'proibido', 'nao_esclarecido']);
@@ -54,12 +58,34 @@ function usage(): never {
   console.error('  register --file <ficha.json>  cadastra ou atualiza a partir de uma ficha de fonte');
   console.error('  enable <id> [--live]          habilita a fonte; --live libera o acesso real à rede');
   console.error('  disable <id>                  suspende a fonte, preservando os registros já coletados');
+  console.error('  stj-discover <id> --dataset <slug> --email <operador> [--office <id>]');
+  console.error('  stj-enqueue <id> --dataset <slug> --resource <uuid> --email <operador> [--office <id>] [--force]');
+  console.error('  stj-link <id> --mirror-id <id> --document-id <id> --evidence <url> --note <texto> --email <operador> [--office <id>]');
   process.exit(1);
 }
 
 function hostOf(value: string | null | undefined): string | null {
   if (!value) return null;
   try { return new URL(value).hostname; } catch { return null; }
+}
+
+function argumentsFor(flags: string[], booleans: string[] = []): Record<string, string | boolean> {
+  const found: Record<string, string | boolean> = {};
+  for (let index = 0; index < flags.length; index++) {
+    const flag = flags[index];
+    if (!flag.startsWith('--') || flag in found) usage();
+    if (booleans.includes(flag)) { found[flag] = true; continue; }
+    const value = flags[++index];
+    if (!value || value.startsWith('--')) usage();
+    found[flag] = value;
+  }
+  return found;
+}
+
+function stringFlag(flags: Record<string, string | boolean>, name: string, required = true): string | undefined {
+  const value = flags[name];
+  if (required && typeof value !== 'string') usage();
+  return typeof value === 'string' ? value : undefined;
 }
 
 async function main() {
@@ -79,7 +105,8 @@ async function main() {
       const gates = [
         item.enabled ? 'habilitada' : 'desabilitada',
         item.liveTransportEnabled ? 'acesso real liberado' : 'somente amostras',
-        hasConnectorFor(item.kind) ? 'conector implementado' : 'sem conector',
+        hasConnectorFor(item.kind) || (item.kind === 'ckan' && item.courtCode === 'STJ')
+          ? 'conector implementado' : 'sem conector',
       ].join(', ');
       console.log(`${item.id}\n  ${item.courtCode} · ${item.purpose} · ${item.degree} · ${item.discoveryStatus}\n  ${gates}`);
       console.log(`  uso: consulta=${item.permissions.query} cache=${item.permissions.cache} documentos=${item.permissions.documents} redistribuicao=${item.permissions.redistribution} ia=${item.permissions.ai}`);
@@ -118,9 +145,46 @@ async function main() {
     console.log(`Fonte registrada: ${installation.id}`);
     console.log(`  ${installation.courtCode} · ${installation.purpose} · estágio ${installation.discoveryStatus}`);
     console.log('  Continua desabilitada. Use: pnpm judicial:admin enable <id>');
-    if (!hasConnectorFor(installation.kind)) {
+    if (!hasConnectorFor(installation.kind) && !(installation.kind === 'ckan' && installation.courtCode === 'STJ')) {
       console.log(`  Atenção: ainda não há conector implementado para fontes do tipo ${installation.kind}.`);
     }
+    return;
+  }
+
+  if (action === 'stj-discover' || action === 'stj-enqueue' || action === 'stj-link') {
+    const [installationId, ...args] = rest;
+    if (!installationId) usage();
+    const flags = argumentsFor(args, action === 'stj-enqueue' ? ['--force'] : []);
+    const allowed = action === 'stj-discover' ? ['--dataset', '--email', '--office'] :
+      action === 'stj-enqueue' ? ['--dataset', '--resource', '--email', '--office', '--force'] :
+        ['--mirror-id', '--document-id', '--evidence', '--note', '--email', '--office'];
+    if (Object.keys(flags).some(flag => !allowed.includes(flag))) usage();
+    const actorEmail = stringFlag(flags, '--email')!;
+    const officeId = stringFlag(flags, '--office', false);
+    const { discoverStjResources, enqueueStjResource, linkStjDocument } =
+      await import('../src/lib/research/stj-ingest');
+    if (action === 'stj-link') {
+      await linkStjDocument({ installationId, actorEmail, officeId,
+        mirrorId: stringFlag(flags, '--mirror-id')!, documentId: stringFlag(flags, '--document-id')!,
+        evidenceUrl: stringFlag(flags, '--evidence')!, evidenceNote: stringFlag(flags, '--note')! });
+      console.log('Vínculo STJ registrado com evidência.');
+      return;
+    }
+    const datasetSlug = stringFlag(flags, '--dataset')!;
+    const resources = await discoverStjResources({ installationId, datasetSlug, actorEmail, officeId });
+    if (action === 'stj-discover') {
+      console.log(`${resources.length} recursos admitidos pelos metadados CKAN e pelo limite de 50 MB.`);
+      for (const item of resources.slice(-20))
+        console.log(`${item.id} · ${item.name} · ${item.kind} · ${item.sourceUpdatedAt ?? 'sem data'}`);
+      if (resources.length > 20) console.log('Exibidos os 20 mais recentes. Informe o UUID do recurso para enfileirar.');
+      return;
+    }
+    const resourceId = stringFlag(flags, '--resource')!;
+    const resource = resources.find(item => item.id === resourceId);
+    if (!resource) throw new Error('Recurso não encontrado nos metadados CKAN admitidos.');
+    const queued = await enqueueStjResource({ installationId, datasetSlug, resource, actorEmail,
+      officeId, force: flags['--force'] === true });
+    console.log(`Recurso STJ: ${queued.resourceId}; job: ${queued.jobId}; escritório operador: ${queued.officeId}.`);
     return;
   }
 
@@ -141,12 +205,16 @@ async function main() {
 
     const live = flags.includes('--live');
     if (live) {
-      const unresolved = Object.entries(installation.permissions)
-        .filter(([, state]) => state === 'nao_esclarecido')
-        .map(([dimension]) => dimension);
-      if (unresolved.length) {
-        console.error(`Acesso real recusado: condição de uso não esclarecida para ${unresolved.join(', ')}.`);
-        console.error('Conclua a descoberta, atualize a ficha e registre novamente antes de liberar o acesso.');
+      const required = installation.purpose === 'jurisprudence'
+        ? ['query', 'cache', 'redistribution'] as const : ['query', 'cache'] as const;
+      const denied = required.filter(dimension => installation.permissions[dimension] !== 'permitido');
+      if (denied.length) {
+        console.error(`Acesso real recusado: a ação básica exige permissão explícita para ${denied.join(', ')}.`);
+        console.error('Atualize a ficha com evidência da fonte antes de liberar o acesso.');
+        process.exit(1);
+      }
+      if (!installation.baseUrl || !installation.baseUrl.startsWith('https://')) {
+        console.error('Acesso real recusado: a instalação precisa de baseUrl HTTPS.');
         process.exit(1);
       }
       if (!installation.allowedHosts.length) {

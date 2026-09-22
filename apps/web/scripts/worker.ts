@@ -4,10 +4,14 @@ async function main() {
   const { processNextVaultDocument } = await import('../src/lib/vault');
   const { processNextRun } = await import('../src/lib/document-workflows');
   const { processNextVerification } = await import('../src/lib/typesafe/verification');
+  const { processNextResearchAssessment } = await import('../src/lib/research/case-assessment');
+  const { processNextResearchExtraction } = await import('../src/lib/research/pdf');
   const { processNextIndexJob, processNextDeletion } = await import('../src/lib/knowledge/indexing');
   const { sweepExpiredUploadRefs } = await import('../src/lib/application/uploads-service');
   const { sweepExpiredSecretRefs } = await import('../src/lib/application/secrets-service');
   const { runWorkerQueues } = await import('../src/lib/worker-scheduler');
+  const { sweepResearchStaging, sweepResearchOrphans } = await import('../src/lib/research/storage');
+  const { database } = await import('../src/lib/database');
 
   let stopping = false;
   process.on('SIGINT', () => { stopping = true; });
@@ -15,6 +19,7 @@ async function main() {
   console.log('Worker Lume ativo. Aguardando documentos, indexação e tarefas.');
 
   let sweepAt = 0;
+  let researchSweepAt = 0;
   await runWorkerQueues({
     stopping: () => stopping,
     once: process.argv.includes('--once'),
@@ -22,9 +27,14 @@ async function main() {
       const ingested = await observeWorkerTask('vault.ingest', processNextVaultDocument);
       const indexed = await observeWorkerTask('knowledge.index', processNextIndexJob);
       const processed = await observeWorkerTask('documents.run', processNextRun);
-      return ingested || indexed || processed;
+      const extracted = await observeWorkerTask('research.extract', processNextResearchExtraction);
+      return ingested || indexed || processed || extracted;
     },
-    verifyDocuments: () => observeWorkerTask('documents.verify', processNextVerification),
+    verifyDocuments: async () => {
+      const verified = await observeWorkerTask('documents.verify', processNextVerification);
+      const assessed = await observeWorkerTask('research.assess', processNextResearchAssessment);
+      return Boolean(verified || assessed);
+    },
     maintain: async () => {
       const deleted = await processNextDeletion();
 
@@ -33,6 +43,12 @@ async function main() {
         await sweepExpiredUploadRefs();
         await sweepExpiredSecretRefs();
         sweepAt = Date.now() + 60_000;
+      }
+      if (Date.now() > researchSweepAt) {
+        await sweepResearchStaging();
+        await sweepResearchOrphans();
+        await database.prepare('DELETE FROM research_quarantine WHERE expires_at<CURRENT_TIMESTAMP').run();
+        researchSweepAt = Date.now() + 60 * 60_000;
       }
       return deleted;
     },

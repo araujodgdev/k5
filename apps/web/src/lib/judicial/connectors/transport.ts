@@ -20,11 +20,14 @@ export type TransportResponse = {
   body: string;
   /** Final URL after redirects, so the snapshot records where the bytes actually came from. */
   url: string;
+  /** Original bytes, populated by binary requests without a UTF-8 round trip. */
+  bytes?: Buffer;
 };
 
 export type Transport = {
   readonly mode: 'live' | 'fixture';
   request(installation: InstallationRef, path: string, init?: TransportRequestInit): Promise<TransportResponse>;
+  requestBinary?(installation: InstallationRef, path: string, init?: TransportRequestInit): Promise<TransportResponse & { bytes: Buffer }>;
 };
 
 export type TransportRequestInit = {
@@ -234,7 +237,7 @@ function executeHttpsRequest(
     signal: AbortSignal;
     maxBytes: number;
   },
-): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
+): Promise<{ status: number; headers: IncomingHttpHeaders; bytes: Buffer }> {
   return new Promise((resolve, reject) => {
     const rawHostname = url.hostname.replace(/^\[|\]$/g, '');
     const isIpHost = Boolean(isIP(rawHostname));
@@ -297,11 +300,11 @@ function executeHttpsRequest(
       });
 
       res.on('end', () => {
-        const body = Buffer.concat(chunks).toString('utf8');
+        const bytes = Buffer.concat(chunks);
         resolve({
           status: res.statusCode ?? 200,
           headers: res.headers,
-          body,
+          bytes,
         });
       });
 
@@ -320,6 +323,10 @@ function executeHttpsRequest(
 export const liveTransport: Transport = {
   mode: 'live',
   async request(installation, path, init = {}) {
+    const result = await this.requestBinary!(installation, path, init);
+    return { status: result.status, contentType: result.contentType, body: result.bytes.toString('utf8'), url: result.url };
+  },
+  async requestBinary(installation, path, init = {}) {
     if (!installation.enabled) {
       throw new ConnectorError('unsupported', 'Esta instalação não está habilitada.');
     }
@@ -367,7 +374,7 @@ export const liveTransport: Transport = {
         const rawContentType = response.headers['content-type'];
         const contentType = Array.isArray(rawContentType) ? rawContentType[0] : (rawContentType ?? '');
         assertContentType(contentType);
-        return { status: response.status, contentType, body: response.body, url: url.toString() };
+        return { status: response.status, contentType, body: '', bytes: response.bytes, url: url.toString() };
       }
       throw new ConnectorError('source_unavailable', 'A fonte excedeu o número de redirecionamentos permitido.');
     } finally {
@@ -382,7 +389,7 @@ export const liveTransport: Transport = {
  * captured from and cannot be silently reused for a different court.
  */
 export function fixtureTransport(
-  fixtures: Map<string, { contentType?: string; body: string; status?: number }>,
+  fixtures: Map<string, { contentType?: string; body: string | Buffer; status?: number }>,
   /**
    * Awaited before the fixture is answered, so a test can make something happen mid-request —
    * another worker taking the lease, for instance. It has to be a hook here rather than a wrapper
@@ -391,22 +398,24 @@ export function fixtureTransport(
    */
   onRequest?: () => Promise<void> | void,
 ): Transport {
-  return {
-    mode: 'fixture',
-    async request(installation, path, init = {}) {
+  const requestFixture = async (installation: InstallationRef, path: string, init: TransportRequestInit = {}) => {
       await onRequest?.();
       const key = fixtureKey(installation.id, init.method ?? 'GET', path, init.query);
       const fixture = fixtures.get(key);
       if (!fixture) throw new ConnectorError('not_found_in_source', `Sem fixture para ${key}`);
       const status = fixture.status ?? 200;
       if (status >= 400) throw statusToError(status, null);
-      return {
-        status,
-        contentType: fixture.contentType ?? 'application/json',
-        body: fixture.body,
-        url: `fixture://${key}`,
-      };
+      const bytes = Buffer.isBuffer(fixture.body) ? fixture.body : Buffer.from(fixture.body);
+      if (bytes.length > (init.maxBytes ?? DEFAULT_MAX_BYTES)) throw new ConnectorError('partial', 'Resposta da fonte acima do limite configurado.');
+      return { status, contentType: fixture.contentType ?? 'application/json', body: bytes.toString('utf8'), bytes, url: `fixture://${key}` };
+  };
+  return {
+    mode: 'fixture',
+    async request(installation, path, init = {}) {
+      const { bytes: _bytes, ...response } = await requestFixture(installation, path, init);
+      return response;
     },
+    requestBinary: requestFixture,
   };
 }
 

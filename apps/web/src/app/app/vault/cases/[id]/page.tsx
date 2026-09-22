@@ -3,7 +3,7 @@ import { Reveal } from "@/components/reveal";
 import { VaultCaseView } from "@/components/vault-case-view";
 import { findVaultCase, findVaultFolder, listVaultDocuments, listVaultFolders, requireVaultWorkspace, vaultFolderPath } from "@/lib/vault";
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ folder?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ folder?: string; section?: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { office } = await requireVaultWorkspace();
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function VaultCasePage({ params, searchParams }: Props) {
   const { office } = await requireVaultWorkspace();
-  const [{ id }, { folder: requested }] = await Promise.all([params, searchParams]);
+  const [{ id }, { folder: requested, section }] = await Promise.all([params, searchParams]);
   const vaultCase = await findVaultCase(office.officeId, id);
   if (!vaultCase) notFound();
 
@@ -36,6 +36,7 @@ export default async function VaultCasePage({ params, searchParams }: Props) {
         initialDocuments={initialDocuments}
         folderId={folderId}
         role={office.role}
+        initialSection={!folderId && section === 'references' ? 'references' : 'files'}
       />
     </Reveal>
   );

@@ -2,6 +2,7 @@ node_modules
 **/node_modules
 .next
 **/.next
+**/.next-research-qa
 .turbo
 **/.turbo
 .git
@@ -21,5 +22,6 @@ node_modules
 coverage
 test-results
 playwright-report
+**/playwright-report
 Dockerfile
 docker-compose.yml

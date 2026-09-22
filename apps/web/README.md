@@ -27,6 +27,7 @@ Auth e as migrações de `db/migrations/` em ordem. O arquivo SQLite é criado e
 | `BETTER_AUTH_URL` | Origem confiável; padrão local `http://localhost:3000` |
 | `BETTER_AUTH_SECRET` | Segredo de pelo menos 32 caracteres, gerado aleatoriamente pelo setup local |
 | `DATABASE_PATH` | Arquivo SQLite; caminho relativo ao diretório deste app |
+| `RESEARCH_STORAGE_PATH` | Diretório dos originais públicos do acervo; padrão `.data/research-objects` |
 | `SESSION_IDLE_SECONDS` | Expiração deslizante por inatividade; padrão 28800 (8 horas), mínimo 60 |
 | `K5_CREDENTIALS_KEY` | Chave mestra (32 bytes, base64) das credenciais de IA; gerada pelo setup somente em desenvolvimento |
 | `K5_CREDENTIALS_PREVIOUS_KEYS` | Chaves anteriores aceitas somente para leitura durante a rotação |
@@ -74,7 +75,7 @@ verificação de e-mail ainda não foram implementados.
 
 ## Tarefas e Agenda
 
-`/app/agenda` substitui Pesquisa e reúne tarefas, calendário com agenda do dia e CRM de
+`/app/agenda` reúne tarefas, calendário com agenda do dia e CRM de
 clientes. A migração `0012_agenda.sql` adiciona clientes, vínculos com casos e atividades.
 Dados de clientes existentes nos casos do Cofre são preservados, sem importação automática.
 
@@ -116,10 +117,10 @@ O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
 - **Worker:** processamento de documentos, cronologias e minutas roda fora da requisição.
   Em outro terminal, execute `pnpm worker` na raiz. Sem ele, os itens ficam na fila.
 - **TypeSafe/Jev:** configure a conexão por escritório em `/platform/clients/[officeId]/ai`.
-  Reranking do Cofre, verificação documental e sugestões da Agenda possuem modos
+  Reranking do Cofre e da Pesquisa, avaliação de pertinência, verificação documental e sugestões da Agenda possuem modos
   independentes: desligado, avaliar sem aplicar e ativado. Todos começam desligados.
   A chave usa a mesma cifra/rotação das demais conexões; não existe chave global
-  de produção em variável de ambiente. Jev não aparece no seletor de modelos do chat.
+  de produção em variável de ambiente. Jev não é um modelo de conversa do Lume.
   A verificação documental roda no worker e nunca aprova uma minuta automaticamente.
   Veja [operação e validação TypeSafe](../../docs/typesafe-implementacao.md).
 - **Infraestrutura judicial (fundação):** vínculo de processos, coleta de publicações,
@@ -127,6 +128,58 @@ O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
   `pnpm judicial:worker`, separado do worker de documentos porque OCR e coleta competem por
   recursos diferentes. Nenhuma fonte contata um tribunal antes de ser habilitada por um
   operador; veja [a nota de implementação](../../docs/infra-judicial-implementacao.md).
+
+## Pesquisa de jurisprudência
+
+`/app/research` consulta o acervo de julgados por tema e pode solicitar páginas da fonte TJDFT
+quando uma instalação apta estiver habilitada. A pesquisa, os jobs e o perfil do caso pertencem
+ao escritório e ao usuário; julgados e materiais oficiais admitidos formam o acervo público
+compartilhado. O revisor lê o acervo, enquanto administrador e advogado podem iniciar coleta,
+avaliar pertinência e vincular versões de material a casos. A busca pelo tema no STJ usa os
+recursos já ingeridos no acervo; ela não consulta o CKAN a cada pesquisa de usuário.
+
+Em desenvolvimento local, rode `pnpm db:setup`, `pnpm judicial:worker` para consultas e downloads,
+e `pnpm worker` para extrair PDFs, OCR e avaliar materiais. O worker judicial também atende o DJEN;
+nenhuma instalação nova acessa a rede só por estar cadastrada. O operador registra uma ficha
+com as condições de consulta, cache e redistribuição, habilita a instalação e só depois libera
+`--live` quando as condições necessárias estiverem documentadas. Documentos e envio à IA têm
+permissões próprias. Sem fonte temática habilitada, a tela mostra os resultados conhecidos do
+acervo e informa que a consulta externa não ocorreu.
+
+```sh
+pnpm judicial:admin register --file db/sources/tjdft.example.json
+pnpm judicial:admin list
+# Após documentar as condições de uso na ficha e registrá-la novamente:
+pnpm judicial:admin enable <id> --live
+pnpm judicial:worker
+pnpm worker
+```
+
+Para o STJ, o operador descobre recursos CKAN e escolhe explicitamente cada recurso a ingerir:
+
+```sh
+pnpm judicial:admin register --file db/sources/stj-ckan.example.json
+# Após documentar as condições de uso na ficha e registrá-la novamente:
+pnpm judicial:admin enable <id> --live
+pnpm judicial:admin stj-discover <id> --dataset espelhos-de-acordaos-segunda-turma --email <admin-da-plataforma>
+pnpm judicial:admin stj-enqueue <id> --dataset <slug> --resource <UUID CKAN> --email <admin-da-plataforma>
+pnpm judicial:worker
+```
+
+Espelho e inteiro teor STJ só são associados mediante evidência explícita:
+
+```sh
+pnpm judicial:admin stj-link <id> --mirror-id <ID-nativo> --document-id <SeqDocumento> --evidence <URL-oficial> --note <justificativa> --email <admin-da-plataforma>
+```
+
+Os recursos têm limite
+de 50 MB e ingestão em lotes com checkpoint. Arquivos originais, hashes e versões ficam em
+`RESEARCH_STORAGE_PATH`; no Docker, `web`, `worker` e `judicial-worker` compartilham
+`/data/research-objects` e o mesmo SQLite. O comando `docker compose down` preserva o volume.
+`stj-enqueue ... --force` permite reprocessar um recurso de mesmo hash após registrar um vínculo;
+nenhum vínculo entre espelho e inteiro teor é inferido pelo número do processo.
+Para regras de fonte, limites, aceite e lacunas do piloto, veja
+[o plano da Pesquisa](../../docs/plano-pesquisa-jurisprudencia.md).
 
 ## PWA e temas
 

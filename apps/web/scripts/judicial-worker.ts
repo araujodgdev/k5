@@ -19,6 +19,7 @@ const IDLE_SLEEP_MS = 2_000;
 async function main() {
   const { scheduleDueSubscriptions } = await import('../src/lib/judicial/jobs/scheduler');
   const { processNextJudicialJob } = await import('../src/lib/judicial/jobs/collector');
+  const { processNextResearchExternalJob } = await import('../src/lib/research/worker');
 
   const once = process.argv.includes('--once');
   let stopping = false;
@@ -41,10 +42,12 @@ async function main() {
       }
 
       const outcome = await observeWorkerTask('judicial.collect', processNextJudicialJob);
+      const researchOutcome = await observeWorkerTask('research.collect', processNextResearchExternalJob);
       if (outcome) console.log(`Coleta ${outcome.jobId}: ${outcome.status} — ${outcome.detail}`);
+      if (researchOutcome) console.log(`Pesquisa ${researchOutcome.jobId}: ${researchOutcome.status}`);
 
       if (once) break;
-      if (!outcome) await new Promise((resolve) => setTimeout(resolve, IDLE_SLEEP_MS));
+      if (!outcome && !researchOutcome) await new Promise((resolve) => setTimeout(resolve, IDLE_SLEEP_MS));
     } catch (error) {
       captureOperationalError(error, 'judicial.worker');
       // The message is what makes a stalled queue diagnosable; swallowing it leaves an operator

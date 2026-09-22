@@ -1,0 +1,27 @@
+{
+  "kind": "jurisprudence_api",
+  "courtCode": "TJDFT",
+  "courtName": "Tribunal de Justiça do Distrito Federal e dos Territórios",
+  "degree": "second",
+  "system": "proprietary",
+  "purpose": "jurisprudence",
+  "baseUrl": "https://jurisdf.tjdft.jus.br/",
+  "contractVersion": "API v1, contrato a homologar",
+  "authKind": "none",
+  "discoveryStatus": "candidate",
+  "permissions": {
+    "query": "nao_esclarecido",
+    "cache": "nao_esclarecido",
+    "documents": "nao_esclarecido",
+    "redistribution": "nao_esclarecido",
+    "ai": "nao_esclarecido"
+  },
+  "permissionEvidence": "Ficha de exemplo. Verificar e registrar a evidência oficial de cada dimensão antes de habilitar coleta real.",
+  "allowedHosts": ["jurisdf.tjdft.jus.br"],
+  "rateLimitPerMinute": 10,
+  "dailyRequestBudget": 500,
+  "coverageFrom": null,
+  "coverageTo": null,
+  "documentationUrl": "https://www.tjdft.jus.br/transparencia/tecnologia-da-informacao-e-comunicacao/dados-abertos/documentacao_api_seti_transparencia.pdf",
+  "notes": "A resposta HTTP 200 da prova técnica não estabelece permissões de cache, redistribuição, documentos ou IA. Registrar a fonte não libera acesso à rede."
+}

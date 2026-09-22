@@ -4,7 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { database } from './database';
-import { selectedSources } from './ai-sources';
+import { selectedSources, selectedResearchSources, selectedPinnedResearchSources } from './ai-sources';
+import type { WorkspaceContext } from './application/context';
 import { generateStructured } from './ai-runtime';
 import { citationCandidates, quoteIsPresent, type SourceChunk, type CitationCandidate } from './ai-policy';
 import { assembleDraftSection, chronologyEvents, composeChronology, composeDraft, divergenceKinds, escapeMarkdown, validateDivergences, type Divergence, type DraftSection, type Extraction, type SourceRef } from './document-composition';
@@ -18,10 +19,14 @@ import { ownedArtifact } from './ai-store';
 const runModel = (run: RunRow) => run.model_provider && run.model_id ? { provider: run.model_provider, modelId: run.model_id } : undefined;
 
 export const runInputSchema = z.object({
-  kind: z.enum(['chronology', 'draft']), documentIds: z.array(z.string().min(1)).min(1).max(100),
+  kind: z.enum(['chronology', 'draft']), documentIds: z.array(z.string().min(1)).max(100),
+  caseId: z.string().optional(), researchReferenceIds: z.array(z.string()).max(30).default([]),
+  pinnedResearchReferences: z.array(z.object({ referenceId: z.string(), materialVersionId: z.string() })).max(30).optional(),
   templateId: z.string().optional(), instructions: z.string().trim().min(1).max(12000),
   approvedCitationIds: z.array(z.string()).max(200).default([]),
-});
+}).refine(input => input.kind === 'draft' || input.documentIds.length > 0, 'Selecione documentos do caso para a cronologia.')
+  .refine(input => input.kind !== 'draft' || input.documentIds.length > 0 || input.researchReferenceIds.length > 0, 'Selecione fontes para a minuta.')
+  .refine(input => !input.researchReferenceIds.length || !!input.caseId, 'Selecione o caso das referências.');
 type RunInput = z.infer<typeof runInputSchema>;
 const eventSchema = z.object({ date: z.string().nullable(), description: z.string(), quote: z.string() });
 const extractionSchema = z.object({ events: z.array(eventSchema).max(80), gaps: z.array(z.string()).max(20) });
@@ -47,19 +52,25 @@ async function progress(run: RunRow, value: number) {
   await database.prepare('UPDATE ai_run SET progress=?,lease_until=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=?').run(value, Date.now() + 300000, run.id, run.lease_token);
 }
 
-export async function validateRunSources(officeId: string, input: RunInput) {
+export async function validateRunSources(context: WorkspaceContext, input: RunInput) {
+  const officeId = context.officeId;
   const sources = await selectedSources(officeId, [...new Set(input.documentIds)]);
-  if (!sources.length) throw new Error('Selecione documentos já processados.');
+  if (input.documentIds.length && !sources.length) throw new Error('Selecione documentos já processados.');
   for (const id of input.documentIds) if (!sources.some(s => s.documentId === id)) throw new Error('Há documentos indisponíveis ou ainda em processamento.');
+  const researchSources = input.researchReferenceIds.length ? input.pinnedResearchReferences
+    ? await selectedPinnedResearchSources(context, input.caseId!, input.pinnedResearchReferences)
+    : await selectedResearchSources(context, input.caseId!, input.researchReferenceIds) : [];
+  const pinnedResearchReferences = [...new Map(researchSources.map(source => [source.researchReferenceId!,
+    { referenceId: source.researchReferenceId!, materialVersionId: source.materialVersionId! }])).values()];
   const template = input.templateId ? await selectedSources(officeId, [input.templateId]) : [];
   if (input.kind === 'draft' && !template.length) throw new Error('Selecione um modelo do escritório já processado.');
-  const candidates = citationCandidates([...sources, ...template]);
+  const candidates = citationCandidates([...sources, ...researchSources, ...template]);
   const approved = input.approvedCitationIds.map(id => {
     const item = candidates.find(c => c.id === id);
     if (!item) throw new Error('Uma citação selecionada não pertence aos documentos atuais.');
     return item;
   });
-  return { sources, template, approved };
+  return { sources, researchSources, pinnedResearchReferences, template, approved };
 }
 
 async function extract(run: RunRow, sources: SourceChunk[]) {
@@ -118,9 +129,12 @@ async function draft(run: RunRow, input: RunInput, template: SourceChunk[], sour
     let result = await checkpoint<z.infer<typeof paragraphSchema>>(run, `draft:${i}`);
     if (!result) {
       const member = await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?').get<{ role: 'administrator' | 'lawyer' }>(run.office_id, run.user_id);
-      const retrieved = (await searchKnowledgeEngine({ officeId: run.office_id, userId: run.user_id, role: member!.role }, { query: section.search.slice(0, 500), documentIds: input.documentIds, limit: 24 })).sources
-        .map(source => ({ id: source.sourceId, sourceLabel: source.sourceLabel, text: source.text }));
-      result = await generateStructured(run.office_id, run.user_id, 'drafting', `Redija a seção '${section.heading}': ${section.purpose}. Pedido: ${input.instructions}\nNão inclua NENHUMA citação ou referência jurídica; os textos autorizados serão anexados pelo sistema. Cada parágrafo factual precisa de evidence com sourceId (o identificador entre colchetes) e citação literal de pelo menos 12 caracteres. Não escreva identificadores nem referências de fonte no texto; o sistema as adiciona. Sem evidência, escreva [PENDENTE DE INFORMAÇÃO], não invente nomes, datas, números ou pedidos específicos. Use escrita formal coerente com o modelo.\nEstilo (não fatos): ${template.map(t => t.text).join('\n').slice(0, 12000)}\nFONTES DO CASO:\n${retrieved.map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 90000)}`, paragraphSchema, runModel(run));
+      const retrieved = input.documentIds.length ? (await searchKnowledgeEngine({ officeId: run.office_id, userId: run.user_id, role: member!.role }, { query: section.search.slice(0, 500), documentIds: input.documentIds, limit: 24 })).sources
+        .map(source => ({ id: source.sourceId, sourceLabel: source.sourceLabel, text: source.text })) : [];
+      const legalSources = input.researchReferenceIds.length ? input.pinnedResearchReferences
+        ? await selectedPinnedResearchSources({ officeId: run.office_id, userId: run.user_id, role: member!.role }, input.caseId!, input.pinnedResearchReferences, section.search)
+        : await selectedResearchSources({ officeId: run.office_id, userId: run.user_id, role: member!.role }, input.caseId!, input.researchReferenceIds, section.search) : [];
+      result = await generateStructured(run.office_id, run.user_id, 'drafting', `Redija a seção '${section.heading}': ${section.purpose}. Pedido: ${input.instructions}\nNão inclua NENHUMA citação ou referência jurídica; os textos autorizados serão anexados pelo sistema depois de seleção humana. Cada parágrafo factual precisa de evidence com sourceId de FONTES FACTUAIS DO CASO e citação literal de pelo menos 12 caracteres. Os fatos de JULGADOS DE OUTROS PROCESSOS jamais são fatos do cliente e não sustentam parágrafos factuais. Não escreva identificadores nem referências de fonte no texto; o sistema as adiciona. Sem evidência factual, escreva [PENDENTE DE INFORMAÇÃO], não invente nomes, datas, números ou pedidos específicos. Use escrita formal coerente com o modelo.\nEstilo (não fatos): ${template.map(t => t.text).join('\n').slice(0, 12000)}\nFONTES FACTUAIS DO CASO:\n${retrieved.map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 65000)}\nJULGADOS DE OUTROS PROCESSOS (somente contexto jurídico; citações dependem de aprovação humana):\n${legalSources.slice(0, 20).map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 18000)}`, paragraphSchema, runModel(run));
       await saveCheckpoint(run, `draft:${i}`, result);
     }
     const assembled = assembleDraftSection(section.heading, i, result, sources);
@@ -134,8 +148,16 @@ async function draft(run: RunRow, input: RunInput, template: SourceChunk[], sour
 
 async function executeRun(run: RunRow) {
   const input = runInputSchema.parse(JSON.parse(run.input));
-  const { sources, template } = await validateRunSources(run.office_id, input);
-  const approved = await database.prepare('SELECT citation_id AS id,source_text AS text,source_label AS sourceLabel FROM ai_citation_approval WHERE run_id=?').all(run.id) as unknown as CitationCandidate[];
+  const member = await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?').get<{ role: WorkspaceContext['role'] }>(run.office_id, run.user_id);
+  if (!member) throw new Error('Acesso ao escritório revogado.');
+  const { sources, template, approved: revalidatedApprovals } = await validateRunSources({ officeId: run.office_id, userId: run.user_id, role: member.role }, input);
+  const approvedRows = await database.prepare(`SELECT citation_id AS id,source_text AS text,source_label AS sourceLabel,source_type AS sourceType,
+    document_id AS documentId,research_reference_id AS researchReferenceId,material_version_id AS materialVersionId,
+    judgment_id AS judgmentId,research_chunk_id AS researchChunkId FROM ai_citation_approval WHERE run_id=?`).all(run.id) as CitationCandidate[];
+  const approved = approvedRows;
+  if (approved.length !== revalidatedApprovals.length || approved.some(citation => !revalidatedApprovals.some(current =>
+    current.id === citation.id && current.text === citation.text && current.materialVersionId === citation.materialVersionId)))
+    throw new Error('Uma citação aprovada deixou de corresponder ao material fixado.');
   const idSchema = z.object({ runId: z.string() });
   // SQL checkpoints are intentionally owned by Lume. A worker can recreate this workflow
   // after process loss and skip completed per-document / per-section steps.

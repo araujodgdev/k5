@@ -52,6 +52,7 @@ services:
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
       DATABASE_PATH: /data/k5.sqlite
       VAULT_STORAGE_PATH: /data/uploads
+      RESEARCH_STORAGE_PATH: /data/research-objects
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?defina BETTER_AUTH_SECRET no .env da raiz}
       K5_CREDENTIALS_KEY: ${K5_CREDENTIALS_KEY:?defina K5_CREDENTIALS_KEY no .env da raiz}
@@ -101,6 +102,19 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  judicial-worker:
+    # Gazette collection and jurisprudence ingestion share the database and public corpus objects
+    # with web and the document worker, while remaining independent from OCR processing.
+    build: *app_build
+    command: ["pnpm", "judicial:worker"]
+    environment: *app_env
+    volumes:
+      - appdata:/data
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   notifications:
     # Projection, civil-date reminders and Web Push delivery have their own queues so OCR cannot
     # delay a reminder. Without VAPID configuration the durable inbox still works.
@@ -135,7 +149,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  # SQLite and the Vault originals share one volume so a `docker compose down` keeps both, and
-  # neither ends up inside the image layers.
+  # SQLite, Vault originals and public research originals share a persistent volume.
   appdata:
   vectors:

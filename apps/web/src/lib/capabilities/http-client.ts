@@ -14,6 +14,22 @@ const id = (value: unknown) => encodeURIComponent(String(value ?? ''));
  * may not exist or may not belong to this office.
  */
 const routes: Record<CapabilityName, Route> = {
+  k5_research_search_corpus: { method: 'POST', path: () => '/api/research/corpus', body: i => i },
+  k5_research_get_judgment: { method: 'GET', path: i => `/api/research/judgments/${id(i.judgmentId)}` },
+  k5_research_list_history: { method: 'GET', path: () => '/api/research/searches' },
+  k5_research_get_search: { method: 'GET', path: i => `/api/research/searches/${id(i.searchId)}` },
+  k5_research_start_search: { method: 'POST', path: () => '/api/research/searches', body: i => i },
+  k5_research_request_page: { method: 'POST', path: i => `/api/research/searches/${id(i.searchId)}/pages`, body: i => i },
+  k5_research_request_material: { method: 'POST', path: () => '/api/research/materials', body: i => i },
+  k5_research_cancel_downloads: { method: 'POST', path: i => `/api/research/searches/${id(i.searchId)}/downloads`, body: i => i },
+  k5_research_get_profile: { method: 'GET', path: i => `/api/research/cases/${id(i.caseId)}/profile` },
+  k5_research_save_profile: { method: 'PUT', path: i => `/api/research/cases/${id(i.caseId)}/profile`, body: i => i },
+  k5_research_assess_material: { method: 'POST', path: i => `/api/research/cases/${id(i.caseId)}/assessments`, body: i => i },
+  k5_research_get_assessment: { method: 'GET', path: i => `/api/research/assessments/${id(i.assessmentId)}` },
+  k5_research_list_references: { method: 'GET', path: i => `/api/research/cases/${id(i.caseId)}/references` },
+  k5_research_add_reference: { method: 'POST', path: i => `/api/research/cases/${id(i.caseId)}/references`, body: i => i },
+  k5_research_update_reference: { method: 'PATCH', path: i => `/api/research/references/${id(i.referenceId)}`, body: i => i },
+  k5_research_remove_reference: { method: 'DELETE', path: i => `/api/research/references/${id(i.referenceId)}`, body: i => i },
   k5_agenda_interpret: { method: 'POST', path: () => '/api/agenda/proposals/interpret', body: i => i },
   k5_agenda_get_proposal: { method: 'POST', path: () => '/api/agenda/proposals/get', body: i => i },
   k5_agenda_list_proposals: { method: 'POST', path: () => '/api/agenda/proposals/list', body: i => i },
@@ -78,6 +94,9 @@ const routes: Record<CapabilityName, Route> = {
       const ids = Array.isArray(i.documentIds) ? (i.documentIds as unknown[]) : [];
       const params = new URLSearchParams();
       for (const value of ids) params.append('documentId', String(value));
+      if (i.caseId) params.set('caseId', String(i.caseId));
+      const referenceIds = Array.isArray(i.researchReferenceIds) ? (i.researchReferenceIds as unknown[]) : [];
+      for (const value of referenceIds) params.append('researchReferenceId', String(value));
       return `/api/citations?${params.toString()}`;
     },
   },

@@ -19,6 +19,7 @@ import * as ui from '@/lib/application/ui-service';
 import * as platform from '@/lib/application/platform-service';
 import * as judicial from '@/lib/application/judicial-service';
 import * as agenda from '@/lib/application/agenda-service';
+import * as research from '@/lib/application/research-capability-service';
 import { getVerification, requestVerification } from '@/lib/typesafe/verification';
 import { interpretAgenda, getProposal, listProposals, applyProposal } from '@/lib/typesafe/agenda';
 import { endGlobalSession } from '@/lib/application/ui-service';
@@ -27,6 +28,22 @@ type Executor = (context: WorkspaceContext, input: never) => unknown;
 
 /** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_research_search_corpus: research.searchCorpus,
+  k5_research_get_judgment: research.getJudgment,
+  k5_research_list_history: research.listHistory,
+  k5_research_get_search: research.getSearch,
+  k5_research_start_search: research.startSearch,
+  k5_research_request_page: research.requestPage,
+  k5_research_request_material: research.requestMaterial,
+  k5_research_cancel_downloads: research.cancelDownloads,
+  k5_research_get_profile: research.getProfile,
+  k5_research_save_profile: research.saveProfile,
+  k5_research_assess_material: research.assessMaterial,
+  k5_research_get_assessment: research.getAssessment,
+  k5_research_list_references: research.listReferences,
+  k5_research_add_reference: research.addReference,
+  k5_research_update_reference: research.updateReference,
+  k5_research_remove_reference: research.removeReference,
   k5_agenda_interpret: interpretAgenda,
   k5_agenda_get_proposal: getProposal,
   k5_agenda_list_proposals: listProposals,
@@ -109,6 +126,10 @@ export async function runCapability<N extends CapabilityName>(
   rawInput: unknown,
 ): Promise<unknown> {
   const capability: Capability = capabilities[name];
+  if (capability.module === 'research' && context.invocation &&
+      !capability.publish?.includes(context.invocation)) {
+    throw new CapabilityError('FORBIDDEN', 'Esta ação da Pesquisa precisa ser feita na interface.');
+  }
   const authorized = await assertCapabilityAllowed(context, name);
   const input = capability.input.parse(rawInput) as Record<string, unknown>;
 

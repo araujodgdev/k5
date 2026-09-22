@@ -1,0 +1,27 @@
+{
+  "kind": "ckan",
+  "courtCode": "STJ",
+  "courtName": "Superior Tribunal de Justiça",
+  "degree": "superior",
+  "system": "not_applicable",
+  "purpose": "jurisprudence",
+  "baseUrl": "https://dadosabertos.web.stj.jus.br/",
+  "contractVersion": "CKAN package_show; parser stj-ckan-v2",
+  "authKind": "none",
+  "discoveryStatus": "documented",
+  "permissions": {
+    "query": "permitido",
+    "cache": "permitido",
+    "documents": "nao_esclarecido",
+    "redistribution": "permitido",
+    "ai": "nao_esclarecido"
+  },
+  "permissionEvidence": "Portal oficial STJ: https://dadosabertos.web.stj.jus.br/dataset/espelhos-de-acordaos-segunda-turma (licença Creative Commons Atribuição, conferida em 2026-09-22). A ficha limita consulta/cache/redistribuição ao conjunto de espelhos; o uso de íntegras e envio à IA exigem revisão e alteração explícita das respectivas permissões. HTTP 200 não é evidência de direito de reutilização.",
+  "allowedHosts": ["dadosabertos.web.stj.jus.br"],
+  "rateLimitPerMinute": 10,
+  "dailyRequestBudget": 500,
+  "coverageFrom": "2022-05-08",
+  "coverageTo": null,
+  "documentationUrl": "https://dadosabertos.web.stj.jus.br/dataset/espelhos-de-acordaos-segunda-turma",
+  "notes": "Ficha de exemplo operacional para espelhos da Segunda Turma. O portal de íntegras declara licença Creative Commons Atribuição em https://dadosabertos.web.stj.jus.br/dataset/integras-de-decisoes-terminativas-e-acordaos-do-diario-da-justica, mas conferir dicionário e canário oficial antes de liberar documents e cadastrar vínculos espelho↔íntegra. Registrar a ficha nunca ativa acesso real."
+}

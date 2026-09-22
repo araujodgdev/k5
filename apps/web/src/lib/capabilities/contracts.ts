@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { agendaCapabilities } from './agenda';
+import { researchCapabilities } from './research';
+import { researchCaseCapabilities } from './research-case';
 import { verificationCapabilities } from './verification';
 import type { OfficeRole } from '@/lib/offices';
 
@@ -12,7 +14,7 @@ import type { OfficeRole } from '@/lib/offices';
 export type CapabilitySurface = 'agent' | 'webmcp';
 
 export type Capability = {
-  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda';
+  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research';
   description: string;
   effect: 'read' | 'write';
   roles: readonly OfficeRole[];
@@ -65,7 +67,9 @@ export const runDto = z.object({
   error: z.string().nullable(), artifactId: z.string().nullable(), createdAt: z.string(),
 });
 export const sourceDto = z.object({
-  sourceId: z.string(), documentId: z.string(), documentName: z.string(), sourceLabel: z.string(), text: z.string(),
+  sourceId: z.string(), documentId: z.string().optional(), documentName: z.string().optional(), sourceLabel: z.string(), text: z.string(),
+  sourceType: z.enum(['vault', 'research']).optional(), researchReferenceId: z.string().optional(),
+  materialVersionId: z.string().optional(), judgmentId: z.string().optional(), researchChunkId: z.string().optional(),
   adjacentContext: z.string().optional(),
 });
 export const artifactDto = z.object({
@@ -73,7 +77,10 @@ export const artifactDto = z.object({
   validationIssues: z.array(z.string()),
 });
 export const conversationDto = z.object({ id: z.string(), title: z.string(), updatedAt: z.string() });
-export const citationCandidateDto = z.object({ id: z.string(), documentId: z.string(), sourceLabel: z.string(), text: z.string() });
+export const citationCandidateDto = z.object({ id: z.string(), documentId: z.string().optional(), sourceLabel: z.string(), text: z.string(),
+  sourceType: z.enum(['vault', 'research']).optional(), researchReferenceId: z.string().optional(),
+  materialVersionId: z.string().optional(), judgmentId: z.string().optional(), researchChunkId: z.string().optional(),
+});
 export const artifactVersionDto = z.object({ version: z.number(), title: z.string(), createdAt: z.string() });
 
 /**
@@ -136,6 +143,8 @@ export const judicialAlertDto = z.object({
 
 export const capabilities = {
   ...agendaCapabilities,
+  ...researchCapabilities,
+  ...researchCaseCapabilities,
   ...verificationCapabilities,
   k5_vault_list_cases: {
     module: 'vault', effect: 'read', roles: readers,
@@ -259,13 +268,15 @@ export const capabilities = {
       query: z.string().trim().min(2).max(500).describe('Pergunta ou termos a buscar, em português.'),
       documentIds: documentIds.optional().describe('Restringe a busca a estes documentos. Omita para buscar em todo o Cofre.'),
       caseId: identifier.optional().describe('Restringe a busca aos documentos de um caso.'),
+      researchReferenceIds: z.array(identifier).max(100).optional().describe('Referências do caso explicitamente selecionadas na interface.'),
       limit: z.number().int().min(1).max(24).default(8),
-    }),
+    }).refine(input => !input.researchReferenceIds?.length || !!input.caseId, 'Selecione um caso para usar referências.'),
     output: z.object({
       sources: z.array(sourceDto),
       degraded: z.boolean().describe('Verdadeiro quando a busca foi apenas lexical.'),
       degradedReason: z.string().optional().describe('Por que a busca semântica não foi usada.'),
       reranking: z.object({ status: z.enum(['evaluated', 'disabled', 'unavailable', 'budget_exceeded']), applied: z.boolean(), reason: z.string().optional() }).optional(),
+      researchCoverage: z.object({ selectedReferences: z.number(), usedReferences: z.number(), partial: z.boolean() }).optional(),
     }),
   },
   k5_knowledge_get_source: {
@@ -324,15 +335,19 @@ export const capabilities = {
     module: 'runs', effect: 'write', roles: writers,
     description: 'Inicia a redação de uma minuta a partir dos documentos escolhidos. Sem citações jurídicas: autoridades exigem seleção humana na tela.',
     input: z.object({
-      documentIds, instructions: z.string().trim().min(1).max(12000).describe('O pedido da minuta.'),
+      documentIds: z.array(identifier).max(100), caseId: identifier.optional(), researchReferenceIds: z.array(identifier).max(100).optional(),
+      instructions: z.string().trim().min(1).max(12000).describe('O pedido da minuta.'),
       templateId: identifier.optional().describe('Documento do Cofre usado apenas como modelo de estilo.'), idempotencyKey,
-    }),
+    }).refine(input => !input.researchReferenceIds?.length || !!input.caseId, 'Selecione um caso para usar referências.')
+      .refine(input => input.documentIds.length > 0 || !!input.researchReferenceIds?.length, 'Selecione fontes para a minuta.'),
     output: z.object({ run: runDto }),
   },
   k5_citations_list_candidates: {
     module: 'citations', effect: 'read', roles: readers,
     description: 'Lista passagens candidatas a citação jurídica nos documentos autorizados para avaliação humana.',
-    input: z.object({ documentIds }),
+    input: z.object({ documentIds: z.array(identifier).max(100), caseId: identifier.optional(), researchReferenceIds: z.array(identifier).max(100).optional() })
+      .refine(input => !input.researchReferenceIds?.length || !!input.caseId, 'Selecione um caso para usar referências.')
+      .refine(input => input.documentIds.length > 0 || !!input.researchReferenceIds?.length, 'Selecione fontes para citações.'),
     output: z.object({ candidates: z.array(citationCandidateDto) }),
   },
   k5_artifacts_get: {
@@ -394,8 +409,9 @@ export const capabilities = {
   k5_context_set_sources: {
     module: 'knowledge', effect: 'read', roles: readers,
     description: 'Define ou atualiza o escopo de documentos vinculados à conversa atual.',
-    input: z.object({ conversationId: identifier.optional(), documentIds }),
-    output: z.object({ success: z.boolean(), documentIds: z.array(z.string()) }),
+    input: z.object({ conversationId: identifier.optional(), documentIds: z.array(identifier).max(100), caseId: identifier.optional(), researchReferenceIds: z.array(identifier).max(100).optional() })
+      .refine(input => !input.researchReferenceIds?.length || !!input.caseId, 'Selecione um caso para usar referências.'),
+    output: z.object({ success: z.boolean(), documentIds: z.array(z.string()), caseId: z.string().nullable().optional(), researchReferenceIds: z.array(z.string()).optional() }),
   },
   k5_ui_open_resource: {
     module: 'ui', effect: 'read', roles: readers,

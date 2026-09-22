@@ -25,7 +25,9 @@ cp .env.example .env     # preencha BETTER_AUTH_SECRET e K5_CREDENTIALS_KEY
 docker compose up
 ```
 
-Sobem `vectors` (pgvector), `setup` (migrações), `web` e `worker`. Detalhes e a configuração de
+Sobem `vectors` (pgvector), `setup` (migrações), `web`, `worker`, `judicial-worker` e `notifications`.
+O banco SQLite, os originais do Cofre e os originais públicos de Pesquisa usam o mesmo volume persistente.
+Detalhes e a configuração de
 staging na Cloudflare estão em [docs/ambientes.md](docs/ambientes.md).
 
 ## Estrutura
@@ -72,7 +74,7 @@ Os testes de autenticação usam bancos SQLite em memória, separados dos dados 
 | `/app/agenda` | Tarefas, agenda e clientes |
 | `/app/agenda/clients/[id]` | Detalhes do cliente, contato, casos e atividades |
 | `/app/notifications` | Caixa pessoal e preferências de notificações |
-| `/app/research` | Redireciona para Tarefas e Agenda |
+| `/app/research` | Pesquisa de jurisprudência, acervo e histórico pessoal |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/platform/clients` | Administração da plataforma (conexões de IA por escritório) |
 
@@ -80,6 +82,9 @@ As áreas de `/app` exigem sessão válida no servidor. Início, Lume, Cofre e T
 `/platform` exige o papel de administrador da plataforma.
 Tarefas de documentos precisam do worker (`pnpm worker`) em execução; veja
 [`apps/web/README.md`](apps/web/README.md).
+A consulta a tribunais também precisa de `pnpm judicial:worker` e de uma instalação judicial
+habilitada pelo operador. A extração de PDF e as avaliações de Pesquisa usam `pnpm worker`.
+Veja [operação da Pesquisa](apps/web/README.md#pesquisa-de-jurisprudência).
 A interface usa pt-BR, temas claro/escuro (ou o tema do sistema) e sidebar responsiva.
 O Lume pode ser instalado como PWA; veja [instalação e funcionamento offline](apps/web/README.md#pwa-e-temas).
 

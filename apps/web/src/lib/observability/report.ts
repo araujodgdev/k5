@@ -12,5 +12,5 @@ export function captureOperationalError(error: unknown, operation: string) {
 }
 
 export function observeWorkerTask<T>(operation: string, task: () => Promise<T>): Promise<T> {
-  return withIsolationScope(() => startSpan({ name: operation, op: 'queue.process' }, task));
+  return withIsolationScope(() => startSpan({ name: operation, op: 'queue.process' }, () => task()));
 }
