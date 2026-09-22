@@ -18,7 +18,7 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "Agentes", url: "/app/agents" },
+      { name: "Lume", url: "/app/agents" },
       { name: "Cofre", url: "/app/vault" },
       { name: "Tarefas e Agenda", url: "/app/agenda" },
     ],

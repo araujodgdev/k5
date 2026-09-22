@@ -10,6 +10,8 @@ import { executeViaHttp } from '@/lib/webmcp/adapter';
 import type { CapabilityName, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { AgendaActivity, CrmClient } from '@/lib/capabilities/agenda';
 import { localInstant } from '@/lib/typesafe/agenda-time';
+import { localDate } from '@/lib/calendar-days';
+export { localDate } from '@/lib/calendar-days';
 
 export const selectStyle = 'h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9';
 export type Choice = { id: string; name: string };
@@ -23,9 +25,6 @@ export function Field({ name, label, children }: { name: string; label: string; 
 }
 function Selection({ name, label, choices, value = '' }: { name: string; label: string; choices: Choice[]; value?: string | null }) {
   return <Field name={name} label={label}><select id={name} name={name} defaultValue={value ?? ''} className={selectStyle}><option value="">Sem vínculo</option>{value && !choices.some(c => c.id === value) && <option value={value}>Vínculo anterior</option>}{choices.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>;
-}
-export function localDate(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 function localTime(instant: string | null) {
   if (!instant) return '';

@@ -30,6 +30,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
   const indicatorRef = useRef<HTMLSpanElement>(null);
   const tabbarRef = useRef<HTMLElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const moreTitleRef = useRef<HTMLHeadingElement>(null);
   const placed = useRef(false);
 
   useEffect(() => {
@@ -146,7 +147,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
               {appNavigation.map((item) => {
                 const href = `/app/${item.slug}`;
                 const Icon = navIcons[item.slug];
-                const active = pathname === href;
+                const active = pathname === href || pathname.startsWith(`${href}/`);
                 return (
                   <SidebarMenuItem key={item.slug}>
                     <SidebarMenuButton asChild isActive={active} className="relative h-9 data-[active=true]:bg-transparent">
@@ -186,15 +187,15 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
           const item = appNavigation.find((entry) => entry.slug === slug)!;
           const href = `/app/${slug}`;
           const Icon = navIcons[slug];
-          const active = pathname === href;
+          const active = pathname === href || pathname.startsWith(`${href}/`);
           return <TabItem key={slug} href={href} icon={<Icon className="size-[18px]" aria-hidden="true" />} label={item.short} active={active} />;
         })}
         <TabItem ref={moreButtonRef} icon={<Ellipsis className="size-[18px]" aria-hidden="true" />} label="Mais" active={overflowActive} onClick={() => setSheetOpen(true)} aria-haspopup="dialog" aria-expanded={sheetOpen} />
       </nav>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="gap-1 p-2" onCloseAutoFocus={(event) => { event.preventDefault(); moreButtonRef.current?.focus(); }}>
-          <SheetTitle className="px-3 py-2 pr-12 font-sans text-sm">Mais opções</SheetTitle>
+        <SheetContent side="bottom" className="gap-1 p-2" onOpenAutoFocus={(event) => { event.preventDefault(); moreTitleRef.current?.focus(); }} onCloseAutoFocus={(event) => { event.preventDefault(); moreButtonRef.current?.focus(); }}>
+          <SheetTitle ref={moreTitleRef} tabIndex={-1} className="px-3 py-2 pr-12 font-sans text-sm outline-none">Mais opções</SheetTitle>
           {overflow.map((item) => {
             const href = `/app/${item.slug}`;
             const Icon = navIcons[item.slug];

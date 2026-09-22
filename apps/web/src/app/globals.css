@@ -20,7 +20,8 @@
   --popover: #ffffff;
   --popover-foreground: #1b1b1a;
 
-  /* Primary is ink. There is no brand accent color. */
+  /* Primary is ink; terracotta marks scheduled activity. */
+  --schedule: #a3542c;
   --primary: #1b1b1a;
   --primary-foreground: #ffffff;
   --secondary: #f3f3f1;
@@ -54,6 +55,7 @@
 }
 
 .dark {
+  --schedule: #d49a72;
   color-scheme: dark;
   --background: #20201e;
   --foreground: #f3f3ef;
@@ -88,6 +90,7 @@
 }
 
 @theme inline {
+  --color-schedule: var(--schedule);
   --color-overlay: var(--overlay);
   --color-canvas: var(--canvas);
   --color-subtle-foreground: var(--subtle-foreground);
@@ -157,6 +160,13 @@
 @utility pb-dock {
   padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
 }
+
+/* A definite shell height keeps the chat viewport, composer and mobile dock together. */
+.app-shell:has(.agent-chat) {
+  height: 100dvh;
+  overflow: hidden;
+}
+.app-shell:has(.agent-chat) > header { flex-shrink: 0; }
 
 /* The mobile "Mais" panel floats above the tab bar. Written as plain CSS (and
    outside a cascade layer) so it beats the utility classes, with a static

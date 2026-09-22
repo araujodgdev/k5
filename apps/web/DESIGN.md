@@ -6,7 +6,7 @@ The UI is built on [shadcn/ui](https://ui.shadcn.com) (Radix, `radix-nova` prese
 
 ## Principles
 
-1. **Ink over color.** Hierarchy comes from weight, size, and the ink ramp (`foreground`, `muted-foreground`, `subtle-foreground`). `primary` is black. There is no brand accent color.
+1. **Ink over color.** Hierarchy comes from weight, size, and the ink ramp (`foreground`, `muted-foreground`, `subtle-foreground`). `primary` is black. A muted terracotta accent (`schedule`) marks calendar activity, meeting times and overdue dates; surfaces remain neutral.
 2. **One surface per idea.** The app is canvas (sidebar), and the content sits on a single white surface. Don't put cards inside cards or panels inside panels. Group things with spacing and a hairline border.
 3. **Say it once.** A page gets one title. Leave out subtitles, eyebrow labels, and descriptions that repeat the title.
 4. **Real states, plain words.** Empty, loading, and error states are short sentences in Portuguese, set in text color. Don't use illustrations or colored alert boxes.
@@ -33,6 +33,7 @@ Set in `:root` in `globals.css`. Use them through Tailwind classes such as `bg-c
 | `subtle-foreground` | `#93938e` | Placeholders, empty states, inactive tabs |
 | `muted` / `secondary` | `#f3f3f1` | Quiet fills |
 | `accent` | `#ebebe8` | Hover and selected fills |
+| `schedule` | `#a3542c` / dark `#d49a72` | Calendar pins and scheduling emphasis |
 | `border` / `input` | `#e8e8e5` / `#d4d4d0` | Dividers / control borders |
 | `destructive` | `#b3261e` | Error text only |
 | `--radius` | `0.75rem` | Base radius; `rounded-md` for nav and controls, `rounded-2xl` for the content surface, composer, and sheet |
@@ -50,7 +51,7 @@ do not add per-component color overrides. Dialogs and sheets inherit these token
 
 `ThemeSwitch` offers Sistema, Claro, and Escuro with a native keyboard-accessible
 select. It lives in the sidebar footer, mobile Mais sheet, auth header, and platform
-header. The preference follows the system by default and persists per browser.
+header. The Mais sheet initially focuses its title, avoiding automatic activation of the native selector on iOS. The preference follows the system by default and persists per browser.
 `InstallApp` shares the same quiet controls. Installation help is a dialog; offline
 and pending-update notices use a single floating surface and plain pt-BR text.
 
@@ -76,7 +77,7 @@ Prefer a shadcn primitive over new markup. Add one with `pnpm dlx shadcn@latest 
 - **Mobile tab bar**: 4 sections plus "Mais". The active tab is a black icon tile. The list is `mobileTabs` in `src/lib/navigation.ts`. It slides away while the page scrolls down and returns on the way up, so reading gets the full height.
 - **Bottom sheets** float: inset 8px from the side edges, above the tab bar, rounded and bordered. That geometry is plain CSS in `globals.css` (`[data-slot="sheet-content"][data-side="bottom"]`), unlayered so it beats the utility classes, with a static `bottom` fallback before the `env()` one.
 - **Overlays dim, they don't blur.** `backdrop-filter` breaks stacking in some Safari versions, which can hide the panel behind the blur layer. A flat `bg-overlay/40` is also cheaper on a phone and stays dark in both themes.
-- **Agent chat** (`/app/agents`, `src/components/agent-chat.tsx`): an empty conversation area with the composer docked at the bottom. The container is `flex-1` inside the flex column shell — never `h-full`, which has no definite height to resolve against and pushes the composer to the top. The composer is `sticky bottom-0`, `max-w-3xl`, rounded-2xl with `--shadow-float`. Don't add a logo, shortcut tiles, or navigation to the chat content. The command center is not a chat.
+- **Agent chat** (`/app/agents`, `src/components/agent-chat.tsx`): an empty conversation area with the composer docked at the bottom. The container is `flex-1` inside the flex column shell — never `h-full`, which has no definite height to resolve against and pushes the composer to the top. The shell has a definite `100dvh` height on this route; only the thread viewport scrolls. The composer is `sticky bottom-0`, `max-w-3xl`, rounded-2xl with `--shadow-float`. After scrolling more than 240px from the end, a minimal arrow returns to the latest content and the input compacts without hiding controls or its draft. Respect reduced motion. Lume uses the custom `AgentMark` SVG in navigation: a geometric L with a diagonal light beam and an open corner, readable at 16px and 18px. The standalone asset is `public/lume.svg`; keep both drawings in sync. Don't add a logo, shortcut tiles, or navigation to the chat content. The command center is not a chat.
 - **Composer controls** live inside the composer, on a row under the input: attach, microphone, model. The page header keeps only the conversation actions. A control the current model cannot support stays visible and disabled, with a tooltip saying why — hiding it would make the model's limits invisible.
 - **Answers are Markdown** (`src/components/markdown.tsx`), rendered from tokens into React elements, never into HTML. Headings, lists, tables and code inside an answer are content and are exempt from the list ban above, which is about UI chrome.
 - **Cofre** (`/app/vault`): a drive. The home lists the library and the cases; a case has its own page with breadcrumbs, its subfolders, and its files. Cards and list are two views of the same level, toggled in the header — the card is the item itself, not a container wrapped around one. Client data sits behind a disclosure labelled "Dados do cliente (opcional)" and is never required to file a document.
@@ -101,3 +102,9 @@ Motion is quiet and explains what changed. Everything goes through `gsap.matchMe
 
 - **Lists and tables**: full-width rows separated by a hairline, a 13px `muted-foreground` header row, and no zebra striping. Show a file or category with a small icon and text, not a pill.
 - **Menus and popovers**: `popover` background, 1px border, `rounded-md`, and `--shadow-float`.
+
+## Workspace overview and clients
+
+- **In?cio** shows real tasks due through today, upcoming meetings, active clients, cases and personal conversations. Use separated rows, allow task completion inline, and link creation actions to the existing editors. Each section has its own empty/error state; reviewers receive read-only actions.
+- **Calendar** pins count all matching activities in the visible month, including paginated results. Tasks use civil dates; meetings mark every overlapping local day, excluding their ending midnight. Pin counts are included in accessible labels.
+- **Client details** live at `/app/agenda/clients/[id]`, with contact, notes, linked cases and paginated activities. A dialog is used only to edit data. The Agenda navigation stays active on nested client routes.

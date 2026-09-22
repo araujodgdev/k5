@@ -13,6 +13,7 @@ import {
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import {
   ArrowUp,
+  ArrowDown,
   Check,
   ChevronDown,
   CircleAlert,
@@ -383,9 +384,13 @@ function ComposerTools({ models, modelKey, onModelChange, modalities, uploading,
 }
 
 function K5Thread({ tools }: { tools: ComposerToolsProps }) {
+  const [away, setAway] = useState(false);
   return (
-    <ThreadPrimitive.Root className="min-h-0 flex-1">
-      <ThreadPrimitive.Viewport className="flex h-full flex-col overflow-y-auto" turnAnchor="top">
+    <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
+      <ThreadPrimitive.Viewport data-chat-viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain" turnAnchor="bottom" onScroll={event => {
+        const el = event.currentTarget;
+        setAway(el.scrollHeight - el.scrollTop - el.clientHeight > 240);
+      }}>
         <ThreadPrimitive.Empty>
           <div className="mx-auto grid w-full max-w-3xl flex-1 place-items-center px-6 py-14 text-center">
             <p className="max-w-sm text-sm leading-6 text-subtle-foreground">Pergunte o que precisar. O assistente também consulta os documentos do escritório.</p>
@@ -393,13 +398,14 @@ function K5Thread({ tools }: { tools: ComposerToolsProps }) {
         </ThreadPrimitive.Empty>
         <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
 
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background/95 px-4 pb-4 pt-2 md:px-8 md:pb-8">
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 z-10 mt-auto shrink-0 bg-background/95 px-4 pb-4 pt-2 md:px-8 md:pb-6">
+          {away && <ThreadPrimitive.ScrollToBottom aria-label="Voltar ao mais recente" title="Voltar ao mais recente" behavior="auto" className="absolute -top-12 left-1/2 grid size-11 -translate-x-1/2 place-items-center rounded-full border bg-background shadow-[var(--shadow-float)] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:hidden"><ArrowDown className="size-4" /></ThreadPrimitive.ScrollToBottom>}
           <ComposerPrimitive.Root className="mx-auto w-full max-w-3xl rounded-2xl border bg-background p-2 shadow-[var(--shadow-float)] transition focus-within:border-input">
             <ComposerPrimitive.Input
-              rows={2}
-              placeholder="Pergunte ao K5"
-              aria-label="Pergunte ao K5"
-              className="max-h-[40dvh] min-h-16 w-full resize-none bg-transparent px-2 pt-2 pb-1 text-base outline-none placeholder:text-subtle-foreground md:text-sm"
+              rows={away ? 1 : 2}
+              placeholder="Pergunte ao Lume"
+              aria-label="Pergunte ao Lume"
+              className={cn("max-h-[25dvh] w-full resize-none bg-transparent px-2 pt-2 pb-1 text-base outline-none transition-[min-height] duration-200 motion-reduce:transition-none placeholder:text-subtle-foreground md:text-sm", away ? "min-h-10" : "min-h-16")}
             />
             <div className="flex items-center gap-1">
               <ComposerTools {...tools} />
@@ -472,7 +478,7 @@ function RuntimeThread({ conversationId, messages, context, selectedModel, audio
   return <AssistantRuntimeProvider runtime={runtime}><K5Thread tools={tools} /></AssistantRuntimeProvider>;
 }
 
-export function AgentChat() {
+export function AgentChat({ initialConversationId = '' }: { initialConversationId?: string }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -600,7 +606,8 @@ export function AgentChat() {
       try {
         const next = await loadConversations();
         if (cancelled) return;
-        if (next[0]) setSelectedId(next[0].id);
+        if (initialConversationId && next.some(item => item.id === initialConversationId)) setSelectedId(initialConversationId);
+        else if (next[0]) setSelectedId(next[0].id);
         else await createConversation();
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "Não foi possível abrir o chat.");
@@ -610,7 +617,7 @@ export function AgentChat() {
     }
     void initialize();
     return () => { cancelled = true; };
-  }, [createConversation, loadConversations]);
+  }, [createConversation, loadConversations, initialConversationId]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -675,10 +682,10 @@ export function AgentChat() {
 
   return (
     <TooltipProvider>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <header className="flex min-h-16 items-center justify-between gap-3 border-b px-4 md:px-8">
+      <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden">
+        <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b px-4 md:px-8">
           <div className="flex min-w-0 items-center gap-2">
-            <h1 className="display truncate text-[28px]">Agentes</h1>
+            <h1 className="display truncate text-[28px]">Lume</h1>
             <Button variant="ghost" size="icon" aria-label={listOpen ? "Recolher conversas" : "Mostrar conversas"} aria-expanded={listOpen} onClick={toggleList}><History /></Button>
             <Button variant="ghost" size="icon" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
           </div>
@@ -697,7 +704,7 @@ export function AgentChat() {
 
         <div className="flex min-h-0 flex-1">
           {listOpen && (
-            <aside className="flex min-h-0 w-full shrink-0 flex-col border-b md:w-72 md:border-r md:border-b-0">
+            <aside className="flex min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b md:w-72 md:border-r md:border-b-0">
               {loading && conversations.length === 0 ? (
                 <div className="grid gap-2 p-3" aria-hidden="true">
                   <Skeleton className="h-16 w-full rounded-2xl" />

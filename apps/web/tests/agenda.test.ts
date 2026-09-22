@@ -30,6 +30,8 @@ test('agenda: clients, links, partial updates and stale versions preserve data',
   assert.deepEqual(updated.client.caseIds, [caseId]);
   await assert.rejects(call(context, 'k5_crm_update_client', { clientId: client.id, version: 1, name: 'Nome antigo', caseIds: [] }), { code: 'CONFLICT' });
   const current = await call(context, 'k5_crm_get_client', { clientId: client.id }) as { client: typeof client };
+  const destination = await call(context, 'k5_ui_open_resource', { resourceType: 'client', resourceId: client.id });
+  assert.deepEqual(destination, { path: `/app/agenda/clients/${client.id}` });
   assert.deepEqual(current.client.caseIds, [caseId]);
   const page = await call(context, 'k5_crm_list_clients', { caseId, query: 'Maria', limit: 1, offset: 0 }) as { total: number };
   assert.equal(page.total, 1);

@@ -106,7 +106,7 @@ O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
   `pnpm platform:admin rotate-key --email <administrador da plataforma>`.
 - **Cofre (`/app/vault`):** casos e biblioteca; PDF (com OCR), DOCX, EML, XLSX, CSV e TXT
   com referências estáveis por página, parágrafo, mensagem ou célula.
-- **Agentes (`/app/agents`):** conversa com histórico por usuário, usando somente os
+- **Lume (`/app/agents`):** conversa com histórico por usuário, usando somente os
   documentos selecionados; cronologia e minuta rodam como tarefas duráveis e abrem no
   editor em `/app/documents/[id]`, com exportação DOCX no timbrado do modelo.
 - **Worker:** processamento de documentos, cronologias e minutas roda fora da requisição.
@@ -133,7 +133,7 @@ mudanças de aparência do dispositivo. A preferência é aplicada antes da hidr
 
 Use **Instalar K5** para instalar em navegadores compatíveis. No iPhone/iPad, use
 Safari → Compartilhar → Adicionar à Tela de Início. O manifesto define abertura em
-janela própria, ícones normais/maskable e atalhos para Agentes, Cofre e Agenda.
+janela própria, ícones normais/maskable e atalhos para Lume, Cofre e Agenda.
 Instalação e service worker exigem HTTPS em produção (localhost funciona para testes).
 
 O service worker é registrado somente no build de produção. O build gera
@@ -202,3 +202,9 @@ expiração, renovação, cookies forjados, logout global, origem e limite de te
 
 O comando de produção é `pnpm --filter @k5/web start`, após setup e build.
 A UI usa fontes do sistema e não precisa baixar fontes durante o build.
+
+## Vis?o geral e valida??o de interface
+
+O In?cio re?ne tarefas pendentes at? hoje, pr?ximas reuni?es, clientes ativos, casos e conversas pessoais. Permite concluir tarefas e abrir os formul?rios existentes. As vis?es da agenda aceitam `?view=tasks`, `?view=calendar` e `?view=clients`; `action=new` abre o cadastro correspondente para quem pode editar. Clientes t?m uma p?gina pr?pria em `/app/agenda/clients/[id]`.
+
+Com o servidor local em execu??o, rode `pnpm --filter @k5/web exec tsx scripts/verify-workspace-ui.ts` na raiz. O script reutiliza a conta de valida??o (ou `PWA_TEST_EMAIL` / `PWA_TEST_PASSWORD`), intercepta dados de neg?cio com fixtures e n?o cadastra contas nem altera os registros do escrit?rio. Confere menu Mais, chat longo, retorno ao fim, calend?rio, In?cio e detalhes de cliente em desktop/mobile. Capturas ficam em `apps/web/playwright-report/workspace-ui/`.

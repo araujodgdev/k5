@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { calendarDays } from '@/lib/calendar-days';
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +18,7 @@ const statusLabels = { pending: 'Pendente', completed: 'Concluída', cancelled: 
 const stageLabels = { prospect: 'Potencial cliente', active: 'Cliente ativo', archived: 'Arquivado' };
 const dateLabel = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
 
-function Calendar({ day, onChange }: { day: string; onChange: (value: string) => void }) {
+function Calendar({ day, markers, onChange }: { day: string; markers: Record<string, number>; onChange: (value: string) => void }) {
   const date = new Date(`${day}T12:00:00`);
   const year = date.getFullYear(); const month = date.getMonth();
   const start = new Date(year, month, 1).getDay();
@@ -27,20 +29,25 @@ function Calendar({ day, onChange }: { day: string; onChange: (value: string) =>
     <div className="grid grid-cols-7 text-center text-xs text-muted-foreground" aria-hidden="true">{['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label, i) => <span key={i} className="py-2">{label}</span>)}</div>
     <div className="grid grid-cols-7">{Array.from({ length: start }, (_, i) => <span key={`empty-${i}`} />)}{Array.from({ length: count }, (_, i) => {
       const value = localDate(new Date(year, month, i + 1));
-      return <button key={value} type="button" aria-label={dateLabel(value)} aria-pressed={value === day} aria-current={value === today ? 'date' : undefined} onClick={() => onChange(value)} onKeyDown={event => {
+      return <button key={value} type="button" data-calendar-day={value} aria-label={`${dateLabel(value)}${markers[value] ? `, ${markers[value]} atividade${markers[value] === 1 ? '' : 's'}` : ''}`} aria-pressed={value === day} aria-current={value === today ? 'date' : undefined} onClick={() => onChange(value)} onKeyDown={event => {
         const shift = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
-        if (shift !== undefined) { event.preventDefault(); const next = new Date(year, month, i + 1 + shift); onChange(localDate(next)); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(`button[aria-label="${dateLabel(localDate(next))}"]`)?.focus()); }
-      }} className={`min-h-11 rounded-md text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${value === day ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'} ${value === today ? 'font-semibold underline underline-offset-4' : ''}`}>{i + 1}</button>;
+        if (shift !== undefined) { event.preventDefault(); const next = new Date(year, month, i + 1 + shift); onChange(localDate(next)); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(`button[data-calendar-day="${localDate(next)}"]`)?.focus()); }
+      }} className={`relative min-h-11 rounded-md pb-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${value === day ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'} ${value === today ? 'font-semibold underline underline-offset-4' : ''}`}>{i + 1}{!!markers[value] && <span aria-hidden="true" className={`absolute bottom-1 left-1/2 size-1.5 -translate-x-1/2 rounded-full ${value === day ? 'bg-primary-foreground' : 'bg-schedule'}`} />}</button>;
     })}</div>
     <Button variant="outline" className="mt-4 w-full" onClick={() => onChange(today)}>Hoje</Button>
+    <p className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground"><span className="size-1.5 rounded-full bg-schedule" aria-hidden="true" />Dias com atividades</p>
   </section>;
 }
 
-export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialActivityId, initialProposalId = '' }: {
-  role: OfficeRole; initialCaseId: string; initialClientId: string; initialActivityId: string; initialProposalId?: string;
+export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialActivityId, initialProposalId = '', initialView = 'tasks', initialAction = '' }: {
+  role: OfficeRole; initialCaseId: string; initialClientId: string; initialActivityId: string; initialProposalId?: string; initialView?: View; initialAction?: string;
 }) {
+  const router = useRouter();
   const canWrite = role !== 'reviewer';
-  const [view, setView] = useState<View>('tasks');
+  const [view, setView] = useState<View>(initialView);
+  const [markers, setMarkers] = useState<Record<string, number>>({});
+  const [markerFailure, setMarkerFailure] = useState('');
+  const [markersLoading, setMarkersLoading] = useState(false);
   const [day, setDay] = useState('');
   const [timeZone, setTimeZone] = useState('');
   const [caseId, setCaseId] = useState(initialCaseId);
@@ -60,7 +67,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   const [failure, setFailure] = useState('');
   const [optionsFailure, setOptionsFailure] = useState('');
   const [detailFailure, setDetailFailure] = useState('');
-  const [editor, setEditor] = useState<Editor | null>(null);
+  const [editor, setEditor] = useState<Editor | null>(canWrite && initialAction === 'new' ? { mode: initialView === 'clients' ? 'client' : 'activity' } : null);
   const [detail, setDetail] = useState<Editor | null>(null);
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(() => { setRevision(value => value + 1); }, []);
@@ -89,14 +96,35 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
 
   useEffect(() => {
     let cancelled = false;
-    if (!initialActivityId && !initialClientId) return;
-    const result = initialActivityId
-      ? agendaCall('k5_agenda_get_activity', { activityId: initialActivityId }).then(({ activity }) => ({ mode: 'activity', activity }) as Editor)
-      : agendaCall('k5_crm_get_client', { clientId: initialClientId }).then(({ client }) => ({ mode: 'client', client }) as Editor);
+    if (!initialActivityId) return;
+    const result = agendaCall('k5_agenda_get_activity', { activityId: initialActivityId }).then(({ activity }) => ({ mode: 'activity', activity }) as Editor);
     result.then(value => { if (!cancelled) { setDetail(value); setDetailFailure(''); } })
       .catch(error => { if (!cancelled) setDetailFailure(error.message); });
     return () => { cancelled = true; };
   }, [initialActivityId, initialClientId, revision]);
+
+  const month = day.slice(0, 7);
+  useEffect(() => {
+    if (view !== 'calendar' || !month) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setMarkers({}); setMarkerFailure(''); setMarkersLoading(true);
+      try {
+        const [year, index] = month.split('-').map(Number);
+        const from = new Date(year, index - 1, 1); const to = new Date(year, index, 1);
+        const all: AgendaActivity[] = [];
+        for (let offset = 0; ; offset += 100) {
+          const result = await agendaCall('k5_agenda_list_activities', { query, dueFrom: localDate(from), dueTo: localDate(new Date(year, index, 0)), from: from.toISOString(), to: to.toISOString(), ...(caseId ? { caseId } : {}), ...(clientId ? { clientId } : {}), ...(status ? { status } : {}), limit: 100, offset });
+          if (cancelled) return;
+          all.push(...result.activities);
+          if (all.length >= result.total || !result.activities.length) break;
+        }
+        if (!cancelled) setMarkers(calendarDays(month, all));
+      } catch { if (!cancelled) setMarkerFailure('Não foi possível carregar os marcadores do mês.'); }
+      finally { if (!cancelled) setMarkersLoading(false); }
+    }, 150);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [view, month, caseId, clientId, status, query, revision]);
 
   useEffect(() => {
     if (!day) return;
@@ -122,7 +150,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   }, [view, day, caseId, clientId, query, status, offset, revision]);
 
   function changeView(value: View) { setView(value); setStatus(''); setOffset(0); setQuery(''); setLoading(true); }
-  function inspect(value: Editor) { if (canWrite) setEditor(value); else setDetail(value); }
+  function inspect(value: Editor) { if (value.mode === 'client' && value.client) router.push(`/app/agenda/clients/${encodeURIComponent(value.client.id)}`); else if (canWrite) setEditor(value); else setDetail(value); }
   async function complete(activity: AgendaActivity) {
     setBusy(true); setFailure('');
     try { await agendaCall('k5_agenda_update_activity', { activityId: activity.id, version: activity.version, status: activity.status === 'completed' ? 'pending' : 'completed', idempotencyKey: crypto.randomUUID() }); refresh(); }
@@ -147,10 +175,10 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     {(failure || optionsFailure || detailFailure) && <div className="mb-4 flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-destructive">{failure || optionsFailure || detailFailure}</p><Button variant="outline" onClick={refresh}>Tentar novamente</Button></div>}
     {clientId && view !== 'clients' && clients.some(c => c.id === clientId) && <div className="mb-4"><Button variant="outline" onClick={() => inspect({ mode: 'client', client: clients.find(c => c.id === clientId)! })}>Dados de {findName(clients, clientId)}</Button></div>}
     <div className={view === 'calendar' ? 'flex flex-col gap-8 md:flex-row' : ''}>
-      {view === 'calendar' && day && <Calendar day={day} onChange={value => { setDay(value); setOffset(0); setLoading(true); }} />}
+      {view === 'calendar' && day && <div className="md:w-72 md:shrink-0"><Calendar day={day} markers={markers} onChange={value => { setDay(value); setOffset(0); setLoading(true); }} />{markersLoading && <p role="status" className="mt-3 text-xs text-muted-foreground">Carregando marcadores…</p>}{markerFailure && <div className="mt-3 space-y-2"><p role="alert" className="text-xs text-destructive">{markerFailure}</p><Button variant="ghost" onClick={refresh}>Tentar novamente</Button></div>}</div>}
       <section aria-label={view === 'clients' ? 'Clientes' : 'Atividades'} aria-busy={loading} className="min-w-0 flex-1">
         {view === 'calendar' && <div className="mb-4"><h2 className="text-base font-medium">{day && dateLabel(day)}</h2><p className="mt-1 text-xs text-muted-foreground">Horários em {timeZone}</p></div>}
-        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : 'Nenhuma tarefa encontrada.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><button type="button" onClick={() => inspect({ mode: 'client', client })} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</button><p className="mt-1 break-words text-xs text-muted-foreground">{stageLabels[client.stage]}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : <div className="divide-y border-y">{activities.map(activity => <article key={activity.id} className="flex items-start gap-3 py-4">
+        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : 'Nenhuma tarefa encontrada.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-xs text-muted-foreground">{stageLabels[client.stage]}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : <div className="divide-y border-y">{activities.map(activity => <article key={activity.id} className="flex items-start gap-3 py-4">
           {canWrite && activity.kind === 'task' && activity.status !== 'cancelled' && <input aria-label={`${activity.status === 'completed' ? 'Reabrir' : 'Concluir'} ${activity.title}`} type="checkbox" checked={activity.status === 'completed'} disabled={busy} onChange={() => void complete(activity)} className="mt-1 size-5 shrink-0 accent-primary" />}
           <div className="min-w-0 flex-1"><button type="button" onClick={() => inspect({ mode: 'activity', activity })} className="break-words text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{activity.title}</button><p className="mt-1 text-xs text-muted-foreground">{period(activity)} · {activity.kind === 'meeting' ? 'Reunião' : 'Tarefa'} · {statusLabels[activity.status]}{activity.kind === 'task' && activity.status === 'pending' && activity.dueOn && activity.dueOn < localDate(new Date()) ? ' · Atrasada' : ''}</p><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">{activity.clientId && <span>{findName(clients, activity.clientId)}</span>}{activity.assigneeId && <span>{findName(members, activity.assigneeId) ?? 'Responsável anterior'}</span>}{activity.caseId && cases.some(c => c.id === activity.caseId) && <Link href={`/app/vault/cases/${encodeURIComponent(activity.caseId)}`} className="underline underline-offset-4">{findName(cases, activity.caseId)}</Link>}</div></div>
         </article>)}</div>}
@@ -158,6 +186,6 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       </section>
     </div>
     {detail && <section className="mt-6 space-y-3 border-t pt-5" aria-label="Detalhes"><div className="flex items-center justify-between gap-3"><h2 className="font-medium">{detail.mode === 'client' ? detail.client?.name : detail.activity?.title}</h2><Button variant="ghost" onClick={() => setDetail(null)}>Fechar detalhes</Button></div>{detail.mode === 'activity' && detail.activity && <p className="text-sm">{period(detail.activity)} · {statusLabels[detail.activity.status]}</p>}{detail.mode === 'client' && detail.client && <><p className="text-sm">{stageLabels[detail.client.stage]} · {detail.client.email} · {detail.client.phone}</p>{detail.client.caseIds.map(id => <Link key={id} href={`/app/vault/cases/${encodeURIComponent(id)}`} className="mr-4 text-sm underline">{findName(cases, id) ?? 'Caso'}</Link>)}</>}<p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{(detail.mode === 'client' ? detail.client?.notes : detail.activity?.notes) || 'Sem observações.'}</p>{canWrite && <Button variant="outline" disabled={!optionsReady} onClick={() => { setEditor(detail); setDetail(null); }}>Editar</Button>}</section>}
-    {editor && <AgendaEditor {...editor} cases={cases} clients={clients} members={members} day={day} caseId={caseId} clientId={clientId} timeZone={timeZone} close={() => setEditor(null)} saved={() => { setEditor(null); refresh(); }} />}
+    {editor && optionsReady && day && <AgendaEditor {...editor} cases={cases} clients={clients} members={members} day={day} caseId={caseId} clientId={clientId} timeZone={timeZone} close={() => setEditor(null)} saved={() => { setEditor(null); refresh(); }} />}
   </div>;
 }

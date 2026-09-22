@@ -66,17 +66,18 @@ Os testes de autenticação usam bancos SQLite em memória, separados dos dados 
 | `/sign-in` | Entrar |
 | `/sign-up` | Criar conta |
 | `/app` | Redireciona para o Início |
-| `/app/command-center` | Início (em breve) |
-| `/app/agents` | Agentes |
+| `/app/command-center` | Início: resumo do escritório e ações rápidas |
+| `/app/agents` | Lume, assistente do escritório |
 | `/app/vault` | Cofre |
 | `/app/agenda` | Tarefas, agenda e clientes |
+| `/app/agenda/clients/[id]` | Detalhes do cliente, contato, casos e atividades |
 | `/app/notifications` | Caixa pessoal e preferências de notificações |
 | `/app/research` | Redireciona para Tarefas e Agenda |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/platform/clients` | Administração da plataforma (conexões de IA por escritório) |
 
-As áreas de `/app` exigem sessão válida no servidor. Agentes, Cofre e Tarefas e Agenda estão implementados;
-Início exibe “Em breve”. `/platform` exige o papel de administrador da plataforma.
+As áreas de `/app` exigem sessão válida no servidor. Início, Lume, Cofre e Tarefas e Agenda estão implementados.
+`/platform` exige o papel de administrador da plataforma.
 Tarefas de documentos precisam do worker (`pnpm worker`) em execução; veja
 [`apps/web/README.md`](apps/web/README.md).
 A interface usa pt-BR, temas claro/escuro (ou o tema do sistema) e sidebar responsiva.

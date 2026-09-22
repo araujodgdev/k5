@@ -1,10 +1,12 @@
-import { Bell, Bot, FolderLock, House, CalendarDays, MessageSquareText, type LucideIcon } from "lucide-react";
+import { Bell, FolderLock, House, CalendarDays, MessageSquareText } from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
+import { AgentMark } from "./agent-mark";
 import type { NavSlug } from "@/lib/navigation";
 
-export const navIcons: Record<NavSlug, LucideIcon> = {
+export const navIcons: Record<NavSlug, ComponentType<SVGProps<SVGSVGElement>>> = {
   feedback: MessageSquareText,
   "command-center": House,
-  agents: Bot,
+  agents: AgentMark,
   vault: FolderLock,
   agenda: CalendarDays,
   notifications: Bell,

@@ -1,9 +1,9 @@
+import { requireWorkspace } from '@/lib/session';
+import { CommandCenter } from '@/components/command-center';
+
 export const metadata = { title: "Início" };
 
-export default function HomePage() {
-  return (
-    <div className="grid min-h-[60dvh] place-items-center px-5 py-6">
-      <h1 className="text-sm font-normal text-subtle-foreground">Em breve</h1>
-    </div>
-  );
+export default async function HomePage() {
+  const { office, user } = await requireWorkspace();
+  return <CommandCenter role={office.role} name={user.name} />;
 }
