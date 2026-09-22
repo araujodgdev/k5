@@ -13,7 +13,7 @@ export function VaultLibrary({ initialDocuments, role }: { initialDocuments: Vau
   const [failure, setFailure] = useState("");
   const canWrite = role !== "reviewer";
 
-  return <div className="flex min-h-0 flex-1 flex-col px-4 py-6 md:px-8 md:py-8">
+  return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-8 md:py-8">
     <nav aria-label="Trilha" className="flex items-center gap-1 text-sm text-muted-foreground" data-reveal>
       <Link href="/app/vault" className="rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cofre</Link>
       <ChevronRight className="size-3.5" aria-hidden="true" />
