@@ -3,7 +3,7 @@ name: validate-implementation
 description: >-
   Executa o fluxo completo de validação da implementação e gravação de vídeo ao vivo (end-to-end) no K5.
   Cobre inicialização do servidor, testes estáticos e unitários, gravação com Playwright em HD (720p),
-  reuso de conta de teste estável (sem criar contas descartáveis), seleção dinâmica de modelos na UI (Mastra RequestContext),
+  reuso de conta de teste estável (sem criar contas descartáveis), modelo escolhido pelo administrador por escritório (Mastra RequestContext),
   streaming real de LLM, RAG híbrido com fusão RRF, aprovações humanas de segurança e logout controlado.
   Use quando o usuário pedir para validar o sistema, gravar a execução, gerar vídeo demonstrativo, testar a aplicação de ponta a ponta
   ou executar o workflow de validação da implementação.
@@ -24,10 +24,10 @@ Este workflow padroniza e automatiza o processo de validação de ponta a ponta 
      * **Escritório**: `Araújo & Associados Advocacia`
    - O login deve ser feito na tela `/sign-in` do sistema.
 
-2. **Modelos Dinâmicos e Provedores de IA**:
-   - A plataforma/administrador apenas registra o provedor e a chave de API (`/api/platform/offices/[id]/connections`).
-   - O usuário final escolhe o modelo na interface de chat (`/app/agents`) através do seletor no cabeçalho.
-   - O servidor K5 resolve o modelo dinamicamente em tempo de execução via `RequestContext` do Mastra.
+2. **Modelo do Lume e Provedores de IA**:
+   - O administrador registra o provedor e a chave em `/platform/clients/[officeId]/ai` e define o modelo do Lume na mesma página, pela lista ou digitando o ID.
+   - O usuário conversa com o Lume em `/app/agents`, sem acesso ao modelo ou provedor na interface.
+   - O servidor resolve o modelo configurado para o escritório em tempo de execução via `RequestContext` do Mastra.
 
 3. **Gravação Contínua e Sem Deslogamento Prematuro**:
    - O teste **deve enviar o prompt**, aguardar a resposta em tempo real via streaming e verificar o texto recebido.
@@ -62,7 +62,7 @@ pnpm --filter @k5/web start
 ```
 *Aguarde a confirmação de que o servidor está pronto em `http://localhost:3000`.*
 
-### Passo 4: Garantir Credencial de IA e Conta do Escritório
+### Passo 4: Garantir Credencial, Modelo e Conta do Escritório
 Se necessário, certifique-se de que a conta de teste e a conexão de IA (ex: Inception) estão ativas no banco `.data/k5.sqlite`:
 ```typescript
 // Exemplo de verificação da conexão Inception
@@ -81,8 +81,7 @@ O script deve cobrir as seguintes etapas visuais:
 2. **Cofre (`/app/vault`)**: Filtrar por casos, criar caso e fazer upload de arquivo real.
 3. **Indexação RAG**: Garantir trecho e vetor semântico no banco, recarregar para exibir status "Pronto".
 4. **Central de Agentes (`/app/agents`)**:
-   - Abrir o seletor de modelos no cabeçalho (`button[aria-label="Selecionar modelo"]`).
-   - Selecionar o modelo desejado (ex: `Inception (mercury-2)`).
+   - Confirmar que o chat não mostra seletor nem ID de modelo; o modelo efetivo vem da configuração administrativa do escritório.
    - Iniciar nova conversa limpa.
    - Digitar o prompt no composer e clicar no botão "Enviar".
    - Aguardar a resposta via streaming (aguardar seletor `button[aria-label="Copiar resposta"]`).
@@ -104,7 +103,7 @@ O script deve cobrir as seguintes etapas visuais:
    - `step3_case_created.png`
    - `step4_document_uploaded.png`
    - `step5_document_ready.png`
-   - `step6_model_picker_open.png`
+   - `step6_agent_without_model_picker.png`
    - `step6_agent_chat.png`
    - `step7_logged_out.png`
 3. Atualizar o artefato `walkthrough.md` com a gravação incorporada e o carrossel de capturas de tela.
@@ -117,5 +116,5 @@ O script deve cobrir as seguintes etapas visuais:
   As requisições `GET` no navegador não enviam cabeçalho `Origin`. Ao usar `apiWorkspace(request, write)`, defina `write = false` para leituras.
 - **Redirecionamento repentino para `/sign-in`**:
   Ocorre quando a sessão é invalidada em segundo plano enquanto o usuário navega. Mantenha a sessão íntegra até o final e execute o logout estritamente via interface.
-- **Seletor de modelos vazio na UI**:
-  Verifique se o escritório possui pelo menos uma conexão habilitada em `ai_connection` (`enabled = 1` e `deleted_at IS NULL`).
+- **Modelo do Lume indisponível**:
+  Verifique se o escritório possui pelo menos uma conexão habilitada em `ai_connection` (`enabled = 1` e `deleted_at IS NULL`) e se o modelo foi salvo na administração da plataforma.

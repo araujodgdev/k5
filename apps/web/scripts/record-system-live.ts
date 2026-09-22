@@ -9,11 +9,11 @@
  *    - step3_case_created.png
  *    - step4_document_uploaded.png
  *    - step5_document_ready.png
- *    - step6_model_picker_open.png
+ *    - step6_agent_without_model_picker.png
  *    - step6_agent_chat.png
  *    - step7_logged_out.png
  * 3. Stable account admin@advocacia.test / SenhaForte123!@#456 in office Araújo & Associados Advocacia.
- * 4. Genuine execution of Vault, RAG hybrid search, dynamic model selection, live streaming response, and clean logout.
+ * 4. Genuine execution of Vault, RAG hybrid search, office-configured Lume, live streaming response, and clean logout.
  * 5. Functional API validations for RAG RRF, Source Inspection, Approvals Anti-Tampering, and Untrusted Origin 403.
  */
 
@@ -173,9 +173,9 @@ async function main() {
     await saveScreenshot('step5_document_ready.png');
 
     // -------------------------------------------------------------
-    // STEP 5: Agent Central & Dynamic Model Switcher
+    // STEP 5: Agent Central with the office-configured model
     // -------------------------------------------------------------
-    console.log('\n>>> Step 5: Agent Central & Dynamic Model Selection at /app/agents');
+    console.log('\n>>> Step 5: Agent Central at /app/agents');
     await page.goto(`${BASE_URL}/app/agents`, { waitUntil: 'networkidle' });
     await sleep(2500);
 
@@ -186,25 +186,9 @@ async function main() {
       await sleep(1500);
     }
 
-    // Open model switcher Popover
-    const modelTrigger = page.locator('button[aria-label="Selecionar modelo"]');
-    await modelTrigger.waitFor({ state: 'visible', timeout: 15000 });
-    await sleep(1000);
-    await modelTrigger.click();
-    await sleep(1500);
-
-    await saveScreenshot('step6_model_picker_open.png');
-
-    // Select mercury-2 or keep model
-    const mercuryOption = page.locator('[cmdk-item]:has-text("mercury-2")').first();
-    if (await mercuryOption.isVisible()) {
-      await mercuryOption.click();
-      console.log('Selected model: mercury-2');
-    } else {
-      await page.keyboard.press('Escape');
-      console.log('Kept active model.');
-    }
-    await sleep(1500);
+    assert.equal(await page.locator('[aria-label^="Selecionar modelo"]').count(), 0,
+      'O chat não deve expor seleção de modelo.');
+    await saveScreenshot('step6_agent_without_model_picker.png');
 
     // Type prompt into chat composer
     const composerInput = page.locator('textarea[placeholder="Pergunte ao Lume"], textarea[aria-label="Pergunte ao Lume"]');
@@ -302,7 +286,7 @@ async function main() {
     'step3_case_created.png',
     'step4_document_uploaded.png',
     'step5_document_ready.png',
-    'step6_model_picker_open.png',
+    'step6_agent_without_model_picker.png',
     'step6_agent_chat.png',
     'step7_logged_out.png',
   ];

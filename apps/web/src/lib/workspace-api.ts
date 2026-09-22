@@ -33,7 +33,7 @@ export function apiError(error: unknown) {
   if (error instanceof VaultHttpError) return Response.json({ error: error.message }, { status: error.status });
   if (error instanceof AiConnectionError) {
     if (error.code === 'not_found' || error.code === 'disabled') {
-      return Response.json({ error: 'O escritório não tem um modelo de IA ativo para esta tarefa. Fale com o suporte da plataforma.' }, { status: 409 });
+      return Response.json({ error: 'O Lume não está disponível para esta tarefa. Fale com o suporte da plataforma.' }, { status: 409 });
     }
     if (error.code === 'credential') return Response.json({ error: 'Serviço de IA temporariamente indisponível. Fale com o suporte da plataforma.' }, { status: 503 });
     return Response.json({ error: 'Não foi possível concluir. Confira a configuração ou tente novamente.' }, { status: 500 });

@@ -147,7 +147,8 @@ export async function updateAiConnection(db: Database, key: MasterKey, actorUser
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   const name = patch.name === undefined ? current.name : validateName(patch.name);
   const provider = patch.provider === undefined ? current.provider : validateProvider(patch.provider);
-  const models = patch.models === undefined ? { chat: current.chat_model, extraction: current.extraction_model, drafting: current.drafting_model, embedding: current.embedding_model } : cleanModels(patch.models);
+  const existingModels = { chat: current.chat_model, extraction: current.extraction_model, drafting: current.drafting_model, embedding: current.embedding_model };
+  const models = patch.models === undefined ? existingModels : cleanModels({ ...existingModels, ...patch.models });
   const apiKey = patch.apiKey?.trim();
   if (patch.apiKey !== undefined && !apiKey) throw new AiConnectionError("invalid", "A nova chave não pode estar vazia.");
   const encrypted = apiKey ? encryptCredential(apiKey, key) : current.encrypted_api_key;
@@ -217,8 +218,8 @@ export async function resolveOfficeModelConfigFromDatabase(
     return { provider: assigned.provider, modelId: assigned[column as keyof Row] as string, apiKey: readSecret(assigned.encrypted_api_key, key), connectionId: assigned.id };
   }
 
-  // No explicit assignment: the office registers a provider and a credential, and Lume supplies the
-  // model. Embedding is the stricter case — only providers with an embeddings endpoint qualify, so
+  // Until the administrator assigns a model, Lume uses the provider fallback. Embedding is the
+  // stricter case — only providers with an embeddings endpoint qualify, so
   // an office whose single connection is Anthropic gets a clear "not configured" instead of a
   // request the provider cannot answer.
   const candidates = await db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL ORDER BY updated_at DESC, id").all(officeId) as Row[];
@@ -249,7 +250,7 @@ export async function testAiConnection(
   if (!row || !row.encrypted_api_key) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   if (!row.enabled) throw new AiConnectionError("disabled", "Ative a conexão antes de testar.");
   const task = requestedTask ?? AI_TASKS.find((item) => row[`${item}_model`]) ?? "chat";
-  // A connection with no assignment is the normal case now: the test uses the model Lume would use.
+  // A connection with no assignment is tested with Lume's provider fallback.
   const modelId = row[`${task}_model`] ?? (task === "embedding" ? defaultEmbeddingModel(row.provider) : defaultChatModel(row.provider));
   if (!modelId) throw new AiConnectionError("invalid", "Este provider não tem um modelo padrão para esta tarefa.");
   const details = { task, provider: row.provider, modelId };

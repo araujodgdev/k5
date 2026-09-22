@@ -11,7 +11,12 @@ export const providerLabels: Record<AiProvider, string> = {
 
 /** Model ids the router knows for each provider; the admin may still type one that is not listed. */
 export function providerCatalog(): Record<AiProvider, string[]> {
-  return Object.fromEntries(AI_PROVIDERS.map((provider) => [provider, PROVIDER_REGISTRY[provider]?.models ?? []])) as Record<AiProvider, string[]>;
+  // The installed Mastra registry can lag newly released API model IDs.
+  const additions: Partial<Record<AiProvider, string[]>> = { openai: ['gpt-6-sol', 'gpt-6-luna'] };
+  return Object.fromEntries(AI_PROVIDERS.map((provider) => [
+    provider,
+    [...new Set([...(additions[provider] ?? []), ...(PROVIDER_REGISTRY[provider]?.models ?? [])])],
+  ])) as Record<AiProvider, string[]>;
 }
 
 // Each call binds the model to this credential; no global env key or shared client is used.

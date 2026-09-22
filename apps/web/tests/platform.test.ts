@@ -102,6 +102,39 @@ test("task assignment is exclusive and deletion erases the secret after assignme
   assert.ok(deleted.deleted_at);
 });
 
+test("platform model choice applies to chat, extraction and drafting in one office", async () => {
+  const { database, admin, officeA, officeB, key } = fixture();
+  const old = await createAiConnection(database, key, admin, officeA, {
+    name: "Anterior", provider: "anthropic", apiKey: "sk-old",
+    models: { chat: "claude-old", extraction: "claude-old", drafting: "claude-old" },
+  });
+  const chosen = await createAiConnection(database, key, admin, officeA, {
+    name: "Nova", provider: "openai", apiKey: "sk-new",
+    models: { embedding: "text-embedding-3-small" },
+  });
+  await createAiConnection(database, key, admin, officeB, {
+    name: "Outro escritório", provider: "google", apiKey: "sk-other",
+    models: { chat: "gemini-other", extraction: "gemini-other", drafting: "gemini-other" },
+  });
+  await updateAiConnection(database, key, admin, officeA, chosen.id, {
+    models: { chat: "gpt-6-sol", extraction: "gpt-6-sol", drafting: "gpt-6-sol" },
+  });
+  for (const task of ["chat", "extraction", "drafting"] as const) {
+    const config = await resolveOfficeModelConfigFromDatabase(database, key, officeA, task);
+    assert.equal(config.connectionId, chosen.id);
+    assert.equal(config.modelId, "gpt-6-sol");
+    assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeB, task)).modelId, "gemini-other");
+  }
+  assert.deepEqual((await listAiConnections(database, officeA)).find(item => item.id === old.id)?.models, {
+    chat: null, extraction: null, drafting: null, embedding: null,
+  });
+  await updateAiConnection(database, key, admin, officeA, chosen.id, {
+    models: { chat: "modelo-digitado", extraction: "modelo-digitado", drafting: "modelo-digitado" },
+  });
+  assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat")).modelId, "modelo-digitado");
+  assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeA, "embedding")).modelId, "text-embedding-3-small");
+});
+
 function legacyV1(plaintext: string, key: Uint8Array) {
   const iv = randomBytes(12), cipher = createCipheriv("aes-256-gcm", key, iv);
   const data = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
@@ -263,7 +296,7 @@ test("every supported provider can be stored and resolved with its own credentia
   }
 });
 
-test("dynamic model resolution allows user to select model from active connection without admin fixed model", async () => {
+test("dynamic model resolution supports an internally pinned run model", async () => {
   const { database, admin, officeA, key } = fixture();
   // Admin creates connection with only provider and apiKey, no assigned models
   await createAiConnection(database, key, admin, officeA, {
@@ -283,7 +316,7 @@ test("dynamic model resolution allows user to select model from active connectio
     (err) => err instanceof AiConnectionError && err.code === "not_found"
   );
 
-  // Calling with requestedModel resolves the chosen model and decrypts the provider's key
+  // Queued runs can pin the model chosen by the administrator when the run was created.
   const resolved = await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat", {
     provider: "inception",
     modelId: "mercury-2.5",

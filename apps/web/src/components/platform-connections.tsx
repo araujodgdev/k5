@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { AiConnectionView, AiProvider } from "@/lib/ai-connections-core";
+import { OfficeModelSettings, type OfficeModelSelection } from "@/components/office-model-settings";
 
 const providerNames: Record<AiProvider, string> = { openai: "OpenAI", anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek", inception: "Inception", openrouter: "OpenRouter", vercel: "AI Gateway" };
 // 44px controls on touch, default height from md up.
@@ -26,9 +27,8 @@ async function api(url: string, method: string, body?: object) {
 }
 
 /**
- * A connection is a provider and a credential. Which model answers a conversation is the person's
- * choice in the composer, and the embedding model belongs to the index generation, so neither is
- * configured here.
+ * A connection is a provider and a credential. The office model is assigned above this editor;
+ * the embedding model remains pinned to an index generation.
  */
 function Fields({ draft, setDraft, requireKey, keyHint }: { draft: Draft; setDraft: (draft: Draft) => void; requireKey?: boolean; keyHint?: string }) {
   const id = useId();
@@ -79,7 +79,12 @@ function ExistingConnection({ officeId, connection }: { officeId: string; connec
   </article>;
 }
 
-export function PlatformConnections({ officeId, initialConnections }: { officeId: string; initialConnections: AiConnectionView[] }) {
+export function PlatformConnections({ officeId, initialConnections, modelCatalog, initialModel }: {
+  officeId: string;
+  initialConnections: AiConnectionView[];
+  modelCatalog: Record<AiProvider, string[]>;
+  initialModel: OfficeModelSelection;
+}) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(emptyDraft);
@@ -93,8 +98,10 @@ export function PlatformConnections({ officeId, initialConnections }: { officeId
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível criar a conexão."); }
     finally { setBusy(false); }
   }
-  return <div className="mt-8">
-    <p className="text-muted-foreground text-sm">O escritório escolhe o modelo da conversa no próprio chat. O modelo de embedding é definido pelo Lume e acompanha a geração do índice.</p>
+  return <div>
+    <OfficeModelSettings key={initialConnections.filter(item => item.enabled).map(item => item.id).join("|")}
+      officeId={officeId} connections={initialConnections} catalog={modelCatalog} initialSelection={initialModel} />
+    <p className="mt-8 text-muted-foreground text-sm">As conexões guardam as credenciais dos provedores. O modelo de embedding acompanha o índice de busca.</p>
     <div className="mt-4 flex items-center justify-between gap-4 border-b pb-4"><p className="text-muted-foreground text-sm">{initialConnections.length === 1 ? "1 conexão cadastrada" : `${initialConnections.length} conexões cadastradas`}</p><Button className={touch} aria-expanded={creating} onClick={() => { setCreating((value) => !value); setError(""); }} variant={creating ? "outline" : "default"}>{creating ? "Cancelar" : "Nova conexão"}</Button></div>
     {creating && <form onSubmit={create} className="border-b py-7"><h2 className="mb-5 font-medium">Nova conexão</h2><Fields draft={draft} setDraft={setDraft} requireKey /><div className="mt-5 flex items-center gap-3"><Button type="submit" className={touch} disabled={busy}>{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" />}Criar conexão</Button>{busy && <span className="text-muted-foreground text-xs" role="status">Criando…</span>}</div>{error && <div className="mt-3"><ErrorText message={error} /></div>}</form>}
     <div>{initialConnections.map((connection) => <ExistingConnection key={`${connection.id}:${connection.updatedAt}`} officeId={officeId} connection={connection} />)}</div>

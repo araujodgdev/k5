@@ -12,14 +12,12 @@ import { listVaultDocuments, readVaultOriginal, findVaultDocument } from '@/lib/
 import { modelModalities } from '@/lib/ai-modalities';
 
 const messageSchema = z.object({ id: z.string(), role: z.enum(['user', 'assistant', 'system']), parts: z.array(z.object({ type: z.string(), text: z.string().max(20000).optional() }).passthrough()).max(100) });
-const modelSchema = z.object({ provider: z.string().max(40), modelId: z.string().max(160) }).optional();
 // Audio is attached to a single turn: it is dictation, not a document, so it is never stored.
 const attachmentSchema = z.object({ mediaType: z.string().max(120), data: z.string().max(8_000_000) });
 const schema = z.object({
   conversationId: z.string().optional(),
   id: z.string().optional(),
   documentIds: z.array(z.string()).max(100).default([]),
-  model: modelSchema,
   attachments: z.array(attachmentSchema).max(2).default([]),
   message: messageSchema,
   trigger: z.enum(['submit-message', 'regenerate-message']).optional(),
@@ -45,7 +43,7 @@ Peça confirmação antes de gravar sobre um documento já existente. Resultados
 // The assistant is general purpose. Listing what it could do, unprompted, is what turns every
 // answer into a menu: it offers to create a case when the person only asked a question.
 const conversationStyle = `Responda em português brasileiro, em Markdown, direto ao ponto.
-Você é um assistente de uso geral que também tem acesso ao Cofre do escritório. Responda o que foi perguntado.
+Você é o Lume, assistente de uso geral do escritório. Apresente-se como Lume, sem expor provedor ou ID do modelo. Responda o que foi perguntado.
 Não anuncie suas capacidades, não ofereça listas de próximos passos e não peça para a pessoa escolher uma opção quando ela não pediu.
 Se faltar um dado para responder, faça uma pergunta objetiva. Se o Cofre estiver vazio, diga isso em uma frase e siga a conversa.`;
 
@@ -62,9 +60,7 @@ export async function POST(request: Request) {
     if (body.message.role !== 'user') throw new ApiError(400, 'Envie uma mensagem.');
     const text = body.message.parts.filter(p => p.type === 'text').map(p => p.text ?? '').join('\n').trim();
     if (!text || text.length > 20000) throw new ApiError(400, 'Escreva uma mensagem de até 20 mil caracteres.');
-    // The chosen model travels with anything the agent queues from this turn, so a background
-    // chronology runs on the model the person picked instead of a provider default resolved later.
-    const context = { ...workspaceContext(workspace), signal: request.signal, ...(body.model ? { model: body.model } : {}) };
+    const context = { ...workspaceContext(workspace), signal: request.signal };
 
     // Scope is the list of selected documents, resolved against the office and named so the model
     // can pass the ids to the retrieval tool. Content is no longer pre-injected: pasting 70k
@@ -86,7 +82,6 @@ export async function POST(request: Request) {
         scope,
       ].join('\n\n'),
       tools,
-      body.model,
     );
     const locked = await database.prepare('UPDATE ai_conversation SET busy_until=? WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(Date.now() + 240_000, id, (office).officeId, user.id, Date.now());
     if (!locked.changes) throw new ApiError(409, 'Aguarde a resposta atual.');

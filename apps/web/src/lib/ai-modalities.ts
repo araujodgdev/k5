@@ -22,7 +22,7 @@ const IMAGE_AND_AUDIO: Modalities = { image: true, audio: true };
 const RULES: Rule[] = [
   // OpenAI — audio input is its own set of endpoints and model ids.
   { match: /^(gpt-4o|gpt)-(audio|realtime)/i, modalities: IMAGE_AND_AUDIO },
-  { match: /^(gpt-5|gpt-4\.1|gpt-4o|chatgpt-4o|o3|o4)/i, modalities: IMAGE },
+  { match: /^(gpt-6|gpt-5|gpt-4\.1|gpt-4o|chatgpt-4o|o3|o4)/i, modalities: IMAGE },
   { match: /^(gpt-4-turbo|gpt-4-vision)/i, modalities: IMAGE },
   { match: /^(gpt-3\.5|gpt-4$|gpt-4-0|o1-mini|gpt-4o-mini-tts|gpt-5-chat-latest-text)/i, modalities: TEXT_ONLY },
   { match: /^o1/i, modalities: IMAGE },

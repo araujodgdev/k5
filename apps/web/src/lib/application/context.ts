@@ -14,8 +14,6 @@ export type WorkspaceContext = {
   invocation?: 'agent' | 'webmcp';
   signal?: AbortSignal;
   agendaConfirmation?: { proposalId: string; hash: string };
-  /** The model the person selected for this turn. Absent means Lume's default for the provider. */
-  model?: { provider: string; modelId: string };
 };
 
 export function workspaceContext(workspace: {

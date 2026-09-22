@@ -27,6 +27,17 @@ test("every supported provider resolves through the model router and is named in
   }
 });
 
+test("GPT-6 Sol and Luna are available to the platform administrator", async () => {
+  const catalog = providerCatalog();
+  for (const modelId of ["gpt-6-sol", "gpt-6-luna"]) {
+    assert.ok(catalog.openai.includes(modelId));
+    assert.ok(isChatModel(modelId));
+    assert.deepEqual(modelModalities("openai", modelId), { image: true, audio: false });
+    const resolved = await resolveModelConfig(modelFor({ provider: "openai", modelId, apiKey: "test-key" }));
+    assert.equal(resolved.modelId, modelId);
+  }
+});
+
 test("Lume owns the default model of every provider, and it is a model the router knows", () => {
   const catalog = providerCatalog();
   for (const provider of AI_PROVIDERS) {

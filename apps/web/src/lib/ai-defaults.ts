@@ -3,10 +3,9 @@ import type { AiProvider } from "./ai-connections-core";
 /**
  * Models Lume picks, not the office.
  *
- * The administrator registers a provider and a credential. Which model answers a conversation is
- * the person's choice in the composer; which model builds the semantic index is ours, because the
- * index generation pins the model and its dimension and a change there invalidates every vector
- * already published. Neither belongs in a client's settings screen.
+ * The platform administrator chooses Lume's model for each office. These values are fallbacks
+ * until a choice is saved. The embedding model is separate: an index generation pins its model
+ * and dimension, and changing either invalidates the vectors already published.
  */
 
 /** Used when a conversation, a background run or a connection test does not name a model. */

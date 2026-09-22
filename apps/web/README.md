@@ -98,11 +98,11 @@ Escopo e próximas etapas: [plano de Tarefas e Agenda](../../docs/plano-tarefas-
 
 O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
 
-- **Plataforma:** `/platform/clients` gerencia conexões de IA por escritório (OpenAI,
-  Anthropic, Google, DeepSeek, Inception, OpenRouter e AI Gateway) e modelos por tarefa
-  (conversa, extração, redação). O roteador de modelos do Mastra resolve endpoint e
-  protocolo de cada provider, e a lista de modelos sugeridos vem do registro dele; um ID
-  fora da lista pode ser digitado. O acesso vem da
+- **Plataforma:** `/platform/clients/[officeId]/ai` gerencia as conexões de IA por escritório
+  (OpenAI, Anthropic, Google, DeepSeek, Inception, OpenRouter e AI Gateway). O administrador
+  escolhe o modelo do Lume para conversas, extração e redação, pela lista ou digitando o ID.
+  O roteador do Mastra resolve endpoint e protocolo do provedor. O usuário do escritório não
+  escolhe nem vê o modelo no chat. O acesso à configuração vem da
   tabela `platform_admin`, independente do papel no escritório, e só é concedido pela linha
   de comando: `pnpm platform:admin grant --email usuario@exemplo.com` (`revoke` retira).
   Chaves ficam cifradas com AES-256-GCM e nunca voltam ao navegador; operações são auditadas.

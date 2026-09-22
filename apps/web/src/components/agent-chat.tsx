@@ -17,7 +17,6 @@ import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
 import {
   ArrowUp,
   ArrowDown,
-  ChevronDown,
   CircleAlert,
   Copy,
   FileStack,
@@ -55,19 +54,6 @@ import { cn } from "@/lib/utils";
 const AgentSourcesPanel = dynamic(() => import("./agent-sources-panel").then(module => module.AgentSourcesPanel), {
   loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Carregando fontes…</p>,
 });
-const AgentModelOptions = dynamic(() => import("./agent-model-options").then(module => module.AgentModelOptions), {
-  loading: () => <p role="status" className="p-4 text-sm text-muted-foreground">Carregando modelos…</p>,
-});
-
-export type OfficeModelOption = {
-  provider: string;
-  providerLabel: string;
-  modelId: string;
-  label: string;
-  isDefault: boolean;
-  modalities: Modalities;
-};
-
 type Conversation = { id: string; title: string; updatedAt: string };
 type Attachment = { mediaType: string; data: string };
 
@@ -201,29 +187,7 @@ function HintedControl({ hint, children }: { hint?: string; children: React.Reac
   );
 }
 
-function ModelSwitcher({ models, value, onChange }: { models: OfficeModelOption[]; value: string; onChange: (value: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const selected = models.find((model) => `${model.provider}:${model.modelId}` === value);
-  if (models.length === 0) return null;
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button type="button" aria-haspopup="listbox" aria-expanded={open} aria-label={`Selecionar modelo: ${selected?.modelId ?? "Modelo"}`} className="flex h-9 max-w-[42vw] items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-56 md:text-sm">
-          <span className="truncate">{selected?.modelId ?? "Modelo"}</span>
-          <ChevronDown className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-80 p-0">
-        {open && <AgentModelOptions models={models} value={value} onChange={(key) => { onChange(key); setOpen(false); }} />}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 type ComposerToolsProps = {
-  models: OfficeModelOption[];
-  modelKey: string;
-  onModelChange: (value: string) => void;
   modalities: Modalities;
   uploading: boolean;
   onPickFile: (file: File) => void;
@@ -232,7 +196,7 @@ type ComposerToolsProps = {
   onError: (message: string) => void;
 };
 
-function ComposerTools({ models, modelKey, onModelChange, modalities, uploading, onPickFile, audio, onAudio, onError }: ComposerToolsProps) {
+function ComposerTools({ modalities, uploading, onPickFile, audio, onAudio, onError }: ComposerToolsProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [accept, setAccept] = useState(DOCUMENT_ACCEPT);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -276,7 +240,7 @@ function ComposerTools({ models, modelKey, onModelChange, modalities, uploading,
     }
   }
 
-  const audioHint = modalities.audio ? undefined : "Este modelo não aceita áudio. Escolha outro modelo para gravar.";
+  const audioHint = modalities.audio ? undefined : "O Lume não aceita áudio nesta configuração.";
 
   return (
     <>
@@ -302,7 +266,7 @@ function ComposerTools({ models, modelKey, onModelChange, modalities, uploading,
           <button type="button" onClick={() => pick("document")} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted md:min-h-9">
             <FileText className="size-4 text-muted-foreground" aria-hidden="true" />Documento ou planilha
           </button>
-          <HintedControl hint={modalities.image ? undefined : "Este modelo não lê imagens. O arquivo entraria só como texto reconhecido."}>
+          <HintedControl hint={modalities.image ? undefined : "O Lume não lê imagens nesta configuração."}>
             <button type="button" onClick={() => pick("image")} disabled={!modalities.image} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent md:min-h-9">
               <ImageIcon className="size-4 text-muted-foreground" aria-hidden="true" />Imagem
             </button>
@@ -322,8 +286,6 @@ function ComposerTools({ models, modelKey, onModelChange, modalities, uploading,
           <Mic className="size-4.5" />
         </button>
       </HintedControl>
-
-      <ModelSwitcher models={models} value={modelKey} onChange={onModelChange} />
 
       {audio && (
         <button type="button" onClick={() => onAudio(null)} className="flex h-9 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -380,11 +342,10 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
   );
 }
 
-function RuntimeThread({ conversationId, messages, context, selectedModel, audio, onAudioSent, tools, onFinish, onError }: {
+function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, tools, onFinish, onError }: {
   conversationId: string;
   messages: UIMessage[];
   context: AgentContext;
-  selectedModel?: { provider: string; modelId: string };
   audio: Attachment | null;
   onAudioSent: () => void;
   tools: ComposerToolsProps;
@@ -404,7 +365,6 @@ function RuntimeThread({ conversationId, messages, context, selectedModel, audio
           body: {
             conversationId,
             documentIds: context.documentIds,
-            ...(selectedModel ? { model: selectedModel } : {}),
             ...(audio ? { attachments: [audio] } : {}),
             message: history.at(-1),
             trigger,
@@ -413,7 +373,7 @@ function RuntimeThread({ conversationId, messages, context, selectedModel, audio
         };
       },
     }),
-    [audio, onAudioSent, context.documentIds, conversationId, selectedModel],
+    [audio, onAudioSent, context.documentIds, conversationId],
   );
   // K5 owns the history and thread IDs. The direct adapter avoids a second cloud thread list.
   const chat = useChat({
@@ -429,7 +389,7 @@ function RuntimeThread({ conversationId, messages, context, selectedModel, audio
   return <AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider>;
 }
 
-export function AgentChat({ initialConversationId = '', initialData, initialModels }: { initialConversationId?: string; initialData?: ChatBootstrap; initialModels?: OfficeModelOption[] }) {
+export function AgentChat({ initialConversationId = '', initialData, modalities = { image: false, audio: false } }: { initialConversationId?: string; initialData?: ChatBootstrap; modalities?: Modalities }) {
   const [conversations, setConversations] = useState<Conversation[]>(initialData?.conversations ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(initialData?.conversation?.id ?? null);
   const [messages, setMessages] = useState<UIMessage[]>(initialData?.messages ?? []);
@@ -440,58 +400,14 @@ export function AgentChat({ initialConversationId = '', initialData, initialMode
   const [context, setContext] = useState<AgentContext>({ caseId: null, documentIds: [] });
   const [contextOpen, setContextOpen] = useState(false);
   const listOpen = useSyncExternalStore(subscribeListOpen, readListOpen, serverListOpen);
-  const [availableModels, setAvailableModels] = useState<OfficeModelOption[]>(initialModels ?? []);
-  const [selectedModelKey, setSelectedModelKey] = useState(() => {
-    const model = initialModels?.find(item => item.isDefault) ?? initialModels?.[0];
-    return model ? `${model.provider}:${model.modelId}` : '';
-  });
   const [uploading, setUploading] = useState(false);
   const [audio, setAudio] = useState<Attachment | null>(null);
   function toggleList() {
     writeListOpen(!listOpen);
   }
 
-  useEffect(() => {
-    let cancelled = false;
-    const request = initialModels ? Promise.resolve(initialModels) : fetch("/api/ai/models").then(async response => {
-      if (!response.ok) return null;
-      const data = await response.json() as { models?: OfficeModelOption[] };
-      return data.models ?? [];
-    });
-    request.then((list) => {
-        if (cancelled) return;
-        if (!list) return;
-        setAvailableModels(list);
-        if (list.length > 0) {
-          let saved: string | null = null;
-          try { saved = localStorage.getItem("k5_selected_model"); } catch { /* Use the office default. */ }
-          const match = saved ? list.find((m) => `${m.provider}:${m.modelId}` === saved) : undefined;
-          const active = match ?? list.find(model => model.isDefault) ?? list[0];
-          if (active) setSelectedModelKey(`${active.provider}:${active.modelId}`);
-        }
-      })
-      .catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [initialModels]);
-
   // A voice note belongs to the message it was recorded for, so it is spent on send.
   const clearAudio = useCallback(() => setAudio(null), []);
-
-  const handleModelChange = (value: string) => {
-    setSelectedModelKey(value);
-    if (typeof window !== "undefined") localStorage.setItem("k5_selected_model", value);
-  };
-
-  const selectedModel = useMemo(() => {
-    if (!selectedModelKey) return undefined;
-    const [provider, ...rest] = selectedModelKey.split(":");
-    return { provider, modelId: rest.join(":") };
-  }, [selectedModelKey]);
-
-  const modalities = useMemo(
-    () => availableModels.find((model) => `${model.provider}:${model.modelId}` === selectedModelKey)?.modalities ?? { image: false, audio: false },
-    [availableModels, selectedModelKey],
-  );
 
   /**
    * An attachment goes to the Cofre and becomes a source of this conversation: it is extracted,
@@ -619,9 +535,6 @@ export function AgentChat({ initialConversationId = '', initialData, initialMode
   const selectedCount = context.documentIds.length;
 
   const composerTools: ComposerToolsProps = {
-    models: availableModels,
-    modelKey: selectedModelKey,
-    onModelChange: handleModelChange,
     modalities,
     uploading,
     onPickFile: (file) => void attachFile(file),
@@ -686,7 +599,6 @@ export function AgentChat({ initialConversationId = '', initialData, initialMode
                 conversationId={selectedId}
                 messages={visibleMessages}
                 context={context}
-                selectedModel={selectedModel}
                 audio={audio}
                 onAudioSent={clearAudio}
                 tools={composerTools}
