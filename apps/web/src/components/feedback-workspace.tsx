@@ -93,7 +93,7 @@ export function FeedbackWorkspace({ initial }: { initial: FeedbackView }) {
     finally { setPending(false); }
   }
 
-  return <div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 md:px-8">
+  return <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-8 md:py-8">
     <div className="mx-auto max-w-6xl">
       <header className="mb-7"><h1 className="display text-[28px]">Avaliar respostas</h1>
         <p className="mt-3 max-w-3xl text-sm text-muted-foreground">Compare dois trabalhos produzidos para a mesma tarefa. {view.vote ? 'Sua avaliação foi registrada antes da revelação dos modelos.' : 'Os nomes dos modelos e suas métricas ficam ocultos até você enviar sua avaliação.'}</p>

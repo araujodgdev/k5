@@ -57,7 +57,12 @@ function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [], p
     if (!buckets.has(name)) buckets.set(name, new Map());
     const entries = buckets.get(name)!;
     return {
-      addAll: async (paths: string[]) => { paths.forEach((path) => entries.set(path, new Response(path))); },
+      addAll: async (paths: string[]) => { paths.forEach((path) => {
+        const response = new Response(path);
+        // The host serves /offline.html from /offline, so addAll follows a redirect.
+        if (path.endsWith(".html")) Object.defineProperty(response, "redirected", { value: true });
+        entries.set(path, response);
+      }); },
       match: async (request: string | { url: string }) => entries.get(key(request))?.clone(),
       put: async (request: { url: string }, value: Response) => { entries.set(key(request), value); },
     };
@@ -150,6 +155,16 @@ test("PWA: install caches only the public offline screen and icons; activation p
   assert.ok(sw.buckets.has("k5-public-__K5_BUILD__"));
   await sw.dispatch("message", { data: { type: "SKIP_WAITING" } });
   assert.equal(sw.skipped, true);
+});
+
+test("PWA: the precached offline screen survives a host redirect", async () => {
+  const sw = worker();
+  await sw.dispatch("install");
+  // respondWith turns a redirected response into a network error for a navigation,
+  // so a redirected offline screen never reaches the user.
+  assert.equal(sw.cached.get("/offline.html")!.redirected, false);
+  sw.setOffline();
+  assert.equal(await (await sw.fetch("/app", "navigate"))?.text(), "/offline.html");
 });
 
 test("PWA: accepted update keeps old-tab chunks available after the deployment removes them", async () => {
