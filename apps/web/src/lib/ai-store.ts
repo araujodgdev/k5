@@ -15,6 +15,19 @@ export async function conversation(db: Database, owner: Owner, id: string) {
   const row = await db.prepare('SELECT id,title,updated_at AS updatedAt,messages FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?').get(id, owner.officeId, owner.userId) as { id: string; title: string; updatedAt: string; messages: string } | undefined;
   return row ? { conversation: { id: row.id, title: row.title, updatedAt: row.updatedAt }, messages: JSON.parse(row.messages) as UIMessage[] } : null;
 }
+
+/** Read-only initial chat state. Both the list and a deep link are scoped to the session owner. */
+export async function conversationBootstrap(db: Database, owner: Owner, preferredId = '') {
+  const conversations = await db.prepare(
+    'SELECT id,title,updated_at AS updatedAt FROM ai_conversation WHERE office_id=? AND user_id=? ORDER BY updated_at DESC LIMIT 50'
+  ).all(owner.officeId, owner.userId) as Array<{ id: string; title: string; updatedAt: string }>;
+  const preferred = preferredId ? await conversation(db, owner, preferredId) : null;
+  const selected = preferred ?? (conversations[0] ? await conversation(db, owner, conversations[0].id) : null);
+  if (preferred && !conversations.some(item => item.id === preferred.conversation.id)) conversations.push(preferred.conversation);
+  return { conversations, conversation: selected?.conversation ?? null, messages: selected?.messages ?? [] };
+}
+
+export type ChatBootstrap = Awaited<ReturnType<typeof conversationBootstrap>>;
 /**
  * Merges an incoming user message into stored history.
  * - New message id: append.

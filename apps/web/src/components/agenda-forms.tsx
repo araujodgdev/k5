@@ -6,20 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { executeViaHttp } from '@/lib/webmcp/adapter';
-import type { CapabilityName, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { AgendaActivity, CrmClient } from '@/lib/capabilities/agenda';
 import { localInstant } from '@/lib/typesafe/agenda-time';
 import { localDate } from '@/lib/calendar-days';
-export { localDate } from '@/lib/calendar-days';
+import { agendaCall, selectStyle, type Choice } from '@/lib/agenda-client';
+import { ClientPicker } from './client-picker';
 
-export const selectStyle = 'h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9';
-export type Choice = { id: string; name: string };
-export async function agendaCall<N extends CapabilityName>(name: N, input: Record<string, unknown>): Promise<CapabilityOutput<N>> {
-  const result = await executeViaHttp(name, input);
-  if (!result.ok) throw new Error(result.error);
-  return result.data as CapabilityOutput<N>;
-}
 export function Field({ name, label, children }: { name: string; label: string; children: ReactNode }) {
   return <div className="grid min-w-0 gap-1.5"><Label htmlFor={name}>{label}</Label>{children}</div>;
 }
@@ -38,6 +30,7 @@ export function AgendaEditor({ activity, client, mode, cases, clients, members, 
   onConfirm?: (payload: Record<string, unknown>) => Promise<unknown>;
 }) {
   const [kind, setKind] = useState(activity?.kind ?? 'task');
+  const [selectedClientId, setSelectedClientId] = useState(activity ? activity.clientId ?? '' : clientId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [idempotencyKey, setKey] = useState(() => crypto.randomUUID());
@@ -85,7 +78,7 @@ export function AgendaEditor({ activity, client, mode, cases, clients, members, 
           <div className="grid gap-4 sm:grid-cols-2"><Field name="kind" label="Tipo"><select id="kind" value={kind} onChange={e => setKind(e.target.value as 'task' | 'meeting')} className={selectStyle}><option value="task">Tarefa</option><option value="meeting">Reunião</option></select></Field><Field name="status" label="Situação"><select id="status" name="status" defaultValue={activity?.status ?? 'pending'} className={selectStyle}><option value="pending">Pendente</option><option value="completed">Concluída</option><option value="cancelled">Cancelada</option></select></Field></div>
           {kind === 'task' ? <Field name="dueOn" label="Data (opcional)"><Input id="dueOn" name="dueOn" type="date" defaultValue={activity ? activity.dueOn ?? '' : day} className="h-11 md:h-9" /></Field> : <div className="space-y-2"><p className="text-xs text-muted-foreground">Horários em {timeZone}</p><div className="grid gap-4 sm:grid-cols-2"><Field name="startsAt" label="Início"><Input id="startsAt" name="startsAt" type="datetime-local" required defaultValue={localTime(activity?.startsAt ?? null) || (onConfirm ? '' : `${day}T09:00`)} className="h-11 md:h-9" /></Field><Field name="endsAt" label="Fim"><Input id="endsAt" name="endsAt" type="datetime-local" required defaultValue={localTime(activity?.endsAt ?? null) || (onConfirm ? '' : `${day}T10:00`)} className="h-11 md:h-9" /></Field></div></div>}
           <Selection name="assigneeId" label="Responsável" choices={members} value={activity?.assigneeId} />
-          <div className="grid gap-4 sm:grid-cols-2"><Selection name="clientId" label="Cliente" choices={clients} value={activity ? activity.clientId : clientId} /><Selection name="caseId" label="Caso do Cofre" choices={cases} value={activity ? activity.caseId : caseId} /></div>
+          <div className="grid gap-4 sm:grid-cols-2"><Field name="clientId" label="Cliente"><ClientPicker name="clientId" label="Cliente" value={selectedClientId} onChange={setSelectedClientId} choices={clients} /></Field><Selection name="caseId" label="Caso do Cofre" choices={cases} value={activity ? activity.caseId : caseId} /></div>
         </>}
         <Field name="notes" label="Observações"><Textarea id="notes" name="notes" maxLength={8000} rows={4} defaultValue={mode === 'client' ? client?.notes : activity?.notes} /></Field>
       </fieldset>

@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import type { UIMessage } from "ai";
 import {
-  claimRun, conversation, createConversation, mergeHistory, ownedArtifact, ownedRun,
+  claimRun, conversation, conversationBootstrap, createConversation, mergeHistory, ownedArtifact, ownedRun,
   publicArtifact, publicRun, saveMessages, updateArtifact,
 } from "../src/lib/ai-store";
 import { nodeSqliteDatabase } from "../src/lib/db/node-sqlite";
@@ -30,6 +30,42 @@ function userMessage(id: string, text: string): UIMessage {
 function assistantMessage(id: string, text: string): UIMessage {
   return { id, role: "assistant", parts: [{ type: "text", text }] };
 }
+
+test("chat bootstrap includes owned messages and rejects another user's deep link", async () => {
+  const { db, database, userA, userB, officeA, officeB } = fixture();
+  try {
+    const owner = { userId: userA, officeId: officeA };
+    const own = await createConversation(database, owner);
+    await saveMessages(database, owner, own.id, [userMessage('owned-message', 'Mensagem do escritório A')]);
+    const other = await createConversation(database, { userId: userB, officeId: officeB });
+    const teammate = await createConversation(database, { userId: userB, officeId: officeA });
+    const result = await conversationBootstrap(database, owner, other.id);
+    assert.deepEqual(result.conversations.map(item => item.id), [own.id]);
+    assert.equal(result.conversation?.id, own.id);
+    assert.equal(result.messages[0]?.id, 'owned-message');
+    const sameOffice = await conversationBootstrap(database, owner, teammate.id);
+    assert.deepEqual(sameOffice.conversations.map(item => item.id), [own.id]);
+    assert.equal(sameOffice.conversation?.id, own.id);
+    const wrongOffice = await conversationBootstrap(database, { userId: userA, officeId: officeB }, own.id);
+    assert.deepEqual(wrongOffice, { conversations: [], conversation: null, messages: [] });
+  } finally { db.close(); }
+});
+
+test("chat bootstrap is read-only for an empty history and opens an older owned deep link", async () => {
+  const { db, database, userA, officeA } = fixture();
+  try {
+    const owner = { userId: userA, officeId: officeA };
+    assert.deepEqual(await conversationBootstrap(database, owner), { conversations: [], conversation: null, messages: [] });
+    assert.equal((db.prepare('SELECT count(*) AS count FROM ai_conversation').get() as { count: number }).count, 0);
+    const oldest = await createConversation(database, owner);
+    db.prepare("UPDATE ai_conversation SET updated_at='2000-01-01' WHERE id=?").run(oldest.id);
+    for (let index = 0; index < 51; index++) await createConversation(database, owner);
+    const result = await conversationBootstrap(database, owner, oldest.id);
+    assert.equal(result.conversation?.id, oldest.id);
+    assert.equal(result.conversations.length, 51);
+    assert.ok(result.conversations.some(item => item.id === oldest.id));
+  } finally { db.close(); }
+});
 
 test("mergeHistory appends a new user message", () => {
   const stored = [userMessage("u1", "oi"), assistantMessage("a1", "olá")];

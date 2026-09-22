@@ -4,9 +4,12 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { AgendaEditor, agendaCall, selectStyle, type Choice } from './agenda-forms';
+import { agendaCall, selectStyle, type Choice } from '@/lib/agenda-client';
+import dynamic from 'next/dynamic';
 import type { AgendaProposal } from '@/lib/typesafe/agenda-contracts';
 import type { AgendaActivity } from '@/lib/capabilities/agenda';
+
+const AgendaEditor = dynamic(() => import('./agenda-forms').then(module => module.AgendaEditor));
 
 export function AgendaSuggestions({ cases, clients, members, day, timeZone, initialProposalId, refreshed }: {
   cases: Choice[]; clients: Choice[]; members: Choice[]; day: string; timeZone: string; initialProposalId: string; refreshed: () => void;

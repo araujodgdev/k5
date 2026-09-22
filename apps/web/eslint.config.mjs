@@ -40,6 +40,8 @@ const eslintConfig = defineConfig([
     "dist/**",
     ".vinext/**",
     ".wrangler/**",
+    // Local data and browser audit artifacts can contain generated bundles.
+    ".data/**",
   ]),
 ]);
 

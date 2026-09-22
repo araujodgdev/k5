@@ -30,7 +30,7 @@ Set in `:root` in `globals.css`. Use them through Tailwind classes such as `bg-c
 | `canvas` | `#fafaf9` | Sidebar and auth background |
 | `foreground` | `#1b1b1a` | Text, primary button, focus ring |
 | `muted-foreground` | `#5f5f5b` | Secondary text, inactive nav |
-| `subtle-foreground` | `#93938e` | Placeholders, empty states, inactive tabs |
+| `subtle-foreground` | `#696965` / dark `#a0a098` | Placeholders, empty states, inactive tabs; readable on selected surfaces |
 | `muted` / `secondary` | `#f3f3f1` | Quiet fills |
 | `accent` | `#ebebe8` | Hover and selected fills |
 | `schedule` | `#a3542c` / dark `#d49a72` | Calendar pins and scheduling emphasis |

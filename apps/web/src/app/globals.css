@@ -28,7 +28,7 @@
   --secondary-foreground: #1b1b1a;
   --muted: #f3f3f1;
   --muted-foreground: #5f5f5b;
-  --subtle-foreground: #93938e; /* placeholders and empty states */
+  --subtle-foreground: #696965; /* readable on both background and selected surfaces */
   --accent: #ebebe8;            /* hover and selected fills */
   --accent-foreground: #1b1b1a;
 
@@ -87,6 +87,21 @@
   --sidebar-border: #393935;
   --sidebar-ring: #f3f3ef;
   --shadow-float: 0 1px 2px rgb(0 0 0 / .18), 0 8px 24px rgb(0 0 0 / .24);
+}
+
+/* Both panes exist in SSR. Geometry follows CSS and the preference restored in the head. */
+.agent-chat-history { display: none; }
+html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
+@media (min-width: 768px) {
+  html:not([data-agent-list-open="0"]) .agent-chat-history { display: flex; }
+}
+@media (max-width: 767px) {
+  html[data-agent-list-open="1"] .agent-chat-content { display: none; }
+}
+
+:is(.display, .font-serif, .font-heading):is(em, i, .italic),
+:is(.display, .font-serif, .font-heading) :is(em, i, .italic) {
+  font-family: var(--font-newsreader-italic), ui-serif, Georgia, serif;
 }
 
 @theme inline {

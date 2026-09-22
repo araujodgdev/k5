@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { UIMessage } from "ai";
+import { DefaultChatTransport } from "ai";
+import { useChat } from "@ai-sdk/react";
+import type { ChatBootstrap } from "@/lib/ai-store";
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -10,11 +13,10 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
 import {
   ArrowUp,
   ArrowDown,
-  Check,
   ChevronDown,
   CircleAlert,
   Copy,
@@ -31,11 +33,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { AgentSourcesPanel, type AgentContext } from "@/components/agent-sources-panel";
+import type { AgentContext } from "@/components/agent-sources-panel";
+import dynamic from "next/dynamic";
+import { readListOpen, subscribeListOpen, writeListOpen, serverListOpen } from "@/lib/agent-history";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -47,6 +50,13 @@ import {
 } from "@/components/ui/sheet";
 import { DOCUMENT_ACCEPT, IMAGE_ACCEPT, type Modalities } from "@/lib/ai-modalities";
 import { cn } from "@/lib/utils";
+
+const AgentSourcesPanel = dynamic(() => import("./agent-sources-panel").then(module => module.AgentSourcesPanel), {
+  loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Carregando fontes…</p>,
+});
+const AgentModelOptions = dynamic(() => import("./agent-model-options").then(module => module.AgentModelOptions), {
+  loading: () => <p role="status" className="p-4 text-sm text-muted-foreground">Carregando modelos…</p>,
+});
 
 export type OfficeModelOption = {
   provider: string;
@@ -84,39 +94,7 @@ function unwrapMessages(value: unknown): UIMessage[] {
 }
 
 const MESSAGE_CACHE = "k5.conversation.messages.";
-const LIST_OPEN_KEY = "k5.agent_list_open";
-const LIST_OPEN_EVENT = "k5:agent-list-open";
 const memoryMessages = new Map<string, UIMessage[]>();
-
-/**
- * Whether the conversation list is open belongs to localStorage, not to React state: it has to
- * survive a reload, and reading it back in an effect would set state during the first commit.
- * `storage` only fires in the other tabs, so a write here announces itself to this one.
- */
-function subscribeListOpen(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(LIST_OPEN_EVENT, onStoreChange);
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(LIST_OPEN_EVENT, onStoreChange);
-  };
-}
-
-function readListOpen() {
-  const saved = window.localStorage.getItem(LIST_OPEN_KEY);
-  if (saved === "1" || saved === "0") return saved === "1";
-  return window.matchMedia("(min-width: 768px)").matches;
-}
-
-// The server knows neither the viewport nor the saved choice; the client snapshot corrects it.
-function serverListOpen() {
-  return false;
-}
-
-function writeListOpen(next: boolean) {
-  window.localStorage.setItem(LIST_OPEN_KEY, next ? "1" : "0");
-  window.dispatchEvent(new Event(LIST_OPEN_EVENT));
-}
 
 function cachedMessages(id: string): UIMessage[] | undefined {
   const hit = memoryMessages.get(id);
@@ -239,32 +217,13 @@ function ModelSwitcher({ models, value, onChange }: { models: OfficeModelOption[
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" aria-haspopup="listbox" aria-expanded={open} aria-label="Selecionar modelo" className="flex h-9 max-w-[42vw] items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-56 md:text-sm">
+        <button type="button" aria-haspopup="listbox" aria-expanded={open} aria-label={`Selecionar modelo: ${selected?.modelId ?? "Modelo"}`} className="flex h-9 max-w-[42vw] items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-56 md:text-sm">
           <span className="truncate">{selected?.modelId ?? "Modelo"}</span>
           <ChevronDown className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" side="top" className="w-80 p-0">
-        <Command>
-          <CommandInput placeholder="Buscar modelo" />
-          <CommandList>
-            <CommandEmpty>Nenhum modelo com esse nome.</CommandEmpty>
-            <CommandGroup>
-              {models.map((model) => {
-                const key = `${model.provider}:${model.modelId}`;
-                return (
-                  <CommandItem key={key} value={`${model.providerLabel} ${model.modelId}`} onSelect={() => { onChange(key); setOpen(false); }}>
-                    <Check className={`size-4 shrink-0 ${key === value ? "opacity-100" : "opacity-0"}`} aria-hidden="true" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate">{model.modelId}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{model.providerLabel}</span>
-                    </span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+        {open && <AgentModelOptions models={models} value={value} onChange={(key) => { onChange(key); setOpen(false); }} />}
       </PopoverContent>
     </Popover>
   );
@@ -333,6 +292,7 @@ function ComposerTools({ models, modelKey, onModelChange, modalities, uploading,
       <input
         ref={fileInput}
         type="file"
+        aria-label="Arquivo para anexar"
         accept={accept}
         className="sr-only"
         onChange={(event) => {
@@ -441,22 +401,18 @@ function RuntimeThread({ conversationId, messages, context, selectedModel, audio
   onError: (message: string) => void;
 }) {
   const transport = useMemo(
-    () => new AssistantChatTransport({
+    () => new DefaultChatTransport({
       api: "/api/chat",
-      body: {
-        conversationId,
-        documentIds: context.documentIds,
-        ...(selectedModel ? { model: selectedModel } : {}),
-      },
       // The server holds the authoritative history; only the affected message needs to
       // travel over the wire (keeps requests under the server's body-size limit on long
       // conversations, and gives the route what it needs to merge retries/regenerations).
-      prepareSendMessagesRequest: async ({ messages: history, trigger, messageId, body: preparedBody }) => {
+      prepareSendMessagesRequest: async ({ messages: history, trigger, messageId }) => {
         // The recording travels with this message only; sending spends it.
         if (audio) onAudioSent();
         return {
           body: {
-            ...preparedBody,
+            conversationId,
+            documentIds: context.documentIds,
             ...(selectedModel ? { model: selectedModel } : {}),
             ...(audio ? { attachments: [audio] } : {}),
             message: history.at(-1),
@@ -468,28 +424,36 @@ function RuntimeThread({ conversationId, messages, context, selectedModel, audio
     }),
     [audio, onAudioSent, context.documentIds, conversationId, selectedModel],
   );
-  const runtime = useChatRuntime({
+  // K5 owns the history and thread IDs. The direct adapter avoids a second cloud thread list.
+  const chat = useChat({
     id: conversationId,
     messages,
     transport,
     onFinish,
     onError: (error) => onError(chatErrorMessage(error)),
   });
+  const runtime = useAISDKRuntime(chat);
+  const { stop } = chat;
+  useEffect(() => () => { void stop(); }, [stop]);
   return <AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider>;
 }
 
-export function AgentChat({ initialConversationId = '' }: { initialConversationId?: string }) {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<UIMessage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
+export function AgentChat({ initialConversationId = '', initialData, initialModels }: { initialConversationId?: string; initialData?: ChatBootstrap; initialModels?: OfficeModelOption[] }) {
+  const [conversations, setConversations] = useState<Conversation[]>(initialData?.conversations ?? []);
+  const [selectedId, setSelectedId] = useState<string | null>(initialData?.conversation?.id ?? null);
+  const [messages, setMessages] = useState<UIMessage[]>(initialData?.messages ?? []);
+  const [loading, setLoading] = useState(!initialData?.conversation);
+  const [loadedConversationId, setLoadedConversationId] = useState<string | null>(initialData?.conversation?.id ?? null);
+  const hydratedConversation = useRef(initialData?.conversation?.id);
   const [error, setError] = useState("");
   const [context, setContext] = useState<AgentContext>({ caseId: null, documentIds: [] });
   const [contextOpen, setContextOpen] = useState(false);
   const listOpen = useSyncExternalStore(subscribeListOpen, readListOpen, serverListOpen);
-  const [availableModels, setAvailableModels] = useState<OfficeModelOption[]>([]);
-  const [selectedModelKey, setSelectedModelKey] = useState<string>("");
+  const [availableModels, setAvailableModels] = useState<OfficeModelOption[]>(initialModels ?? []);
+  const [selectedModelKey, setSelectedModelKey] = useState(() => {
+    const model = initialModels?.find(item => item.isDefault) ?? initialModels?.[0];
+    return model ? `${model.provider}:${model.modelId}` : '';
+  });
   const [uploading, setUploading] = useState(false);
   const [audio, setAudio] = useState<Attachment | null>(null);
   function toggleList() {
@@ -498,23 +462,26 @@ export function AgentChat({ initialConversationId = '' }: { initialConversationI
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/ai/models")
-      .then(async (res) => {
-        if (!res.ok) return;
-        const data = (await res.json()) as { models?: OfficeModelOption[]; defaultModel?: OfficeModelOption | null };
+    const request = initialModels ? Promise.resolve(initialModels) : fetch("/api/ai/models").then(async response => {
+      if (!response.ok) return null;
+      const data = await response.json() as { models?: OfficeModelOption[] };
+      return data.models ?? [];
+    });
+    request.then((list) => {
         if (cancelled) return;
-        const list = data.models ?? [];
+        if (!list) return;
         setAvailableModels(list);
         if (list.length > 0) {
-          const saved = typeof window !== "undefined" ? localStorage.getItem("k5_selected_model") : null;
+          let saved: string | null = null;
+          try { saved = localStorage.getItem("k5_selected_model"); } catch { /* Use the office default. */ }
           const match = saved ? list.find((m) => `${m.provider}:${m.modelId}` === saved) : undefined;
-          const active = match ?? data.defaultModel ?? list[0];
+          const active = match ?? list.find(model => model.isDefault) ?? list[0];
           if (active) setSelectedModelKey(`${active.provider}:${active.modelId}`);
         }
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
-  }, []);
+  }, [initialModels]);
 
   // A voice note belongs to the message it was recorded for, so it is spent on send.
   const clearAudio = useCallback(() => setAudio(null), []);
@@ -602,9 +569,10 @@ export function AgentChat({ initialConversationId = '' }: { initialConversationI
 
   useEffect(() => {
     let cancelled = false;
+    if (initialData?.conversation) return;
     async function initialize() {
       try {
-        const next = await loadConversations();
+        const next = initialData?.conversations ?? await loadConversations();
         if (cancelled) return;
         if (initialConversationId && next.some(item => item.id === initialConversationId)) setSelectedId(initialConversationId);
         else if (next[0]) setSelectedId(next[0].id);
@@ -617,10 +585,14 @@ export function AgentChat({ initialConversationId = '' }: { initialConversationI
     }
     void initialize();
     return () => { cancelled = true; };
-  }, [createConversation, loadConversations, initialConversationId]);
+  }, [createConversation, loadConversations, initialConversationId, initialData]);
 
   useEffect(() => {
     if (!selectedId) return;
+    if (hydratedConversation.current === selectedId) {
+      hydratedConversation.current = undefined;
+      return;
+    }
     const controller = new AbortController();
     fetch(`/api/conversations/${encodeURIComponent(selectedId)}`, { signal: controller.signal })
       .then(async (response) => {
@@ -694,7 +666,7 @@ export function AgentChat({ initialConversationId = '' }: { initialConversationI
               <SheetTrigger asChild><Button variant="outline"><FileStack />Fontes{selectedCount > 0 ? ` (${selectedCount})` : ""}</Button></SheetTrigger>
               <SheetContent side="right" showCloseButton={false} className="min-w-0 overflow-x-hidden gap-0 bg-background sm:max-w-md">
                 <SheetHeader className="sr-only"><SheetTitle>Fontes desta conversa</SheetTitle></SheetHeader>
-                <AgentSourcesPanel context={context} onChange={setContext} onClose={() => setContextOpen(false)} />
+                {contextOpen && <AgentSourcesPanel context={context} onChange={setContext} onClose={() => setContextOpen(false)} />}
               </SheetContent>
             </Sheet>
           </div>
@@ -703,8 +675,7 @@ export function AgentChat({ initialConversationId = '' }: { initialConversationI
         {error && <p className="flex items-start gap-2 border-b px-4 py-2 text-sm text-destructive md:px-8" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
 
         <div className="flex min-h-0 flex-1">
-          {listOpen && (
-            <aside className="flex min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b md:w-72 md:border-r md:border-b-0">
+          <aside className="agent-chat-history min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b md:w-72 md:border-r md:border-b-0">
               {loading && conversations.length === 0 ? (
                 <div className="grid gap-2 p-3" aria-hidden="true">
                   <Skeleton className="h-16 w-full rounded-2xl" />
@@ -714,9 +685,8 @@ export function AgentChat({ initialConversationId = '' }: { initialConversationI
               ) : (
                 <ConversationCards conversations={conversations} selectedId={selectedId} onSelect={selectConversation} onDelete={(id) => void removeConversation(id)} />
               )}
-            </aside>
-          )}
-          <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", listOpen && "max-md:hidden")}>
+          </aside>
+          <div className="agent-chat-content flex min-h-0 min-w-0 flex-1 flex-col">
             {loading || waitingForMessages ? (
               <div className="grid flex-1 place-items-center text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Carregando conversa…</span></div>
             ) : selectedId ? (

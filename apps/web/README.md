@@ -211,7 +211,9 @@ exportação DOCX, cadastro, senha, duplicidade, isolamento de escritórios, ten
 expiração, renovação, cookies forjados, logout global, origem e limite de tentativas.
 
 O comando de produção é `pnpm --filter @k5/web start`, após setup e build.
-A UI usa fontes do sistema e não precisa baixar fontes durante o build.
+A UI usa Inter e Newsreader, baixadas por `next/font/google` durante o build e
+servidas pela própria aplicação. A variante itálica da Newsreader só é carregada
+pelo navegador quando usada; as variantes normais recebem preload.
 
 ## Visão geral e validação de interface
 

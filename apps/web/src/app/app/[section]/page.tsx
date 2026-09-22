@@ -4,6 +4,9 @@ import { AgentChat } from "@/components/agent-chat";
 import { Reveal } from "@/components/reveal";
 import { appNavigation } from "@/lib/navigation";
 import { requireWorkspace } from "@/lib/session";
+import { database } from "@/lib/database";
+import { conversationBootstrap } from "@/lib/ai-store";
+import { listOfficeAvailableModels } from "@/lib/ai-connections";
 
 type Props = { params: Promise<{ section: string }>; searchParams: Promise<{ conversationId?: string }> };
 
@@ -13,11 +16,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function SectionPage({ params, searchParams }: Props) {
-  await requireWorkspace();
+  const { office, user } = await requireWorkspace();
   const { section } = await params;
   const item = appNavigation.find((entry) => entry.slug === section);
   if (!item) notFound();
-  if (item.slug === "agents") return <AgentChat initialConversationId={(await searchParams).conversationId} />;
+  if (item.slug === "agents") {
+    const { conversationId } = await searchParams;
+    const [history, models] = await Promise.allSettled([
+      conversationBootstrap(database, { officeId: office.officeId, userId: user.id }, conversationId),
+      listOfficeAvailableModels(office.officeId),
+    ]);
+    // A failed prefetch falls back to the existing API loading/error path in the chat.
+    return <AgentChat key={conversationId ?? 'latest'} initialConversationId={conversationId}
+      initialData={history.status === 'fulfilled' ? history.value : undefined}
+      initialModels={models.status === 'fulfilled' ? models.value : undefined} />;
+  }
   return (
     <Reveal className="mx-auto w-full max-w-5xl px-5 py-6 md:px-12 md:py-11">
       <h1 className="display text-[30px] md:text-[28px]" data-reveal>{item.label}</h1>

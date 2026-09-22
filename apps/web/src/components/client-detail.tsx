@@ -3,10 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { AgendaEditor, agendaCall, localDate, type Choice } from './agenda-forms';
+import { agendaCall, type Choice } from '@/lib/agenda-client';
+import { localDate } from '@/lib/calendar-days';
+import dynamic from 'next/dynamic';
 import { Button } from './ui/button';
 import type { CrmClient, AgendaActivity } from '@/lib/capabilities/agenda';
 import type { OfficeRole } from '@/lib/offices';
+
+const AgendaEditor = dynamic(() => import('./agenda-forms').then(module => module.AgendaEditor));
 
 const stages = { prospect: 'Potencial cliente', active: 'Cliente ativo', archived: 'Arquivado' };
 const statuses = { pending: 'Pendente', completed: 'Concluída', cancelled: 'Cancelada' };

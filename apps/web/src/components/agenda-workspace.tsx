@@ -4,13 +4,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { calendarDays } from '@/lib/calendar-days';
 import { useCallback, useEffect, useState } from 'react';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AgendaEditor, agendaCall, localDate, selectStyle, type Choice } from './agenda-forms';
+import { agendaCall, selectStyle, type Choice } from '@/lib/agenda-client';
+import { localDate } from '@/lib/calendar-days';
+import dynamic from 'next/dynamic';
 import type { OfficeRole } from '@/lib/offices';
 import type { AgendaActivity, CrmClient } from '@/lib/capabilities/agenda';
 import { AgendaSuggestions } from './agenda-suggestions';
+import { ClientPicker } from './client-picker';
+
+const AgendaEditor = dynamic(() => import('./agenda-forms').then(module => module.AgendaEditor));
 
 type View = 'tasks' | 'calendar' | 'clients';
 type Editor = { mode: 'activity'; activity?: AgendaActivity } | { mode: 'client'; client?: CrmClient };
@@ -54,6 +60,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   const [clientId, setClientId] = useState(initialClientId);
   const [status, setStatus] = useState('');
   const [query, setQuery] = useState('');
+  const searchQuery = useDebouncedValue(query);
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
   const [cases, setCases] = useState<Choice[]>([]);
@@ -81,14 +88,12 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     let cancelled = false;
     async function load() {
       try {
-        const [vault, team] = await Promise.all([agendaCall('k5_vault_list_cases', {}), agendaCall('k5_agenda_list_members', {})]);
-        const all: CrmClient[] = [];
-        for (let page = 0; ; page += 100) {
-          const result = await agendaCall('k5_crm_list_clients', { limit: 100, offset: page });
-          all.push(...result.clients);
-          if (all.length >= result.total || !result.clients.length || cancelled) break;
-        }
-        if (!cancelled) { setCases(vault.cases); setMembers(team.members); setClients(all); setOptionsReady(true); setOptionsFailure(''); }
+        const [vault, team, initialClients] = await Promise.all([
+          agendaCall('k5_vault_list_cases', {}),
+          agendaCall('k5_agenda_list_members', {}),
+          agendaCall('k5_crm_list_clients', { limit: 100, offset: 0 }),
+        ]);
+        if (!cancelled) { setCases(vault.cases); setMembers(team.members); setClients(initialClients.clients); setOptionsReady(true); setOptionsFailure(''); }
       } catch (error) { if (!cancelled) { setOptionsFailure(error instanceof Error ? error.message : 'Não foi possível carregar os vínculos.'); setOptionsReady(false); } }
     }
     void load(); return () => { cancelled = true; };
@@ -107,14 +112,14 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   useEffect(() => {
     if (view !== 'calendar' || !month) return;
     let cancelled = false;
-    const timer = setTimeout(async () => {
+    async function load() {
       setMarkers({}); setMarkerFailure(''); setMarkersLoading(true);
       try {
         const [year, index] = month.split('-').map(Number);
         const from = new Date(year, index - 1, 1); const to = new Date(year, index, 1);
         const all: AgendaActivity[] = [];
         for (let offset = 0; ; offset += 100) {
-          const result = await agendaCall('k5_agenda_list_activities', { query, dueFrom: localDate(from), dueTo: localDate(new Date(year, index, 0)), from: from.toISOString(), to: to.toISOString(), ...(caseId ? { caseId } : {}), ...(clientId ? { clientId } : {}), ...(status ? { status } : {}), limit: 100, offset });
+          const result = await agendaCall('k5_agenda_list_activities', { query: searchQuery, dueFrom: localDate(from), dueTo: localDate(new Date(year, index, 0)), from: from.toISOString(), to: to.toISOString(), ...(caseId ? { caseId } : {}), ...(clientId ? { clientId } : {}), ...(status ? { status } : {}), limit: 100, offset });
           if (cancelled) return;
           all.push(...result.activities);
           if (all.length >= result.total || !result.activities.length) break;
@@ -122,32 +127,34 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
         if (!cancelled) setMarkers(calendarDays(month, all));
       } catch { if (!cancelled) setMarkerFailure('Não foi possível carregar os marcadores do mês.'); }
       finally { if (!cancelled) setMarkersLoading(false); }
-    }, 150);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [view, month, caseId, clientId, status, query, revision]);
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [view, month, caseId, clientId, status, searchQuery, revision]);
 
   useEffect(() => {
     if (!day) return;
     let cancelled = false;
-    const timer = setTimeout(async () => {
+    async function load() {
       setLoading(true); setFailure('');
       try {
         if (view === 'clients') {
-          const result = await agendaCall('k5_crm_list_clients', { query, ...(caseId ? { caseId } : {}), ...(status ? { stage: status } : {}), limit: 50, offset });
+          const result = await agendaCall('k5_crm_list_clients', { query: searchQuery, ...(caseId ? { caseId } : {}), ...(status ? { stage: status } : {}), limit: 50, offset });
           if (!cancelled) { setClientRows(result.clients); setTotal(result.total); }
         } else {
           const from = new Date(`${day}T00:00:00`); const to = new Date(from); to.setDate(to.getDate() + 1);
           const result = await agendaCall('k5_agenda_list_activities', {
-            query, ...(view === 'tasks' ? { kind: 'task' } : { dueFrom: day, dueTo: day, from: from.toISOString(), to: to.toISOString() }),
+            query: searchQuery, ...(view === 'tasks' ? { kind: 'task' } : { dueFrom: day, dueTo: day, from: from.toISOString(), to: to.toISOString() }),
             ...(caseId ? { caseId } : {}), ...(clientId ? { clientId } : {}), ...(status ? { status } : {}), limit: 50, offset,
           });
           if (!cancelled) { setActivities(result.activities); setTotal(result.total); }
         }
       } catch (error) { if (!cancelled) setFailure(error instanceof Error ? error.message : 'Não foi possível carregar.'); }
       finally { if (!cancelled) setLoading(false); }
-    }, 150);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [view, day, caseId, clientId, query, status, offset, revision]);
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [view, day, caseId, clientId, searchQuery, status, offset, revision]);
 
   function changeView(value: View) { setView(value); setStatus(''); setOffset(0); setQuery(''); setLoading(true); }
   function inspect(value: Editor) { if (value.mode === 'client' && value.client) router.push(`/app/agenda/clients/${encodeURIComponent(value.client.id)}`); else if (canWrite) setEditor(value); else setDetail(value); }
@@ -157,6 +164,17 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     catch (error) { setFailure(error instanceof Error ? error.message : 'Não foi possível atualizar.'); }
     finally { setBusy(false); }
   }
+  useEffect(() => {
+    const missing = [...new Set([clientId, ...activities.map(activity => activity.clientId)].filter((id): id is string => Boolean(id)))].filter(id => !clients.some(client => client.id === id));
+    if (!optionsReady || !missing.length) return;
+    let cancelled = false;
+    void Promise.all(missing.map(id => agendaCall('k5_crm_get_client', { clientId: id }).then(result => result.client).catch(() => null))).then(results => {
+      const found = results.filter((client): client is CrmClient => client !== null);
+      if (!cancelled && found.length) setClients(current => [...current, ...found.filter(client => !current.some(item => item.id === client.id))]);
+    });
+    return () => { cancelled = true; };
+  }, [activities, clientId, clients, optionsReady]);
+
   const findName = (choices: Choice[], id: string | null) => choices.find(c => c.id === id)?.name;
   const period = (activity: AgendaActivity) => activity.kind === 'task'
     ? activity.dueOn ? dateLabel(activity.dueOn) : 'Sem data'
@@ -168,7 +186,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     <div className="grid gap-3 py-5 sm:grid-cols-2 lg:grid-cols-4">
       <Input aria-label={view === 'clients' ? 'Buscar clientes' : 'Buscar atividades'} placeholder={view === 'clients' ? 'Buscar clientes' : 'Buscar atividades'} value={query} onChange={event => { setQuery(event.target.value); setOffset(0); setLoading(true); }} className="h-11 md:h-9" />
       <select aria-label="Filtrar por caso" value={caseId} onChange={event => { setCaseId(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">Todos os casos</option>{caseId && !cases.some(c => c.id === caseId) && <option value={caseId}>Caso selecionado</option>}{cases.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-      {view !== 'clients' && <select aria-label="Filtrar por cliente" value={clientId} onChange={event => { setClientId(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">Todos os clientes</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+      {view !== 'clients' && <ClientPicker label="Filtrar por cliente" emptyLabel="Todos os clientes" value={clientId} choices={clients} onChange={(id, client) => { setClientId(id); setOffset(0); setLoading(true); if (client) setClients(current => [...current.filter(item => item.id !== client.id), client]); }} />}
       <select aria-label={view === 'clients' ? 'Filtrar relacionamento' : 'Filtrar situação'} value={status} onChange={event => { setStatus(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">{view === 'clients' ? 'Todos os relacionamentos' : 'Todas as situações'}</option>{Object.entries(view === 'clients' ? stageLabels : statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
     </div>
     {canWrite && optionsReady && view !== 'clients' && <AgendaSuggestions cases={cases} clients={clients} members={members} day={day} timeZone={timeZone} initialProposalId={initialProposalId} refreshed={refresh} />}
