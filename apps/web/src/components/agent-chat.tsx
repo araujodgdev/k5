@@ -36,6 +36,7 @@ import {
 import type { AgentContext } from "@/components/agent-sources-panel";
 import dynamic from "next/dynamic";
 import { readListOpen, subscribeListOpen, writeListOpen, serverListOpen } from "@/lib/agent-history";
+import { formatConversationTime } from "@/lib/conversation-time";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -118,16 +119,6 @@ function storeMessages(id: string, next: UIMessage[]) {
   } catch {
     /* Quota is not worth failing the conversation over. */
   }
-}
-
-function formatUpdatedAt(iso: string) {
-  const delta = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(delta) || delta < 45_000) return "Agora";
-  const minutes = Math.round(delta / 60_000);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h`;
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
 }
 
 function chatErrorMessage(error: unknown): string {
@@ -742,7 +733,8 @@ function ConversationCards({ conversations, selectedId, onSelect, onDelete }: {
               )}
             >
               <span className="truncate text-sm font-medium">{conversation.title || "Nova conversa"}</span>
-              <span className="text-[13px] text-subtle-foreground">{formatUpdatedAt(conversation.updatedAt)}</span>
+              {/* Relative labels can cross a minute boundary while the HTML is in transit. */}
+              <span suppressHydrationWarning className="text-[13px] text-subtle-foreground">{formatConversationTime(conversation.updatedAt)}</span>
             </button>
             <Button variant="ghost" size="icon-sm" className="absolute top-2 right-2 size-11 md:size-7" onClick={() => onDelete(conversation.id)} aria-label={`Excluir ${conversation.title || "conversa"}`}><Trash2 /></Button>
           </div>
