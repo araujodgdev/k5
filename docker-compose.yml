@@ -53,6 +53,9 @@ services:
       VECTOR_DATABASE_URL: postgresql://k5:${VECTOR_DB_PASSWORD:-k5-local-dev}@vectors:5432/k5_vectors
       VAULT_OCR_URL: ${VAULT_OCR_URL:-}
       VAULT_OCR_TOKEN: ${VAULT_OCR_TOKEN:-}
+      K5_VAPID_KEY_ID: ${K5_VAPID_KEY_ID:-}
+      K5_VAPID_SUBJECT: ${K5_VAPID_SUBJECT:-}
+      K5_VAPID_PUBLIC_KEY: ${K5_VAPID_PUBLIC_KEY:-}
     volumes:
       - appdata:/data
     depends_on:
@@ -93,6 +96,24 @@ services:
         condition: service_completed_successfully
       vectors:
         condition: service_healthy
+    restart: unless-stopped
+
+  notifications:
+    # Projection, civil-date reminders and Web Push delivery have their own queues so OCR cannot
+    # delay a reminder. Without VAPID configuration the durable inbox still works.
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: runtime
+    command: ["pnpm", "notifications:worker"]
+    environment:
+      <<: *app_env
+      K5_VAPID_PRIVATE_KEY: ${K5_VAPID_PRIVATE_KEY:-}
+    volumes:
+      - appdata:/data
+    depends_on:
+      setup:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   adminer:

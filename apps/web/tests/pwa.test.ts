@@ -3,18 +3,42 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
 
-const source = readFileSync(new URL("../scripts/service-worker.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../src/lib/notifications/push-client.js", import.meta.url), "utf8").replace(/^export /gm, "")
+  + "\n" + readFileSync(new URL("../scripts/service-worker.js", import.meta.url), "utf8");
 type WorkerEvent = {
   request?: { url: string; method: string; mode: string; headers: Headers };
   data?: unknown;
+  notification?: { data?: { notificationId?: string }; close(): void };
   waitUntil: (promise: Promise<unknown>) => void;
   respondWith: (promise: Promise<Response>) => void;
 };
 
 type CacheBuckets = Map<string, Map<string, Response>>;
 
-function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [] }: {
-  version?: string; buckets?: CacheBuckets; clients?: { id: string }[];
+test('PWA: startup and subscription changes recover the current subscription without a window', async () => {
+  for (const event of ['activate', 'pushsubscriptionchange']) {
+    const authorization = { deviceId: 'device', vapidKeyId: 'key', authorizationGeneration: 3 };
+    const sw = worker({ pushState: { authorization, state: 'active', endpoint: 'https://push.test/new' } });
+    await sw.dispatch(event);
+    assert.deepEqual(sw.uploads, [{ ...authorization, endpoint: 'https://push.test/new', expirationTime: null,
+      keys: { p256dh: 'public-key', auth: 'auth-key' } }]);
+  }
+});
+
+test('PWA: recovery preserves client notifications and never enrolls revoked devices', async () => {
+  const messages: unknown[] = [];
+  const sw = worker({
+    clients: [{ postMessage: (message: unknown) => messages.push(JSON.parse(JSON.stringify(message))) }],
+    pushState: { authorization: { deviceId: 'device', vapidKeyId: 'key', authorizationGeneration: 3 }, state: 'revoked', endpoint: 'https://push.test/new' },
+  });
+  await sw.dispatch('pushsubscriptionchange');
+  assert.deepEqual(messages, [{ type: 'K5_PUSH_SUBSCRIPTION_CHANGED' }]);
+  assert.deepEqual(sw.uploads, []);
+});
+
+function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [], pushState }: {
+  version?: string; buckets?: CacheBuckets; clients?: Record<string, unknown>[];
+  pushState?: { authorization: Record<string, unknown>; state: string; endpoint: string; uploadStatus?: number };
 } = {}) {
   const listeners = new Map<string, (event: WorkerEvent) => void>();
   const cached = new Map<string, Response>();
@@ -23,6 +47,9 @@ function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [] }:
   let networkCalls = 0;
   let offline = false;
   let skipped = false;
+  const notifications: { title: string; options: Record<string, unknown>; closed: boolean }[] = [];
+  let openedWindow: string | null = null;
+  const uploads: Record<string, unknown>[] = [];
   let response = new Response("network");
   Object.defineProperty(response, "type", { value: "basic" });
   const key = (request: string | { url: string }) => typeof request === "string" ? request : request.url;
@@ -35,17 +62,30 @@ function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [] }:
       put: async (request: { url: string }, value: Response) => { entries.set(key(request), value); },
     };
   };
-  runInNewContext(source.replace("__K5_BUILD__", version), {
+  runInNewContext(source.replace("__K5_BUILD__", version)
+    + (pushState ? "\npushAuthorization = authorizationStore;" : ""), {
     URL, Response,
+    authorizationStore: async () => pushState?.authorization,
     self: {
       location: { origin: "https://k5.test" },
       addEventListener: (name: string, handler: (event: WorkerEvent) => void) => listeners.set(name, handler),
+      registration: {
+        pushManager: { getSubscription: async () => pushState ? {
+          endpoint: pushState.endpoint, expirationTime: null,
+          toJSON: () => ({ keys: { p256dh: "public-key", auth: "auth-key" } }),
+        } : null },
+        showNotification: async (title: string, options: Record<string, unknown>) => { notifications.push({ title, options, closed: false }); },
+        getNotifications: async () => notifications.map((notification) => ({ close: () => { notification.closed = true; } })),
+      },
       clients: {
         claim: async () => {},
         matchAll: async (options: unknown) => {
-          assert.deepEqual(JSON.parse(JSON.stringify(options)), { includeUncontrolled: true, type: "all" });
+          const normalized = JSON.parse(JSON.stringify(options)) as { includeUncontrolled?: boolean; type?: string };
+          assert.equal(normalized.includeUncontrolled, true);
+          assert.ok(normalized.type === "all" || normalized.type === "window");
           return clients;
         },
+        openWindow: async (path: string) => { openedWindow = path; },
       },
       skipWaiting: async () => { skipped = true; },
     },
@@ -60,9 +100,19 @@ function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [] }:
       keys: async () => [...buckets.keys()],
       delete: async (name: string) => { deleted.push(name); return buckets.delete(name); },
     },
-    fetch: async () => {
+    fetch: async (path: string, options?: RequestInit) => {
       networkCalls++;
       if (offline) throw new TypeError("offline");
+      if (pushState && path === "/api/notifications/subscriptions") {
+        if (options?.method === "POST") {
+          uploads.push(JSON.parse(String(options.body)) as Record<string, unknown>);
+          return Response.json({}, { status: pushState.uploadStatus ?? 200 });
+        }
+        return Response.json({ subscriptions: [{
+          deviceId: pushState.authorization.deviceId, vapidKeyId: pushState.authorization.vapidKeyId,
+          state: pushState.state,
+        }] });
+      }
       const result = response.clone();
       Object.defineProperty(result, "type", { value: response.type });
       return result;
@@ -76,8 +126,9 @@ function worker({ version = "__K5_BUILD__", buckets = new Map(), clients = [] }:
     return result;
   }
   return {
-    cached, deleted, dispatch, buckets,
+    cached, deleted, dispatch, buckets, notifications, uploads,
     get networkCalls() { return networkCalls; },
+    get openedWindow() { return openedWindow; },
     get skipped() { return skipped; },
     setOffline() { offline = true; },
     setResponse(value: Response) { response = value; },
@@ -186,4 +237,23 @@ test("PWA: public assets can be reused offline", async () => {
   sw.setOffline();
   assert.equal(await (await sw.fetch("/_next/static/app.js"))?.text(), "network");
   assert.equal(sw.networkCalls, 1);
+});
+
+test("PWA: push shows only generic copy, notifies tabs, and opens the guarded route", async () => {
+  const messages: unknown[] = [];
+  const sw = worker({ clients: [{ postMessage: (message: unknown) => messages.push(message) }] });
+  const id = "018f52e1-9a6d-7c31-a123-123456789abc";
+  await sw.dispatch("push", { data: { json: () => ({ version: 1, id, tag: "agenda-window", expiresAt: "2099-01-01T00:00:00.000Z" }) } });
+  assert.equal(sw.notifications.length, 1);
+  assert.equal(sw.notifications[0].title, "K5");
+  assert.equal(sw.notifications[0].options.body, "Você tem uma atualização no K5.");
+  assert.deepEqual(JSON.parse(JSON.stringify(messages)), [{ type: "K5_NOTIFICATION", id }]);
+
+  let closed = false;
+  await sw.dispatch("notificationclick", { notification: { data: { notificationId: id }, close: () => { closed = true; } } });
+  assert.equal(closed, true);
+  assert.equal(sw.openedWindow, `/api/notifications/${id}/open`);
+
+  await sw.dispatch("push", { data: { json: () => ({ version: 1, id: "invalid id", title: "segredo" }) } });
+  assert.equal(sw.notifications.length, 1);
 });

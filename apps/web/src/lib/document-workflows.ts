@@ -169,7 +169,23 @@ async function executeRun(run: RunRow) {
     const artifact = await ownedArtifact(database, { officeId: run.office_id, userId: run.user_id }, artifactId);
     if (artifact && artifact.title === title && artifact.content === content)
       await enqueueVerification({ officeId: run.office_id, userId: run.user_id }, artifact, verificationUnits);
-    await database.prepare("UPDATE ai_run SET status='completed',progress=100,artifact_id=?,lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=?").run(artifactId, run.id, run.lease_token);
+    const completedAt = new Date().toISOString();
+    await database.batch([
+      database.prepare("UPDATE ai_run SET status='completed',progress=100,artifact_id=?,lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=? AND status='running'")
+        .bind(artifactId, run.id, run.lease_token),
+      database.prepare(`INSERT INTO notification_event(
+        id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+        intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+      ) SELECT ?,?,'documents.run.completed',1,'artifact',?,1,NULL,?,?,?,0,1,?,?
+        WHERE EXISTS(SELECT 1 FROM ai_run WHERE id=? AND office_id=? AND user_id=?
+          AND status='completed' AND lease_token=? AND artifact_id=?)
+        ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+          randomUUID(), run.office_id, artifactId, JSON.stringify([run.user_id]), JSON.stringify({ kind: run.kind }),
+          `ai-run:${run.id}:attempt:${run.attempts}:completed`, completedAt,
+          new Date(Date.parse(completedAt) + 24 * 60 * 60 * 1000).toISOString(),
+          run.id, run.office_id, run.user_id, run.lease_token, artifactId,
+        ),
+    ]);
     return { runId: run.id };
   } });
   const workflow = createWorkflow({ id: `k5-${input.kind}`, inputSchema: idSchema, outputSchema: idSchema }).then(analyze).then(compose).commit();
@@ -179,7 +195,28 @@ async function executeRun(run: RunRow) {
 }
 
 export async function processNextRun(): Promise<boolean> {
-  await database.prepare("UPDATE ai_run SET status='failed',error='Execução interrompida repetidamente. Tente novamente.',lease_until=0 WHERE status='running' AND lease_until<? AND attempts>=5").run(Date.now());
+  const now = Date.now();
+  const exhausted = await database.prepare(`SELECT id,office_id,user_id,kind,attempts FROM ai_run
+    WHERE status='running' AND lease_until<? AND attempts>=5 ORDER BY updated_at LIMIT 50`)
+    .all<{ id: string; office_id: string; user_id: string; kind: string; attempts: number }>(now);
+  for (const stale of exhausted) {
+    const failedAt = new Date().toISOString();
+    await database.batch([
+      database.prepare("UPDATE ai_run SET status='failed',error='Execução interrompida repetidamente. Tente novamente.',lease_until=0 WHERE id=? AND status='running' AND lease_until<? AND attempts>=5")
+        .bind(stale.id, now),
+      database.prepare(`INSERT INTO notification_event(
+        id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+        intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+      ) SELECT ?,?,'documents.run.failed',1,'run',?,NULL,NULL,?,?,?,0,1,?,?
+        WHERE EXISTS(SELECT 1 FROM ai_run WHERE id=? AND office_id=? AND user_id=? AND status='failed')
+        ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+          randomUUID(), stale.office_id, stale.id, JSON.stringify([stale.user_id]), JSON.stringify({ kind: stale.kind }),
+          `ai-run:${stale.id}:attempt:${stale.attempts}:failed`, failedAt,
+          new Date(Date.parse(failedAt) + 24 * 60 * 60 * 1000).toISOString(),
+          stale.id, stale.office_id, stale.user_id,
+        ),
+    ]);
+  }
   const run = await claimRun(database);
   if (!run) return false;
   const heartbeat = setInterval(() => {
@@ -187,7 +224,23 @@ export async function processNextRun(): Promise<boolean> {
   }, 30000);
   try { await executeRun(run); }
   catch {
-    await database.prepare("UPDATE ai_run SET status='failed',error=?,lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=? AND status='running'").run('Não foi possível concluir. Confira fontes, permissões e conexão de IA antes de tentar novamente.', run.id, run.lease_token);
+    const failedAt = new Date().toISOString();
+    await database.batch([
+      database.prepare("UPDATE ai_run SET status='failed',error=?,lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=? AND status='running'")
+        .bind('Não foi possível concluir. Confira fontes, permissões e conexão de IA antes de tentar novamente.', run.id, run.lease_token),
+      database.prepare(`INSERT INTO notification_event(
+        id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+        intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+      ) SELECT ?,?,'documents.run.failed',1,'run',?,NULL,NULL,?,?,?,0,1,?,?
+        WHERE EXISTS(SELECT 1 FROM ai_run WHERE id=? AND office_id=? AND user_id=?
+          AND status='failed' AND lease_token=?)
+        ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+          randomUUID(), run.office_id, run.id, JSON.stringify([run.user_id]), JSON.stringify({ kind: run.kind }),
+          `ai-run:${run.id}:attempt:${run.attempts}:failed`, failedAt,
+          new Date(Date.parse(failedAt) + 24 * 60 * 60 * 1000).toISOString(),
+          run.id, run.office_id, run.user_id, run.lease_token,
+        ),
+    ]);
   } finally { clearInterval(heartbeat); }
   return true;
 }

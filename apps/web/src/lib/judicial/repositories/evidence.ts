@@ -180,6 +180,7 @@ export async function ingestPublications(input: IngestPublicationsInput): Promis
     throw new Error('Publicação sem snapshot de origem; a coleta não pode ser publicada.');
   }
 
+  const followersByLink = new Map<string | null, { caseId: string | null; followers: { user_id: string }[] }>();
   for (const publication of input.result.items) {
     const snapshotId = (publication.rawPayloadIndex !== undefined && outcome.snapshotIds[publication.rawPayloadIndex])
       ? outcome.snapshotIds[publication.rawPayloadIndex]
@@ -204,7 +205,26 @@ export async function ingestPublications(input: IngestPublicationsInput): Promis
     ).get(input.officeId, input.installation.id, publication.cnjNumber ?? '', publication.edition ?? '') as { id: string } | undefined)?.id ?? null;
 
     const id = randomUUID();
-    const result = await database.prepare(`
+    const alertId = randomUUID();
+    const eventKind = publication.revisionKind !== 'original'
+      ? 'correction'
+      : input.historical ? 'historical_publication' : 'new_publication';
+    let audience = followersByLink.get(resolvedLinkId);
+    if (!audience) {
+      const caseId = resolvedLinkId ? (await database.prepare(
+        'SELECT case_id FROM judicial_case_link WHERE id=? AND office_id=?',
+      ).get(resolvedLinkId, input.officeId) as { case_id: string } | undefined)?.case_id ?? null : null;
+      const followers = caseId ? await database.prepare(`SELECT f.user_id FROM notification_follow f
+        JOIN office_member m ON m.office_id=f.office_id AND m.user_id=f.user_id
+        WHERE f.office_id=? AND f.case_id=? AND f.ended_at IS NULL`)
+        .all<{ user_id: string }>(input.officeId, caseId) : [];
+      audience = { caseId, followers };
+      followersByLink.set(resolvedLinkId, audience);
+    }
+    const { caseId, followers } = audience;
+    const summary = summarize(input.installation, publication);
+    const fingerprintKey = alertDedupeKey(eventKind, 'publication', fingerprint.value);
+    const results = await database.batch([database.prepare(`
       INSERT INTO judicial_publication (
         id, office_id, installation_id, record_id, link_id, snapshot_id, source_publication_id,
         cnj_number, edition, page, official_hash, body,
@@ -212,31 +232,36 @@ export async function ingestPublications(input: IngestPublicationsInput): Promis
         version, supersedes_id, revision_kind, fingerprint
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(office_id, installation_id, fingerprint) DO NOTHING
-    `).run(
+    `).bind(
       id, input.officeId, input.installation.id, recordId, resolvedLinkId, snapshotId,
       publication.sourcePublicationId, publication.cnjNumber, publication.edition, publication.page,
       publication.officialHash, publication.body,
       publication.madeAvailableOn, publication.publishedOn, publication.sourceUpdatedAt,
       supersedes ? 2 : 1, supersedes, publication.revisionKind, fingerprint.value,
-    );
+    ), database.prepare(`INSERT INTO judicial_alert(
+      id,office_id,link_id,event_kind,subject_kind,subject_id,summary,dedupe_key
+    ) SELECT ?,?,?,?,'publication',?,?,? WHERE EXISTS(
+      SELECT 1 FROM judicial_publication WHERE id=? AND office_id=?
+    ) ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+      alertId, input.officeId, resolvedLinkId, eventKind, id, summary, fingerprintKey, id, input.officeId,
+    ), database.prepare(`INSERT INTO notification_event(
+      id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+      intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+    ) SELECT ?,?,?,1,'judicial_alert',?,1,NULL,?,?,?,?,?,?,? WHERE json_array_length(?)>0
+      AND EXISTS(SELECT 1 FROM judicial_alert WHERE id=? AND office_id=?)
+      ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+      randomUUID(), input.officeId,
+      publication.revisionKind === 'original' ? 'judicial.publication.new' : 'judicial.publication.corrected',
+      alertId, JSON.stringify(followers.map((item) => item.user_id)), JSON.stringify({ caseId }),
+      `notification:${fingerprintKey}`, input.historical ? 1 : 0, input.historical ? 0 : 1,
+      nowIso(), new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      JSON.stringify(followers.map((item) => item.user_id)), alertId, input.officeId,
+    )]);
 
-    if (!result.changes) { outcome.duplicates += 1; continue; }
+    if (!results[0].changes) { outcome.duplicates += 1; continue; }
     outcome.inserted += 1;
     if (publication.revisionKind !== 'original') outcome.revisions += 1;
-
-    const eventKind = publication.revisionKind !== 'original'
-      ? 'correction'
-      : input.historical ? 'historical_publication' : 'new_publication';
-    const alert = await database.prepare(`
-      INSERT INTO judicial_alert (id, office_id, link_id, event_kind, subject_kind, subject_id, summary, dedupe_key)
-      VALUES (?, ?, ?, ?, 'publication', ?, ?, ?)
-      ON CONFLICT(office_id, dedupe_key) DO NOTHING
-    `).run(
-      randomUUID(), input.officeId, resolvedLinkId, eventKind, id,
-      summarize(input.installation, publication),
-      alertDedupeKey(eventKind, 'publication', fingerprint.value),
-    );
-    if (alert.changes) outcome.alerts += 1;
+    if (results[1].changes) outcome.alerts += 1;
   }
   return outcome;
 }
@@ -372,9 +397,27 @@ export async function markAlertRead(officeId: string, alertId: string): Promise<
 
 /** Records a failed run so the gap stays visible instead of looking like a quiet day. */
 export async function recordSyncFailureAlert(officeId: string, linkId: string | null, jobId: string, detail: string): Promise<void> {
-  await database.prepare(`
+  const alertId = randomUUID();
+  const caseId = linkId ? (await database.prepare('SELECT case_id FROM judicial_case_link WHERE id=? AND office_id=?')
+    .get<{ case_id: string }>(linkId, officeId))?.case_id ?? null : null;
+  const recipients = await database.prepare(`SELECT DISTINCT user_id FROM (
+      SELECT authorized_by AS user_id FROM judicial_subscription s JOIN judicial_sync_job j ON j.subscription_id=s.id WHERE j.id=? AND j.office_id=?
+      UNION SELECT user_id FROM office_member WHERE office_id=? AND role='administrator'
+    )`).all<{ user_id: string }>(jobId, officeId, officeId);
+  const dedupe = alertDedupeKey('sync_failed', 'job', jobId);
+  const now = nowIso();
+  await database.batch([database.prepare(`
     INSERT INTO judicial_alert (id, office_id, link_id, event_kind, subject_kind, subject_id, summary, dedupe_key)
     VALUES (?, ?, ?, 'sync_failed', 'job', ?, ?, ?)
     ON CONFLICT(office_id, dedupe_key) DO NOTHING
-  `).run(randomUUID(), officeId, linkId, jobId, detail, alertDedupeKey('sync_failed', 'job', jobId));
+  `).bind(alertId, officeId, linkId, jobId, detail, dedupe), database.prepare(`INSERT INTO notification_event(
+    id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+    intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+  ) SELECT ?,?,'judicial.collection.failed',1,'judicial_alert',?,1,NULL,?,?,?,0,1,?,?
+    WHERE json_array_length(?)>0 AND EXISTS(SELECT 1 FROM judicial_alert WHERE id=? AND office_id=?)
+    ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+      randomUUID(), officeId, alertId, JSON.stringify(recipients.map((item) => item.user_id)), JSON.stringify({ caseId }),
+      `notification:${dedupe}`, now, new Date(Date.parse(now) + 24 * 60 * 60 * 1000).toISOString(),
+      JSON.stringify(recipients.map((item) => item.user_id)), alertId, officeId,
+    )]);
 }

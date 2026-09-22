@@ -27,6 +27,7 @@ Auth e as migrações de `db/migrations/` em ordem. O arquivo SQLite é criado e
 | `K5_CREDENTIALS_KEY` | Chave mestra (32 bytes, base64) das credenciais de IA; gerada pelo setup somente em desenvolvimento |
 | `K5_CREDENTIALS_PREVIOUS_KEYS` | Chaves anteriores aceitas somente para leitura durante a rotação |
 | `VAULT_OCR_URL`, `VAULT_OCR_TOKEN` | Serviço externo de OCR opcional; sem ele, PDFs escaneados usam Tesseract local |
+| `K5_VAPID_KEY_ID`, `K5_VAPID_SUBJECT`, `K5_VAPID_PUBLIC_KEY`, `K5_VAPID_PRIVATE_KEY` | Identidade Web Push persistente por ambiente; a chave privada fica somente no servidor/worker |
 
 Não versione `.env.local` ou `.data/`. Para trocar a porta ou hostname, ajuste
 `BETTER_AUTH_URL` também. Em produção, configure segredos pelo ambiente e execute
@@ -146,7 +147,22 @@ do Next.js. Páginas autenticadas, respostas RSC, APIs, documentos e operações
 escrita não são armazenados nem repetidos em segundo plano. Sem conexão, uma página
 já aberta mostra um aviso; uma nova navegação completa mostra **Você está sem conexão**
 com **Tentar novamente**. Trabalhar com os dados do escritório exige internet.
-Notificações push e edição offline com sincronização não fazem parte desta implementação.
+Notificações usam o mesmo service worker e nunca armazenam dados do escritório no Cache Storage.
+O payload exibido na tela bloqueada é genérico; abrir o aviso volta ao servidor para revalidar a
+sessão, o destinatário e o acesso ao registro de origem.
+
+## Notificações
+
+`/app/notifications` oferece uma caixa pessoal, leitura independente por integrante, preferências,
+horário de silêncio e adesão Web Push por dispositivo. A caixa funciona sem permissão de push.
+Alterações relevantes da Agenda são gravadas na mesma operação atômica da atividade; lembretes de
+tarefas usam 09:00 da data civil no fuso salvo, e reuniões usam 30 minutos antes do instante UTC.
+
+Em desenvolvimento ou Docker, rode `pnpm notifications:worker`. O processo aceita `--once` no
+script do workspace web. Em Cloudflare, `wrangler.notifications.jsonc` define um Worker separado,
+Cron por minuto e Queue; os secrets VAPID devem ser configurados nesse Worker. O banco continua a
+fonte de verdade, e o Cron recupera dicas de fila perdidas. A entrega aceita pelo provedor não
+significa exibição nem leitura e não substitui o acompanhamento de prazos.
 
 Uma nova versão aguarda a ação **Atualizar agora**. Salve alterações antes de aceitar;
 outras abas não são recarregadas automaticamente. Os caches de versões anteriores

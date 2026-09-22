@@ -25,6 +25,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [unread, setUnread] = useState(0);
   const navRef = useRef<HTMLUListElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
   const tabbarRef = useRef<HTMLElement>(null);
@@ -42,6 +43,34 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
     }).catch(() => { /* A transient network error does not end a valid session. */ });
     return () => { mounted = false; };
   }, [pathname, router]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = () => {
+      if (document.visibilityState !== "visible" || !navigator.onLine) return;
+      void fetch("/api/notifications/count", { cache: "no-store" }).then(async (response) => {
+        if (!response.ok || !mounted) return;
+        const value = await response.json() as { unread?: number };
+        if (mounted) setUnread(Math.max(0, Number(value.unread ?? 0)));
+      }).catch(() => {});
+    };
+    const onMessage = (event: MessageEvent) => { if (event.data?.type === "K5_NOTIFICATION") load(); };
+    const channel = "BroadcastChannel" in window ? new BroadcastChannel("k5-notifications") : null;
+    channel?.addEventListener("message", load);
+    load();
+    const timer = window.setInterval(load, 60_000);
+    document.addEventListener("visibilitychange", load);
+    window.addEventListener("online", load);
+    navigator.serviceWorker?.addEventListener("message", onMessage);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", load);
+      window.removeEventListener("online", load);
+      navigator.serviceWorker?.removeEventListener("message", onMessage);
+      channel?.close();
+    };
+  }, [pathname]);
 
   // Sidebar: slide the selection pill to the active item.
   useGSAP(() => {
@@ -123,6 +152,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
                     <SidebarMenuButton asChild isActive={active} className="relative h-9 data-[active=true]:bg-transparent">
                       <Link href={href} aria-current={active ? "page" : undefined}>
                         <Icon aria-hidden="true" /><span>{item.label}</span>
+                        {item.slug === "notifications" && unread > 0 && <span className="ml-auto text-xs text-muted-foreground" aria-label={`${unread} notificações não lidas`}>{unread}</span>}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -173,6 +203,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
               <Link key={item.slug} href={href} aria-current={active ? "page" : undefined} onClick={() => setSheetOpen(false)}
                 className={cn("flex min-h-12 items-center gap-3 rounded-md px-3 text-base transition-colors", active ? "bg-accent font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
                 <Icon className="size-[18px]" aria-hidden="true" />{item.label}
+                {item.slug === "notifications" && unread > 0 && <span className="ml-auto text-sm" aria-label={`${unread} notificações não lidas`}>{unread}</span>}
               </Link>
             );
           })}

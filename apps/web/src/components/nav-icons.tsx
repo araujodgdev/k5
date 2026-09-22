@@ -1,4 +1,4 @@
-import { Bot, FolderLock, House, CalendarDays, MessageSquareText, type LucideIcon } from "lucide-react";
+import { Bell, Bot, FolderLock, House, CalendarDays, MessageSquareText, type LucideIcon } from "lucide-react";
 import type { NavSlug } from "@/lib/navigation";
 
 export const navIcons: Record<NavSlug, LucideIcon> = {
@@ -7,4 +7,5 @@ export const navIcons: Record<NavSlug, LucideIcon> = {
   agents: Bot,
   vault: FolderLock,
   agenda: CalendarDays,
+  notifications: Bell,
 };

@@ -652,6 +652,24 @@ test("scheduler: losing the membership that authorized a subscription suspends i
   assert.equal((await listDueSubscriptions()).some((entry) => entry.id === subscription.id), false);
 });
 
+test("subscriptions: active retries preserve notification opt-outs; reactivation restores following", async () => {
+  const { officeA, lawyerA, caseA } = seed();
+  const installation = await source();
+  const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
+  const input = { officeId: officeA, installationId: installation.id, linkId: link.id,
+    targetKind: "publications_by_case" as const, authorizedBy: lawyerA };
+  const { subscription } = await createSubscription(input);
+  const activeFollowers = () => testDb.prepare('SELECT count(*) AS total FROM notification_follow WHERE office_id=? AND case_id=? AND user_id=? AND ended_at IS NULL').get(officeA, caseA, lawyerA)!.total;
+  assert.equal(activeFollowers(), 1);
+  testDb.prepare('UPDATE notification_follow SET ended_at=CURRENT_TIMESTAMP WHERE office_id=? AND case_id=? AND user_id=?').run(officeA, caseA, lawyerA);
+  await createSubscription(input);
+  assert.equal(activeFollowers(), 0);
+  testDb.prepare("UPDATE judicial_subscription SET status='paused' WHERE id=?").run(subscription.id);
+  await createSubscription(input);
+  assert.equal(activeFollowers(), 1);
+  testDb.prepare("UPDATE judicial_subscription SET status='cancelled' WHERE id=?").run(subscription.id);
+});
+
 test("unlinking: collection stops and the evidence already gathered is kept", async () => {
   const { officeA, lawyerA, caseA } = seed();
   clearQueue();

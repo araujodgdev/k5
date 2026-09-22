@@ -409,6 +409,8 @@ export async function checkpointVaultDocument(documentId: string, owner: string,
 export async function processDocument(documentId: string, officeId: string, leaseOwner?: string) {
   const document = await findVaultDocument(officeId, documentId);
   if (!document) throw new VaultHttpError(404, "Documento não encontrado.");
+  const notificationOwner = await database.prepare('SELECT created_by FROM vault_document WHERE id=? AND office_id=?')
+    .get<{ created_by: string }>(documentId, officeId);
   const owner = leaseOwner ?? randomUUID();
   if (!leaseOwner) await database.prepare(`UPDATE vault_document SET status = 'processing', progress = 1, lease_owner = ?, lease_expires_at = datetime('now', '+5 minutes'), error_message = NULL WHERE id = ? AND office_id = ?`).run(owner, documentId, officeId);
   const heartbeat = setInterval(() => { void checkpointVaultDocument(documentId, owner, document.progress || 1); }, 60_000);
@@ -439,13 +441,30 @@ export async function processDocument(documentId: string, officeId: string, leas
       }
     }
     writes.push(database.prepare(`UPDATE vault_document SET status = 'ready', progress = 100, error_message = NULL, extracted_characters = ?, source_count = ?,
-      lease_owner = NULL, lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND lease_owner = ?`)
+      lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND lease_owner = ?`)
       .bind(characters, ordinal, documentId, officeId, owner));
     // What the extractor saw, per run: unit counts and the extractor version, so a later
     // reindex can tell a coverage gap from a retrieval miss.
+    const manifestId = randomUUID();
+    const notifiedAt = new Date().toISOString();
     writes.push(database.prepare(`INSERT INTO vault_extraction_manifest (id, office_id, document_id, extractor_version, total_units, completed_units, failed_units, details)
-      VALUES (?, ?, ?, ?, ?, ?, 0, ?)`)
-      .bind(randomUUID(), officeId, documentId, EXTRACTOR_VERSION, sections.length, sections.length, JSON.stringify({ chunks: ordinal, characters })));
+      SELECT ?, ?, ?, ?, ?, ?, 0, ? WHERE EXISTS(SELECT 1 FROM vault_document
+        WHERE id=? AND office_id=? AND status='ready' AND lease_owner=?)`)
+      .bind(manifestId, officeId, documentId, EXTRACTOR_VERSION, sections.length, sections.length,
+        JSON.stringify({ chunks: ordinal, characters }), documentId, officeId, owner));
+    if (notificationOwner) writes.push(database.prepare(`INSERT INTO notification_event(
+      id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+      intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+    ) SELECT ?,?,'vault.processing.completed',1,'document',?,NULL,NULL,?,?,?,0,1,?,?
+      WHERE EXISTS(SELECT 1 FROM vault_extraction_manifest WHERE id=? AND office_id=? AND document_id=?)
+      ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+        randomUUID(), officeId, documentId, JSON.stringify([notificationOwner.created_by]),
+        JSON.stringify({ stage: 'extraction' }), `vault:${documentId}:extraction:${manifestId}`,
+        notifiedAt, new Date(Date.parse(notifiedAt) + 24 * 60 * 60 * 1000).toISOString(),
+        manifestId, officeId, documentId,
+      ));
+    writes.push(database.prepare(`UPDATE vault_document SET lease_owner=NULL WHERE id=? AND office_id=? AND status='ready' AND lease_owner=?`)
+      .bind(documentId, officeId, owner));
     await database.batch(writes);
     // Lexical search is already available at this point. Semantic indexing is durable work that
     // continues in the worker, and its absence degrades the search instead of blocking extraction.
@@ -457,8 +476,22 @@ export async function processDocument(documentId: string, officeId: string, leas
     }
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : "Não foi possível processar este documento.";
-    await database.prepare(`UPDATE vault_document SET status = 'failed', error_message = ?, lease_owner = NULL, lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND office_id = ? AND lease_owner = ?`).run(message, documentId, officeId, owner);
+    const failedAt = new Date().toISOString();
+    const writes = [database.prepare(`UPDATE vault_document SET status = 'failed', error_message = ?, lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND office_id = ? AND lease_owner = ?`).bind(message, documentId, officeId, owner)];
+    if (notificationOwner) writes.push(database.prepare(`INSERT INTO notification_event(
+      id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
+      intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
+    ) SELECT ?,?,'vault.processing.failed',1,'document',?,NULL,NULL,?,?,?,0,1,?,?
+      WHERE EXISTS(SELECT 1 FROM vault_document WHERE id=? AND office_id=? AND status='failed' AND lease_owner=?)
+      ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
+        randomUUID(), officeId, documentId, JSON.stringify([notificationOwner.created_by]), '{}',
+        `vault:${documentId}:attempt:${owner}:failed`, failedAt,
+        new Date(Date.parse(failedAt) + 24 * 60 * 60 * 1000).toISOString(), documentId, officeId, owner,
+      ));
+    writes.push(database.prepare(`UPDATE vault_document SET lease_owner=NULL WHERE id=? AND office_id=? AND status='failed' AND lease_owner=?`)
+      .bind(documentId, officeId, owner));
+    await database.batch(writes);
     throw error;
   } finally { clearInterval(heartbeat); }
 }
