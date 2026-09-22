@@ -132,6 +132,12 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
 
   const overflow = appNavigation.filter((item) => !mobileTabs.includes(item.slug));
   const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`);
+  const currentModule = pathname.startsWith("/app/documents/")
+    ? "Cofre"
+    : appNavigation.find((item) => {
+        const href = `/app/${item.slug}`;
+        return pathname === href || pathname.startsWith(`${href}/`);
+      })?.label ?? "Início";
 
   return (
     <>
@@ -177,9 +183,12 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
         </Sidebar>
       </SidebarProvider>
 
-      <header className="sticky top-0 z-10 flex items-center gap-3 bg-background/85 px-5 pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
-        <Link href="/app" aria-label="Lume — início" className="flex h-13 items-center"><Logo height={15} /></Link>
-        <p className="truncate text-muted-foreground" title={officeName}>{officeName}</p>
+      <header className="sticky top-0 z-10 flex h-[calc(3.25rem+env(safe-area-inset-top))] min-w-0 items-center gap-2.5 bg-background/85 px-5 pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
+        <Link href="/app" aria-label="Lume — início" className="flex shrink-0 items-center rounded-sm"><Logo height={17} markOnly /></Link>
+        <Separator orientation="vertical" className="h-4" />
+        <p className="shrink-0 text-sm font-medium">{currentModule}</p>
+        <Separator orientation="vertical" className="h-4" />
+        <p className="min-w-0 truncate text-sm text-muted-foreground" title={officeName}>{officeName}</p>
       </header>
 
       <nav ref={tabbarRef} aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-20 grid h-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] grid-cols-5 border-t bg-background/90 px-2 pt-1.5 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
