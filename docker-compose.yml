@@ -34,13 +34,22 @@ services:
   setup:
     # Migrations run once per `up`, before anything serves traffic. Both web and worker wait for
     # this to exit cleanly, so neither races a half-applied schema.
-    build:
+    build: &app_build
       context: .
       dockerfile: apps/web/Dockerfile
       target: runtime
+      args:
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
+        NEXT_PUBLIC_SENTRY_ENABLED: ${SENTRY_ENABLED:-false}
+        NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+        SENTRY_RELEASE: ${SENTRY_RELEASE:-}
     command: ["pnpm", "db:setup"]
     environment: &app_env
       NODE_ENV: production
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
+      SENTRY_ENABLED: ${SENTRY_ENABLED:-false}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
       DATABASE_PATH: /data/k5.sqlite
       VAULT_STORAGE_PATH: /data/uploads
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
@@ -64,10 +73,7 @@ services:
     restart: "no"
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      target: runtime
+    build: *app_build
     environment: *app_env
     volumes:
       - appdata:/data
@@ -83,10 +89,7 @@ services:
   worker:
     # Extraction, OCR, embeddings and deletion cleanup. Separate from web on purpose: a long OCR
     # pass must not compete with request handling, and it is the piece that scales independently.
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      target: runtime
+    build: *app_build
     command: ["pnpm", "worker"]
     environment: *app_env
     volumes:
@@ -101,10 +104,7 @@ services:
   notifications:
     # Projection, civil-date reminders and Web Push delivery have their own queues so OCR cannot
     # delay a reminder. Without VAPID configuration the durable inbox still works.
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      target: runtime
+    build: *app_build
     command: ["pnpm", "notifications:worker"]
     environment:
       <<: *app_env

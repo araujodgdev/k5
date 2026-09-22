@@ -1,4 +1,5 @@
 import 'server-only';
+import { captureOperationalError } from '@/lib/observability/report';
 import { randomUUID } from 'node:crypto';
 import type { Questions } from '@typesafe-ai/sdk';
 import { database } from '@/lib/database';
@@ -143,6 +144,9 @@ export async function processNextVerification(options: { send?: DecisionTranspor
       }));
     }
     await finish(results.length < units.length ? 'queued' : results.some(r => r.outcome === 'unavailable') ? 'incomplete' : 'completed');
-  } catch { await finish('incomplete'); }
+  } catch (error) {
+    captureOperationalError(error, 'documents.verify');
+    await finish('incomplete');
+  }
   return true;
 }

@@ -1,6 +1,9 @@
 import { d1Database, type D1Binding } from '@/lib/db/d1';
 import { cleanNotificationRetention, deliverNextNotification, emitNextReminder, projectNextNotification, reconcileNotificationReminders } from '@/lib/notifications/worker';
 import { WebCryptoPushSender } from '@/lib/notifications/push-webcrypto';
+import { withSentry } from '@sentry/cloudflare';
+import { serverOptions } from '@/lib/observability/options';
+import { captureOperationalError } from '@/lib/observability/report';
 
 type QueueMessage = { body: { kind?: string }; ack(): void; retry(): void };
 type QueueBatch = { messages: QueueMessage[] };
@@ -11,7 +14,7 @@ type Env = {
   K5_VAPID_SUBJECT: string;
   K5_VAPID_PUBLIC_KEY: string;
   K5_VAPID_PRIVATE_KEY: string;
-};
+} & Pick<CloudflareEnv, 'SENTRY_ENVIRONMENT' | 'SENTRY_TRACES_SAMPLE_RATE'>;
 
 const notificationWorker = {
   async scheduled(_controller: unknown, env: Env) {
@@ -36,7 +39,10 @@ const notificationWorker = {
       try {
         for (let index = 0; index < 20 && await deliverNextNotification(db, sender); index++);
         message.ack();
-      } catch { message.retry(); }
+      } catch (error) {
+        captureOperationalError(error, 'notifications.queue');
+        message.retry();
+      }
     }
   },
 
@@ -45,4 +51,4 @@ const notificationWorker = {
   },
 };
 
-export default notificationWorker;
+export default withSentry<Env>(env => serverOptions('notifications-worker', env), notificationWorker);

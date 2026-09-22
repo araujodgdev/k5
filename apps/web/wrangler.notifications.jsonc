@@ -5,6 +5,9 @@
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/workers/notifications.ts",
+  "upload_source_maps": true,
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  "vars": { "SENTRY_ENVIRONMENT": "staging", "SENTRY_TRACES_SAMPLE_RATE": "0.1" },
   "d1_databases": [
     {
       "binding": "DB",
@@ -20,6 +23,7 @@
   },
   "observability": {
     "enabled": true,
-    "logs": { "enabled": true, "persist": true }
+    "logs": { "enabled": true, "persist": true },
+    "traces": { "enabled": true, "persist": true }
   }
 }

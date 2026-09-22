@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from '@sentry/nextjs/config';
+import { sentryBuildOptions } from './scripts/sentry-build';
 
 const nextConfig: NextConfig = {
   devIndicators: false,
@@ -20,4 +22,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  ...sentryBuildOptions,
+  widenClientFileUpload: true,
+  sourcemaps: {
+    disable: !sentryBuildOptions.authToken,
+    deleteSourcemapsAfterUpload: true,
+  },
+});

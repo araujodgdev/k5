@@ -1,4 +1,5 @@
 import 'server-only';
+import { captureOperationalError } from '@/lib/observability/report';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import { objectStorage, StorageError } from '@/lib/storage';
@@ -233,6 +234,7 @@ export async function processNextIndexJob(): Promise<boolean> {
   try {
     await runIndexJob(claimed.job, claimed.owner);
   } catch (error) {
+    captureOperationalError(error, 'knowledge.index');
     const message = error instanceof Error ? error.message.slice(0, 500) : 'Falha ao indexar o documento.';
     const terminal = error instanceof EmbeddingUnavailableError || Number(claimed.job.attempts) + 1 >= MAX_ATTEMPTS;
     // Only the lease holder may record the outcome. A worker whose lease expired mid-run finishes

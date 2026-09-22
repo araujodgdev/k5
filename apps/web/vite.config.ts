@@ -1,15 +1,30 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
+import { sentryVitePlugin } from '@sentry/vite-plugin';
+import { sentryBuildOptions } from './scripts/sentry-build';
 import vinext from "vinext";
 import { cloudflare } from "@cloudflare/vite-plugin";
 // import.meta.dirname rather than __dirname: this package is ESM ("type": "module").
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  define: {
+    'process.env.K5_RUNTIME': JSON.stringify('cloudflare'),
+    'process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT': JSON.stringify(loadEnv(mode, process.cwd(), 'NEXT_PUBLIC_').NEXT_PUBLIC_SENTRY_ENVIRONMENT || (mode === 'production' ? 'staging' : 'development')),
+  },
+  build: { sourcemap: sentryBuildOptions.authToken ? 'hidden' : false },
   plugins: [
     vinext(),
     cloudflare({
       viteEnvironment: {
         name: "rsc",
         childEnvironments: ["ssr"],
+      },
+    }),
+    sentryVitePlugin({
+      ...sentryBuildOptions,
+      sourcemaps: {
+        disable: !sentryBuildOptions.authToken,
+        assets: ['./dist/**'],
+        filesToDeleteAfterUpload: ['./dist/client/**/*.map'],
       },
     }),
   ],
@@ -32,4 +47,4 @@ export default defineConfig({
       { find: /^pkce-challenge(\/.*)?$/, replacement: new URL("./empty-stub.js", import.meta.url).pathname },
     ],
   },
-});
+}));

@@ -40,6 +40,12 @@ jobs:
           BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
           BETTER_AUTH_URL: http://localhost:3000
           K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnVu
+          SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
+          SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          SENTRY_RELEASE: ${{ github.sha }}
+          NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_ENABLED: 'false'
+          NEXT_PUBLIC_SENTRY_ENABLED: 'false'
         run: pnpm build
 
   migrations:

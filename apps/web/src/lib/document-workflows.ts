@@ -1,4 +1,5 @@
 import 'server-only';
+import { captureOperationalError } from './observability/report';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
@@ -223,7 +224,8 @@ export async function processNextRun(): Promise<boolean> {
     void database.prepare("UPDATE ai_run SET lease_until=? WHERE id=? AND lease_token=? AND status='running'").run(Date.now() + 300000, run.id, run.lease_token);
   }, 30000);
   try { await executeRun(run); }
-  catch {
+  catch (error) {
+    captureOperationalError(error, 'documents.run');
     const failedAt = new Date().toISOString();
     await database.batch([
       database.prepare("UPDATE ai_run SET status='failed',error=?,lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=? AND status='running'")

@@ -2,6 +2,7 @@ import type { Database } from "./database";
 import { z } from "zod";
 import { AiConnectionError } from "./ai-connections-core";
 import { CredentialKeyError } from "./platform-crypto";
+import { captureOperationalError } from "./observability/report";
 
 export async function isPlatformAdmin(db: Database, userId: string): Promise<boolean> {
   return Boolean(await db.prepare("SELECT 1 FROM platform_admin WHERE user_id = ?").get(userId));
@@ -87,6 +88,7 @@ export function platformErrorResponse(error: unknown) {
   }
   if (error instanceof CredentialKeyError) return Response.json({ error: "A chave mestra de credenciais não está configurada corretamente." }, { status: 503 });
   if (error instanceof SyntaxError || error instanceof z.ZodError) return Response.json({ error: "Confira os dados enviados." }, { status: 400 });
+  captureOperationalError(error, 'platform.api.unhandled');
   console.error("Platform API error", error instanceof Error ? error.constructor.name : typeof error);
   return Response.json({ error: "Não foi possível concluir a operação." }, { status: 500 });
 }

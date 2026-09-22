@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { sentryBuildOptions } from './sentry-build';
+
+if (!sentryBuildOptions.authToken) throw new Error('SENTRY_AUTH_TOKEN é obrigatório para publicar com source maps.');
 
 const configPath = 'wrangler.jsonc';
 const config = readFileSync(configPath, 'utf8');

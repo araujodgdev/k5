@@ -286,6 +286,8 @@ export async function deliverNextNotification(
           WHERE id=? AND lease_token=?`).bind(`http_${status}`, now, delivery.id, token),
       ]);
     } else if (status === 400 || status === 413 || delivery.attempts >= 8) {
+      const { captureOperationalError } = await import('../observability/report');
+      captureOperationalError(error, 'notifications.delivery');
       await db.prepare(`UPDATE notification_delivery SET state='dead',error_code=?,lease_token=NULL,lease_until=NULL,updated_at=?
         WHERE id=? AND lease_token=?`).run(status ? `http_${status}` : transport.code, now, delivery.id, token);
     } else {

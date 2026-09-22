@@ -1,4 +1,5 @@
 import 'server-only';
+import { captureOperationalError } from './observability/report';
 import { getSession, requireWorkspace } from './session';
 import { auth } from './auth';
 import { ensureOfficeForUser } from './offices';
@@ -42,6 +43,7 @@ export function apiError(error: unknown) {
   if (error instanceof ZodError || error instanceof SyntaxError) return Response.json({ error: 'Confira os dados enviados.' }, { status: 400 });
   // Keep the public response deliberately generic, but preserve enough private Worker telemetry
   // to diagnose production-only adapter failures without logging request bodies or credentials.
+  captureOperationalError(error, 'api.unhandled');
   console.error('[api] erro não tratado', error instanceof Error
     ? { name: error.name, message: error.message }
     : { type: typeof error });

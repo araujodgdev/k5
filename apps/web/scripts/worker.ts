@@ -1,5 +1,4 @@
-import { existsSync } from 'node:fs';
-if (existsSync('.env.local')) process.loadEnvFile('.env.local');
+import { runObservedWorker, captureOperationalError, observeWorkerTask } from './sentry-worker';
 
 async function main() {
   const { processNextVaultDocument } = await import('../src/lib/vault');
@@ -20,12 +19,12 @@ async function main() {
     stopping: () => stopping,
     once: process.argv.includes('--once'),
     processDocuments: async () => {
-      const ingested = await processNextVaultDocument();
-      const indexed = await processNextIndexJob();
-      const processed = await processNextRun();
+      const ingested = await observeWorkerTask('vault.ingest', processNextVaultDocument);
+      const indexed = await observeWorkerTask('knowledge.index', processNextIndexJob);
+      const processed = await observeWorkerTask('documents.run', processNextRun);
       return ingested || indexed || processed;
     },
-    verifyDocuments: processNextVerification,
+    verifyDocuments: () => observeWorkerTask('documents.verify', processNextVerification),
     maintain: async () => {
       const deleted = await processNextDeletion();
 
@@ -38,6 +37,7 @@ async function main() {
       return deleted;
     },
     onError: error => {
+      captureOperationalError(error, 'documents.worker');
       // The message is what makes an ingestion or indexing failure diagnosable; swallowing it
       // leaves a queue that stalls with no way to find out why.
       console.error('Falha no worker:', error instanceof Error ? error.message : error);
@@ -46,7 +46,4 @@ async function main() {
   });
 }
 
-main().catch((error) => {
-  console.error('Não foi possível iniciar o worker. Execute pnpm db:setup.', error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+void runObservedWorker('documents-worker', main);

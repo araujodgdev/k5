@@ -1,5 +1,4 @@
-import { existsSync } from 'node:fs';
-if (existsSync('.env.local')) process.loadEnvFile('.env.local');
+import { runObservedWorker, captureOperationalError, observeWorkerTask } from './sentry-worker';
 
 /**
  * Collection worker, separate from the document worker on purpose (section 5.1 of
@@ -41,12 +40,13 @@ async function main() {
         scheduleAt = Date.now() + SCHEDULE_INTERVAL_MS;
       }
 
-      const outcome = await processNextJudicialJob();
+      const outcome = await observeWorkerTask('judicial.collect', processNextJudicialJob);
       if (outcome) console.log(`Coleta ${outcome.jobId}: ${outcome.status} — ${outcome.detail}`);
 
       if (once) break;
       if (!outcome) await new Promise((resolve) => setTimeout(resolve, IDLE_SLEEP_MS));
     } catch (error) {
+      captureOperationalError(error, 'judicial.worker');
       // The message is what makes a stalled queue diagnosable; swallowing it leaves an operator
       // with a worker that silently collects nothing.
       console.error('Falha no worker judicial:', error instanceof Error ? error.message : error);
@@ -56,7 +56,4 @@ async function main() {
   } while (!stopping);
 }
 
-main().catch((error) => {
-  console.error('Não foi possível iniciar o worker judicial. Execute pnpm db:setup.', error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+void runObservedWorker('judicial-worker', main);

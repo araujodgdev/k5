@@ -190,6 +190,12 @@ O teste isolado `pnpm --filter @k5/web exec tsx scripts/verify-pwa-update.ts` in
 um servidor temporário e verifica duas atualizações com abas abertas: remove os JS/CSS
 antigos do servidor e confirma carregamento pelo cache, sem perder o formulário.
 
+## Observabilidade (Sentry)
+
+Erros de navegador, Next.js, Workers Cloudflare e filas Node são enviados ao projeto
+`lume-wr/lume`; traces usam amostragem de 10%. Desenvolvimento/testes ficam desativados por
+padrão. Veja [configuração, privacidade, source maps e verificação](../../docs/sentry.md).
+
 ## Verificação
 
 ```sh

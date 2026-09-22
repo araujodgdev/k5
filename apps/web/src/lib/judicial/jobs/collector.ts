@@ -1,4 +1,5 @@
 import 'server-only';
+import { captureOperationalError } from '@/lib/observability/report';
 import { ConnectorError, permits, type ConnectorResult, type NormalizedPublication } from '../contracts';
 import { connectorFor, currentTransport, hasConnectorFor, DJEN_PARSER_VERSION, type Transport } from '../connectors';
 import { findInstallation } from '../repositories/installations';
@@ -49,6 +50,7 @@ export async function processNextJudicialJob(now = Date.now()): Promise<CollectO
   try {
     return await runJob(job, leaseOwner, now);
   } catch (error) {
+    captureOperationalError(error, 'judicial.collect');
     const connectorError = asConnectorError(error);
     const { owned, retrying, terminalStatus } = await failJob(job.id, leaseOwner, {
       code: connectorError.code,

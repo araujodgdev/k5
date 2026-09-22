@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Debian slim rather than Alpine: pdfjs-dist pulls @napi-rs/canvas, whose prebuilt binaries are
 # glibc. On musl they fall back to a source build that needs a full toolchain.
 FROM node:26-slim AS base
@@ -16,8 +17,17 @@ FROM base AS build
 COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
 COPY . .
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
+ARG NEXT_PUBLIC_SENTRY_ENABLED=true
+ARG NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=0.1
+ARG SENTRY_RELEASE
+ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
+ENV NEXT_PUBLIC_SENTRY_ENABLED=$NEXT_PUBLIC_SENTRY_ENABLED
+ENV NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=$NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
+ENV NEXT_PUBLIC_SENTRY_RELEASE=$SENTRY_RELEASE
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
 # The build must not reach the database or a provider; only compilation happens here.
-RUN pnpm --filter @k5/web build
+RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN pnpm --filter @k5/web build
 
 FROM base AS runtime
 ENV NODE_ENV=production

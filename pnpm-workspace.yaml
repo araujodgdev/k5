@@ -3,6 +3,7 @@ packages:
   - 'packages/*'
 
 allowBuilds:
+  '@sentry/cli': true
   esbuild: true
   sharp: false
   tesseract.js: false
