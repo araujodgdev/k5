@@ -101,7 +101,25 @@ export async function reconcileNotificationReminders(db: Database = defaultDatab
     a.assignee_id,a.created_by,a.version FROM agenda_activity a
     JOIN notification_rollout ro ON ro.office_id=a.office_id AND ro.reminders_enabled=1
     WHERE a.status='pending' AND ((a.kind='task' AND a.due_on IS NOT NULL) OR (a.kind='meeting' AND a.starts_at IS NOT NULL))
-    ORDER BY COALESCE(a.due_on,a.starts_at),a.id LIMIT ?`).all<ActivityReminderRow>(limit);
+      AND (
+        EXISTS(SELECT 1 FROM office_member m
+          LEFT JOIN notification_preference p ON p.office_id=m.office_id AND p.user_id=m.user_id
+          WHERE m.office_id=a.office_id
+            AND (m.user_id=COALESCE(a.assignee_id,a.created_by) OR (a.kind='meeting' AND m.user_id=a.created_by))
+            AND NOT EXISTS(SELECT 1 FROM notification_reminder r
+              WHERE r.office_id=a.office_id AND r.activity_id=a.id AND r.user_id=m.user_id
+                AND r.rule=CASE a.kind WHEN 'task' THEN 'task_due' ELSE 'meeting_soon' END
+                AND r.schedule_key=CAST(a.version AS TEXT)||':'||COALESCE(p.timezone,?)))
+        OR EXISTS(SELECT 1 FROM notification_reminder r
+          WHERE r.office_id=a.office_id AND r.activity_id=a.id AND r.state='scheduled'
+            AND NOT EXISTS(SELECT 1 FROM office_member m
+              LEFT JOIN notification_preference p ON p.office_id=m.office_id AND p.user_id=m.user_id
+              WHERE m.office_id=a.office_id AND m.user_id=r.user_id
+                AND (m.user_id=COALESCE(a.assignee_id,a.created_by) OR (a.kind='meeting' AND m.user_id=a.created_by))
+                AND r.rule=CASE a.kind WHEN 'task' THEN 'task_due' ELSE 'meeting_soon' END
+                AND r.schedule_key=CAST(a.version AS TEXT)||':'||COALESCE(p.timezone,?)))
+      )
+    ORDER BY COALESCE(a.due_on,a.starts_at),a.id LIMIT ?`).all<ActivityReminderRow>(DEFAULT_TIMEZONE, DEFAULT_TIMEZONE, limit);
   let changed = 0;
   for (const activity of activities) {
     const userIds = [...new Set([activity.assignee_id ?? activity.created_by, ...(activity.kind === 'meeting' ? [activity.created_by] : [])])];

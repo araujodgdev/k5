@@ -56,7 +56,6 @@ services:
       K5_VAPID_KEY_ID: ${K5_VAPID_KEY_ID:-}
       K5_VAPID_SUBJECT: ${K5_VAPID_SUBJECT:-}
       K5_VAPID_PUBLIC_KEY: ${K5_VAPID_PUBLIC_KEY:-}
-      K5_VAPID_PRIVATE_KEY: ${K5_VAPID_PRIVATE_KEY:-}
     volumes:
       - appdata:/data
     depends_on:
@@ -107,7 +106,9 @@ services:
       dockerfile: apps/web/Dockerfile
       target: runtime
     command: ["pnpm", "notifications:worker"]
-    environment: *app_env
+    environment:
+      <<: *app_env
+      K5_VAPID_PRIVATE_KEY: ${K5_VAPID_PRIVATE_KEY:-}
     volumes:
       - appdata:/data
     depends_on:

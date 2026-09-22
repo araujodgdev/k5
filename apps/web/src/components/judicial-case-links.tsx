@@ -65,7 +65,9 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
       fetch(`/api/judicial/links?${query}&limit=20`),
       fetch("/api/judicial/sources"),
       fetch(`/api/judicial/publications?${query}&limit=50`),
-      fetch(`/api/notifications/follows?${query}`, { cache: "no-store" }),
+      fetch(`/api/notifications/follows?${query}`, { cache: "no-store" })
+        .then(async (response) => response.ok ? await response.json() as { following: boolean } : null)
+        .catch(() => null),
     ]);
     if (!linksResponse.ok) {
       setFailure(await readFailure(linksResponse, "Não foi possível carregar os processos deste caso."));
@@ -79,7 +81,7 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
     const publications = publicationsResponse.ok
       ? ((await publicationsResponse.json()) as { publications: JudicialPublication[] }).publications
       : [];
-    if (followResponse.ok) setFollowing(((await followResponse.json()) as { following: boolean }).following);
+    if (followResponse) setFollowing(followResponse.following);
     setJobs(jobsByLink(links.jobs));
     setCompletedJobs(jobsByLink(links.completedJobs));
     setData({ links: links.links, sources, publications, nextCursor: links.nextCursor });
@@ -154,17 +156,22 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
     if (following === null) return;
     setBusy("following");
     setFailure(null);
-    const response = await fetch("/api/notifications/follows", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ caseId, following: !following }),
-    });
-    setBusy(null);
-    if (!response.ok) {
-      setFailure(await readFailure(response, "Não foi possível alterar as notificações deste caso."));
-      return;
+    try {
+      const response = await fetch("/api/notifications/follows", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ caseId, following: !following }),
+      });
+      if (!response.ok) {
+        setFailure(await readFailure(response, "Não foi possível alterar as notificações deste caso."));
+        return;
+      }
+      setFollowing(((await response.json()) as { following: boolean }).following);
+    } catch {
+      setFailure({ message: "Não foi possível alterar as notificações deste caso." });
+    } finally {
+      setBusy(null);
     }
-    setFollowing(((await response.json()) as { following: boolean }).following);
   }
 
   useJobPolling(jobs, setJobs, load);

@@ -85,7 +85,8 @@ O K5 pode ser instalado como PWA; veja [instalação e funcionamento offline](ap
 Tarefas e Agenda reúne clientes, vínculos com casos do Cofre, tarefas e reuniões internas,
 com operações também disponíveis ao agente e ao WebMCP. Veja o
 [plano do módulo](docs/plano-tarefas-agenda.md). A agenda ainda não sincroniza calendários
-externos nem envia convites ou lembretes.
+externos nem envia convites. Os lembretes exigem o worker de notificações
+(`pnpm notifications:worker`) em execução.
 
 ## Configuração e dados
 

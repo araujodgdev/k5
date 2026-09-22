@@ -72,10 +72,13 @@ export async function endGlobalSession(): Promise<CapabilityOutput<'k5_session_e
   const { auth } = await import('@/lib/auth');
   const requestHeaders = await headers();
   const session = await auth.api.getSession({ headers: requestHeaders, query: { disableCookieCache: true, disableRefresh: true } });
-  if (session) {
-    const { revokePushSubscriptionsForUser } = await import('@/lib/notifications/revocation');
-    await revokePushSubscriptionsForUser(database, session.user.id);
+  try {
+    if (session) {
+      const { revokePushSubscriptionsForUser } = await import('@/lib/notifications/revocation');
+      await revokePushSubscriptionsForUser(database, session.user.id);
+    }
+  } finally {
+    await auth.api.revokeSessions({ headers: requestHeaders });
   }
-  await auth.api.revokeSessions({ headers: requestHeaders });
   return { success: true, message: 'Todas as sessões ativas foram encerradas.' };
 }

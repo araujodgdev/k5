@@ -23,6 +23,7 @@ self.addEventListener("activate", (event) => {
       await Promise.all(keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE).map((key) => caches.delete(key)));
     }
     await self.clients.claim();
+    await recoverPushSubscription(self.registration).catch(() => { /* Retry on the next app opening or subscription change. */ });
   })());
 });
 
@@ -71,8 +72,9 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 self.addEventListener("pushsubscriptionchange", (event) => {
-  event.waitUntil(self.clients.matchAll({ includeUncontrolled: true, type: "window" }).then((clients) => {
+  event.waitUntil(self.clients.matchAll({ includeUncontrolled: true, type: "window" }).then(async (clients) => {
     for (const client of clients) client.postMessage({ type: "K5_PUSH_SUBSCRIPTION_CHANGED" });
+    await recoverPushSubscription(self.registration).catch(() => { /* Reconcile when the app reconnects. */ });
   }));
 });
 

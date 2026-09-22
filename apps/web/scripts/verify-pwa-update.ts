@@ -4,7 +4,8 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { chromium, expect } from "@playwright/test";
 
-const template = await readFile(new URL("./service-worker.js", import.meta.url), "utf8");
+const pushClient = await readFile(new URL("../src/lib/notifications/push-client.js", import.meta.url), "utf8");
+const template = `${pushClient.replace(/^export /gm, "")}\n${await readFile(new URL("./service-worker.js", import.meta.url), "utf8")}`;
 const assets = ["/_next/static/chunks/old-123abc.js", "/_next/static/css/old-456def.css"];
 let release = 1;
 const server = createServer((request, response) => {

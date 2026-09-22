@@ -63,8 +63,11 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
           if (session) {
             // Server revocation wins the race with a stale in-flight subscription request because
             // it advances the authorization generation before deleting every session.
-            await revokePushSubscriptionsForUser(db, session.user.id);
-            await ctx.context.internalAdapter.deleteUserSessions(session.user.id);
+            try {
+              await revokePushSubscriptionsForUser(db, session.user.id);
+            } finally {
+              await ctx.context.internalAdapter.deleteUserSessions(session.user.id);
+            }
           }
         }
       }),

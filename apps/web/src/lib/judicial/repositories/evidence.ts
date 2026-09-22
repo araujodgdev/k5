@@ -180,6 +180,7 @@ export async function ingestPublications(input: IngestPublicationsInput): Promis
     throw new Error('Publicação sem snapshot de origem; a coleta não pode ser publicada.');
   }
 
+  const followersByLink = new Map<string | null, { caseId: string | null; followers: { user_id: string }[] }>();
   for (const publication of input.result.items) {
     const snapshotId = (publication.rawPayloadIndex !== undefined && outcome.snapshotIds[publication.rawPayloadIndex])
       ? outcome.snapshotIds[publication.rawPayloadIndex]
@@ -208,13 +209,19 @@ export async function ingestPublications(input: IngestPublicationsInput): Promis
     const eventKind = publication.revisionKind !== 'original'
       ? 'correction'
       : input.historical ? 'historical_publication' : 'new_publication';
-    const caseId = resolvedLinkId ? (await database.prepare(
-      'SELECT case_id FROM judicial_case_link WHERE id=? AND office_id=?',
-    ).get(resolvedLinkId, input.officeId) as { case_id: string } | undefined)?.case_id ?? null : null;
-    const followers = caseId ? await database.prepare(`SELECT f.user_id FROM notification_follow f
-      JOIN office_member m ON m.office_id=f.office_id AND m.user_id=f.user_id
-      WHERE f.office_id=? AND f.case_id=? AND f.ended_at IS NULL`)
-      .all<{ user_id: string }>(input.officeId, caseId) : [];
+    let audience = followersByLink.get(resolvedLinkId);
+    if (!audience) {
+      const caseId = resolvedLinkId ? (await database.prepare(
+        'SELECT case_id FROM judicial_case_link WHERE id=? AND office_id=?',
+      ).get(resolvedLinkId, input.officeId) as { case_id: string } | undefined)?.case_id ?? null : null;
+      const followers = caseId ? await database.prepare(`SELECT f.user_id FROM notification_follow f
+        JOIN office_member m ON m.office_id=f.office_id AND m.user_id=f.user_id
+        WHERE f.office_id=? AND f.case_id=? AND f.ended_at IS NULL`)
+        .all<{ user_id: string }>(input.officeId, caseId) : [];
+      audience = { caseId, followers };
+      followersByLink.set(resolvedLinkId, audience);
+    }
+    const { caseId, followers } = audience;
     const summary = summarize(input.installation, publication);
     const fingerprintKey = alertDedupeKey(eventKind, 'publication', fingerprint.value);
     const results = await database.batch([database.prepare(`

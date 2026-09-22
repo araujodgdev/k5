@@ -1,5 +1,7 @@
 "use client";
 
+import { uploadPushSubscription } from "@/lib/notifications/push-client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Archive, Bell, LoaderCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -102,6 +104,12 @@ export function NotificationInbox() {
             if (revoke.ok) setDevices((devices) => devices.map((device) => device.id === current.id ? { ...device, state: "revoked" } : device));
             setPushStatus("idle");
           } else {
+            if (nextConfig?.keyId === current.vapidKeyId) {
+              await uploadPushSubscription(localSubscription, {
+                deviceId: current.deviceId, deviceLabel: current.deviceLabel,
+                vapidKeyId: current.vapidKeyId, authorizationGeneration: nextConfig.authorizationGeneration,
+              });
+            }
             setPushStatus(nextConfig?.keyId === current.vapidKeyId ? "active" : "idle");
           }
         }
@@ -207,10 +215,8 @@ export function NotificationInbox() {
       subscription ??= await registration.pushManager.subscribe({
         userVisibleOnly: true, applicationServerKey: applicationServerKey(config.publicKey),
       });
-      const json = subscription.toJSON();
-      const response = await write("/api/notifications/subscriptions", {
-        deviceId: deviceId(), deviceLabel: navigator.userAgent.slice(0, 120), endpoint: subscription.endpoint,
-        expirationTime: subscription.expirationTime, keys: json.keys,
+      const response = await uploadPushSubscription(subscription, {
+        deviceId: deviceId(), deviceLabel: navigator.userAgent.slice(0, 120),
         vapidKeyId: config.keyId, authorizationGeneration: config.authorizationGeneration,
       });
       const value = await response.json() as { subscriptions: Device[] };

@@ -102,14 +102,14 @@ export async function createSubscription(input: CreateSubscriptionInput): Promis
       await database.prepare(
         "UPDATE judicial_subscription SET status = 'active', suspended_reason = NULL, next_run_at = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       ).run(existing.id);
-    }
-    if (existing.link_id) {
-      await database.prepare(`INSERT INTO notification_follow(id,office_id,case_id,user_id,started_at)
-        SELECT ?,l.office_id,l.case_id,?,CURRENT_TIMESTAMP FROM judicial_case_link l
-        WHERE l.id=? AND l.office_id=?
-          AND NOT EXISTS(SELECT 1 FROM notification_follow f WHERE f.office_id=l.office_id
-            AND f.case_id=l.case_id AND f.user_id=? AND f.ended_at IS NULL)`)
-        .run(randomUUID(), input.authorizedBy, existing.link_id, input.officeId, input.authorizedBy);
+      if (existing.link_id) {
+        await database.prepare(`INSERT INTO notification_follow(id,office_id,case_id,user_id,started_at)
+          SELECT ?,l.office_id,l.case_id,?,CURRENT_TIMESTAMP FROM judicial_case_link l
+          WHERE l.id=? AND l.office_id=?
+            AND NOT EXISTS(SELECT 1 FROM notification_follow f WHERE f.office_id=l.office_id
+              AND f.case_id=l.case_id AND f.user_id=? AND f.ended_at IS NULL)`)
+          .run(randomUUID(), input.authorizedBy, existing.link_id, input.officeId, input.authorizedBy);
+      }
     }
     return { subscription: (await findSubscriptionById(existing.id))!, created: false };
   }

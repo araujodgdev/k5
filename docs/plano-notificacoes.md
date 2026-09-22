@@ -1,6 +1,8 @@
 # Plano de notificações do K5
 
-Data: 21/09/2026. Status: proposta de implementação; nenhum código de aplicação ou infraestrutura foi alterado.
+Data do plano: 21/09/2026. Status em 22/09/2026: plano histórico; o sistema de notificações já está implementado.
+
+As seções abaixo preservam a proposta original, incluindo hipóteses, etapas e critérios de aceite anteriores à implementação; não representam o estado atual nem comprovam validação em produção. Para a configuração e o funcionamento implementados, consulte [Notificações no guia do app](../apps/web/README.md#notificações). A seção final registra somente a verificação documental feita na elaboração deste plano.
 
 Escopo confirmado: push no navegador/PWA e caixa de notificações dentro do K5. E-mail, WhatsApp, aplicativos nativos, campanhas de marketing e cálculo automático de prazos judiciais ficam fora deste trabalho.
 

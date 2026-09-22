@@ -146,6 +146,24 @@ test("limita tentativas repetidas de login", async (t) => {
   assert.equal((await request("/sign-in/email", { email: "ausente@example.test", password }, "", origin, "203.0.113.11")).response.status, 401);
 });
 
+test("logout revoga sessões mesmo quando a limpeza de push falha", async (t) => {
+  const { db, database, auth, request, signup } = await fixture();
+  t.after(() => db.close());
+  const first = await signup();
+  const second = await request("/sign-in/email", { email: first.data.user.email, password });
+  const prepare = database.prepare.bind(database);
+  t.mock.method(database, "prepare", (sql: string) => {
+    if (sql.includes("FROM push_subscription")) throw new Error("push cleanup unavailable");
+    return prepare(sql);
+  });
+  const response = await auth.handler(new Request(`${origin}/api/auth/sign-out`, {
+    method: 'POST', headers: { origin, cookie: first.cookie, 'content-type': 'application/json' }, body: '{}',
+  }));
+  assert.equal(response.status, 500);
+  assert.equal(db.prepare('SELECT count(*) AS total FROM session WHERE "userId"=?').get(first.data.user.id)!.total, 0);
+  assert.equal((await request("/get-session", undefined, second.cookie)).data, null);
+});
+
 test("logout de outra origem não encerra a sessão legítima", async (t) => {
   const { db, request, signup } = await fixture();
   t.after(() => db.close());

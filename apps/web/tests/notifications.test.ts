@@ -15,6 +15,7 @@ import {
   reconcileNotificationReminders,
 } from '../src/lib/notifications/worker';
 import type { PushSender } from '../src/lib/notifications/push-contract';
+import type { Database } from '../src/lib/database';
 
 function notificationFixture(role: WorkspaceContext['role'] = 'lawyer') {
   const officeId = randomUUID();
@@ -31,6 +32,49 @@ function notificationFixture(role: WorkspaceContext['role'] = 'lawyer') {
     recipient: { officeId, userId: recipientId, role } satisfies WorkspaceContext,
   };
 }
+
+test('notifications: unread polls seed missing defaults but never write when both exist', async () => {
+  const value = notificationFixture();
+  let batches = 0;
+  const db: Database = { ...testDatabase, batch: async (statements) => {
+    batches++;
+    return testDatabase.batch(statements);
+  } };
+  assert.equal(await unreadCount(value.actor, db), 0);
+  assert.equal(batches, 1);
+  await unreadCount(value.actor, db);
+  assert.equal(batches, 1);
+  testDb.prepare('DELETE FROM notification_preference WHERE office_id=? AND user_id=?').run(value.officeId, value.actorId);
+  await unreadCount(value.actor, db);
+  assert.equal(batches, 2);
+  testDb.prepare('DELETE FROM notification_rollout WHERE office_id=?').run(value.officeId);
+  await unreadCount(value.actor, db);
+  assert.equal(batches, 3);
+});
+
+test('notifications: reconciliation advances beyond its limit and revisits timezone changes', async () => {
+  const value = notificationFixture();
+  // Isolate this global worker scan from fixtures belonging to other tests.
+  testDb.exec('UPDATE notification_rollout SET reminders_enabled=0');
+  await getNotificationPreferences(value.actor, testDatabase);
+  const ids: string[] = [];
+  for (let index = 0; index < 5; index++) {
+    const { activity } = await createActivity(value.actor, { kind: 'task', title: `Tarefa ${index}`, dueOn: '2026-09-22' });
+    ids.push(activity.id);
+  }
+  const now = '2026-09-21T12:00:00.000Z';
+  assert.equal(await reconcileNotificationReminders(testDatabase, now, 2), 2);
+  assert.equal(await reconcileNotificationReminders(testDatabase, now, 2), 2);
+  assert.equal(await reconcileNotificationReminders(testDatabase, now, 2), 1);
+  assert.equal(await reconcileNotificationReminders(testDatabase, now, 2), 0);
+  assert.equal(testDb.prepare('SELECT count(*) AS total FROM notification_reminder WHERE office_id=?').get(value.officeId)!.total, ids.length);
+  testDb.prepare("UPDATE notification_preference SET timezone='UTC' WHERE office_id=?").run(value.officeId);
+  for (let page = 0; page < 3; page++) await reconcileNotificationReminders(testDatabase, now, 2);
+  assert.equal(testDb.prepare("SELECT count(*) AS total FROM notification_reminder WHERE office_id=? AND timezone='UTC' AND state='scheduled'").get(value.officeId)!.total, ids.length);
+  assert.equal(testDb.prepare("SELECT count(*) AS total FROM notification_reminder WHERE office_id=? AND timezone<>'UTC' AND state='cancelled'").get(value.officeId)!.total, ids.length);
+  testDb.prepare('UPDATE notification_rollout SET reminders_enabled=0 WHERE office_id=?').run(value.officeId);
+  testDb.prepare("UPDATE notification_reminder SET state='cancelled' WHERE office_id=?").run(value.officeId);
+});
 
 test('notifications: an accepted agenda mutation emits once and projects only to the intended person', async () => {
   const value = notificationFixture();
@@ -147,4 +191,39 @@ test('notifications: retention removes old personal and operational data but kee
   assert.ok(await cleanNotificationRetention(testDatabase, '2026-09-21T12:00:00.000Z'));
   assert.equal(testDb.prepare('SELECT count(*) AS total FROM notification_recipient WHERE event_id=?').get(eventId)!.total, 0);
   assert.equal(testDb.prepare('SELECT data_json FROM notification_event WHERE id=?').get(eventId)!.data_json, '{}');
+});
+
+test('notifications: mark-all cancels only eligible deliveries in a two-statement batch', async () => {
+  const value = notificationFixture();
+  process.env.K5_VAPID_KEY_ID = 'test-key';
+  process.env.K5_VAPID_PUBLIC_KEY = 'test-public';
+  await registerPushSubscription(value.recipient, {
+    deviceId: randomUUID(), endpoint: `https://fcm.googleapis.com/fcm/send/${randomUUID()}`,
+    expirationTime: null,
+    keys: { p256dh: Buffer.concat([Buffer.from([4]), randomBytes(64)]).toString('base64url'), auth: randomBytes(16).toString('base64url') },
+    vapidKeyId: 'test-key', authorizationGeneration: 1,
+  }, testDatabase);
+  const now = '2026-09-23T12:00:00.000Z';
+  const ids = ['a', 'b', 'c', 'd', 'e'].map((prefix) => `${prefix}-${randomUUID()}`);
+  for (const id of ids) {
+    await testDatabase.batch([eventInsertStatement(testDatabase, {
+      id, officeId: value.officeId, eventType: 'system.push.test', sourceKind: 'system', sourceId: null,
+      sourceVersion: 1, actorUserId: null, intendedRecipientIds: [value.recipientId, value.actorId],
+      data: {}, dedupeKey: id, createdAt: now, expiresAt: '2026-09-24T12:00:00.000Z',
+    })]);
+  }
+  while (await projectNextNotification(testDatabase, now)) { /* Drain global projection. */ }
+  testDb.prepare('UPDATE notification_recipient SET archived_at=? WHERE event_id=? AND user_id=?').run(now, ids[1], value.recipientId);
+  testDb.prepare('UPDATE notification_recipient SET read_at=? WHERE event_id=? AND user_id=?').run(now, ids[2], value.recipientId);
+  testDb.prepare("UPDATE notification_delivery SET state='retry' WHERE event_id=?").run(ids[3]);
+  let statementCount = 0;
+  const db: Database = { ...testDatabase, batch: async (statements) => {
+    statementCount = statements.length;
+    return testDatabase.batch(statements);
+  } };
+  assert.equal(await markAllNotificationsRead(value.recipient, { createdAt: now, id: ids[3] }, db), 2);
+  assert.equal(statementCount, 2);
+  const states = testDb.prepare('SELECT state FROM notification_delivery WHERE office_id=? ORDER BY event_id').all(value.officeId).map((row) => row.state);
+  assert.deepEqual(states, ['cancelled', 'pending', 'pending', 'cancelled', 'pending']);
+  assert.equal(testDb.prepare('SELECT count(*) AS total FROM notification_recipient WHERE office_id=? AND user_id=? AND read_at IS NULL').get(value.officeId, value.actorId)!.total, 5);
 });

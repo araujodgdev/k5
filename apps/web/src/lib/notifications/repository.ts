@@ -102,7 +102,10 @@ export async function listNotifications(context: WorkspaceContext, input: {
 }
 
 export async function unreadCount(context: WorkspaceContext, db: Database = defaultDatabase) {
-  await ensureNotificationDefaults(context, db);
+  const defaults = await db.prepare(`SELECT 1 FROM notification_rollout ro
+    JOIN notification_preference p ON p.office_id=ro.office_id
+    WHERE ro.office_id=? AND p.user_id=?`).get(context.officeId, context.userId);
+  if (!defaults) await ensureNotificationDefaults(context, db);
   const row = await db.prepare(`SELECT count(*) AS total FROM notification_recipient r
     JOIN notification_rollout ro ON ro.office_id=r.office_id AND ro.inbox_enabled=1
     WHERE r.office_id=? AND r.user_id=? AND r.read_at IS NULL AND r.archived_at IS NULL`)
@@ -125,16 +128,15 @@ export async function markAllNotificationsRead(context: WorkspaceContext, cutoff
   const now = new Date().toISOString();
   const where = `office_id=? AND user_id=? AND read_at IS NULL AND archived_at IS NULL
     AND (created_at < ? OR (created_at = ? AND event_id <= ?))`;
-  const eligible = await db.prepare(`SELECT event_id FROM notification_recipient WHERE ${where}`)
-    .all<{ event_id: string }>(context.officeId, context.userId, cutoff.createdAt, cutoff.createdAt, cutoff.id);
   const statements: BoundStatement[] = [
+    db.prepare(`UPDATE notification_delivery SET state='cancelled',updated_at=?
+      WHERE office_id=? AND user_id=? AND state IN ('pending','retry')
+        AND event_id IN (SELECT event_id FROM notification_recipient WHERE ${where})`)
+      .bind(now, context.officeId, context.userId, context.officeId, context.userId, cutoff.createdAt, cutoff.createdAt, cutoff.id),
     db.prepare(`UPDATE notification_recipient SET read_at=? WHERE ${where}`)
       .bind(now, context.officeId, context.userId, cutoff.createdAt, cutoff.createdAt, cutoff.id),
-    ...eligible.map(({ event_id }) => db.prepare(`UPDATE notification_delivery SET state='cancelled',updated_at=?
-      WHERE event_id=? AND office_id=? AND user_id=? AND state IN ('pending','retry')`)
-      .bind(now, event_id, context.officeId, context.userId)),
   ];
-  return (await db.batch(statements))[0].changes;
+  return (await db.batch(statements))[1].changes;
 }
 
 export async function archiveNotification(context: WorkspaceContext, eventId: string, db: Database = defaultDatabase) {
