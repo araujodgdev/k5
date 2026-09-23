@@ -8,14 +8,8 @@
   "upload_source_maps": true,
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "vars": { "SENTRY_ENVIRONMENT": "staging", "SENTRY_TRACES_SAMPLE_RATE": "0.1" },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "k5-staging",
-      "database_id": "18fcfe5d-05f3-4750-bae2-85731c80884b",
-      "migrations_dir": "db/migrations"
-    }
-  ],
+  // Same PostgreSQL as the web, with query caching disabled.
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "cb3229db2c05407aa00420f68bcb6f8f" }],
   "triggers": { "crons": ["* * * * *"] },
   "queues": {
     "producers": [{ "binding": "NOTIFICATION_QUEUE", "queue": "k5-notifications-staging" }],

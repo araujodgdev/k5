@@ -1,13 +1,12 @@
 /** Synthetic browser QA only. The database and object store must both be isolated. */
 import { randomUUID } from 'node:crypto';
-import { basename, resolve } from 'node:path';
+import { basename } from 'node:path';
 
-const dbPath = process.env.DATABASE_PATH;
-const storagePath = process.env.RESEARCH_STORAGE_PATH;
-if (!dbPath || !/^research-qa-[\w-]+\.sqlite$/.test(basename(dbPath)) ||
-    !storagePath || !/^research-qa-[\w-]+-objects$/.test(basename(storagePath)) ||
-    resolve(dbPath) === resolve('.data/k5.sqlite')) {
-  throw new Error('Use um SQLite research-qa-*.sqlite e um armazenamento research-qa-*-objects isolados.');
+const url=process.env.DATABASE_URL;
+const storagePath=process.env.RESEARCH_STORAGE_PATH;
+if (!url || !/^\/research_qa_[a-z0-9_]+$/.test(new URL(url).pathname) ||
+    !storagePath || !/^research-qa-[\w-]+-objects$/.test(basename(storagePath))) {
+  throw new Error('Use PostgreSQL research_qa_* e armazenamento research-qa-*-objects isolados.');
 }
 
 const [{ database }, { upsertInstallation }, { upsertSourceJudgment }] = await Promise.all([

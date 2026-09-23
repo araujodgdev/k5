@@ -1,5 +1,6 @@
 import 'server-only';
 import { database } from '@/lib/database';
+import { containerVectorCall } from '../container-bindings';
 
 export type VectorRecord = { chunkId: string; documentId: string; embedding: Float32Array };
 export type VectorHit = { chunkId: string; score: number };
@@ -11,7 +12,7 @@ export type VectorQuery = { documentIds: string[]; topK: number };
  * result set afterwards silently returns fewer hits than asked for, or hits from another office.
  */
 export interface VectorIndex {
-  readonly kind: 'sqlite' | 'pgvector' | 'vectorize';
+  readonly kind: 'postgres' | 'pgvector' | 'vectorize';
   upsert(officeId: string, generationId: string, records: VectorRecord[]): Promise<void>;
   query(officeId: string, generationId: string, embedding: Float32Array, options: VectorQuery): Promise<VectorHit[]>;
   removeDocument(officeId: string, documentId: string): Promise<void>;
@@ -45,10 +46,10 @@ export function dotNormalized(a: Float32Array, b: Float32Array): number {
 }
 
 /** Local development and single-node deploys. Exact brute force, bounded by the selected scope. */
-const SQLITE_SCAN_LIMIT = 20_000;
+const POSTGRES_SCAN_LIMIT = 20_000;
 
-class SqliteVectorIndex implements VectorIndex {
-  readonly kind = 'sqlite' as const;
+class PostgresVectorIndex implements VectorIndex {
+  readonly kind = 'postgres' as const;
 
   async upsert(officeId: string, generationId: string, records: VectorRecord[]) {
     const statement = database.prepare(`
@@ -75,7 +76,7 @@ class SqliteVectorIndex implements VectorIndex {
       SELECT chunk_id AS chunkId, embedding_blob AS blob
       FROM vault_document_chunk_vector
       WHERE office_id = ? AND generation_id = ? AND document_id IN (${marks}) AND embedding_blob IS NOT NULL
-      LIMIT ${SQLITE_SCAN_LIMIT}
+      LIMIT ${POSTGRES_SCAN_LIMIT}
     `).all(officeId, generationId, ...options.documentIds) as Array<{ chunkId: string; blob: Uint8Array }>;
 
     const hits: VectorHit[] = [];
@@ -352,6 +353,11 @@ async function resolveVectorIndex(): Promise<VectorIndex> {
   if (cached) return cached;
   const backend = process.env.VECTOR_INDEX_BACKEND;
   if (backend === 'vectorize') {
+    if (process.env.K5_CONTAINER_BINDINGS === 'true') return new BoundVectorizeIndex({
+      upsert: vectors => containerVectorCall('upsert', vectors),
+      query: (vector, options) => containerVectorCall('query', { vector, options }),
+      deleteByIds: ids => containerVectorCall('delete', ids),
+    });
     const binding = testVectorizeBinding ?? await workerVectorizeBinding();
     if (binding) return new BoundVectorizeIndex(binding);
     if (process.env.CF_ACCOUNT_ID && process.env.VECTORIZE_INDEX && process.env.CF_API_TOKEN) {
@@ -364,7 +370,7 @@ async function resolveVectorIndex(): Promise<VectorIndex> {
     throw new Error("Vectorize foi solicitado, mas o binding 'KNOWLEDGE' e as credenciais REST não estão disponíveis.");
   }
   if (backend === 'pgvector' && process.env.VECTOR_DATABASE_URL) return new PgVectorIndex(process.env.VECTOR_DATABASE_URL);
-  return new SqliteVectorIndex();
+  return new PostgresVectorIndex();
 }
 
 export async function vectorIndex(): Promise<VectorIndex> {

@@ -1,21 +1,11 @@
-/**
- * The database seam.
- *
- * Lume ran on `node:sqlite`, whose API is synchronous. D1 is the same SQLite dialect reached over a
- * binding, and every call is asynchronous. This interface is the narrow waist between the two, in
- * the same shape as the `ObjectStorage` and `VectorIndex` adapters: the application depends on the
- * interface, and which backend answers is an environment decision rather than a code change.
- *
- * The statement methods deliberately keep the `node:sqlite` argument shape — `get(...params)`,
- * `all(...params)`, `run(...params)` — so porting a call site means adding `await` and nothing
- * else. The SQL strings never change: both backends take `?` placeholders. That matters more than
- * it looks, because those 264 statements carry the `office_id` scoping that keeps one office from
- * reading another's, and rewriting them by hand is how that gets broken.
+/** Async PostgreSQL interface shared by Node workers and the Hyperdrive request adapter.
+ * Statements retain ? parameters and case-preserving aliases; postgresSql binds them for pg.
+ * Business services own office scoping. A batch commits all writes in one transaction.
  */
 
 export type Row = Record<string, unknown>;
 
-/** What a write reports back, matching `node:sqlite`'s StatementResultingChanges. */
+/** Number of affected rows. IDs are application-generated; lastInsertRowid is always zero. */
 export interface RunResult {
   changes: number;
   lastInsertRowid: number;
@@ -43,11 +33,7 @@ export interface Database {
   /**
    * Runs every statement atomically: all of them commit, or none does.
    *
-   * This replaces the `BEGIN IMMEDIATE`/`COMMIT` blocks the codebase used, and it is deliberately
-   * write-only. D1 has no interactive transaction, so a read cannot hold a lock while the code
-   * decides what to write next. Where the old code read and then wrote under one lock — claiming a
-   * queued job, for instance — the replacement is a single conditional `UPDATE ... RETURNING`,
-   * which is atomic on its own and says the same thing without pretending to hold a lock.
+   * Queue claims additionally use row locking with SKIP LOCKED inside UPDATE RETURNING.
    */
   batch(statements: readonly BoundStatement[]): Promise<RunResult[]>;
   /** Releases the handle. A no-op where connections are not owned by the process. */

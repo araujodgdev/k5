@@ -8,6 +8,7 @@ import { ensureOfficeForUser, type OfficeMembership } from "@/lib/offices";
 import { assertStorageKey, objectStorage, StorageError } from "@/lib/storage";
 import { isTrustedOrigin } from "@/lib/trusted-origins";
 import type { UploadRef } from "@/lib/application/uploads-service";
+import { captureOperationalError } from "@/lib/observability/report";
 
 export type VaultStatus = "queued" | "processing" | "ready" | "failed";
 export type VaultScope = "library" | "case";
@@ -160,7 +161,7 @@ function mapFolder(row: Record<string, unknown>): VaultFolder {
 export async function listVaultFolders(officeId: string, caseId: string, parentId: string | null = null): Promise<VaultFolder[]> {
   const clause = parentId ? "f.parent_id = ?" : "f.parent_id IS NULL";
   const values = parentId ? [officeId, caseId, parentId] : [officeId, caseId];
-  return (await database.prepare(`${folderSelect} WHERE f.office_id = ? AND f.case_id = ? AND ${clause} AND f.deleted_at IS NULL ORDER BY f.name COLLATE NOCASE`)
+  return (await database.prepare(`${folderSelect} WHERE f.office_id = ? AND f.case_id = ? AND ${clause} AND f.deleted_at IS NULL ORDER BY lower(f.name)`)
     .all(...values)).map((row) => mapFolder(row as Record<string, unknown>));
 }
 
@@ -198,7 +199,7 @@ export async function createVaultFolder(officeId: string, userId: string, caseId
     await database.prepare("INSERT INTO vault_folder (id, office_id, case_id, parent_id, name, created_by) VALUES (?, ?, ?, ?, ?, ?)")
       .run(id, officeId, caseId, parentId, clean, userId);
   } catch (error) {
-    if (String(error).includes("UNIQUE constraint failed")) throw new VaultHttpError(409, "Já existe uma pasta com esse nome neste nível.");
+    if ((error as { code?: string })?.code === '23505') throw new VaultHttpError(409, "Já existe uma pasta com esse nome neste nível.");
     throw error;
   }
   return (await findVaultFolder(officeId, id))!;
@@ -370,13 +371,13 @@ export async function getDocumentChunks(officeId: string, documentIds: string[],
     WHERE c.office_id = ? AND c.document_id IN (${marks}) ORDER BY c.document_id, c.ordinal`).all(officeId, ...ids) as DocumentChunk[];
   const terms = query.match(/[\p{L}\p{N}_-]+/gu)?.slice(0, 12) ?? [];
   if (!terms.length) return [];
-  const ftsQuery = terms.map((term) => `"${term.replaceAll('"', '""')}"`).join(" OR ");
+  const ftsQuery = terms.map((term) => `'${term.replaceAll("'", "''")}'`).join(' | ');
   return await database.prepare(`SELECT c.id, c.document_id AS documentId, c.stable_reference AS stableReference,
     d.original_name || ' — ' || c.stable_reference AS sourceLabel, c.content, c.ordinal
-    FROM vault_document_chunk_fts f JOIN vault_document_chunk c ON c.rowid = f.rowid
+    FROM vault_document_chunk c CROSS JOIN to_tsquery('portuguese', ?) q
     JOIN vault_document d ON d.id = c.document_id AND d.office_id = c.office_id
-    WHERE f.vault_document_chunk_fts MATCH ? AND c.office_id = ? AND c.document_id IN (${marks})
-    ORDER BY bm25(vault_document_chunk_fts) LIMIT 100`).all(ftsQuery, officeId, ...ids) as DocumentChunk[];
+    WHERE c.search_vector @@ q AND c.office_id = ? AND c.document_id IN (${marks})
+    ORDER BY ts_rank_cd(c.search_vector,q) DESC,c.id LIMIT 100`).all(ftsQuery, officeId, ...ids) as DocumentChunk[];
 }
 
 const CLAIMABLE = "deleted_at IS NULL AND (status = 'queued' OR (status = 'processing' AND lease_expires_at < CURRENT_TIMESTAMP))";
@@ -393,8 +394,8 @@ export async function claimQueuedDocument() {
   const owner = randomUUID();
   const claimed = await database.prepare(`UPDATE vault_document
       SET status = 'processing', progress = CASE WHEN progress > 0 THEN progress ELSE 1 END,
-        lease_owner = ?, lease_expires_at = datetime('now', '+5 minutes'), error_message = NULL, updated_at = CURRENT_TIMESTAMP
-      WHERE id = (SELECT id FROM vault_document WHERE ${CLAIMABLE} ORDER BY created_at LIMIT 1)
+        lease_owner = ?, lease_expires_at = (CURRENT_TIMESTAMP + INTERVAL '5 minutes'), error_message = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = (SELECT id FROM vault_document WHERE ${CLAIMABLE} ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED)
         AND ${CLAIMABLE}
       RETURNING id, office_id AS officeId`).get<{ id: string; officeId: string }>(owner);
   if (!claimed) return undefined;
@@ -402,7 +403,7 @@ export async function claimQueuedDocument() {
 }
 
 export async function checkpointVaultDocument(documentId: string, owner: string, progress: number) {
-  await database.prepare(`UPDATE vault_document SET progress = ?, lease_expires_at = datetime('now', '+5 minutes'), updated_at = CURRENT_TIMESTAMP
+  await database.prepare(`UPDATE vault_document SET progress = ?, lease_expires_at = (CURRENT_TIMESTAMP + INTERVAL '5 minutes'), updated_at = CURRENT_TIMESTAMP
     WHERE id = ? AND status = 'processing' AND lease_owner = ?`).run(Math.max(1, Math.min(99, Math.round(progress))), documentId, owner);
 }
 
@@ -412,7 +413,7 @@ export async function processDocument(documentId: string, officeId: string, leas
   const notificationOwner = await database.prepare('SELECT created_by FROM vault_document WHERE id=? AND office_id=?')
     .get<{ created_by: string }>(documentId, officeId);
   const owner = leaseOwner ?? randomUUID();
-  if (!leaseOwner) await database.prepare(`UPDATE vault_document SET status = 'processing', progress = 1, lease_owner = ?, lease_expires_at = datetime('now', '+5 minutes'), error_message = NULL WHERE id = ? AND office_id = ?`).run(owner, documentId, officeId);
+  if (!leaseOwner) await database.prepare(`UPDATE vault_document SET status = 'processing', progress = 1, lease_owner = ?, lease_expires_at = (CURRENT_TIMESTAMP + INTERVAL '5 minutes'), error_message = NULL WHERE id = ? AND office_id = ?`).run(owner, documentId, officeId);
   const heartbeat = setInterval(() => { void checkpointVaultDocument(documentId, owner, document.progress || 1); }, 60_000);
   heartbeat.unref();
   try {
@@ -514,16 +515,19 @@ export async function processNextVaultDocument(): Promise<boolean> {
 /**
  * Extracts the document this request just queued, then indexes it.
  *
- * Callers hand this to `after`, so it settles in the background of their own request. On
- * Cloudflare that is the only thing that drains the queue: `scripts/worker.ts` is a long-running
- * Node process and no such process exists in a Worker, so a document nobody kicks here keeps the
- * status “na fila” forever. Every path that moves a document to `queued` owes it this call.
- *
- * Failures are logged rather than thrown: `processDocument` has already written the reason onto
- * the row, which is where the interface reads it from, and nothing is left to catch this.
+ * Cloudflare delegates to the Node Container because PDF rasterization/OCR need native modules.
+ * The durable queue and cron recover an unsuccessful immediate wakeup. Local Node can drain inline.
  */
 export async function drainQueuedDocument(officeId: string, documentId: string) {
   try {
+    if (process.env.K5_RUNTIME === 'cloudflare') {
+      const { env } = await import(/* webpackIgnore: true */ 'cloudflare:workers');
+      if (env.PROCESSORS_ENABLED !== 'true') return;
+      const processors = env.PROCESSORS as { getByName(name: string): { run(role: 'documents'): Promise<void> } } | undefined;
+      if (!processors) throw new Error('Processador de documentos não configurado.');
+      await processors.getByName('documents').run('documents');
+      return;
+    }
     if (!await processDocumentIfQueued(officeId, documentId)) return;
     try {
       const { processNextIndexJob } = await import("@/lib/knowledge/indexing");
@@ -532,7 +536,7 @@ export async function drainQueuedDocument(officeId: string, documentId: string) 
       // Lexical search is already available once extraction finishes.
     }
   } catch (error) {
-    console.error("Ingestão após envio:", error instanceof Error ? error.message : error);
+    captureOperationalError(error, 'vault.ingest.dispatch');
   }
 }
 
@@ -541,7 +545,7 @@ export async function processDocumentIfQueued(officeId: string, documentId: stri
   const owner = randomUUID();
   const claimed = await database.prepare(`UPDATE vault_document
       SET status = 'processing', progress = CASE WHEN progress > 0 THEN progress ELSE 1 END,
-        lease_owner = ?, lease_expires_at = datetime('now', '+5 minutes'), error_message = NULL, updated_at = CURRENT_TIMESTAMP
+        lease_owner = ?, lease_expires_at = (CURRENT_TIMESTAMP + INTERVAL '5 minutes'), error_message = NULL, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND office_id = ? AND status = 'queued' AND deleted_at IS NULL
       RETURNING id`).get<{ id: string }>(owner, documentId, officeId);
   if (!claimed) return false;

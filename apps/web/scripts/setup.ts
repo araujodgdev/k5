@@ -1,51 +1,38 @@
-import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync, readdirSync, appendFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { getMigrations } from "better-auth/db/migration";
+import { randomBytes } from 'node:crypto';
+import { existsSync, writeFileSync, appendFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { createPostgresPool, postgresDatabase } from '../src/lib/db/postgres';
+import { migratePostgres } from '../src/lib/db/migrate';
 
 async function main() {
-  const envFile = resolve(".env.local");
+  const envFile = resolve(process.env.K5_ENV_FILE ?? '.env.local');
   if (!existsSync(envFile) && !process.env.BETTER_AUTH_SECRET) {
-    if (process.env.NODE_ENV === "production") throw new Error("Configure as variáveis de ambiente antes de preparar o banco em produção.");
-    writeFileSync(envFile, `BETTER_AUTH_URL=http://localhost:3000\nBETTER_AUTH_SECRET=${randomBytes(48).toString("base64url")}\nDATABASE_PATH=.data/k5.sqlite\nSESSION_IDLE_SECONDS=28800\n`, { mode: 0o600 });
-    console.log("Ambiente local criado com segredo aleatório.");
+    if (process.env.NODE_ENV === 'production') throw new Error('Configure o ambiente de produção.');
+    writeFileSync(envFile, `BETTER_AUTH_URL=http://localhost:3000\nBETTER_AUTH_SECRET=${randomBytes(48).toString('base64url')}\nDATABASE_URL=\nSESSION_IDLE_SECONDS=28800\n`, {mode:0o600});
+    console.log('Ambiente local criado com segredo aleatório.');
   }
   if (existsSync(envFile)) process.loadEnvFile(envFile);
   if (!process.env.K5_CREDENTIALS_KEY && process.env.NODE_ENV !== 'production') {
     const key = randomBytes(32).toString('base64');
-    appendFileSync(envFile, `\nK5_CREDENTIALS_KEY=${key}\n`, { mode: 0o600 });
+    appendFileSync(envFile, `\nK5_CREDENTIALS_KEY=${key}\n`, {mode:0o600});
     process.env.K5_CREDENTIALS_KEY = key;
     console.log('Chave local de criptografia criada. Preserve seu backup junto aos dados.');
   }
-  const { authStore, database } = await import("../src/lib/database");
-  const { createAuth } = await import("../src/lib/auth-core");
-  const secret = process.env.BETTER_AUTH_SECRET;
-  if (!secret || secret.length < 32) throw new Error("Defina BETTER_AUTH_SECRET com pelo menos 32 caracteres.");
-  const store = await authStore() as Parameters<typeof createAuth>[0];
-  const auth = createAuth(store, database, { secret, baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000", idleSeconds: Number(process.env.SESSION_IDLE_SECONDS ?? 28800) });
-  const { runMigrations } = await getMigrations(auth.options);
-  await runMigrations();
-  // Each file runs once and is recorded; rebuild migrations cannot be replayed over their own result.
-  await database.exec('CREATE TABLE IF NOT EXISTS schema_migration (name TEXT PRIMARY KEY NOT NULL, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
-  const applied = new Set((await database.prepare('SELECT name FROM schema_migration').all()).map(row => String(row.name)));
-  for (const name of readdirSync(resolve('db/migrations')).filter(name => name.endsWith('.sql')).sort()) {
-    if (applied.has(name)) continue;
-    await database.exec(readFileSync(resolve('db/migrations', name), 'utf8'));
-    await database.prepare('INSERT INTO schema_migration (name) VALUES (?)').run(name);
-  }
-  console.log("SQLite pronto: autenticação, escritórios e vínculos de acesso.");
+  if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) throw new Error('Configure BETTER_AUTH_SECRET.');
+  const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
+  if (!url) throw new Error('Configure DATABASE_URL para PostgreSQL. Dados SQLite existentes exigem importação explícita.');
+  const pool = createPostgresPool(url,{max:1});
   try {
-    const { parseCredentialKeyring } = await import("../src/lib/platform-crypto");
-    const { countSecretsNeedingReencryption } = await import("../src/lib/ai-connections-core");
-    const pending = await countSecretsNeedingReencryption(database, parseCredentialKeyring());
-    if (pending) console.log(`${pending} credenciais de IA usam uma chave mestra anterior. Execute pnpm platform:admin rotate-key --email <administrador>.`);
-  } catch {
-    console.log("Não foi possível verificar a chave mestra das credenciais de IA. Confira K5_CREDENTIALS_KEY e K5_CREDENTIALS_PREVIOUS_KEYS.");
-  }
-  await database.close();
+    await migratePostgres(pool,new URL('../db/postgres/',import.meta.url));
+    console.log('PostgreSQL pronto: esquema verificado e migrações aplicadas.');
+    const {parseCredentialKeyring} = await import('../src/lib/platform-crypto');
+    const {countSecretsNeedingReencryption} = await import('../src/lib/ai-connections-core');
+    const pending = await countSecretsNeedingReencryption(postgresDatabase(pool),parseCredentialKeyring());
+    if (pending) console.log(`${pending} credenciais de IA usam uma chave anterior. Execute platform:admin rotate-key após configurar o chaveiro.`);
+  } finally { await pool.end(); }
 }
-
-main().catch(() => {
-  console.error("Não foi possível preparar o banco. Confira as variáveis de ambiente e a permissão de escrita em DATABASE_PATH.");
-  process.exitCode = 1;
+main().catch(error=>{
+  // Never print a driver error's connection string or row details.
+  console.error(error instanceof Error && !('code' in error) ? error.message : 'Falha ao preparar PostgreSQL; confira a conexão e as migrações.');
+  process.exitCode=1;
 });

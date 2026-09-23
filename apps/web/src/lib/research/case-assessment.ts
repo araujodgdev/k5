@@ -146,7 +146,7 @@ export async function processNextResearchAssessment(options: { send?: DecisionTr
   if (exhausted.changes) return true;
   const token = randomUUID();
   const row = await database.prepare(`UPDATE research_case_assessment SET status='running',lease_token=?,lease_until=?,attempts=attempts+1,updated_at=CURRENT_TIMESTAMP
-    WHERE id=(SELECT id FROM research_case_assessment WHERE (status='queued' OR (status='running' AND lease_until<?)) AND attempts<5 ORDER BY created_at LIMIT 1)
+    WHERE id=(SELECT id FROM research_case_assessment WHERE (status='queued' OR (status='running' AND lease_until<?)) AND attempts<5 ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED)
       AND (status='queued' OR (status='running' AND lease_until<?)) RETURNING *`)
     .get<AssessmentRow>(token, now + 30_000, now, now);
   if (!row) return false;

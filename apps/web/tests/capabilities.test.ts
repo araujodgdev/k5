@@ -10,7 +10,7 @@ import {
   publishedCapabilitiesForRole,
 } from "../src/lib/capabilities/contracts";
 import { CapabilityError } from "../src/lib/capabilities/errors";
-import { assertCapabilityAllowed, resetSessionColumnCacheForTests, type WorkspaceContext } from "../src/lib/application/context";
+import { assertCapabilityAllowed, type WorkspaceContext } from "../src/lib/application/context";
 import * as vaultService from "../src/lib/application/vault-service";
 import * as artifactsService from "../src/lib/application/artifacts-service";
 import * as conversationsService from "../src/lib/application/conversations-service";
@@ -27,7 +27,7 @@ import * as platformService from "../src/lib/application/platform-service";
 import { grantPlatformAdmin } from "../src/lib/platform-core";
 import { createSecretRef } from "../src/lib/application/secrets-service";
 
-function seedFixture() {
+async function seedFixture() {
   const userAdmin = randomUUID();
   const userLawyer = randomUUID();
   const userReviewer = randomUUID();
@@ -36,24 +36,24 @@ function seedFixture() {
   const officeA = randomUUID();
   const officeB = randomUUID();
 
-  testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?)")
+  (await testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?)")
     .run(
       userAdmin, `admin-${randomUUID()}@alfa.test`, "Admin Alfa",
       userLawyer, `lawyer-${randomUUID()}@alfa.test`, "Lawyer Alfa",
       userReviewer, `reviewer-${randomUUID()}@alfa.test`, "Reviewer Alfa",
       userOfficeB, `user-${randomUUID()}@beta.test`, "User Beta"
-    );
+    ));
 
-  testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?)")
-    .run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia");
+  (await testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?)")
+    .run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia"));
 
-  testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)")
+  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)")
     .run(
       randomUUID(), officeA, userAdmin, "administrator",
       randomUUID(), officeA, userLawyer, "lawyer",
       randomUUID(), officeA, userReviewer, "reviewer",
       randomUUID(), officeB, userOfficeB, "lawyer"
-    );
+    ));
 
   return { userAdmin, userLawyer, userReviewer, userOfficeB, officeA, officeB };
 }
@@ -84,7 +84,7 @@ test("capabilities contract: complete catalog and role permissions", () => {
 
 
 test("authorization: dynamic role check and membership revocation", async () => {
-  const { userAdmin, userReviewer, officeA } = seedFixture();
+  const { userAdmin, userReviewer, officeA } = (await seedFixture());
 
   const adminCtx: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator" };
   const reviewerCtx: WorkspaceContext = { officeId: officeA, userId: userReviewer, role: "reviewer" };
@@ -99,7 +99,7 @@ test("authorization: dynamic role check and membership revocation", async () => 
   );
 
   // Revoke user membership from office
-  testDb.prepare("DELETE FROM office_member WHERE user_id=? AND office_id=?").run(userAdmin, officeA);
+  (await testDb.prepare("DELETE FROM office_member WHERE user_id=? AND office_id=?").run(userAdmin, officeA));
 
   await assert.rejects(
     () => assertCapabilityAllowed(adminCtx, "k5_vault_list_cases"),
@@ -108,14 +108,13 @@ test("authorization: dynamic role check and membership revocation", async () => 
 });
 
 test("authorization: a live session is checked by its resolved column", async () => {
-  const { userAdmin, officeA } = seedFixture();
+  const { userAdmin, officeA } = (await seedFixture());
   const sessionId = randomUUID();
-  testDb.prepare("INSERT INTO session (id, user_id) VALUES (?, ?)").run(sessionId, userAdmin);
-  resetSessionColumnCacheForTests();
+  (await testDb.prepare("INSERT INTO session (id,userId,token,expiresAt,createdAt,updatedAt) VALUES (?,?,gen_random_uuid()::text,CURRENT_TIMESTAMP+INTERVAL '1 day',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)").run(sessionId, userAdmin));
   const context: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator", sessionId };
 
   await assert.doesNotReject(() => assertCapabilityAllowed(context, "k5_vault_list_cases"));
-  testDb.prepare("DELETE FROM session WHERE id = ?").run(sessionId);
+  (await testDb.prepare("DELETE FROM session WHERE id = ?").run(sessionId));
   await assert.rejects(
     () => assertCapabilityAllowed(context, "k5_vault_list_cases"),
     (error: unknown) => error instanceof CapabilityError && error.code === "UNAUTHENTICATED",
@@ -123,7 +122,7 @@ test("authorization: a live session is checked by its resolved column", async ()
 });
 
 test("vault service: idempotent case creation, update and deletion with approval", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   // 1. Create case
@@ -162,17 +161,17 @@ test("vault service: idempotent case creation, update and deletion with approval
 });
 
 test("vault deletion clears stale folders when documents move to another case", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
   const source = await vaultService.createCase(context, { name: `Origem ${randomUUID()}` });
   const target = await vaultService.createCase(context, { name: `Destino ${randomUUID()}` });
   const folder = await vaultService.createFolder(context, { caseId: source.case.id, name: "Pasta antiga" });
   const documentId = randomUUID();
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO vault_document
       (id, office_id, case_id, folder_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
     VALUES (?, ?, ?, ?, 'case', 'prova.pdf', ?, 'application/pdf', 10, 'sha', 'ready', ?)
-  `).run(documentId, officeA, source.case.id, folder.folder.id, `stored-${documentId}.pdf`, userLawyer);
+  `).run(documentId, officeA, source.case.id, folder.folder.id, `stored-${documentId}.pdf`, userLawyer));
 
   const proposal = await approvalsService.createApprovalProposal(context, "k5_vault_delete_case", {
     caseId: source.case.id,
@@ -181,13 +180,13 @@ test("vault deletion clears stale folders when documents move to another case", 
   await approvalsService.approveProposal(context, proposal.id);
   await vaultService.deleteCase(context, { caseId: source.case.id, targetCaseId: target.case.id, approvalId: proposal.id });
 
-  const moved = testDb.prepare("SELECT case_id AS caseId, folder_id AS folderId FROM vault_document WHERE id=?").get(documentId) as { caseId: string; folderId: string | null };
+  const moved = (await testDb.prepare("SELECT case_id AS caseId, folder_id AS folderId FROM vault_document WHERE id=?").get(documentId)) as { caseId: string; folderId: string | null };
   assert.equal(moved.caseId, target.case.id);
   assert.equal(moved.folderId, null);
 });
 
 test("vault deletion can resume after approval consumption", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
   const source = await vaultService.createCase(context, { name: `Retomavel ${randomUUID()}` });
   const proposal = await approvalsService.createApprovalProposal(context, "k5_vault_delete_case", { caseId: source.case.id });
@@ -205,15 +204,15 @@ test("vault deletion can resume after approval consumption", async () => {
   }
 
   assert.equal((await approvalsService.getApprovalProposal(context, proposal.id)).status, "consumed");
-  assert.ok(testDb.prepare("SELECT id FROM vault_case WHERE id=? AND deleted_at IS NULL").get(source.case.id));
+  assert.ok((await testDb.prepare("SELECT id FROM vault_case WHERE id=? AND deleted_at IS NULL").get(source.case.id)));
 
   const retried = await vaultService.deleteCase(context, { caseId: source.case.id, approvalId: proposal.id });
   assert.equal(retried.success, true);
-  assert.equal(testDb.prepare("SELECT id FROM vault_case WHERE id=? AND deleted_at IS NULL").get(source.case.id), undefined);
+  assert.equal((await testDb.prepare("SELECT id FROM vault_case WHERE id=? AND deleted_at IS NULL").get(source.case.id)), undefined);
 });
 
 test("vault document service: versions, tombstone and office isolation", async () => {
-  const { userLawyer, userOfficeB, officeA, officeB } = seedFixture();
+  const { userLawyer, userOfficeB, officeA, officeB } = (await seedFixture());
   const contextA: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
   const contextB: WorkspaceContext = { officeId: officeB, userId: userOfficeB, role: "lawyer" };
 
@@ -251,23 +250,23 @@ test("vault document service: versions, tombstone and office isolation", async (
 });
 
 test("knowledge engine: hybrid retrieval, source inspection and audit", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   // Create a ready document with chunks
   const docId = randomUUID();
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO vault_document (id, office_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
     VALUES (?, ?, 'library', 'contrato-locacao.pdf', ?, 'application/pdf', 1024, 'sha', 'ready', ?)
-  `).run(docId, officeA, `stored-${docId}.pdf`, userLawyer);
+  `).run(docId, officeA, `stored-${docId}.pdf`, userLawyer));
 
   const chunk1Id = randomUUID();
   const chunk2Id = randomUUID();
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content)
     VALUES (?, ?, ?, 0, 'página:1', 'O locatário pagará o aluguel mensal de cinco mil reais.'),
            (?, ?, ?, 1, 'página:2', 'O foro competente para dirimir conflitos é a Comarca de São Paulo.')
-  `).run(chunk1Id, docId, officeA, chunk2Id, docId, officeA);
+  `).run(chunk1Id, docId, officeA, chunk2Id, docId, officeA));
 
   // 1. Search knowledge (returns lexical chunks marked degraded: true because no active vector generation)
   const searchResult = await knowledgeService.searchKnowledge(context, {
@@ -280,7 +279,7 @@ test("knowledge engine: hybrid retrieval, source inspection and audit", async ()
   assert.equal(searchResult.degraded, true);
 
   // 2. Verify audit table
-  const audit = testDb.prepare("SELECT * FROM knowledge_retrieval_audit WHERE office_id=? ORDER BY created_at DESC LIMIT 1").get(officeA) as {
+  const audit = (await testDb.prepare("SELECT * FROM knowledge_retrieval_audit WHERE office_id=? ORDER BY created_at DESC LIMIT 1").get(officeA)) as {
     query: string;
     degraded: number;
     source_count: number;
@@ -312,7 +311,7 @@ test("knowledge engine: hybrid retrieval, source inspection and audit", async ()
 });
 
 test("idempotency: cached execution prevents duplicated writes", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   let counter = 0;
@@ -332,26 +331,26 @@ test("idempotency: cached execution prevents duplicated writes", async () => {
 });
 
 test("artifacts service: version history and rollback restoration", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   // Create a run and artifact
   const runId = randomUUID();
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO ai_run (id, office_id, user_id, kind, input, status)
     VALUES (?, ?, ?, 'draft', '{}', 'completed')
-  `).run(runId, officeA, userLawyer);
+  `).run(runId, officeA, userLawyer));
 
   const artifactId = randomUUID();
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO ai_artifact (id, office_id, user_id, run_id, title, content, version)
     VALUES (?, ?, ?, ?, 'Minuta Inicial', 'Conteúdo da versão 1', 1)
-  `).run(artifactId, officeA, userLawyer, runId);
+  `).run(artifactId, officeA, userLawyer, runId));
 
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO ai_artifact_version (artifact_id, version, title, content, user_id)
     VALUES (?, 1, 'Minuta Inicial', 'Conteúdo da versão 1', ?)
-  `).run(artifactId, userLawyer);
+  `).run(artifactId, userLawyer));
 
   // 1. Update artifact to version 2
   const updated = await artifactsService.saveArtifact(context, {
@@ -378,7 +377,7 @@ test("artifacts service: version history and rollback restoration", async () => 
 });
 
 test("conversations service: lifecycle and processing locking", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   // Create conversation
@@ -390,8 +389,8 @@ test("conversations service: lifecycle and processing locking", async () => {
   assert.equal(got.conversation.title, "Dúvidas Tributárias");
 
   // Mark conversation busy (processing)
-  testDb.prepare("UPDATE ai_conversation SET busy_until=? WHERE id=?")
-    .run(Date.now() + 60_000, created.conversation.id);
+  (await testDb.prepare("UPDATE ai_conversation SET busy_until=? WHERE id=?")
+    .run(Date.now() + 60_000, created.conversation.id));
 
   // Deletion blocked while busy
   await assert.rejects(
@@ -400,13 +399,13 @@ test("conversations service: lifecycle and processing locking", async () => {
   );
 
   // Free conversation and delete
-  testDb.prepare("UPDATE ai_conversation SET busy_until=0 WHERE id=?").run(created.conversation.id);
+  (await testDb.prepare("UPDATE ai_conversation SET busy_until=0 WHERE id=?").run(created.conversation.id));
   const deleted = await conversationsService.deleteConversation(context, { conversationId: created.conversation.id });
   assert.equal(deleted.success, true);
 });
 
-test("agent tools: mastra tools creation and summary formatting", () => {
-  const { userLawyer, officeA } = seedFixture();
+test("agent tools: mastra tools creation and summary formatting", async () => {
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   const tools = agentTools(context);
@@ -468,7 +467,7 @@ test("capability routes: boolean query parameters accept only one exact true or 
 });
 
 test("approval security: rejects modified target resource or modified input arguments", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   const c1 = await vaultService.createCase(context, { name: "Caso Original" });
@@ -496,7 +495,7 @@ test("approval security: rejects modified target resource or modified input argu
 });
 
 test("knowledge engine: vectors fuse with lexical hits and tombstones stay out", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   const docId = randomUUID();
@@ -504,21 +503,21 @@ test("knowledge engine: vectors fuse with lexical hits and tombstones stay out",
   const chunkId2 = randomUUID();
   const genId = randomUUID();
 
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO vault_document (id, office_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
     VALUES (?, ?, 'library', 'contrato-vetor.pdf', 'contrato-vetor.pdf', 'application/pdf', 2048, 'hash-v', 'ready', ?)
-  `).run(docId, officeA, userLawyer);
+  `).run(docId, officeA, userLawyer));
 
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content)
     VALUES (?, ?, ?, 0, 'página:1', 'Cláusula de rescisão antecipada com multa contratual.'),
            (?, ?, ?, 1, 'página:2', 'Foro de eleição na comarca de Curitiba Paraná.')
-  `).run(chunkId1, docId, officeA, chunkId2, docId, officeA);
+  `).run(chunkId1, docId, officeA, chunkId2, docId, officeA));
 
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO knowledge_index_generation (id, office_id, profile_name, model_id, dimension, chunker, status)
     VALUES (?, ?, 'embedding', 'test-embed', 3, 'structural', 'active')
-  `).run(genId, officeA);
+  `).run(genId, officeA));
 
   // The index adapter stores float32 blobs; the query vector is produced by the server, never
   // by the caller, so the test drives the adapter the same way the worker does.
@@ -537,7 +536,7 @@ test("knowledge engine: vectors fuse with lexical hits and tombstones stay out",
   assert.equal(lexical.sources[0].sourceId, chunkId1);
 
   // A tombstoned document is refused even though its vectors are still in the index.
-  testDb.prepare("UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP WHERE id=?").run(docId);
+  (await testDb.prepare("UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP WHERE id=?").run(docId));
   await assert.rejects(
     () => knowledgeService.searchKnowledge(context, { query: "rescisão", documentIds: [docId] }),
     (err: unknown) => err instanceof CapabilityError && err.code === "NOT_FOUND"
@@ -545,15 +544,15 @@ test("knowledge engine: vectors fuse with lexical hits and tombstones stay out",
 });
 
 test("knowledge scope: updating sources for a conversation does not duplicate rows", async () => {
-  const { userLawyer, officeA } = seedFixture();
+  const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   const conv = await conversationsService.createNewConversation(context, { title: "Escopo Conversa" });
   const docId = randomUUID();
-  testDb.prepare(`
+  (await testDb.prepare(`
     INSERT INTO vault_document (id, office_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
     VALUES (?, ?, 'library', 'doc-escopo.pdf', 'doc-escopo.pdf', 'application/pdf', 1000, 'hash', 'ready', ?)
-  `).run(docId, officeA, userLawyer);
+  `).run(docId, officeA, userLawyer));
 
   // Set scope once
   await knowledgeService.setScopeSources(context, { conversationId: conv.conversation.id, documentIds: [docId] });
@@ -561,17 +560,17 @@ test("knowledge scope: updating sources for a conversation does not duplicate ro
   // Set scope second time with same conversation
   await knowledgeService.setScopeSources(context, { conversationId: conv.conversation.id, documentIds: [docId] });
 
-  const rows = testDb.prepare("SELECT count(*) AS n FROM knowledge_scope WHERE office_id=? AND conversation_id=?").get(officeA, conv.conversation.id) as { n: number };
+  const rows = (await testDb.prepare("SELECT count(*) AS n FROM knowledge_scope WHERE office_id=? AND conversation_id=?").get(officeA, conv.conversation.id)) as { n: number };
   assert.equal(rows.n, 1, "There must only be 1 scope record per conversation");
 });
 
 test("ui service: openResource validates resource access and throws NOT_FOUND on cross-office or invalid IDs", async () => {
-  const { userLawyer, officeA, officeB } = seedFixture();
+  const { userLawyer, officeA, officeB } = (await seedFixture());
   const contextA: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
   const foreignCaseId = randomUUID();
-  testDb.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, 'Caso Alheio', ?)")
-    .run(foreignCaseId, officeB, userLawyer);
+  (await testDb.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, 'Caso Alheio', ?)")
+    .run(foreignCaseId, officeB, userLawyer));
 
   // Office A attempting to open Office B's case is refused
   await assert.rejects(
@@ -632,7 +631,7 @@ test("webmcp: every published capability has a route, a schema and typed failure
 
 test("platform service: create, list, and delete AI connection operations", async () => {
   process.env.K5_CREDENTIALS_KEY = randomBytes(32).toString("base64");
-  const { userAdmin, officeA } = seedFixture();
+  const { userAdmin, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator" };
 
   // Make user a platform admin
@@ -675,7 +674,7 @@ test("platform service: create, list, and delete AI connection operations", asyn
 
 
 test("vault drive: a case carries its client data and folders stay inside their own case", async () => {
-  const { userLawyer, officeA, officeB, userOfficeB } = seedFixture();
+  const { userLawyer, officeA, officeB, userOfficeB } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
   const other: WorkspaceContext = { officeId: officeB, userId: userOfficeB, role: "lawyer" };
 
@@ -715,24 +714,24 @@ test("vault drive: a case carries its client data and folders stay inside their 
 });
 
 test("knowledge engine: an empty scope searches this office's Cofre and never another's", async () => {
-  const { userLawyer, officeA, officeB, userOfficeB } = seedFixture();
+  const { userLawyer, officeA, officeB, userOfficeB } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
-  const seedDocument = (officeId: string, userId: string, name: string, text: string) => {
+  const seedDocument = async (officeId: string, userId: string, name: string, text: string) => {
     const documentId = randomUUID();
-    testDb.prepare(`
+    (await testDb.prepare(`
       INSERT INTO vault_document (id, office_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
       VALUES (?, ?, 'library', ?, ?, 'application/pdf', 1024, 'sha', 'ready', ?)
-    `).run(documentId, officeId, name, `stored-${documentId}.pdf`, userId);
-    testDb.prepare(`
+    `).run(documentId, officeId, name, `stored-${documentId}.pdf`, userId));
+    (await testDb.prepare(`
       INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content)
       VALUES (?, ?, ?, 0, 'página:1', ?)
-    `).run(randomUUID(), documentId, officeId, text);
+    `).run(randomUUID(), documentId, officeId, text));
     return documentId;
   };
 
-  const mine = seedDocument(officeA, userLawyer, "laudo-pericial.pdf", "O laudo pericial apontou infiltração na laje.");
-  seedDocument(officeB, userOfficeB, "laudo-alheio.pdf", "O laudo pericial do escritório vizinho.");
+  const mine = await seedDocument(officeA, userLawyer, "laudo-pericial.pdf", "O laudo pericial apontou infiltração na laje.");
+  await seedDocument(officeB, userOfficeB, "laudo-alheio.pdf", "O laudo pericial do escritório vizinho.");
 
   const result = await knowledgeService.searchKnowledge(context, { query: "laudo pericial" });
   assert.ok(result.sources.length > 0, "the whole Cofre is in scope when no document is named");

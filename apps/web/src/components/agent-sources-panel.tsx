@@ -18,7 +18,7 @@ export type VaultDocumentSummary = {
   status: "queued" | "processing" | "ready" | "failed" | string;
 };
 
-/** What this conversation has on its desk. `caseId` is where new uploads land, not a filter on answers. */
+/** Existing Vault documents and case references selected by the person for this conversation. */
 export type AgentContext = {
   caseId: string | null;
   documentIds: string[];
@@ -40,7 +40,7 @@ async function responseError(response: Response, fallback: string) {
 }
 
 /**
- * A plain view of the files attached to this conversation, and a way to add or remove one.
+ * Existing Vault material selected for this conversation. Chat uploads live with their messages.
  * It does not decide what the person is here to do: work is asked for in the conversation.
  */
 export function AgentSourcesPanel({ context, onChange, onClose }: {

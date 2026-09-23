@@ -49,7 +49,7 @@ export async function claimRun(db: Database): Promise<RunRow | undefined> {
   const now = Date.now();
   const token = randomUUID();
   return await db.prepare(`UPDATE ai_run SET status='running',lease_until=?,lease_token=?,attempts=attempts+1,updated_at=CURRENT_TIMESTAMP
-    WHERE id=(SELECT id FROM ai_run WHERE (status='queued' OR (status='running' AND lease_until<?)) AND attempts<5 ORDER BY created_at LIMIT 1)
+    WHERE id=(SELECT id FROM ai_run WHERE (status='queued' OR (status='running' AND lease_until<?)) AND attempts<5 ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED)
     RETURNING *`).get(now + 300_000, token, now) as RunRow | undefined;
 }
 export async function ownedRun(db: Database, owner: Owner, id: string) {

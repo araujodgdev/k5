@@ -99,7 +99,7 @@ export async function listJobs(
     SELECT j.* FROM judicial_sync_job j
     LEFT JOIN judicial_case_link l ON l.id = j.link_id
     WHERE ${clauses.join(' AND ')}
-    ORDER BY j.created_at DESC, j.rowid DESC LIMIT ?
+    ORDER BY j.created_at DESC, j.sequence_no DESC LIMIT ?
   `).all(...params, limit) as JobRow[];
   return rows.map(toJob);
 }
@@ -116,7 +116,7 @@ export async function latestJobsForLinks(
   const rows = await database.prepare(`
     SELECT ranked.* FROM (
       SELECT j.*, ROW_NUMBER() OVER (
-        PARTITION BY j.link_id ORDER BY j.created_at DESC, j.rowid DESC
+        PARTITION BY j.link_id ORDER BY j.created_at DESC, j.sequence_no DESC
       ) AS row_number
       FROM judicial_sync_job j
       WHERE j.office_id = ? AND j.link_id IN (${placeholders}) ${statusClause}
@@ -213,7 +213,7 @@ export async function claimJob(now = Date.now()): Promise<{ job: SyncJob; leaseO
         AND j.attempts < ? AND j.run_after <= ? AND i.enabled = 1
       -- Routine refreshes go first: a long backfill must not starve today's publications.
       ORDER BY CASE j.kind WHEN 'manual' THEN 0 WHEN 'refresh' THEN 1 ELSE 2 END, j.created_at
-      LIMIT 1
+      LIMIT 1 FOR UPDATE OF j SKIP LOCKED
     )
       AND ${eligible}
     RETURNING *

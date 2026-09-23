@@ -4,6 +4,8 @@ import { sentryBuildOptions } from './scripts/sentry-build';
 import vinext from "vinext";
 import { cloudflare } from "@cloudflare/vite-plugin";
 // import.meta.dirname rather than __dirname: this package is ESM ("type": "module").
+const localDatabase = loadEnv('development',process.cwd(),'DATABASE_URL').DATABASE_URL;
+if (localDatabase) process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE ??= localDatabase;
 
 export default defineConfig(({ mode }) => ({
   define: {

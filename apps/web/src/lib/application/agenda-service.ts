@@ -42,7 +42,7 @@ export async function getClient(context: WorkspaceContext, input: Input<'k5_crm_
 export async function listClients(context: WorkspaceContext, input: Input<'k5_crm_list_clients'>) {
   const where = ['office_id=?'];
   const params: unknown[] = [context.officeId];
-  if (input.query) { where.push('instr(lower(name), lower(?))>0'); params.push(input.query); }
+  if (input.query) { where.push('strpos(lower(name), lower(?))>0'); params.push(input.query); }
   if (input.stage) { where.push('stage=?'); params.push(input.stage); }
   if (input.caseId) { where.push('id IN (SELECT client_id FROM crm_client_case WHERE office_id=? AND case_id=?)'); params.push(context.officeId, input.caseId); }
   const filter = where.join(' AND ');
@@ -56,8 +56,9 @@ async function saveClient(context: WorkspaceContext, value: Omit<CrmClient, 'cre
   for (const caseId of caseIds) await validateReferences(context, { caseId });
   const token = randomUUID();
   const now = new Date().toISOString();
+  // Both the primary key and office-scoped identity can conflict during a concurrent retry.
   const write = creating
-    ? database.prepare('INSERT INTO crm_client(id,office_id,name,email,phone,notes,stage,version,created_at,updated_at,mutation_token) VALUES(?,?,?,?,?,?,?,1,?,?,?) ON CONFLICT(id) DO NOTHING')
+    ? database.prepare('INSERT INTO crm_client(id,office_id,name,email,phone,notes,stage,version,created_at,updated_at,mutation_token) VALUES(?,?,?,?,?,?,?,1,?,?,?) ON CONFLICT DO NOTHING')
       .bind(value.id, context.officeId, value.name, value.email || null, value.phone || null, value.notes, value.stage, now, now, token)
     : database.prepare('UPDATE crm_client SET name=?,email=?,phone=?,notes=?,stage=?,version=version+1,updated_at=?,mutation_token=? WHERE id=? AND office_id=? AND version=?')
       .bind(value.name, value.email || null, value.phone || null, value.notes, value.stage, now, token, value.id, context.officeId, value.version);
@@ -104,18 +105,18 @@ export async function listActivities(context: WorkspaceContext, input: Input<'k5
   for (const [field, value] of [['kind', input.kind], ['status', input.status], ['client_id', input.clientId], ['case_id', input.caseId], ['assignee_id', input.assigneeId]] as const) {
     if (value) { where.push(`${field}=?`); params.push(value); }
   }
-  if (input.query) { where.push('instr(lower(title),lower(?))>0'); params.push(input.query); }
+  if (input.query) { where.push('strpos(lower(title),lower(?))>0'); params.push(input.query); }
   const task: string[] = []; const meeting: string[] = []; const dates: unknown[] = [];
   if (input.dueFrom) { task.push('due_on>=?'); dates.push(input.dueFrom); }
   if (input.dueTo) { task.push('due_on<=?'); dates.push(input.dueTo); }
   if (input.from) { meeting.push('ends_at>?'); dates.push(input.from); }
   if (input.to) { meeting.push('starts_at<?'); dates.push(input.to); }
   if (task.length || meeting.length) {
-    where.push(`((kind='task' AND ${task.length ? task.join(' AND ') : '0'}) OR (kind='meeting' AND ${meeting.length ? meeting.join(' AND ') : '0'}))`);
+    where.push(`((kind='task' AND ${task.length ? task.join(' AND ') : 'false'}) OR (kind='meeting' AND ${meeting.length ? meeting.join(' AND ') : 'false'}))`);
     params.push(...dates);
   }
   const filter = where.join(' AND ');
-  const rows = await database.prepare(`SELECT ${activityColumns} FROM agenda_activity WHERE ${filter} ORDER BY coalesce(due_on,starts_at,'9999'),id LIMIT ? OFFSET ?`).all(...params, input.limit, input.offset);
+  const rows = await database.prepare(`SELECT ${activityColumns} FROM agenda_activity WHERE ${filter} ORDER BY coalesce(due_on::date::timestamptz,starts_at) NULLS LAST,id LIMIT ? OFFSET ?`).all(...params, input.limit, input.offset);
   const count = await database.prepare(`SELECT count(*) AS total FROM agenda_activity WHERE ${filter}`).get<{ total: number }>(...params);
   return { activities: rows.map(row => activityDto.parse(row)), total: count!.total };
 }
@@ -133,7 +134,8 @@ export async function createActivity(context: WorkspaceContext, input: Input<'k5
     intendedRecipientIds: value.assigneeId ? [value.assigneeId] : [],
     data: { activityTitle: value.title, assigneeId: value.assigneeId, previousAssigneeId: null }, createdAt: now,
   });
-  const inserted = await commitActivity(context, id, token, database.prepare('INSERT INTO agenda_activity(id,office_id,kind,title,notes,status,due_on,starts_at,ends_at,client_id,case_id,assignee_id,created_by,created_at,updated_at,mutation_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING')
+  // Cover both identity indexes; the persisted payload is checked before accepting a replay.
+  const inserted = await commitActivity(context, id, token, database.prepare('INSERT INTO agenda_activity(id,office_id,kind,title,notes,status,due_on,starts_at,ends_at,client_id,case_id,assignee_id,created_by,created_at,updated_at,mutation_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING')
     .bind(id, context.officeId, value.kind, value.title, value.notes, value.status, value.dueOn, value.startsAt, value.endsAt, value.clientId, value.caseId, value.assigneeId, context.userId, now, now, token), [event]);
   const result = await getActivity(context, { activityId: id });
   if (!inserted.changes && JSON.stringify(activityData.parse(result.activity)) !== JSON.stringify(value)) throw conflict();
@@ -180,9 +182,9 @@ async function commitActivity(context: WorkspaceContext, activityId: string, tok
   const confirmation = context.agendaConfirmation;
   const writes = [mutation, ...extra];
   if (confirmation) writes.push(database.prepare(`UPDATE agenda_proposal SET status='applied',result=(
-    SELECT json_object('activity',json_object('id',id,'kind',kind,'title',title,'notes',notes,'status',status,
-    'dueOn',due_on,'startsAt',starts_at,'endsAt',ends_at,'clientId',client_id,'caseId',case_id,'assigneeId',assignee_id,
-    'version',version,'createdAt',created_at,'updatedAt',updated_at)) FROM agenda_activity WHERE id=? AND office_id=? AND mutation_token=?)
+    SELECT json_build_object('activity',json_build_object('id',id,'kind',kind,'title',title,'notes',notes,'status',status,
+    'dueOn',due_on,'startsAt',to_char(starts_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),'endsAt',to_char(ends_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),'clientId',client_id,'caseId',case_id,'assigneeId',assignee_id,
+    'version',version,'createdAt',to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),'updatedAt',to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))) FROM agenda_activity WHERE id=? AND office_id=? AND mutation_token=?)
     WHERE id=? AND office_id=? AND user_id=? AND confirmation_hash=? AND EXISTS(SELECT 1 FROM agenda_activity WHERE id=? AND office_id=? AND mutation_token=?)`)
     .bind(activityId, context.officeId, token, confirmation.proposalId, context.officeId, context.userId, confirmation.hash, activityId, context.officeId, token));
   return (await database.batch(writes))[0];

@@ -133,7 +133,7 @@ async function claimIndexJob(): Promise<{ job: JobRow; owner: string } | undefin
   const claimable = "(status = 'queued' OR (status = 'running' AND lease_until < ?)) AND attempts < ?";
   const job = await database.prepare(
     `UPDATE knowledge_index_job SET status = 'running', lease_owner = ?, lease_until = ?, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP
-     WHERE id = (SELECT id FROM knowledge_index_job WHERE ${claimable} ORDER BY created_at LIMIT 1)
+     WHERE id = (SELECT id FROM knowledge_index_job WHERE ${claimable} ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED)
        AND ${claimable}
      RETURNING id, office_id, document_id, generation_id, cursor_ordinal, chunks_total, chunks_done, attempts`,
   ).get<JobRow>(owner, now + LEASE_MS, now, MAX_ATTEMPTS, now, MAX_ATTEMPTS);
@@ -214,7 +214,7 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
       id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
       intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
     ) SELECT ?,j.office_id,'vault.index.ready',1,'document',j.document_id,NULL,NULL,
-      json_array(d.created_by),?, ?,0,1,?,? FROM knowledge_index_job j
+      json_build_array(d.created_by),?, ?,0,1,?,? FROM knowledge_index_job j
       JOIN vault_document d ON d.id=j.document_id AND d.office_id=j.office_id
       WHERE j.id=? AND j.office_id=? AND j.status='completed' AND j.lease_owner=?
       ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(
@@ -255,7 +255,7 @@ export async function processNextIndexJob(): Promise<boolean> {
           id,office_id,event_type,payload_version,source_kind,source_id,source_version,actor_user_id,
           intended_recipients_json,data_json,dedupe_key,historical,push_eligible,created_at,expires_at
         ) SELECT ?,j.office_id,'vault.index.failed',1,'document',j.document_id,NULL,NULL,
-          json_array(d.created_by),?,?,0,1,?,? FROM knowledge_index_job j
+          json_build_array(d.created_by),?,?,0,1,?,? FROM knowledge_index_job j
           JOIN vault_document d ON d.id=j.document_id AND d.office_id=j.office_id
           WHERE j.id=? AND j.office_id=? AND j.status='failed' AND j.lease_owner=?
           ON CONFLICT(office_id,dedupe_key) DO NOTHING`).bind(

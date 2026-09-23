@@ -270,10 +270,10 @@ export async function getCaseFollowState(context: WorkspaceContext, caseId: stri
 export async function setCaseFollowState(context: WorkspaceContext, caseId: string, following: boolean, db: Database = defaultDatabase) {
   const now = new Date().toISOString();
   if (following) {
-    await db.prepare(`INSERT OR IGNORE INTO notification_follow(id,office_id,case_id,user_id,started_at)
+    await db.prepare(`INSERT INTO notification_follow(id,office_id,case_id,user_id,started_at)
       SELECT ?,?,?,?,? FROM vault_case c
       WHERE c.office_id=? AND c.id=? AND c.deleted_at IS NULL
-        AND EXISTS(SELECT 1 FROM office_member m WHERE m.office_id=c.office_id AND m.user_id=?)`)
+        AND EXISTS(SELECT 1 FROM office_member m WHERE m.office_id=c.office_id AND m.user_id=?) ON CONFLICT DO NOTHING`)
       .run(randomUUID(), context.officeId, caseId, context.userId, now,
         context.officeId, caseId, context.userId);
   } else {

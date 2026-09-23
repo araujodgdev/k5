@@ -1,7 +1,6 @@
+import { postgresFixture } from './postgres-fixture';
 import assert from "node:assert/strict";
 import { createCipheriv, randomBytes, randomUUID } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
-import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
   AI_PROVIDERS, AiConnectionError, connectionInputSchema, connectionPatchSchema, connectionTestSchema, countSecretsNeedingReencryption, createAiConnection, deleteAiConnection,
@@ -17,18 +16,13 @@ import {
 import { resolveModelConfig } from "@mastra/core/llm";
 import { DEFAULT_CHAT_MODEL } from "../src/lib/ai-defaults";
 import { modelFor } from "../src/lib/ai-providers";
-import { nodeSqliteDatabase } from "../src/lib/db/node-sqlite";
 
-function fixture() {
-  const db = new DatabaseSync(":memory:");
-  db.exec("PRAGMA foreign_keys = ON; CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL, name TEXT NOT NULL);");
-  for (const file of readdirSync(new URL('../db/migrations/', import.meta.url)).filter(name => name.endsWith('.sql')).sort()) {
-    db.exec(readFileSync(new URL(`../db/migrations/${file}`, import.meta.url), 'utf8'));
-  }
+async function fixture() {
+  const { db } = await postgresFixture();
   const admin = randomUUID(), outsider = randomUUID(), officeA = randomUUID(), officeB = randomUUID();
-  db.prepare("INSERT INTO user (id,email,name) VALUES (?,?,?),(?,?,?)").run(admin, "admin@example.test", "Admin", outsider, "other@example.test", "Other");
-  db.prepare("INSERT INTO office (id,name) VALUES (?,?),(?,?)").run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia");
-  return { db, database: nodeSqliteDatabase(db), admin, outsider, officeA, officeB, key: randomBytes(32) };
+  (await db.prepare("INSERT INTO user (id,email,name) VALUES (?,?,?),(?,?,?)").run(admin, "admin@example.test", "Admin", outsider, "other@example.test", "Other"));
+  (await db.prepare("INSERT INTO office (id,name) VALUES (?,?),(?,?)").run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia"));
+  return { db, database: db, admin, outsider, officeA, officeB, key: randomBytes(32) };
 }
 
 test("AES-256-GCM round trips and rejects wrong master keys and malformed env values", () => {
@@ -43,7 +37,7 @@ test("AES-256-GCM round trips and rejects wrong master keys and malformed env va
 });
 
 test("platform role is independent and revocation takes effect immediately", async () => {
-  const { database, admin, outsider } = fixture();
+  const { database, admin, outsider } = (await fixture());
   assert.equal(await isPlatformAdmin(database, admin), false);
   assert.equal(await grantPlatformAdmin(database, admin), true);
   assert.equal(await grantPlatformAdmin(database, admin), false);
@@ -68,7 +62,7 @@ test("writes require an allowed same origin", () => {
 });
 
 test("connections are office isolated, masked, audited, rotated and resolved by task", async () => {
-  const { db, database, admin, officeA, officeB, key } = fixture();
+  const { db, database, admin, officeA, officeB, key } = (await fixture());
   await grantPlatformAdmin(database, admin);
   const a = await createAiConnection(database, key, admin, officeA, { name: "Principal", provider: "openai", apiKey: "sk-office-a-secret", models: { chat: "gpt-chat", extraction: null, drafting: "gpt-draft" } });
   const b = await createAiConnection(database, key, admin, officeB, { name: "Principal", provider: "anthropic", apiKey: "sk-office-b-secret", models: { chat: "claude-chat", extraction: null, drafting: null } });
@@ -84,11 +78,11 @@ test("connections are office isolated, masked, audited, rotated and resolved by 
   await updateAiConnection(database, key, admin, officeA, a.id, { enabled: false });
   await assert.rejects(() => resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat"), (error) => error instanceof AiConnectionError && error.code === "not_found");
   await updateAiConnection(database, key, admin, officeA, a.id, { enabled: true });
-  assert.ok(Number(db.prepare("SELECT count(*) total FROM platform_audit_log WHERE office_id = ?").get(officeA)?.total) >= 2);
+  assert.ok(Number((await db.prepare("SELECT count(*) total FROM platform_audit_log WHERE office_id = ?").get(officeA))?.total) >= 2);
 });
 
 test("task assignment is exclusive and deletion erases the secret after assignments are removed", async () => {
-  const { db, database, admin, officeA, key } = fixture();
+  const { db, database, admin, officeA, key } = (await fixture());
   const first = await createAiConnection(database, key, admin, officeA, { name: "Primeira", provider: "openai", apiKey: "first-secret", models: { chat: "first-model", extraction: null, drafting: null } });
   const second = await createAiConnection(database, key, admin, officeA, { name: "Segunda", provider: "google", apiKey: "second-secret", models: { chat: "second-model", extraction: null, drafting: null } });
   assert.equal((await listAiConnections(database, officeA)).find((item) => item.id === first.id)?.models.chat, null);
@@ -97,13 +91,13 @@ test("task assignment is exclusive and deletion erases the secret after assignme
   await updateAiConnection(database, key, admin, officeA, second.id, { models: { chat: null, extraction: null, drafting: null } });
   await deleteAiConnection(database, admin, officeA, second.id);
   assert.equal((await listAiConnections(database, officeA)).length, 1);
-  const deleted = db.prepare("SELECT encrypted_api_key, deleted_at FROM ai_connection WHERE id = ?").get(second.id) as { encrypted_api_key: string | null; deleted_at: string | null };
+  const deleted = (await db.prepare("SELECT encrypted_api_key, deleted_at FROM ai_connection WHERE id = ?").get(second.id)) as { encrypted_api_key: string | null; deleted_at: string | null };
   assert.equal(deleted.encrypted_api_key, null);
   assert.ok(deleted.deleted_at);
 });
 
 test("platform model choice applies to chat, extraction and drafting in one office", async () => {
-  const { database, admin, officeA, officeB, key } = fixture();
+  const { database, admin, officeA, officeB, key } = (await fixture());
   const old = await createAiConnection(database, key, admin, officeA, {
     name: "Anterior", provider: "anthropic", apiKey: "sk-old",
     models: { chat: "claude-old", extraction: "claude-old", drafting: "claude-old" },
@@ -166,11 +160,11 @@ test("master key versioning: key id in envelope, previous keys decrypt, legacy v
 });
 
 test("rotation re-encrypts every live secret with the current key, audits without secrets and is atomic", async () => {
-  const { db, database, admin, officeA, officeB } = fixture();
+  const { db, database, admin, officeA, officeB } = (await fixture());
   const oldKey = randomBytes(32), newKey = randomBytes(32);
   const a = await createAiConnection(database, oldKey, admin, officeA, { name: "Alfa", provider: "openai", apiKey: "sk-alpha-rotation", models: { chat: "m-a", extraction: null, drafting: null } });
   const b = await createAiConnection(database, oldKey, admin, officeB, { name: "Beta", provider: "google", apiKey: "sk-beta-rotation", models: { chat: "m-b", extraction: null, drafting: null } });
-  db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?").run(legacyV1("sk-beta-rotation", oldKey), b.id);
+  (await db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?").run(legacyV1("sk-beta-rotation", oldKey), b.id));
   const gone = await createAiConnection(database, oldKey, admin, officeA, { name: "Removida", provider: "anthropic", apiKey: "sk-gone", models: {} });
   await deleteAiConnection(database, admin, officeA, gone.id);
   const keyring = createCredentialKeyring(newKey, [oldKey]);
@@ -180,19 +174,19 @@ test("rotation re-encrypts every live secret with the current key, audits withou
   assert.equal((await reencryptAiConnectionSecrets(database, keyring, admin)).reencrypted, 0);
   assert.equal((await resolveOfficeModelConfigFromDatabase(database, newKey, officeA, "chat")).apiKey, "sk-alpha-rotation");
   assert.equal((await resolveOfficeModelConfigFromDatabase(database, newKey, officeB, "chat")).apiKey, "sk-beta-rotation");
-  const audit = JSON.stringify(db.prepare("SELECT * FROM platform_audit_log WHERE action = 'ai_connection.master_key_reencrypted'").all());
+  const audit = JSON.stringify((await db.prepare("SELECT * FROM platform_audit_log WHERE action = 'ai_connection.master_key_reencrypted'").all()));
   assert.ok(audit.includes(a.id) && audit.includes(b.id));
   assert.equal(/sk-alpha|sk-beta/.test(audit) || audit.includes(newKey.toString("base64")) || audit.includes(oldKey.toString("base64")), false);
 
-  db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?").run(encryptCredential("sk-alpha-rotation", randomBytes(32)), a.id);
-  const before = db.prepare("SELECT encrypted_api_key FROM ai_connection ORDER BY id").all();
+  (await db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?").run(encryptCredential("sk-alpha-rotation", randomBytes(32)), a.id));
+  const before = (await db.prepare("SELECT encrypted_api_key FROM ai_connection ORDER BY id").all());
   await assert.rejects(() => reencryptAiConnectionSecrets(database, createCredentialKeyring(randomBytes(32), [newKey]), admin), (error) => error instanceof AiConnectionError && error.code === "credential" && !error.message.includes("sk-"));
-  assert.deepEqual(db.prepare("SELECT encrypted_api_key FROM ai_connection ORDER BY id").all(), before);
+  assert.deepEqual((await db.prepare("SELECT encrypted_api_key FROM ai_connection ORDER BY id").all()), before);
   await assert.rejects(() => resolveOfficeModelConfigFromDatabase(database, newKey, officeA, "chat"), (error) => error instanceof AiConnectionError && error.code === "credential");
 });
 
 test("connection test accepts any enabled connection, hides provider failures and audits without secrets", async () => {
-  const { db, database, admin, officeA, officeB, key } = fixture();
+  const { db, database, admin, officeA, officeB, key } = (await fixture());
   const chat = await createAiConnection(database, key, admin, officeA, { name: "Conversa", provider: "openai", apiKey: "sk-chat-test-secret", models: { chat: "gpt-chat", extraction: null, drafting: null } });
   const extraction = await createAiConnection(database, key, admin, officeA, { name: "Extração", provider: "anthropic", apiKey: "sk-extract-test-secret", models: { chat: null, extraction: "claude-extract", drafting: null } });
   const other = await createAiConnection(database, key, admin, officeB, { name: "Outro", provider: "google", apiKey: "sk-office-b-test", models: { chat: "gem", extraction: null, drafting: null } });
@@ -208,7 +202,7 @@ test("connection test accepts any enabled connection, hides provider failures an
     && error.message === "O provider recusou a requisição de teste. Confira a chave e o modelo.");
   await updateAiConnection(database, key, admin, officeA, chat.id, { enabled: false });
   await assert.rejects(testAiConnection(database, key, admin, officeA, chat.id, "chat", ok), (error) => error instanceof AiConnectionError && error.code === "disabled");
-  const rows = db.prepare("SELECT actor_user_id, office_id, connection_id, details_json FROM platform_audit_log WHERE action = 'ai_connection.tested' ORDER BY rowid").all() as Array<{ actor_user_id: string; office_id: string; connection_id: string; details_json: string }>;
+  const rows = (await db.prepare("SELECT actor_user_id, office_id, connection_id, details_json FROM platform_audit_log WHERE action = 'ai_connection.tested' ORDER BY created_at,id").all()) as Array<{ actor_user_id: string; office_id: string; connection_id: string; details_json: string }>;
   assert.deepEqual(rows.map((row) => [row.actor_user_id, row.office_id, row.connection_id, JSON.parse(row.details_json).task, JSON.parse(row.details_json).result]), [
     [admin, officeA, extraction.id, "extraction", "ok"], [admin, officeA, extraction.id, "chat", "ok"], [admin, officeA, chat.id, "chat", "failed"],
   ]);
@@ -249,7 +243,7 @@ test("error responses never log or return secret-bearing messages", async (t) =>
 });
 
 test("concurrent resolution per office uses its own credential and never falls back to another office", async () => {
-  const { database, admin, officeA, officeB, key } = fixture();
+  const { database, admin, officeA, officeB, key } = (await fixture());
   await createAiConnection(database, key, admin, officeA, { name: "Alfa", provider: "openai", apiKey: "sk-office-a-only", models: { chat: "gpt-a", extraction: null, drafting: null } });
   const b = await createAiConnection(database, key, admin, officeB, { name: "Beta", provider: "anthropic", apiKey: "sk-office-b-only", models: { chat: "claude-b", extraction: null, drafting: null } });
   const resolve = async (officeId: string) => {
@@ -281,7 +275,7 @@ test("concurrent resolution per office uses its own credential and never falls b
 });
 
 test("every supported provider can be stored and resolved with its own credential", async () => {
-  const { database, admin, officeA, key } = fixture();
+  const { database, admin, officeA, key } = (await fixture());
   for (const provider of AI_PROVIDERS) {
     const created = await createAiConnection(database, key, admin, officeA, {
       name: `Conexão ${provider}`, provider, apiKey: `sk-${provider}-live`,
@@ -297,7 +291,7 @@ test("every supported provider can be stored and resolved with its own credentia
 });
 
 test("dynamic model resolution supports an internally pinned run model", async () => {
-  const { database, admin, officeA, key } = fixture();
+  const { database, admin, officeA, key } = (await fixture());
   // Admin creates connection with only provider and apiKey, no assigned models
   await createAiConnection(database, key, admin, officeA, {
     name: "Inception Principal",

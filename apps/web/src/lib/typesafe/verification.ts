@@ -34,7 +34,7 @@ async function evidenceFor(officeId: string, units: VerificationUnit[]) {
   const ids = [...new Set(units.flatMap(unit => unit.evidence.map(e => e.sourceId)))];
   if (!ids.length) return [];
   return database.prepare(`SELECT c.id,c.document_id AS documentId,d.original_name || ' — ' || c.stable_reference AS sourceLabel,c.content,d.sha256,
-    coalesce((SELECT group_concat(n.content,char(10)) FROM vault_document_chunk n WHERE n.office_id=c.office_id AND n.document_id=c.document_id AND n.ordinal BETWEEN c.ordinal-1 AND c.ordinal+1),'') AS context
+    coalesce((SELECT string_agg(n.content,chr(10) ORDER BY n.ordinal) FROM vault_document_chunk n WHERE n.office_id=c.office_id AND n.document_id=c.document_id AND n.ordinal BETWEEN c.ordinal-1 AND c.ordinal+1),'') AS context
     FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
     WHERE c.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND c.id IN (${ids.map(() => '?').join(',')}) ORDER BY c.id`).all<Evidence>(officeId, ...ids);
 }
@@ -56,13 +56,13 @@ export async function enqueueVerification(owner: Owner, artifact: ArtifactRow, u
       SELECT 1 FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? AND artifact_version=? AND content_hash=? AND status IN ('queued','running')
     )`).run(id, owner.officeId, owner.userId, artifact.id, artifact.version, hash, snapshot(evidence), JSON.stringify(units), units.length, config.documents_mode, config.model, supportVersion,
       owner.officeId, owner.userId, artifact.id, artifact.version, hash);
-  const queued = await database.prepare("SELECT id FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? AND artifact_version=? AND content_hash=? AND status IN ('queued','running') ORDER BY rowid DESC LIMIT 1")
+  const queued = await database.prepare("SELECT id FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? AND artifact_version=? AND content_hash=? AND status IN ('queued','running') ORDER BY sequence_no DESC LIMIT 1")
     .get<{ id: string }>(owner.officeId, owner.userId, artifact.id, artifact.version, hash);
   return queued?.id ?? id;
 }
 export async function requestVerification(context: WorkspaceContext, input: { artifactId: string }) {
   const artifact = await artifactFor(context, input.artifactId);
-  const prior = await database.prepare('SELECT units,content_hash FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1')
+  const prior = await database.prepare('SELECT units,content_hash FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? ORDER BY created_at DESC,sequence_no DESC LIMIT 1')
     .get<{ units: string; content_hash: string }>(context.officeId, context.userId, artifact.id);
   const original = prior ? verificationUnit.array().parse(JSON.parse(prior.units)) : [];
   // Changed prose does not inherit the previous paragraph's citations. Unbound text is explicitly unverified.
@@ -79,7 +79,7 @@ async function isCurrent(job: Job, units: VerificationUnit[]) {
 }
 export async function getVerification(context: WorkspaceContext, input: { artifactId: string }): Promise<{ verification: VerificationReport | null }> {
   await artifactFor(context, input.artifactId);
-  const job = await database.prepare('SELECT * FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1')
+  const job = await database.prepare('SELECT * FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? ORDER BY created_at DESC,sequence_no DESC LIMIT 1')
     .get<Job>(context.officeId, context.userId, input.artifactId);
   if (!job) return { verification: null };
   const current = await isCurrent(job, verificationUnit.array().parse(JSON.parse(job.units)));
@@ -90,7 +90,7 @@ export async function processNextVerification(options: { send?: DecisionTranspor
   const now = Date.now(); const token = randomUUID();
   await database.prepare("UPDATE artifact_verification SET status='incomplete' WHERE status='running' AND lease_until<? AND attempts>=5").run(now);
   const job = await database.prepare(`UPDATE artifact_verification SET status='running',lease_token=?,lease_until=?,attempts=attempts+1
-    WHERE id=(SELECT id FROM artifact_verification WHERE status='queued' OR (status='running' AND lease_until<? AND attempts<5) ORDER BY created_at LIMIT 1) RETURNING *`).get<Job>(token, now + 30000, now);
+    WHERE id=(SELECT id FROM artifact_verification WHERE status='queued' OR (status='running' AND lease_until<? AND attempts<5) ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING *`).get<Job>(token, now + 30000, now);
   if (!job) return false;
   const units = verificationUnit.array().parse(JSON.parse(job.units));
   const results = verificationItem.array().parse(JSON.parse(job.results));

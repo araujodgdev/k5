@@ -1,3 +1,4 @@
+import { captureOperationalError } from '@/lib/observability/report';
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
@@ -53,8 +54,8 @@ async function processSearchPage(job: ResearchJobRow, transport: Transport, work
     throw new ResearchError('forbidden','Autorização da pesquisa revogada durante a consulta.');
   }
   for (const rejection of sourcePage.rejections) {
-    await database.prepare(`INSERT OR IGNORE INTO research_quarantine
-      (id,office_id,user_id,job_id,record_index,reason,payload_sha256,payload_json) VALUES(?,?,?,?,?,?,?,?)`)
+    await database.prepare(`INSERT INTO research_quarantine
+      (id,office_id,user_id,job_id,record_index,reason,payload_sha256,payload_json) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`)
       .run(randomUUID(),job.office_id,job.user_id,job.id,rejection.index,rejection.reason,rejection.sha256,rejection.payloadJson);
   }
   const filters = JSON.parse(search.filters_json) as SearchFilters;
@@ -75,8 +76,8 @@ async function processSearchPage(job: ResearchJobRow, transport: Transport, work
     if (position>=RESEARCH_PAGE_SIZE) break;
     if (seen.has(id)) continue;
     const ementa = await materialByJudgment(id,'ementa');
-    const added = await database.prepare(`INSERT OR IGNORE INTO research_search_result
-      (id,search_id,page_id,judgment_id,position,origin,version_seen_id) VALUES(?,?,?,?,?,'source',?)`)
+    const added = await database.prepare(`INSERT INTO research_search_result
+      (id,search_id,page_id,judgment_id,position,origin,version_seen_id) VALUES(?,?,?,?,?,'source',?) ON CONFLICT DO NOTHING`)
       .run(randomUUID(),job.search_id,job.page_id,id,position,ementa?.current_version_id ?? null);
     if (added.changes===1) {
       seen.add(id);
@@ -184,6 +185,7 @@ export async function processNextResearchExternalJob(options: { transport?:Trans
         SET status='queued',source_error='budget_exceeded',updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(job.page_id);
       return {jobId:job.id,status:'deferred'};
     }
+    captureOperationalError(error,'research.external');
     const code=error instanceof ConnectorError ? error.code : error instanceof ResearchError ? error.code : 'unexpected';
     const retryable=error instanceof ConnectorError ? isRetryable(error.code) : error instanceof ResearchError && error.code==='budget_exceeded';
     await failResearchJob(job,workerId,code,retryable,error instanceof ConnectorError ? (error.retryAfterSeconds ?? 0)*1000 : undefined);

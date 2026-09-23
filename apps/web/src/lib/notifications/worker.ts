@@ -6,7 +6,7 @@ import { categoryForEvent, DEFAULT_TIMEZONE, quietUntil, reminderInstant } from 
 import { decryptPushSubscription } from './subscriptions';
 import { PushTransportError, type PushSender } from './push-contract';
 
-const categoryPreferenceSql = (category: string) => `COALESCE(json_extract(p.categories_json,'$.${category}'),1)=1`;
+const categoryPreferenceSql = (category: string) => `COALESCE((p.categories_json::jsonb->>'${category}')::boolean,true)`;
 let lastRetentionWindow: string | null = null;
 
 type ClaimedEvent = {
@@ -45,7 +45,7 @@ export async function projectNextNotification(db: Database = defaultDatabase, no
     WHERE id=(SELECT id FROM notification_event
       WHERE (projection_state='pending' OR (projection_state='leased' AND lease_until<?))
         AND COALESCE((SELECT capture_enabled FROM notification_rollout ro WHERE ro.office_id=notification_event.office_id),1)=1
-      ORDER BY created_at,id LIMIT 1)
+      ORDER BY created_at,id LIMIT 1 FOR UPDATE SKIP LOCKED)
     RETURNING id,office_id,event_type,source_kind,source_id,intended_recipients_json,created_at,
       expires_at,historical,push_eligible,lease_token`).get<ClaimedEvent>(token, leaseUntil, now);
   if (!event) return false;
@@ -119,7 +119,7 @@ export async function reconcileNotificationReminders(db: Database = defaultDatab
                 AND r.rule=CASE a.kind WHEN 'task' THEN 'task_due' ELSE 'meeting_soon' END
                 AND r.schedule_key=CAST(a.version AS TEXT)||':'||COALESCE(p.timezone,?)))
       )
-    ORDER BY COALESCE(a.due_on,a.starts_at),a.id LIMIT ?`).all<ActivityReminderRow>(DEFAULT_TIMEZONE, DEFAULT_TIMEZONE, limit);
+    ORDER BY COALESCE(a.due_on::date::timestamptz,a.starts_at),a.id LIMIT ?`).all<ActivityReminderRow>(DEFAULT_TIMEZONE, DEFAULT_TIMEZONE, limit);
   let changed = 0;
   for (const activity of activities) {
     const userIds = [...new Set([activity.assignee_id ?? activity.created_by, ...(activity.kind === 'meeting' ? [activity.created_by] : [])])];
@@ -223,7 +223,7 @@ export async function deliverNextNotification(
   const delivery = await db.prepare(`UPDATE notification_delivery SET state='leased',lease_token=?,lease_until=?,
     attempts=attempts+1,updated_at=? WHERE id=(SELECT id FROM notification_delivery
       WHERE (state IN ('pending','retry') OR (state='leased' AND lease_until<?)) AND next_attempt_at<=?
-      ORDER BY next_attempt_at,id LIMIT 1)
+      ORDER BY next_attempt_at,id LIMIT 1 FOR UPDATE SKIP LOCKED)
     RETURNING id,event_id,office_id,user_id,subscription_id,group_key,attempts,expires_at,lease_token`)
     .get<DeliveryRow>(token, leaseUntil, now, now, now);
   if (!delivery) return false;
@@ -259,7 +259,7 @@ export async function deliverNextNotification(
   });
   if (deferUntil) {
     await db.prepare(`UPDATE notification_delivery SET state=CASE WHEN ?>=expires_at THEN 'expired' ELSE 'retry' END,
-      next_attempt_at=?,attempts=MAX(0,attempts-1),lease_token=NULL,lease_until=NULL,updated_at=?
+      next_attempt_at=?,attempts=GREATEST(0,attempts-1),lease_token=NULL,lease_until=NULL,updated_at=?
       WHERE id=? AND lease_token=?`).run(deferUntil, deferUntil, now, delivery.id, token);
     return true;
   }

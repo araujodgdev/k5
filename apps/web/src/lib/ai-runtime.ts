@@ -8,8 +8,9 @@ import { z } from 'zod';
 import { database } from './database';
 import { resolveOfficeModelConfig } from './ai-connections';
 import { groundedInstructions } from './ai-policy';
-import { modelFor, type ModelCredential } from './ai-providers';
+import { modelFor, modelProviderOptions, type ModelCredential } from './ai-providers';
 import type { AiProvider } from './ai-connections-core';
+import { captureOperationalError } from './observability/report';
 
 export { modelFor, type ModelCredential, RequestContext };
 export type ModelTask = 'chat' | 'extraction' | 'drafting';
@@ -19,6 +20,9 @@ function agentFor(config: ModelCredential, instructions: string, tools?: Record<
     id: 'k5',
     name: 'Lume',
     instructions,
+    defaultOptions: ({ requestContext }) => ({
+      providerOptions: modelProviderOptions((requestContext?.get('provider') as AiProvider | undefined) ?? config.provider),
+    }),
     model: ({ requestContext }: { requestContext?: RequestContext }) => {
       const provider = (requestContext?.get('provider') as AiProvider | undefined) ?? config.provider;
       const modelId = (requestContext?.get('modelId') as string | undefined) ?? config.modelId;
@@ -79,7 +83,8 @@ export async function generateStructured<T extends z.ZodType>(officeId: string, 
     });
     await recordUsage(officeId, userId, config, task, 'completed', result.usage);
     return schema.parse(result.object);
-  } catch {
+  } catch (error) {
+    captureOperationalError(error, 'ai.structured');
     await recordUsage(officeId, userId, config, task, 'failed');
     throw new Error('A análise falhou. Confira a conexão de IA e tente novamente.');
   }

@@ -20,14 +20,13 @@ export async function extractDocumentSections(data: Buffer, mimeType: string, na
 }
 
 /**
- * Text layer first, through unpdf rather than pdfjs-dist directly.
- *
- * unpdf carries PDF.js compiled for serverless runtimes — no worker thread, no canvas, no native
- * addon — so the same call reads a PDF in the Node worker and inside workerd. Importing
- * pdfjs-dist here instead is what broke every upload in production: vite.config.ts stubs that
- * package out of the Workers bundle, and the stub has no getDocument.
+ * Workers use unpdf for text-only attachments. Node processors use one PDF.js version for
+ * both text and scanned pages; mixing unpdf's worker with pdfjs-dist breaks native OCR.
  */
 async function extractPdf(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
+  // unpdf bundles a different PDF.js worker. Loading it in the OCR process poisons PDF.js's
+  // shared fake-worker global and makes rendering fail with an API/worker version mismatch.
+  if (process.env.K5_RUNTIME !== 'cloudflare') return extractPdfLocally(data, documentId);
   const { extractText: extractPdfText } = await import("unpdf");
   // A fresh copy per call: PDF.js takes ownership of the buffer it is handed, and the OCR
   // fallback below still needs the original bytes.
@@ -38,7 +37,8 @@ async function extractPdf(data: Buffer, documentId: string): Promise<ExtractedSe
     if (content) sections.push({ reference: `página:${pageNumber}`, content });
   }
   if (sections.length) return sections;
-  return extractPdfOcr(data, documentId);
+  if (process.env.VAULT_OCR_URL) return extractPdfOcr(data, documentId);
+  throw new Error('Este PDF precisa de OCR. Adicione-o ao Cofre para processar e depois selecione-o em Fontes.');
 }
 
 async function extractPdfOcr(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
@@ -69,32 +69,37 @@ async function extractPdfOcr(data: Buffer, documentId: string): Promise<Extracte
 }
 
 async function extractPdfLocally(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs") as unknown as {
-    getDocument: (options: { data: Uint8Array; disableWorker: boolean }) => { promise: Promise<{ numPages: number; getPage: (number: number) => Promise<unknown> }> };
-  };
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(data), disableWorker: true }).promise;
-  const { createCanvas } = await import("@napi-rs/canvas") as unknown as { createCanvas: (width: number, height: number) => { getContext: (contextId: "2d") => unknown; toBuffer: (format: "image/png") => Buffer } };
-  const { createWorker } = await import("tesseract.js") as unknown as { createWorker: (languages?: string | string[], oem?: number, options?: Record<string, unknown>) => Promise<{ recognize: (image: Buffer) => Promise<{ data: { text: string } }>; terminate: () => Promise<void> }> };
-  const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const task = pdfjs.getDocument({ data: new Uint8Array(data) });
+  const { createOcrWorker } = await import('./ocr-worker');
   const sections: ExtractedSection[] = [];
-  let worker: Awaited<ReturnType<typeof createWorker>> | undefined;
+  let worker: Awaited<ReturnType<typeof createOcrWorker>> | undefined;
   try {
+    const pdf = await task.promise;
+    const { createCanvas } = await import("@napi-rs/canvas");
+    const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
+    if (pdf.numPages > 300) throw new Error('PDF acima do limite de 300 páginas.');
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const reference = `página:${pageNumber}`;
       const saved = completed.get(reference);
       if (saved) { sections.push({ reference, content: saved }); continue; }
-      worker ??= await createWorker(["por", "eng"]);
-      const page = await pdf.getPage(pageNumber) as { getViewport: (options: { scale: number }) => { width: number; height: number }; render: (options: { canvasContext: unknown; viewport: unknown }) => { promise: Promise<void> } };
+      const page = await pdf.getPage(pageNumber);
+      const layer = await page.getTextContent();
+      const plain = layer.items.map(item => 'str' in item ? item.str : '').join(' ').replace(/\s+/g, ' ').trim();
+      if (plain) { sections.push({ reference, content: plain }); page.cleanup(); continue; }
+      worker ??= await createOcrWorker();
       const viewport = page.getViewport({ scale: 1.5 });
+      if (viewport.width * viewport.height > 16_000_000) throw new Error('Página acima do limite de renderização OCR.');
       const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
-      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      await page.render({ canvas, canvasContext: canvas.getContext("2d"), viewport } as never).promise;
       const text = (await worker.recognize(canvas.toBuffer("image/png"))).data.text.replace(/\s+/g, " ").trim();
+      page.cleanup();
       if (text) {
-        await database.prepare("INSERT OR REPLACE INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?)").run(documentId, reference, text);
+        await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, reference, text);
         sections.push({ reference, content: text });
       }
     }
-  } finally { await worker?.terminate(); }
+  } finally { await worker?.terminate(); await task.destroy(); }
   if (!sections.length) throw new Error("O OCR local não encontrou texto utilizável no PDF.");
   return sections;
 }
@@ -104,8 +109,8 @@ async function extractPdfLocally(data: Buffer, documentId: string): Promise<Extr
  * a search at all — a model with vision sees the picture, but the index only holds text.
  */
 async function extractImage(data: Buffer, name: string): Promise<ExtractedSection[]> {
-  const { createWorker } = await import("tesseract.js") as unknown as { createWorker: (languages?: string | string[], oem?: number, options?: Record<string, unknown>) => Promise<{ recognize: (image: Buffer) => Promise<{ data: { text: string } }>; terminate: () => Promise<void> }> };
-  const worker = await createWorker(["por", "eng"]);
+  const { createOcrWorker } = await import('./ocr-worker');
+  const worker = await createOcrWorker();
   try {
     const text = (await worker.recognize(data)).data.text.replace(/\s+/g, " ").trim();
     // An image with no legible text is still a valid document: the caption keeps it addressable,

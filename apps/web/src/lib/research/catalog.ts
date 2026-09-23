@@ -125,8 +125,8 @@ export async function publishMaterialText(
     const reference = `${kind}:${ordinal + 1}`;
     const deterministic = hash(`${version.id}:${ordinal}`);
     const chunkId = `${deterministic.slice(0, 8)}-${deterministic.slice(8, 12)}-${deterministic.slice(12, 16)}-${deterministic.slice(16, 20)}-${deterministic.slice(20, 32)}`;
-    statements.push(database.prepare(`INSERT OR IGNORE INTO research_chunk(id,material_version_id,ordinal,text_content,reference)
-      VALUES(?,?,?,?,?)`).bind(chunkId, version.id, ordinal, segments[ordinal], reference));
+    statements.push(database.prepare(`INSERT INTO research_chunk(id,material_version_id,ordinal,text_content,reference)
+      VALUES(?,?,?,?,?) ON CONFLICT DO NOTHING`).bind(chunkId, version.id, ordinal, segments[ordinal], reference));
     statements.push(database.prepare(`INSERT INTO research_fts(judgment_id,material_version_id,text_content)
       SELECT ?,?,? WHERE NOT EXISTS
       (SELECT 1 FROM research_fts WHERE material_version_id=? AND text_content=?)`)

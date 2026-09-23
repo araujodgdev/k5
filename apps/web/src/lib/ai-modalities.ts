@@ -58,5 +58,5 @@ export function modelModalities(provider: string, modelId: string): Modalities {
 
 /** Extensions the Cofre can extract text from. These work with every model. */
 export const DOCUMENT_ACCEPT = ".pdf,.docx,.eml,.xlsx,.csv,.txt";
-export const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp,.gif";
+export const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp";
 export const AUDIO_MIME = "audio/webm";

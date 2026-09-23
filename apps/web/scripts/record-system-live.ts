@@ -27,15 +27,15 @@ const BASE_URL = process.env.BASE_URL ?? 'http://localhost:3000';
 const USER_EMAIL = 'admin@advocacia.test';
 const USER_PASSWORD = 'SenhaForte123!@#456';
 
-const REPORT_DIR = path.resolve(__dirname, '../playwright-report');
-const WORKER_DIR = path.resolve(__dirname, '../../../.agents/teamwork_preview_worker_m2_m3');
-const WORKER_FIX_DIR = path.resolve(__dirname, '../../../.agents/teamwork_preview_worker_m2_m3_fix');
+const REPORT_DIR = path.resolve(import.meta.dirname, '../playwright-report');
+const WORKER_DIR = path.resolve(import.meta.dirname, '../../../.agents/teamwork_preview_worker_m2_m3');
+const WORKER_FIX_DIR = path.resolve(import.meta.dirname, '../../../.agents/teamwork_preview_worker_m2_m3_fix');
 const ARTIFACTS_SCREENSHOTS = path.join(WORKER_DIR, 'screenshots');
 const ARTIFACTS_SCREENSHOTS_FIX = path.join(WORKER_FIX_DIR, 'screenshots');
 const VIDEO_FINAL_PATH = path.join(REPORT_DIR, 'k5_live_system_recording.webm');
 const VIDEO_WORKER_COPY = path.join(WORKER_DIR, 'k5_live_system_recording.webm');
 const VIDEO_WORKER_COPY_FIX = path.join(WORKER_FIX_DIR, 'k5_live_system_recording.webm');
-const FIXTURE_PATH = path.resolve(__dirname, '../tests/fixtures/contrato_empreitada_alpha.txt');
+const FIXTURE_PATH = path.resolve(import.meta.dirname, '../tests/fixtures/contrato_empreitada_alpha.txt');
 
 interface ApiValidationResult {
   category: string;

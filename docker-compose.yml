@@ -1,17 +1,29 @@
 # Local development environment for Lume.
 #
-# The split matches the plan's section 7.1: SQLite stays the transactional store while a separate
-# PostgreSQL holds the vector index. That is the same seam staging uses, so a query that works
-# here works there against Neon without touching application code.
-#
-#   docker compose up            web, worker and the vector database
-#   docker compose --profile tools up -d adminer   optional database console
-#
+# PostgreSQL stores all transactional data. A separate pgvector database remains optional for vectors.
+#   docker compose up
+#   docker compose --profile tools up -d adminer
 # Secrets come from .env at the repository root; docker compose loads it automatically.
 
 name: k5
 
 services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: k5
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-k5-local-dev}
+      POSTGRES_DB: k5
+    volumes:
+      - postgres:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U k5 -d k5"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   vectors:
     # pgvector on top of the official Postgres image. Only the vector index lives here.
     image: pgvector/pgvector:pg17
@@ -50,7 +62,7 @@ services:
       SENTRY_ENABLED: ${SENTRY_ENABLED:-false}
       SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
-      DATABASE_PATH: /data/k5.sqlite
+      DATABASE_URL: postgresql://k5:${POSTGRES_PASSWORD:-k5-local-dev}@postgres:5432/k5
       VAULT_STORAGE_PATH: /data/uploads
       RESEARCH_STORAGE_PATH: /data/research-objects
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
@@ -69,6 +81,8 @@ services:
     volumes:
       - appdata:/data
     depends_on:
+      postgres:
+        condition: service_healthy
       vectors:
         condition: service_healthy
     restart: "no"
@@ -149,6 +163,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  # SQLite, Vault originals and public research originals share a persistent volume.
+  # Existing appdata (including legacy SQLite backups) is preserved; PostgreSQL has its own volume.
+  postgres:
   appdata:
   vectors:

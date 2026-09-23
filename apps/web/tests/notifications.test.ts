@@ -17,15 +17,15 @@ import {
 import type { PushSender } from '../src/lib/notifications/push-contract';
 import type { Database } from '../src/lib/database';
 
-function notificationFixture(role: WorkspaceContext['role'] = 'lawyer') {
+async function notificationFixture(role: WorkspaceContext['role'] = 'lawyer') {
   const officeId = randomUUID();
   const actorId = randomUUID();
   const recipientId = randomUUID();
-  testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(actorId, `${actorId}@test.local`, 'Autora');
-  testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(recipientId, `${recipientId}@test.local`, 'Responsável');
-  testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório de notificações');
-  testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, actorId, role);
-  testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, recipientId, role);
+  (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(actorId, `${actorId}@test.local`, 'Autora'));
+  (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(recipientId, `${recipientId}@test.local`, 'Responsável'));
+  (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório de notificações'));
+  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, actorId, role));
+  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, recipientId, role));
   return {
     officeId, actorId, recipientId,
     actor: { officeId, userId: actorId, role } satisfies WorkspaceContext,
@@ -34,7 +34,7 @@ function notificationFixture(role: WorkspaceContext['role'] = 'lawyer') {
 }
 
 test('notifications: unread polls seed missing defaults but never write when both exist', async () => {
-  const value = notificationFixture();
+  const value = (await notificationFixture());
   let batches = 0;
   const db: Database = { ...testDatabase, batch: async (statements) => {
     batches++;
@@ -44,18 +44,18 @@ test('notifications: unread polls seed missing defaults but never write when bot
   assert.equal(batches, 1);
   await unreadCount(value.actor, db);
   assert.equal(batches, 1);
-  testDb.prepare('DELETE FROM notification_preference WHERE office_id=? AND user_id=?').run(value.officeId, value.actorId);
+  (await testDb.prepare('DELETE FROM notification_preference WHERE office_id=? AND user_id=?').run(value.officeId, value.actorId));
   await unreadCount(value.actor, db);
   assert.equal(batches, 2);
-  testDb.prepare('DELETE FROM notification_rollout WHERE office_id=?').run(value.officeId);
+  (await testDb.prepare('DELETE FROM notification_rollout WHERE office_id=?').run(value.officeId));
   await unreadCount(value.actor, db);
   assert.equal(batches, 3);
 });
 
 test('notifications: reconciliation advances beyond its limit and revisits timezone changes', async () => {
-  const value = notificationFixture();
+  const value = (await notificationFixture());
   // Isolate this global worker scan from fixtures belonging to other tests.
-  testDb.exec('UPDATE notification_rollout SET reminders_enabled=0');
+  (await testDb.exec('UPDATE notification_rollout SET reminders_enabled=0'));
   await getNotificationPreferences(value.actor, testDatabase);
   const ids: string[] = [];
   for (let index = 0; index < 5; index++) {
@@ -67,22 +67,22 @@ test('notifications: reconciliation advances beyond its limit and revisits timez
   assert.equal(await reconcileNotificationReminders(testDatabase, now, 2), 2);
   assert.equal(await reconcileNotificationReminders(testDatabase, now, 2), 1);
   assert.equal(await reconcileNotificationReminders(testDatabase, now, 2), 0);
-  assert.equal(testDb.prepare('SELECT count(*) AS total FROM notification_reminder WHERE office_id=?').get(value.officeId)!.total, ids.length);
-  testDb.prepare("UPDATE notification_preference SET timezone='UTC' WHERE office_id=?").run(value.officeId);
+  assert.equal((await testDb.prepare('SELECT count(*) AS total FROM notification_reminder WHERE office_id=?').get(value.officeId))!.total, ids.length);
+  (await testDb.prepare("UPDATE notification_preference SET timezone='UTC' WHERE office_id=?").run(value.officeId));
   for (let page = 0; page < 3; page++) await reconcileNotificationReminders(testDatabase, now, 2);
-  assert.equal(testDb.prepare("SELECT count(*) AS total FROM notification_reminder WHERE office_id=? AND timezone='UTC' AND state='scheduled'").get(value.officeId)!.total, ids.length);
-  assert.equal(testDb.prepare("SELECT count(*) AS total FROM notification_reminder WHERE office_id=? AND timezone<>'UTC' AND state='cancelled'").get(value.officeId)!.total, ids.length);
-  testDb.prepare('UPDATE notification_rollout SET reminders_enabled=0 WHERE office_id=?').run(value.officeId);
-  testDb.prepare("UPDATE notification_reminder SET state='cancelled' WHERE office_id=?").run(value.officeId);
+  assert.equal((await testDb.prepare("SELECT count(*) AS total FROM notification_reminder WHERE office_id=? AND timezone='UTC' AND state='scheduled'").get(value.officeId))!.total, ids.length);
+  assert.equal((await testDb.prepare("SELECT count(*) AS total FROM notification_reminder WHERE office_id=? AND timezone<>'UTC' AND state='cancelled'").get(value.officeId))!.total, ids.length);
+  (await testDb.prepare('UPDATE notification_rollout SET reminders_enabled=0 WHERE office_id=?').run(value.officeId));
+  (await testDb.prepare("UPDATE notification_reminder SET state='cancelled' WHERE office_id=?").run(value.officeId));
 });
 
 test('notifications: an accepted agenda mutation emits once and projects only to the intended person', async () => {
-  const value = notificationFixture();
+  const value = (await notificationFixture());
   const key = randomUUID();
   const first = await createActivity(value.actor, { kind: 'task', title: 'Revisar contrato', assigneeId: value.recipientId, idempotencyKey: key });
   const replay = await createActivity(value.actor, { kind: 'task', title: 'Revisar contrato', assigneeId: value.recipientId, idempotencyKey: key });
   assert.equal(replay.activity.id, first.activity.id);
-  assert.equal(testDb.prepare('SELECT count(*) AS total FROM notification_event WHERE office_id=?').get(value.officeId)!.total, 1);
+  assert.equal((await testDb.prepare('SELECT count(*) AS total FROM notification_event WHERE office_id=?').get(value.officeId))!.total, 1);
 
   assert.equal(await projectNextNotification(testDatabase, '2026-09-21T15:00:00.000Z'), true);
   const recipient = await listNotifications(value.recipient, { unreadOnly: false, limit: 25 }, testDatabase);
@@ -97,11 +97,11 @@ test('notifications: an accepted agenda mutation emits once and projects only to
 });
 
 test('notifications: civil-date reminders use the saved timezone and recover without duplicating', async () => {
-  const value = notificationFixture();
+  const value = (await notificationFixture());
   const { activity } = await createActivity(value.actor, { kind: 'task', title: 'Protocolar resposta', dueOn: '2026-09-22' });
   await getNotificationPreferences(value.actor, testDatabase);
   assert.equal(await reconcileNotificationReminders(testDatabase, '2026-09-21T12:00:00.000Z'), 1);
-  const reminder = testDb.prepare('SELECT due_at,state FROM notification_reminder WHERE activity_id=?').get(activity.id) as { due_at: string; state: string };
+  const reminder = (await testDb.prepare('SELECT due_at,state FROM notification_reminder WHERE activity_id=?').get(activity.id)) as { due_at: string; state: string };
   assert.equal(reminder.due_at, '2026-09-22T12:00:00.000Z');
   assert.equal(reminder.state, 'scheduled');
   assert.equal(await emitNextReminder(testDatabase, '2026-09-22T12:00:00.000Z'), true);
@@ -111,11 +111,11 @@ test('notifications: civil-date reminders use the saved timezone and recover wit
   assert.equal(inbox.notifications[0].eventType, 'agenda.task.due');
 
   await reconcileNotificationReminders(testDatabase, '2026-09-22T12:01:00.000Z');
-  assert.equal((testDb.prepare('SELECT state FROM notification_reminder WHERE activity_id=?').get(activity.id) as { state: string }).state, 'emitted');
+  assert.equal(((await testDb.prepare('SELECT state FROM notification_reminder WHERE activity_id=?').get(activity.id)) as { state: string }).state, 'emitted');
 });
 
 test('notifications: subscriptions are encrypted, delivery is generic, and logout generation blocks stale reactivation', async () => {
-  const value = notificationFixture('reviewer');
+  const value = (await notificationFixture('reviewer'));
   process.env.K5_VAPID_KEY_ID = 'test-key';
   process.env.K5_VAPID_PUBLIC_KEY = 'test-public';
   const endpoint = `https://fcm.googleapis.com/fcm/send/${randomUUID()}`;
@@ -126,7 +126,7 @@ test('notifications: subscriptions are encrypted, delivery is generic, and logou
   };
   const registered = await registerPushSubscription(value.recipient, input, testDatabase);
   const subscriptionId = String((registered.subscriptions[0] as { id: string }).id);
-  const stored = testDb.prepare('SELECT encrypted_subscription FROM push_subscription WHERE id=?').get(subscriptionId) as { encrypted_subscription: string };
+  const stored = (await testDb.prepare('SELECT encrypted_subscription FROM push_subscription WHERE id=?').get(subscriptionId)) as { encrypted_subscription: string };
   assert.equal(stored.encrypted_subscription.includes(endpoint), false);
 
   const now = '2026-09-21T16:00:00.000Z';
@@ -140,18 +140,18 @@ test('notifications: subscriptions are encrypted, delivery is generic, and logou
   const sender: PushSender = { send: async (message) => { deliveredPayload = message.payload; return { accepted: true, statusCode: 201 }; } };
   assert.equal(await deliverNextNotification(testDatabase, sender, now), true);
   assert.deepEqual(Object.keys(JSON.parse(deliveredPayload)).sort(), ['expiresAt', 'id', 'tag', 'version']);
-  assert.equal(testDb.prepare('SELECT state FROM notification_delivery WHERE subscription_id=?').get(subscriptionId)!.state, 'accepted');
+  assert.equal((await testDb.prepare('SELECT state FROM notification_delivery WHERE subscription_id=?').get(subscriptionId))!.state, 'accepted');
 
   await revokePushSubscriptionsForUser(testDatabase, value.recipientId);
-  assert.equal(testDb.prepare('SELECT state FROM push_subscription WHERE id=?').get(subscriptionId)!.state, 'revoked');
+  assert.equal((await testDb.prepare('SELECT state FROM push_subscription WHERE id=?').get(subscriptionId))!.state, 'revoked');
   await assert.rejects(registerPushSubscription(value.recipient, input, testDatabase), /autorização.*expirou/i);
 });
 
 test('notifications: case following is personal and the inbox rollout switch hides projected rows', async () => {
-  const value = notificationFixture('reviewer');
+  const value = (await notificationFixture('reviewer'));
   const caseId = randomUUID();
-  testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)')
-    .run(caseId, value.officeId, 'Caso acompanhado', value.actorId);
+  (await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)')
+    .run(caseId, value.officeId, 'Caso acompanhado', value.actorId));
   assert.equal(await getCaseFollowState(value.recipient, caseId, testDatabase), false);
   assert.deepEqual(await setCaseFollowState(value.recipient, caseId, true, testDatabase), { following: true });
   assert.equal(await getCaseFollowState(value.actor, caseId, testDatabase), false);
@@ -164,10 +164,10 @@ test('notifications: case following is personal and the inbox rollout switch hid
   })]);
   await projectNextNotification(testDatabase, now);
   assert.equal((await listNotifications(value.recipient, { unreadOnly: false, limit: 25 }, testDatabase)).notifications.length, 1);
-  testDb.prepare('UPDATE notification_rollout SET inbox_enabled=0 WHERE office_id=?').run(value.officeId);
+  (await testDb.prepare('UPDATE notification_rollout SET inbox_enabled=0 WHERE office_id=?').run(value.officeId));
   assert.equal((await listNotifications(value.recipient, { unreadOnly: false, limit: 25 }, testDatabase)).notifications.length, 0);
   assert.equal(await unreadCount(value.recipient, testDatabase), 0);
-  testDb.prepare('UPDATE notification_rollout SET capture_enabled=0 WHERE office_id=?').run(value.officeId);
+  (await testDb.prepare('UPDATE notification_rollout SET capture_enabled=0 WHERE office_id=?').run(value.officeId));
   const blockedEvent = randomUUID();
   const [capture] = await testDatabase.batch([eventInsertStatement(testDatabase, {
     id: blockedEvent, officeId: value.officeId, eventType: 'judicial.publication.new', sourceKind: 'case', sourceId: caseId,
@@ -179,7 +179,7 @@ test('notifications: case following is personal and the inbox rollout switch hid
 });
 
 test('notifications: retention removes old personal and operational data but keeps the dedupe event', async () => {
-  const value = notificationFixture();
+  const value = (await notificationFixture());
   const createdAt = '2026-05-01T12:00:00.000Z';
   const eventId = randomUUID();
   await testDatabase.batch([eventInsertStatement(testDatabase, {
@@ -189,12 +189,12 @@ test('notifications: retention removes old personal and operational data but kee
   })]);
   await projectNextNotification(testDatabase, createdAt);
   assert.ok(await cleanNotificationRetention(testDatabase, '2026-09-21T12:00:00.000Z'));
-  assert.equal(testDb.prepare('SELECT count(*) AS total FROM notification_recipient WHERE event_id=?').get(eventId)!.total, 0);
-  assert.equal(testDb.prepare('SELECT data_json FROM notification_event WHERE id=?').get(eventId)!.data_json, '{}');
+  assert.equal((await testDb.prepare('SELECT count(*) AS total FROM notification_recipient WHERE event_id=?').get(eventId))!.total, 0);
+  assert.equal((await testDb.prepare('SELECT data_json FROM notification_event WHERE id=?').get(eventId))!.data_json, '{}');
 });
 
 test('notifications: mark-all cancels only eligible deliveries in a two-statement batch', async () => {
-  const value = notificationFixture();
+  const value = (await notificationFixture());
   process.env.K5_VAPID_KEY_ID = 'test-key';
   process.env.K5_VAPID_PUBLIC_KEY = 'test-public';
   await registerPushSubscription(value.recipient, {
@@ -213,9 +213,9 @@ test('notifications: mark-all cancels only eligible deliveries in a two-statemen
     })]);
   }
   while (await projectNextNotification(testDatabase, now)) { /* Drain global projection. */ }
-  testDb.prepare('UPDATE notification_recipient SET archived_at=? WHERE event_id=? AND user_id=?').run(now, ids[1], value.recipientId);
-  testDb.prepare('UPDATE notification_recipient SET read_at=? WHERE event_id=? AND user_id=?').run(now, ids[2], value.recipientId);
-  testDb.prepare("UPDATE notification_delivery SET state='retry' WHERE event_id=?").run(ids[3]);
+  (await testDb.prepare('UPDATE notification_recipient SET archived_at=? WHERE event_id=? AND user_id=?').run(now, ids[1], value.recipientId));
+  (await testDb.prepare('UPDATE notification_recipient SET read_at=? WHERE event_id=? AND user_id=?').run(now, ids[2], value.recipientId));
+  (await testDb.prepare("UPDATE notification_delivery SET state='retry' WHERE event_id=?").run(ids[3]));
   let statementCount = 0;
   const db: Database = { ...testDatabase, batch: async (statements) => {
     statementCount = statements.length;
@@ -223,7 +223,7 @@ test('notifications: mark-all cancels only eligible deliveries in a two-statemen
   } };
   assert.equal(await markAllNotificationsRead(value.recipient, { createdAt: now, id: ids[3] }, db), 2);
   assert.equal(statementCount, 2);
-  const states = testDb.prepare('SELECT state FROM notification_delivery WHERE office_id=? ORDER BY event_id').all(value.officeId).map((row) => row.state);
+  const states = (await testDb.prepare('SELECT state FROM notification_delivery WHERE office_id=? ORDER BY event_id').all(value.officeId)).map((row) => row.state);
   assert.deepEqual(states, ['cancelled', 'pending', 'pending', 'cancelled', 'pending']);
-  assert.equal(testDb.prepare('SELECT count(*) AS total FROM notification_recipient WHERE office_id=? AND user_id=? AND read_at IS NULL').get(value.officeId, value.actorId)!.total, 5);
+  assert.equal((await testDb.prepare('SELECT count(*) AS total FROM notification_recipient WHERE office_id=? AND user_id=? AND read_at IS NULL').get(value.officeId, value.actorId))!.total, 5);
 });

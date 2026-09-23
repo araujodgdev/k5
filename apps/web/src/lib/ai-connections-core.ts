@@ -107,7 +107,7 @@ export async function listOfficesForPlatform(db: Database) {
     count(c.id) AS connectionCount,
     sum(CASE WHEN c.enabled = 1 AND c.deleted_at IS NULL THEN 1 ELSE 0 END) AS enabledConnectionCount
     FROM office o LEFT JOIN ai_connection c ON c.office_id = o.id AND c.deleted_at IS NULL
-    GROUP BY o.id ORDER BY o.name COLLATE NOCASE`).all() as Array<{ id: string; name: string; createdAt: string; connectionCount: number; enabledConnectionCount: number }>;
+    GROUP BY o.id ORDER BY lower(o.name)`).all() as Array<{ id: string; name: string; createdAt: string; connectionCount: number; enabledConnectionCount: number }>;
 }
 
 export async function getOfficeForPlatform(db: Database, officeId: string) {
@@ -115,7 +115,7 @@ export async function getOfficeForPlatform(db: Database, officeId: string) {
 }
 
 export async function listAiConnections(db: Database, officeId: string): Promise<AiConnectionView[]> {
-  return (await db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND deleted_at IS NULL ORDER BY name COLLATE NOCASE").all(officeId) as Row[]).map(toView);
+  return (await db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND deleted_at IS NULL ORDER BY lower(name)").all(officeId) as Row[]).map(toView);
 }
 
 export async function createAiConnection(db: Database, key: MasterKey, actorUserId: string, officeId: string, input: Omit<ConnectionInput, "models"> & { models?: ConnectionPatch["models"] }): Promise<AiConnectionView> {
@@ -136,7 +136,7 @@ export async function createAiConnection(db: Database, key: MasterKey, actorUser
       auditStatement(db, actorUserId, officeId, id, "ai_connection.created", { name, provider, enabled: input.enabled !== false, models }),
     ]);
   } catch (error) {
-    if (String(error).includes("UNIQUE constraint failed")) throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome neste escritório.");
+    if ((error as { code?: string })?.code === '23505') throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome neste escritório.");
     throw error;
   }
   return (await listAiConnections(db, officeId)).find((item) => item.id === id)!;
@@ -162,7 +162,7 @@ export async function updateAiConnection(db: Database, key: MasterKey, actorUser
       auditStatement(db, actorUserId, officeId, connectionId, apiKey ? "ai_connection.key_rotated" : "ai_connection.updated", { name, provider, enabled: Boolean(enabled), models }),
     ]);
   } catch (error) {
-    if (String(error).includes("UNIQUE constraint failed")) throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome neste escritório.");
+    if ((error as { code?: string })?.code === '23505') throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome neste escritório.");
     throw error;
   }
   return (await listAiConnections(db, officeId)).find((item) => item.id === connectionId)!;

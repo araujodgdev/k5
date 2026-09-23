@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+FROM node:26-slim
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN npm install -g pnpm@12.4.2
+WORKDIR /repo
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/web/package.json apps/web/package.json
+RUN --mount=type=cache,id=k5-processors-pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+WORKDIR /repo/apps/web
+RUN mkdir -p /opt/tessdata && node --input-type=module -e "import { createWorker } from 'tesseract.js'; const worker = await createWorker(['por','eng'], undefined, {cachePath:'/opt/tessdata'}); await worker.terminate();"
+ENV TESSERACT_CACHE_PATH=/opt/tessdata
+WORKDIR /repo
+COPY --chown=node:node apps/web/tsconfig.json apps/web/tsconfig.json
+COPY --chown=node:node apps/web/src apps/web/src
+COPY --chown=node:node apps/web/scripts apps/web/scripts
+COPY --chown=node:node apps/web/db apps/web/db
+RUN mkdir -p /repo/apps/web/.data && chown node:node /repo/apps/web/.data
+ENV NODE_ENV=production
+USER node
+WORKDIR /repo/apps/web
+EXPOSE 8080
+CMD ["node", "--conditions=react-server", "--import", "tsx", "scripts/processor-server.ts"]

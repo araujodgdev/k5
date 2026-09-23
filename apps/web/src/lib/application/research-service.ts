@@ -141,14 +141,14 @@ async function addLocalPage(context: WorkspaceContext, search: SearchRow, pageNu
     ? Buffer.from(JSON.stringify({ searchId:search.id,afterPage:pageNumber,local: hasLocalMore ? 'more' : null,
       source: sourcePage !== null ? externalPage! + 1 : null })).toString('base64url')
     : null;
-  const statements = [database.prepare(`INSERT OR IGNORE INTO research_search_page
-    (id,search_id,page_number,source_cursor,request_cursor,next_cursor,status,source_error) VALUES(?,?,?,?,?,?,?,?)`)
+  const statements = [database.prepare(`INSERT INTO research_search_page
+    (id,search_id,page_number,source_cursor,request_cursor,next_cursor,status,source_error) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`)
     .bind(pageId,search.id,pageNumber,sourcePage,requestCursor,nextCursor,
       external.length?'queued':sourceUnavailable?'partial':'completed',sourceUnavailable?'no_source_enabled':null)];
   for (let position=0; position<selected.length; position++) {
     const result = selected[position];
-    statements.push(database.prepare(`INSERT OR IGNORE INTO research_search_result
-      (id,search_id,page_id,judgment_id,position,origin,version_seen_id) VALUES(?,?,?,?,?,'local',?)`)
+    statements.push(database.prepare(`INSERT INTO research_search_result
+      (id,search_id,page_id,judgment_id,position,origin,version_seen_id) VALUES(?,?,?,?,?,'local',?) ON CONFLICT DO NOTHING`)
       .bind(randomUUID(),search.id,pageId,result.id,position,result.ementaVersionId));
     if (result.fullTextStatus === 'pending') {
       const material = await database.prepare(`SELECT m.id,m.status,j.installation_id FROM research_material m
@@ -157,18 +157,18 @@ async function addLocalPage(context: WorkspaceContext, search: SearchRow, pageNu
       const installation = material ? await findInstallation(material.installation_id) : null;
       if (material && installation && supportsDirectResearchMaterial(installation) &&
         canUseResearchSource(installation,'fetch_document')) {
-        statements.push(database.prepare(`INSERT OR IGNORE INTO research_job
+        statements.push(database.prepare(`INSERT INTO research_job
           (id,office_id,user_id,search_id,page_id,installation_id,material_id,kind,request_json,idempotency_key)
-          VALUES(?,?,?,?,?,?,?,'fetch_material','{}',?)`)
+          VALUES(?,?,?,?,?,?,?,'fetch_material','{}',?) ON CONFLICT DO NOTHING`)
           .bind(randomUUID(),context.officeId,context.userId,search.id,pageId,installation.id,material.id,
             `fetch:${material.id}:page:${pageId}`));
       }
     }
   }
   for (const source of external) {
-    statements.push(database.prepare(`INSERT OR IGNORE INTO research_job
+    statements.push(database.prepare(`INSERT INTO research_job
       (id,office_id,user_id,search_id,page_id,installation_id,material_id,kind,request_json,idempotency_key)
-      VALUES(?,?,?,?,?,?,NULL,'search_page',?,?)`)
+      VALUES(?,?,?,?,?,?,NULL,'search_page',?,?) ON CONFLICT DO NOTHING`)
       .bind(randomUUID(),context.officeId,context.userId,search.id,pageId,source.id,
         JSON.stringify({pageNumber:externalPage}),`search:${pageId}:${source.id}`));
   }
@@ -213,7 +213,7 @@ export async function startResearchSearch(context: WorkspaceContext, input: Sear
   }
   if (!parsed.refreshSources) {
     const recent = await database.prepare(`SELECT * FROM research_search WHERE office_id=? AND user_id=? AND theme=?
-      AND filters_json=? AND include_sources=? AND created_at>=datetime('now','-15 minutes') ORDER BY created_at DESC LIMIT 1`)
+      AND filters_json=? AND include_sources=? AND created_at>=(CURRENT_TIMESTAMP - INTERVAL '15 minutes') ORDER BY created_at DESC LIMIT 1`)
       .get<SearchRow>(context.officeId,context.userId,parsed.theme,filters,parsed.includeSources?1:0);
     if (recent) {
       const first=await database.prepare('SELECT 1 FROM research_search_page WHERE search_id=? LIMIT 1').get(recent.id);

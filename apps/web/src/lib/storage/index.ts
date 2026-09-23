@@ -2,6 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { basename, relative, resolve, sep } from 'node:path';
+import { containerBindingFetch } from '../container-bindings';
 
 /**
  * Object storage for Vault originals. Keys are minted here and never accepted from a request:
@@ -102,6 +103,7 @@ class LocalObjectStorage implements ObjectStorage {
 class R2ObjectStorage implements ObjectStorage {
   constructor(
     private readonly config: { accountId: string; bucket: string; accessKeyId: string; secretAccessKey: string },
+    private readonly validateKey: (key:string)=>string = assertStorageKey,
   ) {}
 
   private async client() {
@@ -116,14 +118,14 @@ class R2ObjectStorage implements ObjectStorage {
   async put(key: string, data: Buffer) {
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
     const client = await this.client();
-    await client.send(new PutObjectCommand({ Bucket: this.config.bucket, Key: assertStorageKey(key), Body: data }));
+    await client.send(new PutObjectCommand({ Bucket: this.config.bucket, Key: this.validateKey(key), Body: data }));
   }
 
   async get(key: string) {
     const { GetObjectCommand } = await import('@aws-sdk/client-s3');
     const client = await this.client();
     try {
-      const response = await client.send(new GetObjectCommand({ Bucket: this.config.bucket, Key: assertStorageKey(key) }));
+      const response = await client.send(new GetObjectCommand({ Bucket: this.config.bucket, Key: this.validateKey(key) }));
       const bytes = await response.Body?.transformToByteArray();
       if (!bytes) throw new StorageError('not_found', 'Arquivo original não encontrado.');
       return Buffer.from(bytes);
@@ -137,17 +139,17 @@ class R2ObjectStorage implements ObjectStorage {
   async delete(key: string) {
     const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
     const client = await this.client();
-    await client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: assertStorageKey(key) }));
+    await client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: this.validateKey(key) }));
   }
 }
 
 /** R2 through the capability binding injected into the Cloudflare Worker. */
 class BoundR2ObjectStorage implements ObjectStorage {
-  constructor(private readonly binding: R2BucketBinding) {}
+  constructor(private readonly binding: R2BucketBinding, private readonly validateKey: (key:string)=>string = assertStorageKey) {}
 
   async put(key: string, data: Buffer) {
     try {
-      await this.binding.put(assertStorageKey(key), data);
+      await this.binding.put(this.validateKey(key), data);
     } catch (error) {
       if (error instanceof StorageError) throw error;
       throw new StorageError('backend', 'Armazenamento de documentos indisponível.');
@@ -156,7 +158,7 @@ class BoundR2ObjectStorage implements ObjectStorage {
 
   async get(key: string) {
     try {
-      const object = await this.binding.get(assertStorageKey(key));
+      const object = await this.binding.get(this.validateKey(key));
       if (!object) throw new StorageError('not_found', 'Arquivo original não encontrado.');
       return Buffer.from(await object.arrayBuffer());
     } catch (error) {
@@ -167,7 +169,7 @@ class BoundR2ObjectStorage implements ObjectStorage {
 
   async delete(key: string) {
     try {
-      await this.binding.delete(assertStorageKey(key));
+      await this.binding.delete(this.validateKey(key));
     } catch (error) {
       if (error instanceof StorageError) throw error;
       throw new StorageError('backend', 'Armazenamento de documentos indisponível.');
@@ -188,21 +190,34 @@ async function workerR2Binding(): Promise<R2BucketBinding | undefined> {
   }
 }
 
-async function resolveObjectStorage(): Promise<ObjectStorage> {
-  if (cached) return cached;
+export async function remoteObjectStorage(validateKey: (key:string)=>string = assertStorageKey): Promise<ObjectStorage | undefined> {
+  if (process.env.K5_CONTAINER_BINDINGS === 'true') {
+    const path = (key: string) => `/objects/${encodeURIComponent(validateKey(key))}`;
+    return {
+      async put(key, data) { await containerBindingFetch(path(key), { method: 'PUT', body: new Uint8Array(data) }); },
+      async get(key) { return Buffer.from(await (await containerBindingFetch(path(key))).arrayBuffer()); },
+      async delete(key) { await containerBindingFetch(path(key), { method: 'DELETE' }); },
+    };
+  }
   const bucket = process.env.R2_BUCKET;
   const accountId = process.env.R2_ACCOUNT_ID;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 
   const binding = testR2Binding ?? await workerR2Binding();
-  if (binding) return new BoundR2ObjectStorage(binding);
+  if (binding) return new BoundR2ObjectStorage(binding,validateKey);
   if (bucket && accountId && accessKeyId && secretAccessKey) {
-    return new R2ObjectStorage({ accountId, bucket, accessKeyId, secretAccessKey });
+    return new R2ObjectStorage({ accountId, bucket, accessKeyId, secretAccessKey },validateKey);
   }
   if (process.env.VAULT_STORAGE_BACKEND === 'r2') {
     throw new Error("R2 foi solicitado, mas o binding 'VAULT' e as credenciais S3 não estão disponíveis.");
   }
+  return undefined;
+}
+
+async function resolveObjectStorage(): Promise<ObjectStorage> {
+  const remote = await remoteObjectStorage();
+  if (remote) return remote;
   return new LocalObjectStorage(resolve(process.env.VAULT_STORAGE_PATH ?? resolve(process.cwd(), '.data', 'uploads')));
 }
 

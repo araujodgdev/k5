@@ -6,13 +6,14 @@ import { captureOperationalError } from '../src/lib/observability/report';
 export { captureOperationalError, observeWorkerTask } from '../src/lib/observability/report';
 
 export async function runObservedWorker(service: string, main: () => Promise<void>) {
-  if (existsSync('.env.local')) process.loadEnvFile('.env.local');
+  const envFile = process.env.K5_ENV_FILE ?? '.env.local';
+  if (existsSync(envFile)) process.loadEnvFile(envFile);
   Sentry.init(serverOptions(service, process.env));
   try {
     await main();
   } catch (error) {
     captureOperationalError(error, `${service}.startup`);
-    console.error(`Não foi possível executar ${service}.`, error instanceof Error ? error.message : typeof error);
+    console.error(`Não foi possível executar ${service}.`, error instanceof Error ? error.name : typeof error);
     process.exitCode = 1;
   } finally {
     await Sentry.close(5_000);

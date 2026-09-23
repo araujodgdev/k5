@@ -1,12 +1,9 @@
+import { postgresFixture } from './postgres-fixture';
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
-import { getMigrations } from "better-auth/db/migration";
 import { listOfficesForPlatform } from "../src/lib/ai-connections-core";
 import { createAuth } from "../src/lib/auth-core";
-import { nodeSqliteDatabase } from "../src/lib/db/node-sqlite";
 import { findOfficeForUser } from "../src/lib/offices";
 import { authorizePlatformRequest, grantPlatformAdmin, platformErrorResponse, revokePlatformAdmin } from "../src/lib/platform-core";
 
@@ -14,13 +11,8 @@ const origin = "http://localhost:3000";
 const password = "Senha-teste-2026!";
 
 async function fixture() {
-  const db = new DatabaseSync(":memory:");
-  db.exec("PRAGMA foreign_keys = ON");
-  // Better Auth gets the raw handle; Lume's own code gets the same database through its async seam.
-  const database = nodeSqliteDatabase(db);
-  const auth = createAuth(db, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600 });
-  await (await getMigrations(auth.options)).runMigrations();
-  for (const name of ["0001_offices.sql", "0002_platform.sql", "0005_ai_providers.sql", "0008_ai_connection_embedding.sql"]) db.exec(readFileSync(new URL(`../db/migrations/${name}`, import.meta.url), "utf8"));
+  const { db, database, pool } = await postgresFixture({seedDefaults:false});
+  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600 });
   async function signup(email: string) {
     const response = await auth.handler(new Request(`${origin}/api/auth/sign-up/email`, {
       method: "POST", headers: { "content-type": "application/json", origin },
@@ -42,7 +34,7 @@ async function fixture() {
 
 test("anônimo e administrador de escritório sem papel de plataforma não acessam a API da plataforma", async (t) => {
   const { db, database, signup, handler } = await fixture();
-  t.after(() => db.close());
+  t.after(async () => (await db.close()));
   assert.equal((await handler()).status, 401);
   assert.equal((await handler("better-auth.session_token=inventado")).status, 401);
   const officeAdmin = await signup("ana@example.test");
@@ -55,7 +47,7 @@ test("anônimo e administrador de escritório sem papel de plataforma não acess
 
 test("papel de plataforma libera a API e a revogação vale na requisição seguinte", async (t) => {
   const { db, database, signup, handler } = await fixture();
-  t.after(() => db.close());
+  t.after(async () => (await db.close()));
   const admin = await signup("plataforma@example.test");
   await grantPlatformAdmin(database, admin.user.id);
   const allowed = await handler(admin.cookie);
@@ -67,6 +59,6 @@ test("papel de plataforma libera a API e a revogação vale na requisição segu
   await revokePlatformAdmin(database, admin.user.id);
   assert.equal((await handler(admin.cookie)).status, 403);
   await grantPlatformAdmin(database, admin.user.id);
-  db.prepare("DELETE FROM session WHERE userId = ?").run(admin.user.id);
+  (await db.prepare("DELETE FROM session WHERE userId = ?").run(admin.user.id));
   assert.equal((await handler(admin.cookie)).status, 401);
 });

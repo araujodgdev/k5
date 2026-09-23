@@ -9,7 +9,7 @@ export async function findOfficeForUser(db: Database, userId: string, officeId?:
   return await db.prepare(`
     SELECT o.id AS officeId, o.name AS officeName, m.role
     FROM office o JOIN office_member m ON m.office_id = o.id
-    WHERE m.user_id = ? AND (? IS NULL OR o.id = ?)
+    WHERE m.user_id = ? AND (?::text IS NULL OR o.id = ?)
   `).get(userId, officeId ?? null, officeId ?? null) as OfficeMembership | undefined;
 }
 

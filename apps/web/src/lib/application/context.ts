@@ -32,25 +32,6 @@ export function workspaceContext(workspace: {
   };
 }
 
-let sessionTableColumn: string | null | undefined;
-
-/**
- * Better Auth owns the session table and its column naming differs across versions, so the column
- * is discovered once instead of guessed per call. An unknown shape disables the check rather than
- * failing every tool call: the membership check below still runs.
- */
-async function sessionIdColumn(): Promise<string | null> {
-  if (sessionTableColumn !== undefined) return sessionTableColumn;
-  try {
-    const columns = await database.prepare("SELECT name FROM pragma_table_info('session')").all() as Array<{ name: string }>;
-    const names = new Set(columns.map((column) => String(column.name)));
-    sessionTableColumn = names.has('id') ? 'id' : null;
-  } catch {
-    sessionTableColumn = null;
-  }
-  return sessionTableColumn;
-}
-
 /**
  * Re-reads the membership and the session before a privileged step. A context built at the start
  * of a long conversation must not keep authorizing writes after the role changed, the member was
@@ -63,11 +44,9 @@ export async function assertCapabilityAllowed(context: WorkspaceContext, name: C
   }
 
   if (context.sessionId) {
-    const column = await sessionIdColumn();
-    if (column) {
-      const live = await database.prepare(`SELECT 1 FROM session WHERE ${column} = ?`).get(context.sessionId);
-      if (!live) throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente para continuar.');
-    }
+    const live = await database.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>CURRENT_TIMESTAMP')
+      .get(context.sessionId,context.userId);
+    if (!live) throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente para continuar.');
   }
 
   const current = await database.prepare('SELECT role FROM office_member WHERE user_id=? AND office_id=?')
@@ -79,8 +58,4 @@ export async function assertCapabilityAllowed(context: WorkspaceContext, name: C
       : 'Esta operação não está disponível para o seu papel.');
   }
   return { ...context, role: current.role };
-}
-
-export function resetSessionColumnCacheForTests() {
-  sessionTableColumn = undefined;
 }

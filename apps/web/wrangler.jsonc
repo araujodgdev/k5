@@ -16,15 +16,19 @@
   // The three adapters docs/ambientes.md describes, as bindings rather than URLs and keys. A
   // binding carries its own authorisation, so no staging credential needs to exist in an env file
   // for the application to reach its own storage.
-  "d1_databases": [
-    {
-      // The transactional store. D1 is SQLite, so db/migrations/*.sql apply unchanged.
-      "binding": "DB",
-      "database_name": "k5-staging",
-      "database_id": "18fcfe5d-05f3-4750-bae2-85731c80884b",
-      "migrations_dir": "db/migrations"
-    }
-  ],
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "cb3229db2c05407aa00420f68bcb6f8f" }],
+  "containers": [{
+    "class_name": "LumeProcessor",
+    "image": "./Dockerfile.processors",
+    "image_build_context": "../..",
+    "max_instances": 2,
+    "instance_type": "basic",
+    "constraints": { "regions": ["SAM"] }
+  }],
+  "durable_objects": { "bindings": [{ "name": "PROCESSORS", "class_name": "LumeProcessor" }] },
+  // Cloudflare requires SQLite for container orchestration metadata; all business data is PostgreSQL.
+  "migrations": [{ "tag": "v1-processors", "new_sqlite_classes": ["LumeProcessor"] }],
+  "triggers": { "crons": ["* * * * *"] },
   "r2_buckets": [
     {
       // Vault originals. Keys are minted by storageKey() and never accepted from a request.
@@ -49,6 +53,7 @@
   },
 
   "vars": {
+    "PROCESSORS_ENABLED": "true",
     "SENTRY_ENVIRONMENT": "staging",
     "SENTRY_TRACES_SAMPLE_RATE": "0.1",
     "NODE_ENV": "production",

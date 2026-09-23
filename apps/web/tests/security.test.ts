@@ -14,24 +14,24 @@ import { assertStorageKey, objectStorage, resetObjectStorageForTests, storageKey
 import { findVaultDocument, listVaultDocuments, retryVaultDocument, VaultHttpError } from "../src/lib/vault";
 import { isTrustedOrigin } from "../src/lib/trusted-origins";
 
-function seedOffices() {
+async function seedOffices() {
   const userLawyer = randomUUID();
   const userAdmin = randomUUID();
   const userOfficeB = randomUUID();
   const officeA = randomUUID();
   const officeB = randomUUID();
 
-  testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)").run(
+  (await testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)").run(
     userLawyer, `lawyer-${randomUUID()}@alfa.test`, "Lawyer Alfa",
     userAdmin, `admin-${randomUUID()}@alfa.test`, "Admin Alfa",
     userOfficeB, `user-${randomUUID()}@beta.test`, "User Beta",
-  );
-  testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?)").run(officeA, "Alfa", officeB, "Beta");
-  testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)").run(
+  ));
+  (await testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?)").run(officeA, "Alfa", officeB, "Beta"));
+  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)").run(
     randomUUID(), officeA, userLawyer, "lawyer",
     randomUUID(), officeA, userAdmin, "administrator",
     randomUUID(), officeB, userOfficeB, "lawyer",
-  );
+  ));
 
   return {
     lawyer: { officeId: officeA, userId: userLawyer, role: "lawyer" } as WorkspaceContext,
@@ -47,7 +47,7 @@ function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
 }
 
 test("storage: a caller-supplied key cannot escape the vault root", async () => {
-  const { lawyer, officeA } = seedOffices();
+  const { lawyer, officeA } = (await seedOffices());
 
   // Ingest used to write `${uploadRef}.pdf` straight into stored_name, so a traversal sequence in
   // the reference became a readable path on the next download. References are uuids the server
@@ -107,7 +107,7 @@ test("storage: the Worker R2 binding is preferred without S3 credentials", async
 });
 
 test("uploads: a reference is single use and bound to its office and its person", async () => {
-  const { lawyer, admin, beta } = seedOffices();
+  const { lawyer, admin, beta } = (await seedOffices());
   const upload = await seedUpload(lawyer, "peticao.pdf");
 
   await assert.rejects(
@@ -132,7 +132,7 @@ test("uploads: a reference is single use and bound to its office and its person"
 });
 
 test("tombstone: a deleted document cannot be resurrected through retry", async () => {
-  const { lawyer, officeA } = seedOffices();
+  const { lawyer, officeA } = (await seedOffices());
   const upload = await seedUpload(lawyer, "sigiloso.pdf");
   const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "library" })).document.id;
 
@@ -153,14 +153,14 @@ test("tombstone: a deleted document cannot be resurrected through retry", async 
     "and from the list the interface renders",
   );
 
-  const queued = testDb.prepare(
+  const queued = (await testDb.prepare(
     "SELECT count(*) AS n FROM vault_deletion_queue WHERE office_id=? AND completed_at IS NULL",
-  ).get(officeA) as { n: number };
+  ).get(officeA)) as { n: number };
   assert.ok(Number(queued.n) >= 1, "physical cleanup is queued after the tombstone, not instead of it");
 });
 
 test("retry: a document left in the queue can be requeued, a live one cannot", async () => {
-  const { lawyer, officeA } = seedOffices();
+  const { lawyer, officeA } = (await seedOffices());
   const upload = await seedUpload(lawyer, "parado.pdf");
   const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "library" })).document.id;
 
@@ -172,7 +172,7 @@ test("retry: a document left in the queue can be requeued, a live one cannot", a
   assert.equal((await findVaultDocument(officeA, documentId))?.status, "queued", "still claimable");
 
   // `processing` is someone else's lease, and `ready` is work that is done. Neither is stuck.
-  testDb.prepare("UPDATE vault_document SET status='processing' WHERE id=?").run(documentId);
+  (await testDb.prepare("UPDATE vault_document SET status='processing' WHERE id=?").run(documentId));
   await assert.rejects(
     () => retryVaultDocument(officeA, documentId),
     (error: unknown) => error instanceof VaultHttpError && error.status === 409,
@@ -187,30 +187,30 @@ async function approved(context: WorkspaceContext, capability: string, input: Re
 }
 
 test("case deletion: the documents filed in a case go with it", async () => {
-  const { lawyer, officeA } = seedOffices();
+  const { lawyer, officeA } = (await seedOffices());
   const created = (await vaultService.createCase(lawyer, { name: "Simons vs Hugsfield" })).case;
   const upload = await seedUpload(lawyer, "peticao.pdf");
   const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "case", caseId: created.id })).document.id;
-  testDb.prepare("INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, 0, 'página:1', 'texto')")
-    .run(randomUUID(), documentId, officeA);
+  (await testDb.prepare("INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, 0, 'página:1', 'texto')")
+    .run(randomUUID(), documentId, officeA));
 
   await vaultService.deleteCase(lawyer, { caseId: created.id, approvalId: await approved(lawyer, "k5_vault_delete_case", { caseId: created.id }) });
 
   // Not reassigned to the library: a case that is gone does not leave its filings behind.
   assert.equal(await findVaultDocument(officeA, documentId), undefined, "gone from every live lookup");
   assert.equal((await listVaultDocuments(officeA, {})).length, 0, "and from the list the interface renders");
-  const chunks = testDb.prepare("SELECT count(*) AS n FROM vault_document_chunk WHERE document_id=?").get(documentId) as { n: number };
+  const chunks = (await testDb.prepare("SELECT count(*) AS n FROM vault_document_chunk WHERE document_id=?").get(documentId)) as { n: number };
   assert.equal(Number(chunks.n), 0, "searchability is lost in the same batch as the tombstone");
 
   // Bytes and vectors are chased afterwards, by a queue that can retry without ever making the
   // document visible again.
-  const queued = testDb.prepare("SELECT target_kind AS kind FROM vault_deletion_queue WHERE office_id=? AND completed_at IS NULL").all(officeA) as Array<{ kind: string }>;
+  const queued = (await testDb.prepare("SELECT target_kind AS kind FROM vault_deletion_queue WHERE office_id=? AND completed_at IS NULL").all(officeA)) as Array<{ kind: string }>;
   assert.ok(queued.some((row) => row.kind === "vector_document"), "the index entry is queued for removal");
   assert.ok(queued.some((row) => row.kind === "object"), "so are the stored bytes");
 });
 
 test("case deletion: targetCaseId moves the documents instead of deleting them", async () => {
-  const { lawyer, officeA } = seedOffices();
+  const { lawyer, officeA } = (await seedOffices());
   const source = (await vaultService.createCase(lawyer, { name: "Caso de origem" })).case;
   const target = (await vaultService.createCase(lawyer, { name: "Caso de destino" })).case;
   const upload = await seedUpload(lawyer, "contrato.pdf");
@@ -221,12 +221,12 @@ test("case deletion: targetCaseId moves the documents instead of deleting them",
 
   const moved = await findVaultDocument(officeA, documentId);
   assert.equal(moved?.caseId, target.id, "the escape hatch is what keeps the documents");
-  const queued = testDb.prepare("SELECT count(*) AS n FROM vault_deletion_queue WHERE office_id=?").get(officeA) as { n: number };
+  const queued = (await testDb.prepare("SELECT count(*) AS n FROM vault_deletion_queue WHERE office_id=?").get(officeA)) as { n: number };
   assert.equal(Number(queued.n), 0, "and nothing is queued for physical removal");
 });
 
 test("case deletion: no approval, no deletion", async () => {
-  const { lawyer, officeA } = seedOffices();
+  const { lawyer, officeA } = (await seedOffices());
   const created = (await vaultService.createCase(lawyer, { name: "Caso protegido" })).case;
   const upload = await seedUpload(lawyer, "sigiloso.pdf");
   const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "case", caseId: created.id })).document.id;
@@ -240,7 +240,7 @@ test("case deletion: no approval, no deletion", async () => {
 });
 
 test("idempotency: a reused key with different arguments conflicts instead of replaying", async () => {
-  const { lawyer, admin } = seedOffices();
+  const { lawyer, admin } = (await seedOffices());
 
   let calls = 0;
   const run = () => { calls += 1; return Promise.resolve({ calls, value: "ok" }); };
@@ -267,7 +267,7 @@ test("idempotency: a reused key with different arguments conflicts instead of re
 });
 
 test("approval: a nested argument change invalidates the approval", async () => {
-  const { lawyer } = seedOffices();
+  const { lawyer } = (await seedOffices());
 
   const proposal = await approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", {
     documentId: "doc-1",
@@ -302,7 +302,7 @@ test("approval: a nested argument change invalidates the approval", async () => 
 });
 
 test("approval: a colleague cannot approve a proposal addressed to someone else", async () => {
-  const { lawyer, admin } = seedOffices();
+  const { lawyer, admin } = (await seedOffices());
   const proposal = await approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", { documentId: "doc-2" });
 
   await assert.rejects(
@@ -312,7 +312,7 @@ test("approval: a colleague cannot approve a proposal addressed to someone else"
 });
 
 test("approval: concurrent decisions cannot overwrite the first transition", async () => {
-  const { lawyer } = seedOffices();
+  const { lawyer } = (await seedOffices());
   const proposal = await approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", { documentId: "doc-race" });
 
   // Both calls reach their first await before either continuation runs. Rejection is deliberately

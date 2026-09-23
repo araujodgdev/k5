@@ -1,4 +1,4 @@
-import { d1Database, type D1Binding } from '@/lib/db/d1';
+import { createPostgresPool, postgresDatabase } from '@/lib/db/postgres';
 import { cleanNotificationRetention, deliverNextNotification, emitNextReminder, projectNextNotification, reconcileNotificationReminders } from '@/lib/notifications/worker';
 import { WebCryptoPushSender } from '@/lib/notifications/push-webcrypto';
 import { withSentry } from '@sentry/cloudflare';
@@ -9,7 +9,7 @@ type QueueMessage = { body: { kind?: string }; ack(): void; retry(): void };
 type QueueBatch = { messages: QueueMessage[] };
 type QueueBinding = { send(message: { kind: string }): Promise<void> };
 type Env = {
-  DB: D1Binding;
+  HYPERDRIVE: { connectionString:string };
   NOTIFICATION_QUEUE: QueueBinding;
   K5_VAPID_SUBJECT: string;
   K5_VAPID_PUBLIC_KEY: string;
@@ -18,18 +18,23 @@ type Env = {
 
 const notificationWorker = {
   async scheduled(_controller: unknown, env: Env) {
-    const db = d1Database(env.DB);
+    const pool = createPostgresPool(env.HYPERDRIVE.connectionString,{max:2,idleTimeoutMillis:0});
+    const db = postgresDatabase(pool);
+    try {
     const now = new Date().toISOString();
     if (now.slice(14, 16) === '00') await cleanNotificationRetention(db, now);
     await reconcileNotificationReminders(db, now, 20);
     for (let index = 0; index < 10 && await emitNextReminder(db, now); index++);
     for (let index = 0; index < 20 && await projectNextNotification(db, now); index++);
-    // Queue messages are acceleration hints. A later Cron always sweeps D1 again if this send fails.
+    // Queue messages are acceleration hints. A later Cron always sweeps PostgreSQL again if this send fails.
     await env.NOTIFICATION_QUEUE.send({ kind: 'delivery-sweep' });
+    } finally { await pool.end(); }
   },
 
   async queue(batch: QueueBatch, env: Env) {
-    const db = d1Database(env.DB);
+    const pool = createPostgresPool(env.HYPERDRIVE.connectionString,{max:2,idleTimeoutMillis:0});
+    const db = postgresDatabase(pool);
+    try {
     const sender = new WebCryptoPushSender({
       subject: env.K5_VAPID_SUBJECT,
       publicKey: env.K5_VAPID_PUBLIC_KEY,
@@ -44,6 +49,7 @@ const notificationWorker = {
         message.retry();
       }
     }
+    } finally { await pool.end(); }
   },
 
   async fetch() {

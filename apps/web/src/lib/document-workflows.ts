@@ -45,7 +45,7 @@ async function checkpoint<T>(run: RunRow, key: string): Promise<T | undefined> {
 }
 async function saveCheckpoint(run: RunRow, key: string, result: unknown) {
   await stillAuthorized(run);
-  await database.prepare('INSERT OR REPLACE INTO ai_checkpoint(run_id,step_key,result) VALUES(?,?,?)').run(run.id, key, JSON.stringify(result));
+  await database.prepare('INSERT INTO ai_checkpoint(run_id,step_key,result) VALUES(?,?,?) ON CONFLICT(run_id,step_key) DO UPDATE SET result=excluded.result').run(run.id, key, JSON.stringify(result));
 }
 async function progress(run: RunRow, value: number) {
   await stillAuthorized(run);

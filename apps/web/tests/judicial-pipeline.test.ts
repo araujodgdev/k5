@@ -34,31 +34,31 @@ type Seed = {
   caseA: string; caseB: string;
 };
 
-function seed(): Seed {
+async function seed(): Promise<Seed> {
   const officeA = randomUUID();
   const officeB = randomUUID();
   const lawyerA = randomUUID();
   const reviewerA = randomUUID();
   const lawyerB = randomUUID();
 
-  testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)").run(
+  (await testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)").run(
     lawyerA, `a-${randomUUID()}@alfa.test`, "Advogada Alfa",
     reviewerA, `r-${randomUUID()}@alfa.test`, "Revisor Alfa",
     lawyerB, `b-${randomUUID()}@beta.test`, "Advogado Beta",
-  );
-  testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?)").run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia");
-  testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)").run(
+  ));
+  (await testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?)").run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia"));
+  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)").run(
     randomUUID(), officeA, lawyerA, "lawyer",
     randomUUID(), officeA, reviewerA, "reviewer",
     randomUUID(), officeB, lawyerB, "lawyer",
-  );
+  ));
 
   const caseA = randomUUID();
   const caseB = randomUUID();
-  testDb.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, ?, ?), (?, ?, ?, ?)").run(
+  (await testDb.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, ?, ?), (?, ?, ?, ?)").run(
     caseA, officeA, `Caso Alfa ${caseA.slice(0, 6)}`, lawyerA,
     caseB, officeB, `Caso Beta ${caseB.slice(0, 6)}`, lawyerB,
-  );
+  ));
 
   return { officeA, officeB, lawyerA, reviewerA, lawyerB, caseA, caseB };
 }
@@ -72,9 +72,9 @@ function context(officeId: string, userId: string, role: "lawyer" | "reviewer" =
  * drives the collector starts from an empty queue instead of claiming whatever an earlier test
  * left pending and asserting against the wrong run.
  */
-function clearQueue() {
-  testDb.exec("UPDATE judicial_sync_job SET status = 'cancelled', lease_owner = NULL, lease_until = 0 WHERE status IN ('queued','running')");
-  testDb.exec("UPDATE judicial_subscription SET status = 'cancelled' WHERE status = 'active'");
+async function clearQueue() {
+  (await testDb.exec("UPDATE judicial_sync_job SET status = 'cancelled', lease_owner = NULL, lease_until = 0 WHERE status IN ('queued','running')"));
+  (await testDb.exec("UPDATE judicial_subscription SET status = 'cancelled' WHERE status = 'active'"));
 }
 
 /**
@@ -82,8 +82,8 @@ function clearQueue() {
  * a test about ingestion has to clear the ledger between runs to reach the code it is testing.
  * The spacing itself is asserted separately, in the budget tests.
  */
-function clearBudget() {
-  testDb.exec("DELETE FROM judicial_rate_budget");
+async function clearBudget() {
+  (await testDb.exec("DELETE FROM judicial_rate_budget"));
 }
 
 let installationCounter = 0;
@@ -144,7 +144,7 @@ test("catalog: every judicial capability has an executor and a sane publication 
 });
 
 test("linking: a proposed link never starts confirmed, whoever proposed it", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const result = await runCapability(context(officeA, lawyerA), "k5_judicial_link_case", {
     caseId: caseA, installationId: installation.id, number: "0000001-05.2025.8.26.0100", degree: "first",
@@ -164,7 +164,7 @@ test("linking: a proposed link never starts confirmed, whoever proposed it", asy
 });
 
 test("linking: an unverifiable number is kept as native identity, not rejected", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const result = await runCapability(context(officeA, lawyerA), "k5_judicial_link_case", {
     caseId: caseA, installationId: installation.id, number: "583.00.2011.123456-7", degree: "first",
@@ -176,7 +176,7 @@ test("linking: an unverifiable number is kept as native identity, not rejected",
 });
 
 test("isolation: a case from another office is not linkable and its links are invisible", async () => {
-  const { officeA, lawyerA, caseB, officeB, lawyerB } = seed();
+  const { officeA, lawyerA, caseB, officeB, lawyerB } = (await seed());
   const installation = await source();
 
   // The office comes from the trusted context, so naming another office's case finds nothing.
@@ -203,7 +203,7 @@ test("isolation: a case from another office is not linkable and its links are in
 });
 
 test("links: unfiltered listings are bounded and the cursor advances without overlap", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   for (let index = 0; index < 25; index += 1) {
     await createCaseLink({
@@ -234,11 +234,11 @@ test("links: unfiltered listings are bounded and the cursor advances without ove
 });
 
 test("inbox filters run before limits and collection state survives a reload", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
   const otherCase = randomUUID();
-  testDb.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, ?, ?)")
-    .run(otherCase, officeA, "Outro caso", lawyerA);
+  (await testDb.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, ?, ?)")
+    .run(otherCase, officeA, "Outro caso", lawyerA));
   const installationA = await source();
   const installationB = await source();
   const linkA = (await createCaseLink({
@@ -307,7 +307,7 @@ test("inbox filters run before limits and collection state survives a reload", a
 });
 
 test("refresh: an unconfirmed link cannot spend a request against a court", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -331,7 +331,7 @@ test("refresh: an unconfirmed link cannot spend a request against a court", asyn
 });
 
 test("refresh: a source whose terms are unclear is not collected from", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source({ permissions: { query: "nao_esclarecido", cache: "nao_esclarecido" } });
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -345,8 +345,8 @@ test("refresh: a source whose terms are unclear is not collected from", async ()
 });
 
 test("collection: originals, publications and alerts land together and a replay adds nothing", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
   const installation = await source();
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -360,14 +360,14 @@ test("collection: originals, publications and alerts land together and a replay 
   assert.equal(first?.inserted, 3);
   assert.equal(first?.alerts, 3);
 
-  const snapshots = testDb.prepare("SELECT count(*) AS n FROM judicial_snapshot WHERE office_id = ?").get(officeA) as { n: number };
+  const snapshots = (await testDb.prepare("SELECT count(*) AS n FROM judicial_snapshot WHERE office_id = ?").get(officeA)) as { n: number };
   assert.equal(snapshots.n, 1, "o original da página foi preservado");
 
   const publications = await runCapability(context(officeA, lawyerA), "k5_judicial_list_publications", { caseId: caseA }) as { publications: Array<{ id: string; snapshotId?: string }> };
   assert.equal(publications.publications.length, 3);
 
   // Running the identical window again is exactly what a retry does. It must be inert.
-  clearBudget();
+  (await clearBudget());
   const { job } = await enqueueJob({
     officeId: officeA, installationId: installation.id, linkId: link.id,
     kind: "manual", operation: "listChanges",
@@ -385,9 +385,9 @@ test("collection: originals, publications and alerts land together and a replay 
 });
 
 test("collection: the minimum spacing turns away a second sweep instead of asking the court twice", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
-  clearBudget();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
+  (await clearBudget());
   // One request per minute for this source: the second job in the same second must not go out.
   const installation = await source({ rateLimitPerMinute: 1 });
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
@@ -404,8 +404,8 @@ test("collection: the minimum spacing turns away a second sweep instead of askin
 });
 
 test("collection: a backfill finding announces history, not news from today", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
   const installation = await source();
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -427,8 +427,8 @@ test("collection: a backfill finding announces history, not news from today", as
 });
 
 test("collection: an errata is a new version related to the original, never an overwrite", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
   const installation = await source();
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -439,23 +439,23 @@ test("collection: an errata is a new version related to the original, never an o
   await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   await processNextJudicialJob();
 
-  clearBudget();
+  (await clearBudget());
   stub([{ installationId: installation.id, numero: VALID, body: fixture("djen-errata.json") }]);
   await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   const outcome = await processNextJudicialJob();
   assert.equal(outcome?.inserted, 1);
 
-  const rows = testDb.prepare(
+  const rows = (await testDb.prepare(
     "SELECT revision_kind, supersedes_id, version FROM judicial_publication WHERE office_id = ? AND revision_kind = 'errata'",
-  ).all(officeA) as Array<{ revision_kind: string; supersedes_id: string | null; version: number }>;
+  ).all(officeA)) as Array<{ revision_kind: string; supersedes_id: string | null; version: number }>;
   assert.equal(rows.length, 1);
   assert.notEqual(rows[0].supersedes_id, null, "a errata aponta para a publicação que corrige");
   assert.equal(rows[0].version, 2);
 
   // The original is still there, unchanged: the record of what was first published survives.
-  const originals = testDb.prepare(
+  const originals = (await testDb.prepare(
     "SELECT count(*) AS n FROM judicial_publication WHERE office_id = ? AND revision_kind = 'original'",
-  ).get(officeA) as { n: number };
+  ).get(officeA)) as { n: number };
   assert.equal(originals.n, 3);
 
   const alerts = await runCapability(context(officeA, lawyerA), "k5_judicial_list_alerts", {}) as { alerts: Array<{ eventKind: string }> };
@@ -463,8 +463,8 @@ test("collection: an errata is a new version related to the original, never an o
 });
 
 test("collection: two offices tracking the same proceeding keep separate evidence", async () => {
-  const { officeA, officeB, lawyerA, lawyerB, caseA, caseB } = seed();
-  clearQueue();
+  const { officeA, officeB, lawyerA, lawyerB, caseA, caseB } = (await seed());
+  (await clearQueue());
   const installation = await source();
   const linkA = (await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true })).link;
   const linkB = (await createCaseLink({ officeId: officeB, userId: lawyerB, caseId: caseB, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true })).link;
@@ -473,7 +473,7 @@ test("collection: two offices tracking the same proceeding keep separate evidenc
   await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: linkA.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   await enqueueJob({ officeId: officeB, installationId: installation.id, linkId: linkB.id, kind: "manual", operation: "listChanges", request: { cnjNumbers: [VALID] }, windowFrom: TODAY, windowTo: TODAY });
   await processNextJudicialJob();
-  clearBudget();
+  (await clearBudget());
   await processNextJudicialJob();
 
   const forA = await runCapability(context(officeA, lawyerA), "k5_judicial_list_publications", {}) as { publications: Array<{ id: string }> };
@@ -492,8 +492,8 @@ test("collection: two offices tracking the same proceeding keep separate evidenc
 });
 
 test("evidence: an opened publication carries its origin and is labelled untrusted", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
   stub([{ installationId: installation.id, numero: VALID, body: fixture("djen-page-1.json") }]);
@@ -519,8 +519,8 @@ test("evidence: an opened publication carries its origin and is labelled untrust
 });
 
 test("queue: a lease is exclusive, and an exhausted job stops instead of looping", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
   const { job } = await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY });
@@ -548,7 +548,7 @@ test("queue: a lease is exclusive, and an exhausted job stops instead of looping
 });
 
 test("queue: a rejected credential stops the subscription instead of retrying forever", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
   const { subscription } = await createSubscription({
@@ -570,7 +570,7 @@ test("queue: a rejected credential stops the subscription instead of retrying fo
 });
 
 test("queue: a changed schema is quarantined, a rate limit is rescheduled", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
 
@@ -590,7 +590,7 @@ test("queue: a changed schema is quarantined, a rate limit is rescheduled", asyn
 });
 
 test("budget: the daily ceiling and the minimum spacing are enforced in the database", async () => {
-  const { officeA } = seed();
+  const { officeA } = (await seed());
   const installation = await source({ rateLimitPerMinute: 1, dailyRequestBudget: 2 });
   const shape = { id: installation.id, dailyRequestBudget: 2, rateLimitPerMinute: 1 };
   const now = Date.parse("2026-09-18T10:00:00Z");
@@ -608,7 +608,7 @@ test("budget: the daily ceiling and the minimum spacing are enforced in the data
 });
 
 test("scheduler: a subscription with nothing confirmed asks the court nothing", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: false });
   const { subscription } = await createSubscription({
@@ -627,13 +627,13 @@ test("scheduler: a subscription with nothing confirmed asks the court nothing", 
   assert.equal((await findSubscriptionById(subscription.id))!.nextRunAt > Date.now(), true);
 
   await confirmCaseLink(officeA, link.id, lawyerA, "confirmed");
-  testDb.prepare("UPDATE judicial_subscription SET next_run_at = 0 WHERE id = ?").run(subscription.id);
+  (await testDb.prepare("UPDATE judicial_subscription SET next_run_at = 0 WHERE id = ?").run(subscription.id));
   const resumed = await scheduleDueSubscriptions();
   assert.equal(resumed.queued >= 1, true, "confirmado o vínculo, a assinatura volta a agendar");
 });
 
 test("scheduler: losing the membership that authorized a subscription suspends it", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
   const { subscription } = await createSubscription({
@@ -642,7 +642,7 @@ test("scheduler: losing the membership that authorized a subscription suspends i
   });
   assert.deepEqual(await subscriptionStillAuthorized((await findSubscriptionById(subscription.id))!), { ok: true });
 
-  testDb.prepare("DELETE FROM office_member WHERE user_id = ? AND office_id = ?").run(lawyerA, officeA);
+  (await testDb.prepare("DELETE FROM office_member WHERE user_id = ? AND office_id = ?").run(lawyerA, officeA));
 
   const revoked = await subscriptionStillAuthorized((await findSubscriptionById(subscription.id))!);
   assert.equal(revoked.ok, false);
@@ -653,26 +653,26 @@ test("scheduler: losing the membership that authorized a subscription suspends i
 });
 
 test("subscriptions: active retries preserve notification opt-outs; reactivation restores following", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
   const input = { officeId: officeA, installationId: installation.id, linkId: link.id,
     targetKind: "publications_by_case" as const, authorizedBy: lawyerA };
   const { subscription } = await createSubscription(input);
-  const activeFollowers = () => testDb.prepare('SELECT count(*) AS total FROM notification_follow WHERE office_id=? AND case_id=? AND user_id=? AND ended_at IS NULL').get(officeA, caseA, lawyerA)!.total;
-  assert.equal(activeFollowers(), 1);
-  testDb.prepare('UPDATE notification_follow SET ended_at=CURRENT_TIMESTAMP WHERE office_id=? AND case_id=? AND user_id=?').run(officeA, caseA, lawyerA);
+  const activeFollowers = async () => (await testDb.prepare('SELECT count(*) AS total FROM notification_follow WHERE office_id=? AND case_id=? AND user_id=? AND ended_at IS NULL').get(officeA, caseA, lawyerA))!.total;
+  assert.equal(await activeFollowers(), 1);
+  (await testDb.prepare('UPDATE notification_follow SET ended_at=CURRENT_TIMESTAMP WHERE office_id=? AND case_id=? AND user_id=?').run(officeA, caseA, lawyerA));
   await createSubscription(input);
-  assert.equal(activeFollowers(), 0);
-  testDb.prepare("UPDATE judicial_subscription SET status='paused' WHERE id=?").run(subscription.id);
+  assert.equal(await activeFollowers(), 0);
+  (await testDb.prepare("UPDATE judicial_subscription SET status='paused' WHERE id=?").run(subscription.id));
   await createSubscription(input);
-  assert.equal(activeFollowers(), 1);
-  testDb.prepare("UPDATE judicial_subscription SET status='cancelled' WHERE id=?").run(subscription.id);
+  assert.equal(await activeFollowers(), 1);
+  (await testDb.prepare("UPDATE judicial_subscription SET status='cancelled' WHERE id=?").run(subscription.id));
 });
 
 test("unlinking: collection stops and the evidence already gathered is kept", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
   const { subscription } = await createSubscription({
@@ -692,12 +692,12 @@ test("unlinking: collection stops and the evidence already gathered is kept", as
 
   // The publications stay: they are evidence of what a gazette published, not a consequence of
   // the link still existing.
-  const kept = testDb.prepare("SELECT count(*) AS n FROM judicial_publication WHERE office_id = ?").get(officeA) as { n: number };
+  const kept = (await testDb.prepare("SELECT count(*) AS n FROM judicial_publication WHERE office_id = ?").get(officeA)) as { n: number };
   assert.equal(kept.n, 3);
 });
 
 test("authorization: a reviewer reads judicial data and writes none of it", async () => {
-  const { officeA, lawyerA, reviewerA, caseA } = seed();
+  const { officeA, lawyerA, reviewerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
 
@@ -718,12 +718,12 @@ test("authorization: a reviewer reads judicial data and writes none of it", asyn
 });
 
 test("authorization: a membership revoked mid-turn stops the next judicial write", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const trusted = context(officeA, lawyerA);
 
   await runCapability(trusted, "k5_judicial_link_case", { caseId: caseA, installationId: installation.id, number: VALID, degree: "first" });
-  testDb.prepare("DELETE FROM office_member WHERE user_id = ? AND office_id = ?").run(lawyerA, officeA);
+  (await testDb.prepare("DELETE FROM office_member WHERE user_id = ? AND office_id = ?").run(lawyerA, officeA));
 
   // The context was built before the removal; the check is re-read, not trusted from earlier.
   await assert.rejects(
@@ -733,7 +733,7 @@ test("authorization: a membership revoked mid-turn stops the next judicial write
 });
 
 test("durability: a job completed by its lease holder cannot be completed twice", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
   const { job } = await enqueueJob({ officeId: officeA, installationId: installation.id, linkId: link.id, kind: "manual", operation: "listChanges", request: {}, windowFrom: TODAY, windowTo: TODAY });
@@ -746,9 +746,9 @@ test("durability: a job completed by its lease holder cannot be completed twice"
 });
 
 test("collector: malformed upstream response is preserved in judicial_snapshot when job is quarantined", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
-  clearBudget();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
+  (await clearBudget());
   const installation = await source();
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -769,16 +769,16 @@ test("collector: malformed upstream response is preserved in judicial_snapshot w
   assert.equal((await findJob(officeA, job.id))?.status, "quarantined");
 
   // The malformed response MUST be preserved in judicial_snapshot for operator diagnosis
-  const snapshot = testDb.prepare(
+  const snapshot = (await testDb.prepare(
     "SELECT payload, sha256 FROM judicial_snapshot WHERE office_id = ? AND job_id = ?",
-  ).get(officeA, job.id) as { payload: string; sha256: string } | undefined;
+  ).get(officeA, job.id)) as { payload: string; sha256: string } | undefined;
 
   assert.notEqual(snapshot, undefined, "o snapshot da resposta malformada deve estar salvo");
   assert.equal(snapshot?.payload, malformedBody);
 });
 
 test("provenance: publications across multiple pages/responses retain their respective matching snapshot ID", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -856,20 +856,20 @@ test("provenance: publications across multiple pages/responses retain their resp
   assert.equal(outcome.snapshotIds.length, 2);
   assert.notEqual(outcome.snapshotIds[0], outcome.snapshotIds[1]);
 
-  const p1 = testDb.prepare("SELECT snapshot_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-p1'").get(officeA) as { snapshot_id: string };
-  const p2 = testDb.prepare("SELECT snapshot_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-p2'").get(officeA) as { snapshot_id: string };
+  const p1 = (await testDb.prepare("SELECT snapshot_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-p1'").get(officeA)) as { snapshot_id: string };
+  const p2 = (await testDb.prepare("SELECT snapshot_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-p2'").get(officeA)) as { snapshot_id: string };
 
   assert.equal(p1.snapshot_id, outcome.snapshotIds[0], "publicação da página 1 aponta para o snapshot 1");
   assert.equal(p2.snapshot_id, outcome.snapshotIds[1], "publicação da página 2 aponta para o snapshot 2");
 });
 
 test("scheduler: an individual case subscription schedules collection only for that case's linked CNJ", async () => {
-  const { officeA, lawyerA, caseA, caseB } = seed();
+  const { officeA, lawyerA, caseA, caseB } = (await seed());
   const installation = await source();
   const linkA = (await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true })).link;
   await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseB, installationId: installation.id, cnjNumber: VALID_OTHER, nativeNumber: null, degree: "first", confirmed: true });
 
-  clearQueue();
+  (await clearQueue());
   const { subscription } = await createSubscription({
     officeId: officeA, installationId: installation.id, linkId: linkA.id,
     targetKind: "publications_by_case", authorizedBy: lawyerA,
@@ -878,9 +878,9 @@ test("scheduler: an individual case subscription schedules collection only for t
   const outcome = await scheduleDueSubscriptions();
   assert.equal(outcome.queued, 1);
 
-  const queuedJob = testDb.prepare(
+  const queuedJob = (await testDb.prepare(
     "SELECT request FROM judicial_sync_job WHERE office_id = ? AND subscription_id = ?",
-  ).get(officeA, subscription.id) as { request: string };
+  ).get(officeA, subscription.id)) as { request: string };
 
   const parsedRequest = JSON.parse(queuedJob.request) as { cnjNumbers: string[] };
   assert.deepEqual(parsedRequest.cnjNumbers, [VALID], "apenas o CNJ vinculado a esta assinatura deve ser consultado");
@@ -888,9 +888,9 @@ test("scheduler: an individual case subscription schedules collection only for t
 });
 
 test("collector: budget is reserved and enforced for each physical transport request", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
-  clearBudget();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
+  (await clearBudget());
   // Set rateLimit high so spacing doesn't block, but dailyRequestBudget is strictly 2
   const installation = await source({ rateLimitPerMinute: 600, dailyRequestBudget: 2 });
   const { link } = await createCaseLink({
@@ -927,9 +927,9 @@ test("collector: budget is reserved and enforced for each physical transport req
 });
 
 test("collector: configured spacing above ten seconds is awaited between requests", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
-  clearBudget();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
+  (await clearBudget());
   const installation = await source({ rateLimitPerMinute: 5, dailyRequestBudget: 10 });
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -952,6 +952,7 @@ test("collector: configured spacing above ten seconds is awaited between request
   Date.now = () => clock;
   globalThis.setTimeout = ((callback: (...args: unknown[]) => void, delay?: number) => {
     const milliseconds = Number(delay ?? 0);
+    if (milliseconds < 12_000 || milliseconds > 12_020) return originalSetTimeout(callback,delay);
     waits.push(milliseconds);
     clock += milliseconds;
     callback();
@@ -969,9 +970,9 @@ test("collector: configured spacing above ten seconds is awaited between request
 });
 
 test("collector: a worker that loses its lease stops before persistence or completion", async () => {
-  const { officeA, lawyerA, caseA } = seed();
-  clearQueue();
-  clearBudget();
+  const { officeA, lawyerA, caseA } = (await seed());
+  (await clearQueue());
+  (await clearBudget());
   const installation = await source();
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -1002,13 +1003,13 @@ test("collector: a worker that loses its lease stops before persistence or compl
   assert.equal(outcome?.status, "skipped");
   assert.equal(replacement?.job.id, job.id);
   assert.equal((await findJob(officeA, job.id))?.status, "running");
-  const snapshots = testDb.prepare("SELECT count(*) AS count FROM judicial_snapshot WHERE job_id = ?").get(job.id) as { count: number };
+  const snapshots = (await testDb.prepare("SELECT count(*) AS count FROM judicial_snapshot WHERE job_id = ?").get(job.id)) as { count: number };
   assert.equal(snapshots.count, 0);
   await completeJob(job.id, replacement!.leaseOwner);
 });
 
 test("evidence: an oversized response rejects the transaction and does not write a synthetic storage key", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -1037,14 +1038,14 @@ test("evidence: an oversized response rejects the transaction and does not write
   );
 
   // Assert no snapshot was committed with a synthetic storage key
-  const snapshotCount = testDb.prepare(
+  const snapshotCount = (await testDb.prepare(
     "SELECT count(*) as count FROM judicial_snapshot WHERE office_id = ? AND job_id = 'job-oversized'",
-  ).get(officeA) as { count: number };
+  ).get(officeA)) as { count: number };
   assert.equal(snapshotCount.count, 0, "nenhum snapshot deve ser persistido quando excede o limite");
 });
 
 test("cross-case isolation: publications belonging to another confirmed case resolve to that case link rather than the job's fallback link", async () => {
-  const { officeA, lawyerA, caseA, caseB } = seed();
+  const { officeA, lawyerA, caseA, caseB } = (await seed());
   const installation = await source();
   const { link: linkA } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,
@@ -1098,26 +1099,26 @@ test("cross-case isolation: publications belonging to another confirmed case res
   });
 
   assert.equal(outcome.inserted, 2);
-  const pubA = testDb.prepare(
+  const pubA = (await testDb.prepare(
     "SELECT link_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-case-a'",
-  ).get(officeA) as { link_id: string | null };
+  ).get(officeA)) as { link_id: string | null };
 
-  const pubB = testDb.prepare(
+  const pubB = (await testDb.prepare(
     "SELECT link_id FROM judicial_publication WHERE office_id = ? AND source_publication_id = 'pub-case-b'",
-  ).get(officeA) as { link_id: string | null };
+  ).get(officeA)) as { link_id: string | null };
 
   assert.equal(pubA.link_id, linkA.id, "publicação do caso A deve ser atribuída ao linkA");
   assert.equal(pubB.link_id, linkB.id, "publicação do caso B deve ser atribuída ao linkB e nunca ao linkA");
 
-  const alertB = testDb.prepare(
+  const alertB = (await testDb.prepare(
     "SELECT link_id FROM judicial_alert WHERE office_id = ? AND subject_id = (SELECT id FROM judicial_publication WHERE source_publication_id = 'pub-case-b')",
-  ).get(officeA) as { link_id: string | null };
+  ).get(officeA)) as { link_id: string | null };
 
   assert.equal(alertB.link_id, linkB.id, "alerta do caso B deve ser direcionado para linkB");
 });
 
 test("scheduler: scheduleBackfill rejects unconfirmed case link rather than doing an unauthorized broad sweep", async () => {
-  const { officeA, lawyerA, caseA } = seed();
+  const { officeA, lawyerA, caseA } = (await seed());
   const installation = await source();
   const { link: pendingLink } = await createCaseLink({
     officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id,

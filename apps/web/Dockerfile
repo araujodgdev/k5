@@ -31,8 +31,6 @@ RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN pnpm --filter
 
 FROM base AS runtime
 ENV NODE_ENV=production
-# node:sqlite needs a writable path that is not inside the build output.
-ENV DATABASE_PATH=/data/k5.sqlite
 ENV VAULT_STORAGE_PATH=/data/uploads
 ENV RESEARCH_STORAGE_PATH=/data/research-objects
 

@@ -1,7 +1,7 @@
 # Lume
 
 Monorepo pnpm + Turborepo. Frontend em Next.js 16, TypeScript e Tailwind CSS.
-Autenticação com Better Auth e SQLite local.
+Autenticação com Better Auth e PostgreSQL. Workers Cloudflare acessam o banco pelo Hyperdrive.
 
 ## Começar
 
@@ -10,13 +10,20 @@ Requisitos: Node.js >= 22.13.0 e pnpm 12.4.2.
 ```sh
 npm install --global pnpm@12.4.2
 pnpm install
+# Configure DATABASE_URL em apps/web/.env.local (veja docs/ambientes.md).
 pnpm dev
 ```
 
 Abra http://localhost:3000. A raiz leva a `/sign-in`.
-`pnpm dev` prepara o SQLite e gera `apps/web/.env.local` com um segredo aleatório,
+`pnpm dev` prepara o PostgreSQL e gera `apps/web/.env.local` com um segredo aleatório,
 caso ainda não exista configuração. Não sobrescreve dados nem segredos existentes.
 No primeiro acesso, escolha **Criar conta** para cadastrar seu escritório.
+
+Para um PostgreSQL local sem Docker, execute `pnpm --filter @k5/web db:local`
+em outro terminal. Ele mantém os dados na pasta ignorada `.data/postgres-migration/`
+do aplicativo e escuta em `127.0.0.1:55432`. Copie somente as variáveis de conexão
+de `apps/web/.data/postgres-migration/dev.env` para `apps/web/.env.local`,
+preservando os demais segredos. Inicie esse processo novamente após reiniciar a máquina.
 
 ## Docker
 
@@ -25,8 +32,8 @@ cp .env.example .env     # preencha BETTER_AUTH_SECRET e K5_CREDENTIALS_KEY
 docker compose up
 ```
 
-Sobem `vectors` (pgvector), `setup` (migrações), `web`, `worker`, `judicial-worker` e `notifications`.
-O banco SQLite, os originais do Cofre e os originais públicos de Pesquisa usam o mesmo volume persistente.
+Sobem `postgres`, `vectors` (pgvector), `setup` (migrações), `web`, `worker`, `judicial-worker` e `notifications`.
+O PostgreSQL usa volume próprio. Os originais do Cofre e da Pesquisa continuam no volume `appdata`.
 Detalhes e a configuração de
 staging na Cloudflare estão em [docs/ambientes.md](docs/ambientes.md).
 
@@ -53,13 +60,16 @@ pnpm judicial:admin list                                         # fontes judici
 pnpm platform:admin grant --email usuario@exemplo.com
 pnpm --filter @k5/web start
 
-bash scripts/staging-setup.sh                                    # configura o staging (passos manuais)
-pnpm --filter @k5/web exec tsx scripts/verify-staging.ts         # verifica R2, Vectorize e Neon
+pnpm --filter @k5/web db:migrate                                # conexão direta em .env.postgres.local
+pnpm --filter @k5/web exec tsx scripts/verify-staging.ts         # valida workers Node com credenciais diretas de R2/Vectorize/PostgreSQL
 ```
 
 `build` e `start` pressupõem ambiente configurado e `pnpm db:setup` executado.
 `start` exige um build anterior. Em CI, use `pnpm install --frozen-lockfile`.
-Os testes de autenticação usam bancos SQLite em memória, separados dos dados locais.
+Os testes usam esquemas isolados em PostgreSQL real. `pnpm test` inicia uma instância temporária automaticamente; `TEST_DATABASE_URL` permite usar um servidor de testes existente.
+Em containers executados como root, configure `TEST_DATABASE_URL`: o servidor PostgreSQL não inicia como root.
+
+O staging hospedado usa bindings privados nos Containers, sem credenciais S3 locais. Sua validação e operação estão em [docs/processadores-cloudflare.md](docs/processadores-cloudflare.md).
 
 ## Rotas
 
@@ -105,8 +115,7 @@ O logout encerra todas as sessões do usuário. As senhas ficam sob responsabili
 do Better Auth, com hash scrypt; os cookies de sessão são HttpOnly. O acesso ao
 escritório parte do usuário autenticado e não de um ID fornecido pelo navegador.
 
-SQLite é a base de desenvolvimento. A migração para PostgreSQL e os demais
-requisitos de infraestrutura do PRD serão tratados antes de produção.
+O banco transacional é PostgreSQL em todos os runtimes. Veja [a migração e o corte de ambiente](docs/migracao-postgres.md) para importar SQLite/D1, preservar dados e configurar Hyperdrive sem cache.
 
 ## Adicionar workspaces
 
@@ -118,5 +127,5 @@ e rode `pnpm install` na raiz. Exemplo: `pnpm --filter @k5/web dev`.
 
 - [Next.js](https://nextjs.org/docs)
 - [Better Auth com Next.js](https://better-auth.com/docs/integrations/next)
-- [Better Auth com SQLite](https://better-auth.com/docs/adapters/sqlite)
+- [Better Auth com PostgreSQL](https://better-auth.com/docs/adapters/postgresql)
 - [Turborepo](https://turborepo.dev/docs)

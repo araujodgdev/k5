@@ -45,7 +45,7 @@ export async function claimResearchJob(workerId: string, kinds: ResearchJobRow['
     WHERE id=(SELECT id FROM research_job WHERE kind IN (${placeholders}) AND attempts<?
       AND ((status='queued' AND run_after<=?) OR (status='running' AND lease_until<?))
       ORDER BY CASE kind WHEN 'search_page' THEN 0 WHEN 'fetch_material' THEN 1 WHEN 'stj_resource' THEN 2 ELSE 3 END,
-        created_at,id LIMIT 1)
+        created_at,id LIMIT 1 FOR UPDATE SKIP LOCKED)
     RETURNING *`).get<ResearchJobRow>(workerId,now+LEASE_MS,...kinds,MAX_ATTEMPTS,now,now);
   return row ?? null;
 }

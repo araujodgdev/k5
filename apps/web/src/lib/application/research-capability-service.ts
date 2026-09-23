@@ -1,3 +1,4 @@
+import { captureOperationalError } from '@/lib/observability/report';
 import 'server-only';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput } from '@/lib/capabilities/contracts';
@@ -16,6 +17,7 @@ async function operation<T>(work: () => Promise<T>): Promise<T> {
   try { return await work(); }
   catch (error) {
     if (error instanceof ResearchError) {
+      if (error.code === 'unsupported') captureOperationalError(error,'research.unavailable');
       const codes = {
         forbidden: 'FORBIDDEN', not_found: 'NOT_FOUND', invalid_input: 'INVALID',
         source_disabled: 'NOT_READY', budget_exceeded: 'RATE_LIMITED', unsupported: 'NOT_READY',

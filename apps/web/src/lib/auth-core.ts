@@ -7,7 +7,7 @@ import type { Database } from "./database";
 import { ensureOfficeForUser } from "./offices";
 import { revokePushSubscriptionsForUser } from "./notifications/revocation";
 
-/** Whatever Better Auth can talk to directly: a `node:sqlite` handle, a D1 binding, a dialect. */
+/** Better Auth uses the same PostgreSQL pool as the business-data adapter. */
 export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
 
 /**

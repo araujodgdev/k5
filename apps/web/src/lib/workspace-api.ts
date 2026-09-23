@@ -29,24 +29,28 @@ export async function apiWorkspace(request: Request, write = false) {
 
 export function apiError(error: unknown) {
   if (error instanceof CapabilityError) return Response.json({ error: error.message, code: error.code }, { status: statusForCapabilityError(error) });
-  if (error instanceof ApiError) return Response.json({ error: error.message }, { status: error.status });
-  if (error instanceof VaultHttpError) return Response.json({ error: error.message }, { status: error.status });
+  if (error instanceof ApiError || error instanceof VaultHttpError) {
+    if (error.status >= 500) captureOperationalError(error, 'api.operational');
+    return Response.json({ error: error.message }, { status: error.status });
+  }
   if (error instanceof AiConnectionError) {
+    if (error.code === 'credential' || error.code === 'provider') captureOperationalError(error, `ai.connection.${error.code}`);
     if (error.code === 'not_found' || error.code === 'disabled') {
       return Response.json({ error: 'O Lume não está disponível para esta tarefa. Fale com o suporte da plataforma.' }, { status: 409 });
     }
     if (error.code === 'credential') return Response.json({ error: 'Serviço de IA temporariamente indisponível. Fale com o suporte da plataforma.' }, { status: 503 });
     return Response.json({ error: 'Não foi possível concluir. Confira a configuração ou tente novamente.' }, { status: 500 });
   }
-  if (error instanceof CredentialKeyError) return Response.json({ error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.' }, { status: 503 });
+  if (error instanceof CredentialKeyError) {
+    captureOperationalError(error, 'ai.credentials');
+    return Response.json({ error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.' }, { status: 503 });
+  }
   if (error instanceof NotificationRequestError) return Response.json({ error: error.message }, { status: error.status });
   if (error instanceof ZodError || error instanceof SyntaxError) return Response.json({ error: 'Confira os dados enviados.' }, { status: 400 });
   // Keep the public response deliberately generic, but preserve enough private Worker telemetry
   // to diagnose production-only adapter failures without logging request bodies or credentials.
   captureOperationalError(error, 'api.unhandled');
-  console.error('[api] erro não tratado', error instanceof Error
-    ? { name: error.name, message: error.message }
-    : { type: typeof error });
+  console.error('[api] erro não tratado', error instanceof Error ? error.name : typeof error);
   return Response.json({ error: 'Não foi possível concluir. Confira a configuração ou tente novamente.' }, { status: 500 });
 }
 

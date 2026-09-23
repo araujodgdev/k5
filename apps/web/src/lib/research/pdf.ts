@@ -1,3 +1,4 @@
+import { captureOperationalError } from '@/lib/observability/report';
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
@@ -102,8 +103,8 @@ async function extractPages(bytes: Buffer, versionId: string, lease?:{job:Resear
           const canvas=createCanvas(Math.ceil(viewport.width),Math.ceil(viewport.height));
           await bounded(rendered.render({canvas,canvasContext:canvas.getContext('2d'),viewport} as never).promise,
             MAX_PAGE_MS,'Renderização OCR');
-          const {createWorker}=await import('tesseract.js');
-          const worker=await bounded(createWorker(['por','eng']),MAX_PAGE_MS,'Inicialização OCR',value=>value.terminate());
+          const {createOcrWorker}=await import('../ocr-worker');
+          const worker=await bounded(createOcrWorker(),MAX_PAGE_MS,'Inicialização OCR',value=>value.terminate());
           try {
             content=(await bounded(worker.recognize(canvas.toBuffer('image/png')),MAX_PAGE_MS,'Reconhecimento OCR'))
               .data.text.replace(/\s+/g,' ').trim();
@@ -112,8 +113,8 @@ async function extractPages(bytes: Buffer, versionId: string, lease?:{job:Resear
         }
         if (content.length>MAX_PAGE_TEXT_CHARS) throw new ResearchError('unsupported','Página acima do limite de texto extraído.');
         if (lease && !await renewResearchLease(lease.job,lease.workerId)) throw new ResearchError('forbidden','Lease de extração expirado.');
-        await database.prepare(`INSERT OR IGNORE INTO research_extract_checkpoint
-          (material_version_id,page_number,text_content,method) VALUES(?,?,?,?)`).run(versionId,page,content,method);
+        await database.prepare(`INSERT INTO research_extract_checkpoint
+          (material_version_id,page_number,text_content,method) VALUES(?,?,?,?) ON CONFLICT DO NOTHING`).run(versionId,page,content,method);
         sections.push({page,text:content,method});
         processed++;
       } finally { rendered.cleanup(); }
@@ -145,8 +146,8 @@ async function publishExtracted(versionId:string, sections:Array<{page:number;te
       const chunk=section.text.slice(offset,offset+1800);
       const digest=sha(`${versionId}:${ordinal}`);
       const id=`${digest.slice(0,8)}-${digest.slice(8,12)}-${digest.slice(12,16)}-${digest.slice(16,20)}-${digest.slice(20,32)}`;
-      statements.push(database.prepare(`INSERT OR IGNORE INTO research_chunk
-        (id,material_version_id,ordinal,text_content,reference,page_number) VALUES(?,?,?,?,?,?)`)
+      statements.push(database.prepare(`INSERT INTO research_chunk
+        (id,material_version_id,ordinal,text_content,reference,page_number) VALUES(?,?,?,?,?,?) ON CONFLICT DO NOTHING`)
         .bind(id,versionId,ordinal,chunk,`página:${section.page}`,section.page));
       statements.push(database.prepare(`INSERT INTO research_fts(judgment_id,material_version_id,text_content)
         SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM research_fts WHERE material_version_id=? AND text_content=?)`)
@@ -204,6 +205,7 @@ export async function processNextResearchExtraction(workerId=extractionWorkerId)
       await deferResearchJob(job,workerId,error.code,15*60_000);
       return true;
     }
+    captureOperationalError(error,'research.extract');
     await failResearchJob(job,workerId,error instanceof ResearchError?error.code:'extraction_failed',
       !(error instanceof ResearchError));
     return true;

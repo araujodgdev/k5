@@ -39,7 +39,7 @@ const view = (row: ProfileRow): ResearchCaseProfile => ({
 
 /** Re-checks live membership, session and case ownership at every private case operation. */
 export async function assertResearchCaseAccess(context: WorkspaceContext, caseId: string, write = false, db: Database = database) {
-  if (context.sessionId && !await db.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND julianday(expiresAt)>julianday(?)').get(context.sessionId, context.userId, new Date().toISOString()))
+  if (context.sessionId && !await db.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>?').get(context.sessionId, context.userId, new Date().toISOString()))
     throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente.');
   const member = await db.prepare('SELECT role FROM office_member WHERE user_id=? AND office_id=?')
     .get<{ role: string }>(context.userId, context.officeId);
@@ -87,8 +87,8 @@ export async function saveResearchCaseProfile(context: WorkspaceContext, raw: Sa
     [result] = await db.batch([
       db.prepare(`INSERT INTO research_case_profile(case_id,office_id,legal_question,objective,thesis,documented_facts_json,alleged_facts_json,gaps_json,document_ids_json,updated_by)
         VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(case_id) DO NOTHING`).bind(input.caseId, context.officeId, ...values, context.userId),
-      db.prepare(`INSERT OR IGNORE INTO research_case_profile_revision(case_id,office_id,version,snapshot_json,reviewed_by)
-        SELECT case_id,office_id,version,?,updated_by FROM research_case_profile WHERE case_id=? AND office_id=? AND version=1 AND updated_by=?`)
+      db.prepare(`INSERT INTO research_case_profile_revision(case_id,office_id,version,snapshot_json,reviewed_by)
+        SELECT case_id,office_id,version,?,updated_by FROM research_case_profile WHERE case_id=? AND office_id=? AND version=1 AND updated_by=? ON CONFLICT DO NOTHING`)
         .bind(JSON.stringify(snapshot), input.caseId, context.officeId, context.userId),
     ]);
   } else {
@@ -96,8 +96,8 @@ export async function saveResearchCaseProfile(context: WorkspaceContext, raw: Sa
       db.prepare(`UPDATE research_case_profile SET legal_question=?,objective=?,thesis=?,documented_facts_json=?,alleged_facts_json=?,gaps_json=?,document_ids_json=?,
         version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE case_id=? AND office_id=? AND version=?`)
         .bind(...values, context.userId, input.caseId, context.officeId, input.expectedVersion),
-      db.prepare(`INSERT OR IGNORE INTO research_case_profile_revision(case_id,office_id,version,snapshot_json,reviewed_by)
-        SELECT case_id,office_id,version,?,updated_by FROM research_case_profile WHERE case_id=? AND office_id=? AND version=? AND updated_by=?`)
+      db.prepare(`INSERT INTO research_case_profile_revision(case_id,office_id,version,snapshot_json,reviewed_by)
+        SELECT case_id,office_id,version,?,updated_by FROM research_case_profile WHERE case_id=? AND office_id=? AND version=? AND updated_by=? ON CONFLICT DO NOTHING`)
         .bind(JSON.stringify(snapshot), input.caseId, context.officeId, input.expectedVersion + 1, context.userId),
     ]);
   }

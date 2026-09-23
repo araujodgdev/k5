@@ -45,7 +45,7 @@ export function toJudgmentSummary(row: SummaryRow, excerpt = true): JudgmentSumm
 function ftsQuery(theme: string): string {
   const terms = theme.normalize('NFC').match(/[\p{L}\p{N}]{2,}/gu)?.slice(0, 20) ?? [];
   if (!terms.length) throw new ResearchError('invalid_input', 'Informe termos pesquisáveis.');
-  return terms.map((term) => `"${term.replaceAll('"', '')}"`).join(' OR ');
+  return terms.map((term) => `'${term.replaceAll("'", "''")}'`).join(' | ');
 }
 function decodeOffset(cursor?: string): number {
   if (!cursor) return 0;
@@ -56,7 +56,7 @@ function decodeOffset(cursor?: string): number {
   throw new ResearchError('invalid_input', 'Cursor inválido.');
 }
 
-/** The FTS5 index covers every current public material; there is no recent-documents cap. */
+/** PostgreSQL's GIN index covers every current public material, without a recent-documents cap. */
 export async function searchCorpus(input: { theme: string; filters?: SearchFilters; cursor?: string;
   excludeSearchId?: string; candidateLimit?: number }): Promise<CorpusPage> {
   const parsed = corpusQuerySchema.parse(input);
@@ -71,19 +71,20 @@ export async function searchCorpus(input: { theme: string; filters?: SearchFilte
   if (input.excludeSearchId) { conditions.push('j.id NOT IN (SELECT judgment_id FROM research_search_result WHERE search_id=?)'); params.push(input.excludeSearchId); }
   const where = conditions.join(' AND ');
   const match = ftsQuery(parsed.theme);
-  const matched = `SELECT research_fts.judgment_id,MIN(research_fts.rank) AS score
-    FROM research_fts JOIN research_judgment j ON j.id=research_fts.judgment_id
+  const matched = `SELECT research_fts.judgment_id,MAX(ts_rank_cd(research_fts.search_vector,q)) AS score
+    FROM research_fts CROSS JOIN to_tsquery('portuguese', ?) q
+    JOIN research_judgment j ON j.id=research_fts.judgment_id
     JOIN judicial_source_installation i ON i.id=j.installation_id
     JOIN research_material_version indexed_version ON indexed_version.id=research_fts.material_version_id
       AND indexed_version.published_at IS NOT NULL
     JOIN research_material indexed_material ON indexed_material.id=indexed_version.material_id
       AND indexed_material.current_version_id=indexed_version.id AND indexed_material.status='ready'
-    WHERE research_fts MATCH ? AND ${where}
+    WHERE research_fts.search_vector @@ q AND ${where}
       AND (indexed_material.kind='ementa' OR i.permission_documents='permitido')
     GROUP BY research_fts.judgment_id`;
   const rows = await database.prepare(`WITH matched AS (${matched})
     SELECT ${SUMMARY_COLUMNS} ${SUMMARY_JOINS} JOIN matched m ON m.judgment_id=j.id
-    ORDER BY m.score ASC,j.decision_date DESC,j.id ASC LIMIT ? OFFSET ?`)
+    ORDER BY m.score DESC,j.decision_date DESC NULLS LAST,j.id ASC LIMIT ? OFFSET ?`)
     .all<SummaryRow>(match, ...params, limit + 1, offset);
   const totalRow = await database.prepare(`WITH matched AS (${matched}) SELECT COUNT(*) AS total FROM matched`)
     .get<{ total: number }>(match, ...params);

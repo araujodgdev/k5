@@ -3,7 +3,7 @@ import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { database as db } from '../src/lib/database';
 
 process.loadEnvFile('.env.local');
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
@@ -11,10 +11,9 @@ if (!['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) throw new E
 const email = process.env.FEEDBACK_TEST_EMAIL ?? 'admin@advocacia.test';
 const password = process.env.FEEDBACK_TEST_PASSWORD ?? 'SenhaForte123!@#456';
 const marker = `Verificação local ${randomUUID()}`;
-const db = new DatabaseSync(resolve(process.env.DATABASE_PATH ?? '.data/k5.sqlite'));
-const person = db.prepare('SELECT id FROM user WHERE email=?').get(email) as { id: string } | undefined;
+const person = (await db.prepare('SELECT id FROM user WHERE email=?').get(email)) as { id: string } | undefined;
 if (!person) throw new Error('Stable validation account missing');
-const existing = db.prepare('SELECT id FROM model_feedback WHERE user_id=?').get(person.id);
+const existing = (await db.prepare('SELECT id FROM model_feedback WHERE user_id=?').get(person.id));
 if (existing) throw new Error('Existing real feedback preserved; use a different stable validation account');
 const dir = resolve('playwright-report/feedback');
 await mkdir(dir, { recursive: true });
@@ -104,6 +103,6 @@ try {
   console.log('Feedback verified: blind desktop/mobile, keyboard, dark mode, private downloads, CSRF, retry, persistence, reveal and admin export.');
 } finally {
   await browser.close();
-  db.prepare('DELETE FROM model_feedback WHERE user_id=? AND comment=?').run(person.id, marker);
-  db.close();
+  (await db.prepare('DELETE FROM model_feedback WHERE user_id=? AND comment=?').run(person.id, marker));
+  (await db.close());
 }

@@ -23,6 +23,8 @@ function run(command: string, args: string[]) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-// Schema first: a newly uploaded Worker must never observe a database from the previous release.
-run('pnpm', ['exec', 'wrangler', 'd1', 'migrations', 'apply', 'k5-staging', '--remote', '--config', configPath]);
+// Import and validation precede the first cutover. An unset binding cannot deploy accidentally.
+const hyperdriveId=config.match(/"hyperdrive"[\s\S]*?"id"\s*:\s*"([a-f0-9]{32})"/i)?.[1];
+if (!hyperdriveId || /^0+$/.test(hyperdriveId)) throw new Error('Configure o Hyperdrive verificado após importar o PostgreSQL.');
+run('pnpm', ['exec', 'tsx', 'scripts/migrate-postgres.ts']);
 run('pnpm', ['exec', 'vinext-cloudflare', 'deploy', '--config', 'dist/server/wrangler.json']);

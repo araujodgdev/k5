@@ -1,0 +1,27 @@
+{
+  "kind": "jurisprudence_api",
+  "courtCode": "TJDFT",
+  "courtName": "Tribunal de Justiça do Distrito Federal e dos Territórios",
+  "degree": "second",
+  "system": "proprietary",
+  "purpose": "jurisprudence",
+  "baseUrl": "https://jurisdf.tjdft.jus.br/",
+  "contractVersion": "API pública v1; documentação SETI verificada 2026-09-22",
+  "authKind": "none",
+  "discoveryStatus": "documented",
+  "permissions": {
+    "query": "permitido",
+    "cache": "permitido",
+    "documents": "permitido",
+    "redistribution": "permitido",
+    "ai": "nao_esclarecido"
+  },
+  "permissionEvidence": "Verificado em 2026-09-22: https://www.tjdft.jus.br/transparencia/tecnologia-da-informacao-e-comunicacao/dados-abertos/webservice-ou-api descreve acesso automatizado e leitura sem limitações legais de uso por programas de terceiros. A documentação SETI vinculada descreve integração por advogados/desenvolvedores e fornece ementa e inteiroTeor na resposta pública. A autorização operacional de consulta, armazenamento e apresentação no Lume limita-se aos campos públicos dessa API, com atribuição ao tribunal; não é inferida do status HTTP. O envio a provedores de IA permanece desabilitado nesta ficha.",
+  "allowedHosts": ["jurisdf.tjdft.jus.br"],
+  "rateLimitPerMinute": 5,
+  "dailyRequestBudget": 500,
+  "coverageFrom": null,
+  "coverageTo": null,
+  "documentationUrl": "https://www.tjdft.jus.br/transparencia/tecnologia-da-informacao-e-comunicacao/dados-abertos/documentos/documentacao_api_seti_transparencia.pdf",
+  "notes": "Piloto de consultas temáticas públicas. Sem acesso a PJe, processos sigilosos, navegação autenticada, fontes adjacentes ou redistribuição por exportação em massa. O inteiro teor só fica pronto quando a própria API devolve texto; não se inventa URL de documento. Registrar esta ficha não ativa a fonte; usar judicial:admin enable --live."
+}

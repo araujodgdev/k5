@@ -1,3 +1,4 @@
+import { captureOperationalError } from '@/lib/observability/report';
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
@@ -161,8 +162,8 @@ export async function linkStjDocument(input: { installationId: string; mirrorId:
 }
 
 async function quarantine(job: ResearchJobRow, item: StjRejection): Promise<void> {
-  await database.prepare(`INSERT OR IGNORE INTO research_quarantine
-    (id,office_id,user_id,job_id,record_index,reason,payload_sha256,payload_json) VALUES(?,?,?,?,?,?,?,?)`)
+  await database.prepare(`INSERT INTO research_quarantine
+    (id,office_id,user_id,job_id,record_index,reason,payload_sha256,payload_json) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`)
     .run(randomUUID(), job.office_id, job.user_id, job.id, item.index, item.reason, item.sha256, item.payloadJson);
 }
 async function quarantineId(job: ResearchJobRow, index: number, documentId: string, reason: string): Promise<void> {
@@ -172,7 +173,7 @@ async function quarantineId(job: ResearchJobRow, index: number, documentId: stri
 async function progress(resource: Resource, job: ResearchJobRow, workerId: string, state: Checkpoint): Promise<void> {
   await assertResearchLease(job, workerId);
   const result = await database.prepare(`UPDATE research_source_resource SET status='running',checkpoint=?
-    WHERE id=? AND json_extract(checkpoint,'$.jobId')=?`).run(JSON.stringify(state), resource.id, job.id);
+    WHERE id=? AND (checkpoint::jsonb->>'jobId')=?`).run(JSON.stringify(state), resource.id, job.id);
   if (result.changes !== 1) throw new ResearchError('forbidden', 'Checkpoint STJ assumido por outro job.');
 }
 async function completeResource(resource: Resource, job: ResearchJobRow, workerId: string,
@@ -181,7 +182,7 @@ async function completeResource(resource: Resource, job: ResearchJobRow, workerI
   const result = await database.prepare(`UPDATE research_source_resource SET status='completed',checkpoint=NULL,
     error_code=NULL,content_sha256=?,ingested_revision=?,original_storage_key=?,
     last_ingested_at=CURRENT_TIMESTAMP
-    WHERE id=? AND json_extract(checkpoint,'$.jobId')=?`).run(rawSha256,
+    WHERE id=? AND (checkpoint::jsonb->>'jobId')=?`).run(rawSha256,
       (JSON.parse(job.request_json) as StjRequest).revision, originalStorageKey, resource.id, job.id);
   if (result.changes !== 1) throw new ResearchError('forbidden', 'Recurso STJ assumido por outro job.');
   await completeResearchJob(job, workerId);
@@ -296,7 +297,7 @@ export async function processNextStjResource(job: ResearchJobRow, transport: Tra
       { jobId: job.id, revision: request.revision, storageKey: null, sha256: null, rawSha256: null,
         originalStorageKey: null, finalUrl: null, nextIndex: 0 };
     const reserved = await database.prepare(`UPDATE research_source_resource SET status='running',checkpoint=?
-      WHERE id=? AND checkpoint IS ?`).run(JSON.stringify(state), resource.id, resource.checkpoint);
+      WHERE id=? AND checkpoint IS NOT DISTINCT FROM ?`).run(JSON.stringify(state), resource.id, resource.checkpoint);
     if (reserved.changes !== 1) { await deferResearchJob(job, workerId, 'resource_busy', 5_000); return; }
     let bytes: Buffer;
     let finalUrl = state.finalUrl ?? resource.source_url;
@@ -370,6 +371,7 @@ export async function processNextStjResource(job: ResearchJobRow, transport: Tra
     if (error instanceof ResearchError && error.code === 'budget_exceeded') {
       await deferResearchJob(job, workerId, 'budget_exceeded', 60_000); return;
     }
+    captureOperationalError(error, 'research.stj.ingest');
     const code = error instanceof ConnectorError || error instanceof ResearchError ? error.code : 'ingestion_failed';
     const retryable = error instanceof ConnectorError && isRetryable(error.code);
     await failResearchJob(job, workerId, code, retryable,

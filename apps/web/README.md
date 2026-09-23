@@ -1,6 +1,6 @@
 # @k5/web
 
-Next.js App Router com Better Auth, SQLite, TypeScript e Tailwind CSS.
+Next.js App Router com Better Auth, PostgreSQL, TypeScript e Tailwind CSS.
 
 O produto se chama **Lume**. Identificadores técnicos existentes — como o pacote
 `@k5/web`, variáveis `K5_*`, capabilities `k5_*` e nomes de recursos de infraestrutura —
@@ -16,9 +16,7 @@ pnpm dev
 ```
 
 O script de desenvolvimento chama `db:setup` antes de iniciar o Next.js.
-O setup é idempotente: gera `.env.local` se necessário, aplica o esquema do Better
-Auth e as migrações de `db/migrations/` em ordem. O arquivo SQLite é criado em
-`.data/k5.sqlite` dentro deste app. Não há conta ou senha padrão.
+Configure DATABASE_URL em .env.local antes de iniciar. O setup aplica db/postgres/*.sql com transação, lock e checksum; ele preserva segredos e não importa SQLite automaticamente. Não há conta ou senha padrão. Veja [a migração de dados](../../docs/migracao-postgres.md).
 
 ### Variáveis
 
@@ -26,7 +24,8 @@ Auth e as migrações de `db/migrations/` em ordem. O arquivo SQLite é criado e
 | --- | --- |
 | `BETTER_AUTH_URL` | Origem confiável; padrão local `http://localhost:3000` |
 | `BETTER_AUTH_SECRET` | Segredo de pelo menos 32 caracteres, gerado aleatoriamente pelo setup local |
-| `DATABASE_PATH` | Arquivo SQLite; caminho relativo ao diretório deste app |
+| `DATABASE_URL` | PostgreSQL transacional para Next.js e workers Node |
+| `DATABASE_URL_UNPOOLED` | Endpoint direto para migrações e importação |
 | `RESEARCH_STORAGE_PATH` | Diretório dos originais públicos do acervo; padrão `.data/research-objects` |
 | `SESSION_IDLE_SECONDS` | Expiração deslizante por inatividade; padrão 28800 (8 horas), mínimo 60 |
 | `K5_CREDENTIALS_KEY` | Chave mestra (32 bytes, base64) das credenciais de IA; gerada pelo setup somente em desenvolvimento |
@@ -50,7 +49,7 @@ as migrações explicitamente; não use o gerador local de segredos.
 - A navegação renova a sessão e o cookie; não existe polling que prolongue
   artificialmente a sessão de um usuário inativo.
 - `Sair` revoga todas as sessões do usuário e limpa o cookie atual.
-- Login e cadastro têm limite de tentativas persistido no SQLite. Sem IP confiável
+- Login e cadastro têm limite de tentativas persistido no PostgreSQL. Sem IP confiável
   no runtime, o Better Auth usa um limite compartilhado por endpoint. Ao configurar
   o proxy de produção, defina os proxies/cabeçalhos de IP confiáveis antes de escalar.
 
@@ -107,13 +106,22 @@ O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
   tabela `platform_admin`, independente do papel no escritório, e só é concedido pela linha
   de comando: `pnpm platform:admin grant --email usuario@exemplo.com` (`revoke` retira).
   Chaves ficam cifradas com AES-256-GCM e nunca voltam ao navegador; operações são auditadas.
+  Conexões OpenAI enviam `reasoningEffort: 'xhigh'` em chat, geração estruturada e teste
+  de credencial. O modelo escolhido precisa aceitar esse esforço; não há redução silenciosa.
 - **Rotação da chave mestra:** siga os comentários de `.env.example` e execute
   `pnpm platform:admin rotate-key --email <administrador da plataforma>`.
 - **Cofre (`/app/vault`):** casos e biblioteca; PDF (com OCR), DOCX, EML, XLSX, CSV e TXT
   com referências estáveis por página, parágrafo, mensagem ou célula.
-- **Lume (`/app/agents`):** conversa com histórico por usuário, usando somente os
-  documentos selecionados; cronologia e minuta rodam como tarefas duráveis e abrem no
+- **Lume (`/app/agents`):** conversa com histórico por usuário. O botão **+** envia documentos
+  e imagens privados para a conversa, com prévia, remoção antes do envio e acesso no histórico.
+  Aceita até seis anexos por mensagem, de até 10 MB cada. Eles não criam documentos no Cofre.
+  **Fontes** seleciona arquivos existentes do Cofre e referências do caso. Cronologia e minuta rodam como tarefas duráveis e abrem no
   editor em `/app/documents/[id]`, com exportação DOCX no timbrado do modelo.
+- **Câmera:** **+ → Tirar foto** abre a câmera do dispositivo após a permissão do navegador,
+  permite conferir ou repetir a foto e a anexa à mensagem. Exige HTTPS (ou localhost) e um
+  modelo com visão. A alternativa **Escolher foto** permanece disponível quando a câmera
+  não pode ser aberta. Para listas fotografadas, o Lume prepara uma sugestão de Agenda por
+  item solicitado; a pessoa confere os campos e salva na Agenda.
 - **Worker:** processamento de documentos, cronologias e minutas roda fora da requisição.
   Em outro terminal, execute `pnpm worker` na raiz. Sem ele, os itens ficam na fila.
 - **TypeSafe/Jev:** configure a conexão por escritório em `/platform/clients/[officeId]/ai`.
@@ -175,7 +183,7 @@ pnpm judicial:admin stj-link <id> --mirror-id <ID-nativo> --document-id <SeqDocu
 Os recursos têm limite
 de 50 MB e ingestão em lotes com checkpoint. Arquivos originais, hashes e versões ficam em
 `RESEARCH_STORAGE_PATH`; no Docker, `web`, `worker` e `judicial-worker` compartilham
-`/data/research-objects` e o mesmo SQLite. O comando `docker compose down` preserva o volume.
+`/data/research-objects` e o mesmo PostgreSQL. Na Cloudflare, originais da Pesquisa usam o bucket R2 `VAULT`, com prefixo `research/`. O comando `docker compose down` preserva o volume.
 `stj-enqueue ... --force` permite reprocessar um recurso de mesmo hash após registrar um vínculo;
 nenhum vínculo entre espelho e inteiro teor é inferido pelo número do processo.
 Para regras de fonte, limites, aceite e lacunas do piloto, veja
@@ -258,7 +266,7 @@ pnpm --filter @k5/web typecheck
 pnpm --filter @k5/web build
 ```
 
-Os testes usam os endpoints reais do Better Auth e SQLite em memória para validar
+Os testes usam os endpoints reais do Better Auth e PostgreSQL com esquemas isolados para validar
 autorização da plataforma, isolamento de credenciais, histórico de conversas, cronologia,
 exportação DOCX, cadastro, senha, duplicidade, isolamento de escritórios, tentativa de injetar papel,
 expiração, renovação, cookies forjados, logout global, origem e limite de tentativas.

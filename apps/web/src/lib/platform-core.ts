@@ -22,7 +22,7 @@ export async function findUserForPlatformGrant(db: Database, identifier: { email
 }
 
 export async function grantPlatformAdmin(db: Database, userId: string, grantedByUserId: string | null = null): Promise<boolean> {
-  const result = await db.prepare("INSERT OR IGNORE INTO platform_admin (user_id, granted_by_user_id) VALUES (?, ?)").run(userId, grantedByUserId);
+  const result = await db.prepare("INSERT INTO platform_admin (user_id, granted_by_user_id) VALUES (?, ?) ON CONFLICT DO NOTHING").run(userId, grantedByUserId);
   return result.changes > 0;
 }
 
@@ -83,10 +83,14 @@ export async function readPlatformJson<T>(request: Request, schema: z.ZodType<T>
 export function platformErrorResponse(error: unknown) {
   if (error instanceof PlatformRequestError) return Response.json({ error: error.message }, { status: error.status });
   if (error instanceof AiConnectionError) {
+    if (error.code === 'provider' || error.code === 'credential') captureOperationalError(error, `platform.ai.${error.code}`);
     const status = { not_found: 404, conflict: 409, in_use: 409, disabled: 409, provider: 422, credential: 503, invalid: 400 }[error.code];
     return Response.json({ error: error.message }, { status });
   }
-  if (error instanceof CredentialKeyError) return Response.json({ error: "A chave mestra de credenciais não está configurada corretamente." }, { status: 503 });
+  if (error instanceof CredentialKeyError) {
+    captureOperationalError(error, 'platform.credentials');
+    return Response.json({ error: "A chave mestra de credenciais não está configurada corretamente." }, { status: 503 });
+  }
   if (error instanceof SyntaxError || error instanceof z.ZodError) return Response.json({ error: "Confira os dados enviados." }, { status: 400 });
   captureOperationalError(error, 'platform.api.unhandled');
   console.error("Platform API error", error instanceof Error ? error.constructor.name : typeof error);
