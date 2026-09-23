@@ -11,12 +11,12 @@ import { ensureOfficeForUser, findOfficeForUser } from "../src/lib/offices";
 const origin = "http://localhost:3000";
 const password = "Senha-teste-2026!";
 
-async function fixture() {
+async function fixture(ipHeaders?: string[]) {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
   // Better Auth gets the raw handle; Lume's own code gets the same database through its async seam.
   const database = nodeSqliteDatabase(db);
-  const auth = createAuth(db, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600 });
+  const auth = createAuth(db, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders });
   await (await getMigrations(auth.options)).runMigrations();
   db.exec(readFileSync(new URL("../db/migrations/0001_offices.sql", import.meta.url), "utf8"));
   async function request(path: string, body?: object, cookie = "", requestOrigin = origin, connectingIp?: string) {
@@ -144,6 +144,15 @@ test("limita tentativas repetidas de login", async (t) => {
   }
   assert.equal((await request("/sign-in/email", { email: "ausente@example.test", password }, "", origin, "203.0.113.10")).response.status, 429);
   assert.equal((await request("/sign-in/email", { email: "ausente@example.test", password }, "", origin, "203.0.113.11")).response.status, 401);
+});
+
+test("fora da Cloudflare, cf-connecting-ip forjado não abre um limite novo", async (t) => {
+  const { db, request } = await fixture([]);
+  t.after(() => db.close());
+  for (let attempt = 0; attempt < 10; attempt++) {
+    assert.equal((await request("/sign-in/email", { email: "ausente@example.test", password }, "", origin, `203.0.113.${attempt}`)).response.status, 401);
+  }
+  assert.equal((await request("/sign-in/email", { email: "ausente@example.test", password }, "", origin, "203.0.113.99")).response.status, 429);
 });
 
 test("logout revoga sessões mesmo quando a limpeza de push falha", async (t) => {

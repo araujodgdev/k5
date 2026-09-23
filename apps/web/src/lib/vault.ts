@@ -8,6 +8,7 @@ import { ensureOfficeForUser, type OfficeMembership } from "@/lib/offices";
 import { assertStorageKey, objectStorage, StorageError } from "@/lib/storage";
 import { isTrustedOrigin } from "@/lib/trusted-origins";
 import type { UploadRef } from "@/lib/application/uploads-service";
+import type { CapabilityErrorCode } from "@/lib/capabilities/errors";
 
 export type VaultStatus = "queued" | "processing" | "ready" | "failed";
 export type VaultScope = "library" | "case";
@@ -27,7 +28,7 @@ export type DocumentChunk = { id: string; documentId: string; stableReference: s
 type DocumentRow = VaultDocument & { storedName: string; officeId: string; leaseOwner: string | null; leaseExpiresAt: string | null; deletedAt: string | null };
 
 export class VaultHttpError extends Error {
-  constructor(public readonly status: number, message: string) { super(message); }
+  constructor(public readonly status: number, message: string, public readonly code?: CapabilityErrorCode) { super(message); }
 }
 
 function mapDocument(row: Record<string, unknown>): DocumentRow {
@@ -363,7 +364,7 @@ export async function getDocumentChunks(officeId: string, documentIds: string[],
   const allowed = await database.prepare(`SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND id IN (${marks})`).all(officeId, ...ids) as Array<{ id: string; name: string; status: VaultStatus }>;
   if (allowed.length !== ids.length) throw new VaultHttpError(404, "Um dos documentos selecionados não está disponível neste escritório.");
   const unavailable = allowed.find((document) => document.status !== "ready");
-  if (unavailable) throw new VaultHttpError(409, `O documento “${unavailable.name}” ainda não está pronto para uso.`);
+  if (unavailable) throw new VaultHttpError(409, `O documento “${unavailable.name}” ainda não está pronto para uso.`, 'NOT_READY');
   if (!query?.trim()) return await database.prepare(`SELECT c.id, c.document_id AS documentId, c.stable_reference AS stableReference,
     d.original_name || ' — ' || c.stable_reference AS sourceLabel, c.content, c.ordinal
     FROM vault_document_chunk c JOIN vault_document d ON d.id = c.document_id AND d.office_id = c.office_id

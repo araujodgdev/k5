@@ -14,6 +14,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const document = await findVaultDocument(office.officeId, (await params).id);
     if (!document) throw new VaultHttpError(404, "Documento não encontrado.");
     const file = await readVaultOriginal(document);
-    return new Response(new Uint8Array(file), { headers: { "content-type": document.mimeType, "content-length": String(file.length), "content-disposition": contentDisposition(document.name), "x-content-type-options": "nosniff" } });
+    return new Response(new Uint8Array(file), { headers: { "content-type": document.mimeType, "content-length": String(file.length), "content-disposition": contentDisposition(document.name), "x-content-type-options": "nosniff", "cache-control": "private, no-store" } });
   } catch (error) { return vaultErrorResponse(error); }
 }

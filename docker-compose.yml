@@ -65,6 +65,7 @@ services:
       K5_VAPID_KEY_ID: ${K5_VAPID_KEY_ID:-}
       K5_VAPID_SUBJECT: ${K5_VAPID_SUBJECT:-}
       K5_VAPID_PUBLIC_KEY: ${K5_VAPID_PUBLIC_KEY:-}
+      K5_CLIENT_IP_HEADER: ${K5_CLIENT_IP_HEADER:-}
     volumes:
       - appdata:/data
     depends_on:

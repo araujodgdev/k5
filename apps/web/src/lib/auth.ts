@@ -16,4 +16,8 @@ export const auth = createAuth(await authStore() as AuthStore, database, {
   idleSeconds,
   // Comma-separated extra origins, e.g. a dev tunnel URL.
   extraOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean),
+  // Cloudflare overwrites cf-connecting-ip at the edge. Anywhere else a client can send it, so the
+  // header is only trusted when the operator names the one their own proxy overwrites.
+  ipHeaders: process.env.K5_RUNTIME === "cloudflare" ? ["cf-connecting-ip"]
+    : process.env.K5_CLIENT_IP_HEADER ? [process.env.K5_CLIENT_IP_HEADER.trim().toLowerCase()] : [],
 });

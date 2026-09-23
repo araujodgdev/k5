@@ -40,6 +40,8 @@ export function apiError(error: unknown) {
   }
   if (error instanceof CredentialKeyError) return Response.json({ error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.' }, { status: 503 });
   if (error instanceof NotificationRequestError) return Response.json({ error: error.message }, { status: error.status });
+  // Custom issues carry messages written for the person (pt-BR); built-in Zod messages do not.
+  if (error instanceof ZodError && error.issues[0]?.code === 'custom') return Response.json({ error: error.issues[0].message }, { status: 400 });
   if (error instanceof ZodError || error instanceof SyntaxError) return Response.json({ error: 'Confira os dados enviados.' }, { status: 400 });
   // Keep the public response deliberately generic, but preserve enough private Worker telemetry
   // to diagnose production-only adapter failures without logging request bodies or credentials.

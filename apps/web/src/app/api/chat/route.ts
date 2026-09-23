@@ -11,7 +11,7 @@ import { agentTools, toolSummary } from '@/lib/agent-tools';
 import { listVaultDocuments, readVaultOriginal, findVaultDocument } from '@/lib/vault';
 import { modelModalities } from '@/lib/ai-modalities';
 
-const messageSchema = z.object({ id: z.string(), role: z.enum(['user', 'assistant', 'system']), parts: z.array(z.object({ type: z.string(), text: z.string().max(20000).optional() }).passthrough()).max(100) });
+const messageSchema = z.object({ id: z.string(), role: z.enum(['user', 'assistant', 'system']), parts: z.array(z.object({ type: z.string(), text: z.string().refine((text) => text.length <= 20000, 'Escreva uma mensagem de até 20 mil caracteres.').optional() }).passthrough()).max(100) });
 const modelSchema = z.object({ provider: z.string().max(40), modelId: z.string().max(160) }).optional();
 // Audio is attached to a single turn: it is dictation, not a document, so it is never stored.
 const attachmentSchema = z.object({ mediaType: z.string().max(120), data: z.string().max(8_000_000) });
@@ -181,6 +181,8 @@ export async function POST(request: Request) {
 
           let buffer = '';
           for await (const chunk of response.fullStream) {
+            // Mastra reports provider failures as a stream chunk, not an exception.
+            if (chunk.type === 'error') throw chunk.payload.error;
             if (chunk.type === 'text-delta') {
               buffer += chunk.payload.text;
               let newline: number;
@@ -214,7 +216,7 @@ export async function POST(request: Request) {
           const message = aborted ? '\n[Resposta interrompida.]' : '\n[Não foi possível concluir a resposta. Tente novamente.]';
           if (!answer.endsWith(message)) { answer += message; writer.write({ type: 'text-delta', id: partId, delta: message }); }
           await recordUsage(office.officeId, user.id, config, 'chat', aborted ? 'cancelled' : 'failed');
-          void error;
+          console.error('[chat] provedor falhou', error instanceof Error ? error.name : typeof error);
         } finally {
           const parts: UIMessage['parts'] = [
             ...steps.map((step, index) => ({ type: 'data-tool' as const, id: `${messageId}-${index}`, data: step })),

@@ -540,6 +540,7 @@ export function AgentChat({ initialConversationId = '', initialData, initialMode
     return next;
   }, []);
 
+  const creatingConversation = useRef<ReturnType<typeof createConversation> | null>(null);
   const createConversation = useCallback(async () => {
     setError("");
     const response = await fetch("/api/conversations", {
@@ -567,7 +568,8 @@ export function AgentChat({ initialConversationId = '', initialData, initialMode
         if (cancelled) return;
         if (initialConversationId && next.some(item => item.id === initialConversationId)) setSelectedId(initialConversationId);
         else if (next[0]) setSelectedId(next[0].id);
-        else await createConversation();
+        // StrictMode runs this effect twice; both runs share one POST instead of creating two conversations.
+        else await (creatingConversation.current ??= createConversation());
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "Não foi possível abrir o chat.");
       } finally {

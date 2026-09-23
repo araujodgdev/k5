@@ -700,7 +700,7 @@ test("vault drive: a case carries its client data and folders stay inside their 
   assert.deepEqual((await vaultService.listFolders(context, { caseId: created.case.id, parentId: root.folder.id })).path.map((f) => f.name), ["Petições"]);
 
   // Siblings cannot share a name, and a folder of another office is not addressable from here.
-  await assert.rejects(() => vaultService.createFolder(context, { caseId: created.case.id, name: "Petições" }), (error) => error instanceof CapabilityError && error.code === "NOT_READY");
+  await assert.rejects(() => vaultService.createFolder(context, { caseId: created.case.id, name: "Petições" }), (error) => error instanceof CapabilityError && error.code === "CONFLICT");
   const foreign = await vaultService.createCase(other, { name: `Beta ${randomUUID()}` });
   await assert.rejects(
     () => vaultService.createFolder(context, { caseId: foreign.case.id, name: "Qualquer" }),
