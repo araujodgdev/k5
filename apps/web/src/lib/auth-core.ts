@@ -15,7 +15,7 @@ export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
  * hook writes Lume's tables through `db`. They are the same database; the two handles exist because
  * Better Auth needs a backend it recognises and Lume needs the async seam in `db/types.ts`.
  */
-export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[] }) {
+export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[]; ipHeaders?: string[] }) {
   return betterAuth({
     appName: "Lume",
     database: store,
@@ -36,9 +36,9 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
     },
     advanced: {
       ipAddress: {
-        // Cloudflare overwrites this header at the edge, so it is safe to use for per-client
-        // authentication rate limits without trusting a caller-controlled forwarded chain.
-        ipAddressHeaders: ["cf-connecting-ip"],
+        // Only a header the edge overwrites is safe for per-client rate limits. An empty list
+        // means no trusted header: every client shares one bucket instead of spoofing its own.
+        ipAddressHeaders: settings.ipHeaders ?? ["cf-connecting-ip"],
       },
     },
     rateLimit: {

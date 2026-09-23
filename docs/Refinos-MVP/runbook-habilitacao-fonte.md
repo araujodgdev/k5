@@ -141,7 +141,7 @@ Só com a evidência anexada à ficha. O checklist completo está no
 ## Fila de trabalho da Onda 0
 
 As cinco primeiras fichas, com o que a pesquisa de 18/09/2026 já apurou e o que falta. Detalhes e
-links em [fontes-infra-judicial.md](fontes-infra-judicial.md).
+links em [fontes-infra-judicial.md](../fontes-infra-judicial.md).
 
 | # | Instalação | Já sabemos | Falta |
 | --- | --- | --- | --- |

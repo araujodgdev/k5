@@ -1,6 +1,6 @@
 import { apiWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
-import { getApprovalProposal, approveProposal, rejectProposal } from '@/lib/application/approvals-service';
+import { getApprovalProposal, approveProposal, rejectProposal, publicApproval } from '@/lib/application/approvals-service';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
@@ -12,7 +12,7 @@ export async function GET(request: Request, context: Context) {
     const workspace = await apiWorkspace(request);
     const id = (await context.params).id;
     const proposal = await getApprovalProposal(workspaceContext(workspace), id);
-    return Response.json({ proposal });
+    return Response.json({ proposal: publicApproval(proposal) });
   } catch (error) { return apiError(error); }
 }
 
@@ -24,6 +24,6 @@ export async function POST(request: Request, context: Context) {
 
     const ctx = workspaceContext(workspace);
     const result = body.action === 'approve' ? await approveProposal(ctx, id) : await rejectProposal(ctx, id);
-    return Response.json({ proposal: result });
+    return Response.json({ proposal: publicApproval(result) });
   } catch (error) { return apiError(error); }
 }

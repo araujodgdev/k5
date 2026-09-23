@@ -1,6 +1,6 @@
 import { apiWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
-import { createApprovalProposal } from '@/lib/application/approvals-service';
+import { createApprovalProposal, publicApproval, type ApprovalRow } from '@/lib/application/approvals-service';
 import { database } from '@/lib/database';
 import { z } from 'zod';
 
@@ -11,8 +11,8 @@ export async function GET(request: Request) {
     const workspace = await apiWorkspace(request);
     const rows = await database.prepare(
       "SELECT * FROM capability_approval WHERE office_id=? AND user_id=? AND status='pending' AND expires_at > ? ORDER BY created_at DESC"
-    ).all((workspace.office).officeId, workspace.user.id, Date.now());
-    return Response.json({ approvals: rows });
+    ).all((workspace.office).officeId, workspace.user.id, Date.now()) as ApprovalRow[];
+    return Response.json({ approvals: rows.map(publicApproval) });
   } catch (error) { return apiError(error); }
 }
 
@@ -35,6 +35,6 @@ export async function POST(request: Request) {
       body.targetVersion,
       body.ttlMs
     );
-    return Response.json({ proposal }, { status: 201 });
+    return Response.json({ proposal: publicApproval(proposal) }, { status: 201 });
   } catch (error) { return apiError(error); }
 }

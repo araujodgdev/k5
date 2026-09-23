@@ -18,7 +18,7 @@ import { searchKnowledgeEngine } from '@/lib/knowledge/retrieval';
 export function asCapabilityError(error: unknown): unknown {
   if (!(error instanceof VaultHttpError)) return error;
   if (error.status === 404) return new CapabilityError('NOT_FOUND', error.message);
-  if (error.status === 409) return new CapabilityError('NOT_READY', error.message);
+  if (error.status === 409) return new CapabilityError(error.code ?? 'CONFLICT', error.message);
   if (error.status === 403) return new CapabilityError('FORBIDDEN', error.message);
   if (error.status === 503) return new CapabilityError('NOT_READY', error.message);
   return new CapabilityError('INVALID', error.message);

@@ -13,6 +13,8 @@ import { withIdempotency } from "../src/lib/application/idempotency-service";
 import { assertStorageKey, objectStorage, resetObjectStorageForTests, storageKey } from "../src/lib/storage";
 import { findVaultDocument, listVaultDocuments, retryVaultDocument, VaultHttpError } from "../src/lib/vault";
 import { isTrustedOrigin } from "../src/lib/trusted-origins";
+import { vaultErrorResponse } from "../src/lib/vault-api";
+import { activityData } from "../src/lib/capabilities/agenda";
 
 async function seedOffices() {
   const userLawyer = randomUUID();
@@ -368,4 +370,27 @@ test("origins: the wildcard the tunnel default declares is honoured, and nothing
   assert.equal(isTrustedOrigin("http://localhost:3000/api/chat", patterns), false);
   assert.equal(isTrustedOrigin("null", patterns), false);
   assert.equal(isTrustedOrigin("https://going-officials-kenny-axis.trycloudflare.com", []), false);
+});
+
+test("vault routes answer domain validation errors with 400 and the domain message", async () => {
+  const response = vaultErrorResponse(new CapabilityError("INVALID", "O arquivo está vazio."));
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "O arquivo está vazio.", code: "INVALID" });
+});
+
+test("approval responses omit tenant ids and the stored input", () => {
+  const dto = approvalsService.publicApproval({
+    id: "a1", office_id: "o1", user_id: "u1", capability_name: "k5_vault_delete_case", normalized_input: "{}",
+    target_resource_id: "c1", target_version: null, status: "pending", expires_at: 0, created_at: "2026-09-23", consumed_at: null,
+  });
+  assert.deepEqual(Object.keys(dto).sort(), ["capabilityName", "createdAt", "expiresAt", "id", "status", "targetResourceId"]);
+  assert.equal(dto.expiresAt, "1970-01-01T00:00:00.000Z");
+});
+
+// apiError shows the first Zod issue only when it is `custom`, so person-facing rules must stay custom.
+test("meeting ending before it starts fails with a custom pt-BR issue", () => {
+  const parsed = activityData.safeParse({ kind: "meeting", title: "Reunião", startsAt: "2026-09-23T10:00:00Z", endsAt: "2026-09-23T09:00:00Z" });
+  assert.ok(!parsed.success);
+  assert.equal(parsed.error.issues[0].code, "custom");
+  assert.equal(parsed.error.issues[0].message, "Reuniões exigem início e fim posterior; tarefas usam apenas uma data.");
 });
