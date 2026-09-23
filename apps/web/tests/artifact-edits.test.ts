@@ -1,0 +1,94 @@
+import { testDb } from './test-setup';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import test from 'node:test';
+import { applyEdits, PENDING_LEGAL, PENDING_LEGAL_ISSUE, withoutUnapprovedCitations } from '../src/lib/artifact-edits';
+import { runCapability } from '../src/lib/agent-tools';
+import { createConversation } from '../src/lib/ai-store';
+import { publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts';
+import type { WorkspaceContext } from '../src/lib/application/context';
+
+test('artifact edits: applied in order, all or nothing, and only on a unique excerpt', () => {
+  const text = 'Cláusula 1. O locatário paga.\nCláusula 2. O locatário paga.';
+  assert.deepEqual(applyEdits(text, [{ find: 'Cláusula 1. O locatário', replace: 'Cláusula 1. A locatária' }, { find: 'A locatária paga', replace: 'A locatária paga em dia' }]),
+    { content: 'Cláusula 1. A locatária paga em dia.\nCláusula 2. O locatário paga.' });
+  assert.deepEqual(applyEdits(text, [{ find: 'O locatário paga', replace: 'x' }]), { failure: { index: 0, reason: 'ambiguous', find: 'O locatário paga' } });
+  assert.deepEqual(applyEdits(text, [{ find: 'Cláusula 1', replace: 'Primeira' }, { find: 'Cláusula 9', replace: 'y' }]), { failure: { index: 1, reason: 'missing', find: 'Cláusula 9' } });
+});
+
+test('artifact edits: new citations become pending markers; the person\'s own survive rewording', () => {
+  const created = withoutUnapprovedCitations('# Dos fatos\nO réu não pagou.\n- Nos termos do art. 186 do Código Civil, deve indenizar.\n> Súmula 54 do STJ');
+  assert.equal(created.blocked, 2);
+  assert.equal(created.text, `# Dos fatos\nO réu não pagou.\n- ${PENDING_LEGAL}\n> ${PENDING_LEGAL}`);
+
+  const before = 'Pede a citação, nos termos do art. 319 do CPC.\nO réu não pagou.';
+  // Rewording a line the person wrote keeps the authority they chose.
+  assert.deepEqual(withoutUnapprovedCitations('Requer a citação do réu, nos termos do art. 319 do CPC.\nO réu não pagou.', before),
+    { text: 'Requer a citação do réu, nos termos do art. 319 do CPC.\nO réu não pagou.', blocked: 0 });
+  // A new authority in a changed line is not the person's choice.
+  assert.equal(withoutUnapprovedCitations('Pede a citação, nos termos do art. 319 do CPC.\nO réu não pagou, violando a Lei 8.078.', before).blocked, 1);
+});
+
+async function fixture() {
+  const officeId = randomUUID();
+  await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
+  const member = async (role: WorkspaceContext['role']) => {
+    const userId = randomUUID();
+    await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, role);
+    await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role);
+    return { officeId, userId, role } as WorkspaceContext;
+  };
+  const lawyer = await member('lawyer');
+  const first = await createConversation(testDb, lawyer);
+  const second = await createConversation(testDb, lawyer);
+  const agent = (conversationId: string): WorkspaceContext => ({ ...lawyer, invocation: 'agent', conversationId });
+  return { lawyer, member, agent, first: first.id, second: second.id };
+}
+type Artifact = { id: string; title: string; content: string; version: number; validationIssues: string[] };
+const run = async (context: WorkspaceContext, name: 'k5_artifacts_create' | 'k5_artifacts_edit', input: unknown) =>
+  (await runCapability(context, name, input) as { artifact: Artifact }).artifact;
+
+test('artifact edits: the agent refines its own document in the same conversation without asking', async () => {
+  const { agent, first } = await fixture();
+  const created = await run(agent(first), 'k5_artifacts_create', { title: 'Notificação', content: 'Prezado,\nO aluguel está atrasado.\nConforme art. 9 da Lei 8.245.' });
+  assert.equal(created.version, 1);
+  assert.equal(created.content, `Prezado,\nO aluguel está atrasado.\n${PENDING_LEGAL}`);
+  assert.deepEqual(created.validationIssues, [PENDING_LEGAL_ISSUE]);
+  const row = await testDb.prepare('SELECT kind, conversation_id, created_by_agent, run_id FROM ai_artifact WHERE id=?').get(created.id);
+  assert.deepEqual(row, { kind: 'document', conversation_id: first, created_by_agent: true, run_id: null });
+
+  const edited = await run(agent(first), 'k5_artifacts_edit', { artifactId: created.id, version: 1, edits: [{ find: 'está atrasado', replace: 'está atrasado há 40 dias' }] });
+  assert.equal(edited.version, 2);
+  assert.match(edited.content, /há 40 dias/);
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM ai_artifact_version WHERE artifact_id=?').get(created.id) as { n: number }).n, 2);
+  await assert.rejects(runCapability(agent(first), 'k5_artifacts_edit', { artifactId: created.id, version: 1, edits: [{ find: 'Prezado', replace: 'Caro' }] }), { code: 'CONFLICT' });
+  await assert.rejects(runCapability(agent(first), 'k5_artifacts_edit', { artifactId: created.id, version: 2, edits: [{ find: 'inexistente', replace: 'x' }] }), { code: 'INVALID' });
+});
+
+test('artifact edits: another conversation, a job document or another person needs confirmation or sees nothing', async () => {
+  const { lawyer, member, agent, first, second } = await fixture();
+  const created = await run(agent(first), 'k5_artifacts_create', { title: 'Contrato', content: 'Cláusula única.' });
+  await assert.rejects(runCapability(agent(second), 'k5_artifacts_edit', { artifactId: created.id, version: 1, edits: [{ find: 'única', replace: 'primeira' }] }), { code: 'APPROVAL_REQUIRED' });
+
+  // The person's document edited in the editor is theirs; the job's draft too.
+  const runId = randomUUID(), draftId = randomUUID();
+  await testDb.prepare("INSERT INTO ai_run(id,office_id,user_id,kind,input,status) VALUES(?,?,?,'draft','{}','completed')").run(runId, lawyer.officeId, lawyer.userId);
+  await testDb.prepare("INSERT INTO ai_artifact(id,office_id,user_id,run_id,title,content,conversation_id) VALUES(?,?,?,?,'Minuta','Dos fatos.',?)").run(draftId, lawyer.officeId, lawyer.userId, runId, first);
+  await assert.rejects(runCapability(agent(first), 'k5_artifacts_edit', { artifactId: draftId, version: 1, edits: [{ find: 'fatos', replace: 'fatos e do direito' }] }), { code: 'APPROVAL_REQUIRED' });
+
+  const colleague = await member('lawyer');
+  await assert.rejects(runCapability({ ...colleague, invocation: 'agent', conversationId: first }, 'k5_artifacts_edit', { artifactId: created.id, version: 1, edits: [{ find: 'única', replace: 'x' }] }), { code: 'NOT_FOUND' });
+  const reviewer = await member('reviewer');
+  await assert.rejects(runCapability({ ...reviewer, invocation: 'agent' }, 'k5_artifacts_create', { title: 'x', content: 'y' }), { code: 'FORBIDDEN' });
+});
+
+test('artifact edits: the list puts this conversation first, and the tools stay off WebMCP', async () => {
+  const { agent, first, second } = await fixture();
+  const mine = await run(agent(first), 'k5_artifacts_create', { title: 'Desta conversa', content: 'a' });
+  await run(agent(second), 'k5_artifacts_create', { title: 'De outra conversa', content: 'b' });
+  const { artifacts } = await runCapability(agent(first), 'k5_artifacts_list', {}) as { artifacts: Array<{ id: string; inThisConversation: boolean }> };
+  assert.equal(artifacts[0].id, mine.id);
+  assert.deepEqual(artifacts.map(item => item.inThisConversation), [true, false]);
+  const webmcp = publishedCapabilitiesForRole('lawyer', 'webmcp');
+  for (const name of ['k5_artifacts_create', 'k5_artifacts_edit', 'k5_artifacts_list'] as const) assert.ok(!webmcp.includes(name));
+});

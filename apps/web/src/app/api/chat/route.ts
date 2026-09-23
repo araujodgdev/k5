@@ -20,6 +20,8 @@ import { clockContext } from '@/lib/chat-clock';
 import { webSearchTool } from '@mastra/core/tools';
 import { resolveOfficeModelConfig } from '@/lib/ai-connections';
 import { transcribeAudio, transcribesAudio } from '@/lib/audio-transcription';
+import { instructionsPrompt } from '@/lib/agent-instructions';
+import { knowledgePrompt } from '@/lib/agent-knowledge';
 
 export const runtime = 'nodejs';
 
@@ -30,11 +32,13 @@ const MAX_REPEATS = 2;
 const toolInstructions = `Você opera o Lume pelas ferramentas disponíveis, em nome da pessoa que conversa com você, e age com autonomia.
 Use as ferramentas para consultar e agir; não descreva uma ação como feita sem tê-la executado. Depois de agir, diga em uma frase o que fez.
 Execute sem pedir revisão: criar, editar, concluir, cancelar ou reagendar tarefas e reuniões; criar e atualizar casos, clientes e pastas; mover e renomear documentos; separar e gerar anexos; iniciar cronologias e minutas. Pergunte apenas quando faltar um dado necessário (horário ambíguo, qual caso, qual cliente), com uma pergunta objetiva.
-Exclusões, consultas e vínculos com tribunais e a sobrescrita de uma minuta existente pedem confirmação: chame a ferramenta normalmente; quando ela responder que aguarda confirmação, a pessoa verá abaixo da sua resposta um botão Confirmar que executa exatamente essa ação. Diga em uma frase o que será feito ao confirmar. Não peça confirmação em texto, não repita a chamada e não diga que a ação foi feita.
+Exclusões, consultas e vínculos com tribunais e a alteração de um documento que você não criou nesta conversa pedem confirmação: chame a ferramenta normalmente; quando ela responder que aguarda confirmação, a pessoa verá abaixo da sua resposta um botão Confirmar que executa exatamente essa ação. Diga em uma frase o que será feito ao confirmar. Não peça confirmação em texto, não repita a chamada e não diga que a ação foi feita.
 Fotos e arquivos enviados na mensagem pertencem ao chat. Leia-os diretamente. Quando a pessoa pedir para agendar uma lista fotografada, crie uma atividade por item com k5_agenda_create_activity, usando a transcrição fiel do item. Não invente datas, horários ou trechos ilegíveis: pergunte sobre eles no fim.
 Para separar os anexos de uma petição a partir de um PDF digitalizado do caso, chame k5_vault_plan_annexes e em seguida k5_vault_generate_annexes com os documentos incluídos, na ordem proposta; informe a pasta criada e lembre que a aba Anexos do caso permite refazer com ajustes.
 Tarefas humanas e reuniões usam k5_agenda_*; clientes usam k5_crm_*. k5_runs_* são apenas jobs de documentos.
 Antes de editar, consulte o registro e sua versão. Em conflito, consulte novamente e não sobrescreva silenciosamente.
+Quando a pessoa pedir um texto para usar fora da conversa (petição, contrato, notificação, parecer, procuração, e-mail formal), crie um documento com k5_artifacts_create em vez de escrever o texto no chat, e diga em uma frase o que criou, sem repetir o conteúdo. Para ajustes, use k5_artifacts_edit com trechos exatos da versão atual; reescreva o documento inteiro só quando a pessoa pedir. Se ela mencionar um documento sem dizer qual, consulte k5_artifacts_list.
+Não escreva citações de leis, artigos, súmulas ou julgados em documentos: onde a fundamentação for necessária, escreva [FUNDAMENTAÇÃO JURÍDICA A INSERIR]. Citações não selecionadas pela pessoa são substituídas pelo sistema.
 Reuniões exigem horário e fuso explícitos. Use chaves de idempotência estáveis por intenção de escrita. A agenda é interna: não envia convites, lembretes nem calcula prazos judiciais.
 Para ler documentos e referências selecionadas, use k5_knowledge_search com os identificadores apresentados no escopo. Referências de julgados de outros processos servem como contexto jurídico, nunca como fatos do cliente.
 Chame uma ferramenta apenas quando ela for necessária para responder. Perguntas gerais você responde direto.
@@ -70,7 +74,7 @@ export async function POST(request: Request) {
     const text = body.message.parts.filter(p => p.type === 'text').map(p => p.text ?? '').join('\n').trim();
     if (!text || text.length > 20000) throw new ApiError(400, 'Escreva uma mensagem de até 20 mil caracteres.');
     if (body.researchReferenceIds.length && !body.caseId) throw new ApiError(400, 'Selecione o caso das referências.');
-    const context = { ...workspaceContext(workspace), signal: request.signal,
+    const context = { ...workspaceContext(workspace), signal: request.signal, conversationId: id,
       allowedResearchCaseId: body.caseId, allowedResearchReferenceIds: body.researchReferenceIds };
     const researchSources = body.researchReferenceIds.length
       ? await selectedResearchSources(context, body.caseId!, body.researchReferenceIds) : [];
@@ -97,12 +101,14 @@ export async function POST(request: Request) {
     // Grounding on the open web uses the provider's own search tool. Gemini does not mix Google
     // Search with function calling, so only OpenAI and Anthropic get it next to the office tools.
     const provider = (await resolveOfficeModelConfig(office.officeId, 'chat')).provider;
+    const [writingRules, knowledge] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner)]);
     const tools = ['openai', 'anthropic'].includes(provider) ? { ...officeTools, web_search: webSearchTool } : officeTools;
     const { agent, config } = await createOfficeAgent(
       (office).officeId,
       'chat',
       [
-        conversationStyle, groundedInstructions, toolInstructions, clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
+        // Rules shape the voice; the policies after them keep the last word.
+        conversationStyle, ...[writingRules, knowledge].filter(Boolean), groundedInstructions, toolInstructions, clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
         'Nesta conversa nenhuma citação jurídica está aprovada; autoridades jurídicas só entram em minutas com seleção explícita da pessoa.',
         scope,
         researchScope,
@@ -133,7 +139,7 @@ export async function POST(request: Request) {
         const messageId = randomUUID();
         const partId = randomUUID();
         let answer = '';
-        const steps: Array<{ name: string; summary: string; state: 'completed' | 'failed'; href?: string }> = [];
+        const steps: Array<{ callId: string; name: string; summary: string; state: 'completed' | 'failed'; href?: string }> = [];
         const confirmations: AgentApprovalPart[] = [];
         const findings: Array<{ id: string; data: unknown }> = [];
         const emit = (line: string) => {
@@ -228,7 +234,7 @@ export async function POST(request: Request) {
                 writer.write({ type: 'data-approval', id: request.approvalId, data: confirmation });
               } else {
                 const href = failed ? undefined : resourceHref(chunk.payload.toolName, chunk.payload.result);
-                const step = { name: chunk.payload.toolName, summary: toolSummary(chunk.payload.toolName, chunk.payload.result, failed), state: failed ? 'failed' as const : 'completed' as const, ...(href ? { href } : {}) };
+                const step = { callId: chunk.payload.toolCallId, name: chunk.payload.toolName, summary: toolSummary(chunk.payload.toolName, chunk.payload.result, failed), state: failed ? 'failed' as const : 'completed' as const, ...(href ? { href } : {}) };
                 steps.push(step);
                 writer.write({ type: 'data-tool', id: chunk.payload.toolCallId, data: step });
                 // Case law reaches the person as a list built from the tool result, with its links,

@@ -21,6 +21,8 @@ export function ResearchDraftStarter({ caseId, references }: { caseId: string; r
   const [documents, setDocuments] = useState<Document[]>([]);
   const [templates, setTemplates] = useState<Document[]>([]);
   const [templateId, setTemplateId] = useState('');
+  // The letterhead from Personalizar Lume; with it, picking a template here becomes optional.
+  const [defaultTemplate, setDefaultTemplate] = useState<string | null>(null);
   const [documentIds, setDocumentIds] = useState<string[]>([]);
   const [referenceIds, setReferenceIds] = useState<string[]>([]);
   const [instructions, setInstructions] = useState('');
@@ -36,11 +38,13 @@ export function ResearchDraftStarter({ caseId, references }: { caseId: string; r
     let live = true;
     const load = async () => {
       setLoading(true);
-      const [response, libraryResponse] = await Promise.all([
+      const [response, libraryResponse, defaults] = await Promise.all([
         requestCapability('k5_vault_list_documents', { caseId, scope: 'case', limit: 50 }),
         requestCapability('k5_vault_list_documents', { scope: 'library', limit: 50 }),
+        fetch('/api/agent/template', { cache: 'no-store' }).then(res => res.ok ? res.json() as Promise<{ office: { name: string } | null; personal: { name: string } | null }> : null).catch(() => null),
       ]);
       if (!live) return;
+      setDefaultTemplate((defaults?.personal ?? defaults?.office)?.name ?? null);
       if (response.ok) setDocuments((response.data as { documents: Document[] }).documents.filter(item => item.status === 'ready'));
       else setError(response.error);
       if (libraryResponse.ok) {
@@ -68,12 +72,12 @@ export function ResearchDraftStarter({ caseId, references }: { caseId: string; r
   }
   async function start(event: FormEvent) {
     event.preventDefault();
-    if (!candidates || !templateId || !instructions.trim() || (!documentIds.length && !referenceIds.length)) return;
+    if (!candidates || (!templateId && !defaultTemplate) || !instructions.trim() || (!documentIds.length && !referenceIds.length)) return;
     setBusy(true); setError('');
     try {
       const response = await fetch('/api/runs', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
-        body: JSON.stringify({ kind: 'draft', caseId, documentIds, researchReferenceIds: referenceIds, templateId,
+        body: JSON.stringify({ kind: 'draft', caseId, documentIds, researchReferenceIds: referenceIds, templateId: templateId || undefined,
           instructions: instructions.trim(), approvedCitationIds }),
       });
       const result = await response.json().catch(() => null) as { run?: { id: string }; error?: string } | null;
@@ -91,11 +95,11 @@ export function ResearchDraftStarter({ caseId, references }: { caseId: string; r
           <p className="text-sm text-muted-foreground">Escolha os arquivos do caso e as referências jurídicas que devem orientar esta minuta.</p>
           <fieldset><legend className="text-sm font-medium">Arquivos do caso</legend>{loading && <p className="py-3 text-sm text-muted-foreground">Carregando arquivos…</p>}{!loading && documents.length === 0 && <p className="py-3 text-sm text-subtle-foreground">Nenhum arquivo pronto neste caso.</p>}{documents.map(document => <label key={document.id} className="flex min-h-11 items-center gap-3 border-b text-sm"><input type="checkbox" checked={documentIds.includes(document.id)} onChange={() => toggle(document.id, documentIds, setDocumentIds)} /><span className="min-w-0 truncate">{document.name}</span></label>)}</fieldset>
           <fieldset><legend className="text-sm font-medium">Referências jurídicas</legend>{available.length === 0 && <p className="py-3 text-sm text-subtle-foreground">Nenhuma referência disponível neste caso. <Link href="/app/research" onClick={() => setOpen(false)} className="underline underline-offset-2">Abrir Pesquisa</Link>.</p>}{available.map(reference => <label key={reference.id} className="flex min-h-11 items-center gap-3 border-b text-sm"><input type="checkbox" checked={referenceIds.includes(reference.id)} onChange={() => toggle(reference.id, referenceIds, setReferenceIds)} /><span className="min-w-0"><span className="block truncate">{reference.material?.title}</span><span className="block text-[13px] text-muted-foreground">{reference.material?.kind === 'full_text' ? 'Inteiro teor' : 'Ementa'} · versão escolhida para este caso</span></span></label>)}</fieldset>
-          <div className="grid gap-1.5"><Label htmlFor="research-draft-template">Modelo de minuta</Label><select id="research-draft-template" className="h-11 rounded-md border bg-background px-3 text-sm md:h-9" value={templateId} onChange={event => setTemplateId(event.target.value)} required><option value="">Escolha um arquivo pronto do Cofre</option>{templates.map(document => <option key={document.id} value={document.id}>{document.name}</option>)}</select>{!loading && templates.length === 0 && <p className="text-[13px] text-muted-foreground">Adicione um modelo de documento pronto à biblioteca ou ao caso antes de criar a minuta.</p>}</div>
+          <div className="grid gap-1.5"><Label htmlFor="research-draft-template">Modelo de minuta</Label><select id="research-draft-template" className="h-11 rounded-md border bg-background px-3 text-sm md:h-9" value={templateId} onChange={event => setTemplateId(event.target.value)} required={!defaultTemplate}><option value="">{defaultTemplate ? `Modelo padrão · ${defaultTemplate}` : 'Escolha um arquivo pronto do Cofre'}</option>{templates.map(document => <option key={document.id} value={document.id}>{document.name}</option>)}</select>{!loading && templates.length === 0 && !defaultTemplate && <p className="text-[13px] text-muted-foreground">Adicione um modelo de documento pronto à biblioteca ou ao caso antes de criar a minuta.</p>}</div>
           <div className="grid gap-1.5"><Label htmlFor="research-draft-instructions">Pedido da minuta</Label><Textarea id="research-draft-instructions" value={instructions} onChange={event => setInstructions(event.target.value)} minLength={1} maxLength={12000} className="min-h-28" required placeholder="Descreva a peça e o que ela deve abordar." /></div>
           <Button type="button" variant="outline" disabled={busy || (!documentIds.length && !referenceIds.length)} onClick={() => void reviewCitations()} className="min-h-11 md:min-h-9">{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}Revisar citações</Button>
           {candidates && <fieldset className="border-t pt-4"><legend className="text-sm font-medium">Citações que você autoriza</legend><p className="mt-1 text-[13px] text-muted-foreground">Só os trechos marcados poderão aparecer como citação jurídica na minuta.</p>{candidates.length === 0 && <p className="py-4 text-sm text-subtle-foreground">Nenhum trecho candidato encontrado. Você ainda pode preparar a minuta sem citações jurídicas.</p>}{candidates.map(candidate => <label key={candidate.id} className="flex gap-3 border-b py-3 text-sm"><input type="checkbox" className="mt-1" checked={approvedCitationIds.includes(candidate.id)} onChange={() => setApprovedCitationIds(current => current.includes(candidate.id) ? current.filter(id => id !== candidate.id) : [...current, candidate.id])} /><span><span className="block text-[13px] text-muted-foreground">{citationSourceLabel(candidate.sourceLabel)}</span><span className="mt-1 block whitespace-pre-wrap">{candidate.text}</span></span></label>)}</fieldset>}
-          <Button type="submit" disabled={busy || !candidates || !templateId || !instructions.trim()} className="min-h-11 md:min-h-9">Criar minuta</Button>
+          <Button type="submit" disabled={busy || !candidates || (!templateId && !defaultTemplate) || !instructions.trim()} className="min-h-11 md:min-h-9">Criar minuta</Button>
         </>}
       </form>
     </SheetContent></Sheet>

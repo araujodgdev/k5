@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { useChat } from "@ai-sdk/react";
@@ -27,6 +28,7 @@ import {
   FileStack,
   FileText,
   PanelLeftClose,
+  SlidersHorizontal,
   PanelLeftOpen,
   Image as ImageIcon,
   LoaderCircle,
@@ -60,6 +62,12 @@ import { ChatCamera } from './chat-camera';
 import { ChatAttachmentView } from './chat-attachment';
 import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, type ChatAttachment } from '@/lib/chat-attachment-contract';
 
+const DocumentWorkspace = dynamic(() => import("./document/document-workspace").then(module => module.DocumentWorkspace), {
+  ssr: false,
+  loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Abrindo documento…</p>,
+});
+/** Tool calls that leave a document the person should see: created, edited, rewritten or restored. */
+const DOCUMENT_WRITES = new Set(["k5_artifacts_create", "k5_artifacts_edit", "k5_artifacts_update", "k5_artifacts_restore_version"]);
 const AgentSourcesPanel = dynamic(() => import("./agent-sources-panel").then(module => module.AgentSourcesPanel), {
   loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Carregando fontes…</p>,
 });
@@ -144,14 +152,36 @@ function AssistantText({ text }: { text: string }) {
   return <Markdown text={text} />;
 }
 
+type StepData = { callId?: string; name?: string; summary?: string; state?: string; href?: string };
+
+/**
+ * Documents open beside the conversation instead of replacing it. `announce` hears every tool line
+ * as it renders; a document the Lume created or changed in this turn opens, or reloads if open.
+ */
+type DocumentLinks = { open: (id: string) => void; announce: (step: StepData) => void; changed: (id: string) => void };
+const DocumentLinksContext = createContext<DocumentLinks | null>(null);
+const DOCUMENT_PREFIX = "/app/documents/";
+const documentIdFrom = (href?: string) => href?.startsWith(DOCUMENT_PREFIX) ? decodeURIComponent(href.slice(DOCUMENT_PREFIX.length)) : null;
+
+function OpenLink({ href }: { href: string }) {
+  const documents = useContext(DocumentLinksContext);
+  const documentId = documentIdFrom(href);
+  if (documentId && documents) {
+    return <button type="button" onClick={() => documents.open(documentId)} className="text-brand-ink underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none">Abrir</button>;
+  }
+  return <Link href={href} className="text-brand-ink underline-offset-4 hover:underline">Abrir</Link>;
+}
+
 /** One finished tool call, as a quiet line above the answer, with a link to what it touched. */
-function ToolStep({ data }: { data: { summary?: string; state?: string; href?: string } }) {
+function ToolStep({ data }: { data: StepData }) {
+  const documents = useContext(DocumentLinksContext);
+  useEffect(() => { if (data) documents?.announce(data); }, [data, documents]);
   if (!data?.summary) return null;
   const failed = data.state === "failed";
   return (
     <p className={cn("mb-2 flex items-start gap-2 text-[13px] leading-5", failed ? "text-destructive" : "text-subtle-foreground")}>
       {failed ? <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" /> : <Check className="mt-0.5 size-3.5 shrink-0 text-brand-ink" aria-hidden="true" />}
-      <span className="min-w-0">{data.summary}{data.href && <> · <Link href={data.href} className="text-brand-ink underline-offset-4 hover:underline">Abrir</Link></>}</span>
+      <span className="min-w-0">{data.summary}{data.href && <> · <OpenLink href={data.href} /></>}</span>
     </p>
   );
 }
@@ -165,6 +195,7 @@ type ApprovalData = { approvalId: string; summary: string; state: "pending" | "c
  */
 function ApprovalStep({ data }: { data: ApprovalData }) {
   const conversationId = useContext(ConversationIdContext);
+  const documents = useContext(DocumentLinksContext);
   const [decided, setDecided] = useState<Pick<ApprovalData, "state" | "result" | "href"> | null>(null);
   const [busy, setBusy] = useState<"" | "confirm" | "cancel">("");
   const [error, setError] = useState("");
@@ -179,6 +210,8 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
       const body = await response.json().catch(() => ({})) as ApprovalData & { error?: string };
       if (!response.ok) throw new Error(body.error || "Não foi possível concluir. Peça de novo ao Lume.");
       setDecided({ state: body.state, result: body.result, href: body.href });
+      const changedDocument = body.state === "confirmed" ? documentIdFrom(body.href) : null;
+      if (changedDocument) documents?.changed(changedDocument);
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível concluir."); }
     finally { setBusy(""); }
   }
@@ -191,7 +224,7 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
         <Button type="button" size="sm" variant="ghost" className="h-11 md:h-9" disabled={Boolean(busy)} onClick={() => void decide("cancel")}>Cancelar</Button>
       </div> : <p className={cn("text-[13px]", current.state === "failed" ? "text-destructive" : "text-subtle-foreground")} role="status">
         {current.state === "confirmed" ? "Confirmado" : current.state === "cancelled" ? "Cancelado" : "Não concluído"}{current.result ? ` · ${current.result}` : ""}
-        {current.href && <> · <Link href={current.href} className="text-brand-ink underline-offset-4 hover:underline">Abrir</Link></>}
+        {current.href && <> · <OpenLink href={current.href} /></>}
       </p>}
       {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     </div>
@@ -520,6 +553,12 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   const [uploading, setUploading] = useState(false);
   const [audio, setAudio] = useState<Attachment | null>(null);
   const [draftFiles,setDraftFiles]=useState<Record<string,ChatAttachment[]>>({});
+  // The open document lives in the URL (?doc=), so a reload keeps it and Voltar closes it.
+  const openDocumentId = useSearchParams().get("doc");
+  const openDocumentRef = useRef(openDocumentId);
+  useEffect(() => { openDocumentRef.current = openDocumentId; }, [openDocumentId]);
+  const [documentRevision, setDocumentRevision] = useState(0);
+  const handledCalls = useRef(new Set<string>());
   function toggleList() {
     writeListOpen(!listOpen);
   }
@@ -655,8 +694,37 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   // The cache is read during render rather than copied into state by an effect: the conversation
   // paints from it on the first pass, and the fetched messages take over once they land.
   const cachedForSelected = selectedId ? cachedMessages(selectedId) : undefined;
-  const visibleMessages = selectedId && loadedConversationId === selectedId ? messages : cachedForSelected ?? [];
+  const visibleMessages = useMemo(() => selectedId && loadedConversationId === selectedId ? messages : cachedForSelected ?? [],
+    [selectedId, loadedConversationId, messages, cachedForSelected]);
   const waitingForMessages = Boolean(selectedId && loadedConversationId !== selectedId && !cachedForSelected);
+
+  // Tool lines already in the loaded history are old news; only calls made from here on open a document.
+  const loadedCalls = useMemo(() => new Set(visibleMessages.flatMap(message => message.parts.flatMap(part =>
+    part.type === "data-tool" && part.data && typeof part.data === "object" && "callId" in part.data ? [String(part.data.callId)] : []))), [visibleMessages]);
+
+  const openDocument = useCallback((id: string) => {
+    if (openDocumentRef.current === id) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("doc", id);
+    window.history.pushState(null, "", url);
+  }, []);
+  const closeDocument = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("doc");
+    window.history.replaceState(null, "", url);
+  }, []);
+  const documentLinks = useMemo<DocumentLinks>(() => ({
+    open: openDocument,
+    changed: (id) => { if (openDocumentRef.current === id) setDocumentRevision(value => value + 1); },
+    announce: (step) => {
+      if (!step.callId || loadedCalls.has(step.callId) || handledCalls.current.has(step.callId)) return;
+      handledCalls.current.add(step.callId);
+      const id = step.state === "completed" && step.name && DOCUMENT_WRITES.has(step.name) ? documentIdFrom(step.href) : null;
+      if (!id) return;
+      if (openDocumentRef.current === id) setDocumentRevision(value => value + 1);
+      else openDocument(id);
+    },
+  }), [loadedCalls, openDocument]);
 
   function selectConversation(id: string) {
     setSelectedId(id);
@@ -667,7 +735,8 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
 
   return (
     <TooltipProvider>
-      <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden">
+      <DocumentLinksContext.Provider value={documentLinks}>
+      <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden" data-document-open={openDocumentId ? "" : undefined}>
         <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b px-4 md:px-8">
           <div className="flex min-w-0 items-center gap-2">
             <Tooltip>
@@ -687,6 +756,12 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
             </Tooltip>
           </div>
           <div className="flex items-center gap-1.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Personalizar Lume"><Link href="/app/agents/settings"><SlidersHorizontal /></Link></Button>
+              </TooltipTrigger>
+              <TooltipContent>Personalizar Lume</TooltipContent>
+            </Tooltip>
             <Sheet open={contextOpen} onOpenChange={setContextOpen}>
               <SheetTrigger asChild><Button variant="outline"><FileStack />Fontes{selectedCount > 0 ? ` (${selectedCount})` : ""}</Button></SheetTrigger>
               <SheetContent side="right" showCloseButton={false} className="min-w-0 overflow-x-hidden gap-0 bg-background sm:max-w-md">
@@ -711,7 +786,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
                 <ConversationCards conversations={conversations} selectedId={selectedId} onSelect={selectConversation} onDelete={(id) => void removeConversation(id)} />
               )}
           </aside>
-          <div className="agent-chat-content flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className={cn("agent-chat-content flex min-h-0 min-w-0 flex-1 flex-col", openDocumentId && "lg:max-w-[42%] lg:min-w-[24rem] lg:flex-none lg:basis-[42%]")}>
             {loading || waitingForMessages ? (
               <div className="grid flex-1 place-items-center text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Carregando conversa…</span></div>
             ) : selectedId ? (
@@ -739,8 +814,19 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
               <div className="grid flex-1 place-items-center px-6 text-center text-sm text-subtle-foreground">Nenhuma conversa disponível.</div>
             )}
           </div>
+          {openDocumentId && (
+            // Beside the chat on wide screens; over it, full screen, on smaller ones.
+            <section aria-label="Documento" className="fixed inset-0 z-50 flex min-w-0 flex-col bg-background pt-[env(safe-area-inset-top)] lg:static lg:z-auto lg:flex-1 lg:border-l lg:pt-0"
+              onKeyDown={(event) => {
+                if (event.key !== "Escape" || event.defaultPrevented || (event.target as HTMLElement).closest("[data-radix-popper-content-wrapper]")) return;
+                closeDocument();
+              }}>
+              <DocumentWorkspace key={openDocumentId} artifactId={openDocumentId} variant="panel" onClose={closeDocument} revision={documentRevision} />
+            </section>
+          )}
         </div>
       </div>
+      </DocumentLinksContext.Provider>
     </TooltipProvider>
   );
 }

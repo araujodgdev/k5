@@ -90,6 +90,9 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_documents_start_chronology: runs.startChronology,
   k5_documents_start_draft: runs.startDraft,
   k5_citations_list_candidates: citations.listCandidates,
+  k5_artifacts_create: artifacts.createArtifact,
+  k5_artifacts_edit: artifacts.editArtifact,
+  k5_artifacts_list: artifacts.listArtifacts,
   k5_artifacts_get: artifacts.getArtifact,
   k5_artifacts_update: artifacts.saveArtifact,
   k5_artifacts_list_versions: artifacts.listArtifactVersions,
@@ -278,7 +281,10 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_documents_start_chronology: 'Iniciou uma cronologia',
     k5_documents_start_draft: 'Iniciou uma minuta',
     k5_citations_list_candidates: 'Consultou citações candidatas',
-    k5_artifacts_get: 'Leu um documento gerado',
+    k5_artifacts_create: 'Criou o documento',
+    k5_artifacts_edit: 'Alterou o documento',
+    k5_artifacts_list: 'Consultou os documentos',
+    k5_artifacts_get: 'Leu um documento',
     k5_artifacts_update: 'Salvou uma nova versão do documento',
     k5_artifacts_list_versions: 'Consultou histórico de versões',
     k5_artifacts_restore_version: 'Restaurou versão de documento',
@@ -330,6 +336,7 @@ function describe(name: string, result: unknown): string {
   if (Array.isArray(value.folders)) return `${value.folders.length} pasta(s)`;
   if (Array.isArray(value.documents)) return `${value.documents.length} documento(s)`;
   if (Array.isArray(value.runs)) return `${value.runs.length} tarefa(s)`;
+  if (Array.isArray(value.artifacts)) return `${value.artifacts.length} documento(s)`;
   if (Array.isArray(value.versions)) return `${value.versions.length} versão(ões)`;
   if (Array.isArray(value.conversations)) return `${value.conversations.length} conversa(s)`;
   if (Array.isArray(value.candidates)) return `${value.candidates.length} candidato(s)`;

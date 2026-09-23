@@ -161,3 +161,46 @@ export async function exportDocument(content: string, template?: Buffer) {
   const blocks = markdownBlocks(content);
   return template ? injectIntoTemplate(blocks, template) : plainDocument(blocks);
 }
+
+// ---- editor typography ---------------------------------------------------------------------------
+
+export type Typography = {
+  fontFamily: string | null; fontSizePt: number | null; textAlign: 'left' | 'center' | 'right' | 'justify';
+  lineHeight: number | null; firstLineIndentCm: number | null;
+  pageWidthCm: number | null; marginLeftCm: number | null; marginRightCm: number | null;
+};
+
+const attr = (xml: string, name: string) => new RegExp(`w:${name}="([^"]*)"`).exec(xml)?.[1];
+const twipsToCm = (value: string | undefined) => value && /^-?\d+$/.test(value) ? Math.round(Number(value) / 567 * 100) / 100 : null;
+
+/**
+ * What the editor needs to look like the exported Word file: the body paragraph's font, size,
+ * alignment, line spacing and first-line indent, and the page's usable width. Read from the same
+ * paragraphs the export copies formatting from, so the two agree.
+ */
+export function templateTypography(documentXml: string): Typography {
+  const f = templateFormatting(documentXml, '');
+  const sizeHalfPoints = Number(attr(f.sz, 'val'));
+  const fontSizePt = Number.isFinite(sizeHalfPoints) && sizeHalfPoints > 0 ? sizeHalfPoints / 2 : null;
+  const jc = attr(f.jc, 'val');
+  const textAlign = jc === 'both' || jc === 'distribute' ? 'justify' : jc === 'center' ? 'center' : jc === 'right' || jc === 'end' ? 'right' : 'left';
+  const line = Number(attr(f.spacing, 'line'));
+  const rule = attr(f.spacing, 'lineRule') ?? 'auto';
+  const lineHeight = !Number.isFinite(line) || line <= 0 ? null
+    : rule === 'auto' ? Math.round(line / 240 * 100) / 100
+    : fontSizePt ? Math.round(line / 20 / fontSizePt * 100) / 100 : null;
+  const section = documentXml.match(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/g)?.at(-1) ?? '';
+  const margins = element(section, 'pgMar');
+  return {
+    fontFamily: attr(f.rFonts, 'ascii') ?? attr(f.rFonts, 'hAnsi') ?? null,
+    fontSizePt, textAlign, lineHeight,
+    firstLineIndentCm: twipsToCm(attr(f.ind, 'firstLine')),
+    pageWidthCm: twipsToCm(attr(element(section, 'pgSz'), 'w')),
+    marginLeftCm: twipsToCm(attr(margins, 'left')), marginRightCm: twipsToCm(attr(margins, 'right')),
+  };
+}
+
+export function docxTypography(template: Buffer): Typography | null {
+  const documentXml = new PizZip(template).file('word/document.xml')?.asText();
+  return documentXml ? templateTypography(documentXml) : null;
+}

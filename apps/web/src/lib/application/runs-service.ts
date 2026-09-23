@@ -6,6 +6,9 @@ import { runInputSchema, validateRunSources } from '@/lib/document-workflows';
 import { resolveOfficeModelConfig } from '@/lib/ai-connections';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
+import { resolveDocumentTemplateId } from '@/lib/agent-profile';
+import { instructionsPrompt } from '@/lib/agent-instructions';
+import { knowledgePrompt, DRAFT_ALWAYS_BUDGET } from '@/lib/agent-knowledge';
 import type { WorkspaceContext } from './context';
 
 const owner = (context: WorkspaceContext) => ({ officeId: context.officeId, userId: context.userId });
@@ -52,7 +55,13 @@ export type StartRunInput = {
  * interface: the agent tools call this without them, and the run rejects unapproved passages later.
  */
 export async function startRun(context: WorkspaceContext, raw: StartRunInput) {
-  const input = runInputSchema.parse({ ...raw, pinnedResearchReferences: undefined, approvedCitationIds: raw.approvedCitationIds ?? [] });
+  // A draft with no template picked takes the letterhead, so neither the agent nor the form has to ask for it.
+  const templateId = raw.templateId ?? (raw.kind === 'draft' ? await resolveDocumentTemplateId(context) : undefined);
+  // Rules come from the session's owner, never from the request body, which is spread first.
+  const writingRules = raw.kind === 'draft' ? (await instructionsPrompt(context, 'documents')) || undefined : undefined;
+  // Drafts have no tools, so only the always-read material goes, with a smaller budget.
+  const knowledge = raw.kind === 'draft' ? (await knowledgePrompt(context, { budget: DRAFT_ALWAYS_BUDGET, searchable: false })) || undefined : undefined;
+  const input = runInputSchema.parse({ ...raw, templateId, writingRules, knowledge, pinnedResearchReferences: undefined, approvedCitationIds: raw.approvedCitationIds ?? [] });
   const running = Number(await (await database.prepare("SELECT count(*) AS n FROM ai_run WHERE office_id=? AND status IN ('queued','running')").get(context.officeId))?.n);
   if (running >= 5) throw new CapabilityError('RATE_LIMITED', 'Seu escritório já tem cinco tarefas em andamento.');
   // Fail here, not three minutes into the worker: the credential has to resolve before queueing.

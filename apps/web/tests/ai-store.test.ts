@@ -165,3 +165,26 @@ CREATE TRIGGER reject_artifact_history BEFORE INSERT ON ai_artifact_version FOR 
   assert.equal(artifact?.content, "v1");
   assert.equal((await db.prepare("SELECT count(*) AS total FROM ai_artifact_version WHERE artifact_id=?").get(artifactId))!.total, 0);
 });
+
+test("updateArtifact: autosave bumps the version but records history at most every five minutes", async () => {
+  const { db, database, userA, officeA } = (await fixture());
+  const owner = { officeId: officeA, userId: userA };
+  const artifactId = randomUUID();
+  (await db.prepare(`INSERT INTO ai_artifact (id, office_id, user_id, title, content, kind) VALUES (?,?,?,?,?,'document')`)
+    .run(artifactId, officeA, userA, "Notificação", "v1"));
+  const versions = async () => ((await db.prepare("SELECT version FROM ai_artifact_version WHERE artifact_id = ? ORDER BY version").all(artifactId)) as Array<{ version: number }>).map(row => row.version);
+
+  // No history yet, so the first autosave records one; the next ones inside the window do not.
+  assert.equal((await updateArtifact(database, owner, artifactId, "Notificação", "v2", 1, { snapshot: false }))?.version, 2);
+  assert.equal((await updateArtifact(database, owner, artifactId, "Notificação", "v3", 2, { snapshot: false }))?.version, 3);
+  assert.deepEqual(await versions(), [2]);
+  // A stale autosave is still a conflict.
+  assert.equal(await updateArtifact(database, owner, artifactId, "Notificação", "velho", 2, { snapshot: false }), null);
+  // An explicit save always records.
+  assert.equal((await updateArtifact(database, owner, artifactId, "Notificação", "v4", 3))?.version, 4);
+  assert.deepEqual(await versions(), [2, 4]);
+  // Past the window, autosave records again.
+  (await db.prepare("UPDATE ai_artifact_version SET created_at = CURRENT_TIMESTAMP - INTERVAL '6 minutes' WHERE artifact_id = ?").run(artifactId));
+  assert.equal((await updateArtifact(database, owner, artifactId, "Notificação", "v5", 4, { snapshot: false }))?.version, 5);
+  assert.deepEqual(await versions(), [2, 4, 5]);
+});

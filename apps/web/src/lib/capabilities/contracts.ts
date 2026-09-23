@@ -83,6 +83,10 @@ export const citationCandidateDto = z.object({ id: z.string(), documentId: z.str
   materialVersionId: z.string().optional(), judgmentId: z.string().optional(), researchChunkId: z.string().optional(),
 });
 export const artifactVersionDto = z.object({ version: z.number(), title: z.string(), createdAt: z.string() });
+export const artifactSummaryDto = z.object({
+  id: z.string(), title: z.string(), version: z.number(), kind: z.enum(['draft', 'chronology', 'document']),
+  updatedAt: z.string(), inThisConversation: z.boolean(),
+});
 
 /**
  * Judicial infrastructure DTOs (docs/plano-infra-judicial.md). Two things these shapes refuse to
@@ -352,9 +356,46 @@ export const capabilities = {
       .refine(input => input.documentIds.length > 0 || !!input.researchReferenceIds?.length, 'Selecione fontes para citações.'),
     output: z.object({ candidates: z.array(citationCandidateDto) }),
   },
+  k5_artifacts_create: {
+    module: 'artifacts', effect: 'write', roles: writers,
+    // They depend on the chat conversation of the turn, which only the chat adapter supplies.
+    publish: ['agent'],
+    description: 'Cria um documento nesta conversa (petição, contrato, notificação, parecer, e-mail formal) em Markdown: títulos com #, negrito, itálico, listas e citações com >. A pessoa o abre ao lado do chat, edita e exporta em Word com o timbrado do escritório. Use quando pedirem um texto para usar fora da conversa.',
+    input: z.object({
+      title: z.string().trim().min(1).max(200).describe('Nome do documento, como a pessoa o reconheceria.'),
+      content: z.string().trim().min(1).max(200_000).describe('Texto completo em Markdown.'),
+      idempotencyKey,
+    }),
+    output: z.object({ artifact: artifactDto }),
+  },
+  k5_artifacts_edit: {
+    module: 'artifacts', effect: 'write', roles: writers,
+    // They depend on the chat conversation of the turn, which only the chat adapter supplies.
+    publish: ['agent'],
+    description: 'Altera trechos de um documento: cada edição troca um trecho exato por outro. O trecho em find precisa aparecer exatamente uma vez no texto atual; inclua palavras vizinhas para torná-lo único. Leia com k5_artifacts_get antes e informe a versão lida. Documentos que você criou nesta conversa são alterados direto; os demais pedem confirmação da pessoa.',
+    input: z.object({
+      artifactId: identifier,
+      version: z.number().int().positive().describe('Versão lida em k5_artifacts_get ou devolvida pela última edição.'),
+      edits: z.array(z.object({
+        find: z.string().min(1).max(20_000).describe('Trecho exato do texto atual.'),
+        replace: z.string().max(40_000).describe('Novo texto; vazio remove o trecho.'),
+      })).min(1).max(20),
+      title: z.string().trim().min(1).max(200).optional().describe('Novo título, se mudar.'),
+      approvalId: z.string().optional(), idempotencyKey,
+    }),
+    output: z.object({ artifact: artifactDto }),
+  },
+  k5_artifacts_list: {
+    module: 'artifacts', effect: 'read', roles: readers,
+    // They depend on the chat conversation of the turn, which only the chat adapter supplies.
+    publish: ['agent'],
+    description: 'Lista os documentos desta conversa e os mais recentes da pessoa, sem o texto. Use para achar o documento de que a pessoa fala.',
+    input: z.object({ limit: z.number().int().min(1).max(30).default(10) }),
+    output: z.object({ artifacts: z.array(artifactSummaryDto) }),
+  },
   k5_artifacts_get: {
     module: 'artifacts', effect: 'read', roles: readers,
-    description: 'Lê um documento gerado por uma tarefa, com versão e pendências de revisão.',
+    description: 'Lê um documento (criado na conversa ou por uma tarefa), com versão e pendências de revisão.',
     input: z.object({ artifactId: identifier }), output: z.object({ artifact: artifactDto }),
   },
   k5_artifacts_update: {

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { DocumentEditor } from "@/components/document-editor";
+import { DocumentWorkspace } from "@/components/document/document-workspace";
 
-export const metadata: Metadata = { title: "Editor de documento" };
+export const metadata: Metadata = { title: "Documento" };
 
 export default async function DocumentPage({ params }: PageProps<"/app/documents/[id]">) {
   const { id } = await params;
-  return <DocumentEditor artifactId={id} />;
+  return <DocumentWorkspace artifactId={id} variant="page" />;
 }
