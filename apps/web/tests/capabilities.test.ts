@@ -607,6 +607,7 @@ test("webmcp: every published capability has a route, a schema and typed failure
         jobId: randomUUID(), alertId: randomUUID(), number: "0000001-05.2025.8.26.0100",
         clientId: randomUUID(), activityId: randomUUID(), kind: 'task', message: 'Criar tarefa de revisão', proposalId: randomUUID(),
         theme: 'guarda da avó', judgmentId: randomUUID(),
+        scanDocumentId: randomUUID(), items: [{ label: 'Procuração', startPage: 1, endPage: 1 }],
       });
       assert.equal(result.ok, true, `${name} should reach a route: ${JSON.stringify(result)}`);
     }

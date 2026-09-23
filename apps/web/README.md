@@ -114,6 +114,12 @@ O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
   `pnpm platform:admin rotate-key --email <administrador da plataforma>`.
 - **Cofre (`/app/vault`):** casos e biblioteca; PDF (com OCR), DOCX, EML, XLSX, CSV e TXT
   com referências estáveis por página, parágrafo, mensagem ou célula.
+- **Anexos da petição:** na aba **Anexos** do caso, a pessoa escolhe o PDF digitalizado com todos
+  os documentos (já lido pelo OCR) e a petição (arquivo do caso ou texto colado). O modelo do
+  escritório propõe os documentos e as páginas; o código ordena pela primeira citação na petição
+  e deixa desmarcados os não citados. Depois da revisão, `pdf-lib` recorta os intervalos e salva
+  cada anexo numa nova pasta do caso, numerado e sem acentos (`01_procuracao.pdf`). Nada é gerado
+  sem confirmação; o Lume usa as mesmas capacidades (`k5_vault_plan_annexes`, `k5_vault_generate_annexes`).
 - **Lume (`/app/agents`):** conversa com histórico por usuário. O botão **+** envia documentos
   e imagens privados para a conversa, com prévia, remoção antes do envio e acesso no histórico.
   Aceita até seis anexos por mensagem, de até 10 MB cada. Eles não criam documentos no Cofre.

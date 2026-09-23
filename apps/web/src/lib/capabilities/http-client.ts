@@ -58,6 +58,8 @@ const routes: Record<CapabilityName, Route> = {
     },
   },
   k5_vault_create_folder: { method: 'POST', path: () => '/api/vault/folders', body: (i) => i },
+  k5_vault_plan_annexes: { method: 'POST', path: i => `/api/vault/cases/${id(i.caseId)}/annexes`, body: i => i },
+  k5_vault_generate_annexes: { method: 'POST', path: i => `/api/vault/cases/${id(i.caseId)}/annexes/files`, body: i => i },
   k5_vault_delete_folder: { method: 'DELETE', path: (i) => `/api/vault/folders/${id(i.folderId)}`, body: (i) => i },
   k5_vault_list_documents: {
     method: 'GET',

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { agendaCapabilities } from './agenda';
+import { annexCapabilities } from './annexes';
 import { researchCapabilities } from './research';
 import { researchCaseCapabilities } from './research-case';
 import { verificationCapabilities } from './verification';
@@ -143,6 +144,7 @@ export const judicialAlertDto = z.object({
 
 export const capabilities = {
   ...agendaCapabilities,
+  ...annexCapabilities,
   ...researchCapabilities,
   ...researchCaseCapabilities,
   ...verificationCapabilities,

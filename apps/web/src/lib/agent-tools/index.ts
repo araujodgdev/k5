@@ -20,6 +20,7 @@ import * as platform from '@/lib/application/platform-service';
 import * as judicial from '@/lib/application/judicial-service';
 import * as agenda from '@/lib/application/agenda-service';
 import * as research from '@/lib/application/research-capability-service';
+import * as annexes from '@/lib/application/annexes-service';
 import { getVerification, requestVerification } from '@/lib/typesafe/verification';
 import { interpretAgenda, getProposal, listProposals, applyProposal } from '@/lib/typesafe/agenda';
 import { endGlobalSession } from '@/lib/application/ui-service';
@@ -65,6 +66,8 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_vault_delete_case: vault.deleteCase,
   k5_vault_list_folders: vault.listFolders,
   k5_vault_create_folder: vault.createFolder,
+  k5_vault_plan_annexes: annexes.planAnnexes,
+  k5_vault_generate_annexes: annexes.createAnnexFiles,
   k5_vault_delete_folder: vault.deleteFolder,
   k5_vault_list_documents: vault.listDocuments,
   k5_vault_get_document: vault.getDocument,
@@ -236,6 +239,8 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_vault_delete_case: 'Removeu um caso do Cofre',
     k5_vault_list_folders: 'Consultou as pastas do caso',
     k5_vault_create_folder: 'Criou uma pasta no caso',
+    k5_vault_plan_annexes: 'Propôs a separação dos anexos',
+    k5_vault_generate_annexes: 'Gerou os anexos da petição',
     k5_vault_delete_folder: 'Removeu uma pasta do caso',
     k5_vault_list_documents: 'Consultou documentos do Cofre',
     k5_vault_get_document: 'Consultou um documento',

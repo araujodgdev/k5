@@ -36,7 +36,7 @@ export default async function VaultCasePage({ params, searchParams }: Props) {
         initialDocuments={initialDocuments}
         folderId={folderId}
         role={office.role}
-        initialSection={!folderId && section === 'references' ? 'references' : 'files'}
+        initialSection={!folderId && (section === 'references' || section === 'annexes') ? section : 'files'}
       />
     </Reveal>
   );
