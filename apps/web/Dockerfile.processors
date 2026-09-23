@@ -6,7 +6,8 @@ RUN npm install -g pnpm@12.4.2
 WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/web/package.json apps/web/package.json
-RUN --mount=type=cache,id=k5-processors-pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+# Runtime only: tooling (wrangler, workerd, embedded-postgres, Sentry CLI) kept the image above the 4 GB Containers limit.
+RUN --mount=type=cache,id=k5-processors-pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod
 WORKDIR /repo/apps/web
 RUN mkdir -p /opt/tessdata && node --input-type=module -e "import { createWorker } from 'tesseract.js'; const worker = await createWorker(['por','eng'], undefined, {cachePath:'/opt/tessdata'}); await worker.terminate();"
 ENV TESSERACT_CACHE_PATH=/opt/tessdata
