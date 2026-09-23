@@ -79,6 +79,13 @@ services:
       K5_VAPID_SUBJECT: ${K5_VAPID_SUBJECT:-}
       K5_VAPID_PUBLIC_KEY: ${K5_VAPID_PUBLIC_KEY:-}
       K5_CLIENT_IP_HEADER: ${K5_CLIENT_IP_HEADER:-}
+      # Google integration (docs/integracao-google.md). Empty values keep the integration disabled.
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-}
+      GOOGLE_PICKER_API_KEY: ${GOOGLE_PICKER_API_KEY:-}
+      GOOGLE_PICKER_APP_ID: ${GOOGLE_PICKER_APP_ID:-}
+      GOOGLE_CALENDAR_WEBHOOK_URL: ${GOOGLE_CALENDAR_WEBHOOK_URL:-}
     volumes:
       - appdata:/data
     depends_on:
@@ -145,6 +152,19 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  integrations:
+    # Google sync, push-channel renewal, Drive imports and reconciliation of unknown outcomes.
+    # PostgreSQL holds jobs, checkpoints and leases; without Google OAuth configured it stays idle.
+    build: *app_build
+    command: ["pnpm", "integrations:worker"]
+    environment: *app_env
+    volumes:
+      - appdata:/data
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   adminer:
     image: adminer:5
     profiles: ["tools"]
@@ -164,7 +184,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  # Existing appdata (including legacy SQLite backups) is preserved; PostgreSQL has its own volume.
+  # Existing appdata is preserved; PostgreSQL has its own volume.
   postgres:
   appdata:
   vectors:

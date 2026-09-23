@@ -16,7 +16,7 @@ pnpm dev
 ```
 
 O script de desenvolvimento chama `db:setup` antes de iniciar o Next.js.
-Configure DATABASE_URL em .env.local antes de iniciar. O setup aplica db/postgres/*.sql com transação, lock e checksum; ele preserva segredos e não importa SQLite automaticamente. Não há conta ou senha padrão. Veja [a migração de dados](../../docs/migracao-postgres.md).
+Configure DATABASE_URL em .env.local antes de iniciar. O setup aplica db/postgres/*.sql com transação, lock e checksum; ele preserva segredos. Não há conta ou senha padrão. Veja [PostgreSQL e Hyperdrive](../../docs/migracao-postgres.md).
 
 ### Variáveis
 
@@ -75,6 +75,15 @@ O papel `reviewer` apenas consulta Cofre e documentos. Convites, recuperação d
 verificação de e-mail ainda não foram implementados.
 
 ## Tarefas e Agenda
+
+A [integração Google](../../docs/integracao-google.md) é opcional e usa OAuth independente
+do login. A aba Google pessoal sincroniza calendários escolhidos; a agenda do escritório
+continua separada. `/app/email` acessa Gmail; `/app/integrations` conecta a conta, configura
+regras (administrador), seleciona arquivos Drive e mostra operações. O Cofre importa cópias
+para o caso explicitamente escolhido, com procedência. Execute `pnpm integrations:worker`
+localmente; em Cloudflare, o Worker dedicado faz Calendar e os processadores Node fazem
+importações e reconciliação de Gmail/Drive/Docs. Sem OAuth configurado a interface informa
+o estado indisponível. Migrações aditivas: `db/postgres/0014` a `0017`.
 
 `/app/agenda` reúne tarefas, calendário com agenda do dia e CRM de
 clientes. A migração `0012_agenda.sql` adiciona clientes, vínculos com casos e atividades.

@@ -1,7 +1,7 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import { TypeSafeClient, type EntryType, type Questions } from '@typesafe-ai/sdk';
-import { database } from '@/lib/database';
+import { database, withTransaction } from '@/lib/database';
 import { decryptCredential, parseCredentialKeyring } from '@/lib/platform-crypto';
 import { decisionResponse, type DecisionPurpose, type Evaluation } from './contracts';
 import { getConnection } from './config';
@@ -28,7 +28,7 @@ export async function evaluate(
   const mode = options.test ? 'shadow' : config?.[`${purpose}_mode`] ?? 'off';
   if (!config?.enabled || !config.encrypted_api_key || mode === 'off') return { status: 'disabled', mode };
   const now = Date.now();
-  const deadline = options.deadlineMs ?? ({ rag: 2000, agenda: 5000, documents: 10000, research: 10000, feedback: 10000 })[purpose];
+  const deadline = options.deadlineMs ?? ({ rag: 2000, agenda: 5000, documents: 10000, research: 10000, feedback: 10000, email: 10000 })[purpose];
   const signal = AbortSignal.any([AbortSignal.timeout(deadline), ...(options.signal ? [options.signal] : [])]);
   if (signal.aborted || config.circuit_until > now) return { status: 'unavailable', mode, reason: 'temporarily_unavailable' };
   const sizes = Object.values(request.questions).map(q => Buffer.byteLength(JSON.stringify(q)));
@@ -38,12 +38,17 @@ export async function evaluate(
   if (!sizes.length || stateBytes + Math.max(...sizes) > 28_000 || reserved > 60_000) return { status: 'budget_exceeded', mode, reason: 'context_limit' };
   const id = randomUUID();
   const day = new Date(now).toISOString().slice(0, 10);
-  const reservation = await database.prepare(`INSERT INTO typesafe_evaluation(id,office_id,user_id,purpose,model,question_version,fingerprint,config_version,status,reserved_tokens,started_at,expires_at,day)
+  const reservation = await withTransaction(async tx => {
+    // Serialize reservations across purposes so concurrent email batches cannot overspend.
+    const live = await tx.prepare('SELECT version,enabled FROM typesafe_platform_connection WHERE id=1 FOR UPDATE').get<{ version: number; enabled: number }>();
+    if (!live?.enabled || live.version !== config.version) return { changes: 0 };
+    return tx.prepare(`INSERT INTO typesafe_evaluation(id,office_id,user_id,purpose,model,question_version,fingerprint,config_version,status,reserved_tokens,started_at,expires_at,day)
     SELECT ?,?,?,?,?,?,?,?,'running',?,?,?,? WHERE
     (SELECT coalesce(sum(reserved_tokens),0) FROM typesafe_evaluation WHERE day=?) + ? <= ?
     AND (SELECT count(*) FROM typesafe_evaluation WHERE status='running' AND expires_at>?) < ?`)
     .run(id, context.officeId, context.userId, purpose, config.model, request.questionVersion, fingerprint(request), config.version, reserved, now, now + deadline, day,
       day, reserved, config.daily_tokens, now, config.concurrency);
+  });
   if (!reservation.changes) return { status: 'budget_exceeded', mode, reason: 'platform_limit' };
   let status: Evaluation['status'] = 'unavailable';
   let reason: string | undefined;

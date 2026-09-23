@@ -44,6 +44,7 @@ function response(request: DecisionRequest, choices: Record<string, string> = {}
 const send: DecisionTransport = async (_key, request) => response(request);
 const request = { state: 'Texto de teste privado', questionVersion: 'test-v1', questions: { present: { type: 'noul' as const, instructions: 'Existe texto?' } } };
 
+
 test('typesafe: an existing office key is adopted once as the platform connection', async () => {
   const a = (await fixture()); const b = (await fixture());
   (await testDb.prepare("INSERT INTO typesafe_connection(office_id,encrypted_api_key,key_hint,enabled,rag_mode,updated_at) VALUES(?,?,?,1,'shadow',CURRENT_TIMESTAMP - interval '1 day')").run(a.officeId, encryptCredential('older-key', parseCredentialKeyring()), 'older'));
@@ -329,4 +330,15 @@ test('typesafe: key rotation includes decision connections in the atomic batch',
   assert.ok(result.reencrypted > 0);
   const row = (await testDb.prepare('SELECT encrypted_api_key FROM typesafe_platform_connection WHERE id=1').get())!;
   assert.equal(decryptCredential(String(row.encrypted_api_key), next), `fake-${context.officeId}`);
+});
+
+test('typesafe: simultaneous reservations respect platform concurrency', async () => {
+  const context = await fixture(); await configure(context, { concurrency: 1 });
+  let calls = 0; let active = 0; let maximum = 0;
+  const simultaneous: DecisionTransport = async (_key, req) => { calls++; active++; maximum = Math.max(maximum, active); await new Promise(resolve => setTimeout(resolve, 150)); active--; return response(req); };
+  const results = await Promise.all(Array.from({ length: 6 }, () => evaluate(context, 'rag', request, { send: simultaneous })));
+  assert.equal(maximum, 1);
+  assert.ok(calls >= 1 && calls < 6);
+  assert.equal(results.filter(result => result.status === 'evaluated').length, calls);
+  assert.equal(results.filter(result => result.status === 'budget_exceeded').length, 6 - calls);
 });

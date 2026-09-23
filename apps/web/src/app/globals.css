@@ -283,6 +283,14 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
 }
 .app-shell:has(.agent-chat) > header { flex-shrink: 0; }
 
+/* E-mail keeps the folder list and message in separate viewport scroll regions. */
+.app-shell:has(.gmail-workspace) {
+  height: 100dvh;
+  overflow: hidden;
+}
+.app-shell:has(.gmail-workspace) > header { flex-shrink: 0; }
+.app-shell:has(.gmail-workspace) > main { min-height: 0; overflow: hidden; }
+
 /* The mobile "Mais" panel floats above the tab bar. Written as plain CSS (and
    outside a cascade layer) so it beats the utility classes, with a static
    fallback for engines that choke on env() inside calc(). */

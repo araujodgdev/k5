@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Pool } from 'pg';
-import { createPostgresPool, postgresDatabase } from './db/postgres';
+import { createPostgresPool, postgresDatabase, postgresTransaction, type Transaction } from './db/postgres';
 import type { BoundStatement, Database, PreparedStatement } from './db/types';
 
 interface Backend { database: Database; store: Pool }
@@ -23,6 +23,10 @@ async function backend(): Promise<Backend> {
   return globalDatabase.k5Database ? globalDatabase.k5Database : databaseBackend();
 }
 export async function authStore(): Promise<Pool> { return (await backend()).store; }
+/** Runs `action` in one PostgreSQL transaction on the current backend's pool. */
+export async function withTransaction<T>(action: (tx: Transaction) => Promise<T>): Promise<T> {
+  return postgresTransaction(await authStore(), action);
+}
 
 export function withPostgres<T>(pool: Pool, action: () => T): T {
   return requestDatabase.run({ database: postgresDatabase(pool), store: pool }, action);
@@ -47,3 +51,4 @@ export const database: Database = {
   },
 };
 export type { BoundStatement, Database, PreparedStatement, Row, RunResult } from './db/types';
+export type { Transaction } from './db/postgres';

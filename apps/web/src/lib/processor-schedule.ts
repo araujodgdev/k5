@@ -11,6 +11,8 @@ export async function dueProcessors(db: Database, now: number, maintenance: bool
       EXISTS(SELECT 1 FROM artifact_verification WHERE status='queued' OR (status='running' AND lease_until<?)) OR
       EXISTS(SELECT 1 FROM research_case_assessment WHERE status='queued' OR (status='running' AND lease_until<?)) OR
       EXISTS(SELECT 1 FROM vault_deletion_queue WHERE completed_at IS NULL AND attempts<5) OR
+      EXISTS(SELECT 1 FROM google_job WHERE runtime='node' AND
+        ((status='queued' AND run_after<=CURRENT_TIMESTAMP) OR (status='running' AND lease_until<CURRENT_TIMESTAMP))) OR
       EXISTS(SELECT 1 FROM research_job WHERE kind='extract_material' AND
         ((status='queued' AND run_after<=?) OR (status='running' AND lease_until<?)))
     ) AS documents,

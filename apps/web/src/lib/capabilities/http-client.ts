@@ -1,4 +1,5 @@
 import type { CapabilityName } from './contracts';
+import { googleOperationPath, googleOperations, type GoogleCapabilityName, type GoogleOperation } from '@/lib/google/routes';
 
 type Route = {
   method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
@@ -13,7 +14,11 @@ const id = (value: unknown) => encodeURIComponent(String(value ?? ''));
  * never confirmed is a result the agent cannot distinguish from a real one, for a document that
  * may not exist or may not belong to this office.
  */
+const googleRoutes = Object.fromEntries<Route>(Object.entries(googleOperations).map(([operation, name]) =>
+  [name, { method: 'POST', path: () => googleOperationPath(operation as GoogleOperation), body: (i: Record<string, unknown>) => i } satisfies Route])) as Record<GoogleCapabilityName, Route>;
+
 const routes: Record<CapabilityName, Route> = {
+  ...googleRoutes,
   k5_research_search_corpus: { method: 'POST', path: () => '/api/research/corpus', body: i => i },
   k5_research_web_jurisprudence: { method: 'POST', path: () => '/api/research/web', body: i => i },
   k5_research_get_judgment: { method: 'GET', path: i => `/api/research/judgments/${id(i.judgmentId)}` },

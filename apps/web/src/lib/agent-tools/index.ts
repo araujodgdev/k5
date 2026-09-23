@@ -22,6 +22,10 @@ import * as judicial from '@/lib/application/judicial-service';
 import * as agenda from '@/lib/application/agenda-service';
 import * as research from '@/lib/application/research-capability-service';
 import * as annexes from '@/lib/application/annexes-service';
+import * as google from '@/lib/application/google-service';
+import * as calendar from '@/lib/google/calendar/service';
+import * as gmail from '@/lib/google/gmail/service';
+import * as drive from '@/lib/google/drive/service';
 import { getVerification, requestVerification } from '@/lib/typesafe/verification';
 import { interpretAgenda, getProposal, listProposals, applyProposal } from '@/lib/typesafe/agenda';
 import { endGlobalSession } from '@/lib/application/ui-service';
@@ -119,6 +123,44 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_judicial_mark_alert_read: judicial.markJudicialAlertRead,
   k5_ui_open_resource: ui.openResource,
   k5_session_end_global: () => endGlobalSession(),
+  k5_google_get_status: google.getStatus,
+  k5_google_get_policy: google.getPolicy,
+  k5_google_save_policy: google.savePolicy,
+  k5_google_list_audit: google.listAudit,
+  k5_google_list_operations: google.listOperations,
+  k5_calendar_list_calendars: calendar.listCalendars,
+  k5_calendar_select_calendars: calendar.selectCalendars,
+  k5_calendar_sync_now: calendar.syncNow,
+  k5_calendar_list_events: calendar.listEvents,
+  k5_calendar_get_event: calendar.getEvent,
+  k5_calendar_create_event: calendar.createEvent,
+  k5_calendar_update_event: calendar.updateEvent,
+  k5_calendar_cancel_event: calendar.cancelEvent,
+  k5_calendar_respond: calendar.respondEvent,
+  k5_calendar_discard_pending: calendar.discardPending,
+  k5_calendar_share_event: calendar.shareEvent,
+  k5_calendar_unshare_event: calendar.unshareEvent,
+  k5_calendar_list_shared: calendar.listShared,
+  k5_gmail_list_threads: gmail.listThreads,
+  k5_gmail_get_thread: gmail.getThread,
+  k5_gmail_list_drafts: gmail.listDrafts,
+  k5_gmail_get_draft: gmail.getDraft,
+  k5_gmail_save_draft: gmail.saveDraft,
+  k5_gmail_delete_draft: gmail.deleteDraft,
+  k5_gmail_send: gmail.sendMail,
+  k5_gmail_import_attachment: gmail.importAttachment,
+  k5_drive_register_files: drive.registerFiles,
+  k5_drive_list_files: drive.listFiles,
+  k5_drive_refresh_file: drive.refreshFile,
+  k5_drive_import_file: drive.importFile,
+  k5_drive_list_imports: drive.listImports,
+  k5_drive_rename_file: drive.renameFile,
+  k5_drive_upload_version: drive.uploadVersion,
+  k5_drive_list_permissions: drive.listPermissions,
+  k5_drive_share_file: drive.shareFile,
+  k5_drive_revoke_permission: drive.revokePermission,
+  k5_docs_read: drive.readDoc,
+  k5_docs_edit: drive.editDoc,
 };
 
 export type ToolEvent = { name: CapabilityName; state: 'completed' | 'failed'; summary: string };
@@ -151,7 +193,9 @@ export async function runCapability<N extends CapabilityName>(
   };
 
   const key = typeof input.idempotencyKey === 'string' ? input.idempotencyKey : undefined;
-  if (capability.effect === 'write' && key) return withIdempotency(authorized, name, key, input, execute);
+  // Google owns durable pending/unknown states and reconciliation; caching an unknown response
+  // in the generic idempotency store would prevent later reads from observing its outcome.
+  if (capability.effect === 'write' && key && capability.module !== 'google') return withIdempotency(authorized, name, key, input, execute);
   return execute();
 }
 
@@ -325,6 +369,34 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_platform_create_connection: 'Cadastrou conexão de IA',
     k5_platform_update_connection: 'Atualizou conexão de IA',
     k5_platform_delete_connection: 'Removeu conexão de IA',
+    k5_google_get_status: 'Consultou a conexão Google',
+    k5_google_list_operations: 'Consultou as operações no Google',
+    k5_calendar_list_calendars: 'Consultou os calendários pessoais',
+    k5_calendar_list_events: 'Consultou a agenda pessoal',
+    k5_calendar_get_event: 'Consultou um evento pessoal',
+    k5_calendar_create_event: 'Criou um evento na agenda Google',
+    k5_calendar_update_event: 'Alterou um evento na agenda Google',
+    k5_calendar_cancel_event: 'Cancelou um evento na agenda Google',
+    k5_calendar_respond: 'Respondeu a um convite',
+    k5_calendar_list_shared: 'Consultou eventos compartilhados',
+    k5_gmail_list_threads: 'Consultou e-mails',
+    k5_gmail_get_thread: 'Leu uma conversa de e-mail',
+    k5_gmail_list_drafts: 'Consultou rascunhos',
+    k5_gmail_get_draft: 'Leu um rascunho',
+    k5_gmail_save_draft: 'Salvou um rascunho no Gmail',
+    k5_gmail_send: 'Enviou um e-mail',
+    k5_gmail_import_attachment: 'Importou um anexo para o Cofre',
+    k5_drive_list_files: 'Consultou arquivos do Drive',
+    k5_drive_refresh_file: 'Atualizou dados de um arquivo do Drive',
+    k5_drive_import_file: 'Importou um arquivo do Drive para o Cofre',
+    k5_drive_list_imports: 'Consultou importações do Google',
+    k5_drive_rename_file: 'Renomeou um arquivo do Drive',
+    k5_drive_upload_version: 'Enviou nova versão ao Drive',
+    k5_drive_list_permissions: 'Consultou acessos de um arquivo',
+    k5_drive_share_file: 'Compartilhou um arquivo do Drive',
+    k5_drive_revoke_permission: 'Removeu um acesso no Drive',
+    k5_docs_read: 'Leu um Google Docs',
+    k5_docs_edit: 'Alterou um Google Docs',
   };
   const label = labels[name] ?? 'Executou uma operação';
   if (failed) return `${label}: não foi possível concluir`;
@@ -335,6 +407,15 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
 function describe(name: string, result: unknown): string {
   if (!result || typeof result !== 'object') return '';
   const value = result as Record<string, unknown>;
+  const operation = value.operation as { status?: string } | undefined;
+  if (operation?.status && operation.status !== 'succeeded') {
+    return operation.status === 'unknown' ? 'resultado em verificação no Google' : operation.status === 'failed' ? 'não concluída' : 'em andamento';
+  }
+  if (Array.isArray(value.events)) return `${value.events.length} evento(s)`;
+  if (Array.isArray(value.threads)) return `${value.threads.length} conversa(s)`;
+  if (Array.isArray(value.drafts)) return `${value.drafts.length} rascunho(s)`;
+  if (Array.isArray(value.files)) return `${value.files.length} arquivo(s)`;
+  if (Array.isArray(value.calendars)) return `${value.calendars.length} calendário(s)`;
   // `sources` means retrieved excerpts for knowledge search and court installations for the
   // judicial catalog, so the capability name settles it before the shape is read.
   if (Array.isArray(value.sources)) {

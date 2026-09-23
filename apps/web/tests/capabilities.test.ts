@@ -74,11 +74,15 @@ test("capabilities contract: complete catalog and role permissions", () => {
   // Reviewer only has read capabilities on office data (plus self session termination)
   for (const name of reviewerCaps) {
     if (name === 'k5_session_end_global') continue;
+    if (['k5_calendar_select_calendars', 'k5_calendar_sync_now', 'k5_drive_register_files'].includes(name)) {
+      assert.deepEqual((capabilities[name] as { publish?: readonly string[] }).publish, [], 'Personal setup is never an agent tool');
+      continue;
+    }
     assert.equal(capabilities[name].effect, "read", `Reviewer should only read, but ${name} has effect ${capabilities[name].effect}`);
   }
 
   // Lawyers and Admins have all capabilities
-  assert.equal(lawyerCaps.length, capabilityNames.length);
+  assert.deepEqual(capabilityNames.filter(name => !lawyerCaps.includes(name)), ['k5_google_save_policy', 'k5_google_list_audit']);
   assert.equal(adminCaps.length, capabilityNames.length);
 });
 
@@ -608,6 +612,14 @@ test("webmcp: every published capability has a route, a schema and typed failure
         clientId: randomUUID(), activityId: randomUUID(), kind: 'task', message: 'Criar tarefa de revisão', proposalId: randomUUID(),
         theme: 'guarda da avó', judgmentId: randomUUID(),
         scanDocumentId: randomUUID(), items: [{ label: 'Procuração', startPage: 1, endPage: 1 }],
+        ...(capabilities[name].module === 'google' ? {
+          scope: name === 'k5_drive_import_file' || name === 'k5_drive_list_imports' ? 'case' : 'series', from: '2026-09-01T00:00:00-03:00', to: '2026-09-30T00:00:00-03:00',
+          calendarId: randomUUID(), eventId: randomUUID(), threadId: randomUUID(), draftId: randomUUID(),
+          fileId: randomUUID(), messageId: randomUUID(), partId: '1', permissionId: randomUUID(),
+          response: 'accepted', changes: { title: 'Título' }, email: 'pessoa@example.com', role: 'reader',
+          revisionId: 'revision', edits: [{ find: 'Original', replace: 'Revisado' }],
+          ...(name === 'k5_gmail_send' || name === 'k5_gmail_save_draft' ? { to: ['pessoa@example.com'] } : {}),
+        } : {}),
       });
       assert.equal(result.ok, true, `${name} should reach a route: ${JSON.stringify(result)}`);
     }

@@ -100,8 +100,9 @@ O Lume pode ser instalado como PWA; veja [instalação e funcionamento offline](
 
 Tarefas e Agenda reúne clientes, vínculos com casos do Cofre, tarefas e reuniões internas,
 com operações também disponíveis ao agente e ao WebMCP. Veja o
-[plano do módulo](docs/plano-tarefas-agenda.md). A agenda ainda não sincroniza calendários
-externos nem envia convites. Os lembretes exigem o worker de notificações
+[plano do módulo](docs/plano-tarefas-agenda.md). A integração opcional Google adiciona agenda
+pessoal sincronizada e convites, Gmail, Drive e Docs; veja [configuração e homologação](docs/integracao-google.md).
+Os lembretes das atividades do escritório exigem o worker de notificações
 (`pnpm notifications:worker`) em execução.
 
 ## Configuração e dados
@@ -115,7 +116,7 @@ O logout encerra todas as sessões do usuário. As senhas ficam sob responsabili
 do Better Auth, com hash scrypt; os cookies de sessão são HttpOnly. O acesso ao
 escritório parte do usuário autenticado e não de um ID fornecido pelo navegador.
 
-O banco transacional é PostgreSQL em todos os runtimes. Veja [a migração e o corte de ambiente](docs/migracao-postgres.md) para importar SQLite/D1, preservar dados e configurar Hyperdrive sem cache.
+O banco transacional é PostgreSQL em todos os runtimes. Veja [PostgreSQL e Hyperdrive](docs/migracao-postgres.md) para migrações, Hyperdrive sem cache e operação do staging.
 
 ## Adicionar workspaces
 

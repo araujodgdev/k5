@@ -14,6 +14,7 @@ import { CaseDelete } from "@/components/vault-case-delete";
 import { JudicialCaseLinks } from "@/components/judicial-case-links";
 import { ResearchCaseReferences } from "@/components/research-case-references";
 import { VaultAnnexes } from "@/components/vault-annexes";
+import { DrivePanel } from "@/components/google/drive-panel";
 import type { OfficeRole } from "@/lib/offices";
 import type { VaultCase, VaultDocument, VaultFolder } from "@/lib/vault";
 
@@ -35,13 +36,14 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
   const router = useRouter();
   const canWrite = role !== "reviewer";
   const query = `caseId=${encodeURIComponent(vaultCase.id)}&folderId=${folderId ? encodeURIComponent(folderId) : "root"}`;
-  const { documents, setDocuments } = usePolledDocuments(query, initialDocuments);
+  const { documents, setDocuments, refresh } = usePolledDocuments(query, initialDocuments);
   const [view, setView] = useState<View>("list");
   const [section, setSection] = useState<"files" | "processes" | "references" | "annexes">(initialSection);
   const [failure, setFailure] = useState("");
   const [folderName, setFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [driveOpen, setDriveOpen] = useState(false);
 
   const base = `/app/vault/cases/${vaultCase.id}`;
   const href = (target: string | null) => (target ? `${base}?folder=${encodeURIComponent(target)}` : base);
@@ -113,6 +115,9 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
             </div>
             {canWrite && <Button type="button" variant="outline" aria-expanded={creatingFolder} onClick={() => { setCreatingFolder((value) => !value); setFailure(""); }}><FolderPlus aria-hidden="true" />Nova pasta</Button>}
             <UploadControl canWrite={canWrite} scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={(document) => setDocuments((current) => [document, ...current])} />
+            <Button type="button" variant="outline" aria-expanded={driveOpen} onClick={() => setDriveOpen(open => !open)}>
+              {driveOpen ? "Fechar Google Drive" : canWrite ? "Importar do Google Drive" : "Ver Google Drive"}
+            </Button>
           </>
         )}
         {canWrite && <Button type="button" variant="ghost" aria-expanded={editing} onClick={() => setEditing((value) => !value)}>{editing ? "Fechar detalhes" : "Detalhes"}</Button>}
@@ -130,6 +135,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
     {failure && <p className="mt-4 flex items-start gap-2 text-sm text-destructive" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{failure}</p>}
 
     <div className="mt-5 min-h-0 overflow-auto">
+      {section === "files" && driveOpen && <DrivePanel role={role} initialCaseId={vaultCase.id} initialFolderId={folderId} onImported={refresh} />}
       {!folderId && section === "processes" && <JudicialCaseLinks caseId={vaultCase.id} canWrite={canWrite} />}
       {!folderId && section === "references" && <ResearchCaseReferences caseId={vaultCase.id} canWrite={canWrite} />}
       {!folderId && section === "annexes" && <VaultAnnexes caseId={vaultCase.id} canWrite={canWrite} />}
