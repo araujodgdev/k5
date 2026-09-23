@@ -3,6 +3,7 @@ import 'server-only';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
+import { searchWebJurisprudence } from '@/lib/research/web-jurisprudence';
 import { ResearchError } from '@/lib/research/contracts';
 import {
   cancelResearchDownloads, getResearchJudgment, getResearchSearch, listResearchHistory,
@@ -66,3 +67,7 @@ export const updateReference = (context: WorkspaceContext, input: CapabilityInpu
   operation(async () => ({ reference: await updateResearchCaseReference(context, input) }));
 export const removeReference = (context: WorkspaceContext, input: CapabilityInput<'k5_research_remove_reference'>) =>
   operation(async () => { await removeResearchCaseReference(context, input.referenceId, input.expectedVersion); return { success: true }; });
+
+export async function webJurisprudence(context: WorkspaceContext, input: CapabilityInput<'k5_research_web_jurisprudence'>) {
+  return searchWebJurisprudence({ officeId: context.officeId, userId: context.userId, signal: context.signal }, input);
+}

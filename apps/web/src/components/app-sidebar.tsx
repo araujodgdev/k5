@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { Ellipsis, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Ellipsis, LogOut, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { InstallApp } from "@/components/pwa-provider";
@@ -175,28 +175,28 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
                   </SidebarMenuItem>
                 );
               })}
+              {platformAdmin && <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={false} tooltip="Administração" className="relative h-9">
+                  <Link href="/platform" aria-label={collapsed ? "Administração da plataforma" : undefined}>
+                    <ShieldCheck aria-hidden="true" /><span className="nav-label">Administração</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>}
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="px-2">
-            <div className="nav-label grid gap-2">
-              <ThemeSwitch />
-              <InstallApp />
-              {platformAdmin && <Link href="/platform" className="rounded-md px-2 py-2 text-sm text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">Administração da plataforma</Link>}
-            </div>
             {error && <p role="alert" className="nav-label px-2 text-destructive text-xs">{error}</p>}
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={logout} disabled={pending} className="h-9" tooltip="Sair" aria-label={collapsed ? "Sair" : undefined} title="Encerrar sessão em todos os dispositivos">
-                  <LogOut aria-hidden="true" /><span className="nav-label">{pending ? "Saindo…" : "Sair"}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => writeNavCollapsed(!collapsed)} className="h-9 text-muted-foreground" tooltip="Expandir menu"
-                  aria-expanded={!collapsed} aria-label={collapsed ? "Expandir menu" : "Recolher menu"} aria-keyshortcuts="Control+B Meta+B">
-                  {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}<span className="nav-label">Recolher menu</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            <div className="nav-footer flex items-center gap-1">
+              <SidebarMenu className="min-w-0 flex-1">
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={logout} disabled={pending} className="h-9" tooltip="Sair" aria-label={collapsed ? "Sair" : undefined} title="Encerrar sessão em todos os dispositivos">
+                    <LogOut aria-hidden="true" /><span className="nav-label">{pending ? "Saindo…" : "Sair"}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+              <InstallApp />
+              <ThemeSwitch />
+            </div>
           </SidebarFooter>
         </Sidebar>
       </SidebarProvider>
@@ -236,14 +236,17 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
               </Link>
             );
           })}
+          {platformAdmin && <Link href="/platform" onClick={() => setSheetOpen(false)} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-base text-muted-foreground outline-none hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+            <ShieldCheck className="size-[18px]" aria-hidden="true" />Administração</Link>}
           <Separator className="my-1.5" />
-          <ThemeSwitch />
-          <InstallApp />
-          {platformAdmin && <Link href="/platform" onClick={() => setSheetOpen(false)} className="flex min-h-12 items-center rounded-md px-3 text-base text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">Administração da plataforma</Link>}
           {error && <p role="alert" className="px-3 text-destructive text-xs">{error}</p>}
-          <button onClick={logout} disabled={pending} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-base text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground disabled:opacity-60">
-            <LogOut className="size-[18px]" aria-hidden="true" />{pending ? "Saindo…" : "Sair"}
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={logout} disabled={pending} className="flex min-h-12 flex-1 items-center gap-3 rounded-md px-3 text-base text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground disabled:opacity-60">
+              <LogOut className="size-[18px]" aria-hidden="true" />{pending ? "Saindo…" : "Sair"}
+            </button>
+            <InstallApp className="size-12" />
+            <ThemeSwitch className="size-12" />
+          </div>
         </SheetContent>
       </Sheet>
     </>

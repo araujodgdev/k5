@@ -53,7 +53,10 @@ function bareModelId(modelId: string) {
 export function modelModalities(provider: string, modelId: string): Modalities {
   if (!modelId) return TEXT_ONLY;
   const id = provider === "google" ? modelId : bareModelId(modelId);
-  return RULES.find((rule) => rule.match.test(id))?.modalities ?? TEXT_ONLY;
+  const modalities = RULES.find((rule) => rule.match.test(id))?.modalities ?? TEXT_ONLY;
+  // OpenAI voice notes are transcribed with the office's key (src/lib/audio-transcription.ts),
+  // so every OpenAI chat model that reads images also takes the microphone.
+  return provider === "openai" && modalities.image ? { ...modalities, audio: true } : modalities;
 }
 
 /** Extensions the Cofre can extract text from. These work with every model. */

@@ -2,7 +2,9 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { ThemeProvider as NextThemeProvider, useTheme } from "next-themes";
-import { SunMoon } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const subscribe = () => () => {};
 
@@ -16,26 +18,23 @@ function ThemeColor() {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
-    <NextThemeProvider attribute="class" defaultTheme="system" storageKey="k5-theme" enableSystem disableTransitionOnChange>
+    <NextThemeProvider attribute="class" defaultTheme="dark" storageKey="k5-theme" enableSystem disableTransitionOnChange>
       <ThemeColor />
       {children}
     </NextThemeProvider>
   );
 }
 
-export function ThemeSwitch() {
-  const { theme, setTheme } = useTheme();
+/** One icon: it shows where a click takes you, and flips between light and dark. */
+export function ThemeSwitch({ className }: { className?: string }) {
+  const { resolvedTheme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(subscribe, () => true, () => false);
+  const dark = !mounted || resolvedTheme !== "light";
+  const label = dark ? "Usar tema claro" : "Usar tema escuro";
   return (
-    <label className="flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground md:min-h-9">
-      <SunMoon className="size-4 shrink-0" aria-hidden="true" />
-      <span className="sr-only">Tema</span>
-      <select aria-label="Tema" value={mounted ? theme : "system"} disabled={!mounted} onChange={(event) => setTheme(event.target.value)}
-        className="min-h-11 min-w-0 flex-1 rounded-md bg-transparent px-1 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9">
-        <option value="system">Sistema</option>
-        <option value="light">Claro</option>
-        <option value="dark">Escuro</option>
-      </select>
-    </label>
+    <Button type="button" variant="ghost" size="icon" disabled={!mounted} onClick={() => setTheme(dark ? "light" : "dark")}
+      aria-label={label} title={label} className={cn("size-11 text-muted-foreground hover:text-foreground md:size-9", className)}>
+      {dark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+    </Button>
   );
 }

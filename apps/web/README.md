@@ -93,6 +93,13 @@ Ações de alto impacto pedidas pelo Lume (excluir caso, documento, pasta ou con
 desvincular ou consultar um tribunal, sobrescrever uma minuta) viram uma proposta em
 `capability_approval` e só rodam quando a pessoa aperta **Confirmar** no chat
 (`/api/chat/approvals/[id]`), com exatamente os argumentos propostos.
+
+Com modelos OpenAI ou Anthropic, o Lume tem a busca na web do próprio provedor. Pedidos de
+jurisprudência usam `k5_research_web_jurisprudence`: o modelo pesquisa, o código mantém só links
+que a busca devolveu, e o Jev (modo **Pesquisa** em `/platform/typesafe`) pontua a relevância e
+descarta o que não é decisão judicial. A lista aparece no chat a partir do resultado da ferramenta.
+Notas de voz para modelos OpenAI são transcritas com a chave do escritório
+(`gpt-4o-mini-transcribe`) e entram na mensagem como texto.
 Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
 escritas verificam origem e papel. Chaves de idempotência evitam criação duplicada em
 repetições, inclusive simultâneas. `k5_ui_open_resource` abre agenda, cliente e atividade.

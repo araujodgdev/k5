@@ -34,7 +34,7 @@ export default async function SectionPage({ params, searchParams }: Props) {
   }
   return (
     <Reveal className="mx-auto w-full max-w-5xl px-5 py-6 md:px-12 md:py-11">
-      <h1 className="display text-[30px] md:text-[28px]" data-reveal>{item.label}</h1>
+      <h1 className="display text-[28px] max-md:sr-only" data-reveal>{item.label}</h1>
       <p className="grid min-h-[50dvh] place-items-center text-subtle-foreground" data-reveal>Em breve</p>
     </Reveal>
   );

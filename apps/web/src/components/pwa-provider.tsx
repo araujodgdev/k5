@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Download, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 interface InstallPrompt extends Event {
@@ -133,13 +134,13 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function InstallApp() {
+export function InstallApp({ className }: { className?: string }) {
   const { installed, install } = useContext(PwaContext);
   const [help, setHelp] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   if (installed) return null;
   return <>
-    <Button ref={button} variant="ghost" onClick={() => { void install().then(setHelp); }} className="min-h-11 justify-start px-2 text-muted-foreground md:min-h-9"><Download className="size-4" aria-hidden="true" />Instalar Lume</Button>
+    <Button ref={button} variant="ghost" size="icon" onClick={() => { void install().then(setHelp); }} aria-label="Instalar Lume" title="Instalar Lume" className={cn("size-11 text-muted-foreground hover:text-foreground md:size-9", className)}><Download aria-hidden="true" /></Button>
     <Dialog open={help} onOpenChange={setHelp}>
       <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); button.current?.focus(); }}>
         <DialogTitle>Instalar o Lume</DialogTitle>

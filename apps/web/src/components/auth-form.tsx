@@ -131,7 +131,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           </p>
         </Reveal>
       </section>
-      <footer className="flex flex-wrap items-center gap-1 pb-[env(safe-area-inset-bottom)] text-muted-foreground"><ThemeSwitch /><InstallApp /></footer>
+      <footer className="-ml-2 flex items-center gap-1 pb-[env(safe-area-inset-bottom)]"><ThemeSwitch /><InstallApp /></footer>
       </div>
     </main>
   );

@@ -32,7 +32,8 @@ test("GPT-6 Sol and Luna are available to the platform administrator", async () 
   for (const modelId of ["gpt-6-sol", "gpt-6-luna"]) {
     assert.ok(catalog.openai.includes(modelId));
     assert.ok(isChatModel(modelId));
-    assert.deepEqual(modelModalities("openai", modelId), { image: true, audio: false });
+    // Voice notes are transcribed with the office's OpenAI key, so the microphone is on.
+    assert.deepEqual(modelModalities("openai", modelId), { image: true, audio: true });
     const resolved = await resolveModelConfig(modelFor({ provider: "openai", modelId, apiKey: "test-key" }));
     assert.equal(resolved.modelId, modelId);
   }
@@ -55,7 +56,9 @@ test("Lume owns the default model of every provider, and it is a model the route
 });
 
 test("modalities are read from the model id and fail closed on an unknown one", () => {
-  assert.deepEqual(modelModalities("openai", "gpt-5"), { image: true, audio: false });
+  assert.deepEqual(modelModalities("openai", "gpt-5"), { image: true, audio: true });
+  // An OpenAI model behind an aggregator has no OpenAI key to transcribe with.
+  assert.deepEqual(modelModalities("openrouter", "openai/gpt-5"), { image: true, audio: false });
   assert.deepEqual(modelModalities("openai", "gpt-4o-audio-preview"), { image: true, audio: true });
   assert.deepEqual(modelModalities("google", "gemini-2.5-pro"), { image: true, audio: true });
   assert.deepEqual(modelModalities("anthropic", "claude-sonnet-4-5"), { image: true, audio: false });

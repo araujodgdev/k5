@@ -17,9 +17,9 @@ async function actor(role: WorkspaceContext['role'] = 'lawyer', officeId: string
 
 test('somente leituras de acervo, julgado e referências são publicadas', async () => {
   const names = ['k5_research_search_corpus', 'k5_research_get_judgment', 'k5_research_list_references'];
-  for (const surface of ['agent', 'webmcp'] as const) {
-    assert.deepEqual(publishedCapabilitiesForRole('lawyer', surface).filter(name => capabilities[name].module === 'research'), names);
-  }
+  // Web case law is a read the Lume runs itself; its list reaches the person from the tool result.
+  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'agent').filter(name => capabilities[name].module === 'research'), ['k5_research_web_jurisprudence', ...names]);
+  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'webmcp').filter(name => capabilities[name].module === 'research'), names);
   assert.ok(capabilitiesForRole('reviewer').filter(name => capabilities[name].module === 'research')
     .every(name => capabilities[name].effect === 'read'));
   const tools = agentTools((await actor()));

@@ -43,7 +43,19 @@ const detail = judgment.extend({
 });
 const idempotencyKey = z.string().trim().min(8).max(128).optional();
 
+const webResult = z.object({
+  title: z.string(), court: z.string(), caseNumber: z.string().nullable(), date: z.string().nullable(),
+  url: z.string(), summary: z.string(), relevance: z.number().nullable(), relevanceLabel: z.string().nullable(),
+});
+
 export const researchCapabilities = {
+  k5_research_web_jurisprudence: {
+    module: 'research', effect: 'read', roles: readers,
+    description: 'Pesquisa jurisprudência na web aberta para uma questão jurídica que a pessoa pediu. Devolve só julgados com link verificado na busca, avaliados pelo Jev quanto à relevância. A lista aparece para a pessoa abaixo da sua resposta, com os links: não a repita nem cite números, tribunais ou ementas no texto; comente em uma ou duas frases o que foi encontrado.',
+    input: z.object({ query: z.string().trim().min(5).max(500).describe('A questão jurídica, em português, com os elementos que definem o tema.') }),
+    output: z.object({ query: z.string(), results: z.array(webResult), evaluated: z.boolean(), discarded: z.number(), note: z.string() }),
+    publish: ['agent'],
+  },
   k5_research_search_corpus: {
     module: 'research', effect: 'read', roles: readers,
     description: 'Pesquisa o acervo público de julgados admitidos usando um tema e filtros. Não inicia consulta externa.',

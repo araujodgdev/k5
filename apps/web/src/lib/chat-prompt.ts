@@ -15,6 +15,12 @@ export async function chatPromptMessages(owner:Owner,conversationId:string,messa
     const text=message.parts.flatMap(part=>{
       if(part.type==='text') return [part.text];
       if(part.type==='data-tool') {const data=part.data as {summary?:string};return data?.summary?[`[ferramenta] ${data.summary}`]:[];}
+      if(part.type==='data-jurisprudence') {
+        // The list lives outside the text; the model gets titles and links to discuss follow-ups.
+        const data=part.data as {results?:Array<{title?:string;court?:string;url?:string}>};
+        const list=(data?.results??[]).slice(0,12).map(item=>`- ${item.title??''} (${item.court??''}) ${item.url??''}`).join('\n');
+        return [`[jurisprudência na web mostrada à pessoa]\n${list||'nenhum resultado'}`];
+      }
       if(part.type==='data-approval') {
         // The model must know whether the person confirmed, or it would offer the same action again.
         const data=part.data as {summary?:string;state?:string;result?:string};

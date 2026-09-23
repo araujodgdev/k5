@@ -13,6 +13,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useAui,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
 import {
@@ -21,6 +22,7 @@ import {
   Check,
   CircleAlert,
   Camera,
+  ExternalLink,
   Copy,
   FileStack,
   FileText,
@@ -196,7 +198,41 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
   );
 }
 
-const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep } } };
+type JurisprudenceData = {
+  results?: Array<{ title: string; court: string; caseNumber: string | null; date: string | null; url: string; summary: string; relevanceLabel: string | null }>;
+  note?: string;
+};
+
+/**
+ * Case law the Lume found on the web. It is built from the tool result, not from the model's
+ * prose, so every item carries the link the search returned and Jev's relevance, in plain text.
+ */
+function JurisprudenceList({ data }: { data: JurisprudenceData }) {
+  const results = data?.results ?? [];
+  const host = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } };
+  return (
+    <section aria-label="Jurisprudência encontrada na web" className="mt-4 grid gap-2">
+      <h3 className="text-sm font-medium">Jurisprudência na web</h3>
+      {results.length ? <ol className="divide-y border-y">
+        {results.map((item) => (
+          <li key={item.url} className="grid gap-1 py-3">
+            <a href={item.url} target="_blank" rel="noopener noreferrer" className="group inline-flex items-start gap-1.5 text-sm font-medium leading-6 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="min-w-0 break-words">{item.title}</span><ExternalLink className="mt-1.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="sr-only"> (abre em nova aba)</span>
+            </a>
+            <p className="text-[13px] leading-5 text-subtle-foreground">
+              {[item.court, item.caseNumber, item.date, host(item.url)].filter(Boolean).join(" · ")}
+              {item.relevanceLabel && <> · <span className="text-brand-ink">{item.relevanceLabel}</span></>}
+            </p>
+            {item.summary && <p className="line-clamp-3 text-[13px] leading-5 text-muted-foreground">{item.summary}</p>}
+          </li>
+        ))}
+      </ol> : null}
+      {data?.note && <p className="text-xs text-subtle-foreground">{data.note} Confira o inteiro teor antes de citar.</p>}
+    </section>
+  );
+}
+
+const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep, jurisprudence: JurisprudenceList } } };
 
 function AssistantMessage() {
   return (
@@ -252,6 +288,7 @@ type ComposerToolsProps = {
 };
 
 function ComposerTools({ modalities, uploading, onPickFile, audio, onAudio, onError }: ComposerToolsProps) {
+  const aui = useAui();
   const fileInput = useRef<HTMLInputElement>(null);
   const [accept, setAccept] = useState(DOCUMENT_ACCEPT);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -287,6 +324,8 @@ function ComposerTools({ modalities, uploading, onPickFile, audio, onAudio, onEr
         const bytes = new Uint8Array(buffer);
         for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
         onAudio({ mediaType: blob.type.split(";")[0] || "audio/webm", data: window.btoa(binary) });
+        // A voice note can be the whole message: an empty composer would keep Enviar disabled.
+        if (!aui.composer().getState().text.trim()) aui.composer().setText("Mensagem de voz");
       };
       recorder.current = media;
       media.start();
@@ -639,7 +678,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
               </TooltipTrigger>
               <TooltipContent>{listOpen ? "Ocultar conversas" : "Mostrar conversas"}</TooltipContent>
             </Tooltip>
-            <h1 className="display truncate text-[28px]">Lume</h1>
+            <h1 className="display truncate text-[28px] max-md:sr-only">Lume</h1>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="size-11 md:size-9" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>

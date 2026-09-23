@@ -255,7 +255,7 @@ export function NotificationInbox() {
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-6 md:px-12 md:py-11">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-5">
-        <h1 className="display text-[30px] md:text-[28px]">Notificações</h1>
+        <h1 className="display text-[28px] max-md:sr-only">Notificações</h1>
         <Button variant="outline" className="min-h-11 md:min-h-9" onClick={() => void load({ force: true })} disabled={loading}>
           <RefreshCw aria-hidden="true" className={loading ? "animate-spin motion-reduce:animate-none" : ""} />Atualizar
         </Button>

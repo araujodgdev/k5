@@ -60,7 +60,7 @@ export function VaultBrowser({ initialCases, libraryCount, role }: { initialCase
 
   return <div className="flex min-h-0 flex-1 flex-col px-4 py-6 md:px-8 md:py-8">
     <div data-reveal className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
-      <h1 className="display text-[28px] leading-none">Cofre</h1>
+      <h1 className="display text-[28px] leading-none max-md:sr-only">Cofre</h1>
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1" role="group" aria-label="Modo de exibição">
           <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "cards"} onClick={() => setView("cards")} aria-label="Ver em cartões"><LayoutGrid aria-hidden="true" /></Button>

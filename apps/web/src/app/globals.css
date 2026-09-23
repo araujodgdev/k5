@@ -131,6 +131,7 @@
   html[data-nav="collapsed"] .app-nav .nav-label { display: none; }
   html[data-nav="collapsed"] .app-nav :is(.nav-mark, .nav-dot) { display: block; }
   html[data-nav="collapsed"] .app-nav [data-sidebar="menu-button"] { justify-content: center; }
+  html[data-nav="collapsed"] .app-nav .nav-footer { flex-direction: column; }
 }
 
 /* Both panes exist in SSR. Geometry follows CSS and the preference restored in the head. */
