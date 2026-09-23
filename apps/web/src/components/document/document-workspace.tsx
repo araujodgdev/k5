@@ -9,7 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import type { Typography } from "@/lib/document-export";
 import type { RichEditorHandle } from "./rich-editor";
-import { DocumentReview, type ArtifactReference, type ValidationIssue } from "./document-review";
+import { DocumentReview, type ArtifactReference, type StoredCitations, type ValidationIssue } from "./document-review";
+import { toReview } from "@/lib/citations/labels";
 
 // The editor and the page renderer are the heavy parts; they load when a document opens.
 const RichEditor = dynamic(() => import("./rich-editor").then((module) => module.RichEditor), {
@@ -83,6 +84,8 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   const [asked, setAsked] = useState(false);
   // The previous version's blocks, when a reload came from the Lume, so its changes can be marked.
   const [highlightAgainst, setHighlightAgainst] = useState<string[] | null>(null);
+  const [citations, setCitations] = useState<StoredCitations | null>(null);
+  const [rechecking, setRechecking] = useState(false);
 
   const editorRef = useRef<RichEditorHandle>(null);
   const contentRef = useRef("");
@@ -135,6 +138,18 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
       .catch(() => undefined);
     return () => controller.abort();
   }, [artifactId, fetchArtifact, apply, fail]);
+
+  // The citation check of the stored text; the Lume's writes refresh it on the server.
+  const storedVersion = artifact?.version;
+  useEffect(() => {
+    if (!storedVersion) return;
+    const controller = new AbortController();
+    fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/citations`, { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => response.ok ? await response.json() as StoredCitations : null)
+      .then((body) => { if (body) setCitations(body); })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [artifactId, storedVersion]);
 
   /** Saves what is on screen. `snapshot` also records a version in the history. */
   const save = useCallback(async (snapshot: boolean): Promise<boolean> => {
@@ -217,6 +232,18 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     setAsked(true);
   }
 
+  async function recheckCitations() {
+    setRechecking(true);
+    try {
+      await save(true);
+      const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/citations`, { method: "POST", cache: "no-store" });
+      if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível conferir as citações."));
+      setCitations(await response.json() as StoredCitations);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível conferir as citações.");
+    } finally { setRechecking(false); }
+  }
+
   function changeContent(markdown: string) {
     contentRef.current = markdown;
     setEdits((count) => count + 1);
@@ -257,6 +284,8 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   }
 
   const issues = artifact.validationIssues ?? [];
+  const pendingCitations = citations?.review ? toReview(citations.review.items).length : 0;
+  const reviewCount = issues.length + pendingCitations;
   const status = saveState === "saving" ? "Salvando…" : saveState === "dirty" ? "Alterações não salvas" : saveState === "conflict" ? "Conflito de versão"
     : saveState === "error" ? "Não salvo" : "Salvo";
   const backHref = artifact.conversationId ? `/app/agents?conversationId=${encodeURIComponent(artifact.conversationId)}` : "/app/agents";
@@ -284,7 +313,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
       </header>
 
       <div className="flex shrink-0 items-center gap-1 border-b px-2 md:px-4" role="tablist" aria-label="Modo do documento">
-        {([["edit", "Editar"], ["page", "Página"], ["review", issues.length ? `Revisão (${issues.length})` : "Revisão"]] as const).map(([value, label]) => (
+        {([["edit", "Editar"], ["page", "Página"], ["review", reviewCount ? `Revisão (${reviewCount})` : "Revisão"]] as const).map(([value, label]) => (
           <button key={value} type="button" role="tab" aria-selected={tab === value} aria-controls={`document-${value}`} id={`document-tab-${value}`}
             onClick={() => void openTab(value)}
             className={cn("relative min-h-11 px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:min-h-10",
@@ -326,7 +355,8 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
       )}
       {tab === "review" && (
         <div id="document-review" role="tabpanel" aria-labelledby="document-tab-review" className="flex min-h-0 flex-1 flex-col">
-          <DocumentReview artifactId={artifact.id} version={artifact.version} dirty={saveState !== "saved"} status={artifact.status} issues={issues} references={artifact.references ?? []} />
+          <DocumentReview artifactId={artifact.id} version={artifact.version} dirty={saveState !== "saved"} status={artifact.status} issues={issues} references={artifact.references ?? []}
+            citations={citations} rechecking={rechecking} onRecheck={() => void recheckCitations()} />
         </div>
       )}
     </div>

@@ -1,9 +1,5 @@
 // Pure helpers for documents the agent writes in a conversation. No database or server imports,
 // so they are unit tested directly (tests/artifact-edits.test.ts).
-import { legalMentionsWithoutSource, normalizeEvidence, unauthorizedLegalPassages } from './ai-policy';
-
-export const PENDING_LEGAL = '[Fundamentação jurídica pendente de seleção explícita.]';
-export const PENDING_LEGAL_ISSUE = 'O Lume deixou marcada a fundamentação jurídica pendente. Selecione as citações antes de usar o documento.';
 
 export type Edit = { find: string; replace: string };
 export type EditFailure = { index: number; reason: 'missing' | 'ambiguous'; find: string };
@@ -28,26 +24,6 @@ export function applyEdits(content: string, edits: Edit[]): { content: string } 
     next = `${next.slice(0, at)}${edit.replace}${next.slice(at + edit.find.length)}`;
   }
   return { content: next };
-}
-
-/**
- * The product's hard promise holds in documents too: a line the agent writes that cites an
- * authority nobody selected becomes a pending marker. Runs over the whole text the agent produced,
- * against the text before its change: an unchanged line passes, and a changed line may only
- * mention authorities the document already had. The agent's own lines were filtered when written,
- * so those came from the person, and rewording around them is not introducing them.
- */
-export function withoutUnapprovedCitations(text: string, existing = '') {
-  const known = new Set(existing.split('\n').map(normalizeEvidence));
-  let blocked = 0;
-  const lines = text.split('\n').map(line => {
-    if (!unauthorizedLegalPassages(line, []).length || known.has(normalizeEvidence(line))) return line;
-    if (existing && !legalMentionsWithoutSource(line, existing).length) return line;
-    blocked++;
-    const prefix = /^(\s*(?:#{1,6}\s|>\s?|[-*+]\s|\d+[.)]\s)?)/.exec(line)?.[1] ?? '';
-    return `${prefix}${PENDING_LEGAL}`;
-  });
-  return { text: lines.join('\n'), blocked };
 }
 
 export function editFailureMessage(failure: EditFailure) {

@@ -83,6 +83,13 @@ export const citationCandidateDto = z.object({ id: z.string(), documentId: z.str
   materialVersionId: z.string().optional(), judgmentId: z.string().optional(), researchChunkId: z.string().optional(),
 });
 export const artifactVersionDto = z.object({ version: z.number(), title: z.string(), createdAt: z.string() });
+/** Result of checking the agent's citations after it wrote; the details are in the document's Revisão tab. */
+export const citationSummaryDto = z.object({
+  status: z.enum(['evaluated', 'partial', 'disabled', 'unavailable']),
+  total: z.number().describe('Citações jurídicas encontradas no documento.'),
+  toReview: z.number().describe('Citações que a pessoa precisa conferir: sem fonte consultada, fonte fraca, contrária ou não verificada.'),
+  noSource: z.number().describe('Citações que não correspondem a nenhuma fonte consultada nesta conversa.'),
+});
 export const artifactSummaryDto = z.object({
   id: z.string(), title: z.string(), version: z.number(), kind: z.enum(['draft', 'chronology', 'document']),
   updatedAt: z.string(), inThisConversation: z.boolean(),
@@ -366,7 +373,7 @@ export const capabilities = {
       content: z.string().trim().min(1).max(200_000).describe('Texto completo em Markdown.'),
       idempotencyKey,
     }),
-    output: z.object({ artifact: artifactDto }),
+    output: z.object({ artifact: artifactDto, citations: citationSummaryDto.optional() }),
   },
   k5_artifacts_edit: {
     module: 'artifacts', effect: 'write', roles: writers,
@@ -383,7 +390,7 @@ export const capabilities = {
       title: z.string().trim().min(1).max(200).optional().describe('Novo título, se mudar.'),
       approvalId: z.string().optional(), idempotencyKey,
     }),
-    output: z.object({ artifact: artifactDto }),
+    output: z.object({ artifact: artifactDto, citations: citationSummaryDto.optional() }),
   },
   k5_artifacts_list: {
     module: 'artifacts', effect: 'read', roles: readers,
@@ -405,7 +412,7 @@ export const capabilities = {
       artifactId: identifier, title: z.string().trim().min(1).max(200),
       content: z.string().min(1).max(400_000), version: z.number().int().positive().describe('Versão lida em k5_artifacts_get.'), approvalId: z.string().optional(), idempotencyKey,
     }),
-    output: z.object({ artifact: artifactDto }),
+    output: z.object({ artifact: artifactDto, citations: citationSummaryDto.optional() }),
   },
   k5_artifacts_list_versions: {
     module: 'artifacts', effect: 'read', roles: readers,

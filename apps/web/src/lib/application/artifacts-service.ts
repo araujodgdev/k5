@@ -1,7 +1,8 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
-import { applyEdits, editFailureMessage, PENDING_LEGAL_ISSUE, withoutUnapprovedCitations } from '@/lib/artifact-edits';
+import { applyEdits, editFailureMessage } from '@/lib/artifact-edits';
+import { reviewArtifactCitations } from '@/lib/citations/artifact-review';
 import { ownedArtifact, publicArtifact, updateArtifact, type ArtifactRow } from '@/lib/ai-store';
 import { requireAgentApproval } from './approvals-service';
 import { CapabilityError } from '@/lib/capabilities/errors';
@@ -28,16 +29,22 @@ export async function getArtifact(context: WorkspaceContext, input: CapabilityIn
 }
 
 export async function saveArtifact(context: WorkspaceContext, input: CapabilityInput<'k5_artifacts_update'>): Promise<CapabilityOutput<'k5_artifacts_update'>> {
-  const current = await requireArtifact(context, input.artifactId);
+  await requireArtifact(context, input.artifactId);
   await requireAgentApproval(context, 'k5_artifacts_update', input.approvalId,
     { artifactId: input.artifactId, title: input.title, content: input.content, version: input.version }, input.artifactId, 'Sobrescrever uma minuta pede confirmação.');
-  // The agent's full rewrite passes the same citation guard as its targeted edits.
-  const guarded = context.invocation ? withoutUnapprovedCitations(input.content, current.content) : { text: input.content, blocked: 0 };
-  const updated = await updateArtifact(database, owner(context), input.artifactId, input.title, guarded.text, input.version);
+  const updated = await updateArtifact(database, owner(context), input.artifactId, input.title, input.content, input.version);
   if (!updated) throw new CapabilityError('CONFLICT', 'O documento mudou desde a leitura. Leia a versão atual antes de salvar.');
-  if (!guarded.blocked) return { artifact: view(updated) };
-  await flagPendingLegal(context, updated);
-  return { artifact: view(await requireArtifact(context, input.artifactId)) };
+  return { artifact: view(updated), ...await checkAgentWrite(context, updated) };
+}
+
+/**
+ * The agent writes freely; the lawyer reviews what it delivers. After each write by the agent, its
+ * citations are checked against what the conversation consulted, and the result rides back to the
+ * agent so it can tell the person what to review.
+ */
+async function checkAgentWrite(context: WorkspaceContext, row: ArtifactRow) {
+  if (!context.invocation) return {};
+  return { citations: await reviewArtifactCitations(owner(context), row, { conversationId: context.conversationId, signal: context.signal }) };
 }
 
 type SummaryRow = { id: string; title: string; version: number; kind: 'draft' | 'chronology' | 'document'; updatedAt: string; conversationId: string | null };
@@ -48,17 +55,16 @@ export async function createArtifact(context: WorkspaceContext, input: Capabilit
   // The conversation comes from the chat request that built this context, never from the model.
   const conversationId = context.conversationId && await database.prepare('SELECT 1 FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?')
     .get(context.conversationId, context.officeId, context.userId) ? context.conversationId : null;
-  const guarded = withoutUnapprovedCitations(input.content);
-  const issues = guarded.blocked ? [PENDING_LEGAL_ISSUE] : [];
   const id = randomUUID();
   await database.batch([
     database.prepare(`INSERT INTO ai_artifact(id,office_id,user_id,run_id,title,content,source_refs,validation_issues,status,kind,conversation_id,created_by_agent)
-      VALUES(?,?,?,NULL,?,?,'[]',?,'draft','document',?,?)`)
-      .bind(id, context.officeId, context.userId, input.title, guarded.text, JSON.stringify(issues), conversationId, context.invocation === 'agent'),
+      VALUES(?,?,?,NULL,?,?,'[]','[]','draft','document',?,?)`)
+      .bind(id, context.officeId, context.userId, input.title, input.content, conversationId, context.invocation === 'agent'),
     database.prepare('INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id) VALUES(?,1,?,?,?)')
-      .bind(id, input.title, guarded.text, context.userId),
+      .bind(id, input.title, input.content, context.userId),
   ]);
-  return { artifact: view(await requireArtifact(context, id)) };
+  const created = await requireArtifact(context, id);
+  return { artifact: view(created), ...await checkAgentWrite(context, created) };
 }
 
 /**
@@ -76,18 +82,9 @@ export async function editArtifact(context: WorkspaceContext, input: CapabilityI
   }
   const applied = applyEdits(current.content, input.edits);
   if ('failure' in applied) throw new CapabilityError('INVALID', editFailureMessage(applied.failure));
-  const guarded = withoutUnapprovedCitations(applied.content, current.content);
-  const updated = await updateArtifact(database, owner(context), input.artifactId, input.title ?? current.title, guarded.text, input.version);
+  const updated = await updateArtifact(database, owner(context), input.artifactId, input.title ?? current.title, applied.content, input.version);
   if (!updated) throw new CapabilityError('CONFLICT', 'O documento mudou durante a edição. Leia a versão atual antes de editar.');
-  if (guarded.blocked) await flagPendingLegal(context, updated);
-  return { artifact: view(await requireArtifact(context, input.artifactId)) };
-}
-
-async function flagPendingLegal(context: WorkspaceContext, row: ArtifactRow) {
-  const issues = JSON.parse(row.validation_issues) as unknown[];
-  if (issues.includes(PENDING_LEGAL_ISSUE)) return;
-  await database.prepare('UPDATE ai_artifact SET validation_issues=? WHERE id=? AND office_id=? AND user_id=?')
-    .run(JSON.stringify([...issues, PENDING_LEGAL_ISSUE]), row.id, context.officeId, context.userId);
+  return { artifact: view(updated), ...await checkAgentWrite(context, updated) };
 }
 
 /** This conversation's documents first, then the person's most recent ones. */

@@ -2,7 +2,7 @@ import { testDb } from './test-setup';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
-import { applyEdits, documentFocusPrompt, PENDING_LEGAL, PENDING_LEGAL_ISSUE, withoutUnapprovedCitations } from '../src/lib/artifact-edits';
+import { applyEdits, documentFocusPrompt } from '../src/lib/artifact-edits';
 import { chatRequestSchema } from '../src/lib/chat-contract';
 import { runCapability } from '../src/lib/agent-tools';
 import { createConversation } from '../src/lib/ai-store';
@@ -15,19 +15,6 @@ test('artifact edits: applied in order, all or nothing, and only on a unique exc
     { content: 'Cláusula 1. A locatária paga em dia.\nCláusula 2. O locatário paga.' });
   assert.deepEqual(applyEdits(text, [{ find: 'O locatário paga', replace: 'x' }]), { failure: { index: 0, reason: 'ambiguous', find: 'O locatário paga' } });
   assert.deepEqual(applyEdits(text, [{ find: 'Cláusula 1', replace: 'Primeira' }, { find: 'Cláusula 9', replace: 'y' }]), { failure: { index: 1, reason: 'missing', find: 'Cláusula 9' } });
-});
-
-test('artifact edits: new citations become pending markers; the person\'s own survive rewording', () => {
-  const created = withoutUnapprovedCitations('# Dos fatos\nO réu não pagou.\n- Nos termos do art. 186 do Código Civil, deve indenizar.\n> Súmula 54 do STJ');
-  assert.equal(created.blocked, 2);
-  assert.equal(created.text, `# Dos fatos\nO réu não pagou.\n- ${PENDING_LEGAL}\n> ${PENDING_LEGAL}`);
-
-  const before = 'Pede a citação, nos termos do art. 319 do CPC.\nO réu não pagou.';
-  // Rewording a line the person wrote keeps the authority they chose.
-  assert.deepEqual(withoutUnapprovedCitations('Requer a citação do réu, nos termos do art. 319 do CPC.\nO réu não pagou.', before),
-    { text: 'Requer a citação do réu, nos termos do art. 319 do CPC.\nO réu não pagou.', blocked: 0 });
-  // A new authority in a changed line is not the person's choice.
-  assert.equal(withoutUnapprovedCitations('Pede a citação, nos termos do art. 319 do CPC.\nO réu não pagou, violando a Lei 8.078.', before).blocked, 1);
 });
 
 async function fixture() {
@@ -51,10 +38,18 @@ const run = async (context: WorkspaceContext, name: 'k5_artifacts_create' | 'k5_
 
 test('artifact edits: the agent refines its own document in the same conversation without asking', async () => {
   const { agent, first } = await fixture();
-  const created = await run(agent(first), 'k5_artifacts_create', { title: 'Notificação', content: 'Prezado,\nO aluguel está atrasado.\nConforme art. 9 da Lei 8.245.' });
+  const result = await runCapability(agent(first), 'k5_artifacts_create', { title: 'Notificação', content: 'Prezado,\nO aluguel está atrasado.\nConforme art. 9 da Lei 8.245.' }) as
+    { artifact: Artifact; citations: { status: string; total: number; toReview: number; noSource: number } };
+  const created = result.artifact;
   assert.equal(created.version, 1);
-  assert.equal(created.content, `Prezado,\nO aluguel está atrasado.\n${PENDING_LEGAL}`);
-  assert.deepEqual(created.validationIssues, [PENDING_LEGAL_ISSUE]);
+  // The agent writes freely: the citation stays, and the check marks it for the lawyer, since nothing
+  // the conversation consulted is that law. TypeSafe is not configured in tests, so the check is code-only.
+  assert.equal(created.content, 'Prezado,\nO aluguel está atrasado.\nConforme art. 9 da Lei 8.245.');
+  assert.deepEqual(created.validationIssues, []);
+  assert.deepEqual({ total: result.citations.total, toReview: result.citations.toReview, noSource: result.citations.noSource }, { total: 1, toReview: 1, noSource: 1 });
+  const review = await testDb.prepare('SELECT artifact_version, items FROM artifact_citation_review WHERE artifact_id=?').get(created.id) as { artifact_version: number; items: string };
+  assert.equal(review.artifact_version, 1);
+  assert.deepEqual((JSON.parse(review.items) as Array<{ text: string; status: string }>).map(item => [item.text, item.status]), [['art. 9 da Lei 8.245', 'no_source']]);
   const row = await testDb.prepare('SELECT kind, conversation_id, created_by_agent, run_id FROM ai_artifact WHERE id=?').get(created.id);
   assert.deepEqual(row, { kind: 'document', conversation_id: first, created_by_agent: true, run_id: null });
 

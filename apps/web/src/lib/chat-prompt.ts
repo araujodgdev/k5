@@ -21,6 +21,12 @@ export async function chatPromptMessages(owner:Owner,conversationId:string,messa
         const list=(data?.results??[]).slice(0,12).map(item=>`- ${item.title??''} (${item.court??''}) ${item.url??''}`).join('\n');
         return [`[jurisprudência na web mostrada à pessoa]\n${list||'nenhum resultado'}`];
       }
+      if(part.type==='data-citations') {
+        // The model must know which of its citations the person was asked to confirm.
+        const data=part.data as {items?:Array<{text?:string;status?:string}>};
+        const pending=(data?.items??[]).filter(item=>item.status!=='verified').map(item=>`- ${item.text??''} (${item.status??''})`).join('\n');
+        return pending?[`[citações que a pessoa precisa conferir]\n${pending}`]:[];
+      }
       if(part.type==='data-approval') {
         // The model must know whether the person confirmed, or it would offer the same action again.
         const data=part.data as {summary?:string;state?:string;result?:string};

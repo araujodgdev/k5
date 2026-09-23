@@ -25,6 +25,8 @@ import * as annexes from '@/lib/application/annexes-service';
 import { getVerification, requestVerification } from '@/lib/typesafe/verification';
 import { interpretAgenda, getProposal, listProposals, applyProposal } from '@/lib/typesafe/agenda';
 import { endGlobalSession } from '@/lib/application/ui-service';
+import { recordSources, sourcesFromTool } from '@/lib/citations/sources';
+import { captureOperationalError } from '@/lib/observability/report';
 
 type Executor = (context: WorkspaceContext, input: never) => unknown;
 
@@ -172,7 +174,16 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (
     inputSchema: capability.input,
     outputSchema: capability.output,
     execute: async (input: unknown) => {
-      try { return await runCapability({ ...context, invocation: 'agent' }, name, input); }
+      try {
+        const result = await runCapability({ ...context, invocation: 'agent' }, name, input);
+        // What the Lume read is kept before it sees it, so a document it writes next in this same
+        // turn is checked against these sources too.
+        if (context.conversationId) {
+          await recordSources(context, context.conversationId, sourcesFromTool(name, result))
+            .catch(error => captureOperationalError(error, 'citations.sources'));
+        }
+        return result;
+      }
       catch (error) {
         // A gated action is not a failure: the chat turns it into a Confirmar button that runs it.
         const approvalId = error instanceof CapabilityError && error.code === 'APPROVAL_REQUIRED' ? approvalIdFromMessage(error.message) : null;
@@ -337,6 +348,11 @@ function describe(name: string, result: unknown): string {
   if (Array.isArray(value.documents)) return `${value.documents.length} documento(s)`;
   if (Array.isArray(value.runs)) return `${value.runs.length} tarefa(s)`;
   if (Array.isArray(value.artifacts)) return `${value.artifacts.length} documento(s)`;
+  if (value.artifact && typeof value.artifact === 'object' && value.citations && typeof value.citations === 'object') {
+    const title = String((value.artifact as { title?: string }).title ?? '');
+    const toReview = Number((value.citations as { toReview?: number }).toReview ?? 0);
+    return toReview ? `${title} · ${toReview} ${toReview === 1 ? 'citação' : 'citações'} para conferir` : title;
+  }
   if (Array.isArray(value.versions)) return `${value.versions.length} versão(ões)`;
   if (Array.isArray(value.conversations)) return `${value.conversations.length} conversa(s)`;
   if (Array.isArray(value.candidates)) return `${value.candidates.length} candidato(s)`;

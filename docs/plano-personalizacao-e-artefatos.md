@@ -312,3 +312,24 @@ Seguindo `AGENTS.md`:
 | Timbrado em PDF? | **Decidido (23/09): só .docx.** Converter PDF em cabeçalho Word é frágil e o resultado não é editável. |
 | Documentos do chat aparecem no Cofre? | **Decidido (23/09): não automaticamente.** Ação "Salvar no Cofre" no painel gera o DOCX e cria um documento no caso escolhido. Mantém o Cofre como acervo curado, como já é com anexos do chat. |
 | Compartilhar documento com outra pessoa do escritório? | Fora do escopo. Hoje `ownedArtifact` filtra por `user_id`; mudar isso exige revisar as rotas de versão, exportação e verificação. |
+
+## Citações: revisão no lugar do bloqueio (23/09)
+
+Decisão: o Lume age e cita livremente; o advogado revisa o que ele entrega e pede ajustes. A trava que trocava linhas por `[Fundamentação jurídica pendente…]` saiu do chat e dos documentos do chat. As minutas da Pesquisa mantêm a seleção explícita de citações, que é o propósito daquele fluxo.
+
+Como funciona agora:
+
+| Etapa | Quem faz | Onde |
+| --- | --- | --- |
+| Guardar o que o Lume consultou na conversa (jurisprudência da web, trechos do Cofre, páginas da busca web) | código, na execução da ferramenta | `src/lib/citations/sources.ts`, `agent-tools`, tabela `conversation_source` |
+| Achar candidatos a citação (artigo, lei, súmula, tema, REsp/HC/ADI…, número CNJ) | código, regex de alta cobertura | `src/lib/citations/detect.ts` |
+| Achar fontes que podem ser a citada (mesmo número principal, mesmo código ou tribunal) | código | `candidateSources` |
+| Decidir se o candidato é citação (norma, precedente ou só menção) | Jev, `Choice` | `src/lib/citations/review.ts` |
+| Decidir se a fonte é a citada e se sustenta o parágrafo | Jev, `Noul` + `Choice` por fonte candidata, na mesma chamada | idem |
+| Traduzir respostas em status e decidir o que vai para a pessoa | código (aceita sozinho só com confiança ≥ 0,8) | `src/lib/citations/verdict.ts` |
+
+Status: confere, sustenta só em parte, diz o contrário, sem fonte consultada, não verificada (Jev desligado, em sombra ou indisponível). Usa o modo `documents` da conexão TypeSafe.
+
+Onde aparece: lista "Citações para conferir" sob a resposta do chat; seção Citações na aba Revisão do documento, com "Conferir de novo"; o resultado volta ao Lume nas ferramentas de documento (`citations.toReview`, `citations.noSource`), e ele avisa e oferece buscar as fontes que faltam.
+
+Limites conhecidos: a busca web do provedor devolve só título e link, então uma citação apoiada só nela é conferida pelo título; dispositivos de lei citados de memória aparecem como "sem fonte consultada" até o Lume buscá-los; sem o Jev, um número de processo das partes aparece como citação sem fonte.

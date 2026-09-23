@@ -63,6 +63,8 @@ import { ChatCamera } from './chat-camera';
 import { ChatAttachmentView } from './chat-attachment';
 import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, type ChatAttachment } from '@/lib/chat-attachment-contract';
 import type { DocumentAsk } from "./document/document-workspace";
+import type { CitationItem } from "@/lib/citations/verdict";
+import { citationStatusLabel, sourceHref, toReview } from "@/lib/citations/labels";
 
 type Selection = { artifactId: string; excerpt: string };
 /** Read when a message is sent: the document open beside the chat, and a selection spent by that one request. */
@@ -270,7 +272,39 @@ function JurisprudenceList({ data }: { data: JurisprudenceData }) {
   );
 }
 
-const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep, jurisprudence: JurisprudenceList } } };
+/**
+ * The answer's legal citations, checked against what the conversation consulted. The Lume writes
+ * freely; this is where the lawyer sees which citations to confirm before relying on them.
+ */
+function CitationsList({ data }: { data: { items?: CitationItem[] } }) {
+  const items = data?.items ?? [];
+  const pending = toReview(items);
+  const confirmed = items.length - pending.length;
+  if (!items.length) return null;
+  return (
+    <section aria-label="Citações da resposta" className="mt-4 grid gap-2">
+      {pending.length > 0 && <>
+        <h3 className="text-sm font-medium">Citações para conferir</h3>
+        <ul className="divide-y border-y">
+          {pending.map((item) => (
+            <li key={item.id} className="grid gap-0.5 py-2.5">
+              <p className="text-sm font-medium leading-6">{item.text}</p>
+              <p className="text-[13px] leading-5 text-subtle-foreground">
+                {citationStatusLabel[item.status]}
+                {item.source && <> · {sourceHref(item.source.url)
+                  ? <a href={sourceHref(item.source.url)!} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline-offset-4 hover:underline">{item.source.title || "fonte"}<span className="sr-only"> (abre em nova aba)</span></a>
+                  : item.source.title}</>}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </>}
+      {confirmed > 0 && <p className="text-xs text-subtle-foreground">{confirmed === 1 ? "1 citação confere" : `${confirmed} citações conferem`} com as fontes consultadas nesta conversa.</p>}
+    </section>
+  );
+}
+
+const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep, jurisprudence: JurisprudenceList, citations: CitationsList } } };
 
 function AssistantMessage() {
   return (
