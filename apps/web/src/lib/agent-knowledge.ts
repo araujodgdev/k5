@@ -116,6 +116,9 @@ export async function knowledgePrompt(owner: Owner, options: { budget?: number; 
   let used = 0;
   for (const item of ready) {
     if (item.mode === 'search') { search.push(item); continue; }
+    // Ingestion sums the persisted, trimmed chunks; documentText only adds separators.
+    // This lower bound avoids reading a document that cannot fit, even before joining it.
+    if (item.characters > budget - used) { search.push(item); continue; }
     const text = (await documentText(owner.officeId, item.documentId)).trim();
     if (!text) continue;
     if (used + text.length > budget) { search.push(item); continue; }

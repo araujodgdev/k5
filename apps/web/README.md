@@ -111,6 +111,21 @@ Escopo e próximas etapas: [plano de Tarefas e Agenda](../../docs/plano-tarefas-
 
 O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
 
+Para validar regressões do editor, com o servidor local em execução e uma conta de
+teste já provisionada, execute da raiz:
+
+```sh
+pnpm --filter @k5/web exec playwright test -c playwright.documents.config.ts
+pnpm --filter @k5/web exec tsx scripts/verify-document-live.ts
+```
+
+`E2E_EMAIL` e `E2E_PASSWORD` permitem usar outra conta de teste existente. A suíte
+usa o editor real e respostas controladas da API para reproduzir conflitos e
+falhas de salvamento. O segundo comando usa o modelo configurado pelo administrador,
+cria um documento de teste, salva, exporta DOCX e confere o painel móvel; exige a
+conexão de IA ativa. Capturas, vídeo e DOCX ficam em `playwright-report/pr11-live/`.
+Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
+
 - **Plataforma:** `/platform/clients/[officeId]/ai` gerencia as conexões de IA por escritório
   (OpenAI, Anthropic, Google, DeepSeek, Inception, OpenRouter e AI Gateway). O administrador
   escolhe o modelo do Lume para conversas, extração e redação, pela lista ou digitando o ID.

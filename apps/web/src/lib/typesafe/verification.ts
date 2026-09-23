@@ -51,14 +51,16 @@ export async function enqueueVerification(owner: Owner, artifact: ArtifactRow, u
   const evidence = await evidenceFor(owner.officeId, units);
   const hash = fingerprint([artifact.title, artifact.content]);
   const id = randomUUID();
+  // The partial unique index keeps one active job per version: a concurrent enqueue waits and joins it.
   await database.prepare(`INSERT INTO artifact_verification(id,office_id,user_id,artifact_id,artifact_version,content_hash,source_fingerprint,units,total,mode,model,question_version)
-    SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (
-      SELECT 1 FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? AND artifact_version=? AND content_hash=? AND status IN ('queued','running')
-    )`).run(id, owner.officeId, owner.userId, artifact.id, artifact.version, hash, snapshot(evidence), JSON.stringify(units), units.length, config.documents_mode, config.model, supportVersion,
-      owner.officeId, owner.userId, artifact.id, artifact.version, hash);
-  const queued = await database.prepare("SELECT id FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? AND artifact_version=? AND content_hash=? AND status IN ('queued','running') ORDER BY sequence_no DESC LIMIT 1")
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT (office_id,user_id,artifact_id,artifact_version,content_hash) WHERE status IN ('queued','running') DO NOTHING`)
+    .run(id, owner.officeId, owner.userId, artifact.id, artifact.version, hash, snapshot(evidence), JSON.stringify(units), units.length, config.documents_mode, config.model, supportVersion);
+  // The worker can finish the existing job between the INSERT and this read. Return that
+  // persisted job too, never the unused UUID of an insert that lost the conflict.
+  const queued = await database.prepare("SELECT id FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? AND artifact_version=? AND content_hash=? ORDER BY sequence_no DESC LIMIT 1")
     .get<{ id: string }>(owner.officeId, owner.userId, artifact.id, artifact.version, hash);
-  return queued?.id ?? id;
+  return queued?.id ?? null;
 }
 export async function requestVerification(context: WorkspaceContext, input: { artifactId: string }) {
   const artifact = await artifactFor(context, input.artifactId);

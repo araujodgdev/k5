@@ -62,7 +62,8 @@ import { cn } from "@/lib/utils";
 import { ChatCamera } from './chat-camera';
 import { ChatAttachmentView } from './chat-attachment';
 import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, type ChatAttachment } from '@/lib/chat-attachment-contract';
-import type { DocumentAsk } from "./document/document-workspace";
+import type { DocumentAsk, DocumentWorkspaceHandle } from "./document/document-workspace";
+import { DocumentPanel } from "./document/document-panel";
 import type { CitationItem } from "@/lib/citations/verdict";
 import { citationStatusLabel, sourceHref, toReview } from "@/lib/citations/labels";
 
@@ -610,6 +611,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   // The open document lives in the URL (?doc=), so a reload keeps it and Voltar closes it.
   const openDocumentId = useSearchParams().get("doc");
   const openDocumentRef = useRef(openDocumentId);
+  const documentWorkspaceRef = useRef<DocumentWorkspaceHandle>(null);
   useEffect(() => { openDocumentRef.current = openDocumentId; }, [openDocumentId]);
   const [documentRevision, setDocumentRevision] = useState(0);
   const savedChatShare = useSyncExternalStore(subscribeChatShare, readChatShare, serverChatShare);
@@ -929,14 +931,9 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
             </div>
           )}
           {openDocumentId && (
-            // Beside the chat on wide screens; over it, full screen, on smaller ones.
-            <section id="document-panel" aria-label="Documento" className="fixed inset-0 z-50 flex min-w-0 flex-col bg-background pt-[env(safe-area-inset-top)] lg:static lg:z-auto lg:min-w-[28rem] lg:flex-1 lg:pt-0"
-              onKeyDown={(event) => {
-                if (event.key !== "Escape" || event.defaultPrevented || (event.target as HTMLElement).closest("[data-radix-popper-content-wrapper]")) return;
-                closeDocument();
-              }}>
-              <DocumentWorkspace key={openDocumentId} artifactId={openDocumentId} variant="panel" onClose={closeDocument} onAsk={askAboutDocument} revision={documentRevision} />
-            </section>
+            <DocumentPanel onClose={() => { if (documentWorkspaceRef.current) void documentWorkspaceRef.current.close(); else closeDocument(); }}>
+              <DocumentWorkspace ref={documentWorkspaceRef} key={openDocumentId} artifactId={openDocumentId} variant="panel" onClose={closeDocument} onAsk={askAboutDocument} revision={documentRevision} />
+            </DocumentPanel>
           )}
         </div>
       </div>

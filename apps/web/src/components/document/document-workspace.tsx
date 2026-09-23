@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type MouseEvent, type Ref } from "react";
 import { ArrowLeft, CircleAlert, Download, History, LoaderCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -58,8 +59,9 @@ function typographyStyle(typography: Typography | null): CSSProperties {
 }
 
 export type DocumentAsk = { artifactId: string; title: string; excerpt: string; instruction: string };
+export type DocumentWorkspaceHandle = { close: () => Promise<void> };
 
-export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revision = 0 }: {
+export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revision = 0, ref }: {
   artifactId: string;
   variant: "panel" | "page";
   onClose?: () => void;
@@ -67,7 +69,9 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   onAsk?: (request: DocumentAsk) => Promise<void>;
   /** Bumped by the chat when the Lume changed this document. */
   revision?: number;
+  ref?: Ref<DocumentWorkspaceHandle>;
 }) {
+  const router = useRouter();
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "missing">("loading");
   const [title, setTitle] = useState("");
@@ -93,6 +97,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   const versionRef = useRef(0);
   const saveStateRef = useRef<SaveState>("saved");
   const savingRef = useRef<Promise<boolean> | null>(null);
+  const snapshotNeededRef = useRef(false);
 
   const markState = useCallback((next: SaveState) => { saveStateRef.current = next; setSaveState(next); }, []);
 
@@ -102,6 +107,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     titleRef.current = next.title;
     contentRef.current = next.content;
     versionRef.current = next.version;
+    snapshotNeededRef.current = false;
     setEditorSeed(next.content);
     setEditorKey((key) => key + 1);
     markState("saved");
@@ -123,9 +129,12 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     setPhase((current) => current === "ready" ? current : "missing");
   }, []);
 
-  const load = useCallback((highlight = false) => {
+  const load = useCallback((highlight = false, preserveEdits = false) => {
     const previous = highlight ? editorRef.current?.blockTexts() ?? null : null;
-    return fetchArtifact().then((next) => { apply(next); setHighlightAgainst(previous); }, fail);
+    return fetchArtifact().then((next) => {
+      if (preserveEdits && saveStateRef.current !== "saved") { setLumeChanged(true); return; }
+      apply(next); setHighlightAgainst(previous);
+    }, fail);
   }, [fetchArtifact, apply, fail]);
 
   useEffect(() => {
@@ -152,16 +161,22 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   }, [artifactId, storedVersion]);
 
   /** Saves what is on screen. `snapshot` also records a version in the history. */
-  const save = useCallback(async (snapshot: boolean): Promise<boolean> => {
-    if (savingRef.current) await savingRef.current;
-    if (saveStateRef.current !== "dirty" && !(snapshot && saveStateRef.current === "error")) return saveStateRef.current === "saved";
+  const save = useCallback(async (snapshot: boolean, leaving = false): Promise<boolean> => {
+    // Several lifecycle events can arrive during the same request. Recheck the lock after
+    // awaiting it, so only one caller writes the next version.
+    while (savingRef.current) await savingRef.current;
+    if (saveStateRef.current !== "dirty" && !(snapshot && (saveStateRef.current === "error" ||
+      (saveStateRef.current === "saved" && snapshotNeededRef.current)))) return saveStateRef.current === "saved";
     const sent = { title: titleRef.current.trim() || "Documento sem título", content: contentRef.current };
+    const body = JSON.stringify({ ...sent, version: versionRef.current, snapshot });
     markState("saving");
     const run = (async () => {
       try {
         const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}`, {
           method: "PUT", headers: { "content-type": "application/json" }, cache: "no-store",
-          body: JSON.stringify({ ...sent, version: versionRef.current, snapshot }),
+          body,
+          // Large SPA documents need a regular request: keepalive rejects bodies over 64 KiB.
+          keepalive: leaving && new TextEncoder().encode(body).byteLength <= 64 * 1024,
         });
         if (response.status === 409) { markState("conflict"); setError("Este documento mudou em outro lugar. Recarregue para ver a versão atual."); return false; }
         if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível salvar o documento."));
@@ -170,6 +185,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
         setError("");
         // Typing during the request leaves newer text to save on the next round.
         const changed = contentRef.current !== sent.content || (titleRef.current.trim() || "Documento sem título") !== sent.title;
+        snapshotNeededRef.current = !snapshot || changed;
         markState(changed ? "dirty" : "saved");
         return !changed;
       } catch (cause) {
@@ -189,20 +205,31 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     return () => clearTimeout(timer);
   }, [saveState, edits, save, editorKey]);
 
-  // Leaving the page, the tab or the panel records what was written, as a version.
+  const close = useCallback(async () => {
+    if (await save(true)) onClose?.();
+  }, [save, onClose]);
+  useImperativeHandle(ref, () => ({ close }), [close]);
+
+  // Lifecycle saves share the autosave lock and update its version, including when the
+  // page is restored from the back/forward cache. Unmount still finishes a queued save.
   useEffect(() => {
-    const flush = () => {
-      if (saveStateRef.current !== "dirty") return;
-      void fetch(`/api/artifacts/${encodeURIComponent(artifactId)}`, {
-        method: "PUT", headers: { "content-type": "application/json" }, keepalive: true,
-        body: JSON.stringify({ title: titleRef.current.trim() || "Documento sem título", content: contentRef.current, version: versionRef.current, snapshot: true }),
-      }).catch(() => undefined);
-    };
+    const flush = () => { void save(true, true); };
     const onHide = () => { if (document.visibilityState === "hidden") flush(); };
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (saveStateRef.current === "saved") return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
     window.addEventListener("pagehide", flush);
+    window.addEventListener("beforeunload", beforeUnload);
     document.addEventListener("visibilitychange", onHide);
-    return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onHide); flush(); };
-  }, [artifactId]);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("visibilitychange", onHide);
+      flush();
+    };
+  }, [save]);
 
   // The Lume changed the document: reload, unless the person has words the reload would discard.
   const seenRevision = useRef(revision);
@@ -210,8 +237,8 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     if (revision === seenRevision.current) return;
     seenRevision.current = revision;
     setAsked(false);
-    if (saveStateRef.current === "dirty" || saveStateRef.current === "saving") setLumeChanged(true);
-    else void load(true);
+    if (saveStateRef.current !== "saved") setLumeChanged(true);
+    else void load(true, true);
   }, [revision, load]);
 
   async function keepMine() {
@@ -235,7 +262,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   async function recheckCitations() {
     setRechecking(true);
     try {
-      await save(true);
+      if (!await save(true)) return;
       const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/citations`, { method: "POST", cache: "no-store" });
       if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível conferir as citações."));
       setCitations(await response.json() as StoredCitations);
@@ -245,11 +272,13 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   }
 
   function changeContent(markdown: string) {
+    snapshotNeededRef.current = true;
     contentRef.current = markdown;
     setEdits((count) => count + 1);
     if (saveStateRef.current !== "conflict") markState("dirty");
   }
   function changeTitle(value: string) {
+    snapshotNeededRef.current = true;
     setTitle(value);
     titleRef.current = value;
     setEdits((count) => count + 1);
@@ -257,12 +286,12 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   }
 
   async function openTab(next: Tab) {
-    if (next === "page") await save(true);
+    if (next === "page" && !await save(true)) return;
     setTab(next);
   }
 
   async function exportDocx(event: MouseEvent<HTMLAnchorElement>) {
-    if (saveStateRef.current !== "dirty" && saveStateRef.current !== "saving") return;
+    if (saveStateRef.current === "saved" && !snapshotNeededRef.current) return;
     event.preventDefault();
     const href = event.currentTarget.href;
     if (await save(true)) window.location.assign(href);
@@ -294,8 +323,9 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <header className="flex min-h-14 shrink-0 items-center gap-1.5 border-b px-2 md:px-4">
         {variant === "page"
-          ? <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Voltar à conversa"><Link href={backHref}><ArrowLeft /></Link></Button>
-          : <Button variant="ghost" size="icon" className="size-11 lg:hidden" aria-label="Voltar à conversa" onClick={onClose}><ArrowLeft /></Button>}
+          ? <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Voltar à conversa"><Link href={backHref}
+            onNavigate={event => { event.preventDefault(); void save(true).then(saved => { if (saved) router.push(backHref); }); }}><ArrowLeft /></Link></Button>
+          : <Button variant="ghost" size="icon" className="size-11 lg:hidden" aria-label="Voltar à conversa" onClick={() => void close()}><ArrowLeft /></Button>}
         <label className="min-w-0 flex-1">
           <span className="sr-only">Título do documento</span>
           <input value={title} onChange={(event) => changeTitle(event.target.value)} maxLength={200} placeholder="Título do documento"
@@ -303,13 +333,13 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
               variant === "page" ? "display text-[22px] md:text-[26px]" : "text-[15px] font-medium")} />
         </label>
         <span className={cn("hidden shrink-0 text-xs sm:inline", saveState === "conflict" || saveState === "error" ? "text-destructive" : "text-muted-foreground")} aria-live="polite">{status}</span>
-        <Versions artifactId={artifact.id} current={artifact.version} beforeRestore={() => save(true)} onRestored={() => void load(true)} />
+        <Versions artifactId={artifact.id} current={artifact.version} beforeRestore={() => save(true)} onRestored={() => void load(true, true)} />
         <Button asChild className="min-h-11 md:min-h-9">
           <a href={`/api/artifacts/${encodeURIComponent(artifact.id)}/export`} onClick={(event) => void exportDocx(event)} aria-label="Exportar DOCX">
             <Download aria-hidden="true" /><span className="hidden sm:inline">Exportar DOCX</span>
           </a>
         </Button>
-        {variant === "panel" && <Button variant="ghost" size="icon" className="hidden size-9 lg:inline-flex" aria-label="Fechar documento" onClick={onClose}><X /></Button>}
+        {variant === "panel" && <Button variant="ghost" size="icon" className="hidden size-9 lg:inline-flex" aria-label="Fechar documento" onClick={() => void close()}><X /></Button>}
       </header>
 
       <div className="flex shrink-0 items-center gap-1 border-b px-2 md:px-4" role="tablist" aria-label="Modo do documento">
@@ -327,7 +357,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
       {asked && !lumeChanged && (
         <div className="flex flex-wrap items-center gap-2 border-b border-l-2 border-l-brand px-4 py-2 text-sm" role="status">
           <span className="min-w-0 flex-1">Pedido enviado ao Lume. A alteração aparece aqui quando ele terminar.</span>
-          {onClose && <Button size="sm" variant="ghost" className="min-h-11 lg:hidden" onClick={onClose}>Ver conversa</Button>}
+          {onClose && <Button size="sm" variant="ghost" className="min-h-11 lg:hidden" onClick={() => void close()}>Ver conversa</Button>}
         </div>
       )}
       {lumeChanged && (
@@ -385,7 +415,10 @@ function Versions({ artifactId, current, beforeRestore, onRestored }: { artifact
     setBusy(version);
     setError("");
     try {
-      await beforeRestore();
+      if (!await beforeRestore()) {
+        setError("Salve as alterações antes de restaurar uma versão.");
+        return;
+      }
       const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/restore`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ version }),
       });
