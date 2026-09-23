@@ -4,6 +4,8 @@ Data: 18/09/2026. Status: proposta executável. Esta entrega autoriza o planejam
 
 Atualização de 19/09/2026: a fundação (F1), a parte do DJEN que não depende de acesso externo e as duas telas da seção 9 foram implementadas. Nenhum conector foi homologado e nenhum tribunal foi contatado; o acesso real à rede permanece desligado por padrão. O que existe no código, o que continua fechado e a verificação executada estão em [nota de implementação](infra-judicial-implementacao.md).
 
+Atualização de 22/09/2026: as fases F3 (conector processual), F6 (jurisprudência) e a coleta por navegador, que o plano trata em blocos, foram detalhadas em itens com aceite verificável e teste nomeado. O ponto de entrada é o [plano de execução de dados jurídicos](plano-execucao-dados-juridicos.md); ele não altera nenhuma decisão deste documento, apenas o granulariza. Nada foi habilitado.
+
 Documentos complementares: [pesquisa das fontes e caminhos de acesso](fontes-infra-judicial.md), [registro nacional de investigação](registro-cobertura-judicial.md), [análise inicial do DataJud](pesquisa-datajud.md), [plano documental do MVP](plano-ia-mvp.md) e [serviços, ferramentas e RAG](plano-agente-ferramentas-rag-webmcp.md).
 
 ## 1. Objetivo e decisões de partida

@@ -58,7 +58,7 @@ export function VaultBrowser({ initialCases, libraryCount, role }: { initialCase
     setCreating(false); setAdvanced(false);
   }
 
-  return <div className="flex min-h-0 flex-1 flex-col px-4 py-6 md:px-8 md:py-8">
+  return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-8 md:py-8">
     <div data-reveal className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
       <h1 className="display text-[28px] leading-none max-md:sr-only">Cofre</h1>
       <div className="flex flex-wrap items-center gap-2">

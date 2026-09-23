@@ -8,7 +8,15 @@ const OFFLINE = "/offline.html";
 const PUBLIC_FILES = [OFFLINE, "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png", "/icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PUBLIC_FILES)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(PUBLIC_FILES);
+    // The host serves /offline.html from /offline, so addAll follows a redirect. A
+    // response carrying the redirect flag is a network error when respondWith hands it
+    // to a navigation, which is the only thing OFFLINE is ever used for. Re-wrap it.
+    const offline = await cache.match(OFFLINE);
+    await cache.put(OFFLINE, new Response(offline.body, offline));
+  })());
 });
 
 self.addEventListener("activate", (event) => {

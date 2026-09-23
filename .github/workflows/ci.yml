@@ -14,6 +14,18 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      # Throwaway database so db:setup can apply migrations before the build.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: k5
+          POSTGRES_PASSWORD: ci-build-only
+          POSTGRES_DB: k5_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U k5 -d k5_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v5
 
@@ -34,13 +46,13 @@ jobs:
       - run: pnpm test
 
       - name: Build
-        # Initialize an isolated SQLite database before parallel page collection.
+        # Migrate the service database before parallel page collection.
         # These values are for compilation only; staging secrets stay out of PR builds.
         env:
-          DATABASE_PATH: .data/ci-build.sqlite
+          DATABASE_URL: postgresql://k5:ci-build-only@127.0.0.1:5432/k5_ci
           BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
           BETTER_AUTH_URL: http://localhost:3000
-          K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnVu
+          K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnQ=
           SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
           SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
           SENTRY_RELEASE: ${{ github.sha }}
