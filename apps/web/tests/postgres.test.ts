@@ -70,3 +70,10 @@ test('request pool remains open through streaming and closes on completion or ca
     assert.equal(closed,1);
   }
 });
+
+test('migration checksums ignore CRLF checkouts but still detect real edits', async () => {
+  const { migrationChecksum } = await import('../src/lib/db/migrate');
+  const sql = 'CREATE TABLE a(id TEXT);\nCREATE INDEX a_id ON a(id);\n';
+  assert.equal(migrationChecksum(sql.replaceAll('\n', '\r\n')), migrationChecksum(sql));
+  assert.notEqual(migrationChecksum(sql.replace('id TEXT', 'id BIGINT')), migrationChecksum(sql));
+});

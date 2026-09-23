@@ -1,0 +1,2 @@
+# Migration checksums are computed over LF; keep SQL identical on every platform.
+*.sql text eol=lf

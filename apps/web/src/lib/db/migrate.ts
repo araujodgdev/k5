@@ -3,6 +3,14 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Pool } from 'pg';
 
+/**
+ * Line endings are normalized first: a Windows checkout with core.autocrlf rewrites the files with
+ * CRLF, and that must not look like an edit to a migration that was already applied.
+ */
+export function migrationChecksum(sql: string) {
+  return createHash('sha256').update(sql.replace(/\r\n/g, '\n')).digest('hex');
+}
+
 /** Direct connection only. One lock and transaction prevent partial or concurrent migrations. */
 export async function migratePostgres(pool: Pool, directory: string | URL) {
   const client = await pool.connect();
@@ -13,7 +21,7 @@ export async function migratePostgres(pool: Pool, directory: string | URL) {
     const applied = new Map((await client.query<{name:string;checksum:string}>('SELECT name,checksum FROM postgres_migration')).rows.map(row=>[row.name,row.checksum]));
     for (const name of (await readdir(directory)).filter(name=>name.endsWith('.sql')).sort()) {
       const sql = await readFile(typeof directory==='string' ? join(directory,name) : new URL(name,directory),'utf8');
-      const checksum = createHash('sha256').update(sql).digest('hex');
+      const checksum = migrationChecksum(sql);
       if (applied.has(name)) {
         if (applied.get(name)!==checksum) throw new Error(`Applied migration changed: ${name}`);
         continue;
