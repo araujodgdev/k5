@@ -4,7 +4,8 @@ import { chatRequestSchema } from '@/lib/chat-contract';
 import { captureOperationalError } from '@/lib/observability/report';
 import { database } from '@/lib/database';
 import { apiWorkspace, apiError, ApiError, limitedJson } from '@/lib/workspace-api';
-import { conversation, mergeHistory, saveMessages } from '@/lib/ai-store';
+import { conversation, mergeHistory, ownedArtifact, saveMessages } from '@/lib/ai-store';
+import { documentFocusPrompt } from '@/lib/artifact-edits';
 import { createOfficeAgent, recordUsage, RequestContext } from '@/lib/ai-runtime';
 import { groundedInstructions, unauthorizedLegalPassages } from '@/lib/ai-policy';
 import { selectedResearchSources } from '@/lib/ai-sources';
@@ -102,6 +103,10 @@ export async function POST(request: Request) {
     // Search with function calling, so only OpenAI and Anthropic get it next to the office tools.
     const provider = (await resolveOfficeModelConfig(office.officeId, 'chat')).provider;
     const [writingRules, knowledge] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner)]);
+    // Only the person's own document is named; an id they do not own is ignored, not an error.
+    const focusedId = body.selection?.artifactId ?? body.openDocumentId;
+    const focused = focusedId ? await ownedArtifact(database, owner, focusedId) : undefined;
+    const documentFocus = focused ? documentFocusPrompt(focused, body.selection?.artifactId === focused.id ? body.selection.excerpt : undefined) : '';
     const tools = ['openai', 'anthropic'].includes(provider) ? { ...officeTools, web_search: webSearchTool } : officeTools;
     const { agent, config } = await createOfficeAgent(
       (office).officeId,
@@ -112,6 +117,7 @@ export async function POST(request: Request) {
         'Nesta conversa nenhuma citação jurídica está aprovada; autoridades jurídicas só entram em minutas com seleção explícita da pessoa.',
         scope,
         researchScope,
+        ...(documentFocus ? [documentFocus] : []),
       ].join('\n\n'),
       tools,
     );

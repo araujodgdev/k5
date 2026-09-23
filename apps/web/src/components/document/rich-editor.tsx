@@ -1,10 +1,12 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, type CSSProperties, type ReactNode } from "react";
-import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
-import { Bold, Heading2, Italic, List, ListOrdered, Quote, Redo2, Undo2 } from "lucide-react";
+import { ArrowUp, Bold, Heading2, Italic, List, ListOrdered, LoaderCircle, Quote, Redo2, Undo2 } from "lucide-react";
+import { LumeMark } from "@/components/lume-mark";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +26,9 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   onSave?: () => void;
   style?: CSSProperties;
   label: string;
-}>(function RichEditor({ initialMarkdown, onChange, onSave, style, label }, ref) {
+  /** Sends the selected text and what to change about it to the Lume; absent hides the option. */
+  onAsk?: (request: { excerpt: string; instruction: string }) => Promise<void>;
+}>(function RichEditor({ initialMarkdown, onChange, onSave, style, label, onAsk }, ref) {
   // The editor keeps the callbacks it was created with; these refs hand it the current ones.
   const onChangeRef = useRef(onChange);
   const onSaveRef = useRef(onSave);
@@ -84,6 +88,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10">
         <div className="document-prose mx-auto w-full max-w-full" style={style}>
           <EditorContent editor={editor} />
+          {onAsk && <AskMenu editor={editor} onAsk={onAsk} />}
         </div>
       </div>
     </div>
@@ -96,5 +101,63 @@ function Tool({ label, pressed, disabled, onClick, children }: { label: string; 
       aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
       {children}
     </Button>
+  );
+}
+
+/**
+ * A selection gets one action: ask the Lume to change just that. The request goes to the
+ * conversation with the excerpt, and the Lume answers by editing the document.
+ */
+function AskMenu({ editor, onAsk }: { editor: Editor; onAsk: (request: { excerpt: string; instruction: string }) => Promise<void> }) {
+  const [asking, setAsking] = useState<string | null>(null);
+  const [instruction, setInstruction] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function start() {
+    const { from, to } = editor.state.selection;
+    setAsking(editor.state.doc.textBetween(from, to, "\n").trim().slice(0, 4000));
+    setInstruction("");
+    setError("");
+  }
+  function reset() { setAsking(null); setInstruction(""); setError(""); }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!asking || !instruction.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onAsk({ excerpt: asking, instruction: instruction.trim() });
+      reset();
+      editor.commands.setTextSelection(editor.state.selection.to);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível enviar o pedido.");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <BubbleMenu editor={editor} options={{ placement: "bottom-start", offset: 8 }}
+      shouldShow={({ state }) => asking !== null || (!state.selection.empty && state.doc.textBetween(state.selection.from, state.selection.to).trim().length > 0)}
+      className="z-20 rounded-md border bg-popover text-popover-foreground shadow-[var(--shadow-float)]">
+      {asking === null ? (
+        <Button type="button" variant="ghost" size="sm" className="min-h-11 md:min-h-8" onMouseDown={(event) => event.preventDefault()} onClick={start}>
+          <LumeMark className="size-4 text-brand" aria-hidden="true" />Pedir ao Lume
+        </Button>
+      ) : (
+        <form onSubmit={(event) => void submit(event)} className="grid w-[min(22rem,calc(100vw-2rem))] gap-1.5 p-2">
+          <label className="sr-only" htmlFor="document-ask">O que mudar no trecho selecionado</label>
+          <div className="flex items-center gap-1">
+            <input id="document-ask" autoFocus value={instruction} onChange={(event) => setInstruction(event.target.value)} maxLength={2000} disabled={busy}
+              onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); reset(); editor.commands.focus(); } }}
+              placeholder="O que mudar neste trecho?" className="h-11 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm outline-none placeholder:text-subtle-foreground focus-visible:ring-2 focus-visible:ring-ring md:h-9" />
+            <Button type="submit" size="icon" className="size-11 md:size-9" disabled={busy || !instruction.trim()} aria-label="Enviar ao Lume">
+              {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}
+            </Button>
+          </div>
+          {error && <p role="alert" className="px-1 text-xs text-destructive">{error}</p>}
+        </form>
+      )}
+    </BubbleMenu>
   );
 }

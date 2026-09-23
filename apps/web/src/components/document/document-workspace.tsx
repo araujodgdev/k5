@@ -56,10 +56,14 @@ function typographyStyle(typography: Typography | null): CSSProperties {
   } as CSSProperties;
 }
 
-export function DocumentWorkspace({ artifactId, variant, onClose, revision = 0 }: {
+export type DocumentAsk = { artifactId: string; title: string; excerpt: string; instruction: string };
+
+export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revision = 0 }: {
   artifactId: string;
   variant: "panel" | "page";
   onClose?: () => void;
+  /** Present beside the chat: sends a request about a selected excerpt to the conversation. */
+  onAsk?: (request: DocumentAsk) => Promise<void>;
   /** Bumped by the chat when the Lume changed this document. */
   revision?: number;
 }) {
@@ -76,6 +80,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, revision = 0 }
   const [editorSeed, setEditorSeed] = useState("");
   const [lumeChanged, setLumeChanged] = useState(false);
   const [edits, setEdits] = useState(0);
+  const [asked, setAsked] = useState(false);
 
   const editorRef = useRef<RichEditorHandle>(null);
   const contentRef = useRef("");
@@ -184,6 +189,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, revision = 0 }
   useEffect(() => {
     if (revision === seenRevision.current) return;
     seenRevision.current = revision;
+    setAsked(false);
     if (saveStateRef.current === "dirty" || saveStateRef.current === "saving") setLumeChanged(true);
     else void load();
   }, [revision, load]);
@@ -196,6 +202,14 @@ export function DocumentWorkspace({ artifactId, variant, onClose, revision = 0 }
     setLumeChanged(false);
     markState("dirty");
     await save(true);
+  }
+
+  // The Lume reads the stored text, so what is on screen is saved as a version first.
+  async function ask(request: { excerpt: string; instruction: string }) {
+    if (!onAsk) return;
+    if (!(await save(true)) && saveStateRef.current !== "saved") throw new Error("Salve o documento antes de pedir ao Lume.");
+    await onAsk({ artifactId, title: titleRef.current.trim() || "Documento sem título", ...request });
+    setAsked(true);
   }
 
   function changeContent(markdown: string) {
@@ -276,6 +290,12 @@ export function DocumentWorkspace({ artifactId, variant, onClose, revision = 0 }
         <span className="ml-auto hidden truncate pl-3 text-xs text-subtle-foreground md:inline">{templateName ? `Modelo: ${templateName}` : "Sem modelo de documento"}</span>
       </div>
 
+      {asked && !lumeChanged && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-l-2 border-l-brand px-4 py-2 text-sm" role="status">
+          <span className="min-w-0 flex-1">Pedido enviado ao Lume. A alteração aparece aqui quando ele terminar.</span>
+          {onClose && <Button size="sm" variant="ghost" className="min-h-11 lg:hidden" onClick={onClose}>Ver conversa</Button>}
+        </div>
+      )}
       {lumeChanged && (
         <div className="flex flex-wrap items-center gap-2 border-b border-l-2 border-l-brand px-4 py-2 text-sm" role="status">
           <span className="min-w-0 flex-1">O Lume alterou este documento enquanto você editava.</span>
@@ -292,7 +312,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, revision = 0 }
 
       <div id="document-edit" role="tabpanel" aria-labelledby="document-tab-edit" hidden={tab !== "edit"} className="flex min-h-0 flex-1 flex-col data-[hidden]:hidden" data-hidden={tab !== "edit" || undefined}>
         <RichEditor key={editorKey} ref={editorRef} initialMarkdown={editorSeed} onChange={changeContent} onSave={() => void save(true)}
-          style={typographyStyle(typography)} label="Texto do documento" />
+          style={typographyStyle(typography)} label="Texto do documento" onAsk={onAsk ? ask : undefined} />
       </div>
       {tab === "page" && (
         <div id="document-page" role="tabpanel" aria-labelledby="document-tab-page" className="flex min-h-0 flex-1 flex-col">

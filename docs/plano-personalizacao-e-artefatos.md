@@ -1,6 +1,6 @@
 # Plano: personalização do Lume e documentos nativos
 
-Plano de 23 de setembro de 2026. Status: etapas 1 (timbrado padrão), 2 (regras de escrita), 3 (conhecimento), 4 (documento criado no chat) e 5 (painel e editor) implementadas em 23/09; etapa 6 pendente. As migrações 0008–0011 foram aplicadas só no banco local; o remoto as recebe no deploy.
+Plano de 23 de setembro de 2026. Status: etapas 1 (timbrado padrão), 2 (regras de escrita), 3 (conhecimento), 4 (documento criado no chat), 5 (painel e editor) e 6 (pedir ao Lume na seleção) implementadas em 23/09. As migrações 0008–0011 foram aplicadas só no banco local; o remoto as recebe no deploy.
 
 As migrações do PostgreSQL ficam em `apps/web/db/postgres/`. A pasta `db/migrations/` é o histórico SQLite anterior e não recebe arquivos novos. Os nomes de migração abaixo seguem essa numeração.
 
@@ -255,6 +255,18 @@ Até a etapa 5, o "Abrir" da linha da ferramenta leva ao editor atual em `/app/d
 | Padrão visual registrado | `apps/web/DESIGN.md` |
 
 `document-editor.tsx` saiu; `/app/documents/[id]` usa a mesma área em página inteira. Ficaram de fora desta etapa: divisória arrastável entre chat e documento (a proporção é fixa em 42%) e destaque visual do trecho que o Lume alterou (o painel recarrega a versão nova sem marcar o que mudou). Tabelas não são editáveis: o editor não inclui a extensão de tabela, e a instrução ao Lume já pede só títulos, ênfase, listas e citações.
+
+## Etapa 6 implementada
+
+| Parte | Arquivo |
+| --- | --- |
+| Menu flutuante na seleção ("Pedir ao Lume") com campo de pedido | `src/components/document/rich-editor.tsx` |
+| Salva a versão atual e repassa o pedido ao chat; aviso até a edição chegar | `src/components/document/document-workspace.tsx` |
+| Envio pela mesma thread do chat; `openDocumentId` em toda mensagem e `selection` na mensagem do pedido | `src/components/agent-chat.tsx`, `src/lib/chat-contract.ts` |
+| Prompt do documento aberto e do trecho selecionado (como dado), só para documento da própria pessoa | `src/lib/artifact-edits.ts` (`documentFocusPrompt`), `src/app/api/chat/route.ts` |
+| Testes | `apps/web/tests/artifact-edits.test.ts` |
+
+Além do previsto: com um documento aberto, toda mensagem diz ao Lume qual é, então "deixe o segundo parágrafo mais firme" funciona sem citar o nome. A mensagem que aparece na conversa cita o trecho (até 280 caracteres) e o pedido; o trecho completo, até 4 mil caracteres, vai só no prompt daquela mensagem.
 
 Diferenças da etapa 2 em relação ao plano original: sem abas, as regras do escritório e as pessoais aparecem em dois grupos na mesma seção; `reviewer` edita as próprias regras (as rotas usam `apiPersonalWorkspace`); a cópia das regras no job evita que uma minuta retomada mude de estilo no meio.
 

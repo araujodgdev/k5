@@ -61,7 +61,11 @@ import { cn } from "@/lib/utils";
 import { ChatCamera } from './chat-camera';
 import { ChatAttachmentView } from './chat-attachment';
 import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, type ChatAttachment } from '@/lib/chat-attachment-contract';
+import type { DocumentAsk } from "./document/document-workspace";
 
+type Selection = { artifactId: string; excerpt: string };
+/** Read when a message is sent: the document open beside the chat, and a selection spent by that one request. */
+type DocumentFocus = { openDocumentId: () => string | null; takeSelection: () => Selection | null };
 const DocumentWorkspace = dynamic(() => import("./document/document-workspace").then(module => module.DocumentWorkspace), {
   ssr: false,
   loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Abrindo documento…</p>,
@@ -476,8 +480,12 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
   );
 }
 
-function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, onFilesSent, tools, onFinish, onError }: {
+function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, onFilesSent, tools, onFinish, onError, focus, sendRef }: {
   conversationId: string;
+  /** What the person has open beside the chat; read when each message is sent. */
+  focus: DocumentFocus;
+  /** Lets the document panel send a message into this thread. */
+  sendRef: React.RefObject<((text: string) => void) | null>;
   messages: UIMessage[];
   context: AgentContext;
   audio: Attachment | null;
@@ -496,6 +504,8 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
       prepareSendMessagesRequest: async ({ messages: history, trigger, messageId }) => {
         const message=history.findLast(item=>item.role==='user');
         const attachmentIds=message?.parts.flatMap(part=>part.type==='data-attachment'&&part.data&&typeof part.data==='object'&&'id' in part.data?[part.data.id]:[])??[];
+        const selection = focus.takeSelection();
+        const openDocumentId = focus.openDocumentId();
         // The recording travels with this message only; sending spends it.
         if (audio) onAudioSent();
         return {
@@ -510,11 +520,13 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
             trigger,
             messageId,
             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            ...(openDocumentId ? { openDocumentId } : {}),
+            ...(selection ? { selection } : {}),
           },
         };
       },
     }),
-    [audio, onAudioSent, context.caseId, context.documentIds, context.researchReferenceIds, conversationId],
+    [audio, onAudioSent, context.caseId, context.documentIds, context.researchReferenceIds, conversationId, focus],
   );
   // K5 owns the history and thread IDs. The direct adapter avoids a second cloud thread list.
   const chat = useChat({
@@ -534,8 +546,15 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
     return chat.sendMessage(message,options);
   };
   const runtime = useAISDKRuntime({...chat,sendMessage});
-  const { stop } = chat;
+  const { stop, status, sendMessage: send } = chat;
   useEffect(() => () => { void stop(); }, [stop]);
+  useEffect(() => {
+    sendRef.current = (text) => {
+      if (status === "submitted" || status === "streaming") throw new Error("Aguarde a resposta atual do Lume.");
+      void send({ text });
+    };
+    return () => { sendRef.current = null; };
+  }, [sendRef, status, send]);
   return <ConversationIdContext.Provider value={conversationId}><AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider></ConversationIdContext.Provider>;
 }
 
@@ -558,6 +577,12 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   const openDocumentRef = useRef(openDocumentId);
   useEffect(() => { openDocumentRef.current = openDocumentId; }, [openDocumentId]);
   const [documentRevision, setDocumentRevision] = useState(0);
+  const selectionRef = useRef<Selection | null>(null);
+  const sendRef = useRef<((text: string) => void) | null>(null);
+  const documentFocus = useMemo<DocumentFocus>(() => ({
+    openDocumentId: () => openDocumentRef.current,
+    takeSelection: () => { const selection = selectionRef.current; selectionRef.current = null; return selection; },
+  }), []);
   const handledCalls = useRef(new Set<string>());
   function toggleList() {
     writeListOpen(!listOpen);
@@ -726,6 +751,14 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
     },
   }), [loadedCalls, openDocument]);
 
+  const askAboutDocument = useCallback(async (request: DocumentAsk) => {
+    if (!sendRef.current) throw new Error("Abra uma conversa para pedir ao Lume.");
+    selectionRef.current = { artifactId: request.artifactId, excerpt: request.excerpt };
+    const quote = request.excerpt.length > 280 ? `${request.excerpt.slice(0, 277)}…` : request.excerpt;
+    try { sendRef.current(`No documento “${request.title}”, no trecho “${quote}”:\n${request.instruction}`); }
+    catch (cause) { selectionRef.current = null; throw cause; }
+  }, []);
+
   function selectConversation(id: string) {
     setSelectedId(id);
     if (window.matchMedia("(max-width: 767px)").matches) {
@@ -809,6 +842,8 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
                     .catch(() => undefined);
                 }}
                 onError={setError}
+                focus={documentFocus}
+                sendRef={sendRef}
               />
             ) : (
               <div className="grid flex-1 place-items-center px-6 text-center text-sm text-subtle-foreground">Nenhuma conversa disponível.</div>
@@ -821,7 +856,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
                 if (event.key !== "Escape" || event.defaultPrevented || (event.target as HTMLElement).closest("[data-radix-popper-content-wrapper]")) return;
                 closeDocument();
               }}>
-              <DocumentWorkspace key={openDocumentId} artifactId={openDocumentId} variant="panel" onClose={closeDocument} revision={documentRevision} />
+              <DocumentWorkspace key={openDocumentId} artifactId={openDocumentId} variant="panel" onClose={closeDocument} onAsk={askAboutDocument} revision={documentRevision} />
             </section>
           )}
         </div>
