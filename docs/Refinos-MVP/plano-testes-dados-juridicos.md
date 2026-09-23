@@ -86,7 +86,7 @@ a string da credencial em snapshot, erro e log justamente para garantir isso.
 ## Esqueletos
 
 O estilo é o do repositório: `node:test`, `assert/strict`, `testDb` e `testDatabase` vindos de
-[`test-setup`](../apps/web/tests/test-setup.ts), fixtures lidas por URL relativa.
+[`test-setup`](../../apps/web/tests/test-setup.ts), fixtures lidas por URL relativa.
 
 ### Conector, sem rede
 

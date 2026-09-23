@@ -53,7 +53,7 @@ Consequências diretas, e cada uma é um teste:
 ## Decisão 2 — Onde o processo roda
 
 O app web tem como alvo de staging o Cloudflare Workers (D1, R2, Vectorize, conforme
-[ambientes.md](ambientes.md)). **Chromium não roda em um Worker.** O navegador vive em um processo
+[ambientes.md](../ambientes.md)). **Chromium não roda em um Worker.** O navegador vive em um processo
 Node, em uma imagem própria.
 
 E ele não precisa de RPC: os workers judiciais compartilham banco e fila, e `claimJob` já usa
@@ -301,7 +301,7 @@ Uma receita para o primeiro tribunal escolhido com portal e sem API, escrevendo 
 `jurisprudence_document` com as mesmas colunas da [trilha B](plano-jurisprudencia.md):
 `content_kind`, licença, atribuição, versão e data de coleta.
 
-Escolha do primeiro alvo: um tribunal do [registro de cobertura](registro-cobertura-judicial.md)
+Escolha do primeiro alvo: um tribunal do [registro de cobertura](../registro-cobertura-judicial.md)
 onde (a) a busca de jurisprudência é pública, (b) não há API documentada após a busca do roteiro da
 seção 4.2 do plano de infraestrutura, e (c) `robots.txt` permite o caminho de pesquisa. A escolha é
 registrada na ficha com as três evidências, e não neste documento — porque `robots.txt` muda.

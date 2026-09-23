@@ -2,11 +2,11 @@
 
 Data: 18/09/2026. Status: proposta executável. Esta entrega autoriza o planejamento, não contrata fornecedores, solicita credenciais, contata tribunais ou inicia coleta de processos.
 
-Atualização de 19/09/2026: a fundação (F1), a parte do DJEN que não depende de acesso externo e as duas telas da seção 9 foram implementadas. Nenhum conector foi homologado e nenhum tribunal foi contatado; o acesso real à rede permanece desligado por padrão. O que existe no código, o que continua fechado e a verificação executada estão em [nota de implementação](infra-judicial-implementacao.md).
+Atualização de 19/09/2026: a fundação (F1), a parte do DJEN que não depende de acesso externo e as duas telas da seção 9 foram implementadas. Nenhum conector foi homologado e nenhum tribunal foi contatado; o acesso real à rede permanece desligado por padrão. O que existe no código, o que continua fechado e a verificação executada estão em [nota de implementação](../infra-judicial-implementacao.md).
 
 Atualização de 22/09/2026: as fases F3 (conector processual), F6 (jurisprudência) e a coleta por navegador, que o plano trata em blocos, foram detalhadas em itens com aceite verificável e teste nomeado. O ponto de entrada é o [plano de execução de dados jurídicos](plano-execucao-dados-juridicos.md); ele não altera nenhuma decisão deste documento, apenas o granulariza. Nada foi habilitado.
 
-Documentos complementares: [pesquisa das fontes e caminhos de acesso](fontes-infra-judicial.md), [registro nacional de investigação](registro-cobertura-judicial.md), [análise inicial do DataJud](pesquisa-datajud.md), [plano documental do MVP](plano-ia-mvp.md) e [serviços, ferramentas e RAG](plano-agente-ferramentas-rag-webmcp.md).
+Documentos complementares: [pesquisa das fontes e caminhos de acesso](../fontes-infra-judicial.md), [registro nacional de investigação](../registro-cobertura-judicial.md), [análise inicial do DataJud](../pesquisa-datajud.md), [plano documental do MVP](../plano-ia-mvp.md) e [serviços, ferramentas e RAG](../plano-agente-ferramentas-rag-webmcp.md).
 
 ## 1. Objetivo e decisões de partida
 
@@ -29,20 +29,20 @@ Leitura do código em 18/09/2026, incluindo alterações locais em andamento. Ex
 
 | Base observada | Reutilização e trabalho necessário |
 | --- | --- |
-| [Casos e documentos do Cofre](../apps/web/db/migrations/0003_vault.sql) | Acrescentar vínculos com processos; um caso pode conter vários processos. Não usar o nome do caso como identificador processual. |
-| [Sessão](../apps/web/src/lib/session.ts) e [contexto de aplicação](../apps/web/src/lib/application/context.ts) | Derivar escritório e papel da sessão e revalidar o acesso nas operações interativas. |
-| [Catálogo de capacidades](../apps/web/src/lib/capabilities/contracts.ts) e [ferramentas](../apps/web/src/lib/agent-tools/index.ts) | Adicionar contratos judiciais que reutilizem os mesmos serviços da UI. Não dar ao modelo uma ferramenta HTTP arbitrária. |
-| [Worker](../apps/web/scripts/worker.ts) | Já processa documentos, índices e tarefas. Usar o padrão de trabalho durável, com filas separadas para coleta e OCR. |
-| [Armazenamento](../apps/web/src/lib/storage/index.ts) | Há adaptadores local e R2 no código em andamento. Preservar a interface; não afirmar que o bucket de produção já existe. |
-| [Banco de negócio](../apps/web/src/lib/database.ts) | Continua SQLite síncrono. A presença de `pg` e de um adaptador vetorial não significa que o banco da aplicação foi migrado. |
-| [Indexação](../apps/web/src/lib/knowledge/indexing.ts) e [índice vetorial](../apps/web/src/lib/knowledge/vector-index.ts) | Reutilizar versionamento, geração de índices e remoção. Validar as implementações em andamento antes de depender delas. |
-| [Workflows documentais](../apps/web/src/lib/document-workflows.ts) e [política de IA](../apps/web/src/lib/ai-policy.ts) | Hoje exigem fontes documentais selecionadas. Generalizar os tipos de evidência e a seleção antes de aceitar dados externos. |
+| [Casos e documentos do Cofre](../../apps/web/db/migrations/0003_vault.sql) | Acrescentar vínculos com processos; um caso pode conter vários processos. Não usar o nome do caso como identificador processual. |
+| [Sessão](../../apps/web/src/lib/session.ts) e [contexto de aplicação](../../apps/web/src/lib/application/context.ts) | Derivar escritório e papel da sessão e revalidar o acesso nas operações interativas. |
+| [Catálogo de capacidades](../../apps/web/src/lib/capabilities/contracts.ts) e [ferramentas](../../apps/web/src/lib/agent-tools/index.ts) | Adicionar contratos judiciais que reutilizem os mesmos serviços da UI. Não dar ao modelo uma ferramenta HTTP arbitrária. |
+| [Worker](../../apps/web/scripts/worker.ts) | Já processa documentos, índices e tarefas. Usar o padrão de trabalho durável, com filas separadas para coleta e OCR. |
+| [Armazenamento](../../apps/web/src/lib/storage/index.ts) | Há adaptadores local e R2 no código em andamento. Preservar a interface; não afirmar que o bucket de produção já existe. |
+| [Banco de negócio](../../apps/web/src/lib/database.ts) | Continua SQLite síncrono. A presença de `pg` e de um adaptador vetorial não significa que o banco da aplicação foi migrado. |
+| [Indexação](../../apps/web/src/lib/knowledge/indexing.ts) e [índice vetorial](../../apps/web/src/lib/knowledge/vector-index.ts) | Reutilizar versionamento, geração de índices e remoção. Validar as implementações em andamento antes de depender delas. |
+| [Workflows documentais](../../apps/web/src/lib/document-workflows.ts) e [política de IA](../../apps/web/src/lib/ai-policy.ts) | Hoje exigem fontes documentais selecionadas. Generalizar os tipos de evidência e a seleção antes de aceitar dados externos. |
 
 Não modificar arquivos de outras tarefas durante este planejamento. Durante a implementação, reconciliar a numeração de migrações com o estado atual, sem reservar agora um número que possa colidir com trabalho paralelo.
 
 ## 3. Fontes, utilidade e limitações
 
-Os endereços e evidências específicas ficam no [catálogo de fontes](fontes-infra-judicial.md). As linhas abaixo definem a estratégia do Lume, não garantias de acesso.
+Os endereços e evidências específicas ficam no [catálogo de fontes](../fontes-infra-judicial.md). As linhas abaixo definem a estratégia do Lume, não garantias de acesso.
 
 | Fonte | Dados úteis | Utilidade no Lume | Conexão a investigar | Limite essencial |
 | --- | --- | --- | --- | --- |
@@ -73,7 +73,7 @@ O [CNJ documenta MNI](https://www.cnj.jus.br/modelo-nacional-de-interoperabilida
 | STF | Corte Aberta e portais oficiais de jurisprudência | Inventário de bases e spike de aquisição de decisões | Fonte textual citável e condições; XLSX/CSV estatístico não substitui decisão |
 | TPU | WSDL `https://www.cnj.jus.br/sgt/sgt_ws.php?wsdl` | Classes, movimentos e assuntos para filtros | Disponibilidade, vigência e estratégia de atualização |
 
-A página oficial do TJAM declara consulta sem autenticação/habilitação; isso não elimina a validação de operação e reutilização. Na pesquisa, somente chamadas de metadados CKAN do STJ foram observadas com sucesso; os serviços processuais acima não foram homologados. Detalhes e links documentais estão no [catálogo](fontes-infra-judicial.md).
+A página oficial do TJAM declara consulta sem autenticação/habilitação; isso não elimina a validação de operação e reutilização. Na pesquisa, somente chamadas de metadados CKAN do STJ foram observadas com sucesso; os serviços processuais acima não foram homologados. Detalhes e links documentais estão no [catálogo](../fontes-infra-judicial.md).
 
 A [Portaria CNJ 374/2026](https://atos.cnj.jus.br/atos/detalhar/6972) atualiza as regras do DataJud, incluindo previsão de polos de pessoas jurídicas e remessa diária com período de transição. O contrato real da API precisa ser confrontado com essa norma. A restrição comercial permanece; não extrapolar os novos campos para disponibilidade atual, pesquisa por qualquer pessoa ou garantia de atualização diária.
 
@@ -83,7 +83,7 @@ A [Portaria CNJ 374/2026](https://atos.cnj.jus.br/atos/detalhar/6972) atualiza a
 
 Cadastrar por `órgão + instalação + grau + sistema + finalidade + intervalo temporal`. Exemplo conceitual: um TJ pode ter e-SAJ legado, eproc atual, turmas recursais e diários históricos distintos. Uma linha por sigla de tribunal não basta. MNI é um protocolo; DJEN é uma fonte de publicações; nenhum deles substitui esse inventário.
 
-O [registro nacional](registro-cobertura-judicial.md) contém a lista inicial por tribunal. Cada linha deve ser desdobrada em instalações antes da implementação. Tribunais superiores, justiça eleitoral e militar também estão no inventário, mesmo que entrem em ondas posteriores.
+O [registro nacional](../registro-cobertura-judicial.md) contém a lista inicial por tribunal. Cada linha deve ser desdobrada em instalações antes da implementação. Tribunais superiores, justiça eleitoral e militar também estão no inventário, mesmo que entrem em ondas posteriores.
 
 ### 4.2 Roteiro obrigatório de investigação
 
@@ -243,7 +243,7 @@ Registrar contratos em `capabilities/`, serviços em `application/` e adaptadore
 
 A pesquisa externa amplia o escopo do MVP e requer atualização explícita de `ai-policy.ts`, seleção de fontes e validação de citações. Uma fonte oficial comprova procedência, não aplicabilidade ou validade atual de uma tese jurídica. Antes de usar autoridades em minutas, preservar a seleção/revisão do advogado.
 
-UI futura segue [DESIGN.md](../apps/web/DESIGN.md): pt-BR, estados em texto simples, tabelas/linhas, teclado, mobile e movimento reduzido. Cobrir sem vínculo, carregando, sem resultado, múltiplos registros, fonte fora do ar, acesso expirado, dados parciais e coleta atrasada.
+UI futura segue [DESIGN.md](../../apps/web/DESIGN.md): pt-BR, estados em texto simples, tabelas/linhas, teclado, mobile e movimento reduzido. Cobrir sem vínculo, carregando, sem resultado, múltiplos registros, fonte fora do ar, acesso expirado, dados parciais e coleta atrasada.
 
 ## 10. Organização proposta do código
 

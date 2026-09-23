@@ -6,7 +6,7 @@ já existente em duas capacidades vendáveis: **consultar as APIs dos tribunais*
 jurisprudência**, inclusive onde só existe portal e não existe API.
 
 Acompanha o [plano de infraestrutura judicial](plano-infra-judicial.md) e a
-[nota do que existe no código](infra-judicial-implementacao.md). O que muda aqui é a granularidade:
+[nota do que existe no código](../infra-judicial-implementacao.md). O que muda aqui é a granularidade:
 cada item abaixo tem entregável, critério de aceite verificável e o teste que o acompanha.
 
 ## Documentos desta entrega
@@ -29,7 +29,7 @@ E nada disso já leu um tribunal. Três fatos definem o trabalho:
 
 1. **Nenhum conector fala com um tribunal hoje.** `connectorFor` só resolve `djen`; `mni`, `ckan`,
    `jurisprudence_api`, `vocabulary` e `court_portal` existem como tipo e recusam com `unsupported`
-   ([`connectors/index.ts`](../apps/web/src/lib/judicial/connectors/index.ts)).
+   ([`connectors/index.ts`](../../apps/web/src/lib/judicial/connectors/index.ts)).
 2. **O contrato do DJEN nunca foi confrontado com uma resposta de produção.** Está escrito a partir
    da documentação, com `parserVersion` fixado exatamente por isso.
 3. **As cinco permissões de toda ficha estão `nao_esclarecido`**, então `enable --live` é recusado
@@ -43,7 +43,7 @@ transporte. O que depende de terceiros é a confirmação do contrato, não a co
 Três lacunas menores, todas reais, entram no plano porque custam pouco e doem depois:
 
 - `judicial_movement` e `judicial_vocabulary_term` existem no esquema **sem nenhum produtor**.
-- O worker judicial não está no [`docker-compose.yml`](../docker-compose.yml): `web`, `worker` e
+- O worker judicial não está no [`docker-compose.yml`](../../docker-compose.yml): `web`, `worker` e
   `notifications` sobem; a coleta judicial, não.
 - `fetchDocument` está declarado com efeito `unknown` e fora do worker genérico, o que é correto e
   também significa que nenhuma peça é importada hoje.
@@ -120,5 +120,5 @@ PostgreSQL (F5) não bloqueia nenhuma onda aqui, mas bloqueia ampliar o piloto �
 jurisprudência é o primeiro consumidor que torna o SQLite síncrono insuficiente, e a
 [trilha B](plano-jurisprudencia.md) registra onde isso aparece.
 
-Nenhuma onda promete cobertura nacional. O [registro de cobertura](registro-cobertura-judicial.md)
+Nenhuma onda promete cobertura nacional. O [registro de cobertura](../registro-cobertura-judicial.md)
 continua sendo a única fonte sobre o que está coberto, instalação por instalação.
