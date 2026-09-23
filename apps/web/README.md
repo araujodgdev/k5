@@ -52,6 +52,8 @@ as migrações explicitamente; não use o gerador local de segredos.
 - Login e cadastro têm limite de tentativas persistido no PostgreSQL. Sem IP confiável
   no runtime, o Better Auth usa um limite compartilhado por endpoint. Ao configurar
   o proxy de produção, defina os proxies/cabeçalhos de IP confiáveis antes de escalar.
+  Na Cloudflare usa-se `cf-connecting-ip`; fora dela, `K5_CLIENT_IP_HEADER` nomeia o
+  cabeçalho que o seu proxy sobrescreve.
 
 ## Modelo inicial
 

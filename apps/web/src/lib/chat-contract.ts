@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const messageSchema = z.object({ id: z.string(), role: z.enum(['user', 'assistant', 'system']), parts: z.array(z.object({ type: z.string(), text: z.string().max(20000).optional() }).passthrough()).max(100) });
+const messageSchema = z.object({ id: z.string(), role: z.enum(['user', 'assistant', 'system']), parts: z.array(z.object({ type: z.string(), text: z.string().refine((text) => text.length <= 20000, 'Escreva uma mensagem de até 20 mil caracteres.').optional() }).passthrough()).max(100) });
 // Audio belongs to one turn and is never stored as a document.
 const attachmentSchema = z.object({ mediaType: z.string().max(120), data: z.string().max(8_000_000) });
 export const chatRequestSchema = z.object({

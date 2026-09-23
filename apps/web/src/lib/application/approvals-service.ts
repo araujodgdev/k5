@@ -18,6 +18,21 @@ export type ApprovalRow = {
   consumed_at: string | null;
 };
 
+export type ApprovalDto = {
+  id: string; capabilityName: string; targetResourceId: string | null;
+  status: ApprovalRow['status']; expiresAt: string; createdAt: string;
+};
+
+/** Public shape for HTTP responses: no tenant ids, no stored input. */
+export function publicApproval(row: ApprovalRow): ApprovalDto {
+  return {
+    id: row.id, capabilityName: row.capability_name, targetResourceId: row.target_resource_id,
+    status: row.status, expiresAt: new Date(row.expires_at).toISOString(), createdAt: row.created_at,
+  };
+}
+
+const statusLabel = { approved: 'aprovada', rejected: 'rejeitada', consumed: 'utilizada', pending: 'pendente' } as const;
+
 /**
  * Stable JSON at every depth. The obvious `JSON.stringify(obj, Object.keys(obj).sort())` looks
  * like a sort but is a property *filter* that applies recursively, so nested fields vanish from
@@ -64,7 +79,7 @@ export async function approveProposal(context: WorkspaceContext, approvalId: str
     .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
   if (row.expires_at < now) throw new CapabilityError('CONFLICT', 'A solicitação de aprovação expirou.');
-  if (row.status !== 'pending') throw new CapabilityError('CONFLICT', `A solicitação está ${row.status}.`);
+  if (row.status !== 'pending') throw new CapabilityError('CONFLICT', `A solicitação já foi ${statusLabel[row.status]}.`);
 
   const transitioned = await database.prepare(
     "UPDATE capability_approval SET status='approved' WHERE id=? AND office_id=? AND user_id=? AND status='pending' AND expires_at>=? RETURNING *",
@@ -79,7 +94,7 @@ export async function rejectProposal(context: WorkspaceContext, approvalId: stri
     .get(approvalId, context.officeId, context.userId) as ApprovalRow | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Proposta de aprovação não encontrada.');
   if (row.expires_at < now) throw new CapabilityError('CONFLICT', 'A solicitação de aprovação expirou.');
-  if (row.status !== 'pending') throw new CapabilityError('CONFLICT', `A solicitação está ${row.status}.`);
+  if (row.status !== 'pending') throw new CapabilityError('CONFLICT', `A solicitação já foi ${statusLabel[row.status]}.`);
   const transitioned = await database.prepare(
     "UPDATE capability_approval SET status='rejected' WHERE id=? AND office_id=? AND user_id=? AND status='pending' AND expires_at>=? RETURNING *",
   ).get(approvalId, context.officeId, context.userId, now) as ApprovalRow | undefined;
