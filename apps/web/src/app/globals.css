@@ -169,6 +169,14 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
 .document-prose li > p { margin: 0 0 .25em; }
 .document-prose blockquote { border-left: 2px solid var(--border); margin: 0 0 .75em; padding-left: 1em; font-style: italic; }
 .document-prose strong { font-weight: 600; }
+.document-prose table { width: 100%; border-collapse: collapse; margin: 0 0 .75em; table-layout: fixed; text-indent: 0; }
+.document-prose :is(th, td) { border: 1px solid var(--input); padding: .3em .5em; vertical-align: top; text-align: left; position: relative; }
+.document-prose :is(th, td) > p { margin: 0; text-indent: 0; }
+.document-prose th { font-weight: 600; }
+/* What the Lume just changed: the 2px brand rule that marks its actions, fading out. */
+.document-prose .document-changed { box-shadow: -12px 0 0 -10px var(--brand); animation: document-changed 6s ease-out forwards; }
+@keyframes document-changed { 0%, 60% { box-shadow: -12px 0 0 -10px var(--brand); } 100% { box-shadow: -12px 0 0 -10px transparent; } }
+.document-prose .selectedCell::after { content: ""; position: absolute; inset: 0; background: var(--accent); opacity: .6; pointer-events: none; }
 
 /* docx-preview draws Word pages; they sit on the muted canvas like paper, in both themes. */
 .document-pages .docx-wrapper { background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }

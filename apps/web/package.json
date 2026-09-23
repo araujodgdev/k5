@@ -46,6 +46,7 @@
     "@sentry/nextjs": "^10.75.0",
     "@sentry/node": "^10.75.0",
     "@sentry/react": "^10.75.0",
+    "@tiptap/extension-table": "3.31.3",
     "@tiptap/markdown": "3.31.3",
     "@tiptap/pm": "3.31.3",
     "@tiptap/react": "3.31.3",

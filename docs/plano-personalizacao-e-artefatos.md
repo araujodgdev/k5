@@ -254,7 +254,16 @@ Até a etapa 5, o "Abrir" da linha da ferramenta leva ao editor atual em `/app/d
 | Painel no chat (`?doc=`), abertura automática por `callId`, recarga quando o Lume altera | `src/components/agent-chat.tsx`, `src/app/api/chat/route.ts` |
 | Padrão visual registrado | `apps/web/DESIGN.md` |
 
-`document-editor.tsx` saiu; `/app/documents/[id]` usa a mesma área em página inteira. Ficaram de fora desta etapa: divisória arrastável entre chat e documento (a proporção é fixa em 42%) e destaque visual do trecho que o Lume alterou (o painel recarrega a versão nova sem marcar o que mudou). Tabelas não são editáveis: o editor não inclui a extensão de tabela, e a instrução ao Lume já pede só títulos, ênfase, listas e citações.
+`document-editor.tsx` saiu; `/app/documents/[id]` usa a mesma área em página inteira. Complementos feitos depois, em 23/09:
+
+| Parte | Arquivo |
+| --- | --- |
+| Divisória arrastável (ponteiro, setas, Home/End, duplo clique volta a 42%), proporção guardada no navegador | `src/components/agent-chat.tsx`, `src/lib/document-split.ts` |
+| Destaque, por alguns segundos, dos blocos cujo texto mudou depois de uma edição do Lume, restauração ou recarga; rola até o primeiro | `src/components/document/change-highlight.ts`, `change-blocks.ts`, `rich-editor.tsx` |
+| Tabelas no editor (TipTap TableKit, Markdown nativo) e tabelas de verdade no Word, nos caminhos com e sem timbrado | `rich-editor.tsx`, `src/lib/document-export.ts` |
+| Testes | `tests/document-panel.test.ts`, `tests/documents.test.ts` |
+
+O destaque compara parágrafos, itens e células pelo texto: um bloco reescrito aparece marcado inteiro, e uma remoção não deixa marca (não há o que marcar).
 
 ## Etapa 6 implementada
 

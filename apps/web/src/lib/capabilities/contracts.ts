@@ -360,7 +360,7 @@ export const capabilities = {
     module: 'artifacts', effect: 'write', roles: writers,
     // They depend on the chat conversation of the turn, which only the chat adapter supplies.
     publish: ['agent'],
-    description: 'Cria um documento nesta conversa (petição, contrato, notificação, parecer, e-mail formal) em Markdown: títulos com #, negrito, itálico, listas e citações com >. A pessoa o abre ao lado do chat, edita e exporta em Word com o timbrado do escritório. Use quando pedirem um texto para usar fora da conversa.',
+    description: 'Cria um documento nesta conversa (petição, contrato, notificação, parecer, e-mail formal) em Markdown: títulos com #, negrito, itálico, listas, citações com > e tabelas no formato | coluna | coluna |. A pessoa o abre ao lado do chat, edita e exporta em Word com o timbrado do escritório. Use quando pedirem um texto para usar fora da conversa.',
     input: z.object({
       title: z.string().trim().min(1).max(200).describe('Nome do documento, como a pessoa o reconheceria.'),
       content: z.string().trim().min(1).max(200_000).describe('Texto completo em Markdown.'),

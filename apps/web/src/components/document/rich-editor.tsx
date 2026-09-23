@@ -5,8 +5,12 @@ import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/r
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
-import { ArrowUp, Bold, Heading2, Italic, List, ListOrdered, LoaderCircle, Quote, Redo2, Undo2 } from "lucide-react";
+import { TableKit } from "@tiptap/extension-table";
+import { ArrowUp, Bold, Heading2, Italic, List, ListOrdered, LoaderCircle, Quote, Redo2, Table, Undo2 } from "lucide-react";
 import { LumeMark } from "@/components/lume-mark";
+import { ChangeHighlight, changeHighlightKey, highlightDecorations } from "./change-highlight";
+import { blockTexts, changedBlocks } from "./change-blocks";
+import { DecorationSet } from "@tiptap/pm/view";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -14,11 +18,16 @@ export type RichEditorHandle = {
   /** Replaces the text without counting as an edit, e.g. after the Lume changed the document. */
   setMarkdown: (markdown: string) => void;
   focus: () => void;
+  /** The text of each block, to compare with the next version when the Lume changes it. */
+  blockTexts: () => string[];
 };
+
+const HIGHLIGHT_MS = 6000;
 
 /**
  * Word-like editing over the Markdown the document is stored in. Only what the DOCX export
- * reproduces is offered (headings, bold, italic, lists, quotes), so the page and the Word file agree.
+ * reproduces is offered (headings, bold, italic, lists, quotes, tables), so the page and the Word
+ * file agree.
  */
 export const RichEditor = forwardRef<RichEditorHandle, {
   initialMarkdown: string;
@@ -28,7 +37,9 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   label: string;
   /** Sends the selected text and what to change about it to the Lume; absent hides the option. */
   onAsk?: (request: { excerpt: string; instruction: string }) => Promise<void>;
-}>(function RichEditor({ initialMarkdown, onChange, onSave, style, label, onAsk }, ref) {
+  /** Block texts of the version before this one; blocks not among them are marked for a moment. */
+  highlightAgainst?: string[] | null;
+}>(function RichEditor({ initialMarkdown, onChange, onSave, style, label, onAsk, highlightAgainst }, ref) {
   // The editor keeps the callbacks it was created with; these refs hand it the current ones.
   const onChangeRef = useRef(onChange);
   const onSaveRef = useRef(onSave);
@@ -40,6 +51,9 @@ export const RichEditor = forwardRef<RichEditorHandle, {
         heading: { levels: [1, 2, 3] },
         code: false, codeBlock: false, strike: false, underline: false, link: false, horizontalRule: false,
       }),
+      // Cells hold one paragraph of inline text: that is what a Markdown table can store.
+      TableKit.configure({ table: { resizable: false } }),
+      ChangeHighlight,
       Markdown,
     ],
     content: initialMarkdown,
@@ -57,14 +71,33 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   useImperativeHandle(ref, () => ({
     setMarkdown: (markdown) => { editor?.commands.setContent(markdown, { contentType: "markdown", emitUpdate: false }); },
     focus: () => { editor?.commands.focus(); },
+    blockTexts: () => editor ? blockTexts(editor.state.doc) : [],
   }), [editor]);
+
+  // Mark what changed, bring the first change into view, then let the marks go.
+  useEffect(() => {
+    if (!editor || !highlightAgainst) return;
+    const { doc } = editor.state;
+    const first = changedBlocks(doc, highlightAgainst)[0];
+    if (!first) return;
+    editor.view.dispatch(editor.state.tr.setMeta(changeHighlightKey, highlightDecorations(doc, highlightAgainst)));
+    const node = editor.view.nodeDOM(first.from);
+    if (node instanceof HTMLElement) {
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      node.scrollIntoView({ block: "center", behavior: reduced ? "auto" : "smooth" });
+    }
+    const timer = setTimeout(() => {
+      if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(changeHighlightKey, DecorationSet.empty));
+    }, HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [editor, highlightAgainst]);
 
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => current ? {
       heading: current.isActive("heading", { level: 2 }), bold: current.isActive("bold"), italic: current.isActive("italic"),
       bullet: current.isActive("bulletList"), ordered: current.isActive("orderedList"), quote: current.isActive("blockquote"),
-      undo: current.can().undo(), redo: current.can().redo(),
+      undo: current.can().undo(), redo: current.can().redo(), table: current.isActive("table"),
     } : null,
   });
 
@@ -81,9 +114,19 @@ export const RichEditor = forwardRef<RichEditorHandle, {
         <Tool label="Lista" pressed={active?.bullet} onClick={() => chain().toggleBulletList().run()}><List /></Tool>
         <Tool label="Lista numerada" pressed={active?.ordered} onClick={() => chain().toggleOrderedList().run()}><ListOrdered /></Tool>
         <Tool label="Citação" pressed={active?.quote} onClick={() => chain().toggleBlockquote().run()}><Quote /></Tool>
+        <Tool label="Inserir tabela" disabled={active?.table} onClick={() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}><Table /></Tool>
         <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
         <Tool label="Desfazer" disabled={!active?.undo} onClick={() => chain().undo().run()}><Undo2 /></Tool>
         <Tool label="Refazer" disabled={!active?.redo} onClick={() => chain().redo().run()}><Redo2 /></Tool>
+        {active?.table && (
+          <div className="flex flex-wrap items-center gap-0.5 md:ml-2 md:border-l md:pl-2" role="group" aria-label="Tabela">
+            <TableAction onClick={() => chain().addRowAfter().run()}>+ linha</TableAction>
+            <TableAction onClick={() => chain().addColumnAfter().run()}>+ coluna</TableAction>
+            <TableAction onClick={() => chain().deleteRow().run()}>− linha</TableAction>
+            <TableAction onClick={() => chain().deleteColumn().run()}>− coluna</TableAction>
+            <TableAction onClick={() => chain().deleteTable().run()}>Excluir tabela</TableAction>
+          </div>
+        )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10">
         <div className="document-prose mx-auto w-full max-w-full" style={style}>
@@ -94,6 +137,10 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     </div>
   );
 });
+
+function TableAction({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return <Button type="button" variant="ghost" size="sm" className="min-h-11 px-2 text-[13px] md:min-h-8" onClick={onClick}>{children}</Button>;
+}
 
 function Tool({ label, pressed, disabled, onClick, children }: { label: string; pressed?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
   return (

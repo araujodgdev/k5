@@ -43,6 +43,7 @@ import {
 import type { AgentContext } from "@/components/agent-sources-panel";
 import dynamic from "next/dynamic";
 import { readListOpen, subscribeListOpen, writeListOpen, serverListOpen } from "@/lib/agent-history";
+import { clampChatShare, DEFAULT_CHAT_SHARE, MAX_CHAT_SHARE, MIN_CHAT_SHARE, readChatShare, serverChatShare, subscribeChatShare, writeChatShare } from "@/lib/document-split";
 import { formatConversationTime } from "@/lib/conversation-time";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/markdown";
@@ -577,6 +578,12 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   const openDocumentRef = useRef(openDocumentId);
   useEffect(() => { openDocumentRef.current = openDocumentId; }, [openDocumentId]);
   const [documentRevision, setDocumentRevision] = useState(0);
+  const savedChatShare = useSyncExternalStore(subscribeChatShare, readChatShare, serverChatShare);
+  const [dragShare, setDragShare] = useState<number | null>(null);
+  const chatShare = dragShare ?? savedChatShare;
+  const splitRef = useRef<HTMLDivElement>(null);
+  // A drag cut short by closing the panel must not leave the page unselectable.
+  useEffect(() => () => { document.body.style.userSelect = ""; }, []);
   const selectionRef = useRef<Selection | null>(null);
   const sendRef = useRef<((text: string) => void) | null>(null);
   const documentFocus = useMemo<DocumentFocus>(() => ({
@@ -759,6 +766,33 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
     catch (cause) { selectionRef.current = null; throw cause; }
   }, []);
 
+  // The divider between conversation and document: pointer drag, arrow keys, double click resets.
+  function shareAt(clientX: number) {
+    const bounds = splitRef.current?.getBoundingClientRect();
+    return bounds && bounds.width ? clampChatShare((clientX - bounds.left) / bounds.width * 100) : chatShare;
+  }
+  function startResize(event: React.PointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    document.body.style.userSelect = "none";
+    setDragShare(shareAt(event.clientX));
+  }
+  function moveResize(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragShare !== null) setDragShare(shareAt(event.clientX));
+  }
+  function endResize() {
+    if (dragShare === null) return;
+    document.body.style.userSelect = "";
+    writeChatShare(dragShare);
+    setDragShare(null);
+  }
+  function resizeWithKeys(event: React.KeyboardEvent<HTMLDivElement>) {
+    const next = event.key === "ArrowLeft" ? chatShare - 2 : event.key === "ArrowRight" ? chatShare + 2
+      : event.key === "Home" ? MIN_CHAT_SHARE : event.key === "End" ? MAX_CHAT_SHARE : null;
+    if (next === null) return;
+    event.preventDefault();
+    writeChatShare(next);
+  }
+
   function selectConversation(id: string) {
     setSelectedId(id);
     if (window.matchMedia("(max-width: 767px)").matches) {
@@ -807,7 +841,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
 
         {error && <p className="flex items-start gap-2 border-b px-4 py-2 text-sm text-destructive md:px-8" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
 
-        <div className="flex min-h-0 flex-1">
+        <div ref={splitRef} className="flex min-h-0 flex-1">
           <aside id="agent-conversations" aria-label="Conversas" className="agent-chat-history min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b md:w-72 md:border-r md:border-b-0">
               {loading && conversations.length === 0 ? (
                 <div className="grid gap-2 p-3" aria-hidden="true">
@@ -819,7 +853,8 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
                 <ConversationCards conversations={conversations} selectedId={selectedId} onSelect={selectConversation} onDelete={(id) => void removeConversation(id)} />
               )}
           </aside>
-          <div className={cn("agent-chat-content flex min-h-0 min-w-0 flex-1 flex-col", openDocumentId && "lg:max-w-[42%] lg:min-w-[24rem] lg:flex-none lg:basis-[42%]")}>
+          <div className={cn("agent-chat-content flex min-h-0 min-w-0 flex-1 flex-col", openDocumentId && "lg:min-w-[24rem] lg:flex-none lg:basis-[var(--chat-share)]")}
+            style={openDocumentId ? { "--chat-share": `${chatShare}%` } as React.CSSProperties : undefined}>
             {loading || waitingForMessages ? (
               <div className="grid flex-1 place-items-center text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Carregando conversa…</span></div>
             ) : selectedId ? (
@@ -850,8 +885,18 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
             )}
           </div>
           {openDocumentId && (
+            <div role="separator" aria-orientation="vertical" aria-label="Largura da conversa" aria-controls="document-panel" tabIndex={0}
+              aria-valuemin={MIN_CHAT_SHARE} aria-valuemax={MAX_CHAT_SHARE} aria-valuenow={Math.round(chatShare)} aria-valuetext={`Conversa com ${Math.round(chatShare)}% da largura`}
+              data-dragging={dragShare !== null || undefined} title="Arraste para ajustar. Clique duas vezes para voltar ao padrão."
+              className="group relative z-10 -mx-1 hidden w-2 shrink-0 cursor-col-resize touch-none outline-none lg:block"
+              onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize}
+              onKeyDown={resizeWithKeys} onDoubleClick={() => writeChatShare(DEFAULT_CHAT_SHARE)}>
+              <span aria-hidden="true" className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors group-hover:w-0.5 group-hover:bg-brand group-focus-visible:w-0.5 group-focus-visible:bg-brand group-data-[dragging]:w-0.5 group-data-[dragging]:bg-brand" />
+            </div>
+          )}
+          {openDocumentId && (
             // Beside the chat on wide screens; over it, full screen, on smaller ones.
-            <section aria-label="Documento" className="fixed inset-0 z-50 flex min-w-0 flex-col bg-background pt-[env(safe-area-inset-top)] lg:static lg:z-auto lg:flex-1 lg:border-l lg:pt-0"
+            <section id="document-panel" aria-label="Documento" className="fixed inset-0 z-50 flex min-w-0 flex-col bg-background pt-[env(safe-area-inset-top)] lg:static lg:z-auto lg:min-w-[28rem] lg:flex-1 lg:pt-0"
               onKeyDown={(event) => {
                 if (event.key !== "Escape" || event.defaultPrevented || (event.target as HTMLElement).closest("[data-radix-popper-content-wrapper]")) return;
                 closeDocument();

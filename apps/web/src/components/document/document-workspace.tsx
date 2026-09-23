@@ -81,6 +81,8 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   const [lumeChanged, setLumeChanged] = useState(false);
   const [edits, setEdits] = useState(0);
   const [asked, setAsked] = useState(false);
+  // The previous version's blocks, when a reload came from the Lume, so its changes can be marked.
+  const [highlightAgainst, setHighlightAgainst] = useState<string[] | null>(null);
 
   const editorRef = useRef<RichEditorHandle>(null);
   const contentRef = useRef("");
@@ -118,7 +120,10 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     setPhase((current) => current === "ready" ? current : "missing");
   }, []);
 
-  const load = useCallback(() => fetchArtifact().then(apply, fail), [fetchArtifact, apply, fail]);
+  const load = useCallback((highlight = false) => {
+    const previous = highlight ? editorRef.current?.blockTexts() ?? null : null;
+    return fetchArtifact().then((next) => { apply(next); setHighlightAgainst(previous); }, fail);
+  }, [fetchArtifact, apply, fail]);
 
   useEffect(() => {
     // The panel and the page are keyed by document, so a new id always starts from "loading".
@@ -191,7 +196,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     seenRevision.current = revision;
     setAsked(false);
     if (saveStateRef.current === "dirty" || saveStateRef.current === "saving") setLumeChanged(true);
-    else void load();
+    else void load(true);
   }, [revision, load]);
 
   async function keepMine() {
@@ -269,7 +274,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
               variant === "page" ? "display text-[22px] md:text-[26px]" : "text-[15px] font-medium")} />
         </label>
         <span className={cn("hidden shrink-0 text-xs sm:inline", saveState === "conflict" || saveState === "error" ? "text-destructive" : "text-muted-foreground")} aria-live="polite">{status}</span>
-        <Versions artifactId={artifact.id} current={artifact.version} beforeRestore={() => save(true)} onRestored={() => void load()} />
+        <Versions artifactId={artifact.id} current={artifact.version} beforeRestore={() => save(true)} onRestored={() => void load(true)} />
         <Button asChild className="min-h-11 md:min-h-9">
           <a href={`/api/artifacts/${encodeURIComponent(artifact.id)}/export`} onClick={(event) => void exportDocx(event)} aria-label="Exportar DOCX">
             <Download aria-hidden="true" /><span className="hidden sm:inline">Exportar DOCX</span>
@@ -299,20 +304,20 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
       {lumeChanged && (
         <div className="flex flex-wrap items-center gap-2 border-b border-l-2 border-l-brand px-4 py-2 text-sm" role="status">
           <span className="min-w-0 flex-1">O Lume alterou este documento enquanto você editava.</span>
-          <Button size="sm" variant="outline" className="min-h-11 md:min-h-8" onClick={() => void load()}>Ver versão do Lume</Button>
+          <Button size="sm" variant="outline" className="min-h-11 md:min-h-8" onClick={() => void load(true)}>Ver versão do Lume</Button>
           <Button size="sm" variant="ghost" className="min-h-11 md:min-h-8" onClick={() => void keepMine()}>Manter a minha</Button>
         </div>
       )}
       {error && (
         <p className="flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm text-destructive" role="alert">
           <CircleAlert className="size-4 shrink-0" aria-hidden="true" /><span className="min-w-0 flex-1">{error}</span>
-          {saveState === "conflict" && <Button size="sm" variant="outline" className="min-h-11 md:min-h-8" onClick={() => void load()}>Recarregar</Button>}
+          {saveState === "conflict" && <Button size="sm" variant="outline" className="min-h-11 md:min-h-8" onClick={() => void load(true)}>Recarregar</Button>}
         </p>
       )}
 
       <div id="document-edit" role="tabpanel" aria-labelledby="document-tab-edit" hidden={tab !== "edit"} className="flex min-h-0 flex-1 flex-col data-[hidden]:hidden" data-hidden={tab !== "edit" || undefined}>
         <RichEditor key={editorKey} ref={editorRef} initialMarkdown={editorSeed} onChange={changeContent} onSave={() => void save(true)}
-          style={typographyStyle(typography)} label="Texto do documento" onAsk={onAsk ? ask : undefined} />
+          style={typographyStyle(typography)} label="Texto do documento" onAsk={onAsk ? ask : undefined} highlightAgainst={highlightAgainst} />
       </div>
       {tab === "page" && (
         <div id="document-page" role="tabpanel" aria-labelledby="document-tab-page" className="flex min-h-0 flex-1 flex-col">

@@ -1,4 +1,4 @@
-import { AlignmentType, Document, HeadingLevel, LevelFormat, Packer, Paragraph, TextRun, type ParagraphChild } from 'docx';
+import { AlignmentType, Document, HeadingLevel, LevelFormat, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, type ParagraphChild } from 'docx';
 import { marked, type Token, type Tokens } from 'marked';
 import PizZip from 'pizzip';
 
@@ -6,7 +6,8 @@ export type Run = { text: string; bold?: boolean; italic?: boolean; break?: bool
 export type Block =
   | { kind: 'heading'; level: number; runs: Run[] }
   | { kind: 'paragraph'; runs: Run[]; quote?: boolean; indent?: number }
-  | { kind: 'item'; ordered: boolean; marker: string; start: number; list: number; level: number; runs: Run[] };
+  | { kind: 'item'; ordered: boolean; marker: string; start: number; list: number; level: number; runs: Run[] }
+  | { kind: 'table'; header: Run[][]; rows: Run[][][] };
 
 // Only characters allowed in XML 1.0 survive; everything else (control chars, lone surrogates) is dropped.
 const sanitize = (text: string) => text.replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu, '');
@@ -53,7 +54,7 @@ export function markdownBlocks(content: string): Block[] {
         }
         case 'table': {
           const table = token as Tokens.Table;
-          for (const row of [table.header, ...table.rows]) blocks.push({ kind: 'paragraph', runs: row.flatMap((cell, i) => [...(i ? [{ text: ' | ' }] : []), ...inline(cell.tokens)]), quote, indent: level });
+          blocks.push({ kind: 'table', header: table.header.map(cell => inline(cell.tokens)), rows: table.rows.map(row => row.map(cell => inline(cell.tokens))) });
           break;
         }
         default: blocks.push({ kind: 'paragraph', runs: textRuns('text' in token && typeof token.text === 'string' ? token.text : token.raw, {}), quote, indent: level });
@@ -76,6 +77,16 @@ async function plainDocument(blocks: Block[]) {
     style: { paragraph: { indent: { left: 720 * (level + 1), hanging: 360 } } },
   }));
   const children = blocks.map(block => {
+    if (block.kind === 'table') {
+      const columns = Math.max(block.header.length, ...block.rows.map(row => row.length), 1);
+      return new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [block.header, ...block.rows].map((row, index) => new TableRow({
+          tableHeader: index === 0,
+          children: Array.from({ length: columns }, (_, column) => new TableCell({ children: [new Paragraph({ spacing: { after: 0 }, children: docxRuns(row[column] ?? [], index === 0) })] })),
+        })),
+      });
+    }
     if (block.kind === 'heading') return new Paragraph({ heading: [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3][block.level - 1], keepNext: true, children: docxRuns(block.runs) });
     if (block.kind === 'item') return new Paragraph({ numbering: { reference: block.ordered ? `k5-number-${block.start}` : 'k5-bullet', level: Math.min(block.level, 2), instance: block.list }, children: docxRuns(block.runs) });
     return new Paragraph({ indent: block.quote || block.indent ? { left: 720 * ((block.indent ?? 0) + (block.quote ? 1 : 0)) } : undefined, children: docxRuns(block.quote ? block.runs.map(r => ({ ...r, italic: true })) : block.runs) });
@@ -115,8 +126,24 @@ function xmlRuns(runs: Run[], f: Formatting, bold = false) {
   return runs.map(run => run.break ? '<w:r><w:br/></w:r>'
     : `<w:r><w:rPr>${f.rFonts}${bold || run.bold ? '<w:b/><w:bCs/>' : ''}${run.italic ? '<w:i/><w:iCs/>' : ''}${f.sz}${f.szCs}</w:rPr><w:t xml:space="preserve">${xmlEscape(run.text)}</w:t></w:r>`).join('');
 }
+/** A bordered, full-width table in the template's body font; the first row repeats on each page. */
+function xmlTable(block: Extract<Block, { kind: 'table' }>, f: Formatting) {
+  const columns = Math.max(block.header.length, ...block.rows.map(row => row.length), 1);
+  const width = Math.floor(9000 / columns);
+  const borders = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(side => `<w:${side} w:val="single" w:sz="4" w:space="0" w:color="auto"/>`).join('');
+  const cell = (runs: Run[], header: boolean) =>
+    `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/></w:tcPr><w:p><w:pPr>${f.pStyle}<w:spacing w:before="0" w:after="0"/></w:pPr>${xmlRuns(runs, f, header)}</w:p></w:tc>`;
+  const row = (cells: Run[][], header: boolean) =>
+    `<w:tr>${header ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}${Array.from({ length: columns }, (_, index) => cell(cells[index] ?? [], header)).join('')}</w:tr>`;
+  // tblPr children in schema order: tblW, tblBorders, tblLayout, tblCellMar.
+  return `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>${borders}</w:tblBorders><w:tblLayout w:type="autofit"/>`
+    + `<w:tblCellMar><w:left w:w="108" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr>`
+    + `<w:tblGrid>${`<w:gridCol w:w="${width}"/>`.repeat(columns)}</w:tblGrid>${row(block.header, true)}${block.rows.map(cells => row(cells, false)).join('')}</w:tbl>`;
+}
+
 // Styled headings keep the template heading font/size. pPr children are emitted in schema order: pStyle, keepNext, spacing, ind, jc.
 function xmlBlock(block: Block, f: Formatting) {
+  if (block.kind === 'table') return xmlTable(block, f);
   if (block.kind === 'heading') {
     const style = f.headings[block.level - 1];
     return style
@@ -139,7 +166,8 @@ function injectIntoTemplate(blocks: Block[], template: Buffer) {
   // Keep header/footer parts, relationships, styles and final section geometry.
   // Do not retain any factual body paragraphs from the previous matter.
   const section = original.match(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/g)?.at(-1) ?? '';
-  const body = blocks.map(block => xmlBlock(block, formatting)).join('') || '<w:p/>';
+  // Word expects a paragraph between a closing table and the section properties.
+  const body = (blocks.map(block => xmlBlock(block, formatting)).join('') + (blocks.at(-1)?.kind === 'table' ? '<w:p/>' : '')) || '<w:p/>';
   zip.file('word/document.xml', original.replace(/<w:body>[\s\S]*<\/w:body>/, () => `<w:body>${body}${section}</w:body>`));
   // Strip old comment/footnote bodies (keeping required separators) and metadata, which may contain prior-case facts.
   for (const name of Object.keys(zip.files)) if (/^word\/(comments|footnotes|endnotes)[^/]*\.xml$/.test(name)) {

@@ -216,3 +216,24 @@ test("export: editor typography comes from the template's body paragraphs and pa
   assert.equal(exact.textAlign, "center");
   assert.equal(exact.fontFamily, null);
 });
+
+test("export: Markdown tables become Word tables on both paths, header row repeating", async () => {
+  const table = "| Parcela | Vencimento |\n| --- | --- |\n| **1** | 10/01/2026 |\n| 2 | 10/02/2026 |";
+  const [block] = markdownBlocks(table);
+  assert.equal(block.kind, "table");
+  assert.ok(block.kind === "table" && block.header.length === 2 && block.rows.length === 2 && block.rows[0][0].some(run => run.bold && run.text === "1"));
+
+  const plain = documentXml(await exportDocument(table));
+  assert.equal(plain.match(/<w:tr[ >]/g)?.length, 3);
+  assert.match(plain, /<w:tblHeader\/>/);
+  assert.doesNotMatch(plain, /\| Parcela/);
+
+  const template = await Packer.toBuffer(new Document({ sections: [{ children: [new Paragraph({ children: [new TextRun({ text: "Corpo", font: "Garamond" })] })] }] }));
+  const xml = new PizZip(await exportDocument(`Antes\n\n${table}`, template)).file("word/document.xml")!.asText();
+  assert.equal(xml.match(/<w:tr>/g)?.length, 3);
+  assert.equal(xml.match(/<w:gridCol w:w="4500"\/>/g)?.length, 2);
+  assert.match(xml, /<w:tr><w:trPr><w:tblHeader\/><\/w:trPr><w:tc>[\s\S]*?<w:b\/>[\s\S]*?Parcela/);
+  assert.match(xml, /w:ascii="Garamond"[^]*?10\/02\/2026/);
+  // A document that ends in a table still closes with a paragraph before the section properties.
+  assert.match(xml, /<\/w:tbl><w:p\/><w:sectPr/);
+});
