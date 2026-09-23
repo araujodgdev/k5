@@ -290,12 +290,13 @@ export function pushConfigurationView() {
 }
 
 export async function resolveNotificationDestination(context: WorkspaceContext, eventId: string, db: Database = defaultDatabase) {
-  const row = await db.prepare(`SELECT e.source_kind,e.source_id FROM notification_recipient r
+  const row = await db.prepare(`SELECT e.source_kind,e.source_id,e.event_type FROM notification_recipient r
     JOIN notification_event e ON e.id=r.event_id AND e.office_id=r.office_id
     WHERE r.event_id=? AND r.office_id=? AND r.user_id=? AND r.archived_at IS NULL`)
-    .get<{ source_kind: string; source_id: string | null }>(eventId, context.officeId, context.userId);
+    .get<{ source_kind: string; source_id: string | null; event_type: string }>(eventId, context.officeId, context.userId);
   if (!row) return null;
   await markNotificationRead(context, eventId, db);
+  if (row.event_type === 'system.feedback.resolved') return '/app/feedback';
   if (row.source_kind === 'activity' && row.source_id && await db.prepare('SELECT 1 FROM agenda_activity WHERE id=? AND office_id=?').get(row.source_id, context.officeId)) {
     return `/app/agenda?activityId=${encodeURIComponent(row.source_id)}`;
   }

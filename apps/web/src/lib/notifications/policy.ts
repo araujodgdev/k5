@@ -103,5 +103,7 @@ export function eventCopy(type: NotificationEventType, data: Record<string, unkn
       return { title: 'Coleta judicial incompleta', summary: 'Uma fonte acompanhada precisa de atenção.' };
     case 'system.push.test':
       return { title: 'Notificação de teste', summary: 'Este dispositivo está pronto para receber avisos do Lume.' };
+    case 'system.feedback.resolved':
+      return { title: 'Seu relato foi resolvido', summary: typeof data.ticketNumber === 'number' ? `O relato #${data.ticketNumber} foi resolvido. Veja a resposta em Feedback.` : 'Um relato seu foi resolvido. Veja a resposta em Feedback.' };
   }
 }

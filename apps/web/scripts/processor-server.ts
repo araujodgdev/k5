@@ -12,6 +12,7 @@ async function documentPass() {
   const { processNextRun } = await import('../src/lib/document-workflows');
   const { processNextVerification } = await import('../src/lib/typesafe/verification');
   const { processNextResearchAssessment } = await import('../src/lib/research/case-assessment');
+  const { processNextFeedbackClassification } = await import('../src/lib/feedback-triage');
   const { processNextResearchExtraction } = await import('../src/lib/research/pdf');
   const { processNextIndexJob, processNextDeletion } = await import('../src/lib/knowledge/indexing');
   const outcomes = await Promise.all([
@@ -26,7 +27,8 @@ async function documentPass() {
     (async () => {
       const verified = await observeWorkerTask('documents.verify', processNextVerification);
       const assessed = await observeWorkerTask('research.assess', processNextResearchAssessment);
-      return Boolean(verified || assessed);
+      const triaged = await observeWorkerTask('feedback.triage', processNextFeedbackClassification);
+      return Boolean(verified || assessed || triaged);
     })(),
   ]);
   if (Date.now() >= maintenanceAt) {

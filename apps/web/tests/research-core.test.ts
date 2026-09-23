@@ -467,9 +467,9 @@ test('a página aplica rerank somente aos 20 exibidos e preserva os demais no ac
   const installation=await source(),person=(await actor());
   (await testDb.prepare("UPDATE judicial_source_installation SET permission_ai='permitido' WHERE id=?").run(installation.id));
   (await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(person.userId));
-  await saveConnection(person.officeId,person.userId,connectionSettings.parse({
+  await saveConnection(person.userId,connectionSettings.parse({
     apiKey:'chave-sintetica-teste',enabled:true,research:'enabled',
-    version:(await connectionView(person.officeId)).version,
+    version:(await connectionView()).version,
   }));
   const theme=`tema${randomUUID().replaceAll('-','')}`;
   for (let n=0;n<25;n++) await upsertSourceJudgment(installation,{

@@ -1,11 +1,10 @@
 import { requireWorkspace } from '@/lib/session';
-import { database } from '@/lib/database';
-import { feedbackView } from '@/lib/feedback-core';
-import { FeedbackWorkspace } from '@/components/feedback-workspace';
+import { listAuthorTickets } from '@/lib/feedback-tickets';
+import { FeedbackForm } from '@/components/feedback-form';
 
-export const metadata = { title: 'Avaliar respostas' };
+export const metadata = { title: 'Feedback' };
 
 export default async function FeedbackPage() {
   const { user, office } = await requireWorkspace();
-  return <FeedbackWorkspace initial={await feedbackView(database, { userId: user.id, officeId: office.officeId })} />;
+  return <FeedbackForm initial={await listAuthorTickets({ userId: user.id, officeId: office.officeId })} />;
 }

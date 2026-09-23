@@ -1,7 +1,9 @@
 # Avaliação humana dos resultados do piloto
 
-Página autenticada: `/app/feedback`, em **Avaliar respostas** na barra lateral
-e em **Mais** no celular. Painel da plataforma: `/platform/feedback`.
+> **Encerrado em 23/09/2026.** A comparação A/B saiu do aplicativo: `/app/feedback` agora recebe
+> relatos livres, triados como tickets em `/platform/feedback` (veja `apps/web/README.md`). Os votos
+> em `model_feedback` e as exportações continuam em `/platform/feedback/historico`. O roteiro de
+> navegador `verify-feedback.ts` citado abaixo foi removido junto com a página A/B.
 
 O piloto usa os trabalhos reais de Mercury 2.5, DeepSeek V4.1 Flash e Muse Spark 1.3, executados
 em 21/09/2026, na tarefa `corporate-ma/review-data-room-red-flag-review` do

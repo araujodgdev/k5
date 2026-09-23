@@ -77,6 +77,8 @@ verificação de e-mail ainda não foram implementados.
 `/app/agenda` reúne tarefas, calendário com agenda do dia e CRM de
 clientes. A migração `0012_agenda.sql` adiciona clientes, vínculos com casos e atividades.
 Dados de clientes existentes nos casos do Cofre são preservados, sem importação automática.
+O cadastro de cliente aceita endereço, cidade, UF, CEP e áreas jurídicas (cível, trabalhista,
+previdenciário; mais de uma é permitida), todos opcionais. A lista filtra por área.
 
 Administrador e advogado podem cadastrar e editar; revisor apenas consulta. Referências
 a clientes, casos e responsáveis são verificadas no escritório autenticado. Atualizações
@@ -124,13 +126,23 @@ O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
   item solicitado; a pessoa confere os campos e salva na Agenda.
 - **Worker:** processamento de documentos, cronologias e minutas roda fora da requisição.
   Em outro terminal, execute `pnpm worker` na raiz. Sem ele, os itens ficam na fila.
-- **TypeSafe/Jev:** configure a conexão por escritório em `/platform/clients/[officeId]/ai`.
-  Reranking do Cofre e da Pesquisa, avaliação de pertinência, verificação documental e sugestões da Agenda possuem modos
-  independentes: desligado, avaliar sem aplicar e ativado. Todos começam desligados.
+- **TypeSafe/Jev:** uma única conexão da plataforma atende todos os escritórios; configure-a
+  em `/platform/typesafe`. O custo é da plataforma e a reserva diária de tokens soma todos os
+  escritórios. Enquanto nenhuma conexão da plataforma for salva, a primeira leitura adota a
+  conexão de escritório mais recente que tenha chave (bancos migrados ou importados continuam
+  funcionando sem redigitar a chave). Reranking do Cofre e da Pesquisa, avaliação de pertinência,
+  verificação documental, sugestões da Agenda e triagem de feedback possuem modos independentes:
+  desligado, avaliar sem aplicar e ativado. A triagem de feedback começa ativada; as demais, desligadas.
   A chave usa a mesma cifra/rotação das demais conexões; não existe chave global
   de produção em variável de ambiente. Jev não é um modelo de conversa do Lume.
   A verificação documental roda no worker e nunca aprova uma minuta automaticamente.
   Veja [operação e validação TypeSafe](../../docs/typesafe-implementacao.md).
+- **Feedback:** `/app/feedback` recebe relatos livres de qualquer papel do escritório, com print
+  opcional (até 5 MB) e a tela de origem como contexto. O worker classifica cada relato com o
+  TypeSafe (tipo, módulo, gravidade, sinais de segurança e de dados pessoais); a prioridade é
+  calculada em código e a confiança baixa marca o ticket para revisão. Sem TypeSafe, o ticket chega
+  sem classificação. A fila fica em `/platform/feedback`; resolver um ticket notifica o autor, que vê
+  a resposta na própria página de feedback. Correções manuais nunca apagam a resposta do modelo.
 - **Infraestrutura judicial (fundação):** vínculo de processos, coleta de publicações,
   proveniência e caixa interna de eventos. A coleta roda em um worker próprio,
   `pnpm judicial:worker`, separado do worker de documentos porque OCR e coleta competem por

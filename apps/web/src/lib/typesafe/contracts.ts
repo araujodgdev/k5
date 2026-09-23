@@ -2,13 +2,14 @@ import { z } from 'zod';
 
 export const decisionMode = z.enum(['off', 'shadow', 'enabled']);
 export type DecisionMode = z.infer<typeof decisionMode>;
-export type DecisionPurpose = 'rag' | 'documents' | 'agenda' | 'research';
+export type DecisionPurpose = 'rag' | 'documents' | 'agenda' | 'research' | 'feedback';
 export const connectionSettings = z.object({
   apiKey: z.string().trim().min(12).max(4000).optional(),
   model: z.string().regex(/^jev-\d+\.\d+\.\d+$/).default('jev-1.13.0'),
   enabled: z.boolean().default(false),
   rag: decisionMode.default('off'), documents: decisionMode.default('off'), agenda: decisionMode.default('off'), research: decisionMode.default('off'),
-  dailyTokens: z.number().int().min(1000).max(10_000_000).default(500_000),
+  feedback: decisionMode.default('enabled'),
+  dailyTokens: z.number().int().min(1000).max(50_000_000).default(2_000_000),
   concurrency: z.number().int().min(1).max(8).default(4),
   version: z.number().int().nonnegative(),
 });

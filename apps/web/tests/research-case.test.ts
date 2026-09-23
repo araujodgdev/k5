@@ -96,8 +96,8 @@ test('queued assessment keeps stance apart from relevance and invalidates change
   const a = (await fixture()), material = (await publicMaterial());
   await saveResearchCaseProfile(a.context, profileInput(a));
   (await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(a.context.userId));
-  await saveConnection(a.context.officeId, a.context.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true,
-    research: 'enabled', version: (await connectionView(a.context.officeId)).version }));
+  await saveConnection(a.context.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true,
+    research: 'enabled', version: (await connectionView()).version }));
   const queued = await assessResearchCaseMaterial(a.context, { caseId: a.caseId, materialVersionId: material.versionId });
   assert.equal(queued.status, 'queued');
   assert.equal(await processNextResearchAssessment({ send: sendOpposes }), true);
@@ -118,6 +118,8 @@ test('queued assessment keeps stance apart from relevance and invalidates change
 test('explicit bypass, idempotent link, pinned historical citation and office boundaries', async () => {
   const a = (await fixture()), b = (await fixture()), material = (await publicMaterial());
   await saveResearchCaseProfile(a.context, profileInput(a));
+  // The platform connection is shared by every test in this file; research starts switched off here.
+  (await testDb.prepare("UPDATE typesafe_platform_connection SET research_mode='off' WHERE id=1").run());
   const disabled = await assessResearchCaseMaterial(a.context, { caseId: a.caseId, materialVersionId: material.versionId });
   assert.equal(disabled.status, 'disabled');
   await assert.rejects(addResearchCaseReference(a.context, { caseId: a.caseId, materialVersionId: material.versionId,
@@ -171,8 +173,8 @@ test('composition requires adequate evidence and never rewards thesis position',
 test('research rerank uses its own mode and private versioned cache', async () => {
   const a = (await fixture()), b = (await fixture());
   (await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(a.context.userId));
-  await saveConnection(a.context.officeId, a.context.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true,
-    rag: 'off', research: 'shadow', version: (await connectionView(a.context.officeId)).version }));
+  await saveConnection(a.context.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true,
+    rag: 'off', research: 'shadow', version: (await connectionView()).version }));
   const candidates = [{ id: 'a', text: 'Pouco útil.', versionFingerprint: 'v1' }, { id: 'b', text: 'Diretamente útil.', versionFingerprint: 'v1' }];
   let calls = 0;
   const send: DecisionTransport = async (_key, request) => {
@@ -188,14 +190,16 @@ test('research rerank uses its own mode and private versioned cache', async () =
   assert.equal(first.applied, false); assert.deepEqual(first.candidates, candidates);
   assert.equal((await rerankResearchResults(a.context, 'guarda à avó', candidates, { send })).status, 'evaluated');
   assert.equal(calls, 1);
-  await saveConnection(a.context.officeId, a.context.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true,
-    rag: 'off', research: 'enabled', version: (await connectionView(a.context.officeId)).version }));
+  await saveConnection(a.context.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true,
+    rag: 'off', research: 'enabled', version: (await connectionView()).version }));
   const enabled = await rerankResearchResults(a.context, 'guarda à avó', candidates, { send });
   assert.equal(enabled.applied, true); assert.deepEqual(enabled.candidates.map(item => item.id), ['b', 'a']);
   assert.equal(calls, 2);
-  assert.equal((await rerankResearchResults(b.context, 'guarda à avó', candidates, { send })).status, 'disabled');
+  // Same platform connection, but the cache stays private to each office.
+  assert.equal((await rerankResearchResults(b.context, 'guarda à avó', candidates, { send })).status, 'evaluated');
+  assert.equal(calls, 3);
   const changed = await rerankResearchResults(a.context, 'guarda à avó', [{ ...candidates[0], versionFingerprint: 'v2' }, candidates[1]], { send });
-  assert.equal(changed.status, 'evaluated'); assert.equal(calls, 3);
+  assert.equal(changed.status, 'evaluated'); assert.equal(calls, 4);
 });
 
 test('reference update changes only its pinned version; exhausted leases terminate', async () => {

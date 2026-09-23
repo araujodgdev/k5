@@ -9,6 +9,10 @@ const key = z.string().min(8).max(128).optional();
 const page = { limit: z.number().int().min(1).max(100).default(50), offset: z.number().int().min(0).max(100000).default(0) };
 const date = z.iso.date();
 const instant = z.iso.datetime({ offset: true });
+export const legalAreas = ['civel', 'trabalhista', 'previdenciario'] as const;
+export const legalAreaLabels: Record<(typeof legalAreas)[number], string> = { civel: 'Cível', trabalhista: 'Trabalhista', previdenciario: 'Previdenciário' };
+export const brazilianStates = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'] as const;
+const optionalText = (max: number) => z.string().trim().max(max).nullable().default(null);
 const clientFields = {
   name: z.string().trim().min(2).max(180),
   email: z.union([z.email().max(200), z.literal('')]).nullable().default(null),
@@ -16,6 +20,11 @@ const clientFields = {
   notes: z.string().trim().max(8000).default(''),
   stage: z.enum(['prospect', 'active', 'archived']).default('prospect'),
   caseIds: z.array(id).max(100).default([]),
+  addressLine: optionalText(240),
+  city: optionalText(120),
+  state: z.enum(brazilianStates).nullable().default(null),
+  postalCode: z.string().trim().regex(/^\d{5}-?\d{3}$/, 'Informe o CEP com 8 dígitos.').nullable().default(null),
+  legalAreas: z.array(z.enum(legalAreas)).max(legalAreas.length).default([]),
 };
 export const crmClientDto = z.object({ ...clientFields, id, version: z.number(), createdAt: z.string(), updatedAt: z.string() });
 const activityFields = {
@@ -47,18 +56,20 @@ export const agendaCapabilities = {
     input: z.object({ proposalId: id, version: z.number().int().positive(), payload: z.object(activityFields), activityId: id.optional(), activityVersion: z.number().int().positive().optional() }),
     output: z.object({ activity: activityDto }) },
   k5_crm_list_clients: { module: 'agenda', effect: 'read', roles: readers,
-    description: 'Lista clientes do CRM do escritório, com busca, etapa e paginação.',
-    input: z.object({ query: z.string().trim().max(180).optional(), stage: clientFields.stage.removeDefault().optional(), caseId: id.optional(), ...page }),
+    description: 'Lista clientes do CRM do escritório, com busca, etapa, área jurídica (civel, trabalhista, previdenciario) e paginação.',
+    input: z.object({ query: z.string().trim().max(180).optional(), stage: clientFields.stage.removeDefault().optional(), legalArea: z.enum(legalAreas).optional(), caseId: id.optional(), ...page }),
     output: z.object({ clients: z.array(crmClientDto), total: z.number() }) },
   k5_crm_get_client: { module: 'agenda', effect: 'read', roles: readers,
-    description: 'Consulta contato, observações, etapa, casos e versão de um cliente.',
+    description: 'Consulta contato, endereço, áreas jurídicas, observações, etapa, casos e versão de um cliente.',
     input: z.object({ clientId: id }), output: z.object({ client: crmClientDto }) },
   k5_crm_create_client: { module: 'agenda', effect: 'write', roles: writers,
     description: 'Cadastra um cliente no CRM e vincula casos existentes do escritório. Consulte antes para evitar duplicatas.',
     input: z.object({ ...clientFields, idempotencyKey: key }), output: z.object({ client: crmClientDto }) },
   k5_crm_update_client: { module: 'agenda', effect: 'write', roles: writers,
     description: 'Atualiza campos informados de um cliente; caseIds substitui os vínculos. Exige versão consultada; arquive com stage=archived.',
-    input: z.object({ name: clientFields.name.optional(), email: clientFields.email.removeDefault().optional(), phone: clientFields.phone.removeDefault().optional(), notes: clientFields.notes.removeDefault().optional(), stage: clientFields.stage.removeDefault().optional(), caseIds: clientFields.caseIds.removeDefault().optional(), clientId: id, version: z.number().int().positive(), idempotencyKey: key }), output: z.object({ client: crmClientDto }) },
+    input: z.object({ name: clientFields.name.optional(), email: clientFields.email.removeDefault().optional(), phone: clientFields.phone.removeDefault().optional(), notes: clientFields.notes.removeDefault().optional(), stage: clientFields.stage.removeDefault().optional(), caseIds: clientFields.caseIds.removeDefault().optional(),
+      addressLine: clientFields.addressLine.removeDefault().optional(), city: clientFields.city.removeDefault().optional(), state: clientFields.state.removeDefault().optional(), postalCode: clientFields.postalCode.removeDefault().optional(), legalAreas: clientFields.legalAreas.removeDefault().optional(),
+      clientId: id, version: z.number().int().positive(), idempotencyKey: key }), output: z.object({ client: crmClientDto }) },
   k5_agenda_list_members: { module: 'agenda', effect: 'read', roles: readers,
     description: 'Lista integrantes do escritório para escolher o responsável de uma atividade.',
     input: z.object({}), output: z.object({ members: z.array(z.object({ id, name: z.string() })) }) },

@@ -45,7 +45,7 @@ async function artifactFor(owner: Owner, id: string) {
   return artifact;
 }
 export async function enqueueVerification(owner: Owner, artifact: ArtifactRow, units: VerificationUnit[]) {
-  const config = await getConnection(owner.officeId);
+  const config = await getConnection();
   if (!config?.enabled || config.documents_mode === 'off') return null;
   units = units.map(unit => verificationUnit.parse(unit));
   const evidence = await evidenceFor(owner.officeId, units);
@@ -122,7 +122,7 @@ export async function processNextVerification(options: { send?: DecisionTranspor
   };
   try {
     if (!await allowed()) { await finish('stale'); return true; }
-    const config = await getConnection(owner.officeId);
+    const config = await getConnection();
     if (!config?.enabled || config.documents_mode === 'off') { await finish('disabled'); return true; }
     if (config.model !== job.model || config.documents_mode !== job.mode || job.question_version !== supportVersion) { await finish('stale'); return true; }
     const batch = units.slice(results.length, results.length + 4);

@@ -18,7 +18,8 @@ export default async function PlatformLayout({ children }: { children: React.Rea
         <header className="flex min-h-16 flex-wrap items-center justify-between gap-4 border-b px-5 pt-[env(safe-area-inset-top)] md:px-8">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <Link href="/platform/clients" className="flex shrink-0 items-center gap-2 font-medium"><Logo height={16} /> Plataforma</Link>
-            <Link href="/platform/feedback" className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2">Avaliações</Link>
+            <Link href="/platform/feedback" className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2">Feedback</Link>
+            <Link href="/platform/typesafe" className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2">TypeSafe</Link>
             <Link href="/app" className="rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">Voltar ao aplicativo</Link>
           </div>
           <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 truncate text-muted-foreground text-xs">{session.user.email}</span><ThemeSwitch /></div>

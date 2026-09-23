@@ -23,7 +23,7 @@ type AssessmentRow = {
 /** A bounded source set, with coverage declared. The source text is untrusted data for Jev. */
 async function assessmentInput(officeId: string, caseId: string, materialVersionId: string) {
   const [caseState, material, config] = await Promise.all([
-    researchCaseSnapshot(officeId, caseId), materialSnapshot(materialVersionId), getConnection(officeId),
+    researchCaseSnapshot(officeId, caseId), materialSnapshot(materialVersionId), getConnection(),
   ]);
   const profile = caseState?.profile ?? null;
   const selectedChunkIds = [...new Set(profile?.documentedFacts.flatMap(fact => fact.chunkIds) ?? [])];

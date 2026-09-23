@@ -23,6 +23,7 @@ export const notificationEventTypes = [
   'judicial.publication.corrected',
   'judicial.collection.failed',
   'system.push.test',
+  'system.feedback.resolved',
 ] as const;
 
 export type NotificationEventType = typeof notificationEventTypes[number];

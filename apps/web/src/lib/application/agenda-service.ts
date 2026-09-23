@@ -7,7 +7,7 @@ import { activityData, activityDto, crmClientDto, type CrmClient } from '@/lib/c
 import { agendaEventStatement } from '@/lib/notifications/events';
 import type { WorkspaceContext } from './context';
 
-const clientColumns = 'id, name, email, phone, notes, stage, version, created_at AS createdAt, updated_at AS updatedAt';
+const clientColumns = 'id, name, email, phone, notes, stage, address_line AS addressLine, city, state, postal_code AS postalCode, legal_areas AS legalAreas, version, created_at AS createdAt, updated_at AS updatedAt';
 const activityColumns = 'id, kind, title, notes, status, due_on AS dueOn, starts_at AS startsAt, ends_at AS endsAt, client_id AS clientId, case_id AS caseId, assignee_id AS assigneeId, version, created_at AS createdAt, updated_at AS updatedAt';
 const missing = () => new CapabilityError('NOT_FOUND', 'Registro não encontrado neste escritório.');
 const conflict = () => new CapabilityError('CONFLICT', 'Este registro mudou. Atualize a página e tente novamente.');
@@ -44,6 +44,7 @@ export async function listClients(context: WorkspaceContext, input: Input<'k5_cr
   const params: unknown[] = [context.officeId];
   if (input.query) { where.push('strpos(lower(name), lower(?))>0'); params.push(input.query); }
   if (input.stage) { where.push('stage=?'); params.push(input.stage); }
+  if (input.legalArea) { where.push('?=ANY(legal_areas)'); params.push(input.legalArea); }
   if (input.caseId) { where.push('id IN (SELECT client_id FROM crm_client_case WHERE office_id=? AND case_id=?)'); params.push(context.officeId, input.caseId); }
   const filter = where.join(' AND ');
   const rows = await database.prepare(`SELECT ${clientColumns} FROM crm_client WHERE ${filter} ORDER BY name, id LIMIT ? OFFSET ?`).all(...params, input.limit, input.offset);
@@ -56,12 +57,14 @@ async function saveClient(context: WorkspaceContext, value: Omit<CrmClient, 'cre
   for (const caseId of caseIds) await validateReferences(context, { caseId });
   const token = randomUUID();
   const now = new Date().toISOString();
+  // Blank text is stored as absent; areas are a set.
+  const profile = [value.addressLine || null, value.city || null, value.state, value.postalCode || null, [...new Set(value.legalAreas)].sort()];
   // Both the primary key and office-scoped identity can conflict during a concurrent retry.
   const write = creating
-    ? database.prepare('INSERT INTO crm_client(id,office_id,name,email,phone,notes,stage,version,created_at,updated_at,mutation_token) VALUES(?,?,?,?,?,?,?,1,?,?,?) ON CONFLICT DO NOTHING')
-      .bind(value.id, context.officeId, value.name, value.email || null, value.phone || null, value.notes, value.stage, now, now, token)
-    : database.prepare('UPDATE crm_client SET name=?,email=?,phone=?,notes=?,stage=?,version=version+1,updated_at=?,mutation_token=? WHERE id=? AND office_id=? AND version=?')
-      .bind(value.name, value.email || null, value.phone || null, value.notes, value.stage, now, token, value.id, context.officeId, value.version);
+    ? database.prepare('INSERT INTO crm_client(id,office_id,name,email,phone,notes,stage,address_line,city,state,postal_code,legal_areas,version,created_at,updated_at,mutation_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?) ON CONFLICT DO NOTHING')
+      .bind(value.id, context.officeId, value.name, value.email || null, value.phone || null, value.notes, value.stage, ...profile, now, now, token)
+    : database.prepare('UPDATE crm_client SET name=?,email=?,phone=?,notes=?,stage=?,address_line=?,city=?,state=?,postal_code=?,legal_areas=?,version=version+1,updated_at=?,mutation_token=? WHERE id=? AND office_id=? AND version=?')
+      .bind(value.name, value.email || null, value.phone || null, value.notes, value.stage, ...profile, now, token, value.id, context.officeId, value.version);
   // Every association write is gated by the successful compare-and-swap in the same batch.
   const guard = 'EXISTS(SELECT 1 FROM crm_client WHERE id=? AND office_id=? AND mutation_token=?)';
   const results = await database.batch([
@@ -73,7 +76,10 @@ async function saveClient(context: WorkspaceContext, value: Omit<CrmClient, 'cre
   if (!results[0].changes) {
     if (!creating) throw conflict();
     const existing = result.client;
-    if (existing.name !== value.name || existing.email !== (value.email || null) || existing.phone !== (value.phone || null) || existing.notes !== value.notes || existing.stage !== value.stage || JSON.stringify([...existing.caseIds].sort()) !== JSON.stringify([...caseIds].sort())) throw conflict();
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    if (existing.name !== value.name || existing.email !== (value.email || null) || existing.phone !== (value.phone || null) || existing.notes !== value.notes || existing.stage !== value.stage
+      || !same([existing.addressLine, existing.city, existing.state, existing.postalCode, [...existing.legalAreas].sort()], profile)
+      || !same([...existing.caseIds].sort(), [...caseIds].sort())) throw conflict();
   }
   return result;
 }

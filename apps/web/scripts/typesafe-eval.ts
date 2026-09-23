@@ -23,7 +23,7 @@ const context = { officeId, userId, role: 'lawyer' as const };
 (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Avaliador'));
 (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, 'lawyer'));
 (await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId));
-await saveConnection(officeId, userId, connectionSettings.parse({ apiKey, version: 0, enabled: true, rag: 'enabled', documents: 'enabled', agenda: 'enabled', dailyTokens: 5000000 }));
+await saveConnection(userId, connectionSettings.parse({ apiKey, version: 0, enabled: true, rag: 'enabled', documents: 'enabled', agenda: 'enabled', dailyTokens: 5000000 }));
 const rows: Array<Record<string, unknown>> = [];
 const dcg = (grades: number[]) => grades.reduce((sum, grade, i) => sum + (2 ** grade - 1) / Math.log2(i + 2), 0);
 async function budget() {
@@ -38,9 +38,9 @@ for (const sample of ragCorpus.slice(0, limit)) {
     (await testDb.prepare("INSERT INTO vault_document_chunk(id,document_id,office_id,ordinal,stable_reference,content) VALUES(?,?,?,0,'parágrafo:1',?)").run(chunk, id, officeId, item.text));
   }
   const input = { query: sample.query, documentIds: ids, limit: 8 };
-  (await testDb.prepare("UPDATE typesafe_connection SET rag_mode='off' WHERE office_id=?").run(officeId));
+  (await testDb.prepare("UPDATE typesafe_platform_connection SET rag_mode='off' WHERE id=1").run());
   const baseline = await searchKnowledgeEngine(context, input);
-  (await testDb.prepare("UPDATE typesafe_connection SET rag_mode='enabled' WHERE office_id=?").run(officeId));
+  (await testDb.prepare("UPDATE typesafe_platform_connection SET rag_mode='enabled' WHERE id=1").run());
   const start = performance.now(); const ranked = await searchKnowledgeEngine(context, input);
   const ideal = dcg([...grades.values()].sort((a, b) => b - a).slice(0, 8));
   const metric = (sources: typeof baseline.sources) => dcg(sources.map(source => grades.get(source.sourceId) ?? 0)) / ideal;

@@ -12,7 +12,8 @@ import { agendaCall, selectStyle, type Choice } from '@/lib/agenda-client';
 import { localDate } from '@/lib/calendar-days';
 import dynamic from 'next/dynamic';
 import type { OfficeRole } from '@/lib/offices';
-import type { AgendaActivity, CrmClient } from '@/lib/capabilities/agenda';
+import { legalAreaLabels, legalAreas, type AgendaActivity, type CrmClient } from '@/lib/capabilities/agenda';
+type LegalArea = (typeof legalAreas)[number];
 import { AgendaSuggestions } from './agenda-suggestions';
 import { ClientPicker } from './client-picker';
 
@@ -59,6 +60,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   const [caseId, setCaseId] = useState(initialCaseId);
   const [clientId, setClientId] = useState(initialClientId);
   const [status, setStatus] = useState('');
+  const [legalArea, setLegalArea] = useState('');
   const [query, setQuery] = useState('');
   const searchQuery = useDebouncedValue(query);
   const [offset, setOffset] = useState(0);
@@ -139,7 +141,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       setLoading(true); setFailure('');
       try {
         if (view === 'clients') {
-          const result = await agendaCall('k5_crm_list_clients', { query: searchQuery, ...(caseId ? { caseId } : {}), ...(status ? { stage: status } : {}), limit: 50, offset });
+          const result = await agendaCall('k5_crm_list_clients', { query: searchQuery, ...(caseId ? { caseId } : {}), ...(status ? { stage: status } : {}), ...(legalArea ? { legalArea: legalArea as LegalArea } : {}), limit: 50, offset });
           if (!cancelled) { setClientRows(result.clients); setTotal(result.total); }
         } else {
           const from = new Date(`${day}T00:00:00`); const to = new Date(from); to.setDate(to.getDate() + 1);
@@ -154,7 +156,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     }
     void load();
     return () => { cancelled = true; };
-  }, [view, day, caseId, clientId, searchQuery, status, offset, revision]);
+  }, [view, day, caseId, clientId, searchQuery, status, legalArea, offset, revision]);
 
   function changeView(value: View) { setView(value); setStatus(''); setOffset(0); setQuery(''); setLoading(true); }
   function inspect(value: Editor) { if (value.mode === 'client' && value.client) router.push(`/app/agenda/clients/${encodeURIComponent(value.client.id)}`); else if (canWrite) setEditor(value); else setDetail(value); }
@@ -186,6 +188,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     <div className="grid gap-3 py-5 sm:grid-cols-2 lg:grid-cols-4">
       <Input aria-label={view === 'clients' ? 'Buscar clientes' : 'Buscar atividades'} placeholder={view === 'clients' ? 'Buscar clientes' : 'Buscar atividades'} value={query} onChange={event => { setQuery(event.target.value); setOffset(0); setLoading(true); }} className="h-11 md:h-9" />
       <select aria-label="Filtrar por caso" value={caseId} onChange={event => { setCaseId(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">Todos os casos</option>{caseId && !cases.some(c => c.id === caseId) && <option value={caseId}>Caso selecionado</option>}{cases.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      {view === 'clients' && <select aria-label="Filtrar área" value={legalArea} onChange={event => { setLegalArea(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">Todas as áreas</option>{legalAreas.map(area => <option key={area} value={area}>{legalAreaLabels[area]}</option>)}</select>}
       {view !== 'clients' && <ClientPicker label="Filtrar por cliente" emptyLabel="Todos os clientes" value={clientId} choices={clients} onChange={(id, client) => { setClientId(id); setOffset(0); setLoading(true); if (client) setClients(current => [...current.filter(item => item.id !== client.id), client]); }} />}
       <select aria-label={view === 'clients' ? 'Filtrar relacionamento' : 'Filtrar situação'} value={status} onChange={event => { setStatus(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">{view === 'clients' ? 'Todos os relacionamentos' : 'Todas as situações'}</option>{Object.entries(view === 'clients' ? stageLabels : statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
     </div>
@@ -196,7 +199,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       {view === 'calendar' && day && <div className="md:w-72 md:shrink-0"><Calendar day={day} markers={markers} onChange={value => { setDay(value); setOffset(0); setLoading(true); }} />{markersLoading && <p role="status" className="mt-3 text-xs text-muted-foreground">Carregando marcadores…</p>}{markerFailure && <div className="mt-3 space-y-2"><p role="alert" className="text-xs text-destructive">{markerFailure}</p><Button variant="ghost" onClick={refresh}>Tentar novamente</Button></div>}</div>}
       <section aria-label={view === 'clients' ? 'Clientes' : 'Atividades'} aria-busy={loading} className="min-w-0 flex-1">
         {view === 'calendar' && <div className="mb-4"><h2 className="text-base font-medium">{day && dateLabel(day)}</h2><p className="mt-1 text-xs text-muted-foreground">Horários em {timeZone}</p></div>}
-        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : 'Nenhuma tarefa encontrada.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-xs text-muted-foreground">{stageLabels[client.stage]}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : <div className="divide-y border-y">{activities.map(activity => <article key={activity.id} className="flex items-start gap-3 py-4">
+        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : 'Nenhuma tarefa encontrada.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-xs text-muted-foreground">{stageLabels[client.stage]}{client.legalAreas.length ? ` · ${client.legalAreas.map(area => legalAreaLabels[area]).join(', ')}` : ''}{client.city ? ` · ${client.city}${client.state ? `/${client.state}` : ''}` : ''}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : <div className="divide-y border-y">{activities.map(activity => <article key={activity.id} className="flex items-start gap-3 py-4">
           {canWrite && activity.kind === 'task' && activity.status !== 'cancelled' && <input aria-label={`${activity.status === 'completed' ? 'Reabrir' : 'Concluir'} ${activity.title}`} type="checkbox" checked={activity.status === 'completed'} disabled={busy} onChange={() => void complete(activity)} className="mt-1 size-5 shrink-0 accent-primary" />}
           <div className="min-w-0 flex-1"><button type="button" onClick={() => inspect({ mode: 'activity', activity })} className="break-words text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{activity.title}</button><p className="mt-1 text-xs text-muted-foreground">{period(activity)} · {activity.kind === 'meeting' ? 'Reunião' : 'Tarefa'} · {statusLabels[activity.status]}{activity.kind === 'task' && activity.status === 'pending' && activity.dueOn && activity.dueOn < localDate(new Date()) ? ' · Atrasada' : ''}</p><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">{activity.clientId && <span>{findName(clients, activity.clientId)}</span>}{activity.assigneeId && <span>{findName(members, activity.assigneeId) ?? 'Responsável anterior'}</span>}{activity.caseId && cases.some(c => c.id === activity.caseId) && <Link href={`/app/vault/cases/${encodeURIComponent(activity.caseId)}`} className="underline underline-offset-4">{findName(cases, activity.caseId)}</Link>}</div></div>
         </article>)}</div>}

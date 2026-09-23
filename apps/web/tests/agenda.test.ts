@@ -119,3 +119,26 @@ test('agenda: simultaneous create retries commit exactly one client and one acti
     assert.equal((await testDb.prepare('SELECT count(*) AS n FROM agenda_activity WHERE office_id=?').get(context.officeId))!.n, round + 1);
   }
 });
+
+test('agenda: client address and practice areas, filters, partial updates and retries', async () => {
+  const a = (await fixture()); const b = (await fixture());
+  type Client = z.output<typeof agendaCapabilities.k5_crm_create_client.output>['client'];
+  const input = { name: 'João Pereira', addressLine: ' Rua da Aurora, 100, Boa Vista ', city: 'Recife', state: 'PE', postalCode: '50050-000',
+    legalAreas: ['previdenciario', 'trabalhista', 'previdenciario'], idempotencyKey: randomUUID() };
+  const { client } = await call(a.context, 'k5_crm_create_client', input) as { client: Client };
+  assert.equal(client.addressLine, 'Rua da Aurora, 100, Boa Vista');
+  assert.deepEqual([...client.legalAreas].sort(), ['previdenciario', 'trabalhista']);
+  // The same retry is idempotent; a retry with a different profile is a conflict.
+  assert.equal(((await call(a.context, 'k5_crm_create_client', input)) as { client: Client }).client.id, client.id);
+  await assert.rejects(async () => (await call(a.context, 'k5_crm_create_client', { ...input, city: 'Olinda' })), { code: 'CONFLICT' });
+  await call(a.context, 'k5_crm_create_client', { name: 'Sem área', city: '' });
+  const byArea = await call(a.context, 'k5_crm_list_clients', { legalArea: 'trabalhista', limit: 50, offset: 0 }) as { clients: Client[]; total: number };
+  assert.deepEqual(byArea.clients.map(c => c.id), [client.id]);
+  assert.equal((await call(b.context, 'k5_crm_list_clients', { legalArea: 'trabalhista', limit: 50, offset: 0 }) as { total: number }).total, 0);
+  // Omitted fields are preserved; cleared text becomes null.
+  const updated = (await call(a.context, 'k5_crm_update_client', { clientId: client.id, version: client.version, legalAreas: ['civel'], addressLine: '' }) as { client: Client }).client;
+  assert.deepEqual(updated.legalAreas, ['civel']); assert.equal(updated.addressLine, null); assert.equal(updated.city, 'Recife'); assert.equal(updated.postalCode, '50050-000');
+  for (const invalid of [{ state: 'XX' }, { postalCode: '5005' }, { legalAreas: ['familia'] }]) {
+    await assert.rejects(async () => (await call(a.context, 'k5_crm_update_client', { clientId: client.id, version: updated.version, ...invalid })));
+  }
+});

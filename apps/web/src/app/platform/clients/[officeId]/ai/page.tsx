@@ -3,8 +3,6 @@ import { notFound } from "next/navigation";
 import { PlatformConnections } from "@/components/platform-connections";
 import { getOfficeForPlatform, listAiConnections } from "@/lib/ai-connections-core";
 import { requirePlatformPage } from "@/lib/platform";
-import { TypesafeSettings } from '@/components/typesafe-settings';
-import { connectionView } from '@/lib/typesafe/config';
 import { resolveOfficeModelConfig } from '@/lib/ai-connections';
 import { providerCatalog } from '@/lib/ai-providers';
 import { isChatModel } from '@/lib/ai-defaults';
@@ -32,7 +30,7 @@ export default async function ClientAiPage({ params }: PageProps<"/platform/clie
       </div>
       <PlatformConnections officeId={office.id} initialConnections={connections} modelCatalog={modelCatalog}
         initialModel={current ? { connectionId: current.connectionId, modelId: current.modelId } : null} />
-      <TypesafeSettings officeId={office.id} initial={await connectionView(office.id)} />
+      <p className="mt-8 border-t pt-6 text-sm text-muted-foreground">O TypeSafe usa a conexão única da plataforma. <Link href="/platform/typesafe" className="underline underline-offset-4">Configurar TypeSafe</Link></p>
     </section>
   );
 }

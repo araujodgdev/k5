@@ -19,7 +19,7 @@ export async function rerankResearchResults<T extends { id: string; text: string
   options: { signal?: AbortSignal; send?: DecisionTransport } = {},
 ): Promise<{ candidates: T[]; status: Evaluation['status']; applied: boolean; reason?: string }> {
   const bounded = candidates.slice(0, 30);
-  const config = await getConnection(context.officeId);
+  const config = await getConnection();
   const mode = config?.research_mode ?? 'off';
   if (!config?.enabled || !config.encrypted_api_key || mode === 'off' || !bounded.length)
     return { candidates, status: 'disabled', applied: false };
@@ -59,7 +59,7 @@ export async function rerankResearchResults<T extends { id: string; text: string
     });
   }
   if (signal.aborted || scores.size !== bounded.length) return { candidates, status: 'unavailable', applied: false, reason: 'incomplete_response' };
-  const current = await getConnection(context.officeId);
+  const current = await getConnection();
   if (!current?.enabled || current.version !== config.version || current.research_mode !== mode)
     return { candidates, status: 'unavailable', applied: false, reason: 'configuration_changed' };
   const sorted = [...bounded].sort((a,b) => (scores.get(b.id) ?? -1) - (scores.get(a.id) ?? -1));

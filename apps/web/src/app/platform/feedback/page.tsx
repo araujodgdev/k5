@@ -1,49 +1,56 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requirePlatformPage } from '@/lib/platform';
-import { platformFeedback } from '@/lib/feedback-core';
-import { preferenceLabels, ratingCriteria } from '@/lib/feedback-contract';
+import { platformTickets } from '@/lib/feedback-tickets';
+import { kindLabels, moduleLabels, priorityLabels, statusLabels, ticketKinds, ticketModules, ticketPriorities, ticketStatuses } from '@/lib/feedback-tickets-contract';
 
-export const metadata = { title: 'Avaliações dos modelos' };
+export const metadata = { title: 'Feedback' };
 
-export default async function PlatformFeedbackPage() {
+const selectStyle = 'h-11 w-full rounded-md border bg-background px-3 text-sm md:h-9';
+const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' });
+const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? '';
+
+export default async function PlatformFeedbackPage({ searchParams }: PageProps<'/platform/feedback'>) {
   const context = await requirePlatformPage();
   if (!context) notFound();
-  const data = await platformFeedback(context.db, context.user.id);
-  const name = (key: string) => data.models.find(model => model.key === key)?.name ?? key;
+  const params = await searchParams;
+  const filters = { status: one(params.status), kind: one(params.kind), module: one(params.module), priority: one(params.priority),
+    officeId: one(params.officeId), review: one(params.review), page: Number(one(params.page)) || 0 };
+  const data = await platformTickets(context.user.id, filters, context.db);
+  const query = (page: number) => `?${new URLSearchParams({ ...Object.fromEntries(Object.entries(filters).filter(([key, value]) => key !== 'page' && value)), page: String(page) })}`;
   return <section className="mx-auto max-w-6xl">
-    <header className="flex flex-wrap items-center justify-between gap-4"><h1 className="display text-[28px]">Avaliações dos modelos</h1>
-      <a download className="inline-flex min-h-11 items-center rounded-md border px-4 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback">Exportar avaliações em JSON</a>
-    </header>
-    <div className="mt-4 border-b pb-4 text-sm">
-      <a download className="inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback?format=dataset">Exportar base para avaliação e curadoria</a>
-      <a download className="ml-4 inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback?history=1">Exportar histórico das rodadas</a>
-      <p className="max-w-3xl text-xs text-muted-foreground">Inclui contexto, arquivos, origem e avaliações com autorização de uso, sem nomes ou escritórios. Preferências precisam de revisão antes de treinamento; respostas para SFT precisam de revisão especializada. Saídas da Meta e Inception ficam restritas à avaliação até revisão dos termos aplicáveis.</p>
-    </div>
-    <p className="mt-4 text-sm text-muted-foreground">{data.title} · {data.votes.length} {data.votes.length === 1 ? 'avaliação' : 'avaliações'} · Um voto por usuário, antes da revelação dos modelos.</p>
-    <p className="mt-2 text-xs text-muted-foreground">Notas de 1 a 5. “Não avaliei” não entra na média. Preferências de usuários deste piloto não equivalem à pontuação oficial do Harvey LAB.</p>
-    {data.votes.length === 0 ? <div className="py-12"><p className="text-muted-foreground">Nenhuma avaliação recebida.</p><Link className="mt-3 inline-flex min-h-11 items-center underline underline-offset-4" href="/app/feedback">Abrir a página de avaliação</Link></div> : <>
-      <div className="mt-8 overflow-x-auto"><table className="w-full text-left text-sm">
-        <caption className="sr-only">Preferências e médias por modelo</caption>
-        <thead className="border-b text-xs text-muted-foreground"><tr><th className="py-3 pr-5 font-normal">Modelo</th><th className="px-4 py-3 font-normal">Comparações</th><th className="px-4 py-3 font-normal">Preferências</th>{ratingCriteria.map(c => <th key={c.key} className="px-4 py-3 font-normal">{c.label}</th>)}</tr></thead>
-        <tbody>{data.models.map(model => <tr key={model.key} className="border-b"><th className="py-5 pr-5 font-medium">{model.name}</th><td className="px-4 py-5">{data.votes.filter(v => v.assessments.some(a => a.model === model.key)).length}</td><td className="px-4 py-5">{data.votes.filter(v => v.preferredModel === model.key).length}</td>
-          {ratingCriteria.map(c => {
-            const values = data.votes.flatMap(v => v.assessments.filter(a => a.model === model.key).map(a => a[c.key])).filter((v): v is number => v !== null);
-            return <td key={c.key} className="whitespace-nowrap px-4 py-5 tabular-nums">{values.length ? `${(values.reduce((sum, v) => sum + v, 0) / values.length).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} / 5` : 'Sem notas'}<span className="mt-1 block text-xs text-muted-foreground">{values.length} notas</span></td>;
-          })}</tr>)}</tbody>
-      </table></div>
-      <p className="mt-4 text-sm text-muted-foreground">{(['tie', 'neither', 'unsure'] as const).map(key => `${preferenceLabels[key]}: ${data.votes.filter(v => v.preference === key).length}`).join(' · ')}</p>
-      <h2 className="mt-10 mb-3 font-medium">Comentários e notas individuais</h2>
-      <div className="divide-y">{data.votes.map(vote => <article key={vote.id} className="py-5">
-        <div className="flex flex-wrap justify-between gap-2"><h3 className="text-sm font-medium">{vote.userName} · {vote.officeName}</h3><span className="text-xs text-muted-foreground">{vote.createdAt} UTC</span></div>
-        <p className="mt-2 text-sm">Preferência: {vote.preferredModel ? name(vote.preferredModel) : preferenceLabels[vote.preference]}</p>
-        {vote.comment && <p className="mt-3 whitespace-pre-wrap break-words text-sm">{vote.comment}</p>}
-        <div className="mt-4 grid gap-5 md:grid-cols-2">{vote.assessments.map(assessment => <div key={assessment.side} className="min-w-0 text-sm">
-          <h4 className="font-medium">{name(assessment.model)} <span className="font-normal text-muted-foreground">(Resposta {assessment.side.toUpperCase()})</span></h4>
-          <dl className="mt-2 grid grid-cols-2 gap-2 text-xs">{ratingCriteria.map(c => <div key={c.key}><dt className="text-muted-foreground">{c.label}</dt><dd>{assessment[c.key] ?? 'Não avaliei'}</dd></div>)}</dl>
-          <p className="mt-3 whitespace-pre-wrap break-words">{assessment.comment || 'Sem comentário sobre esta resposta.'}</p>
-        </div>)}</div>
-      </article>)}</div>
+    <header className="flex flex-wrap items-center justify-between gap-4"><h1 className="display text-[28px]">Feedback</h1>
+      <Link href="/platform/feedback/historico" className="inline-flex min-h-11 items-center text-sm underline underline-offset-4 md:min-h-0">Histórico A/B</Link></header>
+    <p className="mt-2 text-sm text-muted-foreground">{ticketStatuses.map(status => `${statusLabels[status]}: ${data.counts[status]}`).join(' · ')}</p>
+    <form className="mt-6 grid gap-3 border-b pb-5 sm:grid-cols-3 lg:grid-cols-6" aria-label="Filtrar tickets">
+      <select name="status" aria-label="Situação" defaultValue={filters.status} className={selectStyle}><option value="">Abertos</option>{ticketStatuses.map(value => <option key={value} value={value}>{statusLabels[value]}</option>)}<option value="all">Todos</option></select>
+      <select name="kind" aria-label="Tipo" defaultValue={filters.kind} className={selectStyle}><option value="">Todos os tipos</option>{ticketKinds.map(value => <option key={value} value={value}>{kindLabels[value]}</option>)}</select>
+      <select name="module" aria-label="Módulo" defaultValue={filters.module} className={selectStyle}><option value="">Todos os módulos</option>{ticketModules.map(value => <option key={value} value={value}>{moduleLabels[value]}</option>)}</select>
+      <select name="priority" aria-label="Prioridade" defaultValue={filters.priority} className={selectStyle}><option value="">Todas as prioridades</option>{ticketPriorities.map(value => <option key={value} value={value}>{priorityLabels[value]}</option>)}</select>
+      <select name="officeId" aria-label="Escritório" defaultValue={filters.officeId} className={selectStyle}><option value="">Todos os escritórios</option>{data.offices.map(office => <option key={office.id} value={office.id}>{office.name}</option>)}</select>
+      <div className="flex items-center gap-3"><label className="flex min-h-11 items-center gap-2 text-sm md:min-h-9"><input type="checkbox" name="review" value="1" defaultChecked={filters.review === '1'} className="size-4 accent-primary" />A revisar</label>
+        <button type="submit" className="ml-auto inline-flex h-11 items-center rounded-md border px-4 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 md:h-9">Filtrar</button></div>
+    </form>
+    {data.tickets.length === 0 ? <p className="py-12 text-sm text-muted-foreground">Nenhum ticket com esses filtros.</p> : <>
+      <div className="hidden grid-cols-[4.5rem_7rem_minmax(0,1fr)_7rem_9rem_6rem] gap-4 border-b py-3 text-[13px] text-muted-foreground md:grid" aria-hidden="true">
+        <span>Número</span><span>Prioridade</span><span>Relato</span><span>Tipo</span><span>Módulo</span><span>Situação</span></div>
+      <div className="divide-y border-b">{data.tickets.map(ticket => <Link key={ticket.id} href={`/platform/feedback/${ticket.id}`}
+        className="grid gap-1 py-4 outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[4.5rem_7rem_minmax(0,1fr)_7rem_9rem_6rem] md:gap-4">
+        <span className="text-sm tabular-nums text-muted-foreground">#{ticket.number}</span>
+        <span className={`text-sm ${ticket.priority === 'p0' ? 'font-medium' : ''}`}>{priorityLabels[ticket.priority]}</span>
+        <span className="min-w-0"><span className="line-clamp-2 break-words text-sm">{ticket.excerpt}</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{[ticket.officeName, ticket.userName ?? 'Usuário removido', dateFormat.format(new Date(ticket.createdAt)),
+            ticket.securityFlag && 'Possível incidente de segurança', ticket.personalDataFlag && 'Contém dados pessoais',
+            ticket.classificationStatus === 'pending' || ticket.classificationStatus === 'running' ? 'Classificando' : ticket.needsReview && 'Revisar classificação'].filter(Boolean).join(' · ')}</span></span>
+        <span className="text-sm">{ticket.kind ? kindLabels[ticket.kind] : '—'}</span>
+        <span className="text-sm">{ticket.module ? moduleLabels[ticket.module] : '—'}</span>
+        <span className="text-sm">{statusLabels[ticket.status]}</span>
+      </Link>)}</div>
+      {data.total > 50 && <nav aria-label="Páginas" className="mt-4 flex items-center justify-between gap-2 text-sm">
+        {data.page > 0 ? <Link className="inline-flex min-h-11 items-center underline underline-offset-4" href={query(data.page - 1)}>Anterior</Link> : <span />}
+        <span className="text-xs text-muted-foreground">{data.page * 50 + 1}–{Math.min((data.page + 1) * 50, data.total)} de {data.total}</span>
+        {(data.page + 1) * 50 < data.total ? <Link className="inline-flex min-h-11 items-center underline underline-offset-4" href={query(data.page + 1)}>Próxima</Link> : <span />}
+      </nav>}
     </>}
   </section>;
 }

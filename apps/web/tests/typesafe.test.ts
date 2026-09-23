@@ -2,7 +2,7 @@ import { testDb, testDatabase } from './test-setup';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { saveConnection, connectionView } from '../src/lib/typesafe/config';
+import { saveConnection, connectionView, removeConnection } from '../src/lib/typesafe/config';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
 import { evaluate, type DecisionTransport, type DecisionRequest } from '../src/lib/typesafe/client';
 import { rerank } from '../src/lib/typesafe/rerank';
@@ -14,7 +14,7 @@ import { publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts'
 import { agendaCapabilities } from '../src/lib/capabilities/agenda';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import { ownedArtifact } from '../src/lib/ai-store';
-import { createCredentialKeyring, decryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
+import { createCredentialKeyring, decryptCredential, encryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
 import { reencryptAiConnectionSecrets } from '../src/lib/ai-connections-core';
 import { runWorkerQueues } from '../src/lib/worker-scheduler';
 import { enqueueDeletion, processNextDeletion } from '../src/lib/knowledge/indexing';
@@ -28,7 +28,7 @@ async function fixture(role: WorkspaceContext['role'] = 'lawyer') {
   return { officeId, userId, role };
 }
 async function configure(context: WorkspaceContext, patch: Record<string, unknown> = {}) {
-  return saveConnection(context.officeId, context.userId, connectionSettings.parse({ apiKey: `fake-${context.officeId}`, enabled: true, rag: 'enabled', documents: 'enabled', agenda: 'enabled', version: (await connectionView(context.officeId)).version, ...patch }));
+  return saveConnection(context.userId, connectionSettings.parse({ apiKey: `fake-${context.officeId}`, enabled: true, rag: 'enabled', documents: 'enabled', agenda: 'enabled', version: (await connectionView()).version, ...patch }));
 }
 function response(request: DecisionRequest, choices: Record<string, string> = {}) {
   return { model: request.model, usage: { input_tokens: 100, output_tokens: 0 }, answers: Object.fromEntries(Object.entries(request.questions).map(([name, question]) => {
@@ -44,30 +44,47 @@ function response(request: DecisionRequest, choices: Record<string, string> = {}
 const send: DecisionTransport = async (_key, request) => response(request);
 const request = { state: 'Texto de teste privado', questionVersion: 'test-v1', questions: { present: { type: 'noul' as const, instructions: 'Existe texto?' } } };
 
-test('typesafe: encrypted office settings, platform authorization, defaults and stale versions', async () => {
+test('typesafe: an existing office key is adopted once as the platform connection', async () => {
   const a = (await fixture()); const b = (await fixture());
-  assert.equal((await connectionView(a.officeId)).rag, 'off');
-  const config = await configure(a);
-  assert.equal(config.version, 1);
-  assert.ok(!JSON.stringify(config).includes(`fake-${a.officeId}`));
-  const row = (await testDb.prepare('SELECT encrypted_api_key FROM typesafe_connection WHERE office_id=?').get(a.officeId))!;
-  assert.equal(decryptCredential(String(row.encrypted_api_key), parseCredentialKeyring()), `fake-${a.officeId}`);
-  await assert.rejects(saveConnection(a.officeId, a.userId, connectionSettings.parse({ version: 0 })), { code: 'conflict' });
-  (await testDb.prepare('DELETE FROM platform_admin WHERE user_id=?').run(a.userId));
-  await assert.rejects(async () => (await configure(a)));
-  assert.equal((await connectionView(b.officeId)).hasKey, false);
-});
-test('typesafe: credentials are resolved per office and provider failures never escape', async () => {
-  const a = (await fixture()); const b = (await fixture()); await configure(a); await configure(b);
+  (await testDb.prepare("INSERT INTO typesafe_connection(office_id,encrypted_api_key,key_hint,enabled,rag_mode,updated_at) VALUES(?,?,?,1,'shadow',CURRENT_TIMESTAMP - interval '1 day')").run(a.officeId, encryptCredential('older-key', parseCredentialKeyring()), 'older'));
+  (await testDb.prepare("INSERT INTO typesafe_connection(office_id,encrypted_api_key,key_hint,enabled,rag_mode) VALUES(?,?,?,1,'enabled')").run(b.officeId, encryptCredential('legacy-office-key', parseCredentialKeyring()), 'lega-key'));
+  const adopted = await connectionView();
+  assert.equal(adopted.hasKey, true); assert.equal(adopted.keyHint, 'lega-key'); assert.equal(adopted.rag, 'enabled'); assert.equal(adopted.feedback, 'enabled');
+  const row = (await testDb.prepare('SELECT encrypted_api_key,adopted_from_office_id FROM typesafe_platform_connection WHERE id=1').get<{ encrypted_api_key: string; adopted_from_office_id: string }>())!;
+  assert.equal(decryptCredential(row.encrypted_api_key, parseCredentialKeyring()), 'legacy-office-key');
+  assert.equal(row.adopted_from_office_id, b.officeId);
+  // Every office now evaluates with that one key.
   for (const context of [a, b]) {
-    const result = await evaluate(context, 'rag', request, { send: async (key, req) => { assert.equal(key, `fake-${context.officeId}`); return response(req); } });
+    const result = await evaluate(context, 'rag', request, { send: async (key, req) => { assert.equal(key, 'legacy-office-key'); return response(req); } });
     assert.equal(result.status, 'evaluated');
   }
-  const failed = await evaluate(a, 'rag', request, { send: async () => { throw Object.assign(new Error('private provider response'), { status: 401 }); } });
+  // Removing the platform key never re-adopts an office key.
+  await removeConnection(a.userId);
+  assert.equal((await connectionView()).hasKey, false);
+});
+test('typesafe: encrypted platform settings, platform authorization, defaults and stale versions', async () => {
+  const a = (await fixture());
+  assert.equal((await connectionView()).hasKey, false);
+  const config = await configure(a);
+  assert.ok(!JSON.stringify(config).includes(`fake-${a.officeId}`));
+  const row = (await testDb.prepare('SELECT encrypted_api_key FROM typesafe_platform_connection WHERE id=1').get())!;
+  assert.equal(decryptCredential(String(row.encrypted_api_key), parseCredentialKeyring()), `fake-${a.officeId}`);
+  await assert.rejects(saveConnection(a.userId, connectionSettings.parse({ version: 0 })), { code: 'conflict' });
+  (await testDb.prepare('DELETE FROM platform_admin WHERE user_id=?').run(a.userId));
+  await assert.rejects(async () => (await configure(a)));
+});
+test('typesafe: one platform credential serves every office and provider failures never escape', async () => {
+  const a = (await fixture()); const b = (await fixture()); await configure(a);
+  for (const context of [a, b]) {
+    const result = await evaluate(context, 'rag', request, { send: async (key, req) => { assert.equal(key, `fake-${a.officeId}`); return response(req); } });
+    assert.equal(result.status, 'evaluated');
+  }
+  const offices = (await testDb.prepare('SELECT DISTINCT office_id FROM typesafe_evaluation WHERE office_id IN (?,?)').all(a.officeId, b.officeId));
+  assert.equal(offices.length, 2);
+  const failed = await evaluate(b, 'rag', request, { send: async () => { throw Object.assign(new Error('private provider response'), { status: 401 }); } });
   assert.equal(failed.status, 'unavailable'); assert.ok(!JSON.stringify(failed).includes('private provider'));
-  assert.equal((await connectionView(a.officeId)).enabled, false);
-  assert.equal((await connectionView(b.officeId)).enabled, true);
-  const audits = (await testDb.prepare('SELECT * FROM typesafe_evaluation WHERE office_id=?').all(a.officeId));
+  assert.equal((await connectionView()).enabled, false);
+  const audits = (await testDb.prepare('SELECT * FROM typesafe_evaluation WHERE office_id=?').all(b.officeId));
   assert.ok(!JSON.stringify(audits).includes('Texto de teste privado'));
 });
 test('typesafe: concurrent reservations bound spend and timeout remains charged', async () => {
@@ -305,6 +322,6 @@ test('typesafe: key rotation includes decision connections in the atomic batch',
   const current = parseCredentialKeyring(); const next = createCredentialKeyring(randomBytes(32), [current.current.key]);
   const result = await reencryptAiConnectionSecrets(testDatabase, next, context.userId);
   assert.ok(result.reencrypted > 0);
-  const row = (await testDb.prepare('SELECT encrypted_api_key FROM typesafe_connection WHERE office_id=?').get(context.officeId))!;
+  const row = (await testDb.prepare('SELECT encrypted_api_key FROM typesafe_platform_connection WHERE id=1').get())!;
   assert.equal(decryptCredential(String(row.encrypted_api_key), next), `fake-${context.officeId}`);
 });

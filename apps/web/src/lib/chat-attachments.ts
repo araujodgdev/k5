@@ -6,6 +6,7 @@ import { validatedFileName } from './application/uploads-service';
 import { extractDocumentSections } from './document-extraction';
 import { CapabilityError } from './capabilities/errors';
 import { captureOperationalError } from './observability/report';
+import { imageMatchesType } from './image-signature';
 import { type Owner, conversation } from './ai-store';
 import { MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, type ChatAttachment } from './chat-attachment-contract';
 
@@ -25,12 +26,7 @@ export async function createChatAttachment(owner: Owner, conversationId: string,
   if (!file.size || file.size>MAX_CHAT_FILE_BYTES) throw new CapabilityError('INVALID','Envie um arquivo de até 10 MB, com conteúdo.');
   const bytes=Buffer.from(await file.arrayBuffer());
   if (bytes.length>MAX_CHAT_FILE_BYTES) throw new CapabilityError('INVALID','O arquivo excede 10 MB.');
-  if (mimeType.startsWith('image/')) {
-    const valid = mimeType==='image/png' ? bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
-      : mimeType==='image/jpeg' ? bytes[0]===255 && bytes[1]===216 && bytes[2]===255
-      : bytes.toString('ascii',0,4)==='RIFF' && bytes.toString('ascii',8,12)==='WEBP';
-    if (!valid) throw new CapabilityError('INVALID','A imagem não corresponde ao formato informado.');
-  }
+  if (mimeType.startsWith('image/') && !imageMatchesType(bytes,mimeType)) throw new CapabilityError('INVALID','A imagem não corresponde ao formato informado.');
   const id=randomUUID();
   let extracted='';
   if (!mimeType.startsWith('image/')) {
