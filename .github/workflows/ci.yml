@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   pull_request:
@@ -52,7 +52,7 @@ jobs:
           DATABASE_URL: postgresql://k5:ci-build-only@127.0.0.1:5432/k5_ci
           BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
           BETTER_AUTH_URL: http://localhost:3000
-          K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnVu
+          K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnQ=
           SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
           SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
           SENTRY_RELEASE: ${{ github.sha }}
@@ -79,9 +79,9 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only --diff-filter=MD "$base"...HEAD -- 'apps/web/db/migrations/*.sql')
           if [ -n "$changed" ]; then
-            echo "Estas migrações já aplicadas foram alteradas ou removidas:"
+            echo "Estas migraÃ§Ãµes jÃ¡ aplicadas foram alteradas ou removidas:"
             echo "$changed"
-            echo "Crie uma nova migração em vez de editar uma existente."
+            echo "Crie uma nova migraÃ§Ã£o em vez de editar uma existente."
             exit 1
           fi
-          echo "Nenhuma migração existente foi alterada."
+          echo "Nenhuma migraÃ§Ã£o existente foi alterada."
