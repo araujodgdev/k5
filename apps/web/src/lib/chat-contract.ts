@@ -14,4 +14,5 @@ export const chatRequestSchema = z.object({
   message: messageSchema,
   trigger: z.enum(['submit-message', 'regenerate-message']).optional(),
   messageId: z.string().optional(),
+  timeZone: z.string().max(80).optional(),
 });

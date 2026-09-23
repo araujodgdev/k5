@@ -20,8 +20,17 @@
   --popover: #ffffff;
   --popover-foreground: #1b1b1a;
 
-  /* Primary is ink; terracotta marks scheduled activity. */
-  --schedule: #a3542c;
+  /* Primary is ink. Brand is the earthy orange of the Lume: focus, selection, the active
+     place and the agent's own marks. Brand-ink is the same hue dark enough for text (5.2:1). */
+  --brand: #d97757;
+  --brand-ink: #b0502f;
+  --brand-soft: color-mix(in oklab, #d97757 11%, #ffffff);
+  /* One quiet hue per module, used on its icon and on 2px markers, never as a fill. */
+  --module-lume: #d97757;
+  --module-vault: #4f6d8f;
+  --module-agenda: #b08a2e;
+  --module-research: #5f7f5a;
+  --schedule: #8a6a1c;          /* agenda text: dates, meetings, overdue (5:1) */
   --primary: #1b1b1a;
   --primary-foreground: #ffffff;
   --secondary: #f3f3f1;
@@ -35,7 +44,7 @@
   --destructive: #b3261e;
   --border: #e8e8e5;
   --input: #d4d4d0;
-  --ring: #1b1b1a;
+  --ring: #d97757;
   --overlay: #1b1b1a;
 
   --sidebar: #fafaf9;
@@ -45,8 +54,9 @@
   --sidebar-accent: #ebebe8;
   --sidebar-accent-foreground: #1b1b1a;
   --sidebar-border: #e8e8e5;
-  --sidebar-ring: #1b1b1a;
+  --sidebar-ring: #d97757;
   --sidebar-width: 15.5rem;
+  --sidebar-width-icon: 3.75rem;
 
   --radius: 0.75rem;
   --tabbar-h: 64px;
@@ -55,7 +65,14 @@
 }
 
 .dark {
-  --schedule: #d49a72;
+  --brand: #e08a6b;
+  --brand-ink: #eba184;
+  --brand-soft: color-mix(in oklab, #e08a6b 16%, #20201e);
+  --module-lume: #e08a6b;
+  --module-vault: #8faacb;
+  --module-agenda: #d6b25a;
+  --module-research: #9dbb94;
+  --schedule: #d6b25a;
   color-scheme: dark;
   --background: #20201e;
   --foreground: #f3f3ef;
@@ -76,7 +93,7 @@
   --destructive: #ff9c94;
   --border: #393935;
   --input: #62625b;
-  --ring: #f3f3ef;
+  --ring: #e08a6b;
   --overlay: #000000;
   --sidebar: #171715;
   --sidebar-foreground: #f3f3ef;
@@ -85,8 +102,35 @@
   --sidebar-accent: #353531;
   --sidebar-accent-foreground: #f3f3ef;
   --sidebar-border: #393935;
-  --sidebar-ring: #f3f3ef;
+  --sidebar-ring: #e08a6b;
   --shadow-float: 0 1px 2px rgb(0 0 0 / .18), 0 8px 24px rgb(0 0 0 / .24);
+}
+
+/* Film grain over the sign-in light. */
+.lume-light-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .35;
+  mix-blend-mode: overlay;
+}
+
+/* Sign-in light without WebGL: the same palette, still. */
+.lume-light-fallback {
+  background:
+    radial-gradient(60% 55% at 30% 38%, rgb(47 75 124 / .55), transparent 70%),
+    radial-gradient(70% 60% at 78% 30%, #f2b872, transparent 70%),
+    radial-gradient(80% 70% at 60% 85%, #d97757, transparent 72%),
+    #f6efe6;
+  filter: blur(24px);
+  transform: scale(1.1);
+}
+.dark .lume-light-fallback { background-color: #1c1a18; opacity: .85; }
+
+/* Desktop menu: the preference restored in the head sets the width before the first paint. */
+@media (min-width: 768px) {
+  html[data-nav="collapsed"] .app-nav { --sidebar-width: 3.75rem; }
+  html[data-nav="collapsed"] .app-nav .nav-label { display: none; }
+  html[data-nav="collapsed"] .app-nav :is(.nav-mark, .nav-dot) { display: block; }
+  html[data-nav="collapsed"] .app-nav [data-sidebar="menu-button"] { justify-content: center; }
 }
 
 /* Both panes exist in SSR. Geometry follows CSS and the preference restored in the head. */
@@ -106,6 +150,13 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
 
 @theme inline {
   --color-schedule: var(--schedule);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-module-lume: var(--module-lume);
+  --color-module-vault: var(--module-vault);
+  --color-module-agenda: var(--module-agenda);
+  --color-module-research: var(--module-research);
   --color-overlay: var(--overlay);
   --color-canvas: var(--canvas);
   --color-subtle-foreground: var(--subtle-foreground);

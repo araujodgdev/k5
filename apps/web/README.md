@@ -87,8 +87,12 @@ Tarefas usam datas civis opcionais; reuniões exigem início e fim com offset, p
 UTC e apresentados no fuso do navegador. Não há cálculo automático de prazos judiciais.
 
 As capacidades `k5_crm_*` e `k5_agenda_*` usam o mesmo executor da interface,
-Mastra e WebMCP. Agentes preparam sugestões por `k5_agenda_interpret`; criação,
-alteração e confirmação de atividades ficam disponíveis somente na interface humana.
+Mastra e WebMCP. O Lume cria, altera, conclui e reagenda atividades direto, com o
+papel e o escritório da sessão; WebMCP continua preparando sugestões por `k5_agenda_interpret`.
+Ações de alto impacto pedidas pelo Lume (excluir caso, documento, pasta ou conversa, vincular,
+desvincular ou consultar um tribunal, sobrescrever uma minuta) viram uma proposta em
+`capability_approval` e só rodam quando a pessoa aperta **Confirmar** no chat
+(`/api/chat/approvals/[id]`), com exatamente os argumentos propostos.
 Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
 escritas verificam origem e papel. Chaves de idempotência evitam criação duplicada em
 repetições, inclusive simultâneas. `k5_ui_open_resource` abre agenda, cliente e atividade.

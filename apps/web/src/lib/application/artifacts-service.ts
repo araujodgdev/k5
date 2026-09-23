@@ -1,6 +1,7 @@
 import 'server-only';
 import { database } from '@/lib/database';
 import { ownedArtifact, publicArtifact, updateArtifact, type ArtifactRow } from '@/lib/ai-store';
+import { requireAgentApproval } from './approvals-service';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
@@ -26,6 +27,8 @@ export async function getArtifact(context: WorkspaceContext, input: CapabilityIn
 
 export async function saveArtifact(context: WorkspaceContext, input: CapabilityInput<'k5_artifacts_update'>): Promise<CapabilityOutput<'k5_artifacts_update'>> {
   await requireArtifact(context, input.artifactId);
+  await requireAgentApproval(context, 'k5_artifacts_update', input.approvalId,
+    { artifactId: input.artifactId, title: input.title, content: input.content, version: input.version }, input.artifactId, 'Sobrescrever uma minuta pede confirmação.');
   const updated = await updateArtifact(database, owner(context), input.artifactId, input.title, input.content, input.version);
   if (!updated) throw new CapabilityError('CONFLICT', 'O documento mudou desde a leitura. Leia a versão atual antes de salvar.');
   return { artifact: view(updated) };

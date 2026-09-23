@@ -1,6 +1,7 @@
 import 'server-only';
 import { database } from '@/lib/database';
 import { createConversation, conversation } from '@/lib/ai-store';
+import { requireAgentApproval } from './approvals-service';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
@@ -37,6 +38,7 @@ export async function deleteConversation(context: WorkspaceContext, input: Capab
     .get(input.conversationId, context.officeId, context.userId) as { id: string; busy_until: number } | undefined;
   if (!row) throw new CapabilityError('NOT_FOUND', 'Conversa não encontrada.');
   if (row.busy_until > Date.now()) throw new CapabilityError('CONFLICT', 'Não é possível excluir uma conversa com resposta em processamento.');
+  await requireAgentApproval(context, 'k5_conversations_delete', input.approvalId, { conversationId: input.conversationId }, input.conversationId, 'Excluir uma conversa pede confirmação.');
 
   await database.prepare('DELETE FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?').run(input.conversationId, context.officeId, context.userId);
   return { success: true };

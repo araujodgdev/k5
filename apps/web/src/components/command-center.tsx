@@ -20,8 +20,12 @@ type Overview = {
 const pendingSections = { tasks: true, meetings: true, clients: true, vault: true, conversations: true };
 const linkStyle = 'inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-function OverviewSection({ title, href, children, loading, failed }: { title: string; href: string; children: ReactNode; loading: boolean; failed: boolean }) {
-  return <section aria-label={title} className="min-h-56 min-w-0 border-t pt-4"><header className="mb-2 flex items-center justify-between gap-3"><h2 className="font-medium">{title}</h2><Link href={href} className={linkStyle}>Ver tudo<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only"> em {title}</span></Link></header>{loading ? <p role="status" className="py-5 text-sm text-muted-foreground">Carregando…</p> : failed ? <p role="alert" className="py-5 text-sm text-destructive">Não foi possível carregar. Use Atualizar para tentar novamente.</p> : children}</section>;
+type Module = 'agenda' | 'vault' | 'lume';
+/** The top rule of each block takes its module colour: agenda ochre, Cofre slate, Lume orange. */
+const moduleRule: Record<Module, string> = { agenda: 'before:bg-module-agenda', vault: 'before:bg-module-vault', lume: 'before:bg-module-lume' };
+
+function OverviewSection({ title, href, module, children, loading, failed }: { title: string; href: string; module: Module; children: ReactNode; loading: boolean; failed: boolean }) {
+  return <section aria-label={title} className={`relative min-h-56 min-w-0 border-t pt-4 before:absolute before:-top-px before:left-0 before:h-0.5 before:w-10 ${moduleRule[module]}`}><header className="mb-2 flex items-center justify-between gap-3"><h2 className="font-medium">{title}</h2><Link href={href} className={linkStyle}>Ver tudo<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only"> em {title}</span></Link></header>{loading ? <p role="status" className="py-5 text-sm text-muted-foreground">Carregando…</p> : failed ? <p role="alert" className="py-5 text-sm text-destructive">Não foi possível carregar. Use Atualizar para tentar novamente.</p> : children}</section>;
 }
 
 export function CommandCenter({ role, name }: { role: OfficeRole; name: string }) {
@@ -71,32 +75,32 @@ export function CommandCenter({ role, name }: { role: OfficeRole; name: string }
     <header className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="display text-[28px]">Início</h1><p className="mt-3 min-h-10 text-sm text-muted-foreground">Olá, {name.replace(/[.!?]+$/, '')}.{date && ` Hoje é ${date}.`}</p></div><div className="flex items-center gap-2"><Button variant="ghost" size="lg" disabled={loading} onClick={() => setRevision(value => value + 1)}>Atualizar</Button>{role !== 'reviewer' && <Button asChild size="lg"><Link href="/app/agenda?action=new"><Plus className="size-4" />Nova atividade</Link></Button>}</div></header>
     <div className="my-7 grid grid-cols-2 gap-x-6 gap-y-5 border-y py-5 sm:grid-cols-4" aria-label="Resumo do escritório">
       {[
-        ['Até hoje', data.tasks?.total, '/app/agenda'],
-        ['Reuniões a seguir', data.meetings?.total, '/app/agenda?view=calendar'],
-        ['Clientes ativos', data.clients?.total, '/app/agenda?view=clients'],
-        ['Casos no Cofre', data.vault?.cases.length, '/app/vault'],
-      ].map(([label, count, href]) => <Link key={label} href={String(href)} className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="text-xs text-muted-foreground">{label}</span><span className="mt-2 block text-2xl tabular-nums">{count === undefined ? '—' : count}</span></Link>)}
+        ['Até hoje', data.tasks?.total, '/app/agenda', 'bg-module-agenda'],
+        ['Reuniões a seguir', data.meetings?.total, '/app/agenda?view=calendar', 'bg-module-agenda'],
+        ['Clientes ativos', data.clients?.total, '/app/agenda?view=clients', 'bg-module-agenda'],
+        ['Casos no Cofre', data.vault?.cases.length, '/app/vault', 'bg-module-vault'],
+      ].map(([label, count, href, tone]) => <Link key={String(label)} href={String(href)} className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="flex items-center gap-2 text-xs text-muted-foreground"><span className={`size-1.5 rounded-full ${tone}`} aria-hidden="true" />{label}</span><span className="mt-2 block text-2xl tabular-nums">{count === undefined ? '—' : count}</span></Link>)}
     </div>
     {failure && <p role="alert" className="mb-4 text-sm text-destructive">{failure}</p>}
     <div className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-2">
-      <OverviewSection title="Tarefas até hoje" href="/app/agenda" loading={pending.tasks && !data.tasks} failed={!data.tasks}>
+      <OverviewSection title="Tarefas até hoje" href="/app/agenda" module="agenda" loading={pending.tasks && !data.tasks} failed={!data.tasks}>
         {data.tasks?.activities.length ? <div className="divide-y">{data.tasks.activities.map(activity => <article key={activity.id} className="flex items-start gap-3 py-3">
           {role !== 'reviewer' && <label className="flex min-h-11 shrink-0 items-start pt-0.5"><input type="checkbox" aria-label={`Concluir ${activity.title}`} disabled={busy !== null} checked={busy === activity.id} onChange={() => void complete(activity)} className="size-5 accent-primary" /></label>}
           <Link href={`/app/agenda?activityId=${encodeURIComponent(activity.id)}`} className="min-w-0 flex-1 py-0.5 underline-offset-4 hover:underline"><p className="break-words text-sm">{activity.title}</p><p className={`mt-1 text-xs ${activity.dueOn! < today ? 'text-schedule' : 'text-muted-foreground'}`}>{activity.dueOn! < today ? `Atrasada · ${new Date(`${activity.dueOn}T12:00:00`).toLocaleDateString('pt-BR')}` : 'Hoje'}</p></Link>
         </article>)}</div> : empty('Tudo em dia. Nenhuma tarefa pendente até hoje.')}
       </OverviewSection>
-      <OverviewSection title="Próximas reuniões" href="/app/agenda?view=calendar" loading={pending.meetings && !data.meetings} failed={!data.meetings}>
+      <OverviewSection title="Próximas reuniões" href="/app/agenda?view=calendar" module="agenda" loading={pending.meetings && !data.meetings} failed={!data.meetings}>
         {data.meetings?.activities.length ? <div className="divide-y">{data.meetings.activities.map(activity => <Link key={activity.id} href={`/app/agenda?view=calendar&activityId=${encodeURIComponent(activity.id)}`} className="flex items-start gap-4 py-4 underline-offset-4 hover:underline"><time dateTime={activity.startsAt!} className="w-16 shrink-0 text-sm tabular-nums text-schedule">{new Date(activity.startsAt!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time><div className="min-w-0"><p className="break-words text-sm">{activity.title}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(activity.startsAt!).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}</p></div></Link>)}</div> : empty('Nenhuma reunião agendada.')}
       </OverviewSection>
-      <OverviewSection title="Casos no Cofre" href="/app/vault" loading={pending.vault && !data.vault} failed={!data.vault}>
+      <OverviewSection title="Casos no Cofre" href="/app/vault" module="vault" loading={pending.vault && !data.vault} failed={!data.vault}>
         {data.vault?.cases.length ? <div className="divide-y">{data.vault.cases.slice(0, 4).map(item => <Link key={item.id} href={`/app/vault/cases/${encodeURIComponent(item.id)}`} className="flex min-h-14 items-center justify-between gap-3 py-3 text-sm underline-offset-4 hover:underline"><span className="truncate">{item.name}</span><ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /></Link>)}</div> : empty('Seus casos e documentos aparecerão aqui.')}
         <Link href="/app/vault" className={linkStyle}>Abrir documentos do escritório</Link>
       </OverviewSection>
-      <OverviewSection title="Clientes ativos" href="/app/agenda?view=clients" loading={pending.clients && !data.clients} failed={!data.clients}>
+      <OverviewSection title="Clientes ativos" href="/app/agenda?view=clients" module="agenda" loading={pending.clients && !data.clients} failed={!data.clients}>
         {data.clients?.clients.length ? <div className="divide-y">{data.clients.clients.map(client => <Link key={client.id} href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="block py-3 underline-offset-4 hover:underline"><p className="break-words text-sm">{client.name}</p><p className="mt-1 truncate text-xs text-muted-foreground">{client.email || client.phone || 'Contato não informado'}</p></Link>)}</div> : empty('Nenhum cliente ativo cadastrado.')}
         {role !== 'reviewer' && <Link href="/app/agenda?view=clients&action=new" className={linkStyle}>Cadastrar cliente</Link>}
       </OverviewSection>
-      <div className="lg:col-span-2"><OverviewSection title="Conversas com Lume" href="/app/agents" loading={pending.conversations && !data.conversations} failed={!data.conversations}>
+      <div className="lg:col-span-2"><OverviewSection title="Conversas com Lume" href="/app/agents" module="lume" loading={pending.conversations && !data.conversations} failed={!data.conversations}>
         {data.conversations?.conversations.length ? <div className="divide-y">{data.conversations.conversations.slice(0, 3).map(conversation => <Link key={conversation.id} href={`/app/agents?conversationId=${encodeURIComponent(conversation.id)}`} className="flex min-h-14 items-center justify-between gap-4 py-3 text-sm underline-offset-4 hover:underline"><span className="truncate">{conversation.title}</span><span className="shrink-0 text-xs text-muted-foreground">Retomar<ArrowUpRight className="ml-1 inline size-3.5" aria-hidden="true" /></span></Link>)}</div> : <div className="flex flex-wrap items-center justify-between gap-3 py-4"><p className="text-sm text-muted-foreground">Consulte documentos e organize o trabalho com Lume.</p><Link href="/app/agents" className={linkStyle}>Abrir conversa<ArrowUpRight className="size-4" aria-hidden="true" /></Link></div>}
       </OverviewSection></div>
     </div>

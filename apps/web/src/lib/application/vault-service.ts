@@ -9,7 +9,7 @@ import {
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
-import { requireAndConsumeApproval } from './approvals-service';
+import { requireAgentApproval, requireAndConsumeApproval } from './approvals-service';
 import { consumeUploadRef, releaseUploadRef } from './uploads-service';
 import { enqueueDeletion } from '@/lib/knowledge/indexing';
 import { searchKnowledgeEngine } from '@/lib/knowledge/retrieval';
@@ -71,6 +71,8 @@ export async function createFolder(context: WorkspaceContext, input: CapabilityI
 }
 
 export async function deleteFolder(context: WorkspaceContext, input: CapabilityInput<'k5_vault_delete_folder'>): Promise<CapabilityOutput<'k5_vault_delete_folder'>> {
+  if (!await findVaultFolder(context.officeId, input.folderId)) throw new CapabilityError('NOT_FOUND', 'Pasta não encontrada.');
+  await requireAgentApproval(context, 'k5_vault_delete_folder', input.approvalId, { folderId: input.folderId }, input.folderId, 'Remover uma pasta pede confirmação.');
   try { await deleteVaultFolder(context.officeId, input.folderId); }
   catch (error) { throw asCapabilityError(error); }
   return { success: true };

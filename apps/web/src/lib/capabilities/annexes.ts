@@ -16,7 +16,7 @@ export const annexCapabilities = {
     input: z.object({ caseId: id, scanDocumentId: id, petitionDocumentId: id.optional(), petitionArtifactId: id.optional(), petitionText: z.string().max(60_000).optional() }),
     output: z.object({ pageCount: z.number(), items: z.array(item), uncoveredPages: z.array(z.number()) }) },
   k5_vault_generate_annexes: { module: 'vault', effect: 'write', roles: writers,
-    description: 'Recorta o PDF digitalizado nos intervalos revisados, na ordem dada, e salva cada anexo em uma nova pasta do caso com nome no padrão do PJe (sem acentos, numerado). Use somente depois que a pessoa confirmar a lista.',
+    description: 'Recorta o PDF digitalizado nos intervalos revisados, na ordem dada, e salva cada anexo em uma nova pasta do caso com nome no padrão do PJe (sem acentos, numerado). Gere logo após planejar, com os itens incluídos na ordem proposta.',
     input: z.object({ caseId: id, scanDocumentId: id, folderName: z.string().trim().max(120).default(''),
       items: z.array(z.object({ label: z.string().trim().min(2).max(80), startPage: page, endPage: page })).min(1).max(MAX_ANNEX_ITEMS), idempotencyKey: z.string().min(8).max(128).optional() }),
     output: z.object({ folderId: z.string(), documents: z.array(z.object({ id: z.string(), name: z.string() })) }) },

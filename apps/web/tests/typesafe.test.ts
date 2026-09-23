@@ -165,12 +165,15 @@ test('agenda interpretation: no mutation, no invented meeting end, owner-scoped 
   assert.equal((await testDb.prepare('SELECT count(*) AS n FROM agenda_activity WHERE office_id=?').get(context.officeId))!.n, 0);
   await assert.rejects(runCapability(other, 'k5_agenda_get_proposal', { proposalId: result.proposal.id }), { code: 'NOT_FOUND' });
 });
-test('agenda confirmation: server adapters prevent model writes and ignore forged confirmation flags', async () => {
+test('agenda autonomy: the Lume saves activities itself, WebMCP only suggests', async () => {
   const context = (await fixture());
   const catalog = publishedCapabilitiesForRole('lawyer', 'webmcp');
   assert.ok(catalog.includes('k5_agenda_interpret')); assert.ok(!catalog.includes('k5_agenda_create_activity')); assert.ok(!catalog.includes('k5_agenda_apply_proposal'));
-  assert.ok(!agentTools(context).k5_agenda_create_activity);
-  await assert.rejects(runCapability({ ...context, invocation: 'agent' }, 'k5_agenda_create_activity', { kind: 'task', title: 'Não salvar', confirmed: true, origin: 'user' }), { code: 'APPROVAL_REQUIRED' });
+  const tools = agentTools(context);
+  assert.ok(tools.k5_agenda_create_activity && tools.k5_agenda_update_activity);
+  assert.ok(!tools.k5_agenda_interpret, 'the agent writes directly instead of preparing suggestions');
+  const saved = await runCapability({ ...context, invocation: 'agent' }, 'k5_agenda_create_activity', { kind: 'task', title: 'Salvar direto', confirmed: true, origin: 'user' }) as { activity: { title: string; version: number } };
+  assert.equal(saved.activity.title, 'Salvar direto');
   const reviewer = (await fixture('reviewer'));
   await assert.rejects(runCapability(reviewer, 'k5_agenda_interpret', { message: 'Criar tarefa' }), { code: 'FORBIDDEN' });
 });

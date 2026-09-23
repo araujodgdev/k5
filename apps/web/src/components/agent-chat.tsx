@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { useChat } from "@ai-sdk/react";
@@ -17,12 +18,14 @@ import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
 import {
   ArrowUp,
   ArrowDown,
+  Check,
   CircleAlert,
   Camera,
   Copy,
   FileStack,
   FileText,
-  History,
+  PanelLeftClose,
+  PanelLeftOpen,
   Image as ImageIcon,
   LoaderCircle,
   MessageSquarePlus,
@@ -139,22 +142,68 @@ function AssistantText({ text }: { text: string }) {
   return <Markdown text={text} />;
 }
 
-/** One finished tool call, as a quiet line above the answer. */
-function ToolStep({ data }: { data: { summary?: string; state?: string } }) {
+/** One finished tool call, as a quiet line above the answer, with a link to what it touched. */
+function ToolStep({ data }: { data: { summary?: string; state?: string; href?: string } }) {
   if (!data?.summary) return null;
+  const failed = data.state === "failed";
   return (
-    <p className={`mb-2 text-[13px] ${data.state === "failed" ? "text-destructive" : "text-subtle-foreground"}`}>{data.summary}</p>
+    <p className={cn("mb-2 flex items-start gap-2 text-[13px] leading-5", failed ? "text-destructive" : "text-subtle-foreground")}>
+      {failed ? <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" /> : <Check className="mt-0.5 size-3.5 shrink-0 text-brand-ink" aria-hidden="true" />}
+      <span className="min-w-0">{data.summary}{data.href && <> · <Link href={data.href} className="text-brand-ink underline-offset-4 hover:underline">Abrir</Link></>}</span>
+    </p>
   );
 }
 
-const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep } } };
+const ConversationIdContext = createContext("");
+type ApprovalData = { approvalId: string; summary: string; state: "pending" | "confirmed" | "cancelled" | "failed"; result?: string; href?: string };
+
+/**
+ * The only thing the Lume asks before acting: deleting, reaching a court, or overwriting a draft.
+ * Confirmar runs exactly the action it proposed on the server; nothing is retyped by the model.
+ */
+function ApprovalStep({ data }: { data: ApprovalData }) {
+  const conversationId = useContext(ConversationIdContext);
+  const [decided, setDecided] = useState<Pick<ApprovalData, "state" | "result" | "href"> | null>(null);
+  const [busy, setBusy] = useState<"" | "confirm" | "cancel">("");
+  const [error, setError] = useState("");
+  if (!data?.approvalId) return null;
+  const current = decided ?? data;
+  async function decide(decision: "confirm" | "cancel") {
+    setBusy(decision); setError("");
+    try {
+      const response = await fetch(`/api/chat/approvals/${encodeURIComponent(data.approvalId)}`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision, conversationId }),
+      });
+      const body = await response.json().catch(() => ({})) as ApprovalData & { error?: string };
+      if (!response.ok) throw new Error(body.error || "Não foi possível concluir. Peça de novo ao Lume.");
+      setDecided({ state: body.state, result: body.result, href: body.href });
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível concluir."); }
+    finally { setBusy(""); }
+  }
+  return (
+    <div className="mt-3 grid gap-3 border-l-2 border-brand py-1 pl-4" role="group" aria-label="Confirmação">
+      <p className="text-sm text-foreground">{data.summary}</p>
+      {current.state === "pending" ? <div className="flex flex-wrap gap-2">
+        <Button type="button" size="sm" className="h-11 md:h-9" disabled={Boolean(busy)} onClick={() => void decide("confirm")}>
+          {busy === "confirm" && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}Confirmar</Button>
+        <Button type="button" size="sm" variant="ghost" className="h-11 md:h-9" disabled={Boolean(busy)} onClick={() => void decide("cancel")}>Cancelar</Button>
+      </div> : <p className={cn("text-[13px]", current.state === "failed" ? "text-destructive" : "text-subtle-foreground")} role="status">
+        {current.state === "confirmed" ? "Confirmado" : current.state === "cancelled" ? "Cancelado" : "Não concluído"}{current.result ? ` · ${current.result}` : ""}
+        {current.href && <> · <Link href={current.href} className="text-brand-ink underline-offset-4 hover:underline">Abrir</Link></>}
+      </p>}
+      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep } } };
 
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="group mx-auto w-full max-w-3xl px-4 py-4 md:px-8">
       <div className="max-w-[72ch] text-sm leading-7 text-foreground">
         <MessagePrimitive.If hasContent={false}>
-          <p className="text-subtle-foreground" aria-live="polite">Pensando…</p>
+          <p className="flex items-center gap-2 text-subtle-foreground" aria-live="polite"><span className="size-1.5 animate-pulse rounded-full bg-brand motion-reduce:animate-none" aria-hidden="true" />Pensando…</p>
         </MessagePrimitive.If>
         <MessagePrimitive.Parts components={assistantParts} />
         <MessagePrimitive.If last>
@@ -317,7 +366,7 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
       }}>
         <ThreadPrimitive.Empty>
           <div className="mx-auto grid w-full max-w-3xl flex-1 place-items-center px-6 py-14 text-center">
-            <p className="max-w-sm text-sm leading-6 text-subtle-foreground">Pergunte o que precisar. O assistente também consulta os documentos do escritório.</p>
+            <p className="max-w-sm text-sm leading-6 text-subtle-foreground">Peça o que precisar. O Lume consulta os documentos do escritório e cria tarefas, reuniões e casos por você.</p>
           </div>
         </ThreadPrimitive.Empty>
         <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
@@ -388,6 +437,7 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
             message,
             trigger,
             messageId,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           },
         };
       },
@@ -414,7 +464,7 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
   const runtime = useAISDKRuntime({...chat,sendMessage});
   const { stop } = chat;
   useEffect(() => () => { void stop(); }, [stop]);
-  return <AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider>;
+  return <ConversationIdContext.Provider value={conversationId}><AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider></ConversationIdContext.Provider>;
 }
 
 export function AgentChat({ initialConversationId = '', initialData, modalities = { image: false, audio: false } }: { initialConversationId?: string; initialData?: ChatBootstrap; modalities?: Modalities }) {
@@ -581,9 +631,21 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
       <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden">
         <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b px-4 md:px-8">
           <div className="flex min-w-0 items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="-ml-2 size-11 text-muted-foreground md:size-9" aria-label={listOpen ? "Ocultar conversas" : "Mostrar conversas"} aria-expanded={listOpen} aria-controls="agent-conversations" onClick={toggleList}>
+                  {listOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{listOpen ? "Ocultar conversas" : "Mostrar conversas"}</TooltipContent>
+            </Tooltip>
             <h1 className="display truncate text-[28px]">Lume</h1>
-            <Button variant="ghost" size="icon" aria-label={listOpen ? "Recolher conversas" : "Mostrar conversas"} aria-expanded={listOpen} onClick={toggleList}><History /></Button>
-            <Button variant="ghost" size="icon" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-11 md:size-9" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
+              </TooltipTrigger>
+              <TooltipContent>Nova conversa</TooltipContent>
+            </Tooltip>
           </div>
           <div className="flex items-center gap-1.5">
             <Sheet open={contextOpen} onOpenChange={setContextOpen}>
@@ -599,12 +661,12 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
         {error && <p className="flex items-start gap-2 border-b px-4 py-2 text-sm text-destructive md:px-8" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
 
         <div className="flex min-h-0 flex-1">
-          <aside className="agent-chat-history min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b md:w-72 md:border-r md:border-b-0">
+          <aside id="agent-conversations" aria-label="Conversas" className="agent-chat-history min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b md:w-72 md:border-r md:border-b-0">
               {loading && conversations.length === 0 ? (
                 <div className="grid gap-2 p-3" aria-hidden="true">
-                  <Skeleton className="h-16 w-full rounded-2xl" />
-                  <Skeleton className="h-16 w-full rounded-2xl" />
-                  <Skeleton className="h-16 w-full rounded-2xl" />
+                  <Skeleton className="h-16 w-full rounded-md" />
+                  <Skeleton className="h-16 w-full rounded-md" />
+                  <Skeleton className="h-16 w-full rounded-md" />
                 </div>
               ) : (
                 <ConversationCards conversations={conversations} selectedId={selectedId} onSelect={selectConversation} onDelete={(id) => void removeConversation(id)} />
@@ -653,7 +715,7 @@ function ConversationCards({ conversations, selectedId, onSelect, onDelete }: {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-3">
       {conversations.length === 0 && <p className="px-2 py-6 text-sm text-subtle-foreground">Seu histórico aparecerá aqui.</p>}
-      <div className="grid gap-2">
+      <div className="grid gap-0.5">
         {conversations.map((conversation) => (
           <div key={conversation.id} className="relative">
             <button
@@ -661,8 +723,8 @@ function ConversationCards({ conversations, selectedId, onSelect, onDelete }: {
               onClick={() => onSelect(conversation.id)}
               aria-current={selectedId === conversation.id ? "page" : undefined}
               className={cn(
-                "grid w-full gap-1 rounded-2xl border p-3 pr-11 text-left outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
-                selectedId === conversation.id && "bg-accent",
+                "grid w-full gap-1 rounded-md p-3 pr-11 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
+                selectedId === conversation.id && "bg-brand-soft hover:bg-brand-soft",
               )}
             >
               <span className="truncate text-sm font-medium">{conversation.title || "Nova conversa"}</span>

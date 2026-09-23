@@ -5,6 +5,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PwaProvider } from "@/components/pwa-provider";
+import { navCollapseScript } from "@/lib/nav-collapse";
 import { agentHistoryScript } from "@/lib/agent-history";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -31,5 +32,5 @@ export function generateMetadata(): Metadata {
 export const viewport: Viewport = { viewportFit: "cover", interactiveWidget: "resizes-content", themeColor: "#ffffff" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="pt-BR" suppressHydrationWarning className={cn(sans.variable, serif.variable, serifItalic.variable, "font-sans")}><head><script dangerouslySetInnerHTML={{ __html: agentHistoryScript }} /></head><body><ThemeProvider><PwaProvider>{children}</PwaProvider></ThemeProvider></body></html>;
+  return <html lang="pt-BR" suppressHydrationWarning className={cn(sans.variable, serif.variable, serifItalic.variable, "font-sans")}><head><script dangerouslySetInnerHTML={{ __html: agentHistoryScript + navCollapseScript }} /></head><body><ThemeProvider><PwaProvider>{children}</PwaProvider></ThemeProvider></body></html>;
 }

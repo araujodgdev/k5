@@ -8,6 +8,7 @@ import { Logo } from "@/components/logo";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { InstallApp } from "@/components/pwa-provider";
 import { Reveal } from "@/components/reveal";
+import { LumeLight } from "@/components/lume-light";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,9 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [passwordFocus, setPasswordFocus] = useState(false);
+  // The light answers the form: it gathers while the password is typed, flares on submit, cools on an error.
+  const mood = error ? "error" : pending ? "submit" : passwordFocus ? "focus" : "idle";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,12 +74,13 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   }
 
   return (
-    <main className="grid min-h-dvh grid-rows-[auto_1fr] bg-canvas px-5 py-4 md:px-8 md:py-6">
-      <header className="flex min-h-11 flex-wrap items-center justify-between gap-2 pt-[env(safe-area-inset-top)]">
-        <Link href="/" aria-label="Lume"><Logo height={18} /></Link>
-        <div className="flex items-center gap-1"><InstallApp /><ThemeSwitch /></div>
+    <main className="grid min-h-dvh grid-rows-[auto_1fr] bg-background md:grid-cols-[minmax(400px,1fr)_minmax(0,1.15fr)] md:grid-rows-1">
+      <LumeLight mood={mood} className="order-first mx-3 mt-[calc(0.75rem+env(safe-area-inset-top))] h-36 rounded-[22px] md:order-last md:m-4 md:h-auto md:rounded-[28px]" />
+      <div className="grid min-w-0 grid-rows-[auto_1fr_auto] px-6 pt-5 pb-6 md:px-12 md:pt-9 lg:px-20">
+      <header className="flex min-h-11 items-center">
+        <Link href="/" aria-label="Lume" className="rounded-sm"><Logo height={18} /></Link>
       </header>
-      <section className="w-full max-w-[360px] place-self-center py-8 md:py-12" aria-labelledby="auth-title">
+      <section className="w-full max-w-[400px] self-start py-8 md:self-center md:py-12" aria-labelledby="auth-title">
         <Reveal>
           <h1 id="auth-title" className="display mb-7 text-[32px] md:mb-8 md:text-4xl" data-reveal>{isSignUp ? "Crie sua conta" : "Entre no Lume"}</h1>
           <form onSubmit={submit} noValidate aria-busy={pending} data-reveal>
@@ -100,7 +105,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               <div className="grid gap-1.5">
                 <Label htmlFor="password">Senha</Label>
                 <div className="relative">
-                  <Input {...fieldProps("password")} type={showPassword ? "text" : "password"} autoComplete={isSignUp ? "new-password" : "current-password"} placeholder={isSignUp ? "Pelo menos 8 caracteres" : "Sua senha"} required maxLength={128} className="pr-11" />
+                  <Input {...fieldProps("password")} onFocus={() => setPasswordFocus(true)} onBlur={() => setPasswordFocus(false)} type={showPassword ? "text" : "password"} autoComplete={isSignUp ? "new-password" : "current-password"} placeholder={isSignUp ? "Pelo menos 8 caracteres" : "Sua senha"} required maxLength={128} className="pr-11" />
                   <Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} aria-pressed={showPassword}
                     className="absolute inset-y-1 right-1 h-auto text-muted-foreground hover:bg-transparent hover:text-foreground">
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -126,6 +131,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           </p>
         </Reveal>
       </section>
+      <footer className="flex flex-wrap items-center gap-1 pb-[env(safe-area-inset-bottom)] text-muted-foreground"><ThemeSwitch /><InstallApp /></footer>
+      </div>
     </main>
   );
 }

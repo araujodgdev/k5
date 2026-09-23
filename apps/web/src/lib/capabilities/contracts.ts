@@ -178,7 +178,7 @@ export const capabilities = {
   },
   k5_vault_delete_case: {
     module: 'vault', effect: 'write', roles: writers,
-    description: 'Remove um caso do Cofre e, junto, os documentos e as pastas que estão nele. Requer aprovação explícita. Informe targetCaseId para mover os documentos para outro caso em vez de excluí-los.',
+    description: 'Remove um caso do Cofre e, junto, os documentos e as pastas que estão nele. Pede confirmação da pessoa no chat. Informe targetCaseId para mover os documentos para outro caso em vez de excluí-los.',
     input: z.object({ caseId: identifier, targetCaseId: identifier.optional().describe('Caso de destino. Com ele os documentos são movidos e sobrevivem; sem ele são excluídos com o caso.'), approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
@@ -212,7 +212,7 @@ export const capabilities = {
   },
   k5_vault_delete_document: {
     module: 'vault', effect: 'write', roles: writers,
-    description: 'Remove um documento do Cofre com tombstone imediato nos índices e consultas. Requer aprovação explícita.',
+    description: 'Remove um documento do Cofre com tombstone imediato nos índices e consultas. Pede confirmação da pessoa no chat.',
     input: z.object({ documentId: identifier, approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
@@ -259,8 +259,8 @@ export const capabilities = {
   },
   k5_vault_delete_folder: {
     module: 'vault', effect: 'write', roles: writers,
-    description: 'Remove uma subpasta. Os documentos e as pastas filhas sobem um nível em vez de serem excluídos.',
-    input: z.object({ folderId: identifier, idempotencyKey }),
+    description: 'Remove uma subpasta. Os documentos e as pastas filhas sobem um nível em vez de serem excluídos. Pede confirmação da pessoa no chat.',
+    input: z.object({ folderId: identifier, approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
   k5_knowledge_search: {
@@ -359,10 +359,10 @@ export const capabilities = {
   },
   k5_artifacts_update: {
     module: 'artifacts', effect: 'write', roles: writers,
-    description: 'Salva uma nova versão de um documento gerado. Exige a versão atual; se o documento tiver mudado, a gravação é recusada.',
+    description: 'Salva uma nova versão de um documento gerado. Exige a versão atual; se o documento tiver mudado, a gravação é recusada. Pede confirmação da pessoa no chat.',
     input: z.object({
       artifactId: identifier, title: z.string().trim().min(1).max(200),
-      content: z.string().min(1).max(400_000), version: z.number().int().positive().describe('Versão lida em k5_artifacts_get.'), idempotencyKey,
+      content: z.string().min(1).max(400_000), version: z.number().int().positive().describe('Versão lida em k5_artifacts_get.'), approvalId: z.string().optional(), idempotencyKey,
     }),
     output: z.object({ artifact: artifactDto }),
   },
@@ -404,8 +404,8 @@ export const capabilities = {
   },
   k5_conversations_delete: {
     module: 'conversations', effect: 'write', roles: writers,
-    description: 'Exclui uma conversa existente se não estiver ocupada.',
-    input: z.object({ conversationId: identifier, idempotencyKey }),
+    description: 'Exclui uma conversa existente se não estiver ocupada. Pede confirmação da pessoa no chat.',
+    input: z.object({ conversationId: identifier, approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
   k5_context_set_sources: {
@@ -465,17 +465,17 @@ export const capabilities = {
   },
   k5_judicial_confirm_link: {
     module: 'judicial', effect: 'write', roles: writers,
-    description: 'Confirma ou rejeita um vínculo proposto entre caso e processo.',
-    input: z.object({ linkId: identifier, decision: z.enum(['confirmed', 'rejected']), idempotencyKey }),
+    description: 'Confirma ou rejeita um vínculo proposto entre caso e processo. Confirmar autoriza consultas recorrentes ao tribunal. Pede confirmação da pessoa no chat.',
+    input: z.object({ linkId: identifier, decision: z.enum(['confirmed', 'rejected']), approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ link: judicialLinkDto }),
     // Confirming a link is what authorizes recurring queries to a court on the office's behalf.
-    // A document the agent is reading is untrusted input; the confirmation stays with a person.
-    publish: [],
+    // The agent may propose it, but it only runs after the person presses Confirmar in the chat.
+    publish: ['agent'],
   },
   k5_judicial_unlink_case: {
     module: 'judicial', effect: 'write', roles: writers,
-    description: 'Remove o vínculo de um processo e suspende as coletas recorrentes dele. As publicações já coletadas permanecem como evidência.',
-    input: z.object({ linkId: identifier, idempotencyKey }),
+    description: 'Remove o vínculo de um processo e suspende as coletas recorrentes dele. As publicações já coletadas permanecem como evidência. Pede confirmação da pessoa no chat.',
+    input: z.object({ linkId: identifier, approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
   k5_judicial_list_publications: {
@@ -505,8 +505,8 @@ export const capabilities = {
   },
   k5_judicial_request_refresh: {
     module: 'judicial', effect: 'write', roles: writers,
-    description: 'Solicita uma atualização das publicações de um processo vinculado. Devolve a tarefa; a coleta acontece em segundo plano e respeita o orçamento da fonte.',
-    input: z.object({ linkId: identifier, idempotencyKey }),
+    description: 'Solicita uma atualização das publicações de um processo vinculado. Devolve a tarefa; a coleta acontece em segundo plano e respeita o orçamento da fonte. Pede confirmação da pessoa no chat.',
+    input: z.object({ linkId: identifier, approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ job: judicialJobDto, created: z.boolean() }),
   },
   k5_judicial_get_job: {

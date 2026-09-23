@@ -39,10 +39,6 @@ export function workspaceContext(workspace: {
  */
 export async function assertCapabilityAllowed(context: WorkspaceContext, name: CapabilityName) {
   const capability = capabilities[name];
-  if (context.invocation && ['k5_agenda_create_activity', 'k5_agenda_update_activity', 'k5_agenda_apply_proposal'].includes(name)) {
-    throw new CapabilityError('APPROVAL_REQUIRED', 'Prepare uma sugestão para a pessoa revisar e salvar na Agenda.');
-  }
-
   if (context.sessionId) {
     const live = await database.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>CURRENT_TIMESTAMP')
       .get(context.sessionId,context.userId);

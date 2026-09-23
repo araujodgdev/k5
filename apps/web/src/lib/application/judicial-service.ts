@@ -1,5 +1,6 @@
 import 'server-only';
 import { database } from '@/lib/database';
+import { requireAgentApproval } from './approvals-service';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
@@ -191,6 +192,8 @@ export async function confirmJudicialLink(
   input: CapabilityInput<'k5_judicial_confirm_link'>,
 ): Promise<CapabilityOutput<'k5_judicial_confirm_link'>> {
   await requireLink(context, input.linkId);
+  await requireAgentApproval(context, 'k5_judicial_confirm_link', input.approvalId, { linkId: input.linkId, decision: input.decision }, input.linkId,
+    input.decision === 'confirmed' ? 'Confirmar o vínculo autoriza consultas recorrentes ao tribunal e pede confirmação.' : 'Rejeitar o vínculo pede confirmação.');
   const link = await confirmCaseLink(context.officeId, input.linkId, context.userId, input.decision);
   if (!link) throw new CapabilityError('NOT_FOUND', 'Vínculo não encontrado neste escritório.');
 
@@ -208,6 +211,7 @@ export async function unlinkJudicialCase(
   input: CapabilityInput<'k5_judicial_unlink_case'>,
 ): Promise<CapabilityOutput<'k5_judicial_unlink_case'>> {
   const link = await requireLink(context, input.linkId);
+  await requireAgentApproval(context, 'k5_judicial_unlink_case', input.approvalId, { linkId: input.linkId }, input.linkId, 'Remover o vínculo de um processo pede confirmação.');
   const success = await unlinkCase(context.officeId, input.linkId);
   await recordAudit({
     officeId: context.officeId, userId: context.userId, actor: 'user',
@@ -271,6 +275,7 @@ export async function requestJudicialRefresh(
   if (!link.cnjNumber) {
     throw new CapabilityError('SCOPE_REQUIRED', 'Esta fonte consulta por número CNJ; o vínculo tem apenas identidade nativa.');
   }
+  await requireAgentApproval(context, 'k5_judicial_request_refresh', input.approvalId, { linkId: input.linkId }, input.linkId, 'Consultar o tribunal pede confirmação.');
 
   const installation = await requireInstallation(link.installationId);
   if (!installation.enabled) throw new CapabilityError('NOT_READY', 'Esta fonte está desabilitada.');

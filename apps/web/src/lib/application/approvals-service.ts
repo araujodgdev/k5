@@ -145,3 +145,30 @@ export async function requireAndConsumeApproval(
     throw new CapabilityError('CONFLICT', 'Esta aprovação já foi utilizada.');
   }
 }
+
+/**
+ * High-impact actions the agent may only run after the person presses Confirmar in the chat.
+ * Someone acting in the interface already confirmed by clicking, so only agent and WebMCP calls
+ * are gated here; the proposal stores the exact input, and the chat executes that input.
+ */
+export const agentConfirmedCapabilities = [
+  'k5_vault_delete_case', 'k5_vault_delete_document', 'k5_vault_delete_folder', 'k5_conversations_delete',
+  'k5_judicial_confirm_link', 'k5_judicial_unlink_case', 'k5_judicial_request_refresh', 'k5_artifacts_update',
+] as const;
+
+export async function requireAgentApproval(
+  context: WorkspaceContext,
+  capabilityName: (typeof agentConfirmedCapabilities)[number],
+  approvalId: string | undefined,
+  input: Record<string, unknown>,
+  targetResourceId: string | null,
+  description: string,
+) {
+  if (!context.invocation) return;
+  await requireAndConsumeApproval(context, capabilityName, approvalId, input, targetResourceId, null, description, { allowConsumedRetry: true });
+}
+
+/** The id the gate put in its refusal, so the chat can offer the confirmation. */
+export function approvalIdFromMessage(message: string) {
+  return /Proposta registrada \[id: ([0-9a-f-]{36})\]/i.exec(message)?.[1] ?? null;
+}

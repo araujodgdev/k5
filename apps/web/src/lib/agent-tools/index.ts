@@ -9,6 +9,7 @@ import {
 } from '@/lib/capabilities/contracts';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/application/context';
+import { approvalIdFromMessage } from '@/lib/application/approvals-service';
 import * as vault from '@/lib/application/vault-service';
 import * as runs from '@/lib/application/runs-service';
 import * as artifacts from '@/lib/application/artifacts-service';
@@ -153,18 +154,31 @@ export async function runCapability<N extends CapabilityName>(
  * session and are re-checked inside every call, so a revoked membership stops the next step.
  * Capabilities marked unpublished are absent from the catalog entirely.
  */
-export function agentTools(context: WorkspaceContext) {
-  return Object.fromEntries(publishedCapabilitiesForRole(context.role, 'agent').map((name) => [name, toolFor(name, context)]));
+export type ApprovalRequest = { capability: CapabilityName; approvalId: string; input: Record<string, unknown> };
+
+export function agentTools(context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void) {
+  return Object.fromEntries(publishedCapabilitiesForRole(context.role, 'agent').map((name) => [name, toolFor(name, context, onApproval)]));
 }
 
-function toolFor(name: CapabilityName, context: WorkspaceContext) {
+function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void) {
   const capability: Capability = capabilities[name];
   return createTool({
     id: name,
     description: capability.description,
     inputSchema: capability.input,
     outputSchema: capability.output,
-    execute: async (input: unknown) => runCapability({ ...context, invocation: 'agent' }, name, input),
+    execute: async (input: unknown) => {
+      try { return await runCapability({ ...context, invocation: 'agent' }, name, input); }
+      catch (error) {
+        // A gated action is not a failure: the chat turns it into a Confirmar button that runs it.
+        const approvalId = error instanceof CapabilityError && error.code === 'APPROVAL_REQUIRED' ? approvalIdFromMessage(error.message) : null;
+        if (approvalId && onApproval) {
+          onApproval({ capability: name, approvalId, input: input as Record<string, unknown> });
+          throw new CapabilityError('APPROVAL_REQUIRED', 'Aguardando a pessoa pressionar Confirmar no chat; a ação roda quando ela confirmar. Não repita esta chamada.');
+        }
+        throw error;
+      }
+    },
   });
 }
 
@@ -307,6 +321,8 @@ function describe(name: string, result: unknown): string {
     return name === 'k5_judicial_list_sources' ? `${value.sources.length} fonte(s)` : `${value.sources.length} trecho(s)`;
   }
   if (Array.isArray(value.cases)) return `${value.cases.length} caso(s)`;
+  if (Array.isArray(value.activities)) return `${value.activities.length} atividade(s)`;
+  if (Array.isArray(value.clients)) return `${value.clients.length} cliente(s)`;
   if (Array.isArray(value.folders)) return `${value.folders.length} pasta(s)`;
   if (Array.isArray(value.documents)) return `${value.documents.length} documento(s)`;
   if (Array.isArray(value.runs)) return `${value.runs.length} tarefa(s)`;
@@ -319,6 +335,9 @@ function describe(name: string, result: unknown): string {
   if (value.link && typeof value.link === 'object') return String((value.link as { cnjNumber?: string | null }).cnjNumber ?? 'vínculo');
   if (value.job && typeof value.job === 'object') return String((value.job as { status?: string }).status ?? '');
   if (value.case && typeof value.case === 'object') return String((value.case as { name?: string }).name ?? '');
+  if (value.activity && typeof value.activity === 'object') return String((value.activity as { title?: string }).title ?? '');
+  if (value.client && typeof value.client === 'object') return String((value.client as { name?: string }).name ?? '');
+  if (value.folder && typeof value.folder === 'object') return String((value.folder as { name?: string }).name ?? '');
   if (value.run && typeof value.run === 'object') return String((value.run as { status?: string }).status ?? '');
   if (value.document && typeof value.document === 'object') return String((value.document as { name?: string }).name ?? '');
   if (value.artifact && typeof value.artifact === 'object') return String((value.artifact as { title?: string }).title ?? '');

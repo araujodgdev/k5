@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { Ellipsis, LogOut } from "lucide-react";
+import { Ellipsis, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { InstallApp } from "@/components/pwa-provider";
-import { navIcons } from "@/components/nav-icons";
+import { navIcons, navTone } from "@/components/nav-icons";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { readNavCollapsed, subscribeNavCollapsed, writeNavCollapsed } from "@/lib/nav-collapse";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar";
@@ -33,6 +35,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreTitleRef = useRef<HTMLHeadingElement>(null);
   const placed = useRef(false);
+  const collapsed = useSyncExternalStore(subscribeNavCollapsed, readNavCollapsed, () => false);
 
   useEffect(() => {
     // Refresh the browser cookie on navigation, without a timer extending idle sessions.
@@ -142,25 +145,31 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
 
   return (
     <>
-      <SidebarProvider className="hidden min-h-0 w-auto md:block">
-        <Sidebar collapsible="none" className="h-dvh sticky top-0 border-0 bg-canvas p-2">
+      <TooltipProvider delayDuration={300}>
+      <SidebarProvider open={!collapsed} onOpenChange={(open) => writeNavCollapsed(!open)} className="hidden min-h-0 w-auto md:block">
+        <Sidebar collapsible="none" className="app-nav sticky top-0 h-dvh border-0 bg-canvas p-2 transition-[width] duration-200 ease-(--ease) motion-reduce:transition-none">
           <SidebarHeader className="gap-3 px-2 pt-3">
-            <Link href="/app" aria-label="Lume — início" className="w-fit rounded-sm"><Logo height={16} /></Link>
-            <p className="truncate font-medium text-sm" title={officeName}>{officeName}</p>
+            <Link href="/app" aria-label="Lume — início" className="w-fit rounded-sm">
+              <span className="nav-label"><Logo height={16} /></span><span className="nav-mark hidden"><Logo height={17} markOnly /></span>
+            </Link>
+            <p className="nav-label truncate font-medium text-sm" title={officeName}>{officeName}</p>
           </SidebarHeader>
           <SidebarContent className="px-0 pt-2">
             <SidebarMenu ref={navRef} className="relative gap-0.5 px-2">
-              <span ref={indicatorRef} aria-hidden="true" className="pointer-events-none invisible absolute inset-x-0 top-0 rounded-md bg-sidebar-accent" />
+              <span ref={indicatorRef} aria-hidden="true" className="pointer-events-none invisible absolute inset-x-0 top-0 rounded-md bg-brand-soft" />
               {appNavigation.map((item) => {
                 const href = `/app/${item.slug}`;
                 const Icon = navIcons[item.slug];
                 const active = pathname === href || pathname.startsWith(`${href}/`);
                 return (
                   <SidebarMenuItem key={item.slug}>
-                    <SidebarMenuButton asChild isActive={active} className="relative h-9 data-[active=true]:bg-transparent">
-                      <Link href={href} aria-current={active ? "page" : undefined}>
-                        <Icon aria-hidden="true" /><span>{item.label}</span>
-                        {item.slug === "notifications" && unread > 0 && <span className="ml-auto text-xs text-muted-foreground" aria-label={`${unread} notificações não lidas`}>{unread}</span>}
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.label} className="relative h-9 data-[active=true]:bg-transparent">
+                      <Link href={href} aria-current={active ? "page" : undefined} aria-label={collapsed ? item.label : undefined}>
+                        <Icon aria-hidden="true" className={navTone[item.slug]} /><span className="nav-label">{item.label}</span>
+                        {item.slug === "notifications" && unread > 0 && <>
+                          <span className="nav-label ml-auto text-xs text-muted-foreground" aria-label={`${unread} notificações não lidas`}>{unread}</span>
+                          <span className="nav-dot absolute top-1.5 left-6 hidden size-1.5 rounded-full bg-brand" aria-hidden="true" />
+                        </>}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -169,26 +178,35 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="px-2">
-            <ThemeSwitch />
-            <InstallApp />
-            {platformAdmin && <Link href="/platform" className="rounded-md px-2 py-2 text-sm text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">Administração da plataforma</Link>}
-            {error && <p role="alert" className="px-2 text-destructive text-xs">{error}</p>}
+            <div className="nav-label grid gap-2">
+              <ThemeSwitch />
+              <InstallApp />
+              {platformAdmin && <Link href="/platform" className="rounded-md px-2 py-2 text-sm text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">Administração da plataforma</Link>}
+            </div>
+            {error && <p role="alert" className="nav-label px-2 text-destructive text-xs">{error}</p>}
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={logout} disabled={pending} className="h-9" title="Encerrar sessão em todos os dispositivos">
-                  <LogOut aria-hidden="true" />{pending ? "Saindo…" : "Sair"}
+                <SidebarMenuButton onClick={logout} disabled={pending} className="h-9" tooltip="Sair" aria-label={collapsed ? "Sair" : undefined} title="Encerrar sessão em todos os dispositivos">
+                  <LogOut aria-hidden="true" /><span className="nav-label">{pending ? "Saindo…" : "Sair"}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => writeNavCollapsed(!collapsed)} className="h-9 text-muted-foreground" tooltip="Expandir menu"
+                  aria-expanded={!collapsed} aria-label={collapsed ? "Expandir menu" : "Recolher menu"} aria-keyshortcuts="Control+B Meta+B">
+                  {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}<span className="nav-label">Recolher menu</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
       </SidebarProvider>
+      </TooltipProvider>
 
       <header className="sticky top-0 z-10 flex h-[calc(3.25rem+env(safe-area-inset-top))] min-w-0 items-center gap-2.5 bg-background/85 px-5 pt-[env(safe-area-inset-top)] backdrop-blur-md md:hidden">
         <Link href="/app" aria-label="Lume — início" className="flex shrink-0 items-center rounded-sm"><Logo height={17} markOnly /></Link>
-        <Separator orientation="vertical" className="h-4" />
+        <Separator orientation="vertical" className="data-vertical:h-4 data-vertical:self-center" />
         <p className="shrink-0 text-sm font-medium">{currentModule}</p>
-        <Separator orientation="vertical" className="h-4" />
+        <Separator orientation="vertical" className="data-vertical:h-4 data-vertical:self-center" />
         <p className="min-w-0 truncate text-sm text-muted-foreground" title={officeName}>{officeName}</p>
       </header>
 
@@ -198,7 +216,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
           const href = `/app/${slug}`;
           const Icon = navIcons[slug];
           const active = pathname === href || pathname.startsWith(`${href}/`);
-          return <TabItem key={slug} href={href} icon={<Icon className="size-[18px]" aria-hidden="true" />} label={item.short} active={active} />;
+          return <TabItem key={slug} href={href} icon={<Icon className={cn("size-[18px]", !active && navTone[slug])} aria-hidden="true" />} label={item.short} active={active} />;
         })}
         <TabItem ref={moreButtonRef} icon={<Ellipsis className="size-[18px]" aria-hidden="true" />} label="Mais" active={overflowActive} onClick={() => setSheetOpen(true)} aria-haspopup="dialog" aria-expanded={sheetOpen} />
       </nav>
@@ -213,7 +231,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
             return (
               <Link key={item.slug} href={href} aria-current={active ? "page" : undefined} onClick={() => setSheetOpen(false)}
                 className={cn("flex min-h-12 items-center gap-3 rounded-md px-3 text-base transition-colors", active ? "bg-accent font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
-                <Icon className="size-[18px]" aria-hidden="true" />{item.label}
+                <Icon className={cn("size-[18px]", navTone[item.slug])} aria-hidden="true" />{item.label}
                 {item.slug === "notifications" && unread > 0 && <span className="ml-auto text-sm" aria-label={`${unread} notificações não lidas`}>{unread}</span>}
               </Link>
             );

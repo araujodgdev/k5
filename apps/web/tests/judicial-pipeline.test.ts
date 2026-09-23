@@ -131,8 +131,10 @@ test("catalog: every judicial capability has an executor and a sane publication 
   assert.equal(judicialNames.length, 12);
 
   const lawyerTools = publishedCapabilitiesForRole("lawyer", "agent");
-  // Confirming a link authorizes recurring queries to a court; that stays with a person.
-  assert.equal(lawyerTools.includes("k5_judicial_confirm_link"), false);
+  // Confirming a link authorizes recurring queries to a court: the agent may propose it, and it
+  // only runs after the person presses Confirmar in the chat (tests/agent-approvals.test.ts).
+  assert.equal(lawyerTools.includes("k5_judicial_confirm_link"), true);
+  assert.equal(publishedCapabilitiesForRole("lawyer", "webmcp").includes("k5_judicial_confirm_link"), false);
   assert.equal(lawyerTools.includes("k5_judicial_link_case"), true);
 
   // A reviewer reads and never writes, and this plan grants no new write permissions.

@@ -1,12 +1,12 @@
 # Lume design system
 
-The interface steps back so the office's work stays in front. It should feel quiet, precise, and a little editorial: warm neutrals, black ink, one serif voice for titles.
+The interface steps back so the office's work stays in front. It should feel quiet, precise, and a little editorial: warm neutrals, black ink, one serif voice for titles, and one earthy orange that marks where you are and what the Lume did.
 
 The UI is built on [shadcn/ui](https://ui.shadcn.com) (Radix, `radix-nova` preset) with Tailwind v4. Primitives live in `src/components/ui/` and are ours to edit. The Lume palette is set on the shadcn tokens in `src/app/globals.css`, so every primitive inherits it. Style with Tailwind utilities, and don't hardcode hex values.
 
 ## Principles
 
-1. **Ink over color.** Hierarchy comes from weight, size, and the ink ramp (`foreground`, `muted-foreground`, `subtle-foreground`). `primary` is black. A muted terracotta accent (`schedule`) marks calendar activity, meeting times and overdue dates; surfaces remain neutral.
+1. **Ink first, color with a meaning.** Hierarchy comes from weight, size, and the ink ramp (`foreground`, `muted-foreground`, `subtle-foreground`). `primary` is black, so buttons stay ink. Color only ever answers a question: `brand` (earthy orange) says *here* (the active place, focus, the selected row) and marks what the Lume did; each module has one hue on its icon and on 2px markers, so a mixed list shows where each item comes from. Surfaces remain neutral.
 2. **One surface per idea.** The app is canvas (sidebar), and the content sits on a single white surface. Don't put cards inside cards or panels inside panels. Group things with spacing and a hairline border.
 3. **Say it once.** A page gets one title. Leave out subtitles, eyebrow labels, and descriptions that repeat the title.
 4. **Real states, plain words.** Empty, loading, and error states are short sentences in Portuguese, set in text color. Don't use illustrations or colored alert boxes.
@@ -14,11 +14,11 @@ The UI is built on [shadcn/ui](https://ui.shadcn.com) (Radix, `radix-nova` prese
 ## Banned patterns
 
 - Badges, pills, and chips used to decorate or show status. Show status as plain text.
-- Pastel or tinted background fills, including light red error boxes and light blue selected states.
+- Pastel or tinted background fills, including light red error boxes and light blue selected states. The single exception is `brand-soft` on the active navigation row and the selected conversation.
 - Bullet-point lists in the UI. Use a table, rows, or a sentence instead.
 - Containers inside containers, meaning a bordered card inside a bordered panel.
 - Excess subtitles and helper text under every heading.
-- Gradients, glows, emoji, and decorative icons next to headings.
+- Gradients, glows, emoji, and decorative icons next to headings. The sign-in light panel is the one gradient, and the one continuous motion, in the product.
 
 ## Tokens
 
@@ -28,12 +28,16 @@ Set in `:root` in `globals.css`. Use them through Tailwind classes such as `bg-c
 | --- | --- | --- |
 | `background` | `#ffffff` | Main content |
 | `canvas` | `#fafaf9` | Sidebar and auth background |
-| `foreground` | `#1b1b1a` | Text, primary button, focus ring |
+| `foreground` | `#1b1b1a` | Text, primary button |
+| `brand` | `#d97757` / dark `#e08a6b` | Focus ring (`ring`), active nav pill marker, the Lume's own marks (thinking dot, confirmation rule), progress |
+| `brand-ink` | `#b0502f` / dark `#eba184` | Brand-colored text and links (5.2:1 on white) |
+| `brand-soft` | `brand` at 11% over the surface | Active nav row and selected conversation only |
+| `module-lume` / `module-vault` / `module-agenda` / `module-research` | `#d97757` / `#4f6d8f` / `#b08a2e` / `#5f7f5a` (lighter in dark) | Module icons in nav and tab bar; 2px rules and dots that tag an item with its module. Never a fill, never text |
 | `muted-foreground` | `#5f5f5b` | Secondary text, inactive nav |
 | `subtle-foreground` | `#696965` / dark `#a0a098` | Placeholders, empty states, inactive tabs; readable on selected surfaces |
 | `muted` / `secondary` | `#f3f3f1` | Quiet fills |
 | `accent` | `#ebebe8` | Hover and selected fills |
-| `schedule` | `#a3542c` / dark `#d49a72` | Calendar pins and scheduling emphasis |
+| `schedule` | `#8a6a1c` / dark `#d6b25a` | Agenda text: meeting times, overdue dates (the agenda ochre, dark enough for text) |
 | `border` / `input` | `#e8e8e5` / `#d4d4d0` | Dividers / control borders |
 | `destructive` | `#b3261e` | Error text only |
 | `--radius` | `0.75rem` | Base radius; `rounded-md` for nav and controls, `rounded-2xl` for the content surface, composer, and sheet |
@@ -72,7 +76,7 @@ Prefer a shadcn primitive over new markup. Add one with `pnpm dlx shadcn@latest 
 - `Button` (`variant="default"` is black; `outline`, `ghost`, `size="icon"`). One primary action per view.
 - `Input`, `Label`, `Textarea` in a `grid gap-1.5` field, with the error as a `text-destructive text-xs` line below. Form-level errors are an inline `CircleAlert` plus red text, never a filled box.
 - `Sheet` (`side="bottom"`) is the mobile "Mais" panel. `Separator` divides groups inside it.
-- `Sidebar` primitives build the desktop nav, with `collapsible="none"` inside a `hidden md:block` provider. A GSAP-driven pill (`bg-sidebar-accent`) slides to the active row, so `data-[active=true]` keeps a transparent background.
+- `Sidebar` primitives build the desktop nav, with `collapsible="none"` inside a `hidden md:block` provider. A GSAP-driven pill (`bg-brand-soft`) slides to the active row, so `data-[active=true]` keeps a transparent background. The menu collapses to icons (3.75rem) with the button at the bottom or Ctrl/⌘+B; labels become tooltips and the unread count becomes a brand dot. The choice lives in `localStorage` and is restored in the document head (`src/lib/nav-collapse.ts`), so the first paint already has the right width. The Lume conversation list uses the same `PanelLeft` control, left of the page title.
 - **App shell** (`src/app/app/layout.tsx`): sidebar plus a rounded content surface on desktop; on mobile a sticky header, full-bleed content with `pb-dock`, and a fixed tab bar.
 - **Mobile tab bar**: 4 sections plus "Mais". The active tab is a black icon tile. The list is `mobileTabs` in `src/lib/navigation.ts`. It slides away while the page scrolls down and returns on the way up, so reading gets the full height.
 - **Bottom sheets** float: inset 8px from the side edges, above the tab bar, rounded and bordered. That geometry is plain CSS in `globals.css` (`[data-slot="sheet-content"][data-side="bottom"]`), unlayered so it beats the utility classes, with a static `bottom` fallback before the `env()` one.
@@ -80,6 +84,8 @@ Prefer a shadcn primitive over new markup. Add one with `pnpm dlx shadcn@latest 
 - **Agent chat** (`/app/agents`, `src/components/agent-chat.tsx`): an empty conversation area with the composer docked at the bottom. The container is `flex-1` inside the flex column shell — never `h-full`, which has no definite height to resolve against and pushes the composer to the top. The shell has a definite `100dvh` height on this route; only the thread viewport scrolls. The composer is `sticky bottom-0`, `max-w-3xl`, rounded-2xl with `--shadow-float`. After scrolling more than 240px from the end, a minimal arrow returns to the latest content and the input compacts without hiding controls or its draft. Respect reduced motion. The Lume module uses the shared `<LumeMark />` symbol in navigation, readable at 16px and 18px. Don't add a second logo, shortcut tiles, or navigation to the chat content. The command center is not a chat.
 - **Composer controls** live inside the composer, on a row under the input: attach and microphone. The page header keeps only the conversation actions. The model is chosen by the platform administrator for the office and is never shown in the chat. A control the configured model cannot support stays visible and disabled, with a plain tooltip explaining the limitation.
 - **Chat attachments** stay in the message, independently from the Cofre. The attach menu offers camera capture, an existing image, or a document. Show removable previews above the composer before sending and persistent previews in the user message afterward. Request camera access only after "Tirar foto", allow retaking before attaching, and stop the camera when the dialog closes. "Fontes" selects material already stored in the Cofre and case references; uploading in chat never adds a source automatically.
+- **The Lume acts, then says what it did.** Each tool call is a quiet line above the answer with a check in `brand-ink` and an "Abrir" link to what it created or changed. It asks before only three things: deleting, reaching a court, and overwriting a draft. Those appear under the answer as a sentence with a 2px `brand` rule on the left and two buttons, Confirmar (ink) and Cancelar (ghost); the decision replaces the buttons with plain text. No chips, no modal.
+- **Sign-in** (`src/components/auth-form.tsx`): two columns on desktop, the form left-aligned on the left and the Lume light (`src/components/lume-light.tsx`) in a 28px-radius panel on the right; on mobile the light is a 144px strip above the form. The light is a WebGL shader in the Lume palette that drifts slowly, leans toward the pointer, gathers while the password field has focus, flares on submit and cools on an error. Reduced motion renders one still frame; without WebGL a static CSS version of the same palette shows. The panel carries no text.
 - **Answers are Markdown** (`src/components/markdown.tsx`), rendered from tokens into React elements, never into HTML. Headings, lists, tables and code inside an answer are content and are exempt from the list ban above, which is about UI chrome.
 - **Cofre** (`/app/vault`): a drive. The home lists the library and the cases; a case has its own page with breadcrumbs, its subfolders, and its files. Cards and list are two views of the same level, toggled in the header — the card is the item itself, not a container wrapped around one. Client data sits behind a disclosure labelled "Dados do cliente (opcional)" and is never required to file a document. The case's **Anexos** tab is a two-step form: choose the scanned PDF and the petition, then review a list of rows (include, name, first and last page, move up/down) with the resulting PJe file name as plain text under each name; one primary action generates the files into a new folder.
 
@@ -91,7 +97,7 @@ Motion is quiet and explains what changed. Everything goes through `gsap.matchMe
 - **Selection**: the sidebar pill slides (0.45s `power3.out`), and the active tab icon settles from 0.82 scale (`back.out`).
 - **Chrome that gets out of the way**: the tab bar moves off screen in 0.3s (`power2.out`) after 6px of downward scroll past 48px, and returns the moment scrolling reverses.
 - **Micro**: hover and press are Tailwind transitions of 150–200ms. Don't use GSAP for these.
-- Don't use looping animations, parallax, or motion on text while someone is reading.
+- Don't use looping animations, parallax, or motion on text while someone is reading. The sign-in light is the only exception: it is decorative, `aria-hidden`, paused when hidden or off screen, and still under reduced motion.
 
 ## Mobile
 

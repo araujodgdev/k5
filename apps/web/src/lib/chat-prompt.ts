@@ -15,6 +15,12 @@ export async function chatPromptMessages(owner:Owner,conversationId:string,messa
     const text=message.parts.flatMap(part=>{
       if(part.type==='text') return [part.text];
       if(part.type==='data-tool') {const data=part.data as {summary?:string};return data?.summary?[`[ferramenta] ${data.summary}`]:[];}
+      if(part.type==='data-approval') {
+        // The model must know whether the person confirmed, or it would offer the same action again.
+        const data=part.data as {summary?:string;state?:string;result?:string};
+        const state=data?.state==='confirmed'?`confirmada: ${data.result??''}`:data?.state==='cancelled'?'cancelada pela pessoa':data?.state==='failed'?`falhou: ${data.result??''}`:'aguardando a pessoa confirmar';
+        return data?.summary?[`[confirmação] ${data.summary} — ${state}`]:[];
+      }
       return [];
     }).join('\n');
     if(message.role!=='user') {if(text.trim()) history.push({role:'assistant',content:text});continue;}

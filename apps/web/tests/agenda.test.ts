@@ -59,7 +59,7 @@ test('agenda: reviewer tools are read only and revoked roles are checked at exec
   const { context } = (await fixture('reviewer'));
   const tools = agentTools(context);
   assert.ok(tools.k5_agenda_list_activities);
-  assert.ok(!tools.k5_agenda_create_activity);
+  assert.ok(!tools.k5_agenda_create_activity, 'reviewers never get write tools');
   for (const [name, capability] of Object.entries(agendaCapabilities)) {
     if (capability.effect === 'write') await assert.rejects(async () => (await call(context, name as CapabilityName, {})), { code: 'FORBIDDEN' });
     assert.doesNotThrow(() => z.toJSONSchema(capability.input, { io: 'input' }));
