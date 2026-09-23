@@ -253,7 +253,7 @@ export function NotificationInbox() {
   const support = typeof window === "undefined" ? "unavailable" : supportState(config);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-5 py-6 md:px-12 md:py-11">
+    <div className="mx-auto w-full max-w-5xl px-5 py-6 md:px-8 md:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-5">
         <h1 className="display text-[28px] max-md:sr-only">Notificações</h1>
         <Button variant="outline" className="min-h-11 md:min-h-9" onClick={() => void load({ force: true })} disabled={loading}>
@@ -261,9 +261,9 @@ export function NotificationInbox() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-5 border-b py-3">
-        <button type="button" onClick={() => setUnreadOnly(false)} aria-pressed={!unreadOnly} className={`min-h-11 border-b-2 px-1 text-sm ${!unreadOnly ? "border-foreground font-medium" : "border-transparent text-muted-foreground"}`}>Todas</button>
-        <button type="button" onClick={() => setUnreadOnly(true)} aria-pressed={unreadOnly} className={`min-h-11 border-b-2 px-1 text-sm ${unreadOnly ? "border-foreground font-medium" : "border-transparent text-muted-foreground"}`}>Não lidas</button>
+      <div className="flex flex-wrap items-center gap-5 border-b">
+        <button type="button" onClick={() => setUnreadOnly(false)} aria-pressed={!unreadOnly} className={`min-h-12 border-b-2 px-1 text-sm ${!unreadOnly ? "border-foreground font-medium" : "border-transparent text-muted-foreground"}`}>Todas</button>
+        <button type="button" onClick={() => setUnreadOnly(true)} aria-pressed={unreadOnly} className={`min-h-12 border-b-2 px-1 text-sm ${unreadOnly ? "border-foreground font-medium" : "border-transparent text-muted-foreground"}`}>Não lidas</button>
         {items.some((item) => !item.readAt) && <Button variant="ghost" className="ml-auto min-h-11 md:min-h-9" disabled={busy === "all"} onClick={() => void markAll()}>{busy === "all" ? "Salvando…" : "Marcar todas como lidas"}</Button>}
       </div>
 
