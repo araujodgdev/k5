@@ -29,14 +29,14 @@ Leitura do código em 18/09/2026, incluindo alterações locais em andamento. Ex
 
 | Base observada | Reutilização e trabalho necessário |
 | --- | --- |
-| [Casos e documentos do Cofre](../apps/web/db/migrations/0003_vault.sql) | Acrescentar vínculos com processos; um caso pode conter vários processos. Não usar o nome do caso como identificador processual. |
-| [Sessão](../apps/web/src/lib/session.ts) e [contexto de aplicação](../apps/web/src/lib/application/context.ts) | Derivar escritório e papel da sessão e revalidar o acesso nas operações interativas. |
-| [Catálogo de capacidades](../apps/web/src/lib/capabilities/contracts.ts) e [ferramentas](../apps/web/src/lib/agent-tools/index.ts) | Adicionar contratos judiciais que reutilizem os mesmos serviços da UI. Não dar ao modelo uma ferramenta HTTP arbitrária. |
-| [Worker](../apps/web/scripts/worker.ts) | Já processa documentos, índices e tarefas. Usar o padrão de trabalho durável, com filas separadas para coleta e OCR. |
-| [Armazenamento](../apps/web/src/lib/storage/index.ts) | Há adaptadores local e R2 no código em andamento. Preservar a interface; não afirmar que o bucket de produção já existe. |
-| [Banco de negócio](../apps/web/src/lib/database.ts) | Continua SQLite síncrono. A presença de `pg` e de um adaptador vetorial não significa que o banco da aplicação foi migrado. |
-| [Indexação](../apps/web/src/lib/knowledge/indexing.ts) e [índice vetorial](../apps/web/src/lib/knowledge/vector-index.ts) | Reutilizar versionamento, geração de índices e remoção. Validar as implementações em andamento antes de depender delas. |
-| [Workflows documentais](../apps/web/src/lib/document-workflows.ts) e [política de IA](../apps/web/src/lib/ai-policy.ts) | Hoje exigem fontes documentais selecionadas. Generalizar os tipos de evidência e a seleção antes de aceitar dados externos. |
+| [Casos e documentos do Cofre](../../apps/web/db/migrations/0003_vault.sql) | Acrescentar vínculos com processos; um caso pode conter vários processos. Não usar o nome do caso como identificador processual. |
+| [Sessão](../../apps/web/src/lib/session.ts) e [contexto de aplicação](../../apps/web/src/lib/application/context.ts) | Derivar escritório e papel da sessão e revalidar o acesso nas operações interativas. |
+| [Catálogo de capacidades](../../apps/web/src/lib/capabilities/contracts.ts) e [ferramentas](../../apps/web/src/lib/agent-tools/index.ts) | Adicionar contratos judiciais que reutilizem os mesmos serviços da UI. Não dar ao modelo uma ferramenta HTTP arbitrária. |
+| [Worker](../../apps/web/scripts/worker.ts) | Já processa documentos, índices e tarefas. Usar o padrão de trabalho durável, com filas separadas para coleta e OCR. |
+| [Armazenamento](../../apps/web/src/lib/storage/index.ts) | Há adaptadores local e R2 no código em andamento. Preservar a interface; não afirmar que o bucket de produção já existe. |
+| [Banco de negócio](../../apps/web/src/lib/database.ts) | Continua SQLite síncrono. A presença de `pg` e de um adaptador vetorial não significa que o banco da aplicação foi migrado. |
+| [Indexação](../../apps/web/src/lib/knowledge/indexing.ts) e [índice vetorial](../../apps/web/src/lib/knowledge/vector-index.ts) | Reutilizar versionamento, geração de índices e remoção. Validar as implementações em andamento antes de depender delas. |
+| [Workflows documentais](../../apps/web/src/lib/document-workflows.ts) e [política de IA](../../apps/web/src/lib/ai-policy.ts) | Hoje exigem fontes documentais selecionadas. Generalizar os tipos de evidência e a seleção antes de aceitar dados externos. |
 
 Não modificar arquivos de outras tarefas durante este planejamento. Durante a implementação, reconciliar a numeração de migrações com o estado atual, sem reservar agora um número que possa colidir com trabalho paralelo.
 
@@ -243,7 +243,7 @@ Registrar contratos em `capabilities/`, serviços em `application/` e adaptadore
 
 A pesquisa externa amplia o escopo do MVP e requer atualização explícita de `ai-policy.ts`, seleção de fontes e validação de citações. Uma fonte oficial comprova procedência, não aplicabilidade ou validade atual de uma tese jurídica. Antes de usar autoridades em minutas, preservar a seleção/revisão do advogado.
 
-UI futura segue [DESIGN.md](../apps/web/DESIGN.md): pt-BR, estados em texto simples, tabelas/linhas, teclado, mobile e movimento reduzido. Cobrir sem vínculo, carregando, sem resultado, múltiplos registros, fonte fora do ar, acesso expirado, dados parciais e coleta atrasada.
+UI futura segue [DESIGN.md](../../apps/web/DESIGN.md): pt-BR, estados em texto simples, tabelas/linhas, teclado, mobile e movimento reduzido. Cobrir sem vínculo, carregando, sem resultado, múltiplos registros, fonte fora do ar, acesso expirado, dados parciais e coleta atrasada.
 
 ## 10. Organização proposta do código
 

@@ -206,7 +206,7 @@ test("backend SQLite recusa corpus grande em vez de degradar em silêncio", …)
 
 | Arquivo | Conteúdo |
 | --- | --- |
-| `apps/web/src/lib/jurisprudence/retrieval.ts` | Busca híbrida sobre o corpus, no padrão de [`knowledge/retrieval.ts`](../apps/web/src/lib/knowledge/retrieval.ts) |
+| `apps/web/src/lib/jurisprudence/retrieval.ts` | Busca híbrida sobre o corpus, no padrão de [`knowledge/retrieval.ts`](../../apps/web/src/lib/knowledge/retrieval.ts) |
 | `apps/web/src/lib/capabilities/contracts.ts` | `k5_jurisprudence_search` e `k5_jurisprudence_get`, saída com `untrustedContent: true` |
 | `apps/web/src/lib/application/jurisprudence-service.ts` | Serviço autenticado; escopo derivado da sessão |
 | `apps/web/src/app/api/jurisprudence/` | Rotas de capacidade, sem acesso próprio ao banco |
@@ -230,7 +230,7 @@ citação sem esses campos não é renderizável — isso é validação de esqu
    formato de injeção e nada age sobre ele.
 6. A capacidade respeita papel e sessão; sessão revogada durante a chamada resulta em recusa.
 7. Consulta vazia, consulta só com stopwords e consulta sem resultado produzem três estados
-   distintos na interface, com teclado e mobile verificados contra [DESIGN.md](../apps/web/DESIGN.md).
+   distintos na interface, com teclado e mobile verificados contra [DESIGN.md](../../apps/web/DESIGN.md).
 8. Uma afirmação do assistente que cite jurisprudência só cita documentos que estavam no escopo
    selecionado daquela conversa.
 

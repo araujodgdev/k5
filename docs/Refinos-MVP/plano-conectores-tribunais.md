@@ -280,7 +280,7 @@ com o recurso que o esquema oferece, sem inventar um `event_kind` novo.
 | `apps/web/src/lib/judicial/jobs/scheduler.ts` | Assinatura com `target_kind = 'case'` agenda `lookupCase` |
 | `apps/web/src/lib/capabilities/contracts.ts` | `k5_judicial_list_movements`, com `untrustedContent: true` na saída |
 | `apps/web/src/lib/application/judicial-service.ts` | `listJudicialMovements(context, input)`, escritório derivado da sessão |
-| `apps/web/src/components/judicial-case-links.tsx` | Lista de movimentos do processo, com os estados de [DESIGN.md](../apps/web/DESIGN.md) |
+| `apps/web/src/components/judicial-case-links.tsx` | Lista de movimentos do processo, com os estados de [DESIGN.md](../../apps/web/DESIGN.md) |
 
 ### Aceite
 
@@ -414,7 +414,7 @@ Exige os dois serviços respondendo e a Onda 0 concluída para o TJAM.
 
 ### Problema
 
-`pnpm judicial:worker` existe e **não está no [`docker-compose.yml`](../docker-compose.yml)**: em
+`pnpm judicial:worker` existe e **não está no [`docker-compose.yml`](../../docker-compose.yml)**: em
 Docker, `web`, `worker` e `notifications` sobem e a coleta judicial não. Além disso, uma mudança de
 schema em um tribunal é descoberta hoje por um usuário, não pelo sistema.
 
