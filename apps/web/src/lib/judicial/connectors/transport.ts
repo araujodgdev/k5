@@ -17,7 +17,10 @@ import { ConnectorError, type InstallationRef } from '../contracts';
 export type TransportResponse = {
   status: number;
   contentType: string;
+  /** UTF-8 view of the body, for the JSON and XML parsers. */
   body: string;
+  /** The exact bytes received. A ZIP or PDF decoded as text is corrupted; read these instead. */
+  bytes: Buffer;
   /** Final URL after redirects, so the snapshot records where the bytes actually came from. */
   url: string;
 };
@@ -216,7 +219,8 @@ function statusToError(status: number, retryAfter: string | null): ConnectorErro
 }
 
 function buildUrl(base: string, path: string, query?: TransportRequestInit['query']): URL {
-  const url = new URL(path, base.endsWith('/') ? base : `${base}/`);
+  // A SOAP endpoint is the base URL itself (or `?wsdl` on it); adding a slash would change the path.
+  const url = path === '' || path.startsWith('?') ? new URL(path, base) : new URL(path, base.endsWith('/') ? base : `${base}/`);
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value === undefined) continue;
     url.searchParams.set(key, String(value));
@@ -234,7 +238,7 @@ function executeHttpsRequest(
     signal: AbortSignal;
     maxBytes: number;
   },
-): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
+): Promise<{ status: number; headers: IncomingHttpHeaders; body: string; bytes: Buffer }> {
   return new Promise((resolve, reject) => {
     const rawHostname = url.hostname.replace(/^\[|\]$/g, '');
     const isIpHost = Boolean(isIP(rawHostname));
@@ -297,11 +301,12 @@ function executeHttpsRequest(
       });
 
       res.on('end', () => {
-        const body = Buffer.concat(chunks).toString('utf8');
+        const bytes = Buffer.concat(chunks);
         resolve({
           status: res.statusCode ?? 200,
           headers: res.headers,
-          body,
+          body: bytes.toString('utf8'),
+          bytes,
         });
       });
 
@@ -345,7 +350,8 @@ export const liveTransport: Transport = {
         const response = await executeHttpsRequest(url, validatedIp, {
           method: init.method ?? 'GET',
           headers: init.headers ?? {},
-          body: init.body === undefined ? undefined : JSON.stringify(init.body),
+          // A SOAP envelope is already the wire format; anything else is sent as JSON.
+          body: init.body === undefined ? undefined : typeof init.body === 'string' ? init.body : JSON.stringify(init.body),
           signal: controller.signal,
           maxBytes,
         });
@@ -367,7 +373,7 @@ export const liveTransport: Transport = {
         const rawContentType = response.headers['content-type'];
         const contentType = Array.isArray(rawContentType) ? rawContentType[0] : (rawContentType ?? '');
         assertContentType(contentType);
-        return { status: response.status, contentType, body: response.body, url: url.toString() };
+        return { status: response.status, contentType, body: response.body, bytes: response.bytes, url: url.toString() };
       }
       throw new ConnectorError('source_unavailable', 'A fonte excedeu o número de redirecionamentos permitido.');
     } finally {
@@ -381,8 +387,11 @@ export const liveTransport: Transport = {
  * Keyed by `installationId + method + path`, so a fixture is tied to the installation it was
  * captured from and cannot be silently reused for a different court.
  */
+/** A recorded answer. `bytes` stands in for a binary body; `body` is the text view of it. */
+export type FixtureEntry = { contentType?: string; body: string; status?: number; bytes?: Buffer };
+
 export function fixtureTransport(
-  fixtures: Map<string, { contentType?: string; body: string; status?: number }>,
+  fixtures: Map<string, FixtureEntry>,
   /**
    * Awaited before the fixture is answered, so a test can make something happen mid-request —
    * another worker taking the lease, for instance. It has to be a hook here rather than a wrapper
@@ -403,7 +412,8 @@ export function fixtureTransport(
       return {
         status,
         contentType: fixture.contentType ?? 'application/json',
-        body: fixture.body,
+        body: fixture.bytes ? fixture.bytes.toString('utf8') : fixture.body,
+        bytes: fixture.bytes ?? Buffer.from(fixture.body, 'utf8'),
         url: `fixture://${key}`,
       };
     },

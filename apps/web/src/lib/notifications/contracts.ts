@@ -21,6 +21,7 @@ export const notificationEventTypes = [
   'documents.verification.available',
   'judicial.publication.new',
   'judicial.publication.corrected',
+  'judicial.movement.new',
   'judicial.collection.failed',
   'system.push.test',
 ] as const;

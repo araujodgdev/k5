@@ -53,11 +53,12 @@ test("connector registry: only implemented kinds resolve, and the rest say so pl
   assert.equal(hasConnectorFor("djen"), true);
   // The plan is explicit that these need access Lume does not hold; claiming a connector exists
   // would be worse than reporting the gap.
-  assert.equal(hasConnectorFor("mni"), false);
-  assert.equal(hasConnectorFor("ckan"), false);
+  assert.equal(hasConnectorFor("mni"), true);
+  assert.equal(hasConnectorFor("ckan"), true);
+  assert.equal(hasConnectorFor("court_portal"), false);
 
   assert.throws(
-    () => connectorFor(installation({ kind: "mni" })),
+    () => connectorFor(installation({ kind: "court_portal" })),
     (error: unknown) => error instanceof ConnectorError && error.code === "unsupported",
   );
 });

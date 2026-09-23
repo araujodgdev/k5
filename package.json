@@ -17,6 +17,8 @@
     "judicial:worker": "pnpm --filter @k5/web judicial:worker",
     "notifications:worker": "pnpm --filter @k5/web notifications:worker",
     "judicial:admin": "pnpm --filter @k5/web judicial:admin",
+    "judicial:probe": "pnpm --filter @k5/web judicial:probe",
+    "judicial:vocab": "pnpm --filter @k5/web judicial:vocab",
     "platform:admin": "pnpm --filter @k5/web platform:admin"
   },
   "devDependencies": {

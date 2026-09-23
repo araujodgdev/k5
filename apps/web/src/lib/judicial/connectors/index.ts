@@ -1,19 +1,25 @@
 import { ConnectorError, type InstallationRef, type JudicialConnector, type SourceKind } from '../contracts';
 import { createDjenConnector } from './djen';
-import { fixtureTransport, liveTransport, type Transport } from './transport';
+import { createMniConnector } from './mni';
+import { createCkanConnector } from './ckan';
+import { fixtureTransport, liveTransport, type FixtureEntry, type Transport } from './transport';
 
 export { createDjenConnector, normalizeCommunications, DJEN_PARSER_VERSION } from './djen';
+export { createMniConnector, MNI_PARSER_VERSION } from './mni';
+export { createCkanConnector, CKAN_PARSER_VERSION } from './ckan';
 export { fixtureTransport, fixtureKey, liveTransport, isPrivateAddress, TransportBlockedError } from './transport';
-export type { Transport, TransportResponse, TransportRequestInit } from './transport';
+export type { FixtureEntry, Transport, TransportResponse, TransportRequestInit } from './transport';
 
 /**
  * Resolves the adapter for an installation. Only kinds with a real implementation are listed:
  * the plan is explicit that a tool is published once it exists, and that "no API found" must not
- * be dressed up as a working connector. MNI, CKAN and the jurisprudence APIs have contracts in
- * `contracts.ts` and no adapter here, because F3 and F6 depend on access Lume does not yet hold.
+ * be dressed up as a working connector. The jurisprudence APIs and court portals have contracts
+ * in `contracts.ts` and no adapter here yet.
  */
 const factories: Partial<Record<SourceKind, (transport: Transport) => JudicialConnector>> = {
   djen: createDjenConnector,
+  mni: createMniConnector,
+  ckan: createCkanConnector,
 };
 
 /**
@@ -25,7 +31,7 @@ let transportOverride: Transport | null = null;
 
 // Not named `use*`: that prefix marks a React hook, and these are module-level switches.
 export function setFixtureTransport(
-  fixtures: Map<string, { contentType?: string; body: string; status?: number }>,
+  fixtures: Map<string, FixtureEntry>,
   onRequest?: () => Promise<void> | void,
 ): void {
   transportOverride = fixtureTransport(fixtures, onRequest);

@@ -68,6 +68,8 @@ export function isWorkerSafe(effect: OperationEffect): effect is 'neutral_query'
 
 export const connectorOperations = [
   'describeCapabilities', 'lookupCase', 'listChanges', 'fetchPublication', 'fetchDocument', 'health',
+  // Jurisprudence collections (trilha B): list what a dataset offers, then fetch one resource.
+  'listPrecedents', 'fetchPrecedent',
 ] as const;
 export type ConnectorOperation = (typeof connectorOperations)[number];
 
@@ -232,6 +234,64 @@ export const normalizedDocumentSchema = z.object({
 export type NormalizedDocument = z.infer<typeof normalizedDocumentSchema>;
 
 /**
+ * What a jurisprudence document is. An ementa is not the decision: the kind travels with every
+ * record, every search result and every citation, so a summary is never presented as the text.
+ */
+export const precedentContentKinds = ['ementa', 'espelho', 'inteiro_teor', 'sumula', 'tema', 'decisao_monocratica'] as const;
+export type PrecedentContentKind = (typeof precedentContentKinds)[number];
+
+/** Read per resource (or its own dataset), never extended from a catalog. Null when undeclared. */
+export const precedentLicenseSchema = z.object({
+  title: z.string().min(1),
+  url: z.string().nullable(),
+  attribution: z.string().nullable(),
+}).nullable();
+export type PrecedentLicense = z.infer<typeof precedentLicenseSchema>;
+
+export const normalizedPrecedentSchema = z.object({
+  sourceDocumentId: z.string().min(1),
+  court: z.string().min(1),
+  organ: z.string().nullable(),
+  contentKind: z.enum(precedentContentKinds),
+  caseIdentity: z.object({ cnjNumber: z.string().regex(/^\d{20}$/).nullable(), nativeNumber: z.string().nullable() }).nullable(),
+  title: z.string().nullable(),
+  rapporteur: z.string().nullable(),
+  judgedOn: z.string().nullable(),
+  publishedOn: z.string().nullable(),
+  headnote: z.string().nullable(),
+  /** Where the full text lives when the source provides it; null for an ementa or espelho alone. */
+  fullTextRef: z.string().nullable(),
+  citationLabel: z.string().min(1),
+  license: precedentLicenseSchema,
+  sourceUpdatedAt: z.string().nullable(),
+  /** sha256 of the record as the source wrote it; a changed record is a new version. */
+  checksum: z.string().regex(/^[0-9a-f]{64}$/),
+  /** Only when the source itself relates two documents. Never inferred from similar text. */
+  relatedSourceDocumentId: z.string().nullable(),
+});
+export type NormalizedPrecedent = z.infer<typeof normalizedPrecedentSchema>;
+
+/** One downloadable file in a dataset. A resource is not a judgment: one ZIP may hold thousands. */
+export type PrecedentResource = {
+  sourceResourceId: string;
+  datasetId: string;
+  name: string | null;
+  url: string;
+  format: string | null;
+  /** What the source declares (hash, or last change and size); a change here triggers a download. */
+  declaredChecksum: string;
+  sourceUpdatedAt: string | null;
+  license: PrecedentLicense;
+};
+
+export type ListPrecedentsRequest = { datasetId: string };
+export type FetchPrecedentRequest = { resource: PrecedentResource; contentKind: PrecedentContentKind };
+/** The normalized documents plus the exact bytes, which are kept as the evidence they came from. */
+export type PrecedentFetch = ConnectorResult<NormalizedPrecedent> & {
+  original: { contentType: string; bytes: Buffer; sha256: string };
+};
+
+/**
  * Common envelope for every connector result. `coverage` is what makes a short answer honest:
  * a page limit that stopped the sweep is reported, not silently treated as "that was all".
  */
@@ -283,6 +343,20 @@ export type ListChangesRequest = {
 };
 
 /**
+ * What a parser reads from a JSON response, declared by the connector so the conformance harness
+ * can say which fields of a real response nobody reads. Paths: envelope keys as-is, item keys
+ * under `listKeys` compared by name. `ignored` is a reviewed decision, not a place to hide noise.
+ */
+export type FieldManifest = {
+  /** One of these envelope keys holds the list of items. */
+  listKeys: string[];
+  envelope: string[];
+  /** Aliases for one logical field; a `required` group must match at least one key on every item. */
+  item: Array<{ keys: string[]; required?: boolean }>;
+  ignored: { envelope: string[]; item: string[] };
+};
+
+/**
  * The interface every source adapter implements. `normalize` is deliberately separate and pure:
  * a parser fix re-reads stored snapshots instead of asking the court again.
  */
@@ -295,6 +369,10 @@ export type JudicialConnector = {
   listChanges?(installation: InstallationRef, request: ListChangesRequest): Promise<ConnectorResult<NormalizedPublication>>;
   fetchPublication?(installation: InstallationRef, sourcePublicationId: string): Promise<ConnectorResult<NormalizedPublication>>;
   fetchDocument?(installation: InstallationRef, sourceDocumentId: string): Promise<ConnectorResult<NormalizedDocument>>;
+  listPrecedents?(installation: InstallationRef, request: ListPrecedentsRequest): Promise<ConnectorResult<PrecedentResource>>;
+  fetchPrecedent?(installation: InstallationRef, request: FetchPrecedentRequest): Promise<PrecedentFetch>;
+  /** Null when the operation has no JSON parser to confront (see conformance.ts). */
+  expectedFields?(operation: ConnectorOperation): FieldManifest | null;
   /** Pure: same bytes in, same records out, no network, version pinned by `parserVersion`. */
   normalize(operation: ConnectorOperation, payload: string): unknown;
 };

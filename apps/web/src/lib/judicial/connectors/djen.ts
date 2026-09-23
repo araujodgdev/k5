@@ -4,6 +4,7 @@ import {
   type ConnectorCapabilities,
   type ConnectorOperation,
   type ConnectorResult,
+  type FieldManifest,
   type InstallationRef,
   type JudicialConnector,
   type ListChangesRequest,
@@ -37,6 +38,37 @@ const DEFAULT_MAX_PAGES = 20;
 
 type RawCommunication = Record<string, unknown>;
 
+/**
+ * Every key the parser reads, by alias, plus the keys it has seen and deliberately ignores. The
+ * parser reads through these same constants, so the conformance harness compares a real response
+ * against what the code actually does, not against a list someone has to keep in sync by hand.
+ */
+const ITEM_KEYS = {
+  body: ['texto', 'textoComunicacao', 'texto_comunicacao', 'conteudo'],
+  number: ['numeroProcesso', 'numero_processo', 'numeroprocessocommascara'],
+  madeAvailable: ['dataDisponibilizacao', 'data_disponibilizacao', 'datadisponibilizacao'],
+  published: ['dataPublicacao', 'data_publicacao'],
+  updated: ['dataAtualizacao', 'data_atualizacao'],
+  id: ['id', 'numeroComunicacao', 'numero_comunicacao', 'hash'],
+  edition: ['numeroEdicao', 'numero_edicao', 'edicao'],
+  page: ['numeroPagina', 'pagina'],
+  officialHash: ['hash', 'hashComunicacao'],
+  revision: ['tipoComunicacao', 'tipo_comunicacao', 'situacao'],
+} as const;
+const LIST_KEYS = ['items', 'content', 'comunicacoes', 'data'] as const;
+const COUNT_KEYS = ['count', 'total', 'totalElements'] as const;
+
+export const DJEN_FIELDS: FieldManifest = {
+  listKeys: [...LIST_KEYS],
+  envelope: [...COUNT_KEYS],
+  item: Object.entries(ITEM_KEYS).map(([name, keys]) => ({ keys: [...keys], required: name === 'body' })),
+  ignored: {
+    envelope: ['status'],
+    // The court is already fixed by the installation, so the gazette's own court label is not read.
+    item: ['siglaTribunal'],
+  },
+};
+
 function text(value: unknown): string | null {
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -47,7 +79,7 @@ function text(value: unknown): string | null {
 }
 
 /** Reads the first key the source actually used, so a rename upstream is a miss, not a crash. */
-function pick(raw: RawCommunication, ...keys: string[]): string | null {
+function pick(raw: RawCommunication, ...keys: readonly string[]): string | null {
   for (const key of keys) {
     const value = text(raw[key]);
     if (value !== null) return value;
@@ -87,31 +119,31 @@ export function plainTextFromGazette(value: string): string {
  * rather than assumed. When the source says nothing, `original` is the honest default.
  */
 function revisionKind(raw: RawCommunication): NormalizedPublication['revisionKind'] {
-  const declared = pick(raw, 'tipoComunicacao', 'tipo_comunicacao', 'situacao')?.toLowerCase() ?? '';
+  const declared = pick(raw, ...ITEM_KEYS.revision)?.toLowerCase() ?? '';
   if (declared.includes('errata') || declared.includes('retifica')) return 'errata';
   if (declared.includes('republica')) return 'republication';
   return 'original';
 }
 
 function toPublication(raw: RawCommunication): NormalizedPublication | null {
-  const body = pick(raw, 'texto', 'textoComunicacao', 'texto_comunicacao', 'conteudo');
+  const body = pick(raw, ...ITEM_KEYS.body);
   if (!body) return null;
 
-  const rawNumber = pick(raw, 'numeroProcesso', 'numero_processo', 'numeroprocessocommascara');
+  const rawNumber = pick(raw, ...ITEM_KEYS.number);
   // An unparseable number is dropped from the CNJ column rather than stored there: the column is
   // joined against, and a twenty-character string that fails its check digits is not an identity.
   const parsed = rawNumber ? parseCnjNumber(rawNumber) : null;
 
-  const madeAvailable = parseSourceDate(pick(raw, 'dataDisponibilizacao', 'data_disponibilizacao', 'datadisponibilizacao'));
-  const published = parseSourceDate(pick(raw, 'dataPublicacao', 'data_publicacao'));
-  const updated = parseSourceDate(pick(raw, 'dataAtualizacao', 'data_atualizacao'));
+  const madeAvailable = parseSourceDate(pick(raw, ...ITEM_KEYS.madeAvailable));
+  const published = parseSourceDate(pick(raw, ...ITEM_KEYS.published));
+  const updated = parseSourceDate(pick(raw, ...ITEM_KEYS.updated));
 
   return {
-    sourcePublicationId: pick(raw, 'id', 'numeroComunicacao', 'numero_comunicacao', 'hash'),
+    sourcePublicationId: pick(raw, ...ITEM_KEYS.id),
     cnjNumber: parsed?.ok ? parsed.normalized : null,
-    edition: pick(raw, 'numeroEdicao', 'numero_edicao', 'edicao'),
-    page: pick(raw, 'numeroPagina', 'pagina'),
-    officialHash: pick(raw, 'hash', 'hashComunicacao'),
+    edition: pick(raw, ...ITEM_KEYS.edition),
+    page: pick(raw, ...ITEM_KEYS.page),
+    officialHash: pick(raw, ...ITEM_KEYS.officialHash),
     body: plainTextFromGazette(body),
     madeAvailableOn: madeAvailable?.value ?? null,
     publishedOn: published?.value ?? null,
@@ -139,8 +171,7 @@ export function normalizeCommunications(payload: string): ParsedPage {
   }
 
   const envelope = parsed as Record<string, unknown>;
-  const list = [envelope.items, envelope.content, envelope.comunicacoes, envelope.data]
-    .find((candidate) => Array.isArray(candidate));
+  const list = LIST_KEYS.map((key) => envelope[key]).find((candidate) => Array.isArray(candidate));
   if (!Array.isArray(list)) {
     throw new ConnectorError('schema_changed', 'A resposta do DJEN não trouxe uma lista de comunicações.');
   }
@@ -153,7 +184,7 @@ export function normalizeCommunications(payload: string): ParsedPage {
     if (publication) items.push(publication); else rejected += 1;
   }
 
-  const reported = envelope.count ?? envelope.total ?? envelope.totalElements;
+  const reported = COUNT_KEYS.map((key) => envelope[key]).find((value) => value !== undefined && value !== null);
   return {
     items,
     rejected,
@@ -367,6 +398,10 @@ export function createDjenConnector(transport: Transport): JudicialConnector {
         source: { installationId: installation.id, operation: 'fetchPublication', parserVersion: DJEN_PARSER_VERSION, collectedAt },
         rawPayloads: [rawEntry],
       };
+    },
+
+    expectedFields(operation) {
+      return operation === 'listChanges' || operation === 'fetchPublication' ? DJEN_FIELDS : null;
     },
 
     normalize(operation: ConnectorOperation, payload: string) {

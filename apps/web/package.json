@@ -17,6 +17,8 @@
     "notifications:build": "tsx scripts/build-notifications.ts",
     "notifications:deploy": "tsx scripts/build-notifications.ts --deploy",
     "judicial:admin": "node --conditions=react-server --import tsx scripts/judicial-admin.ts",
+    "judicial:probe": "node --conditions=react-server --import tsx scripts/judicial-probe.ts",
+    "judicial:vocab": "node --conditions=react-server --import tsx scripts/judicial-vocab.ts",
     "platform:admin": "tsx scripts/platform-admin.ts",
     "sentry:verify": "tsx scripts/verify-sentry.ts",
     "sentry:verify:browser": "tsx scripts/verify-sentry-browser.ts",

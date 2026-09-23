@@ -99,6 +99,8 @@ export function eventCopy(type: NotificationEventType, data: Record<string, unkn
       return { title: 'Nova publicação', summary: 'Há uma nova publicação em um caso acompanhado.' };
     case 'judicial.publication.corrected':
       return { title: 'Publicação corrigida', summary: 'Uma publicação acompanhada recebeu correção.' };
+    case 'judicial.movement.new':
+      return { title: 'Novo movimento', summary: 'Há um novo movimento em um processo acompanhado.' };
     case 'judicial.collection.failed':
       return { title: 'Coleta judicial incompleta', summary: 'Uma fonte acompanhada precisa de atenção.' };
     case 'system.push.test':

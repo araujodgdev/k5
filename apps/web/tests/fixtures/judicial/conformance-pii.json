@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "count": 1,
+  "items": [
+    {
+      "id": "djen-synth-0103",
+      "numeroProcesso": "0000001-05.2025.8.26.0100",
+      "dataDisponibilizacao": "2026-09-18",
+      "numeroOab": "12345",
+      "destinatarios": [{ "nome": "PARTE SINTETICA", "documento": "123.456.789-09" }],
+      "texto": "Fica intimada a parte, CPF 123.456.789-09, e a empresa CNPJ 12.345.678/0001-90, por sua advogada OAB/AM 12.345, e-mail advogada.sintetica@exemplo.com.br, telefone (92) 99123-4567. Processo 00000010520258260100."
+    }
+  ]
+}

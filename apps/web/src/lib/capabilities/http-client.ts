@@ -130,6 +130,17 @@ const routes: Record<CapabilityName, Route> = {
       return query ? `/api/judicial/publications?${query}` : '/api/judicial/publications';
     },
   },
+  k5_judicial_list_movements: {
+    method: 'GET',
+    path: (i) => {
+      const params = new URLSearchParams();
+      if (i.caseId) params.set('caseId', String(i.caseId));
+      if (i.linkId) params.set('linkId', String(i.linkId));
+      if (i.limit) params.set('limit', String(i.limit));
+      const query = params.toString();
+      return query ? `/api/judicial/movements?${query}` : '/api/judicial/movements';
+    },
+  },
   k5_judicial_get_publication: { method: 'GET', path: (i) => `/api/judicial/publications/${id(i.publicationId)}` },
   k5_judicial_request_refresh: { method: 'POST', path: (i) => `/api/judicial/links/${id(i.linkId)}/refresh`, body: (i) => i },
   k5_judicial_get_job: { method: 'GET', path: (i) => `/api/judicial/jobs/${id(i.jobId)}` },

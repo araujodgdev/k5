@@ -128,7 +128,7 @@ test.after(() => resetTransport());
 
 test("catalog: every judicial capability has an executor and a sane publication policy", () => {
   const judicialNames = capabilityNames.filter((name) => name.startsWith("k5_judicial_"));
-  assert.equal(judicialNames.length, 12);
+  assert.equal(judicialNames.length, 13);
 
   const lawyerTools = publishedCapabilitiesForRole("lawyer", "agent");
   // Confirming a link authorizes recurring queries to a court; that stays with a person.
@@ -139,7 +139,7 @@ test("catalog: every judicial capability has an executor and a sane publication 
   const reviewerTools = publishedCapabilitiesForRole("reviewer", "agent").filter((name) => name.startsWith("k5_judicial_"));
   assert.deepEqual(reviewerTools.sort(), [
     "k5_judicial_get_job", "k5_judicial_get_publication", "k5_judicial_list_alerts",
-    "k5_judicial_list_links", "k5_judicial_list_publications", "k5_judicial_list_sources",
+    "k5_judicial_list_links", "k5_judicial_list_movements", "k5_judicial_list_publications", "k5_judicial_list_sources",
   ]);
 });
 

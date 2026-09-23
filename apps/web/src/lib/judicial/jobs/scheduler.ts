@@ -102,6 +102,30 @@ export async function scheduleDueSubscriptions(now = Date.now(), limit = 20): Pr
       continue;
     }
 
+    if (subscription.targetKind === 'case') {
+      const link = subscription.linkId ? await findCaseLink(subscription.officeId, subscription.linkId) : undefined;
+      // A case lookup is about one proceeding; without a confirmed link there is nothing to ask.
+      if (!link || link.status !== 'active' || link.confirmation !== 'confirmed') {
+        await deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
+        outcome.skipped.push({ subscriptionId: subscription.id, reason: 'no_confirmed_links' });
+        continue;
+      }
+      const { created } = await enqueueJob({
+        officeId: subscription.officeId,
+        installationId: installation.id,
+        subscriptionId: subscription.id,
+        linkId: link.id,
+        kind: 'refresh',
+        operation: 'lookupCase',
+        // Only a pending job matches the key, so this reuses one still waiting and nothing else.
+        idempotencyKey: `sub:${subscription.id}:lookupCase`,
+      });
+      await deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
+      if (created) outcome.queued += 1;
+      else outcome.skipped.push({ subscriptionId: subscription.id, reason: 'already_pending' });
+      continue;
+    }
+
     outcome.skipped.push({ subscriptionId: subscription.id, reason: 'target_kind_not_implemented' });
     await deferSubscription(subscription.id, subscription.intervalMinutes * 60_000, now);
   }

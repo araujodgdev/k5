@@ -1,0 +1,12 @@
+{
+  "//": "Catálogo sintético no formato de importação do Lume. Não é a distribuição oficial do SGT.",
+  "terms": [
+    { "kind": "class", "code": "7", "label": "Procedimento Comum Cível", "validFrom": "2010-01-01" },
+    { "kind": "movement", "code": "26", "label": "Distribuição", "validFrom": "2010-01-01" },
+    { "kind": "movement", "code": "60", "label": "Expedição de documento", "validFrom": "2010-01-01" },
+    { "kind": "movement", "code": "581", "label": "Juntada de documento", "validFrom": "2010-01-01" },
+    { "kind": "movement", "code": "970", "label": "Audiência de conciliação realizada", "validFrom": "2010-01-01" },
+    { "kind": "movement", "code": "11010", "label": "Mero expediente", "validFrom": "2010-01-01" },
+    { "kind": "movement", "code": "11385", "label": "Audiência de conciliação designada", "parentCode": "970", "validFrom": "2012-01-01" }
+  ]
+}

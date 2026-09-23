@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <ns2:consultarProcessoResposta xmlns:ns2="http://www.cnj.jus.br/servico-intercomunicacao-2.2.2/">
+      <sucesso>false</sucesso>
+      <mensagem>Processo não encontrado</mensagem>
+    </ns2:consultarProcessoResposta>
+  </soap:Body>
+</soap:Envelope>

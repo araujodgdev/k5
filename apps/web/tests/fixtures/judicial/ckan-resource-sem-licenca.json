@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "result": {
+    "id": "conjunto-sem-licenca",
+    "name": "conjunto-sem-licenca",
+    "license_id": "notspecified",
+    "license_title": "License not specified",
+    "organization": { "title": "Superior Tribunal de Justiça" },
+    "resources": [
+      { "id": "res-sem-licenca", "url": "https://dadosabertos.web.stj.jus.br/dataset/conjunto-sem-licenca/resource/res-sem-licenca/download/a.json", "format": "JSON", "hash": "sha-sem-1" }
+    ]
+  }
+}

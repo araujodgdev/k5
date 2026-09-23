@@ -1,0 +1,2 @@
+# Judicial fixtures are compared byte for byte (A3: the SOAP envelope must match its fixture).
+apps/web/tests/fixtures/judicial/** text eol=lf

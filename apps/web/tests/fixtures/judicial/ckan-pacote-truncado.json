@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "result": {
+    "id": "espelhos-grande",
+    "license_id": "cc-by",
+    "license_title": "Creative Commons Attribution",
+    "organization": { "title": "Superior Tribunal de Justiça" },
+    "resources": [
+      { "id": "res-a", "url": "https://dadosabertos.web.stj.jus.br/dataset/espelhos-grande/resource/res-a/download/a.json", "format": "JSON", "hash": "sha-a" },
+      { "id": "res-b", "url": "https://dadosabertos.web.stj.jus.br/dataset/espelhos-grande/resource/res-b/download/b.json", "format": "JSON", "hash": "sha-b" },
+      { "id": "res-c", "url": "https://dadosabertos.web.stj.jus.br/dataset/espelhos-grande/resource/res-c/download/c.json", "format": "JSON", "hash": "sha-c" }
+    ]
+  }
+}

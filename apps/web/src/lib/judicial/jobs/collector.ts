@@ -1,9 +1,14 @@
 import 'server-only';
 import { captureOperationalError } from '@/lib/observability/report';
-import { ConnectorError, permits, type ConnectorResult, type NormalizedPublication } from '../contracts';
+import {
+  ConnectorError, isWorkerSafe, permits,
+  type ConnectorResult, type InstallationRef, type JudicialConnector, type NormalizedPublication,
+} from '../contracts';
 import { connectorFor, currentTransport, hasConnectorFor, DJEN_PARSER_VERSION, type Transport } from '../connectors';
 import { findInstallation } from '../repositories/installations';
 import { ingestPublications, persistSnapshot, recordSyncFailureAlert } from '../repositories/evidence';
+import { ingestCase } from '../repositories/cases';
+import { findCaseLink } from '../repositories/links';
 import { findSubscriptionById, recordSubscriptionSuccess, subscriptionStillAuthorized, setSubscriptionStatus } from '../repositories/subscriptions';
 import { recordAudit } from '../repositories/audit';
 import {
@@ -160,11 +165,22 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     }
   }
 
-  if (job.operation !== 'listChanges') {
-    throw new ConnectorError('unsupported', `Operação ainda não implementada no coletor: ${job.operation}`);
-  }
-  if (!job.windowFrom || !job.windowTo) {
-    throw new ConnectorError('unsupported', 'Coleta incremental exige uma janela.');
+  // Section 8: only a neutral query runs unattended. An operation the connector does not declare,
+  // or declares with a possible legal effect, is skipped before any request is spent.
+  const declared = connectorFor(installation).describeCapabilities(installation).operations
+    .find((entry) => entry.operation === job.operation);
+  if (!declared?.supported || !isWorkerSafe(declared.effect)) {
+    if (!await completeJob(job.id, leaseOwner)) {
+      throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
+    }
+    await recordAudit({
+      officeId: job.officeId, actor: 'worker', action: 'judicial.collect', subjectKind: 'job',
+      subjectId: job.id, installationId: installation.id, outcome: 'denied',
+    });
+    return {
+      jobId: job.id, status: 'skipped', inserted: 0, duplicates: 0, alerts: 0,
+      detail: `Operação ${job.operation} não é uma consulta neutra suportada por esta fonte; não executada.`,
+    };
   }
 
   let requestCount = 0;
@@ -193,6 +209,16 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
   };
 
   const connector = connectorFor(installation, budgetedTransport);
+
+  // The operation decides the path, never the kind of source: a second court with a different
+  // contract reaches the same branch through its own connector.
+  if (job.operation === 'lookupCase') return await runLookupCase(job, leaseOwner, installation, connector, retainLease);
+  if (job.operation !== 'listChanges') {
+    throw new ConnectorError('unsupported', `Operação ainda não implementada no coletor: ${job.operation}`);
+  }
+  if (!job.windowFrom || !job.windowTo) {
+    throw new ConnectorError('unsupported', 'Coleta incremental exige uma janela.');
+  }
   if (!connector.listChanges) throw new ConnectorError('unsupported', 'Este conector não oferece consulta incremental.');
 
   const cnjNumbers = Array.isArray(job.request.cnjNumbers)
@@ -294,5 +320,60 @@ async function runJob(job: SyncJob, leaseOwner: string, now: number): Promise<Co
     duplicates: outcome.duplicates,
     alerts: outcome.alerts,
     detail: `${outcome.inserted} nova(s), ${outcome.duplicates} já conhecida(s), ${result.coverage.rejected} rejeitada(s).`,
+  };
+}
+
+/**
+ * One case lookup: header and movements of the linked proceeding. The identity comes from the
+ * confirmed link, never from the job payload, so a queued job cannot be aimed at another number.
+ */
+async function runLookupCase(
+  job: SyncJob,
+  leaseOwner: string,
+  installation: InstallationRef,
+  connector: JudicialConnector,
+  retainLease: () => Promise<void>,
+): Promise<CollectOutcome> {
+  if (!job.linkId) throw new ConnectorError('unsupported', 'Consulta de processo exige um vínculo.');
+  const link = await findCaseLink(job.officeId, job.linkId);
+  if (!link || link.status !== 'active' || link.confirmation !== 'confirmed') {
+    throw new ConnectorError('human_action_required', 'O vínculo deste processo não está ativo e confirmado.');
+  }
+  if (!connector.lookupCase) throw new ConnectorError('unsupported', 'Este conector não consulta processos.');
+
+  // ponytail: no credential yet. Nothing decrypts judicial_connection.secret_ref today, so a source
+  // that requires one answers human_action_required here; wiring it is part of A6.
+  const result = await connector.lookupCase(installation, {
+    identity: { cnjNumber: link.cnjNumber, nativeNumber: link.nativeNumber, degree: link.degree },
+  });
+
+  await retainLease();
+  const outcome = await ingestCase({ officeId: job.officeId, installation, linkId: link.id, jobId: job.id, result });
+
+  await retainLease();
+  if (!await checkpointJob(job.id, leaseOwner, {
+    cursor: null,
+    pagesFetched: result.coverage.pagesFetched,
+    recordsAccepted: outcome.inserted,
+    recordsRejected: result.coverage.rejected,
+  }) || !await completeJob(job.id, leaseOwner)) {
+    throw new ConnectorError('partial', 'A coleta perdeu a posse da tarefa antes de concluir.');
+  }
+  if (job.subscriptionId) await recordSubscriptionSuccess(job.subscriptionId, result.source.collectedAt.slice(0, 10), Date.now());
+
+  await recordAudit({
+    officeId: job.officeId, actor: 'worker', action: 'judicial.collect', subjectKind: 'job',
+    subjectId: job.id, installationId: installation.id, outcome: 'ok',
+  });
+
+  return {
+    jobId: job.id,
+    status: 'completed',
+    inserted: outcome.inserted,
+    duplicates: outcome.duplicates,
+    alerts: outcome.alerts,
+    detail: outcome.baselines
+      ? `${outcome.inserted} movimento(s) gravado(s) como linha de base, sem alertas.`
+      : `${outcome.inserted} movimento(s) novo(s), ${outcome.duplicates} já conhecido(s), ${result.coverage.rejected} rejeitado(s).`,
   };
 }

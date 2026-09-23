@@ -1,0 +1,27 @@
+{
+  "kind": "ckan",
+  "courtCode": "STJ",
+  "courtName": "Superior Tribunal de Justiça — Dados Abertos",
+  "degree": "superior",
+  "system": "not_applicable",
+  "purpose": "jurisprudence",
+  "baseUrl": "https://dadosabertos.web.stj.jus.br/",
+  "contractVersion": "ckan-action-api-3",
+  "authKind": "none",
+  "discoveryStatus": "documented",
+  "permissions": {
+    "query": "nao_esclarecido",
+    "cache": "nao_esclarecido",
+    "documents": "nao_esclarecido",
+    "redistribution": "nao_esclarecido",
+    "ai": "nao_esclarecido"
+  },
+  "permissionEvidence": "Em 18/09/2026 o package_show de dois conjuntos do STJ declarou licença Creative Commons Atribuição, cada um no próprio conjunto. Isso não se estende a outros conjuntos e ainda não foi revisado conforme o runbook de habilitação; por isso as cinco dimensões seguem não esclarecidas.",
+  "allowedHosts": ["dadosabertos.web.stj.jus.br"],
+  "rateLimitPerMinute": 6,
+  "dailyRequestBudget": 200,
+  "coverageFrom": null,
+  "coverageTo": null,
+  "documentationUrl": "https://dadosabertos.web.stj.jus.br/",
+  "notes": "Acervo de jurisprudência (trilha B1). Os conjuntos a sincronizar e o tipo de conteúdo de cada um (espelho, inteiro teor) são informados à sincronização, não inferidos. O layout dos registros dentro dos arquivos não foi confrontado com um download real: passe o primeiro arquivo pelo probe (A1) antes de confiar no parser."
+}

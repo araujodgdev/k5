@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <ns2:consultarProcessoResposta xmlns:ns2="http://www.cnj.jus.br/servico-intercomunicacao-2.2.2/">
+      <sucesso>true</sucesso>
+      <mensagem>Processo consultado</mensagem>
+      <processo>
+        <dadosBasicos numero="00000010520258260100" classeProcessual="7" nivelSigilo="5"/>
+        <movimento dataHora="20250103093000" identificadorMovimento="mov-sigiloso">
+          <movimentoNacional codigoNacional="26"/>
+        </movimento>
+      </processo>
+    </ns2:consultarProcessoResposta>
+  </soap:Body>
+</soap:Envelope>

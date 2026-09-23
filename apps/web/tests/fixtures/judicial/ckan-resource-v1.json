@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "result": {
+    "id": "espelhos-versionado",
+    "license_id": "cc-by",
+    "license_title": "Creative Commons Attribution",
+    "organization": { "title": "Superior Tribunal de Justiça" },
+    "resources": [
+      { "id": "res-versionado", "url": "https://dadosabertos.web.stj.jus.br/dataset/espelhos-versionado/resource/res-versionado/download/v.json", "format": "JSON", "hash": "sha-versionado-1", "last_modified": "2025-01-15T10:00:00" }
+    ]
+  }
+}

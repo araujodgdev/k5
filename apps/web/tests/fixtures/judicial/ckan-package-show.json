@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "result": {
+    "id": "espelhos-sintetico",
+    "name": "espelhos-sintetico",
+    "title": "Espelhos de acórdãos (amostra sintética)",
+    "license_id": "cc-by",
+    "license_title": "Creative Commons Attribution",
+    "license_url": "http://www.opendefinition.org/licenses/cc-by",
+    "organization": { "title": "Superior Tribunal de Justiça" },
+    "resources": [
+      { "id": "res-json", "name": "Espelhos 2025-01", "url": "https://dadosabertos.web.stj.jus.br/dataset/espelhos-sintetico/resource/res-json/download/2025-01.json", "format": "JSON", "hash": "sha-json-1", "last_modified": "2025-02-01T10:00:00" },
+      { "id": "res-zip", "name": "Espelhos 2025-02", "url": "https://dadosabertos.web.stj.jus.br/dataset/espelhos-sintetico/resource/res-zip/download/2025-02.zip", "format": "ZIP", "hash": "sha-zip-1", "last_modified": "2025-03-01T10:00:00" },
+      { "id": "res-propria", "name": "Resolução com licença própria", "url": "https://dadosabertos.web.stj.jus.br/dataset/espelhos-sintetico/resource/res-propria/download/r.json", "format": "JSON", "hash": "sha-propria-1", "license_title": "Creative Commons Attribution-ShareAlike", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/" }
+    ]
+  }
+}

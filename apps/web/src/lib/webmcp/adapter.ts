@@ -47,6 +47,7 @@ export function registerWebMCPCapabilities(role: OfficeRole): () => void {
         untrustedContentHint: capability.module === 'knowledge'
           || capability.module === 'citations'
           || name === 'k5_judicial_list_publications'
+          || name === 'k5_judicial_list_movements'
           || name === 'k5_judicial_get_publication',
       },
     };

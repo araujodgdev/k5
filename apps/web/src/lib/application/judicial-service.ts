@@ -13,6 +13,7 @@ import {
   findPublication, listAlerts, listPublications, markAlertRead, type PublicationSummary,
 } from '@/lib/judicial/repositories/evidence';
 import { enqueueJob, findJob, latestJobsForLinks, listJobs, type SyncJob } from '@/lib/judicial/jobs/queue';
+import { listMovements } from '@/lib/judicial/repositories/cases';
 import { recordAudit } from '@/lib/judicial/repositories/audit';
 import { parseCnjNumber } from '@/lib/judicial/normalization/cnj';
 import { nowIso, overlappingWindow } from '@/lib/judicial/normalization/dates';
@@ -229,6 +230,26 @@ export async function listJudicialPublications(
   return { publications: publications.map(toPublicationDto), untrustedContent: true };
 }
 
+export async function listJudicialMovements(
+  context: WorkspaceContext,
+  input: CapabilityInput<'k5_judicial_list_movements'>,
+): Promise<CapabilityOutput<'k5_judicial_list_movements'>> {
+  // Same rule as publications: a link from another office resolves to "not found", never to data.
+  if (input.linkId) await requireLink(context, input.linkId);
+  const movements = await listMovements(context.officeId, {
+    caseId: input.caseId, linkId: input.linkId, limit: input.limit ?? 50,
+  });
+  return {
+    movements: movements.map((movement) => ({
+      id: movement.id, linkId: movement.linkId, caseId: movement.caseId,
+      installationId: movement.installationId, courtName: movement.courtName, cnjNumber: movement.cnjNumber,
+      sourceCode: movement.sourceCode, tpuCode: movement.tpuCode, tpuLabel: movement.tpuLabel, text: movement.sourceText,
+      eventAt: movement.eventAt, eventPrecision: movement.eventPrecision, collectedAt: movement.collectedAt,
+    })),
+    untrustedContent: true,
+  };
+}
+
 /**
  * Opens one publication. `untrustedContent` travels with the body on purpose: the text is a
  * third-party document, and a gazette entry that contains something shaped like an instruction is
@@ -268,11 +289,14 @@ export async function requestJudicialRefresh(
   if (link.confirmation !== 'confirmed') {
     throw new CapabilityError('APPROVAL_REQUIRED', 'Confirme o vínculo antes de solicitar atualização desta fonte.');
   }
-  if (!link.cnjNumber) {
+  const installation = await requireInstallation(link.installationId);
+  // A case-tracking source answers for one proceeding by its own identity; a gazette is swept by
+  // CNJ number over a window. The installation's declared purpose picks the operation.
+  const lookup = installation.purpose === 'case_tracking';
+  if (!lookup && !link.cnjNumber) {
     throw new CapabilityError('SCOPE_REQUIRED', 'Esta fonte consulta por número CNJ; o vínculo tem apenas identidade nativa.');
   }
 
-  const installation = await requireInstallation(link.installationId);
   if (!installation.enabled) throw new CapabilityError('NOT_READY', 'Esta fonte está desabilitada.');
   if (!hasConnectorFor(installation.kind)) {
     throw new CapabilityError('NOT_READY', 'Ainda não há conector implementado para este tipo de fonte.');
@@ -282,19 +306,19 @@ export async function requestJudicialRefresh(
   }
 
   const window = overlappingWindow(null, nowIso(), 2);
-  const { job, created } = await enqueueJob({
-    officeId: context.officeId,
-    installationId: installation.id,
-    linkId: link.id,
-    kind: 'manual',
-    operation: 'listChanges',
-    request: { cnjNumbers: [link.cnjNumber] },
-    windowFrom: window.from,
-    windowTo: window.to,
-    // A second "Atualizar" while the first is still pending reuses it instead of spending another
-    // request against the source's budget.
-    idempotencyKey: `manual:${link.id}:${window.from}:${window.to}`,
-  });
+  // A second "Atualizar" while the first is still pending reuses it instead of spending another
+  // request against the source's budget.
+  const { job, created } = await enqueueJob(lookup
+    ? {
+      officeId: context.officeId, installationId: installation.id, linkId: link.id,
+      kind: 'manual', operation: 'lookupCase', idempotencyKey: `manual:${link.id}:lookupCase`,
+    }
+    : {
+      officeId: context.officeId, installationId: installation.id, linkId: link.id,
+      kind: 'manual', operation: 'listChanges', request: { cnjNumbers: [link.cnjNumber] },
+      windowFrom: window.from, windowTo: window.to,
+      idempotencyKey: `manual:${link.id}:${window.from}:${window.to}`,
+    });
 
   await recordAudit({
     officeId: context.officeId, userId: context.userId, actor: 'user',

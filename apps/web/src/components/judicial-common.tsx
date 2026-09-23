@@ -6,6 +6,7 @@ import type {
   judicialAlertDto,
   judicialJobDto,
   judicialLinkDto,
+  judicialMovementDto,
   judicialPublicationDto,
   judicialSourceDto,
 } from "@/lib/capabilities/contracts";
@@ -23,6 +24,7 @@ import type {
 export type JudicialSource = z.infer<typeof judicialSourceDto>;
 export type JudicialLink = z.infer<typeof judicialLinkDto>;
 export type JudicialPublication = z.infer<typeof judicialPublicationDto>;
+export type JudicialMovement = z.infer<typeof judicialMovementDto>;
 export type JudicialJob = z.infer<typeof judicialJobDto>;
 export type JudicialAlert = z.infer<typeof judicialAlertDto>;
 

@@ -20,7 +20,8 @@ export type SourceDate = {
 const ISO_WITH_ZONE = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
 const ISO_DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
 const BR_DATE = /^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
-const COMPACT_DATE = /^(\d{4})(\d{2})(\d{2})$/;
+/** `yyyyMMdd`, or MNI's `yyyyMMddHHmmss` local timestamp. */
+const COMPACT_DATE = /^(\d{4})(\d{2})(\d{2})(?:(\d{2})(\d{2})(\d{2}))?$/;
 
 function isRealDate(year: number, month: number, day: number): boolean {
   if (month < 1 || month > 12 || day < 1 || day > 31) return false;
@@ -46,9 +47,11 @@ export function parseSourceDate(input: string | null | undefined): SourceDate | 
 
   const compact = COMPACT_DATE.exec(raw);
   if (compact) {
-    const [, year, month, day] = compact;
+    const [, year, month, day, hour, minute, second] = compact;
     if (!isRealDate(Number(year), Number(month), Number(day))) return null;
-    return { value: `${year}-${month}-${day}`, precision: 'date', timezone: null };
+    if (!hour) return { value: `${year}-${month}-${day}`, precision: 'date', timezone: null };
+    if (Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;
+    return { value: `${year}-${month}-${day}T${hour}:${minute}:${second}`, precision: 'second', timezone: null };
   }
 
   const dateOnly = ISO_DATE_ONLY.exec(raw);

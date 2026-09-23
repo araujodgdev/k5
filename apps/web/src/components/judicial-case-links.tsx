@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ErrorText, OFFICIAL_NOTICE, collectionAgeSentence, confirmationLabels, degreeLabels, formatDate,
-  jobStatusLabels, newIdempotencyKey, permissionDimensions, permissionLabels,
+  formatDateTime, jobStatusLabels, newIdempotencyKey, permissionDimensions, permissionLabels,
   readFailure, sourceAvailability, type ApiFailure, type JudicialJob, type JudicialLink,
-  type JudicialPublication, type JudicialSource,
+  type JudicialMovement, type JudicialPublication, type JudicialSource,
 } from "@/components/judicial-common";
 
 /**
@@ -335,7 +335,7 @@ function LinkRow({ link, source, publications, job, completedJob, siblings, expa
                 <Button type="button" variant="ghost" className={touch} disabled={busy} onClick={() => onDecide(link.id, "rejected")}>Rejeitar</Button>
               </>
             )}
-            {link.confirmation === "confirmed" && link.cnjNumber && (
+            {link.confirmation === "confirmed" && (link.cnjNumber || source?.purpose === "case_tracking") && (
               <Button type="button" variant="ghost" className={touch} disabled={busy} onClick={() => onRefresh(link.id)}>
                 {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
                 Atualizar
@@ -386,9 +386,12 @@ function LinkDetail({ link, source, publications, job, completedJob }: {
         <Field term="Data da consulta" detail={collectionAgeSentence(completedJob?.completedAt)} />
         <Field
           term="Atualização declarada pela fonte"
-          detail={latest
-            ? `Disponibilizada em ${formatDate(latest.madeAvailableOn)}; publicada em ${formatDate(latest.publishedOn)}.`
-            : "Sem registro coletado para comparar."}
+          detail={source?.purpose === "case_tracking"
+            // MNI reports movements with their own dates, not a date for the whole record.
+            ? "Esta fonte não declara uma data de atualização do processo; veja a data de cada movimento."
+            : latest
+              ? `Disponibilizada em ${formatDate(latest.madeAvailableOn)}; publicada em ${formatDate(latest.publishedOn)}.`
+              : "Sem registro coletado para comparar."}
         />
         <Field term="Situação da conexão" detail={sourceAvailability(source)} />
       </dl>
@@ -410,7 +413,9 @@ function LinkDetail({ link, source, publications, job, completedJob }: {
 
         {job && (
           <p className="text-[13px] text-muted-foreground">
-            Última coleta solicitada: {jobStatusLabels[job.status]} · janela de {formatDate(job.windowFrom)} a {formatDate(job.windowTo)} ·{" "}
+            Última coleta solicitada: {jobStatusLabels[job.status]} ·{" "}
+            {/* A case lookup has no window; printing "de — a —" would describe a query that never happened. */}
+            {job.windowFrom && job.windowTo && `janela de ${formatDate(job.windowFrom)} a ${formatDate(job.windowTo)} · `}
             {job.pagesFetched} página(s), {job.recordsAccepted} aceita(s), {job.recordsRejected} rejeitada(s).
             {job.errorCode === "partial" && " Dados parciais: a varredura parou no limite de páginas e continua no próximo ciclo."}
             {job.errorMessage && job.errorCode !== "partial" && ` ${job.errorMessage}`}
@@ -424,13 +429,79 @@ function LinkDetail({ link, source, publications, job, completedJob }: {
           </p>
         )}
 
-        <p className="text-[13px] text-muted-foreground">
-          {publications.length > 0
-            ? `${publications.length} publicação(ões) coletada(s) para este processo.`
-            : "Nenhuma publicação coletada para este processo ainda."}
-        </p>
+        {source?.purpose !== "case_tracking" && (
+          <p className="text-[13px] text-muted-foreground">
+            {publications.length > 0
+              ? `${publications.length} publicação(ões) coletada(s) para este processo.`
+              : "Nenhuma publicação coletada para este processo ainda."}
+          </p>
+        )}
       </div>
+
+      {source?.purpose === "case_tracking" && (
+        // Keyed on the last completed collection, so a refresh that settles reloads the list.
+        <MovementList key={completedJob?.completedAt ?? "sem-coleta"} linkId={link.id} />
+      )}
     </div>
+  );
+}
+
+/**
+ * Movements as the source wrote them. The text is third-party content rendered as plain text; the
+ * TPU code is shown only when the source declared it, never matched by resemblance.
+ */
+function MovementList({ linkId }: { linkId: string }) {
+  const headingId = useId();
+  const [movements, setMovements] = useState<JudicialMovement[] | null>(null);
+  const [failure, setFailure] = useState<ApiFailure | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      const response = await fetch(`/api/judicial/movements?linkId=${encodeURIComponent(linkId)}&limit=100`).catch(() => null);
+      if (cancelled) return;
+      if (!response?.ok) {
+        setFailure(response
+          ? await readFailure(response, "Não foi possível carregar os movimentos deste processo.")
+          : { message: "Não foi possível carregar os movimentos deste processo." });
+        setMovements([]);
+        return;
+      }
+      setMovements(((await response.json()) as { movements: JudicialMovement[] }).movements);
+    }, 0);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [linkId]);
+
+  return (
+    <section aria-labelledby={headingId} className="md:col-span-2">
+      <h3 id={headingId} className="text-[13px] text-muted-foreground">Movimentos coletados</h3>
+      <ErrorText failure={failure} />
+      {movements === null ? (
+        <p className="py-2 text-sm text-subtle-foreground">Carregando os movimentos…</p>
+      ) : movements.length === 0 ? (
+        !failure && (
+          <p className="py-2 text-sm text-subtle-foreground">
+            Nenhum movimento coletado para este processo ainda. Use Atualizar para consultar a fonte.
+          </p>
+        )
+      ) : (
+        <ol className="mt-1">
+          {movements.map((movement) => (
+            <li key={movement.id} className="grid gap-x-4 gap-y-0.5 border-b py-2 last:border-b-0 md:grid-cols-[7.5rem_1fr_auto]">
+              <span className="text-[13px] text-muted-foreground">
+                {movement.eventPrecision === "date" ? formatDate(movement.eventAt) : formatDateTime(movement.eventAt)}
+              </span>
+              <span className="min-w-0 break-words">{movement.text}</span>
+              <span className="text-[13px] text-subtle-foreground">
+                {movement.tpuCode
+                  ? `TPU ${movement.tpuCode}${movement.tpuLabel ? ` · ${movement.tpuLabel}` : ""}`
+                  : movement.sourceCode ? `Código da fonte ${movement.sourceCode}` : "Sem código"}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }
 
