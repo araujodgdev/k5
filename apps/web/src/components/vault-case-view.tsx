@@ -77,7 +77,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
     router.refresh();
   }
 
-  return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-8 md:py-8">
+  return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10">
     <nav aria-label="Trilha" className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground" data-reveal>
       <Link href="/app/vault" className="rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cofre</Link>
       <ChevronRight className="size-3.5" aria-hidden="true" />
@@ -92,7 +92,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
 
     <div className="mt-3 flex flex-wrap items-end justify-between gap-4 border-b pb-5" data-reveal>
       <div className="min-w-0">
-        <h1 className="display truncate text-[28px] leading-none">{vaultCase.name}</h1>
+        <h1 className="page-title truncate leading-none">{vaultCase.name}</h1>
         {vaultCase.description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{vaultCase.description}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-2">

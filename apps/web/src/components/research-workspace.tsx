@@ -201,8 +201,8 @@ export function ResearchWorkspace({ role, initialSearchId }: { role: OfficeRole;
   const unavailable = pages.reduce((total, page) => total + page.progress.unavailable + page.progress.failed, 0);
   const sourceErrors = pages.flatMap(page => page.sourceError ? [page.sourceError] : []);
 
-  return <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
-    <div className="flex items-end justify-between gap-4 border-b pb-5"><h1 className="display text-[28px] leading-none max-md:sr-only">Pesquisa</h1></div>
+  return <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-10 md:py-10">
+    <div className="flex items-end justify-between gap-4 border-b pb-5"><h1 className="page-title leading-none max-md:sr-only">Pesquisa</h1></div>
     <form onSubmit={submit} className="border-b py-5">
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <div className="grid gap-1.5"><Label htmlFor="research-theme">Tema ou questão jurídica</Label><Input id="research-theme" value={theme} onChange={event => setTheme(event.target.value)} placeholder="Ex.: guarda de menor pela avó" minLength={2} maxLength={300} required className="h-11 md:h-9" /></div>

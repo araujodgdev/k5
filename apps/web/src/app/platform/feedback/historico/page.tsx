@@ -13,7 +13,7 @@ export default async function PlatformFeedbackHistoryPage() {
   const name = (key: string) => data.models.find(model => model.key === key)?.name ?? key;
   return <section className="mx-auto max-w-6xl">
     <Link href="/platform/feedback" className="inline-flex min-h-11 items-center rounded-md text-muted-foreground text-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 md:min-h-0">← Feedback</Link>
-    <header className="mt-5 flex flex-wrap items-center justify-between gap-4"><h1 className="display text-[28px]">Histórico A/B</h1>
+    <header className="mt-5 flex flex-wrap items-center justify-between gap-4"><h1 className="page-title">Histórico A/B</h1>
       <a download className="inline-flex min-h-11 items-center rounded-md border px-4 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback">Exportar avaliações em JSON</a>
     </header>
     <div className="mt-4 border-b pb-4 text-sm">

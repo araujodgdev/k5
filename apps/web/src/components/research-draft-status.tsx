@@ -31,7 +31,7 @@ export function ResearchDraftStatus({ runId, caseId }: { runId: string; caseId: 
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [runId, run, error]);
   const back = caseId ? `/app/vault/cases/${encodeURIComponent(caseId)}?section=references` : '/app/research';
-  return <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8"><Link href={back} className="text-sm text-muted-foreground underline-offset-2 hover:underline">Voltar ao caso</Link><h1 className="display mt-4 border-b pb-5 text-[28px]">Minuta</h1>
+  return <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-10 md:py-10"><Link href={back} className="text-sm text-muted-foreground underline-offset-2 hover:underline">Voltar ao caso</Link><h1 className="page-title mt-4 border-b pb-5">Minuta</h1>
     {loading && <p className="py-8 text-sm text-muted-foreground">Carregando minuta…</p>}
     {error && <p role="alert" className="flex gap-2 py-5 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
     {run && <div className="space-y-4 py-6 text-sm" aria-live="polite"><p>{run.status === 'queued' ? 'Aguardando preparação.' : run.status === 'running' ? `Preparando minuta · ${run.progress}%` : run.status === 'completed' ? 'Minuta pronta para revisão.' : run.status === 'failed' ? run.error || 'Não foi possível preparar a minuta.' : 'Preparação interrompida.'}</p>{run.artifactId && <Button asChild><Link href={`/app/documents/${encodeURIComponent(run.artifactId)}`}>Abrir minuta</Link></Button>}</div>}

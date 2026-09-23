@@ -11,7 +11,7 @@ export default async function PlatformClientsPage() {
   const offices = await listOfficesForPlatform(context.db);
   return (
     <section className="mx-auto max-w-5xl">
-      <h1 className="display text-[28px]">Clientes</h1>
+      <h1 className="page-title">Clientes</h1>
       <div className="mt-8 overflow-x-auto">
         <table className="w-full text-left">
           <thead className="border-b text-muted-foreground text-[13px]"><tr><th className="py-3 pr-4 font-normal">Escritório</th><th className="hidden px-4 py-3 font-normal sm:table-cell">Conexões</th><th className="hidden px-4 py-3 font-normal sm:table-cell">Ativas</th><th className="py-3 pl-4 text-right font-normal">Configuração</th></tr></thead>

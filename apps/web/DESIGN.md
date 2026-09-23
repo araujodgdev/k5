@@ -64,7 +64,8 @@ and pending-update notices use a single floating surface and plain pt-BR text.
 ## Type
 
 - **Sans**: Inter, everywhere. 14px body, 13px meta, 12px field errors. Weights 400 and 500.
-- **Serif**: Newsreader, through the `display` utility. Page titles (28px) and the auth heading (36px) only, at weight 400.
+- **Serif**: Newsreader at weight 400, for page titles and the auth heading only. Page titles use the `page-title` utility (28px on mobile, 32px from `md`); the auth heading uses `display` at 32px, 36px from `md`.
+- **Page spacing**: page content sits at `px-5 py-6` on mobile and `md:px-10 md:py-10` on desktop, and headers that sit in a bar (Lume, Plataforma) share the same `md:px-10` edge, so titles line up across sections.
 - Don't use all-caps labels or letter-spaced eyebrows.
 
 ## Logo

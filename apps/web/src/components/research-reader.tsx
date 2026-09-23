@@ -98,13 +98,13 @@ function ResearchReaderContent({ judgmentId, searchId, role }: { judgmentId: str
   const ementa = judgment?.materials.find(item => item.kind === 'ementa');
   const full = judgment?.materials.find(item => item.kind === 'full_text');
   const source = officialUrl(judgment?.sourceUrl ?? null);
-  return <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
+  return <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-10 md:py-10">
     <nav aria-label="Trilha" className="flex items-center gap-1 text-sm text-muted-foreground"><Link href={back} className="rounded-md outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">Pesquisa</Link><ChevronRight className="size-4" aria-hidden="true" /><span aria-current="page">Julgado</span></nav>
     {loading && <p className="py-10 text-sm text-muted-foreground">Carregando julgado…</p>}
     {error && <p role="alert" className="flex gap-2 py-5 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
     {!loading && judgment && <>
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4 border-b pb-5">
-        <div className="min-w-0"><h1 className="display text-[28px] leading-tight">{judgment.title || 'Julgado'}</h1><p className="mt-2 text-sm text-muted-foreground">{judgment.tribunal}{judgment.courtUnit ? ` · ${judgment.courtUnit}` : ''} · {dateLabel(judgment.decisionDate)}</p>{judgment.caseNumber && <p className="mt-1 text-[13px] text-muted-foreground">Processo {judgment.caseNumber}</p>}</div>
+        <div className="min-w-0"><h1 className="page-title leading-tight">{judgment.title || 'Julgado'}</h1><p className="mt-2 text-sm text-muted-foreground">{judgment.tribunal}{judgment.courtUnit ? ` · ${judgment.courtUnit}` : ''} · {dateLabel(judgment.decisionDate)}</p>{judgment.caseNumber && <p className="mt-1 text-[13px] text-muted-foreground">Processo {judgment.caseNumber}</p>}</div>
         <div className="flex flex-wrap gap-2"><Button type="button" variant="ghost" onClick={() => void load()} className="min-h-11 md:min-h-9">Atualizar estado</Button>{source && <Button asChild variant="outline" className="min-h-11 md:min-h-9"><a href={source} target="_blank" rel="noopener noreferrer">Abrir fonte oficial <ExternalLink className="size-4" aria-hidden="true" /></a></Button>}{role !== 'reviewer' && (judgment.ementaVersionId || judgment.fullTextVersionId) && <ResearchCaseLinker judgment={judgment} />}</div>
       </div>
       <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">

@@ -182,8 +182,8 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
 .document-pages .docx-wrapper { background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .document-pages .docx-wrapper > section.docx { box-shadow: var(--shadow-float); margin: 0; }
 
-:is(.display, .font-serif, .font-heading):is(em, i, .italic),
-:is(.display, .font-serif, .font-heading) :is(em, i, .italic) {
+:is(.display, .page-title, .font-serif, .font-heading):is(em, i, .italic),
+:is(.display, .page-title, .font-serif, .font-heading) :is(em, i, .italic) {
   font-family: var(--font-newsreader-italic), ui-serif, Georgia, serif;
 }
 
@@ -253,12 +253,22 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   }
 }
 
-/* Serif voice, for page titles and the auth heading only. */
+/* Serif voice, for the auth heading and larger display text. Page titles use page-title. */
 @utility display {
   font-family: var(--font-newsreader), ui-serif, Georgia, serif;
   font-weight: 400;
   letter-spacing: -.01em;
   line-height: 1.1;
+}
+
+/* Page titles: the serif voice one step below the auth heading. */
+@utility page-title {
+  font-family: var(--font-newsreader), ui-serif, Georgia, serif;
+  font-weight: 400;
+  font-size: 28px;
+  letter-spacing: -.01em;
+  line-height: 1.15;
+  @media (width >= 48rem) { font-size: 32px; }
 }
 
 /* Clears the mobile tab bar and the home indicator. */

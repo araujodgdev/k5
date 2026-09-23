@@ -54,8 +54,8 @@ export function FeedbackForm({ initial }: { initial: AuthorTicket[] }) {
     finally { setBusy(false); }
   }
 
-  return <div className="mx-auto w-full max-w-3xl px-5 py-6 md:px-12 md:py-11">
-    <h1 className="display text-[28px] max-md:sr-only">Feedback</h1>
+  return <div className="mx-auto w-full max-w-3xl px-5 py-6 md:px-10 md:py-10">
+    <h1 className="page-title max-md:sr-only">Feedback</h1>
     <form onSubmit={submit} className="mt-6 grid gap-4 border-b pb-8">
       <div className="grid gap-1.5">
         <Label htmlFor="feedback-message">O que aconteceu ou o que você gostaria?</Label>

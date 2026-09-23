@@ -19,7 +19,7 @@ export default async function PlatformFeedbackPage({ searchParams }: PageProps<'
   const data = await platformTickets(context.user.id, filters, context.db);
   const query = (page: number) => `?${new URLSearchParams({ ...Object.fromEntries(Object.entries(filters).filter(([key, value]) => key !== 'page' && value)), page: String(page) })}`;
   return <section className="mx-auto max-w-6xl">
-    <header className="flex flex-wrap items-center justify-between gap-4"><h1 className="display text-[28px]">Feedback</h1>
+    <header className="flex flex-wrap items-center justify-between gap-4"><h1 className="page-title">Feedback</h1>
       <Link href="/platform/feedback/historico" className="inline-flex min-h-11 items-center text-sm underline underline-offset-4 md:min-h-0">Histórico A/B</Link></header>
     <p className="mt-2 text-sm text-muted-foreground">{ticketStatuses.map(status => `${statusLabels[status]}: ${data.counts[status]}`).join(' · ')}</p>
     <form className="mt-6 grid gap-3 border-b pb-5 sm:grid-cols-3 lg:grid-cols-6" aria-label="Filtrar tickets">

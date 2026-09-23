@@ -70,7 +70,7 @@ export function FeedbackTicketAdmin({ initial }: { initial: PlatformTicket }) {
 
   return <div className="mt-5">
     <header className="border-b pb-5">
-      <h1 className="display text-[28px]">Ticket #{ticket.number}</h1>
+      <h1 className="page-title">Ticket #{ticket.number}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{[ticket.officeName, ticket.userName ?? 'Usuário removido', ticket.userEmail, dateFormat.format(new Date(ticket.createdAt))].filter(Boolean).join(' · ')}</p>
     </header>
     <div className="grid gap-10 py-7 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">

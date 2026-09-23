@@ -842,7 +842,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
     <TooltipProvider>
       <DocumentLinksContext.Provider value={documentLinks}>
       <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden" data-document-open={openDocumentId ? "" : undefined}>
-        <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b px-4 md:px-8">
+        <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b px-4 md:px-10">
           <div className="flex min-w-0 items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -852,7 +852,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
               </TooltipTrigger>
               <TooltipContent>{listOpen ? "Ocultar conversas" : "Mostrar conversas"}</TooltipContent>
             </Tooltip>
-            <h1 className="display truncate text-[28px] max-md:sr-only">Lume</h1>
+            <h1 className="page-title truncate max-md:sr-only">Lume</h1>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="size-11 md:size-9" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>

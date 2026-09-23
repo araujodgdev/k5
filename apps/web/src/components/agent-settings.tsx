@@ -26,10 +26,10 @@ export function AgentSettings({ initialTemplates, initialCandidates, initialRule
   const [candidates, setCandidates] = useState(initialCandidates);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 py-6 md:px-12 md:py-11">
+    <div className="mx-auto w-full max-w-3xl px-5 py-6 md:px-10 md:py-10">
       <div className="flex items-center gap-2">
         <Button asChild variant="ghost" size="icon" className="-ml-2 size-11 md:size-9" aria-label="Voltar ao Lume"><Link href="/app/agents"><ArrowLeft /></Link></Button>
-        <h1 className="display text-[28px]">Personalizar Lume</h1>
+        <h1 className="page-title">Personalizar Lume</h1>
       </div>
 
       <AgentRules initial={initialRules} />

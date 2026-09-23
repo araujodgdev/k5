@@ -9,7 +9,7 @@ export default async function PlatformTypesafePage() {
   const context = await requirePlatformPage();
   if (!context) notFound();
   return <section className="mx-auto max-w-5xl">
-    <h1 className="display text-[28px]">TypeSafe</h1>
+    <h1 className="page-title">TypeSafe</h1>
     <TypesafeSettings initial={await connectionView()} />
   </section>;
 }

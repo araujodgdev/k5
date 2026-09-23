@@ -26,7 +26,7 @@ export default async function ClientAiPage({ params }: PageProps<"/platform/clie
     <section className="mx-auto max-w-5xl">
       <Link href="/platform/clients" className="inline-flex min-h-11 items-center rounded-md text-muted-foreground text-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 md:min-h-0">← Clientes</Link>
       <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div><h1 className="display text-[28px]">Conexões de IA</h1><p className="mt-1 text-muted-foreground">{office.name}</p></div>
+        <div><h1 className="page-title">Conexões de IA</h1><p className="mt-1 text-muted-foreground">{office.name}</p></div>
       </div>
       <PlatformConnections officeId={office.id} initialConnections={connections} modelCatalog={modelCatalog}
         initialModel={current ? { connectionId: current.connectionId, modelId: current.modelId } : null} />

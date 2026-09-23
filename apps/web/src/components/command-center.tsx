@@ -71,8 +71,8 @@ export function CommandCenter({ role, name }: { role: OfficeRole; name: string }
   }
   const date = today ? new Date(`${today}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   const empty = (text: string) => <p className="py-5 text-sm text-muted-foreground">{text}</p>;
-  return <div className="min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-8 md:py-8">
-    <header className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="display text-[28px] max-md:sr-only">Início</h1><p className="min-h-10 md:mt-3 text-sm text-muted-foreground">Olá, {name.replace(/[.!?]+$/, '')}.{date && ` Hoje é ${date}.`}</p></div><div className="flex items-center gap-2"><Button variant="ghost" size="lg" disabled={loading} onClick={() => setRevision(value => value + 1)}>Atualizar</Button>{role !== 'reviewer' && <Button asChild size="lg"><Link href="/app/agenda?action=new"><Plus className="size-4" />Nova atividade</Link></Button>}</div></header>
+  return <div className="min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
+    <header className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="page-title max-md:sr-only">Início</h1><p className="min-h-10 md:mt-3 text-sm text-muted-foreground">Olá, {name.replace(/[.!?]+$/, '')}.{date && ` Hoje é ${date}.`}</p></div><div className="flex items-center gap-2"><Button variant="ghost" size="lg" disabled={loading} onClick={() => setRevision(value => value + 1)}>Atualizar</Button>{role !== 'reviewer' && <Button asChild size="lg"><Link href="/app/agenda?action=new"><Plus className="size-4" />Nova atividade</Link></Button>}</div></header>
     <div className="my-7 grid grid-cols-2 gap-x-6 gap-y-5 border-y py-5 sm:grid-cols-4" aria-label="Resumo do escritório">
       {[
         ['Até hoje', data.tasks?.total, '/app/agenda', 'bg-module-agenda'],

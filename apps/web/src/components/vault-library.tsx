@@ -13,7 +13,7 @@ export function VaultLibrary({ initialDocuments, role }: { initialDocuments: Vau
   const [failure, setFailure] = useState("");
   const canWrite = role !== "reviewer";
 
-  return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-8 md:py-8">
+  return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10">
     <nav aria-label="Trilha" className="flex items-center gap-1 text-sm text-muted-foreground" data-reveal>
       <Link href="/app/vault" className="rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cofre</Link>
       <ChevronRight className="size-3.5" aria-hidden="true" />
@@ -21,7 +21,7 @@ export function VaultLibrary({ initialDocuments, role }: { initialDocuments: Vau
     </nav>
 
     <div className="mt-3 flex flex-wrap items-end justify-between gap-4 border-b pb-5" data-reveal>
-      <h1 className="display text-[28px] leading-none">Biblioteca</h1>
+      <h1 className="page-title leading-none">Biblioteca</h1>
       <UploadControl canWrite={canWrite} scope="library" onError={setFailure} onUploaded={(document) => setDocuments((current) => [document, ...current])} />
     </div>
 
