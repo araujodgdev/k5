@@ -4,7 +4,8 @@ import type { UIMessage } from 'ai';
 
 export type Owner = { officeId: string; userId: string };
 export type RunRow = { id: string; office_id: string; user_id: string; kind: 'chronology' | 'draft'; input: string; status: string; progress: number; error: string | null; artifact_id: string | null; lease_token: string; attempts: number; model_provider: string | null; model_id: string | null; created_at: string };
-export type ArtifactRow = { id: string; office_id: string; user_id: string; title: string; content: string; version: number; status: string; source_refs: string; validation_issues: string; template_id: string | null; run_id: string };
+export type ArtifactRow = { id: string; office_id: string; user_id: string; title: string; content: string; version: number; status: string; source_refs: string; validation_issues: string; template_id: string | null; run_id: string | null;
+  kind: 'draft' | 'chronology' | 'document'; conversation_id: string | null; created_by_agent: boolean };
 
 export async function createConversation(db: Database, owner: Owner) {
   const id = randomUUID();
@@ -62,28 +63,43 @@ export async function ownedArtifact(db: Database, owner: Owner, id: string) {
   return await db.prepare('SELECT * FROM ai_artifact WHERE id=? AND office_id=? AND user_id=?').get(id, owner.officeId, owner.userId) as ArtifactRow | undefined;
 }
 export function publicArtifact(row: ArtifactRow) {
-  return { id: row.id, title: row.title, content: row.content, version: row.version, status: row.status, references: JSON.parse(row.source_refs), validationIssues: JSON.parse(row.validation_issues) };
+  return { id: row.id, title: row.title, content: row.content, version: row.version, status: row.status, references: JSON.parse(row.source_refs), validationIssues: JSON.parse(row.validation_issues),
+    kind: row.kind, conversationId: row.conversation_id };
 }
 /**
  * Saves an edit, or returns null when someone else saved first.
  *
- * The conditional history insert and artifact update share one atomic batch. If another save won
- * first, both statements change zero rows; if either write fails, D1/SQLite rolls both back.
+ * Lock the artifact before recording history and replacing it, in one PostgreSQL transaction.
+ * A concurrent save loses with a version conflict; any failure rolls the entire batch back.
  */
-export async function updateArtifact(db: Database, owner: Owner, id: string, title: string, content: string, version: number) {
+export async function updateArtifact(db: Database, owner: Owner, id: string, title: string, content: string, version: number, options: { snapshot?: boolean } = {}) {
   const current = await db.prepare('SELECT * FROM ai_artifact WHERE id=? AND office_id=? AND user_id=? AND version=?')
     .get(id, owner.officeId, owner.userId, version) as ArtifactRow | undefined;
   if (!current) return null;
+  // Every save bumps the version, which is what detects concurrent edits. The history row is
+  // written on explicit saves and agent edits, and for autosave at most once per five minutes, so
+  // typing does not bury the versions someone would actually want back.
+  const snapshot = options.snapshot ?? true;
 
-  const [history] = await db.batch([
+  const [, , , updated] = await db.batch([
+    db.prepare('SELECT id FROM ai_artifact WHERE id=? AND office_id=? AND user_id=? FOR UPDATE')
+      .bind(id, owner.officeId, owner.userId),
+    // Autosaves may have advanced beyond the last history row. Preserve that text before an
+    // explicit replacement (including restore and agent edits), so the user can undo it.
+    db.prepare(`INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id)
+      SELECT id,version,title,content,user_id FROM ai_artifact
+      WHERE id=? AND office_id=? AND user_id=? AND version=? AND ?::boolean
+      ON CONFLICT (artifact_id,version) DO NOTHING`)
+      .bind(id, owner.officeId, owner.userId, version, snapshot),
     db.prepare(`INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id)
       SELECT id,version+1,?,?,? FROM ai_artifact
-      WHERE id=? AND office_id=? AND user_id=? AND version=?`)
-      .bind(title, content, owner.userId, id, owner.officeId, owner.userId, version),
+      WHERE id=? AND office_id=? AND user_id=? AND version=?
+        AND (?::boolean OR NOT EXISTS (SELECT 1 FROM ai_artifact_version WHERE artifact_id=? AND created_at > CURRENT_TIMESTAMP - INTERVAL '5 minutes'))`)
+      .bind(title, content, owner.userId, id, owner.officeId, owner.userId, version, snapshot, id),
     db.prepare(`UPDATE ai_artifact SET title=?,content=?,version=version+1,status='needs_review',updated_at=CURRENT_TIMESTAMP
       WHERE id=? AND office_id=? AND user_id=? AND version=?`)
       .bind(title, content, id, owner.officeId, owner.userId, version),
   ]);
-  if (history.changes !== 1) return null;
+  if (updated.changes !== 1) return null;
   return { ...current, title, content, version: version + 1, status: 'needs_review' };
 }

@@ -17,6 +17,8 @@ export type WorkspaceContext = {
   /** Selected by the person for this chat turn; model tools cannot enlarge this public-source scope. */
   allowedResearchCaseId?: string;
   allowedResearchReferenceIds?: string[];
+  /** The chat conversation of this turn, set by the chat route; decides which documents are the agent's own. */
+  conversationId?: string;
 };
 
 export function workspaceContext(workspace: {

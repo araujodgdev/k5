@@ -144,6 +144,44 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   html[data-agent-list-open="1"] .agent-chat-content { display: none; }
 }
 
+/* With a document open beside the chat, the conversation list steps aside on wide screens. */
+@media (min-width: 1024px) {
+  .agent-chat[data-document-open] .agent-chat-history { display: none; }
+}
+
+/* The document editor takes the Word template's body typography through custom properties. */
+.document-prose {
+  font-family: var(--doc-font, inherit);
+  font-size: var(--doc-size, 12pt);
+  line-height: var(--doc-line, 1.5);
+  text-align: var(--doc-align, left);
+}
+.document-prose .ProseMirror { outline: none; min-height: 60dvh; }
+.document-prose p { margin: 0 0 .75em; }
+.document-prose > .ProseMirror > p { text-indent: var(--doc-indent, 0); }
+.document-prose :is(h1, h2, h3) { font-weight: 600; line-height: 1.3; margin: 1.2em 0 .6em; text-align: left; text-indent: 0; }
+.document-prose h1 { font-size: 1.4em; }
+.document-prose h2 { font-size: 1.2em; }
+.document-prose h3 { font-size: 1.05em; }
+.document-prose :is(ul, ol) { margin: 0 0 .75em; padding-left: 1.6em; }
+.document-prose ul { list-style: disc; }
+.document-prose ol { list-style: decimal; }
+.document-prose li > p { margin: 0 0 .25em; }
+.document-prose blockquote { border-left: 2px solid var(--border); margin: 0 0 .75em; padding-left: 1em; font-style: italic; }
+.document-prose strong { font-weight: 600; }
+.document-prose table { width: 100%; border-collapse: collapse; margin: 0 0 .75em; table-layout: fixed; text-indent: 0; }
+.document-prose :is(th, td) { border: 1px solid var(--input); padding: .3em .5em; vertical-align: top; text-align: left; position: relative; }
+.document-prose :is(th, td) > p { margin: 0; text-indent: 0; }
+.document-prose th { font-weight: 600; }
+/* What the Lume just changed: the 2px brand rule that marks its actions, fading out. */
+.document-prose .document-changed { box-shadow: -12px 0 0 -10px var(--brand); animation: document-changed 6s ease-out forwards; }
+@keyframes document-changed { 0%, 60% { box-shadow: -12px 0 0 -10px var(--brand); } 100% { box-shadow: -12px 0 0 -10px transparent; } }
+.document-prose .selectedCell::after { content: ""; position: absolute; inset: 0; background: var(--accent); opacity: .6; pointer-events: none; }
+
+/* docx-preview draws Word pages; they sit on the muted canvas like paper, in both themes. */
+.document-pages .docx-wrapper { background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.document-pages .docx-wrapper > section.docx { box-shadow: var(--shadow-float); margin: 0; }
+
 :is(.display, .font-serif, .font-heading):is(em, i, .italic),
 :is(.display, .font-serif, .font-heading) :is(em, i, .italic) {
   font-family: var(--font-newsreader-italic), ui-serif, Georgia, serif;

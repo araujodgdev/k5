@@ -15,4 +15,7 @@ export const chatRequestSchema = z.object({
   trigger: z.enum(['submit-message', 'regenerate-message']).optional(),
   messageId: z.string().optional(),
   timeZone: z.string().max(80).optional(),
+  // The document open beside the chat, and a selection a request was made from; both are checked against the owner.
+  openDocumentId: z.string().min(1).max(64).optional(),
+  selection: z.object({ artifactId: z.string().min(1).max(64), excerpt: z.string().trim().min(1).max(4000) }).optional(),
 });

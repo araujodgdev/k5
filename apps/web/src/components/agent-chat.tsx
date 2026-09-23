@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { useChat } from "@ai-sdk/react";
@@ -27,6 +28,7 @@ import {
   FileStack,
   FileText,
   PanelLeftClose,
+  SlidersHorizontal,
   PanelLeftOpen,
   Image as ImageIcon,
   LoaderCircle,
@@ -41,6 +43,7 @@ import {
 import type { AgentContext } from "@/components/agent-sources-panel";
 import dynamic from "next/dynamic";
 import { readListOpen, subscribeListOpen, writeListOpen, serverListOpen } from "@/lib/agent-history";
+import { clampChatShare, DEFAULT_CHAT_SHARE, MAX_CHAT_SHARE, MIN_CHAT_SHARE, readChatShare, serverChatShare, subscribeChatShare, writeChatShare } from "@/lib/document-split";
 import { formatConversationTime } from "@/lib/conversation-time";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/markdown";
@@ -59,7 +62,20 @@ import { cn } from "@/lib/utils";
 import { ChatCamera } from './chat-camera';
 import { ChatAttachmentView } from './chat-attachment';
 import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, type ChatAttachment } from '@/lib/chat-attachment-contract';
+import type { DocumentAsk, DocumentWorkspaceHandle } from "./document/document-workspace";
+import { DocumentPanel } from "./document/document-panel";
+import type { CitationItem } from "@/lib/citations/verdict";
+import { citationStatusLabel, sourceHref, toReview } from "@/lib/citations/labels";
 
+type Selection = { artifactId: string; excerpt: string };
+/** Read when a message is sent: the document open beside the chat, and a selection spent by that one request. */
+type DocumentFocus = { openDocumentId: () => string | null; takeSelection: () => Selection | null };
+const DocumentWorkspace = dynamic(() => import("./document/document-workspace").then(module => module.DocumentWorkspace), {
+  ssr: false,
+  loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Abrindo documento…</p>,
+});
+/** Tool calls that leave a document the person should see: created, edited, rewritten or restored. */
+const DOCUMENT_WRITES = new Set(["k5_artifacts_create", "k5_artifacts_edit", "k5_artifacts_update", "k5_artifacts_restore_version"]);
 const AgentSourcesPanel = dynamic(() => import("./agent-sources-panel").then(module => module.AgentSourcesPanel), {
   loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Carregando fontes…</p>,
 });
@@ -144,14 +160,36 @@ function AssistantText({ text }: { text: string }) {
   return <Markdown text={text} />;
 }
 
+type StepData = { callId?: string; name?: string; summary?: string; state?: string; href?: string };
+
+/**
+ * Documents open beside the conversation instead of replacing it. `announce` hears every tool line
+ * as it renders; a document the Lume created or changed in this turn opens, or reloads if open.
+ */
+type DocumentLinks = { open: (id: string) => void; announce: (step: StepData) => void; changed: (id: string) => void };
+const DocumentLinksContext = createContext<DocumentLinks | null>(null);
+const DOCUMENT_PREFIX = "/app/documents/";
+const documentIdFrom = (href?: string) => href?.startsWith(DOCUMENT_PREFIX) ? decodeURIComponent(href.slice(DOCUMENT_PREFIX.length)) : null;
+
+function OpenLink({ href }: { href: string }) {
+  const documents = useContext(DocumentLinksContext);
+  const documentId = documentIdFrom(href);
+  if (documentId && documents) {
+    return <button type="button" onClick={() => documents.open(documentId)} className="text-brand-ink underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none">Abrir</button>;
+  }
+  return <Link href={href} className="text-brand-ink underline-offset-4 hover:underline">Abrir</Link>;
+}
+
 /** One finished tool call, as a quiet line above the answer, with a link to what it touched. */
-function ToolStep({ data }: { data: { summary?: string; state?: string; href?: string } }) {
+function ToolStep({ data }: { data: StepData }) {
+  const documents = useContext(DocumentLinksContext);
+  useEffect(() => { if (data) documents?.announce(data); }, [data, documents]);
   if (!data?.summary) return null;
   const failed = data.state === "failed";
   return (
     <p className={cn("mb-2 flex items-start gap-2 text-[13px] leading-5", failed ? "text-destructive" : "text-subtle-foreground")}>
       {failed ? <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" /> : <Check className="mt-0.5 size-3.5 shrink-0 text-brand-ink" aria-hidden="true" />}
-      <span className="min-w-0">{data.summary}{data.href && <> · <Link href={data.href} className="text-brand-ink underline-offset-4 hover:underline">Abrir</Link></>}</span>
+      <span className="min-w-0">{data.summary}{data.href && <> · <OpenLink href={data.href} /></>}</span>
     </p>
   );
 }
@@ -165,6 +203,7 @@ type ApprovalData = { approvalId: string; summary: string; state: "pending" | "c
  */
 function ApprovalStep({ data }: { data: ApprovalData }) {
   const conversationId = useContext(ConversationIdContext);
+  const documents = useContext(DocumentLinksContext);
   const [decided, setDecided] = useState<Pick<ApprovalData, "state" | "result" | "href"> | null>(null);
   const [busy, setBusy] = useState<"" | "confirm" | "cancel">("");
   const [error, setError] = useState("");
@@ -179,6 +218,8 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
       const body = await response.json().catch(() => ({})) as ApprovalData & { error?: string };
       if (!response.ok) throw new Error(body.error || "Não foi possível concluir. Peça de novo ao Lume.");
       setDecided({ state: body.state, result: body.result, href: body.href });
+      const changedDocument = body.state === "confirmed" ? documentIdFrom(body.href) : null;
+      if (changedDocument) documents?.changed(changedDocument);
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível concluir."); }
     finally { setBusy(""); }
   }
@@ -191,7 +232,7 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
         <Button type="button" size="sm" variant="ghost" className="h-11 md:h-9" disabled={Boolean(busy)} onClick={() => void decide("cancel")}>Cancelar</Button>
       </div> : <p className={cn("text-[13px]", current.state === "failed" ? "text-destructive" : "text-subtle-foreground")} role="status">
         {current.state === "confirmed" ? "Confirmado" : current.state === "cancelled" ? "Cancelado" : "Não concluído"}{current.result ? ` · ${current.result}` : ""}
-        {current.href && <> · <Link href={current.href} className="text-brand-ink underline-offset-4 hover:underline">Abrir</Link></>}
+        {current.href && <> · <OpenLink href={current.href} /></>}
       </p>}
       {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     </div>
@@ -232,7 +273,39 @@ function JurisprudenceList({ data }: { data: JurisprudenceData }) {
   );
 }
 
-const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep, jurisprudence: JurisprudenceList } } };
+/**
+ * The answer's legal citations, checked against what the conversation consulted. The Lume writes
+ * freely; this is where the lawyer sees which citations to confirm before relying on them.
+ */
+function CitationsList({ data }: { data: { items?: CitationItem[] } }) {
+  const items = data?.items ?? [];
+  const pending = toReview(items);
+  const confirmed = items.length - pending.length;
+  if (!items.length) return null;
+  return (
+    <section aria-label="Citações da resposta" className="mt-4 grid gap-2">
+      {pending.length > 0 && <>
+        <h3 className="text-sm font-medium">Citações para conferir</h3>
+        <ul className="divide-y border-y">
+          {pending.map((item) => (
+            <li key={item.id} className="grid gap-0.5 py-2.5">
+              <p className="text-sm font-medium leading-6">{item.text}</p>
+              <p className="text-[13px] leading-5 text-subtle-foreground">
+                {citationStatusLabel[item.status]}
+                {item.source && <> · {sourceHref(item.source.url)
+                  ? <a href={sourceHref(item.source.url)!} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline-offset-4 hover:underline">{item.source.title || "fonte"}<span className="sr-only"> (abre em nova aba)</span></a>
+                  : item.source.title}</>}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </>}
+      {confirmed > 0 && <p className="text-xs text-subtle-foreground">{confirmed === 1 ? "1 citação confere" : `${confirmed} citações conferem`} com as fontes consultadas nesta conversa.</p>}
+    </section>
+  );
+}
+
+const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep, jurisprudence: JurisprudenceList, citations: CitationsList } } };
 
 function AssistantMessage() {
   return (
@@ -443,8 +516,12 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
   );
 }
 
-function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, onFilesSent, tools, onFinish, onError }: {
+function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, onFilesSent, tools, onFinish, onError, focus, sendRef }: {
   conversationId: string;
+  /** What the person has open beside the chat; read when each message is sent. */
+  focus: DocumentFocus;
+  /** Lets the document panel send a message into this thread. */
+  sendRef: React.RefObject<((text: string) => void) | null>;
   messages: UIMessage[];
   context: AgentContext;
   audio: Attachment | null;
@@ -463,6 +540,8 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
       prepareSendMessagesRequest: async ({ messages: history, trigger, messageId }) => {
         const message=history.findLast(item=>item.role==='user');
         const attachmentIds=message?.parts.flatMap(part=>part.type==='data-attachment'&&part.data&&typeof part.data==='object'&&'id' in part.data?[part.data.id]:[])??[];
+        const selection = focus.takeSelection();
+        const openDocumentId = focus.openDocumentId();
         // The recording travels with this message only; sending spends it.
         if (audio) onAudioSent();
         return {
@@ -477,11 +556,13 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
             trigger,
             messageId,
             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            ...(openDocumentId ? { openDocumentId } : {}),
+            ...(selection ? { selection } : {}),
           },
         };
       },
     }),
-    [audio, onAudioSent, context.caseId, context.documentIds, context.researchReferenceIds, conversationId],
+    [audio, onAudioSent, context.caseId, context.documentIds, context.researchReferenceIds, conversationId, focus],
   );
   // K5 owns the history and thread IDs. The direct adapter avoids a second cloud thread list.
   const chat = useChat({
@@ -501,8 +582,15 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
     return chat.sendMessage(message,options);
   };
   const runtime = useAISDKRuntime({...chat,sendMessage});
-  const { stop } = chat;
+  const { stop, status, sendMessage: send } = chat;
   useEffect(() => () => { void stop(); }, [stop]);
+  useEffect(() => {
+    sendRef.current = (text) => {
+      if (status === "submitted" || status === "streaming") throw new Error("Aguarde a resposta atual do Lume.");
+      void send({ text });
+    };
+    return () => { sendRef.current = null; };
+  }, [sendRef, status, send]);
   return <ConversationIdContext.Provider value={conversationId}><AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider></ConversationIdContext.Provider>;
 }
 
@@ -520,6 +608,25 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   const [uploading, setUploading] = useState(false);
   const [audio, setAudio] = useState<Attachment | null>(null);
   const [draftFiles,setDraftFiles]=useState<Record<string,ChatAttachment[]>>({});
+  // The open document lives in the URL (?doc=), so a reload keeps it and Voltar closes it.
+  const openDocumentId = useSearchParams().get("doc");
+  const openDocumentRef = useRef(openDocumentId);
+  const documentWorkspaceRef = useRef<DocumentWorkspaceHandle>(null);
+  useEffect(() => { openDocumentRef.current = openDocumentId; }, [openDocumentId]);
+  const [documentRevision, setDocumentRevision] = useState(0);
+  const savedChatShare = useSyncExternalStore(subscribeChatShare, readChatShare, serverChatShare);
+  const [dragShare, setDragShare] = useState<number | null>(null);
+  const chatShare = dragShare ?? savedChatShare;
+  const splitRef = useRef<HTMLDivElement>(null);
+  // A drag cut short by closing the panel must not leave the page unselectable.
+  useEffect(() => () => { document.body.style.userSelect = ""; }, []);
+  const selectionRef = useRef<Selection | null>(null);
+  const sendRef = useRef<((text: string) => void) | null>(null);
+  const documentFocus = useMemo<DocumentFocus>(() => ({
+    openDocumentId: () => openDocumentRef.current,
+    takeSelection: () => { const selection = selectionRef.current; selectionRef.current = null; return selection; },
+  }), []);
+  const handledCalls = useRef(new Set<string>());
   function toggleList() {
     writeListOpen(!listOpen);
   }
@@ -655,8 +762,72 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   // The cache is read during render rather than copied into state by an effect: the conversation
   // paints from it on the first pass, and the fetched messages take over once they land.
   const cachedForSelected = selectedId ? cachedMessages(selectedId) : undefined;
-  const visibleMessages = selectedId && loadedConversationId === selectedId ? messages : cachedForSelected ?? [];
+  const visibleMessages = useMemo(() => selectedId && loadedConversationId === selectedId ? messages : cachedForSelected ?? [],
+    [selectedId, loadedConversationId, messages, cachedForSelected]);
   const waitingForMessages = Boolean(selectedId && loadedConversationId !== selectedId && !cachedForSelected);
+
+  // Tool lines already in the loaded history are old news; only calls made from here on open a document.
+  const loadedCalls = useMemo(() => new Set(visibleMessages.flatMap(message => message.parts.flatMap(part =>
+    part.type === "data-tool" && part.data && typeof part.data === "object" && "callId" in part.data ? [String(part.data.callId)] : []))), [visibleMessages]);
+
+  const openDocument = useCallback((id: string) => {
+    if (openDocumentRef.current === id) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("doc", id);
+    window.history.pushState(null, "", url);
+  }, []);
+  const closeDocument = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("doc");
+    window.history.replaceState(null, "", url);
+  }, []);
+  const documentLinks = useMemo<DocumentLinks>(() => ({
+    open: openDocument,
+    changed: (id) => { if (openDocumentRef.current === id) setDocumentRevision(value => value + 1); },
+    announce: (step) => {
+      if (!step.callId || loadedCalls.has(step.callId) || handledCalls.current.has(step.callId)) return;
+      handledCalls.current.add(step.callId);
+      const id = step.state === "completed" && step.name && DOCUMENT_WRITES.has(step.name) ? documentIdFrom(step.href) : null;
+      if (!id) return;
+      if (openDocumentRef.current === id) setDocumentRevision(value => value + 1);
+      else openDocument(id);
+    },
+  }), [loadedCalls, openDocument]);
+
+  const askAboutDocument = useCallback(async (request: DocumentAsk) => {
+    if (!sendRef.current) throw new Error("Abra uma conversa para pedir ao Lume.");
+    selectionRef.current = { artifactId: request.artifactId, excerpt: request.excerpt };
+    const quote = request.excerpt.length > 280 ? `${request.excerpt.slice(0, 277)}…` : request.excerpt;
+    try { sendRef.current(`No documento “${request.title}”, no trecho “${quote}”:\n${request.instruction}`); }
+    catch (cause) { selectionRef.current = null; throw cause; }
+  }, []);
+
+  // The divider between conversation and document: pointer drag, arrow keys, double click resets.
+  function shareAt(clientX: number) {
+    const bounds = splitRef.current?.getBoundingClientRect();
+    return bounds && bounds.width ? clampChatShare((clientX - bounds.left) / bounds.width * 100) : chatShare;
+  }
+  function startResize(event: React.PointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    document.body.style.userSelect = "none";
+    setDragShare(shareAt(event.clientX));
+  }
+  function moveResize(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragShare !== null) setDragShare(shareAt(event.clientX));
+  }
+  function endResize() {
+    if (dragShare === null) return;
+    document.body.style.userSelect = "";
+    writeChatShare(dragShare);
+    setDragShare(null);
+  }
+  function resizeWithKeys(event: React.KeyboardEvent<HTMLDivElement>) {
+    const next = event.key === "ArrowLeft" ? chatShare - 2 : event.key === "ArrowRight" ? chatShare + 2
+      : event.key === "Home" ? MIN_CHAT_SHARE : event.key === "End" ? MAX_CHAT_SHARE : null;
+    if (next === null) return;
+    event.preventDefault();
+    writeChatShare(next);
+  }
 
   function selectConversation(id: string) {
     setSelectedId(id);
@@ -667,7 +838,8 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
 
   return (
     <TooltipProvider>
-      <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden">
+      <DocumentLinksContext.Provider value={documentLinks}>
+      <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden" data-document-open={openDocumentId ? "" : undefined}>
         <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b px-4 md:px-8">
           <div className="flex min-w-0 items-center gap-2">
             <Tooltip>
@@ -687,6 +859,12 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
             </Tooltip>
           </div>
           <div className="flex items-center gap-1.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Personalizar Lume"><Link href="/app/agents/settings"><SlidersHorizontal /></Link></Button>
+              </TooltipTrigger>
+              <TooltipContent>Personalizar Lume</TooltipContent>
+            </Tooltip>
             <Sheet open={contextOpen} onOpenChange={setContextOpen}>
               <SheetTrigger asChild><Button variant="outline"><FileStack />Fontes{selectedCount > 0 ? ` (${selectedCount})` : ""}</Button></SheetTrigger>
               <SheetContent side="right" showCloseButton={false} className="min-w-0 overflow-x-hidden gap-0 bg-background sm:max-w-md">
@@ -699,7 +877,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
 
         {error && <p className="flex items-start gap-2 border-b px-4 py-2 text-sm text-destructive md:px-8" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
 
-        <div className="flex min-h-0 flex-1">
+        <div ref={splitRef} className="flex min-h-0 flex-1">
           <aside id="agent-conversations" aria-label="Conversas" className="agent-chat-history min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b md:w-72 md:border-r md:border-b-0">
               {loading && conversations.length === 0 ? (
                 <div className="grid gap-2 p-3" aria-hidden="true">
@@ -711,7 +889,8 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
                 <ConversationCards conversations={conversations} selectedId={selectedId} onSelect={selectConversation} onDelete={(id) => void removeConversation(id)} />
               )}
           </aside>
-          <div className="agent-chat-content flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className={cn("agent-chat-content flex min-h-0 min-w-0 flex-1 flex-col", openDocumentId && "lg:min-w-[24rem] lg:flex-none lg:basis-[var(--chat-share)]")}
+            style={openDocumentId ? { "--chat-share": `${chatShare}%` } as React.CSSProperties : undefined}>
             {loading || waitingForMessages ? (
               <div className="grid flex-1 place-items-center text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Carregando conversa…</span></div>
             ) : selectedId ? (
@@ -734,13 +913,31 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
                     .catch(() => undefined);
                 }}
                 onError={setError}
+                focus={documentFocus}
+                sendRef={sendRef}
               />
             ) : (
               <div className="grid flex-1 place-items-center px-6 text-center text-sm text-subtle-foreground">Nenhuma conversa disponível.</div>
             )}
           </div>
+          {openDocumentId && (
+            <div role="separator" aria-orientation="vertical" aria-label="Largura da conversa" aria-controls="document-panel" tabIndex={0}
+              aria-valuemin={MIN_CHAT_SHARE} aria-valuemax={MAX_CHAT_SHARE} aria-valuenow={Math.round(chatShare)} aria-valuetext={`Conversa com ${Math.round(chatShare)}% da largura`}
+              data-dragging={dragShare !== null || undefined} title="Arraste para ajustar. Clique duas vezes para voltar ao padrão."
+              className="group relative z-10 -mx-1 hidden w-2 shrink-0 cursor-col-resize touch-none outline-none lg:block"
+              onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize}
+              onKeyDown={resizeWithKeys} onDoubleClick={() => writeChatShare(DEFAULT_CHAT_SHARE)}>
+              <span aria-hidden="true" className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors group-hover:w-0.5 group-hover:bg-brand group-focus-visible:w-0.5 group-focus-visible:bg-brand group-data-[dragging]:w-0.5 group-data-[dragging]:bg-brand" />
+            </div>
+          )}
+          {openDocumentId && (
+            <DocumentPanel onClose={() => { if (documentWorkspaceRef.current) void documentWorkspaceRef.current.close(); else closeDocument(); }}>
+              <DocumentWorkspace ref={documentWorkspaceRef} key={openDocumentId} artifactId={openDocumentId} variant="panel" onClose={closeDocument} onAsk={askAboutDocument} revision={documentRevision} />
+            </DocumentPanel>
+          )}
         </div>
       </div>
+      </DocumentLinksContext.Provider>
     </TooltipProvider>
   );
 }

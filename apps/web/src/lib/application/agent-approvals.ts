@@ -5,7 +5,7 @@ import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityName } from '@/lib/capabilities/contracts';
 import { findVaultCase, findVaultDocument, findVaultFolder } from '@/lib/vault';
 import { findCaseLink } from '@/lib/judicial/repositories/links';
-import { conversation, saveMessages } from '@/lib/ai-store';
+import { conversation, ownedArtifact, saveMessages } from '@/lib/ai-store';
 import { runCapability, toolSummary } from '@/lib/agent-tools';
 import type { WorkspaceContext } from './context';
 import { agentConfirmedCapabilities, approveProposal, getApprovalProposal, rejectProposal } from './approvals-service';
@@ -33,6 +33,11 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
       return `Excluir a conversa${quoted(row?.title)}`;
     }
     case 'k5_artifacts_update': return `Salvar uma nova versão da minuta${quoted(text(input.title))}`;
+    case 'k5_artifacts_edit': {
+      const title = (await ownedArtifact(database, { officeId: context.officeId, userId: context.userId }, text(input.artifactId)))?.title;
+      const edits = Array.isArray(input.edits) ? input.edits.length : 0;
+      return `Alterar ${edits === 1 ? 'um trecho' : `${edits} trechos`} do documento${quoted(title)}`;
+    }
     case 'k5_judicial_confirm_link':
     case 'k5_judicial_unlink_case':
     case 'k5_judicial_request_refresh': {

@@ -139,7 +139,7 @@ test("updateArtifact enforces optimistic version conflicts", async () => {
   assert.equal((await ownedArtifact(database, owner, artifactId))?.content, "v2");
 
   const history = (await db.prepare("SELECT version FROM ai_artifact_version WHERE artifact_id = ? ORDER BY version").all(artifactId)) as Array<{ version: number }>;
-  assert.deepEqual(history.map(h => h.version), [2]);
+  assert.deepEqual(history.map(h => h.version), [1, 2]);
 });
 
 test("updateArtifact rolls back the artifact when history cannot be recorded", async () => {
@@ -164,4 +164,46 @@ CREATE TRIGGER reject_artifact_history BEFORE INSERT ON ai_artifact_version FOR 
   assert.equal(artifact?.title, "Minuta");
   assert.equal(artifact?.content, "v1");
   assert.equal((await db.prepare("SELECT count(*) AS total FROM ai_artifact_version WHERE artifact_id=?").get(artifactId))!.total, 0);
+});
+
+test("updateArtifact: autosave bumps the version but records history at most every five minutes", async () => {
+  const { db, database, userA, officeA } = (await fixture());
+  const owner = { officeId: officeA, userId: userA };
+  const artifactId = randomUUID();
+  (await db.prepare(`INSERT INTO ai_artifact (id, office_id, user_id, title, content, kind) VALUES (?,?,?,?,?,'document')`)
+    .run(artifactId, officeA, userA, "Notificação", "v1"));
+  const versions = async () => ((await db.prepare("SELECT version FROM ai_artifact_version WHERE artifact_id = ? ORDER BY version").all(artifactId)) as Array<{ version: number }>).map(row => row.version);
+
+  // No history yet, so the first autosave records one; the next ones inside the window do not.
+  assert.equal((await updateArtifact(database, owner, artifactId, "Notificação", "v2", 1, { snapshot: false }))?.version, 2);
+  assert.equal((await updateArtifact(database, owner, artifactId, "Notificação", "v3", 2, { snapshot: false }))?.version, 3);
+  assert.deepEqual(await versions(), [2]);
+  // A stale autosave is still a conflict.
+  assert.equal(await updateArtifact(database, owner, artifactId, "Notificação", "velho", 2, { snapshot: false }), null);
+  // An explicit save always records.
+  assert.equal((await updateArtifact(database, owner, artifactId, "Notificação", "v4", 3))?.version, 4);
+  assert.deepEqual(await versions(), [2, 3, 4]);
+  assert.equal((await db.prepare('SELECT content FROM ai_artifact_version WHERE artifact_id=? AND version=3').get(artifactId))?.content, 'v3');
+  // Past the window, autosave records again.
+  (await db.prepare("UPDATE ai_artifact_version SET created_at = CURRENT_TIMESTAMP - INTERVAL '6 minutes' WHERE artifact_id = ?").run(artifactId));
+  assert.equal((await updateArtifact(database, owner, artifactId, "Notificação", "v5", 4, { snapshot: false }))?.version, 5);
+  assert.deepEqual(await versions(), [2, 3, 4, 5]);
+});
+
+test('updateArtifact: concurrent replacements preserve the autosaved text and reject the loser', async () => {
+  const { db, database, userA, officeA } = await fixture();
+  const owner = { officeId: officeA, userId: userA };
+  const id = randomUUID();
+  await db.prepare("INSERT INTO ai_artifact(id,office_id,user_id,title,content,kind) VALUES(?,?,?,'Documento','inicial','document')").run(id, officeA, userA);
+  await updateArtifact(database, owner, id, 'Documento', 'primeiro autosave', 1, { snapshot: false });
+  await updateArtifact(database, owner, id, 'Documento', 'texto humano a preservar', 2, { snapshot: false });
+  const results = await Promise.all([
+    updateArtifact(database, owner, id, 'Documento', 'restaurado', 3),
+    updateArtifact(database, owner, id, 'Documento', 'edição do Lume', 3),
+  ]);
+  assert.equal(results.filter(Boolean).length, 1);
+  const history = await db.prepare('SELECT version,content FROM ai_artifact_version WHERE artifact_id=? ORDER BY version').all(id);
+  assert.deepEqual(history.map(row => row.version), [2, 3, 4]);
+  assert.equal(history[1].content, 'texto humano a preservar');
+  assert.equal(history[2].content, results.find(Boolean)?.content);
 });

@@ -235,8 +235,10 @@ test('document verification: source removal and owner isolation; disabled config
 test('document verification: concurrent enqueue, checkpoints and lost lease never publish stale results', async () => {
   const context = (await fixture()); await configure(context); const data = await documentFixture(context);
   const units = Array.from({ length: 9 }, (_, i) => ({ ...data.units[0], id: `p${i}` }));
-  const [a, b] = await Promise.all([enqueueVerification(context, data.artifact, units), enqueueVerification(context, data.artifact, units)]);
-  assert.equal(a, b);
+  const ids = await Promise.all(Array.from({ length: 12 }, () => enqueueVerification(context, data.artifact, units)));
+  const a = ids[0];
+  assert.equal(new Set(ids).size, 1);
+  assert.equal((await testDb.prepare("SELECT count(*) AS n FROM artifact_verification WHERE artifact_id=? AND status IN ('queued','running')").get(data.artifact.id))!.n, 1);
   await processNextVerification({ send });
   let report = (await getVerification(context, { artifactId: data.artifact.id })).verification!;
   assert.equal(report.checked, 4); assert.equal(report.status, 'queued');

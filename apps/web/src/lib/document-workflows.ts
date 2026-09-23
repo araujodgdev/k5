@@ -23,6 +23,9 @@ export const runInputSchema = z.object({
   caseId: z.string().optional(), researchReferenceIds: z.array(z.string()).max(30).default([]),
   pinnedResearchReferences: z.array(z.object({ referenceId: z.string(), materialVersionId: z.string() })).max(30).optional(),
   templateId: z.string().optional(), instructions: z.string().trim().min(1).max(12000),
+  // Snapshot taken by the server when the run is queued; a resumed run keeps the rules it began with.
+  writingRules: z.string().max(40000).optional(),
+  knowledge: z.string().max(40000).optional(),
   approvedCitationIds: z.array(z.string()).max(200).default([]),
 }).refine(input => input.kind === 'draft' || input.documentIds.length > 0, 'Selecione documentos do caso para a cronologia.')
   .refine(input => input.kind !== 'draft' || input.documentIds.length > 0 || input.researchReferenceIds.length > 0, 'Selecione fontes para a minuta.')
@@ -63,7 +66,7 @@ export async function validateRunSources(context: WorkspaceContext, input: RunIn
   const pinnedResearchReferences = [...new Map(researchSources.map(source => [source.researchReferenceId!,
     { referenceId: source.researchReferenceId!, materialVersionId: source.materialVersionId! }])).values()];
   const template = input.templateId ? await selectedSources(officeId, [input.templateId]) : [];
-  if (input.kind === 'draft' && !template.length) throw new Error('Selecione um modelo do escritório já processado.');
+  if (input.kind === 'draft' && !template.length) throw new Error(input.templateId ? 'O modelo de documento ainda está em processamento no Cofre.' : 'Selecione um modelo ou defina o modelo padrão em Personalizar Lume.');
   const candidates = citationCandidates([...sources, ...researchSources, ...template]);
   const approved = input.approvedCitationIds.map(id => {
     const item = candidates.find(c => c.id === id);
@@ -112,12 +115,15 @@ async function reviewDivergences(run: RunRow, extracted: Extraction[]): Promise<
   }
 }
 
+// The office's writing rules and reference material shape form; the sourcing rules after them still apply.
+const rulesBlock = (input: RunInput) => [input.writingRules, input.knowledge].filter(Boolean).map(block => `${block}\n\n`).join('');
+
 async function draft(run: RunRow, input: RunInput, template: SourceChunk[], sources: SourceChunk[], approved: CitationCandidate[]) {
   const outlineSchema = z.object({ title: z.string(), sections: z.array(z.object({ heading: z.string(), purpose: z.string(), search: z.string() })).min(1).max(12) });
   let outline = await checkpoint<z.infer<typeof outlineSchema>>(run, 'outline');
   if (!outline) {
     const style = template.map(t => t.text).join('\n').slice(0, 40000);
-    outline = await generateStructured(run.office_id, run.user_id, 'drafting', `Planeje a estrutura de uma minuta conforme pedido: ${input.instructions}\nUse o modelo SOMENTE para estilo e estrutura. Não copie nomes, fatos nem autoridades jurídicas. Formule termos de busca para localizar fatos para cada seção.\n<modelo>${style}</modelo>`, outlineSchema, runModel(run));
+    outline = await generateStructured(run.office_id, run.user_id, 'drafting', `${rulesBlock(input)}Planeje a estrutura de uma minuta conforme pedido: ${input.instructions}\nUse o modelo SOMENTE para estilo e estrutura. Não copie nomes, fatos nem autoridades jurídicas. Formule termos de busca para localizar fatos para cada seção.\n<modelo>${style}</modelo>`, outlineSchema, runModel(run));
     await saveCheckpoint(run, 'outline', outline);
   }
   const sections: DraftSection[] = [];
@@ -134,7 +140,7 @@ async function draft(run: RunRow, input: RunInput, template: SourceChunk[], sour
       const legalSources = input.researchReferenceIds.length ? input.pinnedResearchReferences
         ? await selectedPinnedResearchSources({ officeId: run.office_id, userId: run.user_id, role: member!.role }, input.caseId!, input.pinnedResearchReferences, section.search)
         : await selectedResearchSources({ officeId: run.office_id, userId: run.user_id, role: member!.role }, input.caseId!, input.researchReferenceIds, section.search) : [];
-      result = await generateStructured(run.office_id, run.user_id, 'drafting', `Redija a seção '${section.heading}': ${section.purpose}. Pedido: ${input.instructions}\nNão inclua NENHUMA citação ou referência jurídica; os textos autorizados serão anexados pelo sistema depois de seleção humana. Cada parágrafo factual precisa de evidence com sourceId de FONTES FACTUAIS DO CASO e citação literal de pelo menos 12 caracteres. Os fatos de JULGADOS DE OUTROS PROCESSOS jamais são fatos do cliente e não sustentam parágrafos factuais. Não escreva identificadores nem referências de fonte no texto; o sistema as adiciona. Sem evidência factual, escreva [PENDENTE DE INFORMAÇÃO], não invente nomes, datas, números ou pedidos específicos. Use escrita formal coerente com o modelo.\nEstilo (não fatos): ${template.map(t => t.text).join('\n').slice(0, 12000)}\nFONTES FACTUAIS DO CASO:\n${retrieved.map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 65000)}\nJULGADOS DE OUTROS PROCESSOS (somente contexto jurídico; citações dependem de aprovação humana):\n${legalSources.slice(0, 20).map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 18000)}`, paragraphSchema, runModel(run));
+      result = await generateStructured(run.office_id, run.user_id, 'drafting', `${rulesBlock(input)}Redija a seção '${section.heading}': ${section.purpose}. Pedido: ${input.instructions}\nNão inclua NENHUMA citação ou referência jurídica; os textos autorizados serão anexados pelo sistema depois de seleção humana. Cada parágrafo factual precisa de evidence com sourceId de FONTES FACTUAIS DO CASO e citação literal de pelo menos 12 caracteres. Os fatos de JULGADOS DE OUTROS PROCESSOS jamais são fatos do cliente e não sustentam parágrafos factuais. Não escreva identificadores nem referências de fonte no texto; o sistema as adiciona. Sem evidência factual, escreva [PENDENTE DE INFORMAÇÃO], não invente nomes, datas, números ou pedidos específicos. Use escrita formal coerente com o modelo.\nEstilo (não fatos): ${template.map(t => t.text).join('\n').slice(0, 12000)}\nFONTES FACTUAIS DO CASO:\n${retrieved.map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 65000)}\nJULGADOS DE OUTROS PROCESSOS (somente contexto jurídico; citações dependem de aprovação humana):\n${legalSources.slice(0, 20).map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 18000)}`, paragraphSchema, runModel(run));
       await saveCheckpoint(run, `draft:${i}`, result);
     }
     const assembled = assembleDraftSection(section.heading, i, result, sources);
@@ -185,8 +191,8 @@ async function executeRun(run: RunRow) {
     const existing = await database.prepare('SELECT id FROM ai_artifact WHERE run_id=?').get(run.id);
     const artifactId = existing ? String(existing.id) : randomUUID();
     if (!existing) {
-      await database.prepare('INSERT INTO ai_artifact(id,office_id,user_id,run_id,title,content,source_refs,validation_issues,status,template_id) VALUES(?,?,?,?,?,?,?,?,?,?)')
-        .run(artifactId, run.office_id, run.user_id, run.id, title, content, JSON.stringify(refs), JSON.stringify(issues), 'needs_review', input.templateId ?? null);
+      await database.prepare('INSERT INTO ai_artifact(id,office_id,user_id,run_id,title,content,source_refs,validation_issues,status,template_id,kind) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
+        .run(artifactId, run.office_id, run.user_id, run.id, title, content, JSON.stringify(refs), JSON.stringify(issues), 'needs_review', input.templateId ?? null, input.kind);
       await database.prepare('INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id) VALUES(?,1,?,?,?)').run(artifactId, title, content, run.user_id);
     }
     const artifact = await ownedArtifact(database, { officeId: run.office_id, userId: run.user_id }, artifactId);

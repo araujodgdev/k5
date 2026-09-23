@@ -6,7 +6,7 @@ import { citationCandidates, legalMentionsWithoutSource, quoteIsPresent, unautho
 import {
   assembleDraftSection, chronologyEvents, composeChronology, composeDraft, dateInfo, readableLabel, similarDescriptions, validateDivergences, type Extraction,
 } from "../src/lib/document-composition";
-import { exportDocument, markdownBlocks } from "../src/lib/document-export";
+import { exportDocument, markdownBlocks, templateTypography } from "../src/lib/document-export";
 
 const hex = (n: number) => n.toString(16).padStart(64, "0");
 const contract: SourceChunk = { id: hex(1), documentId: "doc-a", sourceLabel: "contrato.pdf — página:3", text: "O contrato foi assinado em 10/05/2023 pelas partes Ana e Bruno. Nos termos do art. 186 do Código Civil, há dever de indenizar." };
@@ -202,4 +202,38 @@ test("export: template path keeps header and separators, drops prior body, comme
   assert.doesNotMatch(zip.file("docProps/core.xml")!.asText(), /Advogado Antigo|Processo Antigo/);
   assert.throws(() => new PizZip(Buffer.from("not a zip")));
   await assert.rejects(exportDocument("x", Buffer.from(new PizZip().file("word/document.xml", "<w:document/>").generate({ type: "nodebuffer" }))), /Modelo Word inválido/);
+});
+
+test("export: editor typography comes from the template's body paragraphs and page", () => {
+  const paragraph = '<w:p><w:pPr><w:spacing w:after="120" w:line="360" w:lineRule="auto"/><w:ind w:firstLine="1134"/><w:jc w:val="both"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/></w:rPr><w:t>Texto do corpo.</w:t></w:r></w:p>';
+  const xml = `<w:document><w:body>${paragraph}${paragraph}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1701" w:right="1134" w:bottom="1134" w:left="1701"/></w:sectPr></w:body></w:document>`;
+  assert.deepEqual(templateTypography(xml), {
+    fontFamily: "Times New Roman", fontSizePt: 12, textAlign: "justify", lineHeight: 1.5, firstLineIndentCm: 2,
+    pageWidthCm: 21, marginLeftCm: 3, marginRightCm: 2,
+  });
+  const exact = templateTypography('<w:document><w:body><w:p><w:pPr><w:spacing w:line="360" w:lineRule="exact"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t>x</w:t></w:r></w:p></w:body></w:document>');
+  assert.equal(exact.lineHeight, 1.5);
+  assert.equal(exact.textAlign, "center");
+  assert.equal(exact.fontFamily, null);
+});
+
+test("export: Markdown tables become Word tables on both paths, header row repeating", async () => {
+  const table = "| Parcela | Vencimento |\n| --- | --- |\n| **1** | 10/01/2026 |\n| 2 | 10/02/2026 |";
+  const [block] = markdownBlocks(table);
+  assert.equal(block.kind, "table");
+  assert.ok(block.kind === "table" && block.header.length === 2 && block.rows.length === 2 && block.rows[0][0].some(run => run.bold && run.text === "1"));
+
+  const plain = documentXml(await exportDocument(table));
+  assert.equal(plain.match(/<w:tr[ >]/g)?.length, 3);
+  assert.match(plain, /<w:tblHeader\/>/);
+  assert.doesNotMatch(plain, /\| Parcela/);
+
+  const template = await Packer.toBuffer(new Document({ sections: [{ children: [new Paragraph({ children: [new TextRun({ text: "Corpo", font: "Garamond" })] })] }] }));
+  const xml = new PizZip(await exportDocument(`Antes\n\n${table}`, template)).file("word/document.xml")!.asText();
+  assert.equal(xml.match(/<w:tr>/g)?.length, 3);
+  assert.equal(xml.match(/<w:gridCol w:w="4500"\/>/g)?.length, 2);
+  assert.match(xml, /<w:tr><w:trPr><w:tblHeader\/><\/w:trPr><w:tc>[\s\S]*?<w:b\/>[\s\S]*?Parcela/);
+  assert.match(xml, /w:ascii="Garamond"[^]*?10\/02\/2026/);
+  // A document that ends in a table still closes with a paragraph before the section properties.
+  assert.match(xml, /<\/w:tbl><w:p\/><w:sectPr/);
 });

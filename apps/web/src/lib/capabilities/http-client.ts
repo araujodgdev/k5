@@ -103,6 +103,9 @@ const routes: Record<CapabilityName, Route> = {
       return `/api/citations?${params.toString()}`;
     },
   },
+  k5_artifacts_create: { method: 'POST', path: () => '/api/artifacts', body: (i) => i },
+  k5_artifacts_edit: { method: 'POST', path: (i) => `/api/artifacts/${id(i.artifactId)}/edits`, body: (i) => i },
+  k5_artifacts_list: { method: 'GET', path: i => i.limit ? `/api/artifacts?limit=${id(i.limit)}` : '/api/artifacts' },
   k5_artifacts_get: { method: 'GET', path: (i) => `/api/artifacts/${id(i.artifactId)}` },
   k5_artifacts_update: { method: 'PUT', path: (i) => `/api/artifacts/${id(i.artifactId)}`, body: (i) => i },
   k5_artifacts_list_versions: { method: 'GET', path: (i) => `/api/artifacts/${id(i.artifactId)}/versions` },

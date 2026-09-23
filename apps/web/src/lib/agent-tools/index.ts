@@ -25,6 +25,8 @@ import * as annexes from '@/lib/application/annexes-service';
 import { getVerification, requestVerification } from '@/lib/typesafe/verification';
 import { interpretAgenda, getProposal, listProposals, applyProposal } from '@/lib/typesafe/agenda';
 import { endGlobalSession } from '@/lib/application/ui-service';
+import { recordSources, sourcesFromTool } from '@/lib/citations/sources';
+import { captureOperationalError } from '@/lib/observability/report';
 
 type Executor = (context: WorkspaceContext, input: never) => unknown;
 
@@ -90,6 +92,9 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_documents_start_chronology: runs.startChronology,
   k5_documents_start_draft: runs.startDraft,
   k5_citations_list_candidates: citations.listCandidates,
+  k5_artifacts_create: artifacts.createArtifact,
+  k5_artifacts_edit: artifacts.editArtifact,
+  k5_artifacts_list: artifacts.listArtifacts,
   k5_artifacts_get: artifacts.getArtifact,
   k5_artifacts_update: artifacts.saveArtifact,
   k5_artifacts_list_versions: artifacts.listArtifactVersions,
@@ -169,7 +174,16 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (
     inputSchema: capability.input,
     outputSchema: capability.output,
     execute: async (input: unknown) => {
-      try { return await runCapability({ ...context, invocation: 'agent' }, name, input); }
+      try {
+        const result = await runCapability({ ...context, invocation: 'agent' }, name, input);
+        // What the Lume read is kept before it sees it, so a document it writes next in this same
+        // turn is checked against these sources too.
+        if (context.conversationId) {
+          await recordSources(context, context.conversationId, sourcesFromTool(name, result))
+            .catch(error => captureOperationalError(error, 'citations.sources'));
+        }
+        return result;
+      }
       catch (error) {
         // A gated action is not a failure: the chat turns it into a Confirmar button that runs it.
         const approvalId = error instanceof CapabilityError && error.code === 'APPROVAL_REQUIRED' ? approvalIdFromMessage(error.message) : null;
@@ -278,7 +292,10 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_documents_start_chronology: 'Iniciou uma cronologia',
     k5_documents_start_draft: 'Iniciou uma minuta',
     k5_citations_list_candidates: 'Consultou citações candidatas',
-    k5_artifacts_get: 'Leu um documento gerado',
+    k5_artifacts_create: 'Criou o documento',
+    k5_artifacts_edit: 'Alterou o documento',
+    k5_artifacts_list: 'Consultou os documentos',
+    k5_artifacts_get: 'Leu um documento',
     k5_artifacts_update: 'Salvou uma nova versão do documento',
     k5_artifacts_list_versions: 'Consultou histórico de versões',
     k5_artifacts_restore_version: 'Restaurou versão de documento',
@@ -330,6 +347,12 @@ function describe(name: string, result: unknown): string {
   if (Array.isArray(value.folders)) return `${value.folders.length} pasta(s)`;
   if (Array.isArray(value.documents)) return `${value.documents.length} documento(s)`;
   if (Array.isArray(value.runs)) return `${value.runs.length} tarefa(s)`;
+  if (Array.isArray(value.artifacts)) return `${value.artifacts.length} documento(s)`;
+  if (value.artifact && typeof value.artifact === 'object' && value.citations && typeof value.citations === 'object') {
+    const title = String((value.artifact as { title?: string }).title ?? '');
+    const toReview = Number((value.citations as { toReview?: number }).toReview ?? 0);
+    return toReview ? `${title} · ${toReview} ${toReview === 1 ? 'citação' : 'citações'} para conferir` : title;
+  }
   if (Array.isArray(value.versions)) return `${value.versions.length} versão(ões)`;
   if (Array.isArray(value.conversations)) return `${value.conversations.length} conversa(s)`;
   if (Array.isArray(value.candidates)) return `${value.candidates.length} candidato(s)`;
