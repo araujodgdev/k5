@@ -1,12 +1,26 @@
 /** Private host intercepted by the owning Cloudflare Container, never a public endpoint. */
 export const CONTAINER_BINDINGS_HOST = 'k5-bindings';
 
+/** `code` is an application-owned identifier such as `vectorize_40008`, safe to use as a tag. */
+export class ContainerBindingError extends Error {
+  constructor(readonly status: number, readonly code: string | undefined) {
+    super(`Binding do processador indisponível (${status}${code ? `, ${code}` : ''}).`);
+    this.name = 'ContainerBindingError';
+  }
+}
+
+const SAFE_CODE = /^[a-z]+_[a-z0-9]+$/;
+
 export async function containerBindingFetch(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(`http://${CONTAINER_BINDINGS_HOST}${path}`, {
     ...init,
     signal: AbortSignal.timeout(60_000),
   });
-  if (!response.ok) throw new Error(`Binding do processador indisponível (${response.status}).`);
+  if (!response.ok) {
+    const body = await response.json().catch(() => undefined) as { code?: unknown } | undefined;
+    const code = typeof body?.code === 'string' && SAFE_CODE.test(body.code) ? body.code : undefined;
+    throw new ContainerBindingError(response.status, code);
+  }
   return response;
 }
 

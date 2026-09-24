@@ -4,6 +4,14 @@ import { database } from "@/lib/database";
 
 export type ExtractedSection = { reference: string; content: string };
 
+/** A PDF without a text layer where no OCR is available: a known limitation, not a failure. */
+export class OcrRequiredError extends Error {
+  constructor() {
+    super('Este PDF precisa de OCR. Adicione-o ao Cofre para processar e depois selecione-o em Fontes.');
+    this.name = 'OcrRequiredError';
+  }
+}
+
 const decoder = new TextDecoder("utf-8", { fatal: false });
 
 export async function extractDocumentSections(data: Buffer, mimeType: string, name: string, documentId: string): Promise<ExtractedSection[]> {
@@ -38,7 +46,7 @@ async function extractPdf(data: Buffer, documentId: string): Promise<ExtractedSe
   }
   if (sections.length) return sections;
   if (process.env.VAULT_OCR_URL) return extractPdfOcr(data, documentId);
-  throw new Error('Este PDF precisa de OCR. Adicione-o ao Cofre para processar e depois selecione-o em Fontes.');
+  throw new OcrRequiredError();
 }
 
 async function extractPdfOcr(data: Buffer, documentId: string): Promise<ExtractedSection[]> {

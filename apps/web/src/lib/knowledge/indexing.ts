@@ -4,7 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import { objectStorage, StorageError } from '@/lib/storage';
 import { embeddingProfile, embedTexts, EmbeddingUnavailableError, type EmbeddingProfile } from './embedding-provider';
-import { vectorIndex, type VectorRecord } from './vector-index';
+import { ContainerBindingError } from '@/lib/container-bindings';
+import { VectorContractError, vectorIndex, type VectorRecord } from './vector-index';
 
 const BATCH_SIZE = 32;
 const LEASE_MS = 5 * 60 * 1000;
@@ -99,6 +100,7 @@ export async function enqueueIndexJob(officeId: string, documentId: string): Pro
     ON CONFLICT(document_id, generation_id) DO UPDATE SET
       status = CASE WHEN knowledge_index_job.status IN ('completed','failed','cancelled') THEN 'queued' ELSE knowledge_index_job.status END,
       cursor_ordinal = CASE WHEN knowledge_index_job.status IN ('completed','failed','cancelled') THEN 0 ELSE knowledge_index_job.cursor_ordinal END,
+      chunks_done = CASE WHEN knowledge_index_job.status IN ('completed','failed','cancelled') THEN 0 ELSE knowledge_index_job.chunks_done END,
       chunks_total = excluded.chunks_total,
       attempts = 0, error = NULL, updated_at = CURRENT_TIMESTAMP
   `).run(jobId, officeId, documentId, generation.id, chunks);
@@ -142,13 +144,29 @@ async function claimIndexJob(): Promise<{ job: JobRow; owner: string } | undefin
   return { job: { ...job, attempts: Number(job.attempts) - 1 }, owner };
 }
 
+type IndexStage = 'setup' | 'embedding' | 'vector_upsert' | 'ledger' | 'checkpoint' | 'publish';
+
+/** Carries which step failed out of the run, so the report names it without the provider's text. */
+class IndexStageError extends Error {
+  constructor(readonly stage: IndexStage, readonly original: unknown) {
+    super(original instanceof Error ? original.message : 'Falha ao indexar o documento.');
+    this.name = original instanceof Error ? original.name : 'Error';
+    if (original instanceof Error && original.stack) this.stack = original.stack;
+  }
+}
+
+async function stage<T>(name: IndexStage, step: () => Promise<T>): Promise<T> {
+  try { return await step(); }
+  catch (error) { throw error instanceof IndexStageError ? error : new IndexStageError(name, error); }
+}
+
 /**
  * Embeds one document in bounded batches, checkpointing the ordinal after each one so an
  * interrupted run resumes instead of paying for every chunk again.
  */
 async function runIndexJob(job: JobRow, owner: string): Promise<void> {
-  const profile = await embeddingProfile(job.office_id);
-  const index = await vectorIndex();
+  const profile = await stage('setup', () => embeddingProfile(job.office_id));
+  const index = await stage('setup', () => vectorIndex());
   let cursor = Number(job.cursor_ordinal);
   let done = Number(job.chunks_done);
 
@@ -167,7 +185,7 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
     ).all(job.office_id, job.document_id, cursor, BATCH_SIZE) as Array<{ id: string; ordinal: number; content: string }>;
     if (!chunks.length) break;
 
-    const vectors = await embedTexts(profile, chunks.map((chunk) => chunk.content));
+    const vectors = await stage('embedding', () => embedTexts(profile, chunks.map((chunk) => chunk.content)));
 
     // The first batch of a fresh generation fixes its dimension for good.
     const dimension = vectors[0].length;
@@ -176,13 +194,13 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
     if (generation && Number(generation.dimension) === 0) {
       await database.prepare('UPDATE knowledge_index_generation SET dimension = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(dimension, job.generation_id);
     } else if (generation && Number(generation.dimension) !== dimension) {
-      throw new EmbeddingUnavailableError('A dimensão do modelo de embedding mudou. Crie uma nova geração de índice.');
+      throw new IndexStageError('embedding', new EmbeddingUnavailableError('A dimensão do modelo de embedding mudou. Crie uma nova geração de índice.'));
     }
 
     const records: VectorRecord[] = chunks.map((chunk, position) => ({
       chunkId: chunk.id, documentId: job.document_id, embedding: vectors[position],
     }));
-    await index.upsert(job.office_id, job.generation_id, records);
+    await stage('vector_upsert', () => index.upsert(job.office_id, job.generation_id, records));
 
     // Publication ledger, written for every backend. The vectors themselves live wherever the
     // adapter put them - pgvector, Vectorize, or this table's blob column for SQLite - but the
@@ -194,16 +212,16 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
       VALUES (?, ?, ?, ?, ?, '')
       ON CONFLICT(chunk_id, generation_id) DO NOTHING
     `);
-    await database.batch(records.map((record) =>
-      ledger.bind(`${job.generation_id}:${record.chunkId}`, job.office_id, job.document_id, record.chunkId, job.generation_id)));
+    await stage('ledger', () => database.batch(records.map((record) =>
+      ledger.bind(`${job.generation_id}:${record.chunkId}`, job.office_id, job.document_id, record.chunkId, job.generation_id))));
 
     cursor = chunks[chunks.length - 1].ordinal + 1;
     done += chunks.length;
-    const held = await database.prepare(
+    const held = await stage('checkpoint', () => database.prepare(
       `UPDATE knowledge_index_job SET cursor_ordinal = ?, chunks_done = ?, lease_until = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND lease_owner = ?`,
-    ).run(cursor, done, Date.now() + LEASE_MS, job.id, owner);
-    if (!held.changes) throw new Error('A tarefa de indexação perdeu sua concessão.');
+    ).run(cursor, done, Date.now() + LEASE_MS, job.id, owner));
+    if (!held.changes) throw new IndexStageError('checkpoint', new Error('A tarefa de indexação perdeu sua concessão.'));
   }
 
   const completedAt = new Date().toISOString();
@@ -225,7 +243,7 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
     database.prepare(`UPDATE knowledge_index_job SET lease_owner=NULL WHERE id=? AND office_id=? AND status='completed' AND lease_owner=?`)
       .bind(job.id, job.office_id, owner),
   ]);
-  await publishGenerationIfComplete(job.office_id, job.generation_id);
+  await stage('publish', () => publishGenerationIfComplete(job.office_id, job.generation_id));
 }
 
 export async function processNextIndexJob(): Promise<boolean> {
@@ -233,10 +251,17 @@ export async function processNextIndexJob(): Promise<boolean> {
   if (!claimed) return false;
   try {
     await runIndexJob(claimed.job, claimed.owner);
-  } catch (error) {
-    captureOperationalError(error, 'knowledge.index');
+  } catch (caught) {
+    const failedStage = caught instanceof IndexStageError ? caught.stage : 'unknown';
+    const error = caught instanceof IndexStageError ? caught.original : caught;
+    // Stage and code are ours; the provider's message stays out of the event.
+    captureOperationalError(error, 'knowledge.index', {
+      'knowledge.stage': failedStage,
+      'knowledge.error_code': error instanceof ContainerBindingError ? error.code ?? `status_${error.status}` : error instanceof Error ? error.name : 'unknown',
+    });
     const message = error instanceof Error ? error.message.slice(0, 500) : 'Falha ao indexar o documento.';
-    const terminal = error instanceof EmbeddingUnavailableError || Number(claimed.job.attempts) + 1 >= MAX_ATTEMPTS;
+    const terminal = error instanceof EmbeddingUnavailableError || error instanceof VectorContractError
+      || Number(claimed.job.attempts) + 1 >= MAX_ATTEMPTS;
     // Only the lease holder may record the outcome. A worker whose lease expired mid-run finishes
     // late, and without this guard it would push the job back to 'queued' underneath the worker
     // that legitimately reclaimed it - interrupting live indexing and paying for the same

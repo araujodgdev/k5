@@ -1,18 +1,20 @@
 import { notFound } from "next/navigation";
 import { Reveal } from "@/components/reveal";
 import { VaultCaseView } from "@/components/vault-case-view";
-import { findVaultCase, findVaultFolder, listVaultDocuments, listVaultFolders, requireVaultWorkspace, vaultFolderPath } from "@/lib/vault";
+import { requireWorkspace } from "@/lib/session";
+import { findVaultCase, findVaultFolder, listVaultDocuments, listVaultFolders, vaultFolderPath } from "@/lib/vault";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ folder?: string; section?: string }> };
 
+// Pages redirect an expired session to sign-in; the 401 of requireVaultWorkspace is for the APIs.
 export async function generateMetadata({ params }: Props) {
-  const { office } = await requireVaultWorkspace();
+  const { office } = await requireWorkspace();
   const { id } = await params;
   return { title: (await findVaultCase(office.officeId, id))?.name ?? "Caso" };
 }
 
 export default async function VaultCasePage({ params, searchParams }: Props) {
-  const { office } = await requireVaultWorkspace();
+  const { office } = await requireWorkspace();
   const [{ id }, { folder: requested, section }] = await Promise.all([params, searchParams]);
   const vaultCase = await findVaultCase(office.officeId, id);
   if (!vaultCase) notFound();

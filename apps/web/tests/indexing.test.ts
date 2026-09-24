@@ -10,7 +10,7 @@ import type { WorkspaceContext } from "../src/lib/application/context";
 import * as vaultService from "../src/lib/application/vault-service";
 import * as uploadsService from "../src/lib/application/uploads-service";
 import { processNextDeletion, processNextIndexJob, publishGenerationIfComplete } from "../src/lib/knowledge/indexing";
-import { resetVectorIndexForTests, vectorIndex } from "../src/lib/knowledge/vector-index";
+import { resetVectorIndexForTests, vectorIndex, vectorizeId } from "../src/lib/knowledge/vector-index";
 
 async function seedOffice() {
   const userId = randomUUID();
@@ -222,6 +222,7 @@ test("vectorize: a scope wider than one filter batch is queried whole, not trunc
 
   // 100 documents is what the capability contract allows; Vectorize takes 64 values per $in.
   const documentIds = Array.from({ length: 100 }, () => randomUUID());
+  const generationId = randomUUID();
   const seen: string[][] = [];
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (_url: string, init: { body: string }) => {
@@ -231,13 +232,13 @@ test("vectorize: a scope wider than one filter batch is queried whole, not trunc
     return {
       ok: true,
       json: async () => ({
-        result: { matches: batch.map((id, position) => ({ score: 1 - position / 1000, metadata: { chunkId: `chunk-${id}` } })) },
+        result: { matches: batch.map((id, position) => ({ id: vectorizeId(generationId, id), score: 1 - position / 1000 })) },
       }),
     };
   }) as unknown as typeof globalThis.fetch;
 
   try {
-    const hits = await (await vectorIndex()).query("escritorio", "geracao", new Float32Array([1, 0]), { documentIds, topK: 10 });
+    const hits = await (await vectorIndex()).query("escritorio", generationId, new Float32Array([1, 0]), { documentIds, topK: 10 });
 
     assert.equal(seen.length, 2, "the scope is fanned out across requests");
     assert.deepEqual(seen.flat().sort(), [...documentIds].sort(), "every document in scope reaches the index");
@@ -276,20 +277,22 @@ test("vectorize: the Worker binding is preferred without REST credentials", asyn
   delete process.env.VECTORIZE_INDEX;
   delete process.env.CF_API_TOKEN;
   const queries: unknown[] = [];
+  const generationId = randomUUID();
+  const chunkId = randomUUID();
   resetVectorIndexForTests(undefined, {
     upsert: async () => ({}),
     query: async (_vector, options) => {
       queries.push(options);
-      return { matches: [{ score: 0.9, metadata: { chunkId: "chunk-binding" } }] };
+      return { matches: [{ id: vectorizeId(generationId, chunkId), score: 0.9 }] };
     },
     deleteByIds: async () => ({}),
   });
 
   try {
     const index = await vectorIndex();
-    const hits = await index.query("office", "generation", new Float32Array([1, 0]), { documentIds: ["document"], topK: 5 });
+    const hits = await index.query("office", generationId, new Float32Array([1, 0]), { documentIds: ["document"], topK: 5 });
     assert.equal(index.kind, "vectorize");
-    assert.deepEqual(hits, [{ chunkId: "chunk-binding", score: 0.9 }]);
+    assert.deepEqual(hits, [{ chunkId, score: 0.9 }]);
     assert.equal(queries.length, 1);
   } finally {
     process.env = previous;

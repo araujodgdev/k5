@@ -38,8 +38,23 @@ export async function processorBindingRequest(request: Request, env: ProcessorBi
   if (request.method !== 'POST') return new Response(null, { status: 405 });
   if (!['/vectors/upsert', '/vectors/query', '/vectors/delete'].includes(url.pathname)) return new Response(null, { status: 404 });
   const payload = await request.json();
-  if (url.pathname === '/vectors/upsert') return Response.json(await env.KNOWLEDGE.upsert(payload as Parameters<VectorizeBinding['upsert']>[0]));
-  if (url.pathname === '/vectors/delete') return Response.json(await env.KNOWLEDGE.deleteByIds(payload as string[]));
-  const { vector, options } = payload as { vector: number[]; options: Parameters<VectorizeBinding['query']>[1] };
-  return Response.json(await env.KNOWLEDGE.query(vector, options));
+  try {
+    if (url.pathname === '/vectors/upsert') return Response.json(await env.KNOWLEDGE.upsert(payload as Parameters<VectorizeBinding['upsert']>[0]));
+    if (url.pathname === '/vectors/delete') return Response.json(await env.KNOWLEDGE.deleteByIds(payload as string[]));
+    const { vector, options } = payload as { vector: number[]; options: Parameters<VectorizeBinding['query']>[1] };
+    return Response.json(await env.KNOWLEDGE.query(vector, options));
+  } catch (error) {
+    // A throw here reaches the Container only as `fetch failed`, which is all LUME-P ever showed.
+    // Answer with the Vectorize error code instead: it names the broken contract (40008 was an id
+    // over 64 bytes). The exception text itself is never logged or returned: an external
+    // service's message may echo vector values, metadata or document content.
+    const code = vectorizeErrorCode(error);
+    console.error(`Vectorize ${url.pathname.slice('/vectors/'.length)} falhou (${code}).`);
+    return Response.json({ code }, { status: 502 });
+  }
+}
+
+export function vectorizeErrorCode(error: unknown): string {
+  const match = error instanceof Error ? /\(code = (\d{4,6})\)/.exec(error.message) : null;
+  return match ? `vectorize_${match[1]}` : 'vectorize_unknown';
 }
