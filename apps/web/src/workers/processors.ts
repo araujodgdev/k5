@@ -6,8 +6,9 @@ export { ContainerProxy } from '@cloudflare/containers';
 export type ProcessorRole = 'documents' | 'judicial';
 export interface ProcessorEnv extends ProcessorBindings {
   PROCESSOR_DATABASE_URL: string;
-  K5_CREDENTIALS_KEY: string;
+  K5_CREDENTIALS_KEY?: string;
   K5_CREDENTIALS_PREVIOUS_KEYS?: string;
+  K5_CREDENTIALS_NEXT_KEY?: string;
   GOOGLE_OAUTH_CLIENT_ID?: string;
   GOOGLE_OAUTH_CLIENT_SECRET?: string;
   SENTRY_DSN?: string;
@@ -28,8 +29,9 @@ export class LumeProcessor extends Container<ProcessorEnv> {
     VAULT_STORAGE_BACKEND: 'r2',
     VECTOR_INDEX_BACKEND: 'vectorize',
     DATABASE_URL: this.env.PROCESSOR_DATABASE_URL,
-    K5_CREDENTIALS_KEY: this.env.K5_CREDENTIALS_KEY,
+    K5_CREDENTIALS_KEY: this.env.K5_CREDENTIALS_KEY ?? '',
     K5_CREDENTIALS_PREVIOUS_KEYS: this.env.K5_CREDENTIALS_PREVIOUS_KEYS ?? '',
+    K5_CREDENTIALS_NEXT_KEY: this.env.K5_CREDENTIALS_NEXT_KEY ?? '',
     GOOGLE_OAUTH_CLIENT_ID: this.env.GOOGLE_OAUTH_CLIENT_ID ?? '',
     GOOGLE_OAUTH_CLIENT_SECRET: this.env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
     SENTRY_DSN: this.env.SENTRY_DSN ?? SENTRY_DSN,
@@ -39,7 +41,7 @@ export class LumeProcessor extends Container<ProcessorEnv> {
 
   async run(role: ProcessorRole): Promise<void> {
     if (role !== 'documents' && role !== 'judicial') throw new Error('Processador inválido.');
-    if (!this.env.PROCESSOR_DATABASE_URL || !this.env.K5_CREDENTIALS_KEY) throw new Error('Processador sem configuração de banco ou credenciais.');
+    if (!this.env.PROCESSOR_DATABASE_URL || (!this.env.K5_CREDENTIALS_KEY && !this.env.K5_CREDENTIALS_NEXT_KEY)) throw new Error('Processador sem configuração de banco ou credenciais.');
     if (this.running) return;
     this.running = true;
     // OCR and provider calls can take longer than the idle timeout. Keep only active jobs alive.

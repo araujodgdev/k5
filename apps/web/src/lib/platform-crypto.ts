@@ -32,9 +32,15 @@ export function createCredentialKeyring(current: Uint8Array, previous: Uint8Arra
   return { current: { id: credentialKeyId(current), key: Buffer.from(current) }, keys };
 }
 
-export function parseCredentialKeyring(current = process.env.K5_CREDENTIALS_KEY, previous = process.env.K5_CREDENTIALS_PREVIOUS_KEYS): CredentialKeyring {
+export function parseCredentialKeyring(current = process.env.K5_CREDENTIALS_KEY, previous = process.env.K5_CREDENTIALS_PREVIOUS_KEYS, next = process.env.K5_CREDENTIALS_NEXT_KEY): CredentialKeyring {
   const old = (previous ?? "").split(",").map((value) => value.trim()).filter(Boolean)
     .map((value) => parseCredentialKey(value, "K5_CREDENTIALS_PREVIOUS_KEYS"));
+  // Keep the existing secret in the runtime while new writes adopt the staged key.
+  // KEY may briefly be absent when the operator renames it to PREVIOUS_KEYS.
+  if (next?.trim()) {
+    if (current?.trim()) old.unshift(parseCredentialKey(current));
+    return createCredentialKeyring(parseCredentialKey(next, "K5_CREDENTIALS_NEXT_KEY"), old);
+  }
   return createCredentialKeyring(parseCredentialKey(current), old);
 }
 
