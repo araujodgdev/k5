@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { database } from './database';
 import { objectStorage, storageKey } from './storage';
 import { validatedFileName } from './application/uploads-service';
-import { extractDocumentSections } from './document-extraction';
+import { extractDocumentSections, OcrRequiredError } from './document-extraction';
 import { CapabilityError } from './capabilities/errors';
 import { captureOperationalError } from './observability/report';
 import { imageMatchesType } from './image-signature';
@@ -34,7 +34,11 @@ export async function createChatAttachment(owner: Owner, conversationId: string,
   let extracted='';
   if (!mimeType.startsWith('image/')) {
     try { extracted=(await extractDocumentSections(bytes,mimeType,name,id)).map(part=>`${part.reference}: ${part.content}`).join('\n\n'); }
-    catch(error) { captureOperationalError(error,'chat.attachment.extract'); throw new CapabilityError('INVALID','Não foi possível ler este arquivo. Para uma página escaneada, envie uma foto ou imagem.'); }
+    catch(error) {
+      if (error instanceof OcrRequiredError) throw new CapabilityError('INVALID',`${error.message} Para uma página, envie uma foto ou imagem.`);
+      captureOperationalError(error,'chat.attachment.extract');
+      throw new CapabilityError('INVALID','Não foi possível ler este arquivo. Para uma página escaneada, envie uma foto ou imagem.');
+    }
     if (!extracted.trim()) throw new CapabilityError('INVALID','O arquivo não contém texto legível. Envie uma foto ou outro arquivo.');
     if (extracted.length>120_000) throw new CapabilityError('INVALID','Este arquivo é longo demais para um anexo de chat. Adicione-o ao Cofre e selecione-o em Fontes.');
   }

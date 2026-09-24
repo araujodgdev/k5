@@ -187,28 +187,74 @@ function batched<T>(items: readonly T[], size: number): T[][] {
   return batches;
 }
 
-type VectorizeMatch = { score?: number; metadata?: unknown };
+/** A vector the index can never accept. Retrying it only spends embedding calls again. */
+export class VectorContractError extends Error {
+  constructor(message: string) { super(message); this.name = 'VectorContractError'; }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+const uuidBytes = (value: string) => Buffer.from(value.replaceAll('-', ''), 'hex');
+const uuidText = (bytes: Buffer) => bytes.toString('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+
+/**
+ * Vectorize caps vector ids at 64 bytes. `${generationId}:${chunkId}` is 101 bytes for the sha256
+ * chunk ids vault.ts mints, which is what staging rejected with 40008. The id packs both values as
+ * bytes instead - 48 bytes, exactly 64 base64url characters - and stays reversible, so a query
+ * reads the chunk back from the id without depending on a metadata index for chunkId.
+ */
+export function vectorizeId(generationId: string, chunkId: string): string {
+  if (!UUID.test(generationId)) throw new VectorContractError('Geração de índice com identificador inesperado.');
+  const chunk = SHA256_HEX.test(chunkId) ? Buffer.from(chunkId, 'hex') : UUID.test(chunkId) ? uuidBytes(chunkId) : undefined;
+  if (!chunk) throw new VectorContractError('Trecho com identificador que o Vectorize não consegue endereçar.');
+  return Buffer.concat([uuidBytes(generationId), chunk]).toString('base64url');
+}
+
+export function parseVectorizeId(id: string): { generationId: string; chunkId: string } | undefined {
+  const bytes = Buffer.from(id, 'base64url');
+  if (bytes.toString('base64url') !== id || (bytes.length !== 48 && bytes.length !== 32)) return undefined;
+  const chunk = bytes.subarray(16);
+  return { generationId: uuidText(bytes.subarray(0, 16)), chunkId: bytes.length === 48 ? chunk.toString('hex') : uuidText(chunk) };
+}
+
+type VectorizeMatch = { id?: string; score?: number };
 
 export interface VectorizeBinding {
   upsert(vectors: Array<{ id: string; values: number[]; namespace: string; metadata: Record<string, string> }>): Promise<unknown>;
   query(vector: number[], options: {
     topK: number;
     namespace: string;
-    returnMetadata: 'indexed';
+    returnMetadata: 'none' | 'indexed' | 'all';
     filter: { generationId: { $eq: string }; documentId: { $in: string[] } };
   }): Promise<{ matches?: VectorizeMatch[] }>;
   deleteByIds(ids: string[]): Promise<unknown>;
 }
 
-function mergeVectorizeMatches(responses: Array<{ matches?: VectorizeMatch[] }>, topK: number): VectorHit[] {
+/**
+ * The chunk comes from the id, not from metadata: only generationId and documentId carry metadata
+ * indexes, and 'indexed' returns nothing else. 'none' also keeps topK up to 100 instead of 50.
+ */
+const vectorizeQueryOptions = (officeId: string, generationId: string, documentIds: string[], topK: number) => ({
+  topK,
+  namespace: officeId,
+  returnMetadata: 'none' as const,
+  filter: { generationId: { $eq: generationId }, documentId: { $in: documentIds } },
+});
+
+const vectorizeRecord = (officeId: string, generationId: string, record: VectorRecord) => ({
+  id: vectorizeId(generationId, record.chunkId),
+  values: Array.from(record.embedding),
+  namespace: officeId,
+  metadata: { officeId, generationId, documentId: record.documentId, chunkId: record.chunkId },
+});
+
+function mergeVectorizeMatches(responses: Array<{ matches?: VectorizeMatch[] }>, generationId: string, topK: number): VectorHit[] {
   const best = new Map<string, number>();
   for (const response of responses) {
     for (const match of response.matches ?? []) {
-      const metadata = match.metadata;
-      const chunkId = metadata && typeof metadata === 'object' && 'chunkId' in metadata
-        ? (metadata as { chunkId?: unknown }).chunkId
-        : undefined;
-      if (typeof chunkId !== 'string') continue;
+      const parsed = typeof match.id === 'string' ? parseVectorizeId(match.id) : undefined;
+      if (!parsed || parsed.generationId !== generationId) continue;
+      const { chunkId } = parsed;
       const score = Number(match.score);
       if (!best.has(chunkId) || score > best.get(chunkId)!) best.set(chunkId, score);
     }
@@ -240,12 +286,7 @@ class RestVectorizeIndex implements VectorIndex {
 
   async upsert(officeId: string, generationId: string, records: VectorRecord[]) {
     if (!records.length) return;
-    const ndjson = records.map((record) => JSON.stringify({
-      id: `${generationId}:${record.chunkId}`,
-      values: Array.from(record.embedding),
-      namespace: officeId,
-      metadata: { officeId, generationId, documentId: record.documentId, chunkId: record.chunkId },
-    })).join('\n');
+    const ndjson = records.map((record) => JSON.stringify(vectorizeRecord(officeId, generationId, record))).join('\n');
     await this.call('/upsert', ndjson, 'application/x-ndjson');
   }
 
@@ -258,13 +299,10 @@ class RestVectorizeIndex implements VectorIndex {
     const responses = await Promise.all(
       batched(options.documentIds, VECTORIZE_FILTER_VALUES).map((documentIds) => this.call('/query', {
         vector,
-        topK: options.topK,
-        namespace: officeId,
-        returnMetadata: 'indexed',
-        filter: { generationId: { $eq: generationId }, documentId: { $in: documentIds } },
+        ...vectorizeQueryOptions(officeId, generationId, documentIds, options.topK),
       }) as Promise<{ result?: { matches?: VectorizeMatch[] } }>),
     );
-    return mergeVectorizeMatches(responses.map((body) => body.result ?? {}), options.topK);
+    return mergeVectorizeMatches(responses.map((body) => body.result ?? {}), generationId, options.topK);
   }
 
   async removeDocument(officeId: string, documentId: string) {
@@ -272,14 +310,14 @@ class RestVectorizeIndex implements VectorIndex {
     const ids = await database.prepare('SELECT chunk_id AS chunkId, generation_id AS generationId FROM vault_document_chunk_vector WHERE office_id = ? AND document_id = ?')
       .all(officeId, documentId) as Array<{ chunkId: string; generationId: string }>;
     if (!ids.length) return;
-    await this.deleteIds(ids.map((row) => `${row.generationId}:${row.chunkId}`));
+    await this.deleteIds(ids.map((row) => vectorizeId(row.generationId, row.chunkId)));
   }
 
   async removeGeneration(officeId: string, generationId: string) {
     const ids = await database.prepare('SELECT chunk_id AS chunkId FROM vault_document_chunk_vector WHERE office_id = ? AND generation_id = ?')
       .all(officeId, generationId) as Array<{ chunkId: string }>;
     if (!ids.length) return;
-    await this.deleteIds(ids.map((row) => `${generationId}:${row.chunkId}`));
+    await this.deleteIds(ids.map((row) => vectorizeId(generationId, row.chunkId)));
   }
 
   /** Sequential on purpose: a partial delete that leaves vectors behind is worse than a slow one. */
@@ -298,37 +336,28 @@ class BoundVectorizeIndex implements VectorIndex {
 
   async upsert(officeId: string, generationId: string, records: VectorRecord[]) {
     if (!records.length) return;
-    await this.binding.upsert(records.map((record) => ({
-      id: `${generationId}:${record.chunkId}`,
-      values: Array.from(record.embedding),
-      namespace: officeId,
-      metadata: { officeId, generationId, documentId: record.documentId, chunkId: record.chunkId },
-    })));
+    await this.binding.upsert(records.map((record) => vectorizeRecord(officeId, generationId, record)));
   }
 
   async query(officeId: string, generationId: string, embedding: Float32Array, options: VectorQuery) {
     if (!options.documentIds.length) return [];
     const responses = await Promise.all(
-      batched(options.documentIds, VECTORIZE_FILTER_VALUES).map((documentIds) => this.binding.query(Array.from(embedding), {
-        topK: options.topK,
-        namespace: officeId,
-        returnMetadata: 'indexed',
-        filter: { generationId: { $eq: generationId }, documentId: { $in: documentIds } },
-      })),
+      batched(options.documentIds, VECTORIZE_FILTER_VALUES).map((documentIds) =>
+        this.binding.query(Array.from(embedding), vectorizeQueryOptions(officeId, generationId, documentIds, options.topK))),
     );
-    return mergeVectorizeMatches(responses, options.topK);
+    return mergeVectorizeMatches(responses, generationId, options.topK);
   }
 
   async removeDocument(officeId: string, documentId: string) {
     const ids = await database.prepare('SELECT chunk_id AS chunkId, generation_id AS generationId FROM vault_document_chunk_vector WHERE office_id = ? AND document_id = ?')
       .all(officeId, documentId) as Array<{ chunkId: string; generationId: string }>;
-    await this.deleteIds(ids.map((row) => `${row.generationId}:${row.chunkId}`));
+    await this.deleteIds(ids.map((row) => vectorizeId(row.generationId, row.chunkId)));
   }
 
   async removeGeneration(officeId: string, generationId: string) {
     const ids = await database.prepare('SELECT chunk_id AS chunkId FROM vault_document_chunk_vector WHERE office_id = ? AND generation_id = ?')
       .all(officeId, generationId) as Array<{ chunkId: string }>;
-    await this.deleteIds(ids.map((row) => `${generationId}:${row.chunkId}`));
+    await this.deleteIds(ids.map((row) => vectorizeId(generationId, row.chunkId)));
   }
 
   private async deleteIds(ids: string[]) {

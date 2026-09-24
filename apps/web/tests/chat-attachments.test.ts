@@ -8,6 +8,9 @@ import {attachmentPart} from '../src/lib/chat-attachment-contract';
 import {chatPromptMessages} from '../src/lib/chat-prompt';
 import {objectStorage} from '../src/lib/storage';
 import type {UIMessage} from 'ai';
+import {getCurrentScope} from '@sentry/core';
+import {PDFDocument} from 'pdf-lib';
+import {CapabilityError} from '../src/lib/capabilities/errors';
 
 test('chat files persist with their message, remain private and never enter the Vault',async()=>{
   const officeId=randomUUID(),userId=randomUUID();
@@ -39,6 +42,32 @@ test('chat files persist with their message, remain private and never enter the 
   await assert.rejects((await objectStorage()).get(imageRows[0].storage_key));
   await assert.rejects(createChatAttachment(owner,one.id,new File(['not an image'],'foto.jpg',{type:'image/jpeg'})));
   await assert.rejects(createChatAttachment(owner,two.id,new File([],'vazio.txt')));
+});
+
+test('chat files (LUME-N): a scanned PDF on Workers explains the OCR route and is not reported as a failure',async t=>{
+  const officeId=randomUUID(),userId=randomUUID();
+  await db.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Teste de OCR');
+  await db.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@example.test`,'Teste');
+  const owner={officeId,userId};
+  const chat=await createConversation(db,owner);
+  const captured:unknown[]=[];
+  t.mock.method(getCurrentScope(),'captureException',(error:unknown)=>{captured.push(error);return 'test-event';});
+  // A page with no text layer: what a scanner produces.
+  const pdf=await PDFDocument.create();pdf.addPage();
+  const scanned=new File([Buffer.from(await pdf.save())],'digitalizado.pdf',{type:'application/pdf'});
+  const previous={runtime:process.env.K5_RUNTIME,ocr:process.env.VAULT_OCR_URL};
+  process.env.K5_RUNTIME='cloudflare';delete process.env.VAULT_OCR_URL;
+  try {
+    await assert.rejects(createChatAttachment(owner,chat.id,scanned),(error:unknown)=>
+      error instanceof CapabilityError&&error.code==='INVALID'&&/precisa de OCR/.test(error.message)&&/Cofre/.test(error.message));
+  } finally {
+    if (previous.runtime===undefined) delete process.env.K5_RUNTIME; else process.env.K5_RUNTIME=previous.runtime;
+    if (previous.ocr!==undefined) process.env.VAULT_OCR_URL=previous.ocr;
+  }
+  assert.equal(captured.length,0,'an expected limitation is not an incident');
+  // A file that genuinely cannot be read is still reported.
+  await assert.rejects(createChatAttachment(owner,chat.id,new File([Buffer.from('%PDF-1.7 corrompido')],'quebrado.pdf',{type:'application/pdf'})),CapabilityError);
+  assert.equal(captured.length,1);
 });
 
 test('chat files: documents up to 25 MB, images up to 10 MB',async()=>{

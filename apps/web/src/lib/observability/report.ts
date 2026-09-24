@@ -1,6 +1,10 @@
 import { captureException, startSpan, withIsolationScope } from '@sentry/core';
 
-export function captureOperationalError(error: unknown, operation: string) {
+/**
+ * `tags` must be application-owned identifiers (a pipeline stage, an error code the code itself
+ * minted), never text that came from a provider, a document or a person.
+ */
+export function captureOperationalError(error: unknown, operation: string, tags: Record<string, string> = {}) {
   // Provider/transport errors may embed complete prompts, response bodies or credentials.
   // Preserve the call site and error class, but send only an application-owned message.
   const safe = new Error(`Lume: ${operation} failed`);
@@ -8,7 +12,7 @@ export function captureOperationalError(error: unknown, operation: string) {
     safe.name = error.name;
     if (error.stack) safe.stack = `${safe.name}: ${safe.message}\n${error.stack.split('\n').slice(1).join('\n')}`;
   }
-  return captureException(safe, { tags: { operation } });
+  return captureException(safe, { tags: { ...tags, operation } });
 }
 
 export function observeWorkerTask<T>(operation: string, task: () => Promise<T>): Promise<T> {
