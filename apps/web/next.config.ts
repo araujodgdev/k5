@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   // Keep an isolated QA server from sharing Next's output and dev lock with the main app.
   distDir: process.env.K5_NEXT_DIST_DIR === '.next-research-qa' ? '.next-research-qa' : '.next',
   devIndicators: false,
+  // Administration moved into the app shell; keep bookmarks to the old area working.
+  redirects() {
+    return Promise.resolve([
+      { source: "/platform", destination: "/app/admin", permanent: true },
+      { source: "/platform/:path*", destination: "/app/admin/:path*", permanent: true },
+    ]);
+  },
   headers() {
     return [{
       source: "/sw.js",

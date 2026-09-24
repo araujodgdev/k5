@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -9,6 +9,7 @@ import { Ellipsis, LogOut, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { InstallApp } from "@/components/pwa-provider";
+import { FeedbackDialog, FeedbackTrigger } from "@/components/feedback-dialog";
 import { navIcons, navTone } from "@/components/nav-icons";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { readNavCollapsed, subscribeNavCollapsed, writeNavCollapsed } from "@/lib/nav-collapse";
@@ -16,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
-import { appNavigation, mobileTabs } from "@/lib/navigation";
+import { adminNavigation, appNavigation, mobileTabs } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 // Registration wakes GSAP's ticker; Workers forbid timers during SSR imports.
@@ -29,6 +30,8 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [unread, setUnread] = useState(0);
+  const [feedback, setFeedback] = useState<{ open: boolean; view: "form" | "history" }>({ open: false, view: "form" });
+  const feedbackOpener = useRef<HTMLElement | null>(null);
   const navRef = useRef<HTMLUListElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
   const tabbarRef = useRef<HTMLElement>(null);
@@ -76,6 +79,27 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
       channel?.close();
     };
   }, [pathname]);
+
+  // Notifications and old links open the dialog on the person's reports with ?feedback=relatos.
+  const searchParams = useSearchParams();
+  const reportsRequested = searchParams.get("feedback") === "relatos";
+  const [reportsHandled, setReportsHandled] = useState(false);
+  if (reportsRequested !== reportsHandled) {
+    setReportsHandled(reportsRequested);
+    if (reportsRequested) setFeedback({ open: true, view: "history" });
+  }
+  useEffect(() => {
+    if (!reportsRequested) return;
+    const rest = new URLSearchParams(searchParams);
+    rest.delete("feedback");
+    router.replace(rest.size ? `${pathname}?${rest}` : pathname, { scroll: false });
+  }, [reportsRequested, searchParams, pathname, router]);
+
+  function openFeedback(opener: HTMLElement) {
+    feedbackOpener.current = opener;
+    setSheetOpen(false);
+    setFeedback({ open: true, view: "form" });
+  }
 
   // Sidebar: slide the selection pill to the active item.
   useGSAP(() => {
@@ -134,11 +158,12 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
     }
   }
 
+  const adminActive = pathname === adminNavigation.href || pathname.startsWith(`${adminNavigation.href}/`);
   const overflow = appNavigation.filter((item) => !mobileTabs.includes(item.slug));
-  const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`);
+  const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`) || adminActive;
   const currentModule = pathname.startsWith("/app/documents/")
     ? "Cofre"
-    : appNavigation.find((item) => {
+    : adminActive ? adminNavigation.label : appNavigation.find((item) => {
         const href = `/app/${item.slug}`;
         return pathname === href || pathname.startsWith(`${href}/`);
       })?.label ?? "Início";
@@ -176,9 +201,9 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
                 );
               })}
               {platformAdmin && <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={false} tooltip="Administração" className="relative h-9">
-                  <Link href="/platform" aria-label={collapsed ? "Administração da plataforma" : undefined}>
-                    <ShieldCheck aria-hidden="true" /><span className="nav-label">Administração</span>
+                <SidebarMenuButton asChild isActive={adminActive} tooltip={adminNavigation.label} className="relative h-9 data-[active=true]:bg-transparent">
+                  <Link href={adminNavigation.href} aria-current={adminActive ? "page" : undefined} aria-label={collapsed ? adminNavigation.label : undefined}>
+                    <ShieldCheck aria-hidden="true" /><span className="nav-label">{adminNavigation.label}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>}
@@ -194,6 +219,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
+              <FeedbackTrigger onOpen={openFeedback} />
               <InstallApp />
               <ThemeSwitch />
             </div>
@@ -236,19 +262,31 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
               </Link>
             );
           })}
-          {platformAdmin && <Link href="/platform" onClick={() => setSheetOpen(false)} className="flex min-h-12 items-center gap-3 rounded-md px-3 text-base text-muted-foreground outline-none hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-            <ShieldCheck className="size-[18px]" aria-hidden="true" />Administração</Link>}
+          {platformAdmin && <Link href={adminNavigation.href} aria-current={adminActive ? "page" : undefined} onClick={() => setSheetOpen(false)}
+            className={cn("flex min-h-12 items-center gap-3 rounded-md px-3 text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring", adminActive ? "bg-accent font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
+            <ShieldCheck className="size-[18px]" aria-hidden="true" />{adminNavigation.label}</Link>}
           <Separator className="my-1.5" />
           {error && <p role="alert" className="px-3 text-destructive text-xs">{error}</p>}
           <div className="flex items-center gap-1">
             <button onClick={logout} disabled={pending} className="flex min-h-12 flex-1 items-center gap-3 rounded-md px-3 text-base text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground disabled:opacity-60">
               <LogOut className="size-[18px]" aria-hidden="true" />{pending ? "Saindo…" : "Sair"}
             </button>
+            <FeedbackTrigger className="size-12" onOpen={openFeedback} />
             <InstallApp className="size-12" />
             <ThemeSwitch className="size-12" />
           </div>
         </SheetContent>
       </Sheet>
+
+      <FeedbackDialog open={feedback.open} initialView={feedback.view} pathname={pathname}
+        onOpenChange={(open) => setFeedback((current) => ({ ...current, open }))}
+        onCloseFocus={() => {
+          // The sheet that held the mobile trigger is gone by now; its "Mais" button takes the focus back.
+          const opener = feedbackOpener.current;
+          if (opener?.isConnected && opener.offsetParent !== null) opener.focus();
+          else if (moreButtonRef.current?.offsetParent) moreButtonRef.current.focus();
+          else document.getElementById("main-content")?.focus();
+        }} />
     </>
   );
 }

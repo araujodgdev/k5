@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import type { PlatformTicket } from '@/lib/feedback-tickets';
 import {
-  kindLabels, moduleLabels, priorityLabels, statusLabels, ticketKinds, ticketModules, ticketPriorities, ticketStatuses,
+  kindLabels, moduleLabels, priorityLabels, reportKindLabels, statusLabels, ticketKinds, ticketModules, ticketPriorities, ticketStatuses,
   type TicketKind, type TicketModule, type TicketPriority, type TicketStatus, type TicketUpdate,
 } from '@/lib/feedback-tickets-contract';
 
@@ -70,7 +70,7 @@ export function FeedbackTicketAdmin({ initial }: { initial: PlatformTicket }) {
 
   return <div className="mt-5">
     <header className="border-b pb-5">
-      <h1 className="page-title">Ticket #{ticket.number}</h1>
+      <h2 className="font-serif text-2xl">Ticket #{ticket.number}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{[ticket.officeName, ticket.userName ?? 'Usuário removido', ticket.userEmail, dateFormat.format(new Date(ticket.createdAt))].filter(Boolean).join(' · ')}</p>
     </header>
     <div className="grid gap-10 py-7 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -85,6 +85,7 @@ export function FeedbackTicketAdmin({ initial }: { initial: PlatformTicket }) {
             <img src={`/api/platform/feedback/tickets/${encodeURIComponent(ticket.id)}/attachment`} alt="Print enviado com o relato" className="max-h-96 rounded-md border" />
           </a>}
           <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+            <div><dt className="text-xs text-muted-foreground">Informado pela pessoa</dt><dd>{[ticket.reportedKind && reportKindLabels[ticket.reportedKind], ticket.reportedModule && moduleLabels[ticket.reportedModule]].filter(Boolean).join(' · ') || 'Não informado'}</dd></div>
             <div><dt className="text-xs text-muted-foreground">Tela de origem</dt><dd className="break-all">{ticket.pagePath || 'Não informada'}</dd></div>
             <div><dt className="text-xs text-muted-foreground">Navegador</dt><dd className="break-words">{ticket.userAgent || 'Não informado'}</dd></div>
           </dl>
@@ -96,6 +97,7 @@ export function FeedbackTicketAdmin({ initial }: { initial: PlatformTicket }) {
             <div><dt className="text-xs text-muted-foreground">Tipo sugerido</dt><dd>{answers.kind?.choice ? kindLabels[answers.kind.choice as keyof typeof kindLabels] : '—'}{percent(answers.kind?.confidence)}</dd></div>
             <div><dt className="text-xs text-muted-foreground">Módulo sugerido</dt><dd>{answers.module?.choice ? moduleLabels[answers.module.choice as keyof typeof moduleLabels] : '—'}{percent(answers.module?.confidence)}</dd></div>
             <div><dt className="text-xs text-muted-foreground">Gravidade, se for problema (0 a 3)</dt><dd>{answers.severity?.score?.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) ?? '—'}</dd></div>
+            <div><dt className="text-xs text-muted-foreground">Relevância, se for melhoria (0 a 3)</dt><dd>{answers.value?.score?.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) ?? '—'}</dd></div>
             <div><dt className="text-xs text-muted-foreground">Sinais</dt><dd>Segurança{percent(answers.security?.noul)} · Dados pessoais{percent(answers.personal_data?.noul)}</dd></div>
           </dl>}
         </section>

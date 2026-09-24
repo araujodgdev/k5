@@ -13,7 +13,7 @@ export async function POST(request:Request) {
       const {done,value}=await reader.read();
       if(done) break;
       size+=value.byteLength;
-      if(size>MAX_CHAT_FILE_BYTES+64_000) {await reader.cancel();throw new ApiError(413,'O arquivo excede 10 MB.');}
+      if(size>MAX_CHAT_FILE_BYTES+64_000) {await reader.cancel();throw new ApiError(413,'O arquivo excede 25 MB.');}
       chunks.push(value);
     }
     const form=await new Response(Buffer.concat(chunks),{headers:{'content-type':request.headers.get('content-type')??''}}).formData();

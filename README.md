@@ -86,10 +86,10 @@ O staging hospedado usa bindings privados nos Containers, sem credenciais S3 loc
 | `/app/notifications` | Caixa pessoal e preferências de notificações |
 | `/app/research` | Pesquisa de jurisprudência, acervo e histórico pessoal |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
-| `/platform/clients` | Administração da plataforma (conexões de IA por escritório) |
+| `/app/admin` | Administração da plataforma: feedback, conexões de IA por escritório e TypeSafe |
 
 As áreas de `/app` exigem sessão válida no servidor. Início, Lume, Cofre e Tarefas e Agenda estão implementados.
-`/platform` exige o papel de administrador da plataforma.
+`/app/admin` exige o papel de administrador da plataforma; os endereços antigos em `/platform` redirecionam para lá.
 Tarefas de documentos precisam do worker (`pnpm worker`) em execução; veja
 [`apps/web/README.md`](apps/web/README.md).
 A consulta a tribunais também precisa de `pnpm judicial:worker` e de uma instalação judicial

@@ -296,7 +296,7 @@ export async function resolveNotificationDestination(context: WorkspaceContext, 
     .get<{ source_kind: string; source_id: string | null; event_type: string }>(eventId, context.officeId, context.userId);
   if (!row) return null;
   await markNotificationRead(context, eventId, db);
-  if (row.event_type === 'system.feedback.resolved') return '/app/feedback';
+  if (row.event_type === 'system.feedback.resolved') return '/app/command-center?feedback=relatos';
   if (row.source_kind === 'activity' && row.source_id && await db.prepare('SELECT 1 FROM agenda_activity WHERE id=? AND office_id=?').get(row.source_id, context.officeId)) {
     return `/app/agenda?activityId=${encodeURIComponent(row.source_id)}`;
   }
