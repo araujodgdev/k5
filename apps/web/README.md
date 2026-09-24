@@ -107,10 +107,11 @@ desvincular ou consultar um tribunal, sobrescrever uma minuta) viram uma propost
 
 Com modelos OpenAI ou Anthropic, o Lume tem a busca na web do próprio provedor. Pedidos de
 jurisprudência usam `k5_research_web_jurisprudence`: o modelo pesquisa, o código mantém só links
-que a busca devolveu, e o Jev (modo **Pesquisa** em `/platform/typesafe`) pontua a relevância e
+que a busca devolveu, e o Jev (modo **Pesquisa** em `/app/admin/typesafe`) pontua a relevância e
 descarta o que não é decisão judicial. A lista aparece no chat a partir do resultado da ferramenta.
-Notas de voz para modelos OpenAI são transcritas com a chave do escritório
-(`gpt-4o-mini-transcribe`) e entram na mensagem como texto.
+O microfone do composer grava, mostra o nível do áudio e, ao parar, envia a gravação para
+`/api/chat/transcribe`; a transcrição vira a mensagem da pessoa. Modelos OpenAI transcrevem com a
+chave do escritório (`gpt-4o-mini-transcribe`); Gemini transcreve o próprio áudio. O áudio não é guardado.
 Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
 escritas verificam origem e papel. Chaves de idempotência evitam criação duplicada em
 repetições, inclusive simultâneas. `k5_ui_open_resource` abre agenda, cliente e atividade.
@@ -137,7 +138,8 @@ cria um documento de teste, salva, exporta DOCX e confere o painel móvel; exige
 conexão de IA ativa. Capturas, vídeo e DOCX ficam em `playwright-report/pr11-live/`.
 Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
 
-- **Plataforma:** `/platform/clients/[officeId]/ai` gerencia as conexões de IA por escritório
+- **Administração:** módulo `/app/admin`, visível só para administradores da plataforma, com
+  as abas Feedback, Clientes e TypeSafe. `/app/admin/clients/[officeId]/ai` gerencia as conexões de IA por escritório
   (OpenAI, Anthropic, Google, DeepSeek, Inception, OpenRouter e AI Gateway). O administrador
   escolhe o modelo do Lume para conversas, extração e redação, pela lista ou digitando o ID.
   O roteador do Mastra resolve endpoint e protocolo do provedor. O usuário do escritório não
@@ -159,7 +161,7 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   sem confirmação; o Lume usa as mesmas capacidades (`k5_vault_plan_annexes`, `k5_vault_generate_annexes`).
 - **Lume (`/app/agents`):** conversa com histórico por usuário. O botão **+** envia documentos
   e imagens privados para a conversa, com prévia, remoção antes do envio e acesso no histórico.
-  Aceita até seis anexos por mensagem, de até 10 MB cada. Eles não criam documentos no Cofre.
+  Aceita até seis anexos por mensagem, escolhidos de uma vez, com documentos de até 25 MB e imagens de até 10 MB. Eles não criam documentos no Cofre.
   **Fontes** seleciona arquivos existentes do Cofre e referências do caso. Cronologia e minuta rodam como tarefas duráveis e abrem no
   editor em `/app/documents/[id]`, com exportação DOCX no timbrado do modelo.
 - **Câmera:** **+ → Tirar foto** abre a câmera do dispositivo após a permissão do navegador,
@@ -170,7 +172,7 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
 - **Worker:** processamento de documentos, cronologias e minutas roda fora da requisição.
   Em outro terminal, execute `pnpm worker` na raiz. Sem ele, os itens ficam na fila.
 - **TypeSafe/Jev:** uma única conexão da plataforma atende todos os escritórios; configure-a
-  em `/platform/typesafe`. O custo é da plataforma e a reserva diária de tokens soma todos os
+  em `/app/admin/typesafe`. O custo é da plataforma e a reserva diária de tokens soma todos os
   escritórios. Enquanto nenhuma conexão da plataforma for salva, a primeira leitura adota a
   conexão de escritório mais recente que tenha chave (bancos migrados ou importados continuam
   funcionando sem redigitar a chave). Reranking do Cofre e da Pesquisa, avaliação de pertinência,
@@ -180,12 +182,14 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   de produção em variável de ambiente. Jev não é um modelo de conversa do Lume.
   A verificação documental roda no worker e nunca aprova uma minuta automaticamente.
   Veja [operação e validação TypeSafe](../../docs/typesafe-implementacao.md).
-- **Feedback:** `/app/feedback` recebe relatos livres de qualquer papel do escritório, com print
-  opcional (até 5 MB) e a tela de origem como contexto. O worker classifica cada relato com o
-  TypeSafe (tipo, módulo, gravidade, sinais de segurança e de dados pessoais); a prioridade é
-  calculada em código e a confiança baixa marca o ticket para revisão. Sem TypeSafe, o ticket chega
-  sem classificação. A fila fica em `/platform/feedback`; resolver um ticket notifica o autor, que vê
-  a resposta na própria página de feedback. Correções manuais nunca apagam a resposta do modelo.
+- **Feedback:** o ícone de inseto ao lado de Instalar abre um diálogo para qualquer papel do
+  escritório: problema ou melhoria, onde aconteceu (pré-selecionado pela tela atual), o texto e uma
+  imagem opcional (até 5 MB). O que a pessoa escolheu fica guardado à parte e serve de pista ao
+  worker, que classifica cada relato com o TypeSafe (tipo, módulo, gravidade de problemas,
+  relevância de melhorias, sinais de segurança e de dados pessoais); a prioridade é calculada em
+  código e a confiança baixa marca o ticket para revisão. Sem TypeSafe, o ticket chega com o tipo e o
+  módulo informados. A fila fica em `/app/admin/feedback`, ordenada por prioridade e impacto;
+  resolver um ticket notifica o autor, que vê a resposta em "Seus relatos", no mesmo diálogo. Correções manuais nunca apagam a resposta do modelo.
 - **Infraestrutura judicial (fundação):** vínculo de processos, coleta de publicações,
   proveniência e caixa interna de eventos. A coleta roda em um worker próprio,
   `pnpm judicial:worker`, separado do worker de documentos porque OCR e coleta competem por

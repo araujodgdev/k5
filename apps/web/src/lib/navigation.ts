@@ -7,10 +7,19 @@ export const appNavigation = [
   { slug: "email", label: "E-mails", short: "E-mails" },
   { slug: "notifications", label: "Notificações", short: "Avisos" },
   { slug: "integrations", label: "Integrações", short: "Integrações" },
-  { slug: "feedback", label: "Feedback", short: "Feedback" },
 ] as const;
 
 export type NavSlug = (typeof appNavigation)[number]["slug"];
 
 /** Sections shown directly in the mobile tab bar; the rest live under "Mais". */
 export const mobileTabs: NavSlug[] = ["command-center", "agents", "vault", "agenda"];
+
+/** Shown only to platform administrators, after the office's sections, on desktop and in "Mais". */
+export const adminNavigation = { href: "/app/admin", label: "Administração", short: "Admin" } as const;
+
+/** Tabs inside the Administração module. */
+export const adminSections = [
+  { slug: "feedback", label: "Feedback" },
+  { slug: "clients", label: "Clientes" },
+  { slug: "typesafe", label: "TypeSafe" },
+] as const;

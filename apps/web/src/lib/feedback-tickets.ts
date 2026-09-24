@@ -6,7 +6,7 @@ import { imageMatchesType } from './image-signature';
 import { assertPlatformAdmin, PlatformRequestError } from './platform-core';
 import {
   FEEDBACK_IMAGE_TYPES, MAX_FEEDBACK_IMAGE_BYTES, feedbackSubmission, ticketUpdate, ticketStatuses, ticketKinds, ticketModules, ticketPriorities,
-  type AuthorTicket, type TicketKind, type TicketModule, type TicketPriority, type TicketStatus,
+  type AuthorTicket, type ReportKind, type TicketKind, type TicketModule, type TicketPriority, type TicketStatus,
 } from './feedback-tickets-contract';
 
 export type FeedbackAuthor = { officeId: string; userId: string };
@@ -16,6 +16,7 @@ type TicketRow = {
   id: string; number: number; office_id: string; user_id: string | null; message: string; page_path: string; user_agent: string;
   attachment_key: string | null; attachment_type: string | null; attachment_size: number | null;
   status: TicketStatus; kind: TicketKind | null; module: TicketModule | null; severity: number | null; priority: TicketPriority;
+  reported_kind: ReportKind | null; reported_module: TicketModule | null; value_score: number | null;
   security_flag: boolean; personal_data_flag: boolean; needs_review: boolean;
   classification_status: string; classified_by: 'model' | 'admin' | null; classification_json: string | null;
   resolution_note: string; version: number; created_at: string; updated_at: string; resolved_at: string | null;
@@ -31,7 +32,11 @@ function eventStatement(db: Database, ticketId: string, actor: string | null, ki
     .bind(randomUUID(), ticketId, actor, kind, JSON.stringify(details));
 }
 
-/** Any office member may report. The text is stored as written; triage runs later in the worker. */
+/**
+ * Any office member may report. The text is stored as written; triage runs later in the worker.
+ * What the person chose (problem or improvement, and where) seeds kind and module so the queue is
+ * readable before the model answers, and stays on record in reported_* after any reclassification.
+ */
 export async function createTicket(author: FeedbackAuthor, raw: unknown, image: File | null, userAgent = '', db: Database = defaultDatabase) {
   await assertMember(db, author);
   const parsed = feedbackSubmission.safeParse(raw);
@@ -53,9 +58,10 @@ export async function createTicket(author: FeedbackAuthor, raw: unknown, image: 
   }
   try {
     await db.batch([
-      db.prepare(`INSERT INTO feedback_ticket(id,office_id,user_id,message,page_path,user_agent,attachment_key,attachment_type,attachment_size)
-        VALUES(?,?,?,?,?,?,?,?,?)`).bind(id, author.officeId, author.userId, parsed.data.message, parsed.data.pagePath,
-        userAgent.slice(0, 400), attachment?.key ?? null, attachment?.type ?? null, attachment?.size ?? null),
+      db.prepare(`INSERT INTO feedback_ticket(id,office_id,user_id,message,page_path,user_agent,attachment_key,attachment_type,attachment_size,
+          reported_kind,reported_module,kind,module) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id, author.officeId, author.userId, parsed.data.message, parsed.data.pagePath,
+        userAgent.slice(0, 400), attachment?.key ?? null, attachment?.type ?? null, attachment?.size ?? null,
+        parsed.data.kind ?? null, parsed.data.module ?? null, parsed.data.kind ?? null, parsed.data.module ?? null),
       eventStatement(db, id, author.userId, 'created'),
     ]);
   } catch (error) {
@@ -69,9 +75,9 @@ export async function createTicket(author: FeedbackAuthor, raw: unknown, image: 
 /** The author sees only their own reports in the current office, never the triage fields. */
 export async function listAuthorTickets(author: FeedbackAuthor, db: Database = defaultDatabase): Promise<AuthorTicket[]> {
   await assertMember(db, author);
-  const rows = await db.prepare(`SELECT id,number,message,status,resolution_note,created_at,resolved_at FROM feedback_ticket
+  const rows = await db.prepare(`SELECT id,number,message,status,reported_kind,reported_module,resolution_note,created_at,resolved_at FROM feedback_ticket
     WHERE office_id=? AND user_id=? ORDER BY created_at DESC LIMIT 50`).all<TicketRow>(author.officeId, author.userId);
-  return rows.map(row => ({ id: row.id, number: row.number, message: row.message, status: row.status,
+  return rows.map(row => ({ id: row.id, number: row.number, message: row.message, status: row.status, kind: row.reported_kind, module: row.reported_module,
     resolutionNote: row.status === 'resolved' ? row.resolution_note : '', createdAt: row.created_at, resolvedAt: row.resolved_at }));
 }
 
@@ -98,7 +104,7 @@ export async function platformTickets(actor: string, filters: TicketFilters, db:
     db.prepare(`SELECT t.id,t.number,t.message,t.status,t.kind,t.module,t.priority,t.security_flag,t.personal_data_flag,t.needs_review,
         t.classification_status,t.created_at,o.name AS office_name,u.name AS user_name
       FROM feedback_ticket t JOIN office o ON o.id=t.office_id LEFT JOIN "user" u ON u.id=t.user_id
-      ${filter} ORDER BY t.priority, t.created_at DESC LIMIT 50 OFFSET ?`).all<TicketRow & { office_name: string; user_name: string | null }>(...params, page * 50),
+      ${filter} ORDER BY t.priority, COALESCE(t.severity,t.value_score,0) DESC, t.created_at DESC LIMIT 50 OFFSET ?`).all<TicketRow & { office_name: string; user_name: string | null }>(...params, page * 50),
     db.prepare(`SELECT count(*) AS total FROM feedback_ticket t ${filter}`).get<{ total: number }>(...params),
     db.prepare('SELECT status,count(*) AS total FROM feedback_ticket GROUP BY status').all<{ status: TicketStatus; total: number }>(),
     db.prepare('SELECT DISTINCT o.id,o.name FROM feedback_ticket t JOIN office o ON o.id=t.office_id ORDER BY o.name').all<{ id: string; name: string }>(),
@@ -124,6 +130,7 @@ export async function platformTicket(actor: string, id: string, db: Database = d
   return {
     id: row.id, number: row.number, message: row.message, pagePath: row.page_path, userAgent: row.user_agent,
     hasAttachment: Boolean(row.attachment_key), status: row.status, kind: row.kind, module: row.module, severity: row.severity, priority: row.priority,
+    reportedKind: row.reported_kind, reportedModule: row.reported_module, valueScore: row.value_score,
     securityFlag: row.security_flag, personalDataFlag: row.personal_data_flag, needsReview: row.needs_review,
     classificationStatus: row.classification_status, classifiedBy: row.classified_by,
     classification: row.classification_json ? JSON.parse(row.classification_json) as TriageRecord : null,

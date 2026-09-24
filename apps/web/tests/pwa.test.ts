@@ -206,7 +206,7 @@ test("PWA: retained caches cannot supply stale offline pages or other apps' asse
 
 test("PWA: private HTML always reaches the server and never enters Cache Storage", async () => {
   const sw = worker();
-  for (const route of ["/app/vault", "/app/documents/123", "/platform/clients", "/sign-in"]) {
+  for (const route of ["/app/vault", "/app/documents/123", "/app/admin/clients", "/sign-in"]) {
     assert.equal(await (await sw.fetch(route, "navigate"))?.text(), "network");
   }
   assert.equal(sw.networkCalls, 4);

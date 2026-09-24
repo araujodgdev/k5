@@ -40,3 +40,18 @@ test('chat files persist with their message, remain private and never enter the 
   await assert.rejects(createChatAttachment(owner,one.id,new File(['not an image'],'foto.jpg',{type:'image/jpeg'})));
   await assert.rejects(createChatAttachment(owner,two.id,new File([],'vazio.txt')));
 });
+
+test('chat files: documents up to 25 MB, images up to 10 MB',async()=>{
+  const officeId=randomUUID(),userId=randomUUID();
+  await db.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Teste de limites');
+  await db.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@example.test`,'Teste');
+  const owner={officeId,userId};
+  const chat=await createConversation(db,owner);
+  await assert.rejects(createChatAttachment(owner,chat.id,new File([Buffer.alloc(10*1024*1024+1)],'foto.png',{type:'image/png'})),/A imagem excede 10 MB/);
+  await assert.rejects(createChatAttachment(owner,chat.id,new File([Buffer.alloc(25*1024*1024+1)],'grande.txt',{type:'text/plain'})),/O arquivo excede 25 MB/);
+  // The table follows the application's limit for documents.
+  const row=(size:number)=>db.prepare(`INSERT INTO ai_chat_attachment(id,conversation_id,office_id,user_id,storage_key,name,media_type,byte_size,extracted_text)
+    VALUES(?,?,?,?,?,?,?,?,?)`).run(randomUUID(),chat.id,officeId,userId,`chat/${randomUUID()}`,'peticao.pdf','application/pdf',size,'texto');
+  await row(20*1024*1024);
+  await assert.rejects(row(25*1024*1024+1));
+});

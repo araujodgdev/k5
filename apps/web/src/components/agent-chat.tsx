@@ -39,7 +39,6 @@ import {
   RefreshCw,
   Square,
   Trash2,
-  X,
 } from "lucide-react";
 import type { AgentContext } from "@/components/agent-sources-panel";
 import dynamic from "next/dynamic";
@@ -62,7 +61,8 @@ import { DOCUMENT_ACCEPT, IMAGE_ACCEPT, type Modalities } from "@/lib/ai-modalit
 import { cn } from "@/lib/utils";
 import { ChatCamera } from './chat-camera';
 import { ChatAttachmentView } from './chat-attachment';
-import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, type ChatAttachment } from '@/lib/chat-attachment-contract';
+import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, MAX_CHAT_IMAGE_BYTES, type ChatAttachment } from '@/lib/chat-attachment-contract';
+import { useVoiceRecorder, VoiceLevel } from './voice-recorder';
 import type { DocumentAsk, DocumentWorkspaceHandle } from "./document/document-workspace";
 import { DocumentPanel } from "./document/document-panel";
 import type { CitationItem } from "@/lib/citations/verdict";
@@ -81,7 +81,6 @@ const AgentSourcesPanel = dynamic(() => import("./agent-sources-panel").then(mod
   loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Carregando fontes…</p>,
 });
 type Conversation = { id: string; title: string; updatedAt: string };
-type Attachment = { mediaType: string; data: string };
 
 function unwrapConversations(value: unknown): Conversation[] {
   if (Array.isArray(value)) return value as Conversation[];
@@ -355,61 +354,27 @@ function HintedControl({ hint, children }: { hint?: string; children: React.Reac
 
 type ComposerToolsProps = {
   modalities: Modalities;
-  uploading: boolean;
-  onPickFile: (file: File) => void;
-  audio: Attachment | null;
-  onAudio: (attachment: Attachment | null) => void;
+  /** Files still on their way to the server. */
+  uploading: number;
+  onPickFiles: (files: File[]) => void;
   onError: (message: string) => void;
   pendingFiles: ChatAttachment[];
   onRemoveFile: (id:string) => void;
 };
 
-function ComposerTools({ modalities, uploading, onPickFile, audio, onAudio, onError }: ComposerToolsProps) {
-  const aui = useAui();
+type Voice = ReturnType<typeof useVoiceRecorder>;
+
+function ComposerTools({ modalities, uploading, onPickFiles, voice }: ComposerToolsProps & { voice: Voice }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [accept, setAccept] = useState(DOCUMENT_ACCEPT);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [recording, setRecording] = useState(false);
   const [cameraOpen,setCameraOpen]=useState(false);
-  const recorder = useRef<MediaRecorder | null>(null);
 
   function pick(kind: "document" | "image") {
     setAccept(kind === "image" ? IMAGE_ACCEPT : DOCUMENT_ACCEPT);
     setMenuOpen(false);
     // The accept attribute has to be applied before the dialog opens.
     window.setTimeout(() => fileInput.current?.click(), 0);
-  }
-
-  async function toggleRecording() {
-    if (recording) {
-      recorder.current?.stop();
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const media = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-      media.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
-      media.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
-        setRecording(false);
-        const blob = new Blob(chunks, { type: media.mimeType || "audio/webm" });
-        if (!blob.size) return;
-        if (blob.size > 5_000_000) { onError("A gravação é longa demais. Grave até cerca de um minuto."); return; }
-        const buffer = await blob.arrayBuffer();
-        let binary = "";
-        const bytes = new Uint8Array(buffer);
-        for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
-        onAudio({ mediaType: blob.type.split(";")[0] || "audio/webm", data: window.btoa(binary) });
-        // A voice note can be the whole message: an empty composer would keep Enviar disabled.
-        if (!aui.composer().getState().text.trim()) aui.composer().setText("Mensagem de voz");
-      };
-      recorder.current = media;
-      media.start();
-      setRecording(true);
-    } catch {
-      onError("Não foi possível acessar o microfone.");
-    }
   }
 
   const audioHint = modalities.audio ? undefined : "O Lume não aceita áudio nesta configuração.";
@@ -422,16 +387,17 @@ function ComposerTools({ modalities, uploading, onPickFile, audio, onAudio, onEr
         aria-label="Arquivo para anexar"
         accept={accept}
         className="sr-only"
+        multiple
         onChange={(event) => {
-          const file = event.target.files?.[0];
+          const files = [...(event.target.files ?? [])];
           event.target.value = "";
-          if (file) onPickFile(file);
+          if (files.length) onPickFiles(files);
         }}
       />
       <Popover open={menuOpen} onOpenChange={setMenuOpen}>
         <PopoverTrigger asChild>
-          <button type="button" className={composerControl} aria-label="Anexar arquivo" disabled={uploading}>
-            {uploading ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" /> : <Plus className="size-4.5" />}
+          <button type="button" className={composerControl} aria-label="Anexar arquivos" disabled={voice.state !== "idle"}>
+            {uploading > 0 ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" /> : <Plus className="size-4.5" />}
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" side="top" className="w-64 p-1">
@@ -448,25 +414,18 @@ function ComposerTools({ modalities, uploading, onPickFile, audio, onAudio, onEr
           </HintedControl>
         </PopoverContent>
       </Popover>
-      {cameraOpen&&<ChatCamera onClose={()=>setCameraOpen(false)} onPhoto={onPickFile} />}
+      {cameraOpen&&<ChatCamera onClose={()=>setCameraOpen(false)} onPhoto={file => onPickFiles([file])} />}
 
-      <HintedControl hint={audioHint}>
-        <button
-          type="button"
-          onClick={() => void toggleRecording()}
-          disabled={!modalities.audio}
-          aria-pressed={recording}
-          aria-label={recording ? "Parar gravação" : "Gravar áudio"}
-          className={`${composerControl} ${recording ? "bg-muted text-foreground" : ""}`}
-        >
-          <Mic className="size-4.5" />
+      {voice.state === "recording" ? (
+        <button type="button" onClick={voice.cancel} aria-label="Descartar gravação" title="Descartar gravação" className={composerControl}>
+          <Trash2 className="size-4" />
         </button>
-      </HintedControl>
-
-      {audio && (
-        <button type="button" onClick={() => onAudio(null)} className="flex h-9 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          Áudio anexado<X className="size-3.5" aria-hidden="true" />
-        </button>
+      ) : (
+        <HintedControl hint={audioHint}>
+          <button type="button" onClick={() => void voice.start()} disabled={!modalities.audio || voice.state !== "idle"} aria-label="Gravar áudio" title="Gravar áudio" className={composerControl}>
+            <Mic className="size-4.5" />
+          </button>
+        </HintedControl>
       )}
     </>
   );
@@ -474,6 +433,19 @@ function ComposerTools({ modalities, uploading, onPickFile, audio, onAudio, onEr
 
 function LumeThread({ tools }: { tools: ComposerToolsProps }) {
   const [away, setAway] = useState(false);
+  const aui = useAui();
+  // The transcript joins whatever was typed and goes out as the person's own message, so the
+  // conversation shows the words that were said. While a reply or an upload is still running,
+  // it waits in the composer instead.
+  const voice = useVoiceRecorder({
+    onError: tools.onError,
+    onText: (spoken) => {
+      const composer = aui.composer();
+      const typed = composer.getState().text.trim();
+      composer.setText(typed ? `${typed}\n\n${spoken}` : spoken);
+      if (!aui.thread().getState().isRunning && !tools.uploading) composer.send();
+    },
+  });
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport data-chat-viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain" turnAnchor="bottom" onScroll={event => {
@@ -491,7 +463,8 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
           {away && <ThreadPrimitive.ScrollToBottom aria-label="Voltar ao mais recente" title="Voltar ao mais recente" behavior="auto" className="absolute -top-12 left-1/2 grid size-11 -translate-x-1/2 place-items-center rounded-full border bg-background shadow-[var(--shadow-float)] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:hidden"><ArrowDown className="size-4" /></ThreadPrimitive.ScrollToBottom>}
           <ComposerPrimitive.Root className="mx-auto w-full max-w-3xl rounded-2xl border bg-background p-2 shadow-[var(--shadow-float)] transition focus-within:border-input">
             {tools.pendingFiles.length>0&&<div className="flex flex-wrap gap-2 p-2" aria-label="Anexos da próxima mensagem">{tools.pendingFiles.map(file=><ChatAttachmentView key={file.id} data={file} onRemove={()=>tools.onRemoveFile(file.id)} />)}</div>}
-            {tools.uploading&&<p role="status" className="px-2 py-1 text-xs text-muted-foreground">Preparando anexo…</p>}
+            {tools.uploading>0&&<p role="status" className="px-2 py-1 text-xs text-muted-foreground">{tools.uploading===1?'Preparando anexo…':`Preparando ${tools.uploading} anexos…`}</p>}
+            {voice.state==='transcribing'&&<p role="status" className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />Transcrevendo áudio…</p>}
             <ComposerPrimitive.Input
               rows={away ? 1 : 2}
               placeholder="Pergunte ao Lume"
@@ -499,18 +472,29 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
               className={cn("max-h-[25dvh] w-full resize-none bg-transparent px-2 pt-2 pb-1 text-base outline-none transition-[min-height] duration-200 motion-reduce:transition-none placeholder:text-subtle-foreground md:text-sm", away ? "min-h-10" : "min-h-16")}
             />
             <div className="flex items-center gap-1">
-              <ComposerTools {...tools} />
+              <ComposerTools {...tools} voice={voice} />
+              {voice.state === "recording" && <VoiceLevel analyser={voice.analyser} seconds={voice.seconds} />}
               <div className="ml-auto flex items-center gap-2">
+                {voice.state === "recording" ? (
+                  <button type="button" onClick={voice.finish} className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none transition hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50" aria-label="Parar gravação e enviar" title="Parar gravação e enviar">
+                    <Square className="size-3.5 fill-current" />
+                  </button>
+                ) : voice.state === "transcribing" ? (
+                  <span className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground opacity-40" aria-hidden="true">
+                    <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
+                  </span>
+                ) : <>
                 <AuiIf condition={(state) => state.thread.isRunning}>
                   <ComposerPrimitive.Cancel className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50" aria-label="Parar resposta">
                     <Square className="size-3.5 fill-current" />
                   </ComposerPrimitive.Cancel>
                 </AuiIf>
                 <AuiIf condition={(state) => !state.thread.isRunning}>
-                  <ComposerPrimitive.Send disabled={tools.uploading} className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none transition hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40" aria-label="Enviar mensagem">
+                  <ComposerPrimitive.Send disabled={tools.uploading > 0} className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none transition hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40" aria-label="Enviar mensagem">
                     <ArrowUp className="size-4" />
                   </ComposerPrimitive.Send>
                 </AuiIf>
+                </>}
               </div>
             </div>
           </ComposerPrimitive.Root>
@@ -520,7 +504,7 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
   );
 }
 
-function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, onFilesSent, tools, onFinish, onError, focus, sendRef }: {
+function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, onFinish, onError, focus, sendRef }: {
   conversationId: string;
   /** What the person has open beside the chat; read when each message is sent. */
   focus: DocumentFocus;
@@ -528,8 +512,6 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
   sendRef: React.RefObject<((text: string) => void) | null>;
   messages: UIMessage[];
   context: AgentContext;
-  audio: Attachment | null;
-  onAudioSent: () => void;
   onFilesSent: (ids:string[]) => void;
   tools: ComposerToolsProps;
   onFinish: () => void;
@@ -546,15 +528,12 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
         const attachmentIds=message?.parts.flatMap(part=>part.type==='data-attachment'&&part.data&&typeof part.data==='object'&&'id' in part.data?[part.data.id]:[])??[];
         const selection = focus.takeSelection();
         const openDocumentId = focus.openDocumentId();
-        // The recording travels with this message only; sending spends it.
-        if (audio) onAudioSent();
         return {
           body: {
             conversationId,
             caseId: context.caseId,
             documentIds: context.documentIds,
             researchReferenceIds: context.researchReferenceIds,
-            ...(audio ? { attachments: [audio] } : {}),
             attachmentIds,
             message,
             trigger,
@@ -566,7 +545,7 @@ function RuntimeThread({ conversationId, messages, context, audio, onAudioSent, 
         };
       },
     }),
-    [audio, onAudioSent, context.caseId, context.documentIds, context.researchReferenceIds, conversationId, focus],
+    [context.caseId, context.documentIds, context.researchReferenceIds, conversationId, focus],
   );
   // K5 owns the history and thread IDs. The direct adapter avoids a second cloud thread list.
   const chat = useChat({
@@ -609,8 +588,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   const [context, setContext] = useState<AgentContext>({ caseId: null, documentIds: [], researchReferenceIds: [] });
   const [contextOpen, setContextOpen] = useState(false);
   const listOpen = useSyncExternalStore(subscribeListOpen, readListOpen, serverListOpen);
-  const [uploading, setUploading] = useState(false);
-  const [audio, setAudio] = useState<Attachment | null>(null);
+  const [uploading, setUploading] = useState(0);
   const [draftFiles,setDraftFiles]=useState<Record<string,ChatAttachment[]>>({});
   // The open document lives in the URL (?doc=), so a reload keeps it and Voltar closes it.
   const openDocumentId = useSearchParams().get("doc");
@@ -635,30 +613,43 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
     writeListOpen(!listOpen);
   }
 
-  // A voice note belongs to the message it was recorded for, so it is spent on send.
-  const clearAudio = useCallback(() => setAudio(null), []);
-
-  /** Uploads belong to a private conversation, independent from the selected Vault sources. */
-  const attachFile = useCallback(async (file: File) => {
+  /**
+   * Uploads belong to a private conversation, independent from the selected Vault sources. Several
+   * files go up side by side; each one joins the draft as soon as it is ready, and the ones that
+   * cannot be attached are named in a single message.
+   */
+  const attachFiles = useCallback(async (files: File[]) => {
     if(!selectedId) return;
-    if((draftFiles[selectedId]?.length??0)>=MAX_CHAT_ATTACHMENTS) {setError('Anexe até seis arquivos por mensagem.');return;}
-    if(file.size>MAX_CHAT_FILE_BYTES) {setError('O arquivo excede 10 MB.');return;}
-    setUploading(true);
     setError("");
-    try {
-      const body = new FormData();
-      body.set("file", file);
-      body.set('conversationId',selectedId);
-      const response = await fetch('/api/chat/attachments', { method: 'POST', body });
-      const result = await response.json() as {error?:string;attachment?:ChatAttachment};
-      if(!response.ok||!result.attachment) throw new Error(result.error??'Não foi possível enviar o arquivo.');
-      setDraftFiles(current=>({...current,[selectedId]:[...(current[selectedId]??[]),result.attachment!]}));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível enviar o arquivo.");
-    } finally {
-      setUploading(false);
-    }
-  }, [selectedId,draftFiles]);
+    const room=MAX_CHAT_ATTACHMENTS-(draftFiles[selectedId]?.length??0)-uploading;
+    const problems:string[]=[];
+    if(files.length>room) problems.push(room>0?`Anexe até seis arquivos por mensagem; ${files.length-room} ficaram de fora.`:'Anexe até seis arquivos por mensagem.');
+    const accepted=files.slice(0,Math.max(0,room)).filter(file=>{
+      const image=file.type.startsWith('image/');
+      if(file.size>(image?MAX_CHAT_IMAGE_BYTES:MAX_CHAT_FILE_BYTES)) {problems.push(`${file.name}: ${image?'a imagem excede 10 MB':'o arquivo excede 25 MB'}.`);return false;}
+      return true;
+    });
+    const report=()=>{ if(problems.length) setError(problems.join(' ')); };
+    if(!accepted.length) {report();return;}
+    setUploading(count=>count+accepted.length);
+    await Promise.all(accepted.map(async file=>{
+      try {
+        const body = new FormData();
+        body.set("file", file);
+        body.set('conversationId',selectedId);
+        const response = await fetch('/api/chat/attachments', { method: 'POST', body });
+        const result = await response.json().catch(()=>({})) as {error?:string;attachment?:ChatAttachment};
+        if(!response.ok||!result.attachment) throw new Error(result.error??'Não foi possível enviar o arquivo.');
+        setDraftFiles(current=>({...current,[selectedId]:[...(current[selectedId]??[]),result.attachment!]}));
+      } catch (cause) {
+        const reason=cause instanceof Error ? cause.message : "Não foi possível enviar o arquivo.";
+        problems.push(accepted.length>1?`${file.name}: ${reason}`:reason);
+      } finally {
+        setUploading(count=>count-1);
+      }
+    }));
+    report();
+  }, [selectedId,draftFiles,uploading]);
 
   async function removeDraftFile(id:string) {
     const response=await fetch(`/api/chat/attachments/${encodeURIComponent(id)}`,{method:'DELETE'});
@@ -757,9 +748,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   const composerTools: ComposerToolsProps = {
     modalities,
     uploading,
-    onPickFile: (file) => void attachFile(file),
-    audio,
-    onAudio: setAudio,
+    onPickFiles: (files) => void attachFiles(files),
     onError: setError,
     pendingFiles:selectedId?draftFiles[selectedId]??[]:[],
     onRemoveFile:id=>void removeDraftFile(id),
@@ -905,8 +894,6 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
                 conversationId={selectedId}
                 messages={visibleMessages}
                 context={context}
-                audio={audio}
-                onAudioSent={clearAudio}
                 onFilesSent={ids=>setDraftFiles(current=>({...current,[selectedId]:(current[selectedId]??[]).filter(file=>!ids.includes(file.id))}))}
                 tools={composerTools}
                 onFinish={() => {

@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const form = await new Response(Buffer.concat(chunks), { headers: { 'content-type': request.headers.get('content-type') ?? '' } }).formData();
     const image = form.get('image');
     const ticket = await createTicket({ userId: user.id, officeId: office.officeId },
-      { message: form.get('message'), pagePath: form.get('pagePath') ?? '' },
+      { message: form.get('message'), pagePath: form.get('pagePath') ?? '', kind: form.get('kind') || undefined, module: form.get('module') || undefined },
       image instanceof File && image.size ? image : null, request.headers.get('user-agent') ?? '');
     return Response.json({ ticket }, { status: 201, headers: noStore });
   } catch (error) { return failure(error); }

@@ -8,7 +8,7 @@ import { CapabilityError } from './capabilities/errors';
 import { captureOperationalError } from './observability/report';
 import { imageMatchesType } from './image-signature';
 import { type Owner, conversation } from './ai-store';
-import { MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, type ChatAttachment } from './chat-attachment-contract';
+import { MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, MAX_CHAT_IMAGE_BYTES, type ChatAttachment } from './chat-attachment-contract';
 
 export type ChatAttachmentRow = {
   id:string; conversation_id:string; office_id:string; user_id:string; message_id:string|null;
@@ -23,9 +23,12 @@ export async function ownedChatAttachment(owner: Owner, id: string) {
 export async function createChatAttachment(owner: Owner, conversationId: string, file: File) {
   if (!await conversation(database,owner,conversationId)) throw new CapabilityError('NOT_FOUND','Conversa não encontrada.');
   const {file:name,extension,mimeType}=validatedFileName(file.name);
-  if (!file.size || file.size>MAX_CHAT_FILE_BYTES) throw new CapabilityError('INVALID','Envie um arquivo de até 10 MB, com conteúdo.');
+  const limit=mimeType.startsWith('image/')?MAX_CHAT_IMAGE_BYTES:MAX_CHAT_FILE_BYTES;
+  const tooLarge=mimeType.startsWith('image/')?'A imagem excede 10 MB.':'O arquivo excede 25 MB.';
+  if (!file.size) throw new CapabilityError('INVALID','O arquivo está vazio.');
+  if (file.size>limit) throw new CapabilityError('INVALID',tooLarge);
   const bytes=Buffer.from(await file.arrayBuffer());
-  if (bytes.length>MAX_CHAT_FILE_BYTES) throw new CapabilityError('INVALID','O arquivo excede 10 MB.');
+  if (bytes.length>limit) throw new CapabilityError('INVALID',tooLarge);
   if (mimeType.startsWith('image/') && !imageMatchesType(bytes,mimeType)) throw new CapabilityError('INVALID','A imagem não corresponde ao formato informado.');
   const id=randomUUID();
   let extracted='';

@@ -22,7 +22,7 @@ async function admin() {
 }
 const png = () => new File([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0])], 'print.png', { type: 'image/png' });
 
-type Answers = { kind?: string; kindConfidence?: number; module?: string; severity?: number; security?: number; personal?: number };
+type Answers = { kind?: string; kindConfidence?: number; module?: string; severity?: number; value?: number; security?: number; personal?: number };
 function reply(request: DecisionRequest, value: Answers): DecisionResponse {
   const choice = (name: string, picked: string, confidence = 0.95) => {
     const question = request.questions[name] as { criteria: Record<string, string> };
@@ -33,6 +33,8 @@ function reply(request: DecisionRequest, value: Answers): DecisionResponse {
     kind: choice('kind', value.kind ?? 'problem', value.kindConfidence),
     module: choice('module', value.module ?? 'cofre'),
     severity: { type: 'score', score: severity, confidence: 0.9, probabilities: { '0': Number(severity === 0), '1': Number(severity === 1), '2': Number(severity === 2), '3': Number(severity === 3) } },
+    // Every question is answered, as Jev does; a neutral value keeps improvements at P2 unless a test says otherwise.
+    value: { type: 'score', score: value.value ?? 1.5, confidence: 0.9, probabilities: { '0': 0, '1': 0.5, '2': 0.5, '3': 0 } },
     security: { type: 'noul', noul: value.security ?? 0.05 },
     personal_data: { type: 'noul', noul: value.personal ?? 0.05 },
   } };
@@ -61,6 +63,19 @@ test('feedback: any member reports, authors see only their own tickets, invalid 
   await assert.rejects(createTicket(author, { message: 'Caminho externo', pagePath: 'https://example.test' }, null), { status: 400 });
 });
 
+test('feedback: the kind and place the person chose are kept apart from triage and seed the queue', async () => {
+  const author = await member();
+  const platform = await admin();
+  const ticket = await createTicket(author, { message: 'Poder enviar vários arquivos de uma vez.', pagePath: '/app/agents', kind: 'suggestion', module: 'lume' }, null);
+  const own = (await listAuthorTickets(author)).find(item => item.id === ticket.id)!;
+  assert.equal(own.kind, 'suggestion'); assert.equal(own.module, 'lume');
+  const view = (await platformTicket(platform.userId, ticket.id))!;
+  assert.equal(view.reportedKind, 'suggestion'); assert.equal(view.reportedModule, 'lume');
+  assert.equal(view.kind, 'suggestion', 'the queue is readable before the model answers'); assert.equal(view.module, 'lume');
+  await assert.rejects(createTicket(author, { message: 'Só problema ou melhoria', kind: 'praise' }, null), { status: 400 });
+  await assert.rejects(createTicket(author, { message: 'Lugar desconhecido', module: 'financeiro' }, null), { status: 400 });
+});
+
 test('feedback triage: priority is composed in code from typed answers', () => {
   const request = { questions: { kind: { criteria: { problem: '', suggestion: '', question: '', praise: '', other: '' } }, module: { criteria: { cofre: '', lume: '' } } }, model: 'jev-1.13.0' } as unknown as DecisionRequest;
   const triage = (value: Answers) => composeTriage(reply(request, value));
@@ -70,6 +85,13 @@ test('feedback triage: priority is composed in code from typed answers', () => {
   assert.equal(triage({ kind: 'suggestion', severity: 3 }).priority, 'p2', 'severity only applies to problems');
   assert.equal(triage({ kind: 'suggestion', severity: 3 }).severity, null);
   assert.equal(triage({ kind: 'praise' }).priority, 'p3');
+  // Improvements rank by how much they would help the office.
+  assert.equal(triage({ kind: 'suggestion', value: 2.6 }).priority, 'p1');
+  assert.equal(triage({ kind: 'suggestion', value: 1.4 }).priority, 'p2');
+  assert.equal(triage({ kind: 'suggestion', value: 0.4 }).priority, 'p3');
+  assert.equal(triage({ kind: 'suggestion', value: 2.6 }).valueScore, 2.6);
+  assert.equal(triage({ kind: 'problem', severity: 0, value: 3 }).priority, 'p2', 'value only applies to improvements');
+  assert.equal(triage({ kind: 'problem', severity: 0, value: 3 }).valueScore, null);
   const security = triage({ kind: 'praise', security: 0.9 });
   assert.equal(security.priority, 'p0'); assert.equal(security.securityFlag, true);
   assert.equal(triage({ kind: 'question', kindConfidence: 0.4 }).needsReview, true);
@@ -95,8 +117,14 @@ test('feedback triage: disabled, classified, retried and never overriding an adm
   view = (await platformTicket(platform.userId, urgent.id))!;
   assert.equal(view.classificationStatus, 'classified'); assert.equal(view.classifiedBy, 'model');
   assert.equal(view.kind, 'problem'); assert.equal(view.module, 'cofre'); assert.equal(view.priority, 'p0'); assert.equal(view.securityFlag, true);
-  assert.equal(view.classification?.questionVersion, 'feedback-triage-pt-BR-v1');
+  assert.equal(view.classification?.questionVersion, 'feedback-triage-pt-BR-v2');
   assert.ok(view.events.some(event => event.kind === 'classified'));
+
+  // What the person chose reaches the model as labels, as a hint next to the text.
+  const hinted = await createTicket(author, { message: 'O botão de anexar some no celular.', pagePath: '/app/agents', kind: 'problem', module: 'lume' }, null);
+  await drain(async (key, request) => { seen = request; return reply(request, { kind: 'problem', module: 'lume', severity: 1 }); });
+  assert.deepEqual((seen!.state as { feedback: unknown }).feedback, { message: 'O botão de anexar some no celular.', page: '/app/agents', reported_kind: 'Problema', reported_area: 'Lume (chat)' });
+  assert.equal((await platformTicket(platform.userId, hinted.id))!.priority, 'p2');
 
   // A provider failure is retried later instead of leaving the ticket unclassified.
   const flaky = await createTicket(author, { message: 'A pesquisa demora muito.' }, null);
