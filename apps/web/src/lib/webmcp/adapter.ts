@@ -47,7 +47,9 @@ export function registerWebMCPCapabilities(role: OfficeRole): () => void {
         untrustedContentHint: capability.module === 'knowledge'
           || capability.module === 'citations'
           || name === 'k5_judicial_list_publications'
-          || name === 'k5_judicial_get_publication',
+          || name === 'k5_judicial_get_publication'
+          // Mail, calendar invitations and Docs text are written by third parties.
+          || name.startsWith('k5_gmail_') || name === 'k5_docs_read' || name === 'k5_calendar_list_events' || name === 'k5_calendar_get_event',
       },
     };
 

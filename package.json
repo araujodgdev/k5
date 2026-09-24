@@ -16,6 +16,9 @@
     "worker": "pnpm --filter @k5/web worker",
     "judicial:worker": "pnpm --filter @k5/web judicial:worker",
     "notifications:worker": "pnpm --filter @k5/web notifications:worker",
+    "integrations:worker": "pnpm --filter @k5/web integrations:worker",
+    "integrations:admin": "pnpm --filter @k5/web integrations:admin",
+    "integrations:build": "pnpm --filter @k5/web integrations:build",
     "judicial:admin": "pnpm --filter @k5/web judicial:admin",
     "platform:admin": "pnpm --filter @k5/web platform:admin"
   },

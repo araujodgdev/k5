@@ -44,6 +44,30 @@ export function createPostgresPool(connectionString: string, options: PoolConfig
   return pool;
 }
 
+/** Statements on one connection inside BEGIN/COMMIT, for row locks that must span several reads and writes. */
+export type Transaction = Pick<Database, 'prepare'>;
+export async function postgresTransaction<T>(pool: Pool, action: (tx: Transaction) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  const query = (sql: string, params: readonly unknown[]) => client.query<QueryResultRow>({ text: postgresSql(sql), values: [...params], types: businessTypes });
+  const tx: Transaction = {
+    prepare: (sql: string): PreparedStatement => ({
+      async get<T = Row>(...params: unknown[]) { return (await query(sql, params)).rows[0] as T | undefined; },
+      async all<T = Row>(...params: unknown[]) { return (await query(sql, params)).rows as T[]; },
+      async run(...params: unknown[]) { return { changes: (await query(sql, params)).rowCount ?? 0, lastInsertRowid: 0 }; },
+      bind(...params: unknown[]) { return { sql, params }; },
+    }),
+  };
+  try {
+    await client.query('BEGIN');
+    const result = await action(tx);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally { client.release(); }
+}
+
 export function postgresDatabase(pool: Pool): Database {
   const query = (sql: string, params: readonly unknown[] = []) => pool.query<QueryResultRow>({ text: postgresSql(sql), values: [...params], types: businessTypes });
   const prepare = (sql: string): PreparedStatement => ({

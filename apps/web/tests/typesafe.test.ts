@@ -18,6 +18,7 @@ import { createCredentialKeyring, decryptCredential, encryptCredential, parseCre
 import { reencryptAiConnectionSecrets } from '../src/lib/ai-connections-core';
 import { runWorkerQueues } from '../src/lib/worker-scheduler';
 import { enqueueDeletion, processNextDeletion } from '../src/lib/knowledge/indexing';
+import { withTransaction } from '../src/lib/database';
 
 async function fixture(role: WorkspaceContext['role'] = 'lawyer') {
   const officeId = randomUUID(); const userId = randomUUID();
@@ -43,6 +44,7 @@ function response(request: DecisionRequest, choices: Record<string, string> = {}
 }
 const send: DecisionTransport = async (_key, request) => response(request);
 const request = { state: 'Texto de teste privado', questionVersion: 'test-v1', questions: { present: { type: 'noul' as const, instructions: 'Existe texto?' } } };
+
 
 test('typesafe: an existing office key is adopted once as the platform connection', async () => {
   const a = (await fixture()); const b = (await fixture());
@@ -103,6 +105,35 @@ test('typesafe: concurrent reservations bound spend and timeout remains charged'
   assert.equal(timed.status, 'unavailable');
   const row = (await testDb.prepare('SELECT reserved_tokens,input_tokens FROM typesafe_evaluation WHERE id=?').get(timed.evaluationId!))!;
   assert.ok(Number(row.reserved_tokens) > 0); assert.equal(row.input_tokens, null);
+});
+test('typesafe: mudança de configuração durante reserva distingue desativação de indisponibilidade', async () => {
+  const context = await fixture(); await configure(context);
+  async function race(update: string) {
+    let evaluation!: ReturnType<typeof evaluate>;
+    let providerCalled = false;
+    await withTransaction(async tx => {
+      await tx.prepare('SELECT id FROM typesafe_platform_connection WHERE id=1 FOR UPDATE').get();
+      evaluation = evaluate(context, 'rag', request, { send: async () => { providerCalled = true; throw new Error('provider called'); } });
+      const deadline = Date.now() + 5000;
+      while (true) {
+        const waiting = await testDb.prepare(`SELECT count(*) AS count FROM pg_stat_activity
+          WHERE wait_event_type='Lock' AND query LIKE '%SELECT version,enabled FROM typesafe_platform_connection WHERE id=1 FOR UPDATE%'`).get<{ count: number }>();
+        if (waiting?.count) break;
+        if (Date.now() > deadline) throw new Error('A reserva não aguardou o bloqueio da configuração.');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      await tx.prepare(update).run();
+    });
+    const result = await evaluation;
+    assert.equal(providerCalled, false);
+    return result;
+  }
+  const disabled = await race('UPDATE typesafe_platform_connection SET enabled=0,version=version+1 WHERE id=1');
+  assert.equal(disabled.status, 'disabled');
+  await configure(context);
+  const changed = await race('UPDATE typesafe_platform_connection SET version=version+1 WHERE id=1');
+  assert.equal(changed.status, 'unavailable');
+  assert.equal(changed.reason, 'configuration_changed');
 });
 test('typesafe: invalid answers, context limit, changed configuration and circuit breaker', async () => {
   const context = (await fixture()); await configure(context);
@@ -329,4 +360,15 @@ test('typesafe: key rotation includes decision connections in the atomic batch',
   assert.ok(result.reencrypted > 0);
   const row = (await testDb.prepare('SELECT encrypted_api_key FROM typesafe_platform_connection WHERE id=1').get())!;
   assert.equal(decryptCredential(String(row.encrypted_api_key), next), `fake-${context.officeId}`);
+});
+
+test('typesafe: simultaneous reservations respect platform concurrency', async () => {
+  const context = await fixture(); await configure(context, { concurrency: 1 });
+  let calls = 0; let active = 0; let maximum = 0;
+  const simultaneous: DecisionTransport = async (_key, req) => { calls++; active++; maximum = Math.max(maximum, active); await new Promise(resolve => setTimeout(resolve, 150)); active--; return response(req); };
+  const results = await Promise.all(Array.from({ length: 6 }, () => evaluate(context, 'rag', request, { send: simultaneous })));
+  assert.equal(maximum, 1);
+  assert.ok(calls >= 1 && calls < 6);
+  assert.equal(results.filter(result => result.status === 'evaluated').length, calls);
+  assert.equal(results.filter(result => result.status === 'budget_exceeded').length, 6 - calls);
 });

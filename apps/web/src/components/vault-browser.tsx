@@ -66,6 +66,7 @@ export function VaultBrowser({ initialCases, libraryCount, role }: { initialCase
           <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "cards"} onClick={() => setView("cards")} aria-label="Ver em cartões"><LayoutGrid aria-hidden="true" /></Button>
           <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "list"} onClick={() => setView("list")} aria-label="Ver em lista"><List aria-hidden="true" /></Button>
         </div>
+        <Button variant="outline" asChild><Link href="/app/vault/library?import=drive">{canWrite ? "Importar do Google Drive" : "Ver Google Drive"}</Link></Button>
         {canWrite && <Button type="button" aria-expanded={creating} variant={creating ? "outline" : "default"} onClick={() => { setCreating((value) => !value); setFailure(""); }}>{creating ? "Cancelar" : <><Plus aria-hidden="true" />Novo caso</>}</Button>}
       </div>
     </div>

@@ -22,7 +22,10 @@ async function documentPass() {
       const run = await observeWorkerTask('documents.run', processNextRun);
       const extracted = await observeWorkerTask('research.extract', processNextResearchExtraction);
       const deleted = await observeWorkerTask('vault.delete', processNextDeletion);
-      return ingested || indexed || run || extracted || deleted;
+      // Google Drive imports and Gmail/Drive/Docs reconciliation; calendar work stays in the integrations Worker.
+      const { runGoogleNodePass } = await import('../src/lib/google/worker-node');
+      const google = await observeWorkerTask('google.node', () => runGoogleNodePass({ max: 5 }));
+      return ingested || indexed || run || extracted || deleted || google.node > 0;
     })(),
     (async () => {
       const verified = await observeWorkerTask('documents.verify', processNextVerification);

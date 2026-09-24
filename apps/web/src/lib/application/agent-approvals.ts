@@ -47,6 +47,27 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
       if (capability === 'k5_judicial_request_refresh') return `Consultar o tribunal para atualizar o processo${process}`;
       return input.decision === 'rejected' ? `Rejeitar o vínculo do processo${process}` : `Confirmar o vínculo do processo${process} e autorizar consultas recorrentes`;
     }
+    case 'k5_gmail_send':
+    case 'k5_gmail_save_draft': {
+      const list = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+      const recipients = [...list(input.to), ...list(input.cc), ...list(input.bcc)];
+      const attachments = Array.isArray(input.attachments) ? input.attachments.length : 0;
+      const verb = capability === 'k5_gmail_send' ? (input.draftId ? 'Enviar o rascunho' : 'Enviar o e-mail') : 'Salvar o rascunho';
+      const to = recipients.length ? ` para ${recipients.slice(0, 5).join(', ')}${recipients.length > 5 ? ` e mais ${recipients.length - 5}` : ''}` : '';
+      return `${verb}${quoted(text(input.subject))}${to}${attachments ? ` com ${attachments} anexo(s)` : ''}`;
+    }
+    case 'k5_calendar_create_event': return `Criar o evento${quoted(text(input.title))} na sua agenda Google`;
+    case 'k5_calendar_update_event': return `Alterar o evento${quoted(text((input.changes as { title?: string } | undefined)?.title))} na sua agenda Google`;
+    case 'k5_calendar_cancel_event': return 'Cancelar o evento na sua agenda Google';
+    case 'k5_calendar_respond': return `Responder ao convite (${({ accepted: 'aceitar', declined: 'recusar', tentative: 'talvez' } as Record<string, string>)[text(input.response)] ?? text(input.response)})`;
+    case 'k5_docs_edit': {
+      const edits = Array.isArray(input.edits) ? input.edits.length : 0;
+      return `Alterar ${edits === 1 ? 'um trecho' : `${edits} trechos`} do Google Docs`;
+    }
+    case 'k5_drive_rename_file': return `Renomear o arquivo do Drive para${quoted(text(input.name))}`;
+    case 'k5_drive_upload_version': return 'Enviar um documento do Cofre como nova versão do arquivo no Drive';
+    case 'k5_drive_share_file': return `Compartilhar o arquivo do Drive com ${text(input.email)} (${({ reader: 'leitor', commenter: 'comentarista', writer: 'editor' } as Record<string, string>)[text(input.role)] ?? text(input.role)})`;
+    case 'k5_drive_revoke_permission': return 'Remover um acesso ao arquivo do Drive';
     default: return 'Executar esta ação';
   }
 }
@@ -62,6 +83,13 @@ export function resourceHref(name: string, result: unknown): string | undefined 
   const document = value.document;
   if (name.startsWith('k5_vault_') && document && typeof document === 'object' && document.caseId) return `/app/vault/cases/${encodeURIComponent(document.caseId)}`;
   if (name.startsWith('k5_artifacts_') && id('artifact')) return `/app/documents/${encodeURIComponent(id('artifact')!)}`;
+  if (name.startsWith('k5_calendar_') && id('event')) return `/app/agenda?view=calendar&personalEventId=${encodeURIComponent(id('event')!)}`;
+  if (name.startsWith('k5_gmail_') && typeof value.threadId === 'string') return `/app/email?thread=${encodeURIComponent(value.threadId)}`;
+  if (name.startsWith('k5_gmail_') && id('draft')) return `/app/email?draft=${encodeURIComponent(id('draft')!)}`;
+  const imported = value.import;
+  if ((name === 'k5_drive_import_file' || name === 'k5_gmail_import_attachment') && imported && typeof imported === 'object' && imported.caseId) return `/app/vault/cases/${encodeURIComponent(imported.caseId)}`;
+  if (name === 'k5_drive_import_file' && imported && typeof imported === 'object' && 'scope' in imported && imported.scope === 'library') return '/app/vault/library';
+  if (name.startsWith('k5_drive_') || name.startsWith('k5_docs_')) return '/app/vault/library?import=drive';
   return undefined;
 }
 

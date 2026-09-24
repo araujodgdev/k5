@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { GoogleApprovalReview } from '@/components/google/client';
 import { useSearchParams } from "next/navigation";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
@@ -195,7 +196,7 @@ function ToolStep({ data }: { data: StepData }) {
 }
 
 const ConversationIdContext = createContext("");
-type ApprovalData = { approvalId: string; summary: string; state: "pending" | "confirmed" | "cancelled" | "failed"; result?: string; href?: string };
+type ApprovalData = { approvalId: string; capability?: string; summary: string; state: "pending" | "confirmed" | "cancelled" | "failed"; result?: string; href?: string };
 
 /**
  * The only thing the Lume asks before acting: deleting, reaching a court, or overwriting a draft.
@@ -205,6 +206,8 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
   const conversationId = useContext(ConversationIdContext);
   const documents = useContext(DocumentLinksContext);
   const [decided, setDecided] = useState<Pick<ApprovalData, "state" | "result" | "href"> | null>(null);
+  const googleApproval = /^k5_(gmail|calendar|drive|docs)_/.test(data?.capability ?? '');
+  const [reviewReady, setReviewReady] = useState(false);
   const [busy, setBusy] = useState<"" | "confirm" | "cancel">("");
   const [error, setError] = useState("");
   if (!data?.approvalId) return null;
@@ -226,8 +229,9 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
   return (
     <div className="mt-3 grid gap-3 border-l-2 border-brand py-1 pl-4" role="group" aria-label="Confirmação">
       <p className="text-sm text-foreground">{data.summary}</p>
+      {googleApproval && current.state === 'pending' && <GoogleApprovalReview approvalId={data.approvalId} onReady={setReviewReady} />}
       {current.state === "pending" ? <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" className="h-11 md:h-9" disabled={Boolean(busy)} onClick={() => void decide("confirm")}>
+        <Button type="button" size="sm" className="h-11 md:h-9" disabled={Boolean(busy) || (googleApproval && !reviewReady)} onClick={() => void decide("confirm")}>
           {busy === "confirm" && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}Confirmar</Button>
         <Button type="button" size="sm" variant="ghost" className="h-11 md:h-9" disabled={Boolean(busy)} onClick={() => void decide("cancel")}>Cancelar</Button>
       </div> : <p className={cn("text-[13px]", current.state === "failed" ? "text-destructive" : "text-subtle-foreground")} role="status">

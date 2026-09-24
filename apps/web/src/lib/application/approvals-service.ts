@@ -170,6 +170,10 @@ export const agentConfirmedCapabilities = [
   'k5_vault_delete_case', 'k5_vault_delete_document', 'k5_vault_delete_folder', 'k5_conversations_delete',
   'k5_judicial_confirm_link', 'k5_judicial_unlink_case', 'k5_judicial_request_refresh', 'k5_artifacts_update',
   'k5_artifacts_edit',
+  // Google writes ask only when the office rules say so (src/lib/google/operations.ts decides).
+  'k5_calendar_create_event', 'k5_calendar_update_event', 'k5_calendar_cancel_event', 'k5_calendar_respond',
+  'k5_gmail_save_draft', 'k5_gmail_delete_draft', 'k5_gmail_send', 'k5_docs_edit', 'k5_drive_rename_file', 'k5_drive_upload_version',
+  'k5_drive_share_file', 'k5_drive_revoke_permission',
 ] as const;
 
 export async function requireAgentApproval(

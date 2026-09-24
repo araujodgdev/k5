@@ -8,6 +8,8 @@ export interface ProcessorEnv extends ProcessorBindings {
   PROCESSOR_DATABASE_URL: string;
   K5_CREDENTIALS_KEY: string;
   K5_CREDENTIALS_PREVIOUS_KEYS?: string;
+  GOOGLE_OAUTH_CLIENT_ID?: string;
+  GOOGLE_OAUTH_CLIENT_SECRET?: string;
   SENTRY_DSN?: string;
   SENTRY_ENVIRONMENT?: string;
   SENTRY_RELEASE?: string;
@@ -28,6 +30,8 @@ export class LumeProcessor extends Container<ProcessorEnv> {
     DATABASE_URL: this.env.PROCESSOR_DATABASE_URL,
     K5_CREDENTIALS_KEY: this.env.K5_CREDENTIALS_KEY,
     K5_CREDENTIALS_PREVIOUS_KEYS: this.env.K5_CREDENTIALS_PREVIOUS_KEYS ?? '',
+    GOOGLE_OAUTH_CLIENT_ID: this.env.GOOGLE_OAUTH_CLIENT_ID ?? '',
+    GOOGLE_OAUTH_CLIENT_SECRET: this.env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
     SENTRY_DSN: this.env.SENTRY_DSN ?? SENTRY_DSN,
     SENTRY_ENVIRONMENT: this.env.SENTRY_ENVIRONMENT ?? 'staging',
     SENTRY_RELEASE: this.env.SENTRY_RELEASE ?? '',

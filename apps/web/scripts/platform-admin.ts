@@ -29,7 +29,10 @@ async function main() {
       process.exit(1);
     }
     const result = await reencryptAiConnectionSecrets(database, parseCredentialKeyring(), user.id);
+    const { reencryptGoogleSecrets } = await import('../src/lib/google/connections');
+    const google = await reencryptGoogleSecrets(database, parseCredentialKeyring());
     console.log(`Chave ativa ${result.keyId}: ${result.reencrypted} de ${result.total} credenciais recriptografadas.`);
+    console.log(`Google: ${google} registros recriptografados.`);
     if (process.env.K5_CREDENTIALS_PREVIOUS_KEYS) console.log("Após validar as conexões, remova K5_CREDENTIALS_PREVIOUS_KEYS do ambiente.");
     return;
   }
