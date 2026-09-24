@@ -63,7 +63,7 @@ pnpm --filter @k5/web start
 *Aguarde a confirmação de que o servidor está pronto em `http://localhost:3000`.*
 
 ### Passo 4: Garantir Credencial, Modelo e Conta do Escritório
-Se necessário, certifique-se de que a conta de teste e a conexão de IA (ex: Inception) estão ativas no banco `.data/k5.sqlite`:
+Se necessário, certifique-se de que a conta de teste e a conexão de IA (ex: Inception) estão ativas no PostgreSQL local (`DATABASE_URL` em `apps/web/.env.local`):
 ```typescript
 // Exemplo de verificação da conexão Inception
 import { listAiConnections, createAiConnection } from './src/lib/ai-connections-core';

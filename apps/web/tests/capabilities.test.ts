@@ -642,7 +642,7 @@ test("webmcp: every published capability has a route, a schema and typed failure
   }
 });
 
-test("platform service: create, list, and delete AI connection operations", async () => {
+test("platform service: create, list, and delete the platform's AI connections", async () => {
   process.env.K5_CREDENTIALS_KEY = randomBytes(32).toString("base64");
   const { userAdmin, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator" };
@@ -652,7 +652,6 @@ test("platform service: create, list, and delete AI connection operations", asyn
 
   // 1. Create connection
   const created = await platformService.platformCreateConnection(context, {
-    officeId: officeA,
     name: "Conexão Teste OpenAI",
     provider: "openai",
     // The key reached the server through a human form; the tool only carries the reference.
@@ -664,13 +663,12 @@ test("platform service: create, list, and delete AI connection operations", asyn
   assert.equal(created.connection.provider, "openai");
 
   // 2. List connections
-  const list = await platformService.platformListConnections(context, { officeId: officeA });
+  const list = await platformService.platformListConnections(context);
   const found = list.connections.find(c => c.id === created.connection.id);
   assert.ok(found);
 
   // 3. Update connection
   const updated = await platformService.platformUpdateConnection(context, {
-    officeId: officeA,
     connectionId: created.connection.id,
     name: "Conexão Teste OpenAI v2",
     models: { chat: null, extraction: null, drafting: null, embedding: null },
@@ -679,7 +677,6 @@ test("platform service: create, list, and delete AI connection operations", asyn
 
   // 4. Delete connection
   const deleted = await platformService.platformDeleteConnection(context, {
-    officeId: officeA,
     connectionId: created.connection.id,
   });
   assert.equal(deleted.success, true);

@@ -126,7 +126,7 @@ export async function searchKnowledgeEngine(
     degradedReason = 'Nenhum índice semântico ativo para este escritório.';
   } else {
     try {
-      const { embedding } = await embedQuery(context.officeId, query);
+      const { embedding } = await embedQuery(query);
       const hits = await (await vectorIndex()).query(context.officeId, generation.id, embedding, {
         documentIds: unique,
         topK: Math.max(limit * 3, 24),

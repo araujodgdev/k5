@@ -627,27 +627,26 @@ export function publishedCapabilitiesForRole(role: OfficeRole, surface: Capabili
 export const platformCapabilities = {
   k5_platform_list_offices: {
     module: 'platform', effect: 'read',
-    description: 'Lista os escritórios cadastrados na plataforma com métricas básicas.',
+    description: 'Lista os escritórios cadastrados na plataforma, com o número de pessoas de cada um.',
     input: z.object({ limit: z.number().int().min(1).max(100).default(50) }),
     output: z.object({ offices: z.array(z.object({ id: z.string(), name: z.string(), memberCount: z.number(), createdAt: z.string() })) }),
   },
   k5_platform_list_connections: {
     module: 'platform', effect: 'read',
-    description: 'Lista as conexões de provedores de IA de um escritório específico.',
-    input: z.object({ officeId: identifier }),
+    description: 'Lista as conexões de provedores de IA da plataforma, que servem a todos os escritórios.',
+    input: z.object({}),
     output: z.object({ connections: z.array(z.object({ id: z.string(), name: z.string(), provider: z.string(), enabled: z.boolean(), apiKeyHint: z.string() })) }),
   },
   k5_platform_test_connection: {
     module: 'platform', effect: 'read',
     description: 'Testa a conectividade de um provedor de IA cadastrado.',
-    input: z.object({ officeId: identifier, connectionId: identifier, task: z.enum(['chat', 'extraction', 'drafting']).optional() }),
+    input: z.object({ connectionId: identifier, task: z.enum(['chat', 'extraction', 'drafting']).optional() }),
     output: z.object({ ok: z.boolean(), message: z.string(), modelId: z.string().optional() }),
   },
   k5_platform_create_connection: {
     module: 'platform', effect: 'write',
-    description: 'Cadastra uma nova conexão de IA para um escritório com credenciais cifradas.',
+    description: 'Cadastra uma nova conexão de IA da plataforma, com a credencial cifrada. Vale para todos os escritórios.',
     input: z.object({
-      officeId: identifier,
       name: z.string().trim().min(2).max(80),
       provider: z.enum(['openai', 'anthropic', 'google', 'deepseek', 'inception', 'openrouter', 'vercel']),
       // Opaque reference to a key a human already submitted through the platform form.
@@ -672,9 +671,8 @@ export const platformCapabilities = {
   },
   k5_platform_update_connection: {
     module: 'platform', effect: 'write',
-    description: 'Atualiza configurações, modelos ou rotação de chave de uma conexão de IA existente.',
+    description: 'Atualiza configurações, modelos ou rotação de chave de uma conexão de IA da plataforma.',
     input: z.object({
-      officeId: identifier,
       connectionId: identifier,
       name: z.string().trim().min(2).max(80).optional(),
       provider: z.enum(['openai', 'anthropic', 'google', 'deepseek', 'inception', 'openrouter', 'vercel']).optional(),
@@ -699,8 +697,8 @@ export const platformCapabilities = {
   },
   k5_platform_delete_connection: {
     module: 'platform', effect: 'write',
-    description: 'Exclui uma conexão de IA cadastrada no escritório.',
-    input: z.object({ officeId: identifier, connectionId: identifier }),
+    description: 'Exclui uma conexão de IA da plataforma.',
+    input: z.object({ connectionId: identifier }),
     output: z.object({ success: z.boolean() }),
   },
 } as const;

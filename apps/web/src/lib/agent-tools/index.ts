@@ -256,14 +256,14 @@ export function platformAgentTools(context: WorkspaceContext) {
       description: platformCapabilities.k5_platform_list_connections.description,
       inputSchema: platformCapabilities.k5_platform_list_connections.input,
       outputSchema: platformCapabilities.k5_platform_list_connections.output,
-      execute: async (input: { officeId: string }) => platform.platformListConnections(context, input),
+      execute: async () => platform.platformListConnections(context),
     }),
     k5_platform_test_connection: createTool({
       id: 'k5_platform_test_connection',
       description: platformCapabilities.k5_platform_test_connection.description,
       inputSchema: platformCapabilities.k5_platform_test_connection.input,
       outputSchema: platformCapabilities.k5_platform_test_connection.output,
-      execute: async (input: { officeId: string; connectionId: string; task?: 'chat' | 'extraction' | 'drafting' }) => platform.platformTestConnection(context, input),
+      execute: async (input: { connectionId: string; task?: 'chat' | 'extraction' | 'drafting' }) => platform.platformTestConnection(context, input),
     }),
     k5_platform_create_connection: createTool({
       id: 'k5_platform_create_connection',
@@ -284,7 +284,7 @@ export function platformAgentTools(context: WorkspaceContext) {
       description: platformCapabilities.k5_platform_delete_connection.description,
       inputSchema: platformCapabilities.k5_platform_delete_connection.input,
       outputSchema: platformCapabilities.k5_platform_delete_connection.output,
-      execute: async (input: { officeId: string; connectionId: string }) => platform.platformDeleteConnection(context, input),
+      execute: async (input: { connectionId: string }) => platform.platformDeleteConnection(context, input),
     }),
   };
 }

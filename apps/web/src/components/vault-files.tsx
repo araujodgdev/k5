@@ -46,23 +46,43 @@ export function UploadControl({ canWrite, scope, caseId, folderId, disabled, onU
   onError: (message: string) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  // Which file of the batch is on its way; null when idle.
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   if (!canWrite) return null;
 
-  async function send(file: File) {
-    setBusy(true);
-    onError("");
+  async function sendOne(file: File): Promise<string | null> {
     const body = new FormData();
     body.set("file", file);
     body.set("scope", scope);
     if (scope === "case" && caseId) body.set("caseId", caseId);
     if (folderId) body.set("folderId", folderId);
-    const response = await fetch("/api/vault/documents", { method: "POST", body });
-    const result = await response.json().catch(() => null) as { error?: string; document?: VaultDocument } | null;
-    setBusy(false);
-    if (!response.ok || !result?.document) { onError(result?.error ?? "Não foi possível enviar o arquivo."); return; }
-    onUploaded(result.document);
+    try {
+      const response = await fetch("/api/vault/documents", { method: "POST", body });
+      const result = await response.json().catch(() => null) as { error?: string; document?: VaultDocument } | null;
+      if (!response.ok || !result?.document) return result?.error ?? "Não foi possível enviar o arquivo.";
+      onUploaded(result.document);
+      return null;
+    } catch {
+      return "Não foi possível conectar. Confira sua conexão.";
+    }
   }
+
+  // One request per file, in order: each keeps the route's own limits and checks, and every
+  // document joins the list as soon as it lands. A failure doesn't stop the rest of the batch.
+  async function send(files: File[]) {
+    onError("");
+    const failed: { name: string; reason: string }[] = [];
+    for (const [index, file] of files.entries()) {
+      setProgress({ current: index + 1, total: files.length });
+      const reason = await sendOne(file);
+      if (reason) failed.push({ name: file.name, reason });
+    }
+    setProgress(null);
+    if (failed.length === 1) onError(files.length === 1 ? failed[0].reason : `${failed[0].name}: ${failed[0].reason}`);
+    else if (failed.length > 1) onError(`Não foi possível enviar ${failed.length} arquivos: ${failed.map((item) => item.name).join(", ")}.`);
+  }
+
+  const busy = progress !== null;
 
   return (
     <>
@@ -70,16 +90,18 @@ export function UploadControl({ canWrite, scope, caseId, folderId, disabled, onU
       <input
         ref={input}
         type="file"
+        multiple
         className="sr-only"
         accept=".pdf,.docx,.eml,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp"
         onChange={(event) => {
-          const file = event.target.files?.[0];
+          const files = Array.from(event.target.files ?? []);
           event.target.value = "";
-          if (file) void send(file);
+          if (files.length) void send(files);
         }}
       />
       <Button type="button" variant="outline" disabled={busy || disabled} onClick={() => input.current?.click()}>
-        {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload aria-hidden="true" />}Enviar arquivo
+        {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload aria-hidden="true" />}
+        <span aria-live="polite">{progress ? (progress.total > 1 ? `Enviando ${progress.current} de ${progress.total}…` : "Enviando…") : "Enviar arquivos"}</span>
       </Button>
     </>
   );

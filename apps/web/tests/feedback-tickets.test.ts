@@ -72,7 +72,11 @@ test('feedback: the kind and place the person chose are kept apart from triage a
   const view = (await platformTicket(platform.userId, ticket.id))!;
   assert.equal(view.reportedKind, 'suggestion'); assert.equal(view.reportedModule, 'lume');
   assert.equal(view.kind, 'suggestion', 'the queue is readable before the model answers'); assert.equal(view.module, 'lume');
-  await assert.rejects(createTicket(author, { message: 'Só problema ou melhoria', kind: 'praise' }, null), { status: 400 });
+  // "Não entendi algo" is recorded as a question, both as said and in the queue.
+  const doubt = await createTicket(author, { message: 'Não entendi o que são as Fontes.', pagePath: '/app/agents', kind: 'question', module: 'lume' }, null);
+  const doubtView = (await platformTicket(platform.userId, doubt.id))!;
+  assert.equal(doubtView.reportedKind, 'question'); assert.equal(doubtView.kind, 'question');
+  await assert.rejects(createTicket(author, { message: 'Só problema, ideia ou dúvida', kind: 'praise' }, null), { status: 400 });
   await assert.rejects(createTicket(author, { message: 'Lugar desconhecido', module: 'financeiro' }, null), { status: 400 });
 });
 

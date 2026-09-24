@@ -1,5 +1,5 @@
 import 'server-only';
-import { resolveOfficeModelConfig } from '@/lib/ai-connections';
+import { resolveModelConfig } from '@/lib/ai-connections';
 import { AiConnectionError, type AiProvider } from '@/lib/ai-connections-core';
 import { CapabilityError } from '@/lib/capabilities/errors';
 
@@ -27,17 +27,17 @@ export class EmbeddingUnavailableError extends Error {
   constructor(message: string) { super(message); }
 }
 
-/** Resolves the office's embedding profile, or explains why semantic search is unavailable. */
-export async function embeddingProfile(officeId: string): Promise<EmbeddingProfile> {
+/** Resolves the platform's embedding profile, or explains why semantic search is unavailable. */
+export async function embeddingProfile(): Promise<EmbeddingProfile> {
   let config;
   try {
     // Awaited inside the try: the resolution is asynchronous, so a rejection reaches this catch
     // only if the promise is settled here. Left un-awaited, the AiConnectionError would escape
     // past it and reach callers that only know how to answer EmbeddingUnavailableError.
-    config = await resolveOfficeModelConfig(officeId, 'embedding');
+    config = await resolveModelConfig('embedding');
   } catch (error) {
     if (error instanceof AiConnectionError) {
-      throw new EmbeddingUnavailableError('Nenhuma conexão de IA compatível com embeddings está ativa neste escritório.');
+      throw new EmbeddingUnavailableError('Nenhuma conexão de IA compatível com embeddings está ativa na plataforma.');
     }
     throw error;
   }
@@ -98,8 +98,8 @@ export async function embedTexts(profile: EmbeddingProfile, inputs: string[]): P
 }
 
 /** One query vector. The model never supplies this: the server embeds the query it was given. */
-export async function embedQuery(officeId: string, query: string): Promise<{ embedding: Float32Array; profile: EmbeddingProfile }> {
-  const profile = await embeddingProfile(officeId);
+export async function embedQuery(query: string): Promise<{ embedding: Float32Array; profile: EmbeddingProfile }> {
+  const profile = await embeddingProfile();
   const [embedding] = await embedTexts(profile, [query]);
   if (!embedding) throw new EmbeddingUnavailableError('Não foi possível gerar o vetor da consulta.');
   return { embedding, profile };

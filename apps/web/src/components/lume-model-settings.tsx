@@ -10,13 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export type OfficeModelSelection = { connectionId: string; modelId: string } | null;
+export type LumeModelSelection = { connectionId: string; modelId: string } | null;
 
-export function OfficeModelSettings({ officeId, connections, catalog, initialSelection }: {
-  officeId: string;
+/** The model the Lume answers with, in every office: one connection and one model ID. */
+export function LumeModelSettings({ connections, catalog, initialSelection }: {
   connections: AiConnectionView[];
   catalog: Record<AiProvider, string[]>;
-  initialSelection: OfficeModelSelection;
+  initialSelection: LumeModelSelection;
 }) {
   const router = useRouter();
   const active = connections.filter((connection) => connection.enabled);
@@ -35,7 +35,7 @@ export function OfficeModelSettings({ officeId, connections, catalog, initialSel
     if (!selected || !modelId.trim()) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await fetch(`/api/platform/offices/${officeId}/connections/${selected.id}`, {
+      const response = await fetch(`/api/platform/ai/connections/${selected.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ models: {
@@ -54,9 +54,9 @@ export function OfficeModelSettings({ officeId, connections, catalog, initialSel
     }
   }
 
-  return <section className="mt-8 border-b pb-8" aria-labelledby="office-model-title">
-    <h2 id="office-model-title" className="font-medium">Modelo do Lume</h2>
-    <p className="mt-1 text-sm text-muted-foreground">Usado nas conversas, cronologias e minutas deste escritório.</p>
+  return <section className="border-b pb-8" aria-labelledby="lume-model-title">
+    <h3 id="lume-model-title" className="font-medium">Modelo do Lume</h3>
+    <p className="mt-1 text-sm text-muted-foreground">Usado nas conversas, cronologias e minutas de todos os escritórios.</p>
     {!first ? <p className="mt-5 text-sm text-subtle-foreground">Cadastre e ative uma conexão para escolher o modelo.</p> : (
       <form onSubmit={save} aria-busy={busy} className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">

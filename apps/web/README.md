@@ -109,7 +109,7 @@ desvincular ou consultar um tribunal, sobrescrever uma minuta) viram uma propost
 
 Com modelos OpenAI ou Anthropic, o Lume tem a busca na web do próprio provedor. Pedidos de
 jurisprudência usam `k5_research_web_jurisprudence`: o modelo pesquisa, o código mantém só links
-que a busca devolveu, e o Jev (modo **Pesquisa** em `/app/admin/typesafe`) pontua a relevância e
+que a busca devolveu, e o Jev (modo **Pesquisa** em `/app/admin/ai`) pontua a relevância e
 descarta o que não é decisão judicial. A lista aparece no chat a partir do resultado da ferramenta.
 O microfone do composer grava, mostra o nível do áudio e, ao parar, envia a gravação para
 `/api/chat/transcribe`; a transcrição vira a mensagem da pessoa. Modelos OpenAI transcrevem com a
@@ -141,9 +141,13 @@ conexão de IA ativa. Capturas, vídeo e DOCX ficam em `playwright-report/pr11-l
 Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
 
 - **Administração:** módulo `/app/admin`, visível só para administradores da plataforma, com
-  as abas Feedback, Clientes e TypeSafe. `/app/admin/clients/[officeId]/ai` gerencia as conexões de IA por escritório
-  (OpenAI, Anthropic, Google, DeepSeek, Inception, OpenRouter e AI Gateway). O administrador
-  escolhe o modelo do Lume para conversas, extração e redação, pela lista ou digitando o ID.
+  as abas Feedback, Clientes, IA e Credenciais. A aba IA (`/app/admin/ai`) configura uma vez,
+  para todos os escritórios, as conexões de IA da plataforma (OpenAI, Anthropic, Google,
+  DeepSeek, Inception, OpenRouter e AI Gateway) e a TypeSafe. O administrador escolhe o modelo
+  do Lume para conversas, extração e redação, pela lista ou digitando o ID; o modelo de
+  embeddings também é da plataforma, e trocá-lo reindexa o Cofre de todos os escritórios.
+  A migração 0022 adotou as conexões do escritório configurado por último; as conexões antigas
+  por escritório ficam guardadas, mas não são mais lidas. Clientes é a lista de escritórios.
   O roteador do Mastra resolve endpoint e protocolo do provedor. O usuário do escritório não
   escolhe nem vê o modelo no chat. O acesso à configuração vem da
   tabela `platform_admin`, independente do papel no escritório, e só é concedido pela linha
@@ -174,7 +178,7 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
 - **Worker:** processamento de documentos, cronologias e minutas roda fora da requisição.
   Em outro terminal, execute `pnpm worker` na raiz. Sem ele, os itens ficam na fila.
 - **TypeSafe/Jev:** uma única conexão da plataforma atende todos os escritórios; configure-a
-  em `/app/admin/typesafe`. O custo é da plataforma e a reserva diária de tokens soma todos os
+  em `/app/admin/ai`. O custo é da plataforma e a reserva diária de tokens soma todos os
   escritórios. Enquanto nenhuma conexão da plataforma for salva, a primeira leitura adota a
   conexão de escritório mais recente que tenha chave (bancos migrados ou importados continuam
   funcionando sem redigitar a chave). Reranking do Cofre e da Pesquisa, avaliação de pertinência,

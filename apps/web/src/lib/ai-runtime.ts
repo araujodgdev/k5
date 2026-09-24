@@ -6,7 +6,7 @@ import { noopLogger } from '@mastra/core/logger';
 import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import { database } from './database';
-import { resolveOfficeModelConfig } from './ai-connections';
+import { resolveModelConfig } from './ai-connections';
 import { groundedInstructions } from './ai-policy';
 import { modelFor, modelProviderOptions, type ModelCredential } from './ai-providers';
 import type { AiProvider } from './ai-connections-core';
@@ -36,14 +36,14 @@ function agentFor(config: ModelCredential, instructions: string, tools?: Record<
   return agent;
 }
 
-export async function createOfficeAgent(
-  officeId: string,
+/** An agent on the platform's model for the task; usage is still recorded per office by the caller. */
+export async function createAgent(
   task: ModelTask,
   instructions = groundedInstructions,
   tools?: Record<string, unknown>,
   requestedModel?: { provider?: string; modelId?: string }
 ) {
-  const config = await resolveOfficeModelConfig(officeId, task, requestedModel);
+  const config = await resolveModelConfig(task, requestedModel);
   return { agent: agentFor(config, instructions, tools), config };
 }
 
@@ -68,7 +68,7 @@ export async function recordUsage(officeId: string, userId: string | null, confi
 }
 
 export async function generateStructured<T extends z.ZodType>(officeId: string, userId: string, task: ModelTask, prompt: string, schema: T, requestedModel?: { provider?: string; modelId?: string }): Promise<z.output<T>> {
-  const { agent, config } = await createOfficeAgent(officeId, task, undefined, undefined, requestedModel);
+  const { agent, config } = await createAgent(task, undefined, undefined, requestedModel);
   const ctx = new RequestContext();
   ctx.set('provider', config.provider);
   ctx.set('modelId', config.modelId);

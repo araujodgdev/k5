@@ -20,7 +20,7 @@ async function main() {
   }
   if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) throw new Error('Configure BETTER_AUTH_SECRET.');
   const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
-  if (!url) throw new Error('Configure DATABASE_URL para PostgreSQL. Dados SQLite existentes exigem importação explícita.');
+  if (!url) throw new Error('Configure DATABASE_URL para PostgreSQL.');
   const pool = createPostgresPool(url,{max:1});
   try {
     await migratePostgres(pool,new URL('../db/postgres/',import.meta.url));

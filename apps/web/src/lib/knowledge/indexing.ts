@@ -75,7 +75,7 @@ export async function publishGenerationIfComplete(officeId: string, generationId
  */
 export async function enqueueIndexJob(officeId: string, documentId: string): Promise<{ jobId: string; generationId: string } | undefined> {
   let profile: EmbeddingProfile;
-  try { profile = await embeddingProfile(officeId); }
+  try { profile = await embeddingProfile(); }
   catch (error) {
     if (error instanceof EmbeddingUnavailableError) return undefined;
     throw error;
@@ -165,7 +165,7 @@ async function stage<T>(name: IndexStage, step: () => Promise<T>): Promise<T> {
  * interrupted run resumes instead of paying for every chunk again.
  */
 async function runIndexJob(job: JobRow, owner: string): Promise<void> {
-  const profile = await stage('setup', () => embeddingProfile(job.office_id));
+  const profile = await stage('setup', () => embeddingProfile());
   const index = await stage('setup', () => vectorIndex());
   let cursor = Number(job.cursor_ordinal);
   let done = Number(job.chunks_done);
@@ -203,7 +203,7 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
     await stage('vector_upsert', () => index.upsert(job.office_id, job.generation_id, records));
 
     // Publication ledger, written for every backend. The vectors themselves live wherever the
-    // adapter put them - pgvector, Vectorize, or this table's blob column for SQLite - but the
+    // adapter put them - pgvector, Vectorize, or this table's blob column - but the
     // record of what was published to which generation has to be in the business database.
     // It is what decides when a generation is complete, and what identifies the vectors to
     // delete when a document is removed from a remote index that cannot be queried by document.

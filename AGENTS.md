@@ -17,12 +17,12 @@ The application lives in `apps/web`; `packages/` is reserved for shared librarie
 - Extend the shared navigation definitions in `apps/web/src/lib/navigation.ts` when adding app sections, keeping desktop and mobile navigation consistent.
 - Protected server operations must derive their user and office from the authenticated session. Reuse `requireWorkspace()` in `src/lib/session.ts`; scope business data by `office_id` and check the required role. Client-supplied office IDs are not authorization.
 - Keep database and session access on the server. Better Auth owns password hashing and sessions; preserve immediate revocation and global logout behavior.
-- Database setup is in `apps/web/scripts/setup.ts`, with application migrations under `apps/web/db/migrations/`. Preserve existing local data and secrets when changing setup. Keep `.env.local`, `.data/`, and SQLite files out of version control.
+- Database setup is in `apps/web/scripts/setup.ts`, with PostgreSQL migrations under `apps/web/db/postgres/`. Add a new migration instead of editing an applied one. Preserve existing local data and secrets when changing setup. Keep `.env.local` and `.data/` out of version control.
 
 ## Validation
 
 - For code changes, run the relevant checks from the root: `pnpm lint`, `pnpm typecheck`, and `pnpm test`. Scripts are defined in the root and app `package.json` files.
-- Authentication tests in `apps/web/tests/auth.test.ts` exercise real Better Auth endpoints with in-memory SQLite. Extend this coverage when changing session behavior, office isolation, or provisioning.
+- Authentication tests in `apps/web/tests/auth.test.ts` exercise real Better Auth endpoints against PostgreSQL (`tests/postgres-fixture.ts`). Extend this coverage when changing session behavior, office isolation, or provisioning.
 - Run `pnpm build` for changes affecting routes, configuration, or production compilation. Configure the environment and run `pnpm db:setup` first, as described in the READMEs. `pnpm dev` performs setup automatically.
 - For UI changes, verify desktop and mobile behavior, including keyboard access and affected loading, empty, and error states, against `apps/web/DESIGN.md`.
 - Documentation-only edits need link/path and content checks; application tests are unnecessary. Report which checks ran and any checks that could not run.

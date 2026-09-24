@@ -1,7 +1,7 @@
 import 'server-only';
-import { resolveOfficeModelConfig } from './ai-connections';
+import { resolveModelConfig } from './ai-connections';
 import { modelModalities } from './ai-modalities';
-import { createOfficeAgent, recordUsage, RequestContext } from './ai-runtime';
+import { createAgent, recordUsage, RequestContext } from './ai-runtime';
 
 /**
  * OpenAI chat runs on the Responses API, which takes no audio parts, and the browser records
@@ -38,10 +38,10 @@ const MAX_VOICE_BYTES = 20 * 1024 * 1024;
  */
 export async function transcribeVoiceNote(owner: { officeId: string; userId: string }, audio: { mediaType: string; bytes: Buffer }, signal?: AbortSignal) {
   if (!audio.bytes.length || audio.bytes.length > MAX_VOICE_BYTES) throw new TranscriptionError('size');
-  const config = await resolveOfficeModelConfig(owner.officeId, 'chat');
+  const config = await resolveModelConfig('chat');
   if (transcribesAudio(config.provider)) return transcribeAudio(config.apiKey, { mediaType: audio.mediaType, data: audio.bytes.toString('base64') }, signal);
   if (!modelModalities(config.provider, config.modelId).audio) throw new TranscriptionError('unsupported');
-  const { agent } = await createOfficeAgent(owner.officeId, 'chat',
+  const { agent } = await createAgent('chat',
     'Transcreva fielmente o áudio em português brasileiro. Responda somente com a transcrição, sem comentários, aspas ou marcações. Se não houver fala, responda com nada.');
   const ctx = new RequestContext();
   ctx.set('provider', config.provider);

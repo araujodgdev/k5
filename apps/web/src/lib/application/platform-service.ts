@@ -31,15 +31,16 @@ export async function platformListOffices(context: WorkspaceContext, input?: { l
     offices: rows.map(r => ({
       id: String(r.id),
       name: String(r.name),
-      memberCount: Number(r.connectionCount),
+      memberCount: Number(r.memberCount),
       createdAt: String(r.createdAt),
     })),
   };
 }
 
-export async function platformListConnections(context: WorkspaceContext, input: { officeId: string }) {
+/** The platform's AI connections: one configuration serves every office. */
+export async function platformListConnections(context: WorkspaceContext) {
   await assertPlatformAdmin(context);
-  const connections = await listAiConnections(database, input.officeId);
+  const connections = await listAiConnections(database);
   return {
     connections: connections.map(c => ({
       id: c.id,
@@ -51,10 +52,10 @@ export async function platformListConnections(context: WorkspaceContext, input: 
   };
 }
 
-export async function platformTestConnection(context: WorkspaceContext, input: { officeId: string; connectionId: string; task?: 'chat' | 'extraction' | 'drafting' | 'embedding' }) {
+export async function platformTestConnection(context: WorkspaceContext, input: { connectionId: string; task?: 'chat' | 'extraction' | 'drafting' | 'embedding' }) {
   await assertPlatformAdmin(context);
   try {
-    const result = await testAiConnection(database, parseCredentialKeyring(), context.userId, input.officeId, input.connectionId, input.task, testModelCredential);
+    const result = await testAiConnection(database, parseCredentialKeyring(), context.userId, input.connectionId, input.task, testModelCredential);
     return {
       ok: true,
       message: 'Conexão verificada com sucesso.',
@@ -75,7 +76,6 @@ export async function platformTestConnection(context: WorkspaceContext, input: {
  * argument. Consuming it here is also what stops a caller from replaying the same reference.
  */
 export async function platformCreateConnection(context: WorkspaceContext, input: {
-  officeId: string;
   name: string;
   provider: AiProvider;
   secretRef: string;
@@ -85,7 +85,7 @@ export async function platformCreateConnection(context: WorkspaceContext, input:
   await assertPlatformAdmin(context);
   const apiKey = await consumeSecretRef(context.userId, input.secretRef);
   try {
-    const connection = await createAiConnection(database, parseCredentialKeyring(), context.userId, input.officeId, {
+    const connection = await createAiConnection(database, parseCredentialKeyring(), context.userId, {
       name: input.name,
       provider: input.provider,
       apiKey,
@@ -112,7 +112,6 @@ export async function platformCreateConnection(context: WorkspaceContext, input:
 }
 
 export async function platformUpdateConnection(context: WorkspaceContext, input: {
-  officeId: string;
   connectionId: string;
   name?: string;
   provider?: AiProvider;
@@ -123,7 +122,7 @@ export async function platformUpdateConnection(context: WorkspaceContext, input:
   await assertPlatformAdmin(context);
   const apiKey = input.secretRef ? await consumeSecretRef(context.userId, input.secretRef) : undefined;
   try {
-    const connection = await updateAiConnection(database, parseCredentialKeyring(), context.userId, input.officeId, input.connectionId, {
+    const connection = await updateAiConnection(database, parseCredentialKeyring(), context.userId, input.connectionId, {
       name: input.name,
       provider: input.provider,
       apiKey,
@@ -149,10 +148,10 @@ export async function platformUpdateConnection(context: WorkspaceContext, input:
   }
 }
 
-export async function platformDeleteConnection(context: WorkspaceContext, input: { officeId: string; connectionId: string }) {
+export async function platformDeleteConnection(context: WorkspaceContext, input: { connectionId: string }) {
   await assertPlatformAdmin(context);
   try {
-    await deleteAiConnection(database, context.userId, input.officeId, input.connectionId);
+    await deleteAiConnection(database, context.userId, input.connectionId);
     return { success: true };
   } catch (error) {
     if (error instanceof AiConnectionError) {

@@ -21,6 +21,6 @@ export const adminNavigation = { href: "/app/admin", label: "Administração", s
 export const adminSections = [
   { slug: "feedback", label: "Feedback" },
   { slug: "clients", label: "Clientes" },
-  { slug: "typesafe", label: "TypeSafe" },
+  { slug: "ai", label: "IA" },
   { slug: "credentials", label: "Credenciais" },
 ] as const;
