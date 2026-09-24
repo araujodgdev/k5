@@ -33,7 +33,6 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          # The repo pins >=22.13 because the application uses node:sqlite.
           node-version-file: package.json
           cache: pnpm
 
@@ -77,7 +76,7 @@ jobs:
       - name: Refuse edits to applied migrations
         run: |
           base="${{ github.event.pull_request.base.sha }}"
-          changed=$(git diff --name-only --diff-filter=MD "$base"...HEAD -- 'apps/web/db/migrations/*.sql')
+          changed=$(git diff --name-only --diff-filter=MD "$base"...HEAD -- 'apps/web/db/postgres/*.sql')
           if [ -n "$changed" ]; then
             echo "Estas migrações já aplicadas foram alteradas ou removidas:"
             echo "$changed"

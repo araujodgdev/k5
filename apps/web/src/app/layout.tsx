@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Newsreader } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { getTraceData } from "@sentry/core";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -8,9 +8,8 @@ import { PwaProvider } from "@/components/pwa-provider";
 import { navCollapseScript } from "@/lib/nav-collapse";
 import { agentHistoryScript } from "@/lib/agent-history";
 
-const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const serif = Newsreader({ subsets: ["latin"], variable: "--font-newsreader", style: "normal" });
-const serifItalic = Newsreader({ subsets: ["latin"], variable: "--font-newsreader-italic", style: "italic", preload: false });
+const sans = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 const metadata: Metadata = {
   title: { default: "Lume", template: "%s | Lume" },
@@ -32,5 +31,5 @@ export function generateMetadata(): Metadata {
 export const viewport: Viewport = { viewportFit: "cover", interactiveWidget: "resizes-content", themeColor: "#ffffff" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="pt-BR" suppressHydrationWarning className={cn(sans.variable, serif.variable, serifItalic.variable, "font-sans")}><head><script dangerouslySetInnerHTML={{ __html: agentHistoryScript + navCollapseScript }} /></head><body><ThemeProvider><PwaProvider>{children}</PwaProvider></ThemeProvider></body></html>;
+  return <html lang="pt-BR" suppressHydrationWarning className={cn(sans.variable, mono.variable, "font-sans")}><head><script dangerouslySetInnerHTML={{ __html: agentHistoryScript + navCollapseScript }} /></head><body><ThemeProvider><PwaProvider>{children}</PwaProvider></ThemeProvider></body></html>;
 }

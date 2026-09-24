@@ -110,8 +110,9 @@ async function seedOfficeWithEmbedding() {
   await testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?)").run(userId, `user-${randomUUID()}@k5.test`, "Pessoa");
   await testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?)").run(officeId, "Escritório");
   await testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?)").run(randomUUID(), officeId, userId, "lawyer");
-  await createAiConnection(testDb, parseCredentialKeyring(), userId, officeId, {
-    name: "Embeddings", provider: "openai", apiKey: "sk-teste-local", models: { embedding: "text-embedding-3-small" },
+  // The platform's connection serves every office; a fresh name per seed keeps reruns independent.
+  await createAiConnection(testDb, parseCredentialKeyring(), userId, {
+    name: `Embeddings ${officeId.slice(0, 8)}`, provider: "openai", apiKey: "sk-teste-local", models: { embedding: "text-embedding-3-small" },
   });
   return { officeId, userId };
 }

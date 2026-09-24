@@ -2,9 +2,10 @@ import { postgresFixture } from './postgres-fixture';
 import assert from "node:assert/strict";
 import { createCipheriv, randomBytes, randomUUID } from "node:crypto";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   AI_PROVIDERS, AiConnectionError, connectionInputSchema, connectionPatchSchema, connectionTestSchema, countSecretsNeedingReencryption, createAiConnection, deleteAiConnection,
-  listAiConnections, reencryptAiConnectionSecrets, resolveOfficeModelConfigFromDatabase, testAiConnection, updateAiConnection,
+  listAiConnections, reencryptAiConnectionSecrets, resolveModelConfigFromDatabase, testAiConnection, updateAiConnection,
 } from "../src/lib/ai-connections-core";
 import {
   assertPlatformAdmin, assertSameOrigin, findUserForPlatformGrant, grantPlatformAdmin, isPlatformAdmin, platformErrorResponse, PlatformRequestError, readPlatformJson, revokePlatformAdmin,
@@ -13,7 +14,7 @@ import {
   createCredentialKeyring, CredentialDecryptError, CredentialKeyError, credentialKeyId, credentialNeedsReencryption, decryptCredential, encryptCredential,
   parseCredentialKey, parseCredentialKeyring,
 } from "../src/lib/platform-crypto";
-import { resolveModelConfig } from "@mastra/core/llm";
+import { resolveModelConfig as resolveMastraModel } from "@mastra/core/llm";
 import { DEFAULT_CHAT_MODEL } from "../src/lib/ai-defaults";
 import { modelFor } from "../src/lib/ai-providers";
 
@@ -61,72 +62,87 @@ test("writes require an allowed same origin", () => {
   assert.throws(() => assertSameOrigin(request("not a url")), /inválida/);
 });
 
-test("connections are office isolated, masked, audited, rotated and resolved by task", async () => {
-  const { db, database, admin, officeA, officeB, key } = (await fixture());
+test("platform connections are masked, audited, rotated and serve every office", async () => {
+  const { db, database, admin, key } = (await fixture());
   await grantPlatformAdmin(database, admin);
-  const a = await createAiConnection(database, key, admin, officeA, { name: "Principal", provider: "openai", apiKey: "sk-office-a-secret", models: { chat: "gpt-chat", extraction: null, drafting: "gpt-draft" } });
-  const b = await createAiConnection(database, key, admin, officeB, { name: "Principal", provider: "anthropic", apiKey: "sk-office-b-secret", models: { chat: "claude-chat", extraction: null, drafting: null } });
-  assert.equal((await listAiConnections(database, officeA)).length, 1);
-  assert.equal((await listAiConnections(database, officeA))[0].keyHint.includes("office-a-secret"), false);
-  assert.equal(JSON.stringify(await listAiConnections(database, officeA)).includes("sk-office-a-secret"), false);
-  assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat")).apiKey, "sk-office-a-secret");
-  assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeB, "chat")).connectionId, b.id);
-  await assert.rejects(() => updateAiConnection(database, key, admin, officeA, b.id, { name: "Intrusão" }), (error) => error instanceof AiConnectionError && error.code === "not_found");
-  const rotated = await updateAiConnection(database, key, admin, officeA, a.id, { apiKey: "sk-rotated-newkey" });
+  const a = await createAiConnection(database, key, admin, { name: "Principal", provider: "openai", apiKey: "sk-platform-secret", models: { chat: "gpt-chat", extraction: null, drafting: "gpt-draft" } });
+  assert.equal((await listAiConnections(database)).length, 1);
+  assert.equal((await listAiConnections(database))[0].keyHint.includes("platform-secret"), false);
+  assert.equal(JSON.stringify(await listAiConnections(database)).includes("sk-platform-secret"), false);
+  assert.equal("officeId" in (await listAiConnections(database))[0], false, "a platform connection belongs to no office");
+  assert.equal((await resolveModelConfigFromDatabase(database, key, "chat")).apiKey, "sk-platform-secret");
+  await assert.rejects(() => createAiConnection(database, key, admin, { name: "Principal", provider: "google", apiKey: "sk-x" }), (error) => error instanceof AiConnectionError && error.code === "conflict");
+  const rotated = await updateAiConnection(database, key, admin, a.id, { apiKey: "sk-rotated-newkey" });
   assert.notEqual(rotated.keyHint, a.keyHint);
-  assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat")).apiKey, "sk-rotated-newkey");
-  await updateAiConnection(database, key, admin, officeA, a.id, { enabled: false });
-  await assert.rejects(() => resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat"), (error) => error instanceof AiConnectionError && error.code === "not_found");
-  await updateAiConnection(database, key, admin, officeA, a.id, { enabled: true });
-  assert.ok(Number((await db.prepare("SELECT count(*) total FROM platform_audit_log WHERE office_id = ?").get(officeA))?.total) >= 2);
+  assert.equal((await resolveModelConfigFromDatabase(database, key, "chat")).apiKey, "sk-rotated-newkey");
+  await updateAiConnection(database, key, admin, a.id, { enabled: false });
+  await assert.rejects(() => resolveModelConfigFromDatabase(database, key, "chat"), (error) => error instanceof AiConnectionError && error.code === "not_found");
+  await updateAiConnection(database, key, admin, a.id, { enabled: true });
+  const audited = await db.prepare("SELECT count(*) total FROM platform_audit_log WHERE connection_id = ? AND office_id IS NULL").get(a.id);
+  assert.ok(Number(audited?.total) >= 3);
+});
+
+test("per-office rows from before 0022 are never read, and the migration adopts the most recent office's", async () => {
+  const { db, database, officeA, officeB, key } = (await fixture());
+  // What an office configured before the move looks like: rows that carry the office.
+  const legacy = async (officeId: string, name: string, provider: string, secret: string, chat: string, updatedAt: string) =>
+    db.prepare(`INSERT INTO ai_connection (id, office_id, name, provider, encrypted_api_key, api_key_hint, chat_model, updated_at)
+      VALUES (?, ?, ?, ?, ?, '••••', ?, ?)`).run(randomUUID(), officeId, name, provider, encryptCredential(secret, key), chat, updatedAt);
+  await legacy(officeA, "Antiga", "anthropic", "sk-office-a-old", "claude-a", "2026-01-01T00:00:00Z");
+  await legacy(officeB, "Recente", "openai", "sk-office-b-new", "gpt-b", "2026-06-01T00:00:00Z");
+  await assert.rejects(() => resolveModelConfigFromDatabase(database, key, "chat"), (error) => error instanceof AiConnectionError && error.code === "not_found");
+  assert.equal((await listAiConnections(database)).length, 0);
+  // Run the adoption statement of the migration against these rows.
+  const migration = readFileSync(new URL("../db/postgres/0022_platform_ai_connections.sql", import.meta.url), "utf8");
+  await db.exec(migration.slice(migration.indexOf("WITH source AS")));
+  const adopted = await listAiConnections(database);
+  assert.deepEqual(adopted.map((item) => [item.name, item.provider, item.models.chat]), [["Recente", "openai", "gpt-b"]]);
+  const config = await resolveModelConfigFromDatabase(database, key, "chat");
+  assert.equal(config.apiKey, "sk-office-b-new", "the ciphertext is copied as is and still reads");
+  assert.equal(config.connectionId, adopted[0].id);
 });
 
 test("task assignment is exclusive and deletion erases the secret after assignments are removed", async () => {
-  const { db, database, admin, officeA, key } = (await fixture());
-  const first = await createAiConnection(database, key, admin, officeA, { name: "Primeira", provider: "openai", apiKey: "first-secret", models: { chat: "first-model", extraction: null, drafting: null } });
-  const second = await createAiConnection(database, key, admin, officeA, { name: "Segunda", provider: "google", apiKey: "second-secret", models: { chat: "second-model", extraction: null, drafting: null } });
-  assert.equal((await listAiConnections(database, officeA)).find((item) => item.id === first.id)?.models.chat, null);
-  assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat")).connectionId, second.id);
-  await assert.rejects(() => deleteAiConnection(database, admin, officeA, second.id), (error) => error instanceof AiConnectionError && error.code === "in_use");
-  await updateAiConnection(database, key, admin, officeA, second.id, { models: { chat: null, extraction: null, drafting: null } });
-  await deleteAiConnection(database, admin, officeA, second.id);
-  assert.equal((await listAiConnections(database, officeA)).length, 1);
+  const { db, database, admin, key } = (await fixture());
+  const first = await createAiConnection(database, key, admin, { name: "Primeira", provider: "openai", apiKey: "first-secret", models: { chat: "first-model", extraction: null, drafting: null } });
+  const second = await createAiConnection(database, key, admin, { name: "Segunda", provider: "google", apiKey: "second-secret", models: { chat: "second-model", extraction: null, drafting: null } });
+  assert.equal((await listAiConnections(database)).find((item) => item.id === first.id)?.models.chat, null);
+  assert.equal((await resolveModelConfigFromDatabase(database, key, "chat")).connectionId, second.id);
+  await assert.rejects(() => deleteAiConnection(database, admin, second.id), (error) => error instanceof AiConnectionError && error.code === "in_use");
+  await updateAiConnection(database, key, admin, second.id, { models: { chat: null, extraction: null, drafting: null } });
+  await deleteAiConnection(database, admin, second.id);
+  assert.equal((await listAiConnections(database)).length, 1);
   const deleted = (await db.prepare("SELECT encrypted_api_key, deleted_at FROM ai_connection WHERE id = ?").get(second.id)) as { encrypted_api_key: string | null; deleted_at: string | null };
   assert.equal(deleted.encrypted_api_key, null);
   assert.ok(deleted.deleted_at);
 });
 
-test("platform model choice applies to chat, extraction and drafting in one office", async () => {
-  const { database, admin, officeA, officeB, key } = (await fixture());
-  const old = await createAiConnection(database, key, admin, officeA, {
+test("the Lume's model choice applies to chat, extraction and drafting on the platform", async () => {
+  const { database, admin, key } = (await fixture());
+  const old = await createAiConnection(database, key, admin, {
     name: "Anterior", provider: "anthropic", apiKey: "sk-old",
     models: { chat: "claude-old", extraction: "claude-old", drafting: "claude-old" },
   });
-  const chosen = await createAiConnection(database, key, admin, officeA, {
+  const chosen = await createAiConnection(database, key, admin, {
     name: "Nova", provider: "openai", apiKey: "sk-new",
     models: { embedding: "text-embedding-3-small" },
   });
-  await createAiConnection(database, key, admin, officeB, {
-    name: "Outro escritório", provider: "google", apiKey: "sk-other",
-    models: { chat: "gemini-other", extraction: "gemini-other", drafting: "gemini-other" },
-  });
-  await updateAiConnection(database, key, admin, officeA, chosen.id, {
+  await updateAiConnection(database, key, admin, chosen.id, {
     models: { chat: "gpt-6-sol", extraction: "gpt-6-sol", drafting: "gpt-6-sol" },
   });
   for (const task of ["chat", "extraction", "drafting"] as const) {
-    const config = await resolveOfficeModelConfigFromDatabase(database, key, officeA, task);
+    const config = await resolveModelConfigFromDatabase(database, key, task);
     assert.equal(config.connectionId, chosen.id);
     assert.equal(config.modelId, "gpt-6-sol");
-    assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeB, task)).modelId, "gemini-other");
   }
-  assert.deepEqual((await listAiConnections(database, officeA)).find(item => item.id === old.id)?.models, {
+  assert.deepEqual((await listAiConnections(database)).find(item => item.id === old.id)?.models, {
     chat: null, extraction: null, drafting: null, embedding: null,
   });
-  await updateAiConnection(database, key, admin, officeA, chosen.id, {
+  await updateAiConnection(database, key, admin, chosen.id, {
     models: { chat: "modelo-digitado", extraction: "modelo-digitado", drafting: "modelo-digitado" },
   });
-  assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat")).modelId, "modelo-digitado");
-  assert.equal((await resolveOfficeModelConfigFromDatabase(database, key, officeA, "embedding")).modelId, "text-embedding-3-small");
+  assert.equal((await resolveModelConfigFromDatabase(database, key, "chat")).modelId, "modelo-digitado");
+  assert.equal((await resolveModelConfigFromDatabase(database, key, "embedding")).modelId, "text-embedding-3-small");
 });
 
 function legacyV1(plaintext: string, key: Uint8Array) {
@@ -160,51 +176,57 @@ test("master key versioning: key id in envelope, previous keys decrypt, legacy v
 });
 
 test("rotation re-encrypts every live secret with the current key, audits without secrets and is atomic", async () => {
-  const { db, database, admin, officeA, officeB } = (await fixture());
+  const { db, database, admin, officeA } = (await fixture());
   const oldKey = randomBytes(32), newKey = randomBytes(32);
-  const a = await createAiConnection(database, oldKey, admin, officeA, { name: "Alfa", provider: "openai", apiKey: "sk-alpha-rotation", models: { chat: "m-a", extraction: null, drafting: null } });
-  const b = await createAiConnection(database, oldKey, admin, officeB, { name: "Beta", provider: "google", apiKey: "sk-beta-rotation", models: { chat: "m-b", extraction: null, drafting: null } });
-  (await db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?").run(legacyV1("sk-beta-rotation", oldKey), b.id));
-  const gone = await createAiConnection(database, oldKey, admin, officeA, { name: "Removida", provider: "anthropic", apiKey: "sk-gone", models: {} });
-  await deleteAiConnection(database, admin, officeA, gone.id);
+  const a = await createAiConnection(database, oldKey, admin, { name: "Alfa", provider: "openai", apiKey: "sk-alpha-rotation", models: { chat: "m-a", extraction: null, drafting: null } });
+  // A per-office row from before 0022 is no longer read, but its secret still follows the key.
+  const b = randomUUID();
+  await db.prepare(`INSERT INTO ai_connection (id, office_id, name, provider, encrypted_api_key, api_key_hint) VALUES (?, ?, 'Beta', 'google', ?, '••••')`)
+    .run(b, officeA, legacyV1("sk-beta-rotation", oldKey));
+  const gone = await createAiConnection(database, oldKey, admin, { name: "Removida", provider: "anthropic", apiKey: "sk-gone", models: {} });
+  await deleteAiConnection(database, admin, gone.id);
   const keyring = createCredentialKeyring(newKey, [oldKey]);
   assert.equal(await countSecretsNeedingReencryption(database, keyring), 2);
   assert.deepEqual(await reencryptAiConnectionSecrets(database, keyring, admin), { total: 2, reencrypted: 2, keyId: credentialKeyId(newKey) });
   assert.equal(await countSecretsNeedingReencryption(database, keyring), 0);
   assert.equal((await reencryptAiConnectionSecrets(database, keyring, admin)).reencrypted, 0);
-  assert.equal((await resolveOfficeModelConfigFromDatabase(database, newKey, officeA, "chat")).apiKey, "sk-alpha-rotation");
-  assert.equal((await resolveOfficeModelConfigFromDatabase(database, newKey, officeB, "chat")).apiKey, "sk-beta-rotation");
+  assert.equal((await resolveModelConfigFromDatabase(database, newKey, "chat")).apiKey, "sk-alpha-rotation");
+  const legacyRow = await db.prepare("SELECT encrypted_api_key FROM ai_connection WHERE id = ?").get(b) as { encrypted_api_key: string };
+  assert.equal(decryptCredential(legacyRow.encrypted_api_key, newKey), "sk-beta-rotation");
   const audit = JSON.stringify((await db.prepare("SELECT * FROM platform_audit_log WHERE action = 'ai_connection.master_key_reencrypted'").all()));
-  assert.ok(audit.includes(a.id) && audit.includes(b.id));
+  assert.ok(audit.includes(a.id) && audit.includes(b));
   assert.equal(/sk-alpha|sk-beta/.test(audit) || audit.includes(newKey.toString("base64")) || audit.includes(oldKey.toString("base64")), false);
 
   (await db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?").run(encryptCredential("sk-alpha-rotation", randomBytes(32)), a.id));
   const before = (await db.prepare("SELECT encrypted_api_key FROM ai_connection ORDER BY id").all());
   await assert.rejects(() => reencryptAiConnectionSecrets(database, createCredentialKeyring(randomBytes(32), [newKey]), admin), (error) => error instanceof AiConnectionError && error.code === "credential" && !error.message.includes("sk-"));
   assert.deepEqual((await db.prepare("SELECT encrypted_api_key FROM ai_connection ORDER BY id").all()), before);
-  await assert.rejects(() => resolveOfficeModelConfigFromDatabase(database, newKey, officeA, "chat"), (error) => error instanceof AiConnectionError && error.code === "credential");
+  await assert.rejects(() => resolveModelConfigFromDatabase(database, newKey, "chat"), (error) => error instanceof AiConnectionError && error.code === "credential");
 });
 
 test("connection test accepts any enabled connection, hides provider failures and audits without secrets", async () => {
-  const { db, database, admin, officeA, officeB, key } = (await fixture());
-  const chat = await createAiConnection(database, key, admin, officeA, { name: "Conversa", provider: "openai", apiKey: "sk-chat-test-secret", models: { chat: "gpt-chat", extraction: null, drafting: null } });
-  const extraction = await createAiConnection(database, key, admin, officeA, { name: "Extração", provider: "anthropic", apiKey: "sk-extract-test-secret", models: { chat: null, extraction: "claude-extract", drafting: null } });
-  const other = await createAiConnection(database, key, admin, officeB, { name: "Outro", provider: "google", apiKey: "sk-office-b-test", models: { chat: "gem", extraction: null, drafting: null } });
+  const { db, database, admin, officeB, key } = (await fixture());
+  const chat = await createAiConnection(database, key, admin, { name: "Conversa", provider: "openai", apiKey: "sk-chat-test-secret", models: { chat: "gpt-chat", extraction: null, drafting: null } });
+  const extraction = await createAiConnection(database, key, admin, { name: "Extração", provider: "anthropic", apiKey: "sk-extract-test-secret", models: { chat: null, extraction: "claude-extract", drafting: null } });
+  // A per-office row from before 0022 cannot be tested through the platform.
+  const legacy = randomUUID();
+  await db.prepare(`INSERT INTO ai_connection (id, office_id, name, provider, encrypted_api_key, api_key_hint, chat_model) VALUES (?, ?, 'Outro', 'google', ?, '••••', 'gem')`)
+    .run(legacy, officeB, encryptCredential("sk-office-b-test", key));
   const sent: string[] = [];
   const ok = async (config: { apiKey: string; modelId: string }) => { sent.push(`${config.apiKey}:${config.modelId}`); };
-  assert.deepEqual(await testAiConnection(database, key, admin, officeA, extraction.id, undefined, ok), { task: "extraction", modelId: "claude-extract" });
+  assert.deepEqual(await testAiConnection(database, key, admin, extraction.id, undefined, ok), { task: "extraction", modelId: "claude-extract" });
   assert.deepEqual(sent, ["sk-extract-test-secret:claude-extract"]);
   // No chat assignment: the test uses the model Lume would use for this provider.
-  assert.deepEqual(await testAiConnection(database, key, admin, officeA, extraction.id, "chat", ok), { task: "chat", modelId: DEFAULT_CHAT_MODEL.anthropic });
-  await assert.rejects(testAiConnection(database, key, admin, officeA, other.id, undefined, ok), (error) => error instanceof AiConnectionError && error.code === "not_found");
+  assert.deepEqual(await testAiConnection(database, key, admin, extraction.id, "chat", ok), { task: "chat", modelId: DEFAULT_CHAT_MODEL.anthropic });
+  await assert.rejects(testAiConnection(database, key, admin, legacy, undefined, ok), (error) => error instanceof AiConnectionError && error.code === "not_found");
   const leaky = async () => { throw new Error("401 Incorrect API key provided: sk-cha****cret"); };
-  await assert.rejects(testAiConnection(database, key, admin, officeA, chat.id, "chat", leaky), (error) => error instanceof AiConnectionError && error.code === "provider"
+  await assert.rejects(testAiConnection(database, key, admin, chat.id, "chat", leaky), (error) => error instanceof AiConnectionError && error.code === "provider"
     && error.message === "O provider recusou a requisição de teste. Confira a chave e o modelo.");
-  await updateAiConnection(database, key, admin, officeA, chat.id, { enabled: false });
-  await assert.rejects(testAiConnection(database, key, admin, officeA, chat.id, "chat", ok), (error) => error instanceof AiConnectionError && error.code === "disabled");
-  const rows = (await db.prepare("SELECT actor_user_id, office_id, connection_id, details_json FROM platform_audit_log WHERE action = 'ai_connection.tested' ORDER BY created_at,id").all()) as Array<{ actor_user_id: string; office_id: string; connection_id: string; details_json: string }>;
+  await updateAiConnection(database, key, admin, chat.id, { enabled: false });
+  await assert.rejects(testAiConnection(database, key, admin, chat.id, "chat", ok), (error) => error instanceof AiConnectionError && error.code === "disabled");
+  const rows = (await db.prepare("SELECT actor_user_id, office_id, connection_id, details_json FROM platform_audit_log WHERE action = 'ai_connection.tested' ORDER BY created_at,id").all()) as Array<{ actor_user_id: string; office_id: string | null; connection_id: string; details_json: string }>;
   assert.deepEqual(rows.map((row) => [row.actor_user_id, row.office_id, row.connection_id, JSON.parse(row.details_json).task, JSON.parse(row.details_json).result]), [
-    [admin, officeA, extraction.id, "extraction", "ok"], [admin, officeA, extraction.id, "chat", "ok"], [admin, officeA, chat.id, "chat", "failed"],
+    [admin, null, extraction.id, "extraction", "ok"], [admin, null, extraction.id, "chat", "ok"], [admin, null, chat.id, "chat", "failed"],
   ]);
   assert.equal(/sk-|Incorrect/.test(JSON.stringify(rows)), false);
 });
@@ -230,7 +252,7 @@ test("request bodies are size-capped and schema-validated", async () => {
 test("error responses never log or return secret-bearing messages", async (t) => {
   const logged: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
-  const generic = platformErrorResponse(new Error("SQLITE failure near sk-live-leaked-secret"));
+  const generic = platformErrorResponse(new Error("database failure near sk-live-leaked-secret"));
   assert.equal(generic.status, 500);
   assert.equal((await generic.text()).includes("sk-live"), false);
   assert.equal((await platformErrorResponse({ apiKey: "sk-live-object" }).text()).includes("sk-live"), false);
@@ -242,76 +264,69 @@ test("error responses never log or return secret-bearing messages", async (t) =>
   assert.equal(platformErrorResponse(new PlatformRequestError(403, "Acesso restrito.")).status, 403);
 });
 
-test("concurrent resolution per office uses its own credential and never falls back to another office", async () => {
-  const { database, admin, officeA, officeB, key } = (await fixture());
-  await createAiConnection(database, key, admin, officeA, { name: "Alfa", provider: "openai", apiKey: "sk-office-a-only", models: { chat: "gpt-a", extraction: null, drafting: null } });
-  const b = await createAiConnection(database, key, admin, officeB, { name: "Beta", provider: "anthropic", apiKey: "sk-office-b-only", models: { chat: "claude-b", extraction: null, drafting: null } });
-  const resolve = async (officeId: string) => {
+test("concurrent resolution binds the platform credential to the model, and disabling it stops every office", async () => {
+  const { database, admin, key } = (await fixture());
+  const platform = await createAiConnection(database, key, admin, { name: "Plataforma", provider: "anthropic", apiKey: "sk-platform-only", models: { chat: "claude-p", extraction: null, drafting: null } });
+  const resolve = async () => {
     await new Promise((done) => setImmediate(done));
-    const config = await resolveOfficeModelConfigFromDatabase(database, key, officeId, "chat");
+    const config = await resolveModelConfigFromDatabase(database, key, "chat");
     // The router keeps the credential on the resolved model, so serializing it proves which key was bound.
-    const model = await resolveModelConfig(modelFor(config)) as { provider: string; modelId: string; config?: unknown };
+    const model = await resolveMastraModel(modelFor(config)) as { provider: string; modelId: string; config?: unknown };
     return { apiKey: config.apiKey, provider: model.provider, modelId: model.modelId, resolved: JSON.stringify(model.config) };
   };
-  const results = await Promise.all([resolve(officeA), resolve(officeB), resolve(officeA), resolve(officeB)]);
-  for (const [index, result] of results.entries()) {
-    const isA = index % 2 === 0;
-    assert.equal(result.apiKey, isA ? "sk-office-a-only" : "sk-office-b-only");
-    assert.equal(result.modelId, isA ? "gpt-a" : "claude-b");
-    assert.equal(result.provider, isA ? "openai" : "anthropic");
+  for (const result of await Promise.all([resolve(), resolve(), resolve(), resolve()])) {
+    assert.equal(result.apiKey, "sk-platform-only");
+    assert.equal(result.modelId, "claude-p");
+    assert.equal(result.provider, "anthropic");
     assert.ok(result.resolved.includes(result.apiKey));
-    assert.equal(result.resolved.includes(isA ? "sk-office-b-only" : "sk-office-a-only"), false);
   }
-  await updateAiConnection(database, key, admin, officeB, b.id, { enabled: false });
-  const disabled = await Promise.allSettled([resolve(officeA), resolve(officeB)]);
-  assert.ok(disabled[0].status === "fulfilled" && disabled[0].value.apiKey === "sk-office-a-only");
-  assert.ok(disabled[1].status === "rejected" && disabled[1].reason instanceof AiConnectionError && disabled[1].reason.code === "not_found");
-  // Clearing the assignment no longer disables the office: Lume supplies the model for the provider,
-  // and only the credential is the office's to configure.
-  await updateAiConnection(database, key, admin, officeB, b.id, { enabled: true, models: { chat: null, extraction: null, drafting: null } });
-  const cleared = await Promise.allSettled([resolve(officeB), resolve(officeA)]);
-  assert.ok(cleared[0].status === "fulfilled" && cleared[0].value.modelId === DEFAULT_CHAT_MODEL.anthropic);
-  assert.equal(cleared[1].status, "fulfilled");
+  await updateAiConnection(database, key, admin, platform.id, { enabled: false });
+  const disabled = await Promise.allSettled([resolve(), resolve()]);
+  assert.ok(disabled.every((item) => item.status === "rejected" && item.reason instanceof AiConnectionError && item.reason.code === "not_found"));
+  // Clearing the assignment does not disable the Lume: it supplies the model for the provider.
+  await updateAiConnection(database, key, admin, platform.id, { enabled: true, models: { chat: null, extraction: null, drafting: null } });
+  const cleared = await resolve();
+  assert.equal(cleared.modelId, DEFAULT_CHAT_MODEL.anthropic);
 });
 
 test("every supported provider can be stored and resolved with its own credential", async () => {
-  const { database, admin, officeA, key } = (await fixture());
+  const { database, admin, key } = (await fixture());
   for (const provider of AI_PROVIDERS) {
-    const created = await createAiConnection(database, key, admin, officeA, {
+    const created = await createAiConnection(database, key, admin, {
       name: `Conexão ${provider}`, provider, apiKey: `sk-${provider}-live`,
       models: { chat: `${provider}-chat-model`, extraction: null, drafting: null },
     });
     assert.equal(created.provider, provider);
-    const config = await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat");
+    const config = await resolveModelConfigFromDatabase(database, key, "chat");
     assert.deepEqual(modelFor(config), { providerId: provider, modelId: `${provider}-chat-model`, apiKey: `sk-${provider}-live` });
     assert.equal(JSON.stringify(created).includes(`sk-${provider}-live`), false);
-    await updateAiConnection(database, key, admin, officeA, created.id, { models: { chat: null } });
-    await deleteAiConnection(database, admin, officeA, created.id);
+    await updateAiConnection(database, key, admin, created.id, { models: { chat: null } });
+    await deleteAiConnection(database, admin, created.id);
   }
 });
 
 test("dynamic model resolution supports an internally pinned run model", async () => {
-  const { database, admin, officeA, key } = (await fixture());
+  const { database, admin, key } = (await fixture());
   // Admin creates connection with only provider and apiKey, no assigned models
-  await createAiConnection(database, key, admin, officeA, {
+  await createAiConnection(database, key, admin, {
     name: "Inception Principal",
     provider: "inception",
     apiKey: "sk-inception-test-key",
     models: { chat: null, extraction: null, drafting: null },
   });
 
-  // Without a requested model the office still resolves: Lume owns the default for the provider.
-  const fallback = await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat");
+  // Without a requested model the platform still resolves: Lume owns the default for the provider.
+  const fallback = await resolveModelConfigFromDatabase(database, key, "chat");
   assert.equal(fallback.provider, "inception");
   assert.equal(fallback.modelId, DEFAULT_CHAT_MODEL.inception);
 
   // Embedding is stricter: a provider with no embeddings endpoint is not silently substituted.
-  await assert.rejects(() => resolveOfficeModelConfigFromDatabase(database, key, officeA, "embedding"),
+  await assert.rejects(() => resolveModelConfigFromDatabase(database, key, "embedding"),
     (err) => err instanceof AiConnectionError && err.code === "not_found"
   );
 
   // Queued runs can pin the model chosen by the administrator when the run was created.
-  const resolved = await resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat", {
+  const resolved = await resolveModelConfigFromDatabase(database, key, "chat", {
     provider: "inception",
     modelId: "mercury-2.5",
   });
@@ -320,7 +335,7 @@ test("dynamic model resolution supports an internally pinned run model", async (
   assert.equal(resolved.apiKey, "sk-inception-test-key");
 
   // Calling with unconfigured provider throws not_found
-  await assert.rejects(() => resolveOfficeModelConfigFromDatabase(database, key, officeA, "chat", {
+  await assert.rejects(() => resolveModelConfigFromDatabase(database, key, "chat", {
       provider: "openai",
       modelId: "gpt-4o",
     }),

@@ -10,10 +10,10 @@ const platformAdminFor = cache((userId: string) => isPlatformAdmin(database, use
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { office, user } = await requireWorkspace();
   return (
-    <div className="app-shell flex min-h-dvh flex-col bg-background md:flex-row md:bg-canvas">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:border focus:bg-background focus:px-3 focus:py-2">Ir para o conteúdo</a>
+    <div className="app-shell flex min-h-dvh flex-col bg-background md:flex-row">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:border focus:border-line focus:bg-background focus:px-3 focus:py-2">Ir para o conteúdo</a>
       <AppSidebar officeName={office.officeName} platformAdmin={await platformAdminFor(user.id)} />
-      <main id="main-content" tabIndex={-1} className="focus:outline-none flex min-h-0 min-w-0 flex-1 flex-col bg-background pb-dock md:my-2 md:mr-2 md:min-h-[calc(100dvh-1rem)] md:rounded-2xl md:border md:pb-0">
+      <main id="main-content" tabIndex={-1} className="focus:outline-none flex min-h-0 min-w-0 flex-1 flex-col bg-background pb-dock md:min-h-dvh md:pb-0">
         <WebMCPProvider role={(office).role}>
           {children}
         </WebMCPProvider>

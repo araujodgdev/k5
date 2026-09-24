@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import { ownedRun, publicRun, type RunRow } from '@/lib/ai-store';
 import { runInputSchema, validateRunSources } from '@/lib/document-workflows';
-import { resolveOfficeModelConfig } from '@/lib/ai-connections';
+import { resolveModelConfig } from '@/lib/ai-connections';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import { resolveDocumentTemplateId } from '@/lib/agent-profile';
@@ -65,7 +65,7 @@ export async function startRun(context: WorkspaceContext, raw: StartRunInput) {
   const running = Number(await (await database.prepare("SELECT count(*) AS n FROM ai_run WHERE office_id=? AND status IN ('queued','running')").get(context.officeId))?.n);
   if (running >= 5) throw new CapabilityError('RATE_LIMITED', 'Seu escritório já tem cinco tarefas em andamento.');
   // Fail here, not three minutes into the worker: the credential has to resolve before queueing.
-  const model = await resolveOfficeModelConfig(context.officeId, input.kind === 'chronology' ? 'extraction' : 'drafting');
+  const model = await resolveModelConfig(input.kind === 'chronology' ? 'extraction' : 'drafting');
   let selection;
   try { selection = await validateRunSources(context, input); }
   catch (error) { throw new CapabilityError('SCOPE_REQUIRED', error instanceof Error ? error.message : 'Confira os documentos selecionados.'); }

@@ -38,8 +38,13 @@ export const connectionPatchSchema = z.strictObject({
 });
 export const connectionTestSchema = z.strictObject({ task: z.enum(AI_TASKS).optional() });
 
+/**
+ * Lume's AI connections belong to the platform: one set of providers and task models serves every
+ * office (migration 0022). A platform connection is a row with no office; rows that still carry an
+ * office are the per-office configuration from before, kept on record and never read.
+ */
 type Row = {
-  id: string; office_id: string; name: string; provider: AiProvider; encrypted_api_key: string | null; api_key_hint: string;
+  id: string; office_id: string | null; name: string; provider: AiProvider; encrypted_api_key: string | null; api_key_hint: string;
   chat_model: string | null; extraction_model: string | null; drafting_model: string | null; embedding_model: string | null; enabled: number;
   created_at: string; updated_at: string; deleted_at: string | null;
 };
@@ -72,7 +77,7 @@ function cleanModels(models: Partial<Record<AiTask, unknown>> | undefined): Reco
 
 function toView(row: Row) {
   return {
-    id: row.id, officeId: row.office_id, name: row.name, provider: row.provider, keyHint: row.api_key_hint,
+    id: row.id, name: row.name, provider: row.provider, keyHint: row.api_key_hint,
     models: { chat: row.chat_model, extraction: row.extraction_model, drafting: row.drafting_model, embedding: row.embedding_model },
     enabled: Boolean(row.enabled), createdAt: row.created_at, updatedAt: row.updated_at,
   };
@@ -90,36 +95,30 @@ function auditStatement(db: Database, actorUserId: string, officeId: string | nu
 }
 
 /**
- * Clears each task assignment from every other connection of the office.
+ * Clears each task assignment from every other platform connection.
  *
  * Returns bound statements rather than running them, so the exclusivity, the write it protects
- * and the audit row all land in one batch: between them, an office would otherwise have two
- * connections claiming the same task, and whichever one a request read first would win.
+ * and the audit row all land in one batch: between them, two connections would otherwise claim
+ * the same task, and whichever one a request read first would win.
  */
-function releaseTaskAssignments(db: Database, officeId: string, connectionId: string, models: Record<AiTask, string | null>) {
+function releaseTaskAssignments(db: Database, connectionId: string, models: Record<AiTask, string | null>) {
   return AI_TASKS.filter((task) => models[task]).map((task) =>
-    db.prepare(`UPDATE ai_connection SET ${task}_model = NULL, updated_at = CURRENT_TIMESTAMP WHERE office_id = ? AND id <> ? AND deleted_at IS NULL AND ${task}_model IS NOT NULL`)
-      .bind(officeId, connectionId));
+    db.prepare(`UPDATE ai_connection SET ${task}_model = NULL, updated_at = CURRENT_TIMESTAMP WHERE office_id IS NULL AND id <> ? AND deleted_at IS NULL AND ${task}_model IS NOT NULL`)
+      .bind(connectionId));
 }
 
+/** The offices on the platform, with how many people each one has. */
 export async function listOfficesForPlatform(db: Database) {
-  return await db.prepare(`SELECT o.id, o.name, o.created_at AS createdAt,
-    count(c.id) AS connectionCount,
-    sum(CASE WHEN c.enabled = 1 AND c.deleted_at IS NULL THEN 1 ELSE 0 END) AS enabledConnectionCount
-    FROM office o LEFT JOIN ai_connection c ON c.office_id = o.id AND c.deleted_at IS NULL
-    GROUP BY o.id ORDER BY lower(o.name)`).all() as Array<{ id: string; name: string; createdAt: string; connectionCount: number; enabledConnectionCount: number }>;
+  return await db.prepare(`SELECT o.id, o.name, o.created_at AS createdAt, count(m.id) AS memberCount
+    FROM office o LEFT JOIN office_member m ON m.office_id = o.id
+    GROUP BY o.id ORDER BY lower(o.name)`).all() as Array<{ id: string; name: string; createdAt: string; memberCount: number }>;
 }
 
-export async function getOfficeForPlatform(db: Database, officeId: string) {
-  return await db.prepare("SELECT id, name, created_at AS createdAt FROM office WHERE id = ?").get(officeId) as { id: string; name: string; createdAt: string } | undefined;
+export async function listAiConnections(db: Database): Promise<AiConnectionView[]> {
+  return (await db.prepare("SELECT * FROM ai_connection WHERE office_id IS NULL AND deleted_at IS NULL ORDER BY lower(name)").all() as Row[]).map(toView);
 }
 
-export async function listAiConnections(db: Database, officeId: string): Promise<AiConnectionView[]> {
-  return (await db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND deleted_at IS NULL ORDER BY lower(name)").all(officeId) as Row[]).map(toView);
-}
-
-export async function createAiConnection(db: Database, key: MasterKey, actorUserId: string, officeId: string, input: Omit<ConnectionInput, "models"> & { models?: ConnectionPatch["models"] }): Promise<AiConnectionView> {
-  if (!await getOfficeForPlatform(db, officeId)) throw new AiConnectionError("not_found", "Escritório não encontrado.");
+export async function createAiConnection(db: Database, key: MasterKey, actorUserId: string, input: Omit<ConnectionInput, "models"> & { models?: ConnectionPatch["models"] }): Promise<AiConnectionView> {
   const id = randomUUID();
   const name = validateName(input.name);
   const provider = validateProvider(input.provider);
@@ -128,22 +127,22 @@ export async function createAiConnection(db: Database, key: MasterKey, actorUser
   if (!apiKey) throw new AiConnectionError("invalid", "Informe a chave do provider.");
   try {
     await db.batch([
-      ...releaseTaskAssignments(db, officeId, id, models),
+      ...releaseTaskAssignments(db, id, models),
       db.prepare(`INSERT INTO ai_connection
         (id, office_id, name, provider, encrypted_api_key, api_key_hint, chat_model, extraction_model, drafting_model, embedding_model, enabled)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(id, officeId, name, provider, encryptCredential(apiKey, key), credentialHint(apiKey), models.chat, models.extraction, models.drafting, models.embedding, input.enabled === false ? 0 : 1),
-      auditStatement(db, actorUserId, officeId, id, "ai_connection.created", { name, provider, enabled: input.enabled !== false, models }),
+        VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(id, name, provider, encryptCredential(apiKey, key), credentialHint(apiKey), models.chat, models.extraction, models.drafting, models.embedding, input.enabled === false ? 0 : 1),
+      auditStatement(db, actorUserId, null, id, "ai_connection.created", { name, provider, enabled: input.enabled !== false, models }),
     ]);
   } catch (error) {
-    if ((error as { code?: string })?.code === '23505') throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome neste escritório.");
+    if ((error as { code?: string })?.code === '23505') throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome.");
     throw error;
   }
-  return (await listAiConnections(db, officeId)).find((item) => item.id === id)!;
+  return (await listAiConnections(db)).find((item) => item.id === id)!;
 }
 
-export async function updateAiConnection(db: Database, key: MasterKey, actorUserId: string, officeId: string, connectionId: string, patch: ConnectionPatch): Promise<AiConnectionView> {
-  const current = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
+export async function updateAiConnection(db: Database, key: MasterKey, actorUserId: string, connectionId: string, patch: ConnectionPatch): Promise<AiConnectionView> {
+  const current = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id IS NULL AND deleted_at IS NULL").get(connectionId) as Row | undefined;
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   const name = patch.name === undefined ? current.name : validateName(patch.name);
   const provider = patch.provider === undefined ? current.provider : validateProvider(patch.provider);
@@ -156,28 +155,28 @@ export async function updateAiConnection(db: Database, key: MasterKey, actorUser
   const enabled = patch.enabled === undefined ? current.enabled : patch.enabled ? 1 : 0;
   try {
     await db.batch([
-      ...releaseTaskAssignments(db, officeId, connectionId, models),
-      db.prepare(`UPDATE ai_connection SET name = ?, provider = ?, encrypted_api_key = ?, api_key_hint = ?, chat_model = ?, extraction_model = ?, drafting_model = ?, embedding_model = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?`)
-        .bind(name, provider, encrypted, hint, models.chat, models.extraction, models.drafting, models.embedding, enabled, connectionId, officeId),
-      auditStatement(db, actorUserId, officeId, connectionId, apiKey ? "ai_connection.key_rotated" : "ai_connection.updated", { name, provider, enabled: Boolean(enabled), models }),
+      ...releaseTaskAssignments(db, connectionId, models),
+      db.prepare(`UPDATE ai_connection SET name = ?, provider = ?, encrypted_api_key = ?, api_key_hint = ?, chat_model = ?, extraction_model = ?, drafting_model = ?, embedding_model = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id IS NULL`)
+        .bind(name, provider, encrypted, hint, models.chat, models.extraction, models.drafting, models.embedding, enabled, connectionId),
+      auditStatement(db, actorUserId, null, connectionId, apiKey ? "ai_connection.key_rotated" : "ai_connection.updated", { name, provider, enabled: Boolean(enabled), models }),
     ]);
   } catch (error) {
-    if ((error as { code?: string })?.code === '23505') throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome neste escritório.");
+    if ((error as { code?: string })?.code === '23505') throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome.");
     throw error;
   }
-  return (await listAiConnections(db, officeId)).find((item) => item.id === connectionId)!;
+  return (await listAiConnections(db)).find((item) => item.id === connectionId)!;
 }
 
-export async function deleteAiConnection(db: Database, actorUserId: string, officeId: string, connectionId: string): Promise<void> {
-  const current = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
+export async function deleteAiConnection(db: Database, actorUserId: string, connectionId: string): Promise<void> {
+  const current = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id IS NULL AND deleted_at IS NULL").get(connectionId) as Row | undefined;
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   if (current.chat_model || current.extraction_model || current.drafting_model || current.embedding_model) throw new AiConnectionError("in_use", "Remova as atribuições de modelos antes de excluir a conexão.");
   // The secret is erased and the deletion is recorded together: a connection whose key is gone
   // with no audit row is a deletion nobody can account for.
   await db.batch([
-    db.prepare("UPDATE ai_connection SET encrypted_api_key = NULL, enabled = 0, deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?")
-      .bind(connectionId, officeId),
-    auditStatement(db, actorUserId, officeId, connectionId, "ai_connection.deleted", { name: current.name, provider: current.provider }),
+    db.prepare("UPDATE ai_connection SET encrypted_api_key = NULL, enabled = 0, deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id IS NULL")
+      .bind(connectionId),
+    auditStatement(db, actorUserId, null, connectionId, "ai_connection.deleted", { name: current.name, provider: current.provider }),
   ]);
 }
 
@@ -188,10 +187,10 @@ function readSecret(payload: string, key: MasterKey) {
   }
 }
 
-export async function resolveOfficeModelConfigFromDatabase(
+/** The platform connection and model that serve a task, for every office. */
+export async function resolveModelConfigFromDatabase(
   db: Database,
   key: MasterKey,
-  officeId: string,
   task: AiTask,
   requestedModel?: { provider?: string; modelId?: string }
 ) {
@@ -199,10 +198,10 @@ export async function resolveOfficeModelConfigFromDatabase(
 
   if (requestedModel?.provider && requestedModel?.modelId) {
     const row = await db.prepare(
-      "SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL AND provider = ? ORDER BY updated_at DESC, id LIMIT 1"
-    ).get(officeId, requestedModel.provider) as Row | undefined;
+      "SELECT * FROM ai_connection WHERE office_id IS NULL AND enabled = 1 AND deleted_at IS NULL AND provider = ? ORDER BY updated_at DESC, id LIMIT 1"
+    ).get(requestedModel.provider) as Row | undefined;
     if (!row || !row.encrypted_api_key) {
-      throw new AiConnectionError("not_found", `Nenhum provedor ${requestedModel.provider} ativo configurado no escritório.`);
+      throw new AiConnectionError("not_found", `Nenhum provedor ${requestedModel.provider} ativo configurado na plataforma.`);
     }
     return {
       provider: row.provider,
@@ -213,16 +212,16 @@ export async function resolveOfficeModelConfigFromDatabase(
   }
 
   const column = `${task}_model`;
-  const assigned = await db.prepare(`SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL AND ${column} IS NOT NULL ORDER BY updated_at DESC, id LIMIT 1`).get(officeId) as Row | undefined;
+  const assigned = await db.prepare(`SELECT * FROM ai_connection WHERE office_id IS NULL AND enabled = 1 AND deleted_at IS NULL AND ${column} IS NOT NULL ORDER BY updated_at DESC, id LIMIT 1`).get() as Row | undefined;
   if (assigned?.encrypted_api_key) {
     return { provider: assigned.provider, modelId: assigned[column as keyof Row] as string, apiKey: readSecret(assigned.encrypted_api_key, key), connectionId: assigned.id };
   }
 
   // Until the administrator assigns a model, Lume uses the provider fallback. Embedding is the
   // stricter case — only providers with an embeddings endpoint qualify, so
-  // an office whose single connection is Anthropic gets a clear "not configured" instead of a
+  // a platform whose single connection is Anthropic gets a clear "not configured" instead of a
   // request the provider cannot answer.
-  const candidates = await db.prepare("SELECT * FROM ai_connection WHERE office_id = ? AND enabled = 1 AND deleted_at IS NULL ORDER BY updated_at DESC, id").all(officeId) as Row[];
+  const candidates = await db.prepare("SELECT * FROM ai_connection WHERE office_id IS NULL AND enabled = 1 AND deleted_at IS NULL ORDER BY updated_at DESC, id").all() as Row[];
   for (const row of candidates) {
     if (!row.encrypted_api_key) continue;
     const modelId = task === "embedding" ? defaultEmbeddingModel(row.provider) : defaultChatModel(row.provider);
@@ -230,8 +229,8 @@ export async function resolveOfficeModelConfigFromDatabase(
     return { provider: row.provider, modelId, apiKey: readSecret(row.encrypted_api_key, key), connectionId: row.id };
   }
   throw new AiConnectionError("not_found", task === "embedding"
-    ? "Nenhuma conexão ativa oferece embeddings neste escritório."
-    : "Nenhuma conexão de IA ativa neste escritório.");
+    ? "Nenhuma conexão ativa da plataforma oferece embeddings."
+    : "Nenhuma conexão de IA ativa na plataforma.");
 }
 
 export type ResolvedModelConfig = {
@@ -241,12 +240,12 @@ export type ResolvedModelConfig = {
   connectionId: string;
 };
 
-// Tests any enabled connection of the office with its own model, independent of which connection currently serves the task.
+// Tests any enabled platform connection with its own model, independent of which connection currently serves the task.
 export async function testAiConnection(
-  db: Database, key: MasterKey, actorUserId: string, officeId: string, connectionId: string, requestedTask: AiTask | undefined,
+  db: Database, key: MasterKey, actorUserId: string, connectionId: string, requestedTask: AiTask | undefined,
   send: (config: ResolvedModelConfig) => Promise<unknown>,
 ) {
-  const row = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id = ? AND deleted_at IS NULL").get(connectionId, officeId) as Row | undefined;
+  const row = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id IS NULL AND deleted_at IS NULL").get(connectionId) as Row | undefined;
   if (!row || !row.encrypted_api_key) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   if (!row.enabled) throw new AiConnectionError("disabled", "Ative a conexão antes de testar.");
   const task = requestedTask ?? AI_TASKS.find((item) => row[`${item}_model`]) ?? "chat";
@@ -256,15 +255,15 @@ export async function testAiConnection(
   const details = { task, provider: row.provider, modelId };
   let config: ResolvedModelConfig;
   try { config = { provider: row.provider, modelId, apiKey: readSecret(row.encrypted_api_key, key), connectionId: row.id }; } catch (error) {
-    await audit(db, actorUserId, officeId, connectionId, "ai_connection.tested", { ...details, result: "failed", reason: "credential" });
+    await audit(db, actorUserId, null, connectionId, "ai_connection.tested", { ...details, result: "failed", reason: "credential" });
     throw error;
   }
   try { await send(config); } catch {
     // Provider errors may echo request data or masked keys: never propagate or log their text.
-    await audit(db, actorUserId, officeId, connectionId, "ai_connection.tested", { ...details, result: "failed", reason: "provider" });
+    await audit(db, actorUserId, null, connectionId, "ai_connection.tested", { ...details, result: "failed", reason: "provider" });
     throw new AiConnectionError("provider", "O provider recusou a requisição de teste. Confira a chave e o modelo.");
   }
-  await audit(db, actorUserId, officeId, connectionId, "ai_connection.tested", { ...details, result: "ok" });
+  await audit(db, actorUserId, null, connectionId, "ai_connection.tested", { ...details, result: "ok" });
   return { task, modelId };
 }
 

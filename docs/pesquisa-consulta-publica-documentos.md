@@ -45,7 +45,7 @@ Inspeção local do projeto, fornecida pela análise principal:
 - [Contrato judicial](../apps/web/src/lib/judicial/contracts.ts): `NormalizedDocument` representa metadados/URL, `fetchDocument` é opcional e não existe `listDocuments`.
 - [Registro de conectores](../apps/web/src/lib/judicial/connectors/index.ts) contém apenas DJEN; o [coletor](../apps/web/src/lib/judicial/jobs/collector.ts) aceita apenas `listChanges`.
 - [Transporte](../apps/web/src/lib/judicial/connectors/transport.ts) retorna corpo textual. SOAP exige interpretar XML e decodificar o conteúdo conforme a resposta real; downloads HTTP diretos de PDF precisam preservar bytes, sem convertê-los em UTF-8.
-- A [migração judicial](../apps/web/db/migrations/0011_judicial.sql) já prevê `judicial_document`, origem, hash, armazenamento, vínculo com o Cofre, autor/data da importação e isolamento por escritório.
+- A [migração judicial](../apps/web/db/postgres/0001_initial.sql) já prevê `judicial_document`, origem, hash, armazenamento, vínculo com o Cofre, autor/data da importação e isolamento por escritório.
 
 Fluxo proposto: número CNJ → selecionar fonte e processo → listar documentos públicos disponíveis → selecionar peças → importar ao Cofre com origem. A implementação deve reaproveitar a ingestão e o versionamento existentes do Cofre e tratar documento indisponível/restrito como resultado explícito.
 

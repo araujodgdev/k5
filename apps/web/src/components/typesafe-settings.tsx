@@ -24,7 +24,7 @@ export function TypesafeSettings({ initial }: { initial: ConnectionView }) {
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível salvar.'); }
     finally { setBusy(false); }
   }
-  return <section className="mt-6" aria-label="Configuração do TypeSafe">
+  return <section className="mt-1" aria-label="Configuração do TypeSafe">
     <p className="max-w-3xl text-sm text-muted-foreground">Uma única conexão atende todos os escritórios: relevância de fontes, verificação documental, sugestões de agenda, comparação de julgados e triagem de feedback. O custo é da plataforma.</p>
     <form className="mt-5 grid gap-4" onSubmit={event => { event.preventDefault(); void submit('PUT'); }}>
       <fieldset disabled={busy} className="grid gap-4">

@@ -254,7 +254,7 @@ test("vectorize: a scope wider than one filter batch is queried whole, not trunc
   }
 });
 
-test("vectorize: an explicit backend never silently falls back to SQLite", async () => {
+test("vectorize: an explicit backend never silently falls back to another index", async () => {
   const previous = { ...process.env };
   process.env.VECTOR_INDEX_BACKEND = "vectorize";
   delete process.env.CF_ACCOUNT_ID;

@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef, useEffect, useRef, useState, type ClipboardEvent, type FormEvent } from 'react';
-import { ArrowLeft, Bug, CircleAlert, ImagePlus, LoaderCircle, X } from 'lucide-react';
+import { ArrowLeft, Bug, CircleAlert, CircleHelp, ImagePlus, Lightbulb, LoaderCircle, ShieldCheck, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 import { Label } from './ui/label';
@@ -13,7 +13,12 @@ import {
 } from '@/lib/feedback-tickets-contract';
 
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-const selectStyle = 'h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9';
+/** Each kind the person can pick: its tile, the question the text answers, and the action's name. */
+const kindChoices: Record<ReportKind, { Icon: typeof Bug; label: string; question: string; action: string }> = {
+  problem: { Icon: Bug, label: 'Algo quebrou', question: 'O que você esperava que acontecesse, e o que aconteceu?', action: 'Reportar problema' },
+  suggestion: { Icon: Lightbulb, label: 'Tenho uma ideia', question: 'O que você gostaria de fazer, e como isso ajudaria?', action: 'Enviar ideia' },
+  question: { Icon: CircleHelp, label: 'Não entendi algo', question: 'O que você tentou entender, e onde ficou confuso?', action: 'Enviar dúvida' },
+};
 type View = 'form' | 'history';
 
 /** The bug icon beside Instalar; it only asks the shell to open the one feedback dialog. */
@@ -96,59 +101,81 @@ export function FeedbackDialog({ open, onOpenChange, initialView = 'form', pathn
   }
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-h-[calc(100dvh-2rem)] gap-5 overflow-y-auto p-5 sm:max-w-lg"
+    {/* A panel beside the menu, over a softly blurred page: feedback without leaving the screen. */}
+    <DialogContent overlayClassName="bg-overlay/20 backdrop-blur-[6px]"
+      className="feedback-panel top-auto right-2 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+.5rem)] left-2 max-h-[calc(100dvh-6rem)] w-auto max-w-none translate-x-0 translate-y-0 gap-5 overflow-y-auto p-5 sm:max-w-none md:right-auto md:max-h-[calc(100dvh-1.5rem)] md:w-[23rem] data-open:slide-in-from-bottom-3 data-open:zoom-in-100 data-closed:zoom-out-100"
       onCloseAutoFocus={event => { event.preventDefault(); onCloseFocus(); }}>
       {view === 'form' ? <>
         <div className="grid gap-1 pr-8">
           <DialogTitle className="font-sans text-base font-medium">Enviar feedback</DialogTitle>
-          <DialogDescription className="text-muted-foreground">Conte um problema que encontrou ou uma melhoria que faria diferença.</DialogDescription>
+          <DialogDescription className="text-muted-foreground">Conte sem sair do que estava fazendo.</DialogDescription>
         </div>
         {sent !== null ? <div className="grid gap-5">
           <p role="status" className="text-sm leading-6">Recebemos o relato #{sent}. Você será avisado quando ele for resolvido.</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="ghost" size="lg" className="md:h-9" onClick={showHistory}>Ver seus relatos</Button>
-            <Button type="button" variant="outline" size="lg" className="ml-auto md:h-9" onClick={() => setSent(null)}>Enviar outro</Button>
-            <Button type="button" size="lg" className="md:h-9" onClick={() => onOpenChange(false)}>Fechar</Button>
+          <div className="grid gap-2">
+            <Button type="button" size="lg" className="h-11 w-full" onClick={() => onOpenChange(false)}>Fechar</Button>
+            <div className="flex items-center justify-between">
+              <Button type="button" variant="ghost" size="lg" className="-ml-2 md:h-9" onClick={showHistory}>Ver seus relatos</Button>
+              <Button type="button" variant="ghost" size="lg" className="-mr-2 md:h-9" onClick={() => setSent(null)}>Enviar outro</Button>
+            </div>
           </div>
         </div> : <form onSubmit={submit} className="grid gap-4">
           <fieldset className="grid gap-1.5">
-            <legend className="mb-1.5 text-sm font-medium">Tipo</legend>
-            <div className="grid grid-cols-2 gap-1 rounded-md border border-input p-1">
-              {reportKinds.map(value => <label key={value} className={cn('flex min-h-10 cursor-pointer items-center justify-center rounded-sm text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring md:min-h-8',
-                kind === value ? 'bg-accent font-medium text-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                <input type="radio" name="feedback-kind" value={value} checked={kind === value} onChange={() => setKind(value)} className="sr-only" disabled={busy} />
-                {reportKindLabels[value]}
-              </label>)}
+            <legend className="sr-only">Tipo de relato</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {reportKinds.map(value => {
+                const { Icon, label } = kindChoices[value];
+                return <label key={value} className={cn('flex min-h-[4.5rem] cursor-pointer flex-col items-center justify-center gap-1.5 border px-1.5 py-2 text-center text-[13px] leading-tight transition-colors duration-300 ease-(--ease) has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                  kind === value ? 'border-foreground bg-foreground font-medium text-background' : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground')}>
+                  <input type="radio" name="feedback-kind" value={value} checked={kind === value} onChange={() => setKind(value)} className="sr-only" disabled={busy} />
+                  <Icon className="size-4" aria-hidden="true" />{label}
+                </label>;
+              })}
             </div>
           </fieldset>
           <div className="grid gap-1.5">
-            <Label htmlFor="feedback-module">Onde</Label>
-            <select id="feedback-module" value={module} onChange={event => setModule(event.target.value as TicketModule)} className={selectStyle} disabled={busy}>
-              {reportModules.map(value => <option key={value} value={value}>{reportModuleLabels[value]}</option>)}
-            </select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="feedback-message">{kind === 'problem' ? 'O que aconteceu?' : 'O que poderia melhorar?'}</Label>
+            <Label htmlFor="feedback-message" className="sr-only">{kindChoices[kind].question}</Label>
             <Textarea id="feedback-message" value={message} onChange={event => setMessage(event.target.value)} onPaste={paste} required minLength={3}
-              maxLength={MAX_FEEDBACK_MESSAGE} rows={5} disabled={busy} aria-describedby="feedback-privacy"
-              placeholder={kind === 'problem' ? 'O que você fez, o que esperava e o que apareceu.' : 'O que você gostaria de fazer e como isso ajudaria.'} />
-            <p id="feedback-privacy" className="text-xs text-muted-foreground">Não inclua dados de clientes, como nomes, CPF ou números de processo.</p>
+              maxLength={MAX_FEEDBACK_MESSAGE} rows={4} disabled={busy} aria-describedby="feedback-privacy"
+              placeholder={kindChoices[kind].question} className="min-h-28" />
           </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <div className="flex gap-3 border border-border p-3">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <div className="grid min-w-0 gap-1 text-[13px] leading-snug">
+              <p className="font-medium">
+                Enviado a partir de{' '}
+                <label htmlFor="feedback-module" className="sr-only">Onde aconteceu</label>
+                <select id="feedback-module" value={module} onChange={event => setModule(event.target.value as TicketModule)} disabled={busy}
+                  className="max-w-full cursor-pointer border-b border-foreground/40 bg-transparent font-medium outline-none hover:border-foreground focus-visible:border-brand">
+                  {reportModules.map(value => <option key={value} value={value}>{reportModuleLabels[value]}</option>)}
+                </select>
+              </p>
+              <p id="feedback-privacy" className="text-muted-foreground">Só a tela vai junto. Não inclua dados de clientes, como nomes, CPF ou números de processo.</p>
+            </div>
+          </div>
+          <div className="flex min-w-0 items-center gap-3 border border-border p-3">
             <input ref={fileInput} id="feedback-image" type="file" accept={FEEDBACK_IMAGE_TYPES.join(',')} className="sr-only" tabIndex={-1}
               onChange={event => attach(event.target.files?.[0])} disabled={busy} />
-            {image ? <div className="flex min-w-0 items-center gap-3">
+            {image ? <>
               {/* eslint-disable-next-line @next/next/no-img-element -- local preview of the chosen file */}
-              <img src={image.preview} alt="" className="size-12 shrink-0 rounded-md border object-cover" />
-              <span className="min-w-0 truncate text-sm">{image.file.name || 'Imagem colada'}</span>
-              <Button type="button" variant="ghost" size="icon" aria-label="Remover imagem" onClick={clearImage} disabled={busy}><X className="size-4" /></Button>
-            </div> : <Button type="button" variant="outline" size="lg" className="md:h-9" onClick={() => fileInput.current?.click()} disabled={busy}>
-              <ImagePlus className="size-4" aria-hidden="true" />Anexar imagem</Button>}
+              <img src={image.preview} alt="" className="size-10 shrink-0 border object-cover" />
+              <span className="min-w-0 flex-1 truncate text-[13px]">{image.file.name || 'Imagem colada'}</span>
+              <Button type="button" variant="ghost" size="icon" aria-label="Remover captura de tela" onClick={clearImage} disabled={busy}><X className="size-4" /></Button>
+            </> : <>
+              <div className="grid min-w-0 flex-1 gap-0.5 text-[13px] leading-snug">
+                <p className="font-medium">Incluir captura de tela</p>
+                <p className="text-muted-foreground">Cole com Ctrl+V no texto ou escolha uma imagem.</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" className="h-9 shrink-0 md:h-8" onClick={() => fileInput.current?.click()} disabled={busy}>
+                <ImagePlus aria-hidden="true" />Escolher</Button>
+            </>}
           </div>
           {error && <p role="alert" className="flex items-start gap-2 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
-          <div className="flex flex-wrap items-center gap-2 border-t pt-4">
-            <Button type="button" variant="ghost" size="lg" className="-ml-2 md:h-9" onClick={showHistory}>Seus relatos</Button>
-            <Button type="submit" size="lg" className="ml-auto md:h-9" disabled={busy || message.trim().length < 3}>{busy ? 'Enviando…' : 'Enviar'}</Button>
+          <div className="grid gap-1">
+            <Button type="submit" size="lg" className="h-11 w-full" disabled={busy || message.trim().length < 3}>
+              {busy ? <><LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />Enviando…</> : kindChoices[kind].action}
+            </Button>
+            <Button type="button" variant="ghost" size="lg" className="mx-auto md:h-9" onClick={showHistory}>Ver seus relatos</Button>
           </div>
         </form>}
       </> : <>

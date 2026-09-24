@@ -25,6 +25,12 @@ O OCR nativo usa somente a versão de PDF.js instalada em `pdfjs-dist`. `unpdf` 
 
 Workers Paid e PlanetScale são cobranças separadas. Containers geram consumo enquanto executam; a suspensão e o limite de instâncias reduzem uso ocioso, mas não constituem teto financeiro.
 
+## Notas de configuração
+
+`"type": "module"` em `apps/web/package.json` é exigência do Vite. Sob ESM, o Node 26 quebra ao traduzir algumas dependências CommonJS (`ERR_INTERNAL_ASSERTION` em `loadCJSModuleWithModuleLoad`). Como o formato de módulo é decidido pelo `package.json` mais próximo, [`tests/package.json`](../apps/web/tests/package.json) marca a pasta de testes como `commonjs`.
+
+`empty-stub.js` substitui `@napi-rs/canvas` no bundle do Worker. Ele lança em vez de devolver um canvas vazio: uma página em branco vinda de rasterização silenciosa pareceria uma página sem texto.
+
 ## Corte realizado em 22/09/2026
 
 - Importação final: 85 tabelas lógicas e 162 linhas, com contagens, checksums e relações conferidos. A origem D1 foi preservada e não está vinculada aos Workers atuais. Novas escritas já estão no PostgreSQL; uma reversão exige reconciliação.

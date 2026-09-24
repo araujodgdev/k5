@@ -1,12 +1,12 @@
 import "server-only";
 import { database } from "./database";
-import { resolveOfficeModelConfigFromDatabase, type AiTask } from "./ai-connections-core";
+import { resolveModelConfigFromDatabase, type AiTask } from "./ai-connections-core";
 import { parseCredentialKeyring } from "./platform-crypto";
 
-export function resolveOfficeModelConfig(
-  officeId: string,
+/** The model that serves a task. The configuration is the platform's, the same for every office. */
+export function resolveModelConfig(
   task: AiTask,
   requestedModel?: { provider?: string; modelId?: string }
 ) {
-  return resolveOfficeModelConfigFromDatabase(database, parseCredentialKeyring(), officeId, task, requestedModel);
+  return resolveModelConfigFromDatabase(database, parseCredentialKeyring(), task, requestedModel);
 }

@@ -5,131 +5,135 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
-   Lume theme. The shadcn tokens carry the Lume palette, so every ui/* component
-   inherits it. Rules and rationale live in apps/web/DESIGN.md.
+   Lume theme. Ink, paper and one grey panel, set on a grid of hard lines; the
+   earthy orange arrives on hover and marks the Lume's own work. The shadcn tokens
+   carry the palette, so every ui/* component inherits it. Rules: apps/web/DESIGN.md.
    --------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
 
-  /* Surfaces: one warm neutral ramp, no tinted or pastel fills. */
+  /* Surfaces: paper, ink and one flat grey panel. No tints, no gradients. */
   --background: #ffffff;
-  --foreground: #1b1b1a;
-  --canvas: #fafaf9;          /* sidebar and auth background */
+  --foreground: #232323;
+  --canvas: #ffffff;          /* sidebar and auth background: the same paper, split by lines */
+  --panel: #d9d9d9;           /* the flat grey block of the grid */
+  --panel-foreground: #232323;
   --card: #ffffff;
-  --card-foreground: #1b1b1a;
+  --card-foreground: #232323;
   --popover: #ffffff;
-  --popover-foreground: #1b1b1a;
+  --popover-foreground: #232323;
 
-  /* Primary is ink. Brand is the earthy orange of the Lume: focus, selection, the active
-     place and the agent's own marks. Brand-ink is the same hue dark enough for text (5.2:1). */
+  /* Brand is the earthy orange: hover fills, focus, the Lume's own marks.
+     Ink text sits on it (5.4:1); brand-ink is the hue dark enough for text on paper. */
   --brand: #d97757;
+  --brand-foreground: #232323;
   --brand-ink: #b0502f;
-  --brand-soft: color-mix(in oklab, #d97757 11%, #ffffff);
+  --brand-soft: color-mix(in oklab, #d97757 14%, #ffffff);
   /* One quiet hue per module, used on its icon and on 2px markers, never as a fill. */
   --module-lume: #d97757;
   --module-vault: #4f6d8f;
   --module-agenda: #b08a2e;
   --module-research: #5f7f5a;
   --schedule: #8a6a1c;          /* agenda text: dates, meetings, overdue (5:1) */
-  --primary: #1b1b1a;
+  --primary: #232323;
   --primary-foreground: #ffffff;
-  --secondary: #f3f3f1;
-  --secondary-foreground: #1b1b1a;
-  --muted: #f3f3f1;
-  --muted-foreground: #5f5f5b;
-  --subtle-foreground: #696965; /* readable on both background and selected surfaces */
-  --accent: #ebebe8;            /* hover and selected fills */
-  --accent-foreground: #1b1b1a;
+  --secondary: #f0f0f0;
+  --secondary-foreground: #232323;
+  --muted: #f0f0f0;
+  --muted-foreground: #5c5c5c;
+  --subtle-foreground: #696969; /* readable on both background and selected surfaces */
+  --accent: #e8e8e8;            /* quiet hover fills */
+  --accent-foreground: #232323;
 
   --destructive: #b3261e;
-  --border: #e8e8e5;
-  --input: #d4d4d0;
+  --line: #232323;              /* the grid: shell edges, headers, section splits */
+  --border: #d4d4d4;            /* rows and dividers inside content */
+  --input: #232323;             /* controls are drawn in ink */
   --ring: #d97757;
-  --overlay: #1b1b1a;
+  --overlay: #232323;
 
-  --sidebar: #fafaf9;
-  --sidebar-foreground: #1b1b1a;
-  --sidebar-primary: #1b1b1a;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #232323;
+  --sidebar-primary: #232323;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ebebe8;
-  --sidebar-accent-foreground: #1b1b1a;
-  --sidebar-border: #e8e8e5;
+  --sidebar-accent: #e8e8e8;
+  --sidebar-accent-foreground: #232323;
+  --sidebar-border: #232323;
   --sidebar-ring: #d97757;
   --sidebar-width: 15.5rem;
   --sidebar-width-icon: 3.75rem;
 
-  --radius: 0.75rem;
+  --radius: 0rem;
   --tabbar-h: 64px;
-  --ease: cubic-bezier(.2, 0, 0, 1);
-  --shadow-float: 0 1px 2px rgb(27 27 26 / .04), 0 8px 24px rgb(27 27 26 / .06);
+  --ease: cubic-bezier(.16, 1, .3, 1);   /* expo out: fast start, long settle */
+  --shadow-float: 0 16px 40px -20px rgb(35 35 35 / .28);
 }
 
 .dark {
+  color-scheme: dark;
+  --background: #232323;
+  --foreground: #f5f5f5;
+  --canvas: #232323;
+  --panel: #3a3a3a;
+  --panel-foreground: #f5f5f5;
+  --card: #232323;
+  --card-foreground: #f5f5f5;
+  --popover: #2b2b2b;
+  --popover-foreground: #f5f5f5;
   --brand: #e08a6b;
+  --brand-foreground: #232323;
   --brand-ink: #eba184;
-  --brand-soft: color-mix(in oklab, #e08a6b 16%, #20201e);
+  --brand-soft: color-mix(in oklab, #e08a6b 18%, #232323);
   --module-lume: #e08a6b;
   --module-vault: #8faacb;
   --module-agenda: #d6b25a;
   --module-research: #9dbb94;
   --schedule: #d6b25a;
-  color-scheme: dark;
-  --background: #20201e;
-  --foreground: #f3f3ef;
-  --canvas: #171715;
-  --card: #20201e;
-  --card-foreground: #f3f3ef;
-  --popover: #272725;
-  --popover-foreground: #f3f3ef;
-  --primary: #f3f3ef;
-  --primary-foreground: #20201e;
-  --secondary: #2b2b28;
-  --secondary-foreground: #f3f3ef;
-  --muted: #2b2b28;
-  --muted-foreground: #b5b5ad;
-  --subtle-foreground: #a0a098;
-  --accent: #353531;
-  --accent-foreground: #f3f3ef;
+  --primary: #f5f5f5;
+  --primary-foreground: #232323;
+  --secondary: #2e2e2e;
+  --secondary-foreground: #f5f5f5;
+  --muted: #2e2e2e;
+  --muted-foreground: #b8b8b8;
+  --subtle-foreground: #a3a3a3;
+  --accent: #383838;
+  --accent-foreground: #f5f5f5;
   --destructive: #ff9c94;
-  --border: #393935;
-  --input: #62625b;
+  --line: #5a5a5a;
+  --border: #3d3d3d;
+  --input: #8a8a8a;
   --ring: #e08a6b;
   --overlay: #000000;
-  --sidebar: #171715;
-  --sidebar-foreground: #f3f3ef;
-  --sidebar-primary: #f3f3ef;
-  --sidebar-primary-foreground: #20201e;
-  --sidebar-accent: #353531;
-  --sidebar-accent-foreground: #f3f3ef;
-  --sidebar-border: #393935;
+  --sidebar: #232323;
+  --sidebar-foreground: #f5f5f5;
+  --sidebar-primary: #f5f5f5;
+  --sidebar-primary-foreground: #232323;
+  --sidebar-accent: #383838;
+  --sidebar-accent-foreground: #f5f5f5;
+  --sidebar-border: #5a5a5a;
   --sidebar-ring: #e08a6b;
-  --shadow-float: 0 1px 2px rgb(0 0 0 / .18), 0 8px 24px rgb(0 0 0 / .24);
+  --shadow-float: 0 16px 40px -18px rgb(0 0 0 / .6);
 }
 
-/* Film grain over the sign-in light. */
-.lume-light-grain {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: .35;
-  mix-blend-mode: overlay;
-}
+/* Halftone field (src/components/halftone.tsx): pixels stay square when the canvas scales. */
+.halftone-canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 
-/* Sign-in light without WebGL: the same palette, still. */
-.lume-light-fallback {
-  background:
-    radial-gradient(60% 55% at 30% 38%, rgb(47 75 124 / .55), transparent 70%),
-    radial-gradient(70% 60% at 78% 30%, #f2b872, transparent 70%),
-    radial-gradient(80% 70% at 60% 85%, #d97757, transparent 72%),
-    #f6efe6;
-  filter: blur(24px);
-  transform: scale(1.1);
-}
-.dark .lume-light-fallback { background-color: #1c1a18; opacity: .85; }
+/* A slow, endless strip of names on the landing. Paused under reduced motion (see below). */
+@keyframes marquee { to { transform: translateX(-50%); } }
+.marquee-track { animation: marquee 38s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+
+/* Landing entrance, in CSS so it runs from the first paint: words rise out of their line box. */
+@keyframes rise-in { from { transform: translateY(105%); } }
+@keyframes fade-in { from { opacity: 0; transform: translateY(16px); } }
+.rise-in { animation: rise-in 1.2s var(--ease) both; animation-delay: var(--delay, 0s); }
+.fade-in { animation: fade-in 1s var(--ease) both; animation-delay: var(--delay, 0s); }
 
 /* Desktop menu: the preference restored in the head sets the width before the first paint. */
 @media (min-width: 768px) {
   html[data-nav="collapsed"] .app-nav { --sidebar-width: 3.75rem; }
   html[data-nav="collapsed"] .app-nav .nav-label { display: none; }
-  html[data-nav="collapsed"] .app-nav :is(.nav-mark, .nav-dot) { display: block; }
+  html[data-nav="collapsed"] .app-nav .nav-dot { display: block; }
   html[data-nav="collapsed"] .app-nav [data-sidebar="menu-button"] { justify-content: center; }
   html[data-nav="collapsed"] .app-nav .nav-footer { flex-direction: column; }
 }
@@ -182,11 +186,6 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
 .document-pages .docx-wrapper { background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .document-pages .docx-wrapper > section.docx { box-shadow: var(--shadow-float); margin: 0; }
 
-:is(.display, .page-title, .font-serif, .font-heading):is(em, i, .italic),
-:is(.display, .page-title, .font-serif, .font-heading) :is(em, i, .italic) {
-  font-family: var(--font-newsreader-italic), ui-serif, Georgia, serif;
-}
-
 @theme inline {
   --color-schedule: var(--schedule);
   --color-brand: var(--brand);
@@ -199,9 +198,16 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   --color-overlay: var(--overlay);
   --color-canvas: var(--canvas);
   --color-subtle-foreground: var(--subtle-foreground);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
-  --font-heading: var(--font-newsreader), ui-serif, Georgia, serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* One grotesque voice: serif and heading resolve to the sans, set tight. */
+  --font-serif: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --ease-expo: cubic-bezier(.16, 1, .3, 1);
+  --color-panel: var(--panel);
+  --color-panel-foreground: var(--panel-foreground);
+  --color-line: var(--line);
+  --color-brand-foreground: var(--brand-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -243,7 +249,11 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   }
   body {
     @apply bg-background text-foreground text-sm;
+    letter-spacing: -.011em;
     -webkit-font-smoothing: antialiased;
+  }
+  :is(h1, h2, h3) {
+    letter-spacing: -.03em;
   }
   html {
     @apply font-sans;
@@ -253,22 +263,84 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   }
 }
 
-/* Serif voice, for the auth heading and larger display text. Page titles use page-title. */
+/* Display voice: the grotesque set large and tight, for the auth heading and the landing. */
 @utility display {
-  font-family: var(--font-newsreader), ui-serif, Georgia, serif;
-  font-weight: 400;
-  letter-spacing: -.01em;
-  line-height: 1.1;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 450;
+  letter-spacing: -.045em;
+  line-height: .95;
 }
 
-/* Page titles: the serif voice one step below the auth heading. */
+/* Page titles: the display voice one step down. Tight tracking is the identity, not the size. */
 @utility page-title {
-  font-family: var(--font-newsreader), ui-serif, Georgia, serif;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 450;
+  font-size: 30px;
+  letter-spacing: -.04em;
+  line-height: 1.05;
+  @media (width >= 48rem) { font-size: 38px; }
+}
+
+/* Labels in mono caps: section names, meta and the text of arrow links. */
+@utility label-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12px;
   font-weight: 400;
-  font-size: 28px;
-  letter-spacing: -.01em;
-  line-height: 1.15;
-  @media (width >= 48rem) { font-size: 32px; }
+  letter-spacing: .02em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+/* Hover fills. A block of color rises from the bottom (rows, nav) or sweeps in from the left
+   (actions). Both isolate the element so its content paints above the fill. */
+@utility hover-rise {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--fill, var(--brand));
+    transform: translateY(calc(100% + 1px));
+    transition: transform .6s var(--ease);
+    pointer-events: none;
+  }
+  @media (hover: hover) {
+    &:hover::before { transform: translateY(0); }
+  }
+  &:focus-visible::before { transform: translateY(0); }
+}
+
+@utility hover-sweep {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--fill, var(--brand));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .8s var(--ease);
+    pointer-events: none;
+  }
+  @media (hover: hover) {
+    &:hover::before { transform: scaleX(1); }
+  }
+  &:focus-visible::before { transform: scaleX(1); }
+}
+
+/* The small square that leads a mono label or a list item. */
+@utility square-dot {
+  display: inline-block;
+  width: .5rem;
+  height: .5rem;
+  flex-shrink: 0;
+  background: currentColor;
 }
 
 /* Clears the mobile tab bar and the home indicator. */
@@ -299,8 +371,15 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   right: .5rem;
   bottom: 72px;
   bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + .5rem);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-2xl);
+}
+
+/* The feedback panel opens beside the menu, near the button that opened it, and follows the
+   menu's width. Plain CSS, like the sheet above, so it beats the dialog's centring utilities. */
+@media (min-width: 768px) {
+  .feedback-panel { left: calc(15.5rem + .75rem); bottom: .75rem; }
+  html[data-nav="collapsed"] .feedback-panel { left: calc(3.75rem + .75rem); }
 }
 
 @media (prefers-reduced-motion: reduce) {

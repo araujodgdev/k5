@@ -4,7 +4,7 @@ export const ticketStatuses = ['new', 'in_progress', 'resolved', 'dismissed'] as
 export const ticketKinds = ['problem', 'suggestion', 'question', 'praise', 'other'] as const;
 export const ticketModules = ['lume', 'cofre', 'agenda', 'pesquisa', 'documentos', 'email', 'integracoes', 'notificacoes', 'conta', 'instalacao', 'nao_identificado'] as const;
 /** What the person may choose in the dialog; the rest of the triage vocabulary stays internal. */
-export const reportKinds = ['problem', 'suggestion'] as const;
+export const reportKinds = ['problem', 'suggestion', 'question'] as const;
 export type ReportKind = (typeof reportKinds)[number];
 export const ticketPriorities = ['p0', 'p1', 'p2', 'p3'] as const;
 export type TicketStatus = (typeof ticketStatuses)[number];
@@ -24,7 +24,7 @@ export const moduleLabels: Record<TicketModule, string> = {
   lume: 'Lume (chat)', cofre: 'Cofre', agenda: 'Agenda e clientes', pesquisa: 'Pesquisa', documentos: 'Minutas e documentos',
   email: 'E-mails', integracoes: 'Integrações', notificacoes: 'Notificações', conta: 'Conta e acesso', instalacao: 'Instalação', nao_identificado: 'Não identificado',
 };
-export const reportKindLabels: Record<ReportKind, string> = { problem: 'Problema', suggestion: 'Melhoria' };
+export const reportKindLabels: Record<ReportKind, string> = { problem: 'Problema', suggestion: 'Melhoria', question: 'Dúvida' };
 /** The places the person can point to, in the order of the app's navigation. */
 export const reportModules = ['lume', 'cofre', 'pesquisa', 'agenda', 'email', 'documentos', 'notificacoes', 'integracoes', 'conta', 'instalacao', 'nao_identificado'] as const satisfies readonly TicketModule[];
 export const reportModuleLabels: Record<(typeof reportModules)[number], string> = {
@@ -42,7 +42,7 @@ export const priorityLabels: Record<TicketPriority, string> = { p0: 'P0 · urgen
 export const feedbackSubmission = z.object({
   message: z.string().trim().min(3, 'Descreva em poucas palavras o que aconteceu.').max(MAX_FEEDBACK_MESSAGE),
   pagePath: z.string().max(300).regex(/^\/[^\s]*$/).or(z.literal('')).default(''),
-  kind: z.enum(reportKinds, { message: 'Escolha se é um problema ou uma melhoria.' }).optional(),
+  kind: z.enum(reportKinds, { message: 'Escolha se algo quebrou, se é uma ideia ou uma dúvida.' }).optional(),
   module: z.enum(ticketModules, { message: 'Escolha onde aconteceu.' }).optional(),
 });
 

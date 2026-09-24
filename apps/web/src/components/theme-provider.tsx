@@ -2,7 +2,6 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { ThemeProvider as NextThemeProvider, useTheme } from "next-themes";
-import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -11,7 +10,7 @@ const subscribe = () => () => {};
 function ThemeColor() {
   const { resolvedTheme } = useTheme();
   useEffect(() => {
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolvedTheme === "dark" ? "#20201e" : "#ffffff");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolvedTheme === "dark" ? "#232323" : "#ffffff");
   }, [resolvedTheme]);
   return null;
 }
@@ -34,7 +33,12 @@ export function ThemeSwitch({ className }: { className?: string }) {
   return (
     <Button type="button" variant="ghost" size="icon" disabled={!mounted} onClick={() => setTheme(dark ? "light" : "dark")}
       aria-label={label} title={label} className={cn("size-11 text-muted-foreground hover:text-foreground md:size-9", className)}>
-      {dark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+      {/* Two dots, one hollow and one ink: the ink one slides to the side the theme is on. */}
+      <span aria-hidden="true" className="relative block h-3 w-[1.625rem]">
+        <span className="absolute top-0 left-0 size-3 rounded-full border border-current" />
+        <span className="absolute top-0 right-0 size-3 rounded-full border border-current" />
+        <span className={cn("absolute top-0 left-0 size-3 rounded-full bg-current transition-transform duration-500 ease-(--ease)", dark && "translate-x-3.5")} />
+      </span>
     </Button>
   );
 }

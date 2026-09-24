@@ -1,10 +1,12 @@
-import Link from "next/link";
 import { listOfficesForPlatform } from "@/lib/ai-connections-core";
 import { requirePlatformPage } from "@/lib/platform";
 import { notFound } from "next/navigation";
 
 export const metadata = { title: "Clientes · Administração" };
 
+const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeZone: "America/Sao_Paulo" });
+
+/** The offices on the platform. Their AI is configured once, in the IA tab. */
 export default async function PlatformClientsPage() {
   const context = await requirePlatformPage();
   if (!context) notFound();
@@ -13,13 +15,12 @@ export default async function PlatformClientsPage() {
     <section>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
-          <thead className="border-b text-muted-foreground text-[13px]"><tr><th className="py-3 pr-4 font-normal">Escritório</th><th className="hidden px-4 py-3 font-normal sm:table-cell">Conexões</th><th className="hidden px-4 py-3 font-normal sm:table-cell">Ativas</th><th className="py-3 pl-4 text-right font-normal">Configuração</th></tr></thead>
+          <thead className="border-b text-muted-foreground text-[13px]"><tr><th className="py-3 pr-4 font-normal">Escritório</th><th className="px-4 py-3 text-right font-normal">Pessoas</th><th className="hidden py-3 pl-4 text-right font-normal sm:table-cell">Desde</th></tr></thead>
           <tbody>{offices.map((office) => (
             <tr key={office.id} className="border-b last:border-0">
-              <td className="py-4 pr-4 font-medium">{office.name}<span className="mt-1 block font-normal text-muted-foreground text-[13px] sm:hidden">{office.connectionCount} conexões · {office.enabledConnectionCount} ativas</span></td>
-              <td className="hidden px-4 py-4 text-muted-foreground sm:table-cell">{office.connectionCount}</td>
-              <td className="hidden px-4 py-4 text-muted-foreground sm:table-cell">{office.enabledConnectionCount}</td>
-              <td className="py-4 pl-4 text-right"><Link href={`/app/admin/clients/${office.id}/ai`} className="inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-2 font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 md:min-h-8">Gerenciar IA</Link></td>
+              <td className="py-4 pr-4 font-medium">{office.name}<span className="mt-1 block font-normal text-muted-foreground text-[13px] sm:hidden">Desde {dateFormat.format(new Date(office.createdAt))}</span></td>
+              <td className="px-4 py-4 text-right tabular-nums text-muted-foreground">{Number(office.memberCount)}</td>
+              <td className="hidden py-4 pl-4 text-right text-muted-foreground sm:table-cell">{dateFormat.format(new Date(office.createdAt))}</td>
             </tr>
           ))}</tbody>
         </table>

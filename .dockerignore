@@ -9,9 +9,6 @@ node_modules
 .github
 .data
 **/.data
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal
 *.log
 .env
 .env.*

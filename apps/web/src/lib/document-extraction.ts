@@ -1,6 +1,7 @@
 import "server-only";
 
 import { database } from "@/lib/database";
+import { docxImages } from "@/lib/docx-images";
 
 export type ExtractedSection = { reference: string; content: string };
 
@@ -14,10 +15,14 @@ export class OcrRequiredError extends Error {
 
 const decoder = new TextDecoder("utf-8", { fatal: false });
 
-export async function extractDocumentSections(data: Buffer, mimeType: string, name: string, documentId: string): Promise<ExtractedSection[]> {
+/**
+ * `ocrImages` reads the pictures inside a Word file by OCR. The Cofre asks for it, because its
+ * index only holds text; the chat does not, because it sends the pictures to the model itself.
+ */
+export async function extractDocumentSections(data: Buffer, mimeType: string, name: string, documentId: string, options: { ocrImages?: boolean } = {}): Promise<ExtractedSection[]> {
   switch (mimeType) {
     case "application/pdf": return extractPdf(data, documentId);
-    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return extractDocx(data);
+    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return extractDocx(data, documentId, options.ocrImages === true);
     case "message/rfc822": return extractEmail(data);
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": return extractXlsx(data);
     case "text/csv": return extractDelimited(decoder.decode(data), "linha");
@@ -127,9 +132,46 @@ async function extractImage(data: Buffer, name: string): Promise<ExtractedSectio
   } finally { await worker.terminate(); }
 }
 
-async function extractDocx(data: Buffer): Promise<ExtractedSection[]> {
+async function extractDocx(data: Buffer, documentId: string, ocrImages: boolean): Promise<ExtractedSection[]> {
   const mammoth = await import("mammoth") as unknown as { extractRawText: (input: { buffer: Buffer }) => Promise<{ value: string }> };
   const text = (await mammoth.extractRawText({ buffer: data })).value;
+  const sections = paragraphSections(text);
+  // Workers have no local OCR; there the pictures stay unread, as before.
+  if (!ocrImages || process.env.K5_RUNTIME === 'cloudflare') return sections;
+  return [...sections, ...await recognizeDocxImages(data, documentId)];
+}
+
+/**
+ * Screenshots pasted into a Word guide carry the words people search for. Each picture becomes an
+ * `imagem:N` section after the text, and its result is checkpointed like a scanned PDF page, so a
+ * retried or reindexed document is not recognised twice.
+ */
+async function recognizeDocxImages(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
+  const { images } = docxImages(data);
+  if (!images.length) return [];
+  const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
+  const { createOcrWorker } = await import('./ocr-worker');
+  let worker: Awaited<ReturnType<typeof createOcrWorker>> | undefined;
+  const sections: ExtractedSection[] = [];
+  try {
+    for (const [index, image] of images.entries()) {
+      const reference = `imagem:${index + 1}`;
+      const saved = completed.get(reference);
+      if (saved) { sections.push({ reference, content: saved }); continue; }
+      worker ??= await createOcrWorker();
+      // A picture the engine cannot decode (an odd GIF, a damaged file) is skipped, not fatal:
+      // the rest of the document is still worth indexing.
+      const recognized = await worker.recognize(image.data).then((result) => result.data.text, () => "");
+      const content = recognized.replace(/\s+/g, " ").trim();
+      if (!content) continue;
+      await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, reference, content);
+      sections.push({ reference, content });
+    }
+  } finally { await worker?.terminate(); }
+  return sections;
+}
+
+function paragraphSections(text: string): ExtractedSection[] {
   return text.split(/\r?\n\s*\r?\n|\r?\n/).map((content, index) => ({ reference: `parágrafo:${index + 1}`, content: content.trim() })).filter((section) => section.content);
 }
 

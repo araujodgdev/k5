@@ -1,108 +1,120 @@
 # Lume design system
 
-The interface steps back so the office's work stays in front. It should feel quiet, precise, and a little editorial: warm neutrals, black ink, one serif voice for titles, and one earthy orange that marks where you are and what the Lume did.
+Ink, paper and one grey, laid out on a grid of hard lines. The interface is plain enough to trust and sharp enough to remember: large, tightly tracked type, mono labels in capitals, square corners, and an earthy orange that arrives on hover and marks what the Lume did. The reference is editorial and Swiss rather than soft SaaS; it stays calm because everything lines up.
 
-The UI is built on [shadcn/ui](https://ui.shadcn.com) (Radix, `radix-nova` preset) with Tailwind v4. Primitives live in `src/components/ui/` and are ours to edit. The Lume palette is set on the shadcn tokens in `src/app/globals.css`, so every primitive inherits it. Style with Tailwind utilities, and don't hardcode hex values.
+The UI is built on [shadcn/ui](https://ui.shadcn.com) (Radix, `radix-nova` preset) with Tailwind v4. Primitives live in `src/components/ui/` and are ours to edit. The palette, radius and easing are set on the shadcn tokens in `src/app/globals.css`, so every primitive inherits them. Style with Tailwind utilities, and don't hardcode hex values.
 
 ## Principles
 
-1. **Ink first, color with a meaning.** Hierarchy comes from weight, size, and the ink ramp (`foreground`, `muted-foreground`, `subtle-foreground`). `primary` is black, so buttons stay ink. Color only ever answers a question: `brand` (earthy orange) says *here* (the active place, focus, the selected row) and marks what the Lume did; each module has one hue on its icon and on 2px markers, so a mixed list shows where each item comes from. Surfaces remain neutral.
-2. **One surface per idea.** The app is canvas (sidebar), and the content sits on a single white surface. Don't put cards inside cards or panels inside panels. Group things with spacing and a hairline border.
-3. **Say it once.** A page gets one title. Leave out subtitles, eyebrow labels, and descriptions that repeat the title.
-4. **Real states, plain words.** Empty, loading, and error states are short sentences in Portuguese, set in text color. Don't use illustrations or colored alert boxes.
+1. **The grid is the decoration.** Structure comes from 1px `line` rules (ink in light, grey in dark) that split the shell, headers and sections into cells. Cells meet edge to edge; nothing floats on a margin except overlays.
+2. **Ink first, color on contact.** Hierarchy comes from size, tracking and the ink ramp (`foreground`, `muted-foreground`, `subtle-foreground`). `primary` is ink. `brand` (earthy orange) appears when something is touched (hover fills, focus) and marks the Lume's own work. Each module keeps one hue on its icon and on 2px markers.
+3. **Square.** `--radius` is 0. Only dots and avatars are round.
+4. **Say it once.** A page gets one title. A mono label may name a section; don't add subtitles that repeat the title.
+5. **Real states, plain words.** Empty, loading, and error states are short sentences in Portuguese, set in text color. No illustrations, no colored alert boxes.
 
 ## Banned patterns
 
 - Badges, pills, and chips used to decorate or show status. Show status as plain text.
-- Pastel or tinted background fills, including light red error boxes and light blue selected states. The single exception is `brand-soft` on the active navigation row and the selected conversation.
-- Bullet-point lists in the UI. Use a table, rows, or a sentence instead.
+- Pastel or tinted background fills. Exceptions: `brand-soft` on the selected conversation; flat `panel` grey and solid `brand` blocks on the landing.
+- Bullet-point lists in the app UI. Use a table, rows, or a sentence. The landing may list features as mono lines led by a brand square.
 - Containers inside containers, meaning a bordered card inside a bordered panel.
-- Excess subtitles and helper text under every heading.
-- Gradients, glows, emoji, and decorative icons next to headings. The sign-in light panel is the one gradient, and the one continuous motion, in the product.
+- Rounded corners, gradients, glows, emoji, and decorative icons next to headings.
 
 ## Tokens
 
-Set in `:root` in `globals.css`. Use them through Tailwind classes such as `bg-canvas`, `text-muted-foreground`, and `border`.
+Set in `:root` and `.dark` in `globals.css`. Use them through Tailwind classes such as `bg-panel`, `border-line`, and `text-muted-foreground`.
 
-| Token | Value | Use |
+| Token | Light / dark | Use |
 | --- | --- | --- |
-| `background` | `#ffffff` | Main content |
-| `canvas` | `#fafaf9` | Sidebar and auth background |
-| `foreground` | `#1b1b1a` | Text, primary button |
-| `brand` | `#d97757` / dark `#e08a6b` | Focus ring (`ring`), active nav pill marker, the Lume's own marks (thinking dot, confirmation rule), progress |
-| `brand-ink` | `#b0502f` / dark `#eba184` | Brand-colored text and links (5.2:1 on white) |
-| `brand-soft` | `brand` at 11% over the surface | Active nav row and selected conversation only |
+| `background` / `canvas` | `#ffffff` / `#232323` | Paper: content, sidebar and auth are the same surface, split by lines |
+| `foreground` / `primary` | `#232323` / `#f5f5f5` | Text, primary button, ink tiles and blocks |
+| `panel` | `#d9d9d9` / `#3a3a3a` | The flat grey block of the grid (landing, halftone silhouettes) |
+| `line` | `#232323` / `#5a5a5a` | Structural rules: shell edges, headers, section splits, overlays |
+| `border` | `#d4d4d4` / `#3d3d3d` | Rows and dividers inside content |
+| `input` | `#232323` / `#8a8a8a` | Control outlines: inputs, selects, outline buttons |
+| `brand` | `#d97757` / `#e08a6b` | Hover fills, focus ring, the Lume's marks (thinking dot, confirmation rule), progress |
+| `brand-foreground` | `#232323` | Text and icons on a brand fill (5.4:1) |
+| `brand-ink` | `#b0502f` / `#eba184` | Brand-colored text and links on paper |
+| `brand-soft` | `brand` over the surface | The selected conversation only |
 | `module-lume` / `module-vault` / `module-agenda` / `module-research` | `#d97757` / `#4f6d8f` / `#b08a2e` / `#5f7f5a` (lighter in dark) | Module icons in nav and tab bar; 2px rules and dots that tag an item with its module. Never a fill, never text |
-| `muted-foreground` | `#5f5f5b` | Secondary text, inactive nav |
-| `subtle-foreground` | `#696965` / dark `#a0a098` | Placeholders, empty states, inactive tabs; readable on selected surfaces |
-| `muted` / `secondary` | `#f3f3f1` | Quiet fills |
-| `accent` | `#ebebe8` | Hover and selected fills |
-| `schedule` | `#8a6a1c` / dark `#d6b25a` | Agenda text: meeting times, overdue dates (the agenda ochre, dark enough for text) |
-| `border` / `input` | `#e8e8e5` / `#d4d4d0` | Dividers / control borders |
-| `destructive` | `#b3261e` | Error text only |
-| `--radius` | `0.75rem` | Base radius; `rounded-md` for nav and controls, `rounded-2xl` for the content surface, composer, and sheet |
+| `muted-foreground` | `#5c5c5c` / `#b8b8b8` | Secondary text, inactive nav |
+| `subtle-foreground` | `#696969` / `#a3a3a3` | Placeholders, empty states, inactive tabs, mono labels |
+| `muted` / `secondary` | `#f0f0f0` / `#2e2e2e` | Quiet fills |
+| `accent` | `#e8e8e8` / `#383838` | Quiet hover fills (ghost buttons, menu items) |
+| `schedule` | `#8a6a1c` / `#d6b25a` | Agenda text: meeting times, overdue dates |
+| `destructive` | `#b3261e` / `#ff9c94` | Error text only |
+| `--radius` | `0` | Everything is square; `rounded-*` utilities resolve to 0. `rounded-full` stays for dots |
+| `--ease` | `cubic-bezier(.16, 1, .3, 1)` | Expo out, for every transition. Tailwind: `ease-(--ease)` |
 | `--tabbar-h` | `64px` | Mobile tab bar; use the `pb-dock` utility to clear it |
-| `--shadow-float` | | Only for elements floating above content: composer, sheet, menus |
+| `--shadow-float` | | Only for elements floating above content (composer, menus, dialogs), always with a `line` border |
 
 Controls are 44px tall on touch (`size="lg"`), and shadcn's default 36px on desktop.
 
 ## Dark theme and installation
 
-Dark is the default theme. The switch is a single icon that flips between light and dark (it shows the theme a click leads to); there is no "Sistema" option in the interface.
+Dark is the default theme: paper becomes `#232323`, ink becomes `#f5f5f5`, and the grid lines soften to grey so the page doesn't turn into a cage. Primary controls invert to light ink; brand fills keep ink text. Keep using semantic tokens; don't add per-component color overrides.
 
-The `.dark` overrides in `globals.css` use the same warm neutral ramp: canvas
-`#171715`, content `#20201e`, text `#f3f3ef`, secondary text `#b5b5ad`, and borders
-`#393935`. Primary controls invert to light ink. Continue using semantic tokens;
-do not add per-component color overrides. Dialogs and sheets inherit these tokens.
-
-`ThemeSwitch` offers Sistema, Claro, and Escuro with a native keyboard-accessible
-select. It lives in the sidebar footer, mobile Mais sheet, and auth header. The Mais sheet initially focuses its title, avoiding automatic activation of the native selector on iOS. The preference follows the system by default and persists per browser.
-`InstallApp` shares the same quiet controls. Installation help is a dialog; offline
-and pending-update notices use a single floating surface and plain pt-BR text.
+`ThemeSwitch` (`src/components/theme-provider.tsx`) is two small circles, one hollow and one filled; the filled one slides to the side of the current theme, and a click flips it. It has an accessible label naming the theme a click leads to. It lives in the sidebar footer, the mobile Mais sheet, the auth header and the landing header. `InstallApp` shares the same quiet controls. Installation help is a dialog; offline and pending-update notices use a single floating surface and plain pt-BR text.
 
 ## Type
 
-- **Sans**: Inter, everywhere. 14px body, 13px meta, 12px field errors. Weights 400 and 500.
-- **Serif**: Newsreader at weight 400, for page titles and the auth heading only. Page titles use the `page-title` utility (28px on mobile, 32px from `md`); the auth heading uses `display` at 32px, 36px from `md`.
+- **Sans**: Geist, everywhere (`--font-geist`), tracked slightly tight (-0.011em body, -0.03em headings). 14px body, 13px meta, 12px field errors. Weights 400, 450 for display, 500 for emphasis. `font-serif` and `font-heading` resolve to the same face.
+- **Mono**: Geist Mono (`--font-geist-mono`) through the `label-mono` utility: 12px, capitals, +0.02em. Use it for section labels (led by a `square-dot`), counts, dates in meta rows and the text of arrow actions. Never for sentences.
+- **Display**: `display` sets 450 weight, -0.045em tracking and 0.95 line height; the size is chosen per use (auth heading 44px, 64px from `md`; the landing up to 280px). Page titles use `page-title` (30px, 38px from `md`, -0.04em).
 - **Page spacing**: page content sits at `px-5 py-6` on mobile and `md:px-10 md:py-10` on desktop, and headers that sit in a bar (Lume) share the same `md:px-10` edge, so titles line up across sections.
-- Don't use all-caps labels or letter-spaced eyebrows.
 
 ## Logo
 
-`<Logo height={n} />` in `src/components/logo.tsx` is the Lume wordmark: the geometric symbol beside a Newsreader nameplate. `<LumeMark />` in `src/components/lume-mark.tsx` is the symbol by itself, built from an open L and a diagonal beam of light. Both inherit `currentColor`. Use the full wordmark in the shell and auth headers; use the symbol for the Lume module and compact surfaces. `public/lume.svg` is the standalone vector, while `src/app/icon.svg` provides the dark rounded app icon used to generate the favicon and PWA assets. Keep the symbol paths in sync. Don't put the logo inside page content.
+`<LumeMark />` in `src/components/lume-mark.tsx` is the symbol, built from an open L and a diagonal beam of light. In the shell, auth and landing it sits white on an ink tile in the grid's top-left corner, the width of the collapsed menu (3.75rem); the tile takes the brand sweep on hover. `<Logo height={n} />` in `src/components/logo.tsx` pairs the symbol with a Geist nameplate for compact places. Both inherit `currentColor`. `public/lume.svg` is the standalone vector, while `src/app/icon.svg` provides the dark app icon used to generate the favicon and PWA assets. Keep the symbol paths in sync, including the copy in `src/components/halftone.tsx`. Don't put the logo inside page content.
+
+## Halftone
+
+`<Halftone />` (`src/components/halftone.tsx`) is the product's one image: square ink pixels, ordered-dithered over slow noise, with a sprinkle of brand pixels in the mid-tones and, optionally, the Lume mark cut out as a flat `panel` silhouette. It leans toward the pointer. It is decorative (`aria-hidden`), pauses off screen and in hidden tabs, draws one still frame under reduced motion, re-reads the palette when the theme changes, and caps itself near 60k pixels per frame by growing its cells on large areas. It fills the sign-in panel and the landing's image cells; it never goes inside the app's working screens.
 
 ## Components
 
 Prefer a shadcn primitive over new markup. Add one with `pnpm dlx shadcn@latest add <name>`.
 
-- `Button` (`variant="default"` is black; `outline`, `ghost`, `size="icon"`). One primary action per view.
+- `Button`: `default` is ink, and the brand sweeps in from the left on hover (`hover-sweep`) while the label turns ink; `outline` is drawn in ink and fills with ink from the bottom (`hover-rise`); `ghost` takes a quiet `accent` fill; `destructive` is outlined in red and fills red. One primary action per view. A leading action may put its arrow at the far end (`justify-between`), as on the auth screens.
 - `Input`, `Label`, `Textarea` in a `grid gap-1.5` field, with the error as a `text-destructive text-xs` line below. Form-level errors are an inline `CircleAlert` plus red text, never a filled box.
 - `Sheet` (`side="bottom"`) is the mobile "Mais" panel. `Separator` divides groups inside it.
-- `Sidebar` primitives build the desktop nav, with `collapsible="none"` inside a `hidden md:block` provider. A GSAP-driven pill (`bg-brand-soft`) slides to the active row, so `data-[active=true]` keeps a transparent background. Platform administrators get an "Administração" row (ShieldCheck) after the office's sections, with the same pill; on mobile it sits in "Mais". The footer is one row: Sair, then Feedback (Bug), Instalar and the theme toggle as 36px icon buttons with labels for screen readers. The menu collapses to icons (3.75rem) with Ctrl/⌘+B only, with no button on screen; labels become tooltips and the unread count becomes a brand dot. The choice lives in `localStorage` and is restored in the document head (`src/lib/nav-collapse.ts`), so the first paint already has the right width. The Lume conversation list uses the same `PanelLeft` control, left of the page title.
-- **App shell** (`src/app/app/layout.tsx`): sidebar plus a rounded content surface on desktop; on mobile a sticky header, full-bleed content with `pb-dock`, and a fixed tab bar.
-- **Mobile tab bar**: 4 sections plus "Mais". The active tab is a black icon tile. The list is `mobileTabs` in `src/lib/navigation.ts`. It slides away while the page scrolls down and returns on the way up, so reading gets the full height.
-- **Bottom sheets** float: inset 8px from the side edges, above the tab bar, rounded and bordered. That geometry is plain CSS in `globals.css` (`[data-slot="sheet-content"][data-side="bottom"]`), unlayered so it beats the utility classes, with a static `bottom` fallback before the `env()` one.
-- **Overlays dim, they don't blur.** `backdrop-filter` breaks stacking in some Safari versions, which can hide the panel behind the blur layer. A flat `bg-overlay/40` is also cheaper on a phone and stays dark in both themes.
-- **Agent chat** (`/app/agents`, `src/components/agent-chat.tsx`): an empty conversation area with the composer docked at the bottom. The container is `flex-1` inside the flex column shell — never `h-full`, which has no definite height to resolve against and pushes the composer to the top. The shell has a definite `100dvh` height on this route; only the thread viewport scrolls. The composer is `sticky bottom-0`, `max-w-3xl`, rounded-2xl with `--shadow-float`. After scrolling more than 240px from the end, a minimal arrow returns to the latest content and the input compacts without hiding controls or its draft. Respect reduced motion. The Lume module uses the shared `<LumeMark />` symbol in navigation, readable at 16px and 18px. Don't add a second logo, shortcut tiles, or navigation to the chat content. The command center is not a chat.
+- `Sidebar` primitives build the desktop nav, with `collapsible="none"` inside a `hidden md:block` provider. The top is a row cut by a `line`: the ink mark tile, then a mono "Lume" label over the office name. Rows are 40px, full width and square. On hover the brand rises from the bottom (`hover-rise`) and the text and icon turn ink. A GSAP-driven ink block slides to the active row, whose text and icon invert, so `data-[active=true]` keeps a transparent background. Platform administrators get an "Administração" row (ShieldCheck) after the office's sections, with the same pill; on mobile it sits in "Mais". The footer sits under a `line`, in one row: Sair, then Feedback (Bug), Instalar and the theme toggle as 36px icon buttons with labels for screen readers. The menu collapses to icons (3.75rem, the width of the mark tile) with Ctrl/⌘+B only, with no button on screen; labels become tooltips and the unread count becomes a brand dot. The choice lives in `localStorage` and is restored in the document head (`src/lib/nav-collapse.ts`), so the first paint already has the right width. The Lume conversation list uses the same `PanelLeft` control, left of the page title.
+- **App shell** (`src/app/app/layout.tsx`): on desktop the sidebar and the content sit edge to edge, split by one `line`; the content fills the rest of the screen, with no margin or rounding. On mobile a sticky header (mark tile, module, office) under a `line`, full-bleed content with `pb-dock`, and a fixed tab bar over a `line`.
+- **Mobile tab bar**: 4 sections plus "Mais". The active tab is a square ink icon tile. The list is `mobileTabs` in `src/lib/navigation.ts`. It slides away while the page scrolls down and returns on the way up, so reading gets the full height.
+- **Bottom sheets** float: inset 8px from the side edges, above the tab bar, square and outlined with a `line`. That geometry is plain CSS in `globals.css` (`[data-slot="sheet-content"][data-side="bottom"]`), unlayered so it beats the utility classes, with a static `bottom` fallback before the `env()` one.
+- **Overlays dim, they don't blur.** `backdrop-filter` breaks stacking in some Safari versions, which can hide the panel behind the blur layer. A flat `bg-overlay/40` is also cheaper on a phone and stays dark in both themes. The feedback panel is the one exception: it blurs the page lightly (`backdrop-blur-[6px]` over `overlay/20`), and its panel is a later sibling of the overlay in the same portal, so it paints above the blur layer.
+- **Agent chat** (`/app/agents`, `src/components/agent-chat.tsx`): an empty conversation area with the composer docked at the bottom. The container is `flex-1` inside the flex column shell — never `h-full`, which has no definite height to resolve against and pushes the composer to the top. The shell has a definite `100dvh` height on this route; only the thread viewport scrolls. The composer is `sticky bottom-0`, `max-w-3xl`, square, outlined with a `line` that turns `brand` while it has focus, and lifted with `--shadow-float`. After scrolling more than 240px from the end, a minimal arrow returns to the latest content and the input compacts without hiding controls or its draft. Respect reduced motion. The Lume module uses the shared `<LumeMark />` symbol in navigation, readable at 16px and 18px. Don't add a second logo, shortcut tiles, or navigation to the chat content. The command center is not a chat.
 - **Composer controls** live inside the composer, on a row under the input: attach and microphone. While recording, the microphone becomes "Descartar gravação" (trash), a rolling level meter in `brand` bars and a timer fill the row, and the send button becomes a stop square that finishes the recording. The audio is transcribed ("Transcrevendo áudio…"), joined to anything typed and sent as the person's own message, so the thread shows the words, never "Mensagem de voz". Under reduced motion the meter stays still and the timer carries the state. The page header keeps only the conversation actions. The model is chosen by the platform administrator for the office and is never shown in the chat. A control the configured model cannot support stays visible and disabled, with a plain tooltip explaining the limitation.
-- **Chat attachments** stay in the message, independently from the Cofre. The attach menu offers camera capture, existing images, or documents; the pickers take several files at once (up to six per message, documents up to 25 MB, images up to 10 MB), and the ones that cannot be attached are named in one error line. Show removable previews above the composer before sending and persistent previews in the user message afterward. Request camera access only after "Tirar foto", allow retaking before attaching, and stop the camera when the dialog closes. "Fontes" selects material already stored in the Cofre and case references; uploading in chat never adds a source automatically.
+- **Chat attachments** stay in the message, independently from the Cofre. The attach menu offers camera capture, existing images, or documents; the pickers take several files at once (up to six per message, documents up to 25 MB, images up to 10 MB), and the ones that cannot be attached are named in one error line. A document brings up to 300 thousand characters of text; a Word file also brings its pictures (up to 24, in reading order), so a guide made of pasted screenshots is read like the screenshots themselves. When a conversation holds more attachment text than one turn can carry, the newest files are read in full and the oldest are left out with a note to the model, never an error. Show removable previews above the composer before sending and persistent previews in the user message afterward. Request camera access only after "Tirar foto", allow retaking before attaching, and stop the camera when the dialog closes. "Fontes" selects material already stored in the Cofre and case references; uploading in chat never adds a source automatically.
 - **Documents open beside the chat** (`src/components/document/`). A document the Lume creates or changes in the turn opens by itself; "Abrir" on a tool line opens one. On `lg` the conversation keeps 42% by default (between 25% and 70%, at least 24rem; the document at least 28rem) and the conversation list steps aside. The boundary is a hairline divider that turns into a 2px `brand` rule on hover, focus and drag; it is dragged with a pointer, moved 2% with the arrow keys, sent to its limits with Home/End, and reset with a double click. The choice is kept per browser; below `lg` the document covers the screen with a back arrow. The open document is `?doc=<id>` in the URL, so a reload keeps it and the browser's back closes it; Esc closes it too. One header row (title as an input, save state as text, Versões, Exportar DOCX as the primary action, close), then three tabs marked by a 2px `brand` rule: Editar (rich text in the Word template's font, size, alignment, spacing and text width; tables are bordered and full width, with plain-text row and column controls in the toolbar while the cursor is in one), Página (the exported DOCX drawn as pages on the `muted` canvas, read-only) and Revisão (issues, evidence check, sources). Saving is automatic after a pause; a version enters the history on explicit save, on leaving, and at most every five minutes while typing. After the Lume changes the document (and after restoring a version), each paragraph, list item or cell whose text is new gets the 2px `brand` rule in the margin for a few seconds, and the first one scrolls into view; the marks are decorations and never enter the text. When the Lume changes a document the person is editing, a line with a 2px `brand` rule offers "Ver versão do Lume" or "Manter a minha". `/app/documents/[id]` is the same workspace as a full page. Beside the chat, selecting text shows one floating action, "Pedir ao Lume" with the Lume mark; it becomes a single input ("O que mudar neste trecho?") and sends the request into the conversation, quoting the excerpt. A brand-ruled line in the panel says the request was sent until the Lume's edit arrives. While a document is open, the chat tells the Lume which one, so "o documento" and "o segundo parágrafo" need no name.
 - **The Lume acts, then says what it did.** Each tool call is a quiet line above the answer with a check in `brand-ink` and an "Abrir" link to what it created or changed. It asks before only three things: deleting, reaching a court, and overwriting a draft. Those appear under the answer as a sentence with a 2px `brand` rule on the left and two buttons, Confirmar (ink) and Cancelar (ghost); the decision replaces the buttons with plain text. No chips, no modal.
-- **Sign-in** (`src/components/auth-form.tsx`): two columns on desktop, the form left-aligned on the left and the Lume light (`src/components/lume-light.tsx`) in a 28px-radius panel on the right; on mobile the light is a 144px strip above the form. The light is a WebGL shader in the Lume palette that drifts slowly, leans toward the pointer, gathers while the password field has focus, flares on submit and cools on an error. Reduced motion renders one still frame; without WebGL a static CSS version of the same palette shows. The panel carries no text.
+- **Sign-in** (`src/components/auth-form.tsx`): a header row under a `line` (mark tile, "Lume", then Instalar and the theme toggle behind a vertical `line`), then two cells. Left: a mono label ("Acesso" / "Novo escritório"), the `display` heading, the form with ink-outlined fields and a full-width ink submit with its arrow at the far end. Right, behind a `line`: the `Halftone` with the Lume mark. On mobile the field is a 144px strip between the header and the form. The field answers the form: it tightens and drifts faster while the password has focus, flashes darker on submit and stills and pales on an error. The cell carries no text.
 - **Case law from the web** is a list under the answer, built from the `k5_research_web_jurisprudence` result: title as an external link, then court · number · date · site and Jev's relevance in `brand-ink`, the summary clamped to three lines, and a note to check the full text before citing. Only links the web search itself returned are shown. The Lume may comment on and cite these decisions in its text.
 - **Citations are reviewed, not blocked.** The Lume cites freely in answers and documents; each citation is then checked against what the conversation consulted (`src/lib/citations/`). Under an answer, "Citações para conferir" lists the ones that need the lawyer — the citation in medium weight, then its status as plain text ("Sem fonte consultada", "A fonte sustenta só em parte", "A fonte diz o contrário", "Não verificada") and the source as a link — followed by one quiet line counting those that match. In a document, the same rows lead the Revisão tab (pending first, then matching ones), with "Conferir de novo" as an outline button, and pending citations count in the tab's label. No badges, no colored status: the words carry it.
 - **Answers are Markdown** (`src/components/markdown.tsx`), rendered from tokens into React elements, never into HTML. Headings, lists, tables and code inside an answer are content and are exempt from the list ban above, which is about UI chrome.
-- **Cofre** (`/app/vault`): a drive. The home lists the library and the cases; a case has its own page with breadcrumbs, its subfolders, and its files. Cards and list are two views of the same level, toggled in the header — the card is the item itself, not a container wrapped around one. Client data sits behind a disclosure labelled "Dados do cliente (opcional)" and is never required to file a document. The case's **Anexos** tab is a two-step form: choose the scanned PDF and the petition, then review a list of rows (include, name, first and last page, move up/down) with the resulting PJe file name as plain text under each name; one primary action generates the files into a new folder.
+- **Cofre** (`/app/vault`): a drive. The home lists the library and the cases; a case has its own page with breadcrumbs, its subfolders, and its files. Cards and list are two views of the same level, toggled in the header — the card is the item itself, not a container wrapped around one. The Cofre reads the pictures inside Word files by OCR on the processors (each one an `imagem:N` excerpt after the text, checkpointed like a scanned page), so a guide made of screenshots can be searched; on Workers they stay unread. "Enviar arquivos" takes several files at once; they go up one per request, in order, the button counting them ("Enviando 2 de 5…"), each joining the list as it lands, and a failure names its file in one error line without stopping the rest. Client data sits behind a disclosure labelled "Dados do cliente (opcional)" and is never required to file a document. The case's **Anexos** tab is a two-step form: choose the scanned PDF and the petition, then review a list of rows (include, name, first and last page, move up/down) with the resulting PJe file name as plain text under each name; one primary action generates the files into a new folder.
 
-## Motion (GSAP)
+## Landing
 
-Motion is quiet and explains what changed. Everything goes through `gsap.matchMedia` or a `prefers-reduced-motion` check, so reduced-motion users get instant changes. Radix components animate through `tw-animate-css` instead, and that's fine.
+`/` (`src/app/page.tsx`) is the public page; signed-out visitors land here and its actions lead to `/sign-in` and `/sign-up`. It is the identity at full volume and stays short: header, hero, one statement band, modules, three figures, a call to action and the footer. Copy is pt-BR and says only what the product does today; never invent numbers or clients.
 
-- **Entrance**: wrap a page in `<Reveal>` and mark children with `data-reveal`. They fade and lift 14px in order (0.7s, `power3.out`, 60ms stagger). Use it once per page load, and never on scroll-heavy lists.
-- **Selection**: the sidebar pill slides (0.45s `power3.out`), and the active tab icon settles from 0.82 scale (`back.out`).
+- **Header**: sticky, two cells under a `line`: the mark tile and the São Paulo clock; then anchor links (`hover-rise`), the theme toggle and an ink "Entrar" block with an arrow (`hover-sweep`). On mobile: tile, name and "Entrar".
+- **Grid**: every section is a row of cells split by `line` rules. Cells are paper, ink (`bg-foreground text-background`), `panel` grey, solid `brand` with ink text, or a `Halftone`. Big words use `display`, often in capitals, sized with `clamp()` so they fill their cell on any width.
+- **Modules** list on ink: number in mono, name at display size, a line figure, a short paragraph and four mono lines led by brand squares.
+- **Call to action**: words set on ink and paper blocks over a full-width `Halftone`, ending in a brand arrow tile; the whole block is one link.
+
+## Motion
+
+Motion is smooth and slow to settle: everything eases with `--ease` (expo out), so it starts at once and lands softly. It explains what changed or answers a touch; it never loops inside the app. Everything goes through `gsap.matchMedia`, a `prefers-reduced-motion` check or the global reduced-motion rule in `globals.css`, so reduced-motion users get instant changes. Radix components animate through `tw-animate-css` instead, and that's fine.
+
+- **Hover fills** are the signature. `hover-rise` raises a block of color from the bottom in 0.6s (nav rows, header links); `hover-sweep` sweeps it in from the left in 0.8s (primary buttons, arrow links, the mark tile). The fill is `--fill`, `brand` by default; text colors cross-fade over 0.5–0.7s so they land with the fill. Both also show on `:focus-visible`, and only on devices that hover.
+- **Arrows** slide 4px toward where they lead while their action is hovered.
+- **Entrance**: wrap a page in `<Reveal>` and mark children with `data-reveal`. They fade and lift in order (0.35s, 40ms stagger). Use it once per page load, and never on scroll-heavy lists.
+- **Selection**: the sidebar's ink block slides to the active row (0.45s `power3.out`), and the active tab icon settles from 0.82 scale (`back.out`).
 - **Chrome that gets out of the way**: the tab bar moves off screen in 0.3s (`power2.out`) after 6px of downward scroll past 48px, and returns the moment scrolling reverses.
-- **Micro**: hover and press are Tailwind transitions of 150–200ms. Don't use GSAP for these.
-- Don't use looping animations, parallax, or motion on text while someone is reading. The sign-in light is the only exception: it is decorative, `aria-hidden`, paused when hidden or off screen, and still under reduced motion.
+- **Micro**: other hover and press states are Tailwind transitions of 150–300ms with `ease-(--ease)`. Don't use GSAP for these.
+- **Landing only** (`src/components/landing/`): words rise out of their line box (`rise-in` in CSS on load, `data-rise` with ScrollTrigger on scroll), blocks fade and lift (`data-fade`), color tiles uncover from the bottom (`data-wipe`), a strip of module names scrolls slowly and pauses on hover, and line figures turn a quarter while their row is hovered. Each scroll effect plays once.
+- The `Halftone` is the only continuous motion outside the landing strip. It is decorative, paused when hidden or off screen, and still under reduced motion.
 
 ## Mobile
 
@@ -114,12 +126,12 @@ Motion is quiet and explains what changed. Everything goes through `gsap.matchMe
 ## Future patterns
 
 - **Lists and tables**: full-width rows separated by a hairline, a 13px `muted-foreground` header row, and no zebra striping. Show a file or category with a small icon and text, not a pill.
-- **Menus and popovers**: `popover` background, 1px border, `rounded-md`, and `--shadow-float`.
+- **Menus and popovers**: `popover` background, 1px `line` border, square, and `--shadow-float`.
 
 ## Workspace overview and clients
 
 - **In?cio** shows real tasks due through today, upcoming meetings, active clients, cases and personal conversations. Use separated rows, allow task completion inline, and link creation actions to the existing editors. Each section has its own empty/error state; reviewers receive read-only actions.
 - **Calendar** pins count all matching activities in the visible month, including paginated results. Tasks use civil dates; meetings mark every overlapping local day, excluding their ending midnight. Pin counts are included in accessible labels.
 - **Client details** live at `/app/agenda/clients/[id]`, with contact, address, notes, linked cases and paginated activities. Practice areas appear as plain text next to the relationship ("Cliente ativo · Cível, Trabalhista"), never as chips. A dialog is used only to edit data. The Agenda navigation stays active on nested client routes.
-- **Feedback** is a dialog, not a section: the Bug icon beside Instalar (sidebar footer and "Mais") opens it. A two-option control (Problema, Melhoria), a native select for where it happened (preset from the current screen), one textarea, an optional image (picked or pasted, with a thumbnail) and one primary action. "Seus relatos" switches the dialog to the person's reports as rows with plain-text status and the team's answer; `?feedback=relatos` (used by the resolution notification and the old `/app/feedback`) opens it there.
-- **Administração** (`/app/admin`) is a module of the shell for platform administrators: the `page-title` "Administração", then tabs (Feedback, Clientes, TypeSafe) marked by a 2px `brand` rule; a record inside a tab (a ticket, an office's AI connections) uses a serif `text-2xl` heading under a back link. The feedback queue is a filtered list of rows ordered by priority, then impact; triage signals (security, personal data, low confidence) are plain text, and the model's suggestion is shown with its confidence next to the editable fields.
+- **Feedback** is a floating panel, not a section: the Bug icon beside Instalar (sidebar footer and "Mais") opens it beside the menu, at the bottom left, over a softly blurred page (on mobile, above the tab bar). Title and one line; three square tiles with an icon (Algo quebrou, Tenho uma ideia, Não entendi algo; the chosen one is ink); one textarea whose question follows the tile; a bordered row saying what goes with it (the screen, as an inline native select preset from where the person is, and a reminder not to include client data); a bordered row to include a screenshot (picked or pasted, with a thumbnail); a full-width primary action named for the tile (Reportar problema, Enviar ideia, Enviar dúvida); then "Ver seus relatos", which switches the panel to the person's reports as rows with plain-text status and the team's answer. `?feedback=relatos` (used by the resolution notification and the old `/app/feedback`) opens it there. Only say what is actually sent.
+- **Administração** (`/app/admin`) is a module of the shell for platform administrators: the `page-title` "Administração", then tabs (Feedback, Clientes, IA, Credenciais) marked by a 2px `brand` rule. **IA** holds everything the platform's AI needs, once for every office: the Lume (its model, then the provider connections) and TypeSafe, as two sections with `text-2xl` headings split by a `line`. **Clientes** is a plain list of offices (name, people, since). A record inside a tab (a ticket) uses a `text-2xl` heading under a back link. The feedback queue is a filtered list of rows ordered by priority, then impact; triage signals (security, personal data, low confidence) are plain text, and the model's suggestion is shown with its confidence next to the editable fields.

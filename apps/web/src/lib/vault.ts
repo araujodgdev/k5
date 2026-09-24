@@ -81,7 +81,7 @@ const caseSelect = `
     (SELECT count(*) FROM vault_document d WHERE d.case_id = k.id AND d.office_id = k.office_id AND d.deleted_at IS NULL) AS documentCount
   FROM vault_case k`;
 
-// node:sqlite rows have a null prototype, which cannot cross into Client Components.
+// Build a plain DTO so only the case fields cross into Client Components.
 function mapCase(row: Record<string, unknown>): VaultCase {
   const text = (value: unknown) => (value === null || value === undefined ? null : String(value));
   return {
@@ -419,7 +419,7 @@ export async function processDocument(documentId: string, officeId: string, leas
   heartbeat.unref();
   try {
     const { extractDocumentSections } = await import("@/lib/document-extraction");
-    const sections = await extractDocumentSections(await readVaultOriginal(document), document.mimeType, document.name, document.id);
+    const sections = await extractDocumentSections(await readVaultOriginal(document), document.mimeType, document.name, document.id, { ocrImages: true });
     const insert = database.prepare("INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, ?, ?, ?)");
     let ordinal = 0;
     let characters = 0;

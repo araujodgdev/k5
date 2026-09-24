@@ -14,7 +14,7 @@ pnpm install
 pnpm dev
 ```
 
-Abra http://localhost:3000. A raiz leva a `/sign-in`.
+Abra http://localhost:3000. A raiz é a página pública do Lume; o acesso fica em `/sign-in`.
 `pnpm dev` prepara o PostgreSQL e gera `apps/web/.env.local` com um segredo aleatório,
 caso ainda não exista configuração. Não sobrescreve dados nem segredos existentes.
 No primeiro acesso, escolha **Criar conta** para cadastrar seu escritório.

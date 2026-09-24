@@ -13,9 +13,6 @@ coverage/
 .DS_Store
 Thumbs.db
 .data/
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal
 test-results/
 playwright-report/
 apps/web/public/sw.js

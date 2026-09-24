@@ -84,3 +84,53 @@ test('chat files: documents up to 25 MB, images up to 10 MB',async()=>{
   await row(20*1024*1024);
   await assert.rejects(row(25*1024*1024+1));
 });
+
+// A 1×1 PNG, the smallest picture a Word document can carry.
+const PIXEL=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64');
+async function wordFile(name:string,children:Array<import('docx').Paragraph>) {
+  const {Document,Packer}=await import('docx');
+  return new File([new Uint8Array(await Packer.toBuffer(new Document({sections:[{children}]})))],name,{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+
+test('chat files: a Word document made of pictures reaches the model as those pictures',async()=>{
+  const {Paragraph,ImageRun}=await import('docx');
+  const officeId=randomUUID(),userId=randomUUID();
+  await db.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Teste de imagens no Word');
+  await db.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@example.test`,'Teste');
+  const owner={officeId,userId};
+  const chat=await createConversation(db,owner);
+  // Word stores identical pictures once, so each one differs by a trailing byte past IEND.
+  const picture=(n:number)=>new Paragraph({children:[new ImageRun({type:'png',data:Buffer.concat([PIXEL,Buffer.from([n])]),transformation:{width:10,height:10}})]});
+  const attachment=await createChatAttachment(owner,chat.id,await wordFile('guia.docx',[picture(1),picture(2)]));
+  const history:UIMessage[]=[{id:'message-w',role:'user',parts:[{type:'text',text:'Leia o guia'},attachmentPart(attachment)]}];
+  const withVision=JSON.stringify(await chatPromptMessages(owner,chat.id,history,true));
+  assert.equal(withVision.match(/data:image\/png;base64/g)?.length,2,'both pictures, in reading order');
+  assert.match(withVision,/2 imagens/);
+  // Without vision the model is told what it cannot see, instead of receiving nothing.
+  const withoutVision=JSON.stringify(await chatPromptMessages(owner,chat.id,history,false));
+  assert.doesNotMatch(withoutVision,/data:image/);
+  assert.match(withoutVision,/não permite ler imagens/);
+  // A Word file with neither text nor pictures is still refused.
+  await assert.rejects(createChatAttachment(owner,chat.id,await wordFile('vazio.docx',[new Paragraph({})])),/não contém texto legível/);
+});
+
+test('chat files: long documents fit, and an overfull history drops its oldest file instead of failing',async()=>{
+  const {Paragraph}=await import('docx');
+  const officeId=randomUUID(),userId=randomUUID();
+  await db.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Teste de documentos longos');
+  await db.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@example.test`,'Teste');
+  const owner={officeId,userId};
+  const chat=await createConversation(db,owner);
+  // About 130 thousand characters: a real manual, past the old 120 thousand ceiling.
+  const long=(label:string)=>wordFile(`${label}.docx`,Array.from({length:1300},(_,i)=>new Paragraph(`${label} parágrafo ${i} `+'texto do procedimento '.repeat(4))));
+  const first=await createChatAttachment(owner,chat.id,await long('primeiro'));
+  const second=await createChatAttachment(owner,chat.id,await long('segundo'));
+  const third=await createChatAttachment(owner,chat.id,await long('terceiro'));
+  const history:UIMessage[]=[first,second,third].map((file,i)=>({id:`message-${i}`,role:'user',parts:[{type:'text',text:`Anexo ${i}`},attachmentPart(file)]}));
+  const prompt=JSON.stringify(await chatPromptMessages(owner,chat.id,history,false));
+  assert.match(prompt,/terceiro parágrafo 1299/,'the newest file is read in full');
+  assert.match(prompt,/segundo parágrafo 1299/);
+  assert.doesNotMatch(prompt,/primeiro parágrafo 1299/,'the oldest file gives way');
+  assert.match(prompt,/primeiro\.docx.*fora desta resposta/);
+  await assert.rejects(createChatAttachment(owner,chat.id,new File(['a'.repeat(300_001)],'enorme.txt',{type:'text/plain'})),/longo demais/);
+});

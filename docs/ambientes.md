@@ -37,13 +37,11 @@ cp .env.example .env
 docker compose up
 ```
 
-`postgres` guarda os dados transacionais em volume próprio. `vectors` mantém o pgvector opcional. `setup` aplica migrações antes de iniciar `web`, `worker`, `judicial-worker` e `notifications`. O volume `appdata` conserva os originais e qualquer backup SQLite legado. `docker compose down` preserva esses volumes.
+`postgres` guarda os dados transacionais em volume próprio. `vectors` mantém o pgvector opcional. `setup` aplica migrações antes de iniciar `web`, `worker`, `judicial-worker` e `notifications`. O volume `appdata` conserva os originais. `docker compose down` preserva esses volumes.
 
 ## Cloudflare
 
-Web: <https://k5-staging.k5-web.workers.dev>. Os recursos de arquivo/vetores existentes continuam sendo `k5-vault-staging` e `k5-knowledge-staging` (1536 dimensões, cosseno). O novo PostgreSQL deve ser externo e acessível pelo Hyperdrive; o ID configurado precisa ser o mesmo em `wrangler.jsonc` e `wrangler.notifications.jsonc`.
-
-As configurações contêm um ID nulo até o destino ser provisionado e validado. Os scripts de deploy recusam esse ID. A presença do código PostgreSQL no repositório **não significa** que o staging já foi migrado: siga o [procedimento de corte](migracao-postgres.md).
+Web: <https://k5-staging.k5-web.workers.dev>. Os recursos de arquivo/vetores existentes continuam sendo `k5-vault-staging` e `k5-knowledge-staging` (1536 dimensões, cosseno). O PostgreSQL é o PlanetScale acessado pelo Hyperdrive; o ID configurado precisa ser o mesmo em todos os `wrangler*.jsonc`. Os scripts de deploy recusam um ID nulo. Veja [PostgreSQL e Hyperdrive](migracao-postgres.md).
 
 ```sh
 pnpm --filter @k5/web db:migrate

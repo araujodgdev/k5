@@ -8,7 +8,7 @@ import { conversation, mergeHistory, ownedArtifact, saveMessages } from '@/lib/a
 import { documentFocusPrompt } from '@/lib/artifact-edits';
 import { reviewCitations, type CitationItem } from '@/lib/citations/review';
 import { conversationSources, recordSources, type RecordedSource } from '@/lib/citations/sources';
-import { createOfficeAgent, recordUsage, RequestContext } from '@/lib/ai-runtime';
+import { createAgent, recordUsage, RequestContext } from '@/lib/ai-runtime';
 import { selectedResearchSources } from '@/lib/ai-sources';
 import { workspaceContext } from '@/lib/application/context';
 import { agentTools, toolSummary, type ApprovalRequest } from '@/lib/agent-tools';
@@ -20,7 +20,7 @@ import { attachmentPart } from '@/lib/chat-attachment-contract';
 import { chatPromptMessages } from '@/lib/chat-prompt';
 import { clockContext } from '@/lib/chat-clock';
 import { webSearchTool } from '@mastra/core/tools';
-import { resolveOfficeModelConfig } from '@/lib/ai-connections';
+import { resolveModelConfig } from '@/lib/ai-connections';
 import { transcribeAudio, transcribesAudio } from '@/lib/audio-transcription';
 import { instructionsPrompt } from '@/lib/agent-instructions';
 import { knowledgePrompt } from '@/lib/agent-knowledge';
@@ -115,15 +115,14 @@ export async function POST(request: Request) {
     const officeTools = agentTools(context, request => approvals.push(request));
     // Grounding on the open web uses the provider's own search tool. Gemini does not mix Google
     // Search with function calling, so only OpenAI and Anthropic get it next to the office tools.
-    const provider = (await resolveOfficeModelConfig(office.officeId, 'chat')).provider;
+    const provider = (await resolveModelConfig('chat')).provider;
     const [writingRules, knowledge] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner)]);
     // Only the person's own document is named; an id they do not own is ignored, not an error.
     const focusedId = body.selection?.artifactId ?? body.openDocumentId;
     const focused = focusedId ? await ownedArtifact(database, owner, focusedId) : undefined;
     const documentFocus = focused ? documentFocusPrompt(focused, body.selection?.artifactId === focused.id ? body.selection.excerpt : undefined) : '';
     const tools = ['openai', 'anthropic'].includes(provider) ? { ...officeTools, web_search: webSearchTool } : officeTools;
-    const { agent, config } = await createOfficeAgent(
-      (office).officeId,
+    const { agent, config } = await createAgent(
       'chat',
       [
         // Rules shape the voice; the policies after them keep the last word.

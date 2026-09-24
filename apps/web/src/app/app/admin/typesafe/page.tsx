@@ -1,14 +1,4 @@
-import { notFound } from 'next/navigation';
-import { requirePlatformPage } from '@/lib/platform';
-import { TypesafeSettings } from '@/components/typesafe-settings';
-import { connectionView } from '@/lib/typesafe/config';
+import { redirect } from 'next/navigation';
 
-export const metadata = { title: 'TypeSafe · Administração' };
-
-export default async function PlatformTypesafePage() {
-  const context = await requirePlatformPage();
-  if (!context) notFound();
-  return <section>
-    <TypesafeSettings initial={await connectionView()} />
-  </section>;
-}
+/** TypeSafe now lives in the IA tab, beside the Lume's model. */
+export default function PlatformTypesafePage() { redirect('/app/admin/ai'); }

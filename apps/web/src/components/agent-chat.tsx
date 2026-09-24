@@ -461,7 +461,7 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 z-10 mt-auto shrink-0 bg-background/95 px-4 pb-4 pt-2 md:px-8 md:pb-6">
           {away && <ThreadPrimitive.ScrollToBottom aria-label="Voltar ao mais recente" title="Voltar ao mais recente" behavior="auto" className="absolute -top-12 left-1/2 grid size-11 -translate-x-1/2 place-items-center rounded-full border bg-background shadow-[var(--shadow-float)] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:hidden"><ArrowDown className="size-4" /></ThreadPrimitive.ScrollToBottom>}
-          <ComposerPrimitive.Root className="mx-auto w-full max-w-3xl rounded-2xl border bg-background p-2 shadow-[var(--shadow-float)] transition focus-within:border-input">
+          <ComposerPrimitive.Root className="mx-auto w-full max-w-3xl rounded-2xl border border-line bg-background p-2 shadow-[var(--shadow-float)] transition focus-within:border-brand">
             {tools.pendingFiles.length>0&&<div className="flex flex-wrap gap-2 p-2" aria-label="Anexos da próxima mensagem">{tools.pendingFiles.map(file=><ChatAttachmentView key={file.id} data={file} onRemove={()=>tools.onRemoveFile(file.id)} />)}</div>}
             {tools.uploading>0&&<p role="status" className="px-2 py-1 text-xs text-muted-foreground">{tools.uploading===1?'Preparando anexo…':`Preparando ${tools.uploading} anexos…`}</p>}
             {voice.state==='transcribing'&&<p role="status" className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />Transcrevendo áudio…</p>}

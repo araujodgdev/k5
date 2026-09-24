@@ -7,8 +7,9 @@ import { extractDocumentSections, OcrRequiredError } from './document-extraction
 import { CapabilityError } from './capabilities/errors';
 import { captureOperationalError } from './observability/report';
 import { imageMatchesType } from './image-signature';
+import { DOCX_MIME, docxImages } from './docx-images';
 import { type Owner, conversation } from './ai-store';
-import { MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, MAX_CHAT_IMAGE_BYTES, type ChatAttachment } from './chat-attachment-contract';
+import { MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, MAX_CHAT_FILE_TEXT, MAX_CHAT_IMAGE_BYTES, type ChatAttachment } from './chat-attachment-contract';
 
 export type ChatAttachmentRow = {
   id:string; conversation_id:string; office_id:string; user_id:string; message_id:string|null;
@@ -39,8 +40,10 @@ export async function createChatAttachment(owner: Owner, conversationId: string,
       captureOperationalError(error,'chat.attachment.extract');
       throw new CapabilityError('INVALID','Não foi possível ler este arquivo. Para uma página escaneada, envie uma foto ou imagem.');
     }
-    if (!extracted.trim()) throw new CapabilityError('INVALID','O arquivo não contém texto legível. Envie uma foto ou outro arquivo.');
-    if (extracted.length>120_000) throw new CapabilityError('INVALID','Este arquivo é longo demais para um anexo de chat. Adicione-o ao Cofre e selecione-o em Fontes.');
+    // A Word file of pasted screenshots has no text, but the model reads its pictures (chat-prompt.ts).
+    const pictures=mimeType===DOCX_MIME?docxImages(bytes).images.length:0;
+    if (!extracted.trim() && !pictures) throw new CapabilityError('INVALID','O arquivo não contém texto legível. Envie uma foto ou outro arquivo.');
+    if (extracted.length>MAX_CHAT_FILE_TEXT) throw new CapabilityError('INVALID','Este arquivo é longo demais para um anexo de chat. Adicione-o ao Cofre e selecione-o em Fontes.');
   }
   const key=storageKey(owner.officeId,id,extension);
   const storage=await objectStorage();

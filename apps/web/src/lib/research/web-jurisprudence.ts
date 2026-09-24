@@ -2,7 +2,7 @@ import 'server-only';
 import type { Questions } from '@typesafe-ai/sdk';
 import { webSearchTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { createOfficeAgent, recordUsage, RequestContext } from '@/lib/ai-runtime';
+import { createAgent, recordUsage, RequestContext } from '@/lib/ai-runtime';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { evaluate, type DecisionTransport } from '@/lib/typesafe/client';
 
@@ -74,10 +74,10 @@ export function groundCandidates(candidates: WebCandidate[], sources: string[]) 
 }
 
 async function providerSearch(officeId: string, userId: string, query: string, signal?: AbortSignal) {
-  const { agent, config } = await createOfficeAgent(officeId, 'chat',
+  const { agent, config } = await createAgent('chat',
     'Você pesquisa jurisprudência brasileira na web para advogados. Responda apenas com JSON.', { web_search: webSearchTool });
   if (!WEB_SEARCH_PROVIDERS.has(config.provider)) {
-    throw new CapabilityError('NOT_READY', 'O modelo configurado para o escritório não pesquisa na web. Peça ao administrador um modelo OpenAI, Anthropic ou Google.');
+    throw new CapabilityError('NOT_READY', 'O modelo configurado não pesquisa na web. Peça ao administrador um modelo OpenAI, Anthropic ou Google.');
   }
   const ctx = new RequestContext();
   ctx.set('provider', config.provider); ctx.set('modelId', config.modelId); ctx.set('apiKey', config.apiKey);

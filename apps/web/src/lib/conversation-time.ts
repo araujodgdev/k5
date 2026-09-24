@@ -1,8 +1,6 @@
-/** SQLite CURRENT_TIMESTAMP is UTC, even though its string has no offset. */
+/** PostgreSQL timestamps reach the client as ISO strings with an offset. */
 export function conversationDate(timestamp: string) {
-  return new Date(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(timestamp)
-    ? `${timestamp.replace(' ', 'T')}Z`
-    : timestamp);
+  return new Date(timestamp);
 }
 
 export function formatConversationTime(timestamp: string, now = Date.now()) {

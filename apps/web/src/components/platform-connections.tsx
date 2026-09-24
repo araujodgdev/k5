@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { AiConnectionView, AiProvider } from "@/lib/ai-connections-core";
-import { OfficeModelSettings, type OfficeModelSelection } from "@/components/office-model-settings";
+import { LumeModelSettings, type LumeModelSelection } from "@/components/lume-model-settings";
 
 const providerNames: Record<AiProvider, string> = { openai: "OpenAI", anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek", inception: "Inception", openrouter: "OpenRouter", vercel: "AI Gateway" };
 // 44px controls on touch, default height from md up.
@@ -27,7 +27,7 @@ async function api(url: string, method: string, body?: object) {
 }
 
 /**
- * A connection is a provider and a credential. The office model is assigned above this editor;
+ * A connection is a provider and a credential. The Lume's model is assigned above this editor;
  * the embedding model remains pinned to an index generation.
  */
 function Fields({ draft, setDraft, requireKey, keyHint }: { draft: Draft; setDraft: (draft: Draft) => void; requireKey?: boolean; keyHint?: string }) {
@@ -44,14 +44,14 @@ function Fields({ draft, setDraft, requireKey, keyHint }: { draft: Draft; setDra
 
 function ErrorText({ message }: { message: string }) { return <p className="flex items-start gap-2 text-destructive text-sm" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" />{message}</p>; }
 
-function ExistingConnection({ officeId, connection }: { officeId: string; connection: AiConnectionView }) {
+function ExistingConnection({ connection }: { connection: AiConnectionView }) {
   const router = useRouter();
   const noteId = useId();
   const [draft, setDraft] = useState(() => fromConnection(connection));
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const base = `/api/platform/offices/${officeId}/connections/${connection.id}`;
+  const base = `/api/platform/ai/connections/${connection.id}`;
   async function run(label: string, action: () => Promise<unknown>) {
     setBusy(label); setError(""); setNotice("");
     try { await action(); setNotice(label === "test" ? "Conexão validada." : "Alterações salvas."); if (label !== "test") router.refresh(); }
@@ -60,7 +60,7 @@ function ExistingConnection({ officeId, connection }: { officeId: string; connec
   }
   // Tests use the saved credential with the conversation model Lume uses for this provider.
   return <article className="border-t py-7 first:border-t-0">
-    <div className="mb-5 flex items-start justify-between gap-4"><div className="min-w-0"><h2 className="break-words font-medium">{connection.name}</h2><p className="mt-1 text-muted-foreground text-xs">{providerNames[connection.provider]} · {connection.keyHint}</p></div><span className="shrink-0 text-muted-foreground text-xs">{connection.enabled ? "Ativa" : "Desativada"}</span></div>
+    <div className="mb-5 flex items-start justify-between gap-4"><div className="min-w-0"><h4 className="break-words font-medium">{connection.name}</h4><p className="mt-1 text-muted-foreground text-xs">{providerNames[connection.provider]} · {connection.keyHint}</p></div><span className="shrink-0 text-muted-foreground text-xs">{connection.enabled ? "Ativa" : "Desativada"}</span></div>
     <Fields draft={draft} setDraft={setDraft} keyHint={connection.keyHint} />
     <div className="mt-5 flex flex-wrap items-center gap-2">
       <Button type="button" className={touch} disabled={Boolean(busy)} onClick={() => run("save", () => api(base, "PATCH", { ...draft, apiKey: draft.apiKey || undefined }))}>{busy === "save" && <LoaderCircle className="animate-spin motion-reduce:animate-none" />}Salvar alterações</Button>
@@ -79,11 +79,11 @@ function ExistingConnection({ officeId, connection }: { officeId: string; connec
   </article>;
 }
 
-export function PlatformConnections({ officeId, initialConnections, modelCatalog, initialModel }: {
-  officeId: string;
+/** The platform's AI connections and the Lume's model: one configuration for every office. */
+export function PlatformConnections({ initialConnections, modelCatalog, initialModel }: {
   initialConnections: AiConnectionView[];
   modelCatalog: Record<AiProvider, string[]>;
-  initialModel: OfficeModelSelection;
+  initialModel: LumeModelSelection;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -93,18 +93,18 @@ export function PlatformConnections({ officeId, initialConnections, modelCatalog
   async function create(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError("");
     try {
-      await api(`/api/platform/offices/${officeId}/connections`, "POST", draft);
+      await api("/api/platform/ai/connections", "POST", draft);
       setDraft(emptyDraft()); setCreating(false); router.refresh();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível criar a conexão."); }
     finally { setBusy(false); }
   }
   return <div>
-    <OfficeModelSettings key={initialConnections.filter(item => item.enabled).map(item => item.id).join("|")}
-      officeId={officeId} connections={initialConnections} catalog={modelCatalog} initialSelection={initialModel} />
+    <LumeModelSettings key={initialConnections.filter(item => item.enabled).map(item => item.id).join("|")}
+      connections={initialConnections} catalog={modelCatalog} initialSelection={initialModel} />
     <p className="mt-8 text-muted-foreground text-sm">As conexões guardam as credenciais dos provedores. O modelo de embedding acompanha o índice de busca.</p>
     <div className="mt-4 flex items-center justify-between gap-4 border-b pb-4"><p className="text-muted-foreground text-sm">{initialConnections.length === 1 ? "1 conexão cadastrada" : `${initialConnections.length} conexões cadastradas`}</p><Button className={touch} aria-expanded={creating} onClick={() => { setCreating((value) => !value); setError(""); }} variant={creating ? "outline" : "default"}>{creating ? "Cancelar" : "Nova conexão"}</Button></div>
-    {creating && <form onSubmit={create} className="border-b py-7"><h2 className="mb-5 font-medium">Nova conexão</h2><Fields draft={draft} setDraft={setDraft} requireKey /><div className="mt-5 flex items-center gap-3"><Button type="submit" className={touch} disabled={busy}>{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" />}Criar conexão</Button>{busy && <span className="text-muted-foreground text-xs" role="status">Criando…</span>}</div>{error && <div className="mt-3"><ErrorText message={error} /></div>}</form>}
-    <div>{initialConnections.map((connection) => <ExistingConnection key={`${connection.id}:${connection.updatedAt}`} officeId={officeId} connection={connection} />)}</div>
-    {!creating && initialConnections.length === 0 && <p className="py-12 text-subtle-foreground">Nenhuma conexão configurada. Cadastre a primeira para liberar os modelos deste escritório.</p>}
+    {creating && <form onSubmit={create} className="border-b py-7"><h4 className="mb-5 font-medium">Nova conexão</h4><Fields draft={draft} setDraft={setDraft} requireKey /><div className="mt-5 flex items-center gap-3"><Button type="submit" className={touch} disabled={busy}>{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" />}Criar conexão</Button>{busy && <span className="text-muted-foreground text-xs" role="status">Criando…</span>}</div>{error && <div className="mt-3"><ErrorText message={error} /></div>}</form>}
+    <div>{initialConnections.map((connection) => <ExistingConnection key={`${connection.id}:${connection.updatedAt}`} connection={connection} />)}</div>
+    {!creating && initialConnections.length === 0 && <p className="py-12 text-subtle-foreground">Nenhuma conexão configurada. Cadastre a primeira para liberar o Lume em todos os escritórios.</p>}
   </div>;
 }
