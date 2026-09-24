@@ -13,6 +13,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "db:setup": "pnpm --filter @k5/web db:setup",
+    "preview:deploy": "pnpm --filter @k5/web preview:deploy",
     "worker": "pnpm --filter @k5/web worker",
     "judicial:worker": "pnpm --filter @k5/web judicial:worker",
     "notifications:worker": "pnpm --filter @k5/web notifications:worker",

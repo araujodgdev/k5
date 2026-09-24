@@ -1,0 +1,12 @@
+{
+  "name": "refactor",
+  "accountId": "bf552f67bcf46921dbe4137ee0ff8980",
+  "workerName": "k5-staging",
+  "subdomain": "k5-web",
+  "databaseBranch": "k5-preview-refactor",
+  "databaseBranchId": "vl9rizirm32d",
+  "databaseHost": "aws-sa-east-1-1.pg.psdb.cloud",
+  "hyperdriveId": "be60b2773de54da9be2cd2713e0623c7",
+  "bucket": "k5-preview-refactor-vault",
+  "vectorIndex": "k5-preview-refactor-knowledge"
+}

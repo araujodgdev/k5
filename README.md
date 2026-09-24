@@ -71,6 +71,9 @@ Em containers executados como root, configure `TEST_DATABASE_URL`: o servidor Po
 
 O staging hospedado usa bindings privados nos Containers, sem credenciais S3 locais. Sua validação e operação estão em [docs/processadores-cloudflare.md](docs/processadores-cloudflare.md).
 
+O preview HTTP isolado para o refactor é publicado com `pnpm preview:deploy --name refactor`.
+Recursos, configuração privada e escopo estão em [docs/previews.md](docs/previews.md).
+
 ## Rotas
 
 | Rota | Tela |

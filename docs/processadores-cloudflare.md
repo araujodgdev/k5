@@ -17,6 +17,14 @@ O hostname privado `k5-bindings` é interceptado pelo proxy de saída do Contain
 3. Execute os checks e `pnpm --filter @k5/web deploy:vinext`. Publique notificações com `pnpm --filter @k5/web notifications:deploy`.
 4. Verifique a aplicação de Containers na Cloudflare, um upload processado, uma consulta externa habilitada e eventos operacionais no Sentry. O primeiro provisionamento da imagem pode levar alguns minutos.
 
+Para o preflight do deploy, configure também `PROCESSOR_DATABASE_URL` em
+`apps/web/.env.postgres.local`: ela consulta o registro de migrações sem escritas.
+Uma publicação sem alteração de esquema funciona mesmo com o papel administrativo
+expirado. Migrações pendentes ainda exigem renovar `DATABASE_URL_UNPOOLED`; o script
+informa as pendências e distingue autenticação recusada de outros erros do PostgreSQL.
+`pnpm --filter @k5/web deploy:vinext --check` verifica sem publicar nem migrar.
+As chaves KEY/NEXT/PREVIOUS seguem o [runbook de rotação](rotacao-credenciais.md).
+
 O deploy do Worker termina antes da substituição de todas as instâncias do Container. Confira o digest de cada instância antes de repetir um teste que depende de uma nova imagem; a versão antiga pode continuar atendendo durante a atualização. [Ciclo oficial de atualização](https://developers.cloudflare.com/containers/configuration/rollouts/).
 
 O OCR nativo usa somente a versão de PDF.js instalada em `pdfjs-dist`. `unpdf` fica restrito aos anexos textuais no Worker, porque carregar os dois leitores no mesmo processo mistura versões do worker de PDF.js. Os idiomas português e inglês do Tesseract são incluídos na imagem, em cache somente para leitura; o processador não depende de baixar modelos durante um upload.

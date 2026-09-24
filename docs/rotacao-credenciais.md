@@ -4,6 +4,34 @@
 chave antiga: enquanto estiver definida, as escritas usam NEXT e a leitura aceita
 NEXT, KEY e PREVIOUS_KEYS. Sem NEXT, o comportamento anterior é preservado.
 
+## Deploy e credenciais do PostgreSQL
+
+A chave mestra cifra os dados da aplicação; ela não autentica no PlanetScale.
+O PR 16 não adicionou migrações de esquema. `deploy:vinext` verifica primeiro os
+nomes e checksums das migrações em uma transação somente de leitura, usando
+`PROCESSOR_DATABASE_URL` do arquivo privado `.env.postgres.local` (ou `K5_ENV_FILE`).
+Se essa URL não estiver configurada, usa `DATABASE_URL_UNPOOLED` para a conferência.
+Com o esquema atualizado, a publicação não depende da credencial administrativa
+temporária. Havendo migrações pendentes, somente `DATABASE_URL_UNPOOLED` pode aplicá-las;
+falhas de autenticação, conexão ou checksums continuam bloqueando a publicação.
+
+Para conferir o banco sem aplicar migrações, compilar ou publicar:
+
+```sh
+pnpm --filter @k5/web deploy:vinext --check
+```
+
+O erro `28P01` significa autenticação recusada. Emita ou renove o papel administrativo
+no PlanetScale e atualize `DATABASE_URL_UNPOOLED` no ambiente ou arquivo privado;
+variáveis já exportadas no processo têm precedência sobre o arquivo. O papel de
+execução e o administrativo devem apontar para o mesmo endpoint direto e banco do
+Hyperdrive publicado. Não use `.env.local` de desenvolvimento para esse deploy.
+
+O deploy [preserva os secrets remotos do Wrangler](https://developers.cloudflare.com/workers/wrangler/commands/workers/), incluindo KEY, NEXT e PREVIOUS;
+não envia o chaveiro local, não promove chaves e não executa a recifragem. A preparação
+de todos os runtimes e a confirmação pela interface continuam sendo etapas abaixo.
+Não existe opção para publicar ignorando migrações pendentes.
+
 ## Preparar os runtimes
 
 1. Gere 32 bytes aleatórios em base64 e guarde a nova chave em um cofre ou arquivo

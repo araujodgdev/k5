@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     vinext(),
     cloudflare({
+      ...(process.env.K5_PREVIEW_CONFIG ? { configPath: process.env.K5_PREVIEW_CONFIG } : {}),
       viteEnvironment: {
         name: "rsc",
         childEnvironments: ["ssr"],

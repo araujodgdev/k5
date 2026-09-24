@@ -18,4 +18,11 @@ O staging usa PlanetScale em São Paulo e Containers Cloudflare para documentos 
 
 `db:setup` prepara desenvolvimento. `db:migrate` usa o endpoint direto (`DATABASE_URL_UNPOOLED` em `apps/web/.env.postgres.local`), uma transação e lock de migração; checksums impedem alterações silenciosas em migrações já aplicadas. `deploy:vinext` exige Hyperdrive configurado e executa migrações antes de publicar. As migrações do Better Auth devem ser revisadas: `scripts/dump-auth-schema.ts` apenas gera `.data/auth-schema-review.sql`.
 
+Antes de migrar, o deploy confere o esquema somente em leitura por
+`PROCESSOR_DATABASE_URL` (ou pela URL administrativa, se não houver a de execução).
+Se estiver atualizado, não usa o papel administrativo temporário. Se houver
+migrações pendentes, exige `DATABASE_URL_UNPOOLED` válida e mantém a transação e o lock.
+`pnpm --filter @k5/web deploy:vinext --check` faz somente a conferência e retorna erro
+se houver pendências. Veja [deploy durante a rotação](rotacao-credenciais.md#deploy-e-credenciais-do-postgresql).
+
 O Durable Object `LumeProcessor` usa o armazenamento SQLite interno que a Cloudflare exige para Containers; ele guarda só metadados de orquestração, nunca dados de negócio.

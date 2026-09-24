@@ -11,6 +11,29 @@ export function migrationChecksum(sql: string) {
   return createHash('sha256').update(sql.replace(/\r\n/g, '\n')).digest('hex');
 }
 
+/** No DDL or writes: a runtime role can verify a code-only deployment. */
+export async function checkPostgresMigrations(pool: Pool, directory: string | URL) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    const exists = (await client.query("SELECT to_regclass('postgres_migration') AS name")).rows[0].name;
+    const applied = new Map(exists
+      ? (await client.query<{name:string;checksum:string}>('SELECT name,checksum FROM postgres_migration')).rows.map(row => [row.name, row.checksum])
+      : []);
+    const pending: string[] = [];
+    for (const name of (await readdir(directory)).filter(name => name.endsWith('.sql')).sort()) {
+      const sql = await readFile(typeof directory === 'string' ? join(directory, name) : new URL(name, directory), 'utf8');
+      if (!applied.has(name)) pending.push(name);
+      else if (applied.get(name) !== migrationChecksum(sql)) throw new Error(`Applied migration changed: ${name}`);
+    }
+    await client.query('COMMIT');
+    return pending;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally { client.release(); }
+}
+
 /** Direct connection only. One lock and transaction prevent partial or concurrent migrations. */
 export async function migratePostgres(pool: Pool, directory: string | URL) {
   const client = await pool.connect();

@@ -28,6 +28,7 @@
     "build:vinext": "tsx scripts/generate-service-worker.ts && vinext build",
     "start:vinext": "wrangler dev --config dist/server/wrangler.json",
     "deploy:vinext": "tsx scripts/generate-service-worker.ts && tsx scripts/deploy-cloudflare.ts",
+    "preview:deploy": "tsx scripts/deploy-preview.ts",
     "db:migrate": "tsx scripts/migrate-postgres.ts",
     "db:local": "tsx scripts/postgres-local.ts"
   },
