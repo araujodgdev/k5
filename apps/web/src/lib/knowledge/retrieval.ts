@@ -92,16 +92,19 @@ export async function searchKnowledgeEngine(
   if (validDocs.length !== unique.length) {
     throw new CapabilityError('NOT_FOUND', 'Um ou mais documentos selecionados não pertencem a este escritório ou foram excluídos.');
   }
-  const notReady = validDocs.find((doc) => doc.status !== 'ready');
-  if (notReady) throw new CapabilityError('NOT_READY', `O documento "${notReady.name}" ainda está em processamento.`);
+  // A document still in extraction has no chunks yet. It is left out of this search instead of
+  // failing it, so a fresh upload does not block questions about everything already processed.
+  const readyDocs = validDocs.filter((doc) => doc.status === 'ready');
+  if (!readyDocs.length) throw new CapabilityError('NOT_READY', `O documento "${validDocs[0].name}" ainda está em processamento.`);
+  const readyIds = readyDocs.map((doc) => doc.id);
 
-  const nameMap = new Map(validDocs.map((doc) => [doc.id, doc.name]));
+  const nameMap = new Map(readyDocs.map((doc) => [doc.id, doc.name]));
   const scoreMap = new Map<string, ScoredSource>();
 
   // 1. Lexical (FTS5/BM25).
   let lexicalChunks: Awaited<ReturnType<typeof getDocumentChunks>> = [];
   try {
-    lexicalChunks = await getDocumentChunks(context.officeId, unique, query);
+    lexicalChunks = await getDocumentChunks(context.officeId, readyIds, query);
   } catch (error) {
     throw new CapabilityError('INVALID', error instanceof Error ? error.message : 'Falha na recuperação lexical.');
   }
@@ -128,7 +131,7 @@ export async function searchKnowledgeEngine(
     try {
       const { embedding } = await embedQuery(query);
       const hits = await (await vectorIndex()).query(context.officeId, generation.id, embedding, {
-        documentIds: unique,
+        documentIds: readyIds,
         topK: Math.max(limit * 3, 24),
       });
 

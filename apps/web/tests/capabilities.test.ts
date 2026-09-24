@@ -314,6 +314,30 @@ test("knowledge engine: hybrid retrieval, source inspection and audit", async ()
   );
 });
 
+test("knowledge search covers ready documents while another selected one is still processing", async () => {
+  const { userLawyer, officeA } = (await seedFixture());
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const ready = randomUUID();
+  const processing = randomUUID();
+  await testDb.prepare(`
+    INSERT INTO vault_document (id, office_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
+    VALUES (?, ?, 'library', 'peticao.pdf', ?, 'application/pdf', 1024, 'sha', 'ready', ?),
+           (?, ?, 'library', 'laudo-escaneado.pdf', ?, 'application/pdf', 1024, 'sha', 'processing', ?)
+  `).run(ready, officeA, `stored-${ready}.pdf`, userLawyer, processing, officeA, `stored-${processing}.pdf`, userLawyer);
+  await testDb.prepare(`INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content)
+    VALUES (?, ?, ?, 0, 'página:1', 'Requer o restabelecimento do benefício assistencial.')`).run(randomUUID(), ready, officeA);
+
+  const result = await knowledgeService.searchKnowledge(context, { query: "benefício assistencial", documentIds: [ready, processing] });
+  assert.equal(result.sources.length, 1);
+  assert.equal(result.sources[0].documentId, ready);
+
+  await assert.rejects(
+    () => knowledgeService.searchKnowledge(context, { query: "laudo", documentIds: [processing] }),
+    (err: unknown) => err instanceof CapabilityError && err.code === "NOT_READY",
+    "with nothing processed yet, the search says so instead of returning an empty answer",
+  );
+});
+
 test("idempotency: cached execution prevents duplicated writes", async () => {
   const { userLawyer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };

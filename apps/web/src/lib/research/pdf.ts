@@ -12,7 +12,6 @@ import { assertResearchLease, claimResearchJob, completeResearchJob, deferResear
 const sha = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PDF_PAGES = 300;
-const MAX_OCR_PIXELS = 16_000_000;
 const MAX_PAGE_TEXT_CHARS = 200_000;
 const MAX_PAGES_PER_PASS = 8;
 const MAX_PASS_MS = 60_000;
@@ -97,8 +96,8 @@ async function extractPages(bytes: Buffer, versionId: string, lease?:{job:Resear
         let content=textLayer.items.map(item => 'str' in item ? item.str : '').join(' ').replace(/\s+/g,' ').trim();
         let method:'text_layer'|'ocr'='text_layer';
         if (!content) {
-          const viewport=rendered.getViewport({scale:1.5});
-          if (viewport.width*viewport.height>MAX_OCR_PIXELS) throw new ResearchError('unsupported','Página acima do limite de renderização OCR.');
+          const {ocrViewport}=await import('../ocr-worker');
+          const viewport=ocrViewport(rendered);
           const {createCanvas}=await import('@napi-rs/canvas');
           const canvas=createCanvas(Math.ceil(viewport.width),Math.ceil(viewport.height));
           await bounded(rendered.render({canvas,canvasContext:canvas.getContext('2d'),viewport} as never).promise,
