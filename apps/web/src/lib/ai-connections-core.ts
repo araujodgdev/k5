@@ -275,20 +275,3 @@ async function pendingReencryption(db: Database, keyring: CredentialKeyring) {
 export async function countSecretsNeedingReencryption(db: Database, keyring: CredentialKeyring): Promise<number> {
   return (await pendingReencryption(db, keyring)).pending.length;
 }
-
-// Re-encrypts every stored secret with the current master key in one batch; any unreadable secret
-// aborts all changes. Re-encryption happens in memory first, so a secret this key cannot read
-// throws before a single row is written — the guarantee the old SAVEPOINT provided, without
-// needing a lock D1 does not offer.
-export async function reencryptAiConnectionSecrets(db: Database, keyring: CredentialKeyring, actorUserId: string) {
-  const { total, pending } = await pendingReencryption(db, keyring);
-  const writes = pending.flatMap((row) => [
-    db.prepare(({ typesafe_connection: "UPDATE typesafe_connection SET encrypted_api_key = ? WHERE office_id = ?",
-      typesafe_platform: "UPDATE typesafe_platform_connection SET encrypted_api_key = ? WHERE id = CAST(? AS SMALLINT)",
-      ai_connection: "UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?" })[row.kind])
-      .bind(encryptCredential(readSecret(row.encrypted_api_key, keyring), keyring), row.id),
-    auditStatement(db, actorUserId, row.office_id, row.id, "ai_connection.master_key_reencrypted", { keyId: keyring.current.id }),
-  ]);
-  await db.batch(writes);
-  return { total, reencrypted: pending.length, keyId: keyring.current.id };
-}

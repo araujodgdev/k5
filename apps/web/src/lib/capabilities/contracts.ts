@@ -16,7 +16,7 @@ import type { OfficeRole } from '@/lib/offices';
 export type CapabilitySurface = 'agent' | 'webmcp';
 
 export type Capability = {
-  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google';
+  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'memory' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google';
   description: string;
   effect: 'read' | 'write';
   roles: readonly OfficeRole[];
@@ -457,6 +457,22 @@ export const capabilities = {
     description: 'Exclui uma conversa existente se não estiver ocupada. Pede confirmação da pessoa no chat.',
     input: z.object({ conversationId: identifier, approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
+  },
+  // The memory belongs to the person in this office; the Lume reads it back and forgets it on request.
+  // Only the chat has a memory, so neither is published to the browser adapter.
+  k5_memory_get: {
+    module: 'memory', effect: 'read', roles: readers,
+    description: 'Mostra o que o Lume guardou na memória de trabalho sobre a pessoa neste escritório (preferências e pedidos para lembrar).',
+    input: z.object({}),
+    output: z.object({ memory: z.string(), updatedAt: z.string().nullable() }),
+    publish: ['agent'],
+  },
+  k5_memory_clear: {
+    module: 'memory', effect: 'write', roles: writers,
+    description: 'Apaga a memória de trabalho do Lume sobre a pessoa neste escritório. Use quando ela pedir para o Lume esquecer.',
+    input: z.object({}),
+    output: z.object({ cleared: z.boolean() }),
+    publish: ['agent'],
   },
   k5_context_set_sources: {
     module: 'knowledge', effect: 'read', roles: readers,

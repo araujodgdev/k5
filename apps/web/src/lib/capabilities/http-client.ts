@@ -19,6 +19,9 @@ const googleRoutes = Object.fromEntries<Route>(Object.entries(googleOperations).
 
 const routes: Record<CapabilityName, Route> = {
   ...googleRoutes,
+  k5_research_web_search: { method: 'POST', path: () => '/api/research/web-searches', body: i => i },
+  k5_research_list_web_searches: { method: 'GET', path: () => '/api/research/web-searches' },
+  k5_research_get_web_search: { method: 'GET', path: i => `/api/research/web-searches/${id(i.searchId)}` },
   k5_research_search_corpus: { method: 'POST', path: () => '/api/research/corpus', body: i => i },
   k5_research_web_jurisprudence: { method: 'POST', path: () => '/api/research/web', body: i => i },
   k5_research_get_judgment: { method: 'GET', path: i => `/api/research/judgments/${id(i.judgmentId)}` },
@@ -120,6 +123,8 @@ const routes: Record<CapabilityName, Route> = {
   k5_conversations_get: { method: 'GET', path: (i) => `/api/conversations/${id(i.conversationId)}` },
   k5_conversations_create: { method: 'POST', path: () => '/api/conversations', body: (i) => i },
   k5_conversations_delete: { method: 'DELETE', path: (i) => `/api/conversations/${id(i.conversationId)}` },
+  k5_memory_get: { method: 'GET', path: () => '/api/agent/memory' },
+  k5_memory_clear: { method: 'DELETE', path: () => '/api/agent/memory' },
   k5_context_set_sources: { method: 'POST', path: () => '/api/knowledge/scope', body: (i) => i },
   k5_judicial_list_sources: {
     method: 'GET',

@@ -5,7 +5,9 @@ import type { WorkspaceContext } from './context';
 import { findInstallation, listInstallations } from '@/lib/judicial/repositories/installations';
 import { searchInputSchema, ResearchError, type CorpusPage, type CorpusQuery, type JudgmentDetail,
   type ResearchMaterialKind, type ResearchMaterialStatus, type ResearchSearchView, type SearchHistoryItem,
-  type SearchInput, type SearchPage, type SearchProgress, type ResearchResult } from '@/lib/research/contracts';
+  type SearchInput, type SearchPage, type SearchProgress, type ResearchResult, type WebSearchHistoryItem,
+  type WebSearchMode, type WebSearchResult, type WebSearchView } from '@/lib/research/contracts';
+import { exaApiKey, exaSearch, type WebPage } from '@/lib/agent-web-search';
 import { canUseResearchSource, supportsDirectResearchMaterial } from '@/lib/research/policy';
 import { findResearchJudgment, findResearchMaterialVersion, RESEARCH_PAGE_SIZE, searchCorpus,
   toJudgmentSummary } from '@/lib/research/retrieval';
@@ -326,4 +328,63 @@ export async function cancelResearchDownloads(context: WorkspaceContext, searchI
   await authorize(context,true);
   await findSearch(context,searchId);
   return { cancelled:await cancelPendingResearchDownloads(context.officeId,context.userId,searchId) };
+}
+
+// Web search (Exa) for the Pesquisa screen. Only the question leaves the office; the pages found
+// are kept with the search so the person's history reopens them without paying for them again.
+const WEB_SEARCH_RESULTS = 10;
+const WEB_EXCERPT_CHARACTERS = 600;
+type WebSearchRow = { id: string; query: string; mode: WebSearchMode; results_json: string; created_at: string | Date };
+
+function webResult(page: WebPage): WebSearchResult {
+  const text = page.text.replace(/\s+/g, ' ').trim();
+  return {
+    title: page.title, url: page.url, host: new URL(page.url).hostname.replace(/^www\./, ''),
+    publishedDate: page.publishedDate,
+    excerpt: text.length > WEB_EXCERPT_CHARACTERS ? `${text.slice(0, WEB_EXCERPT_CHARACTERS).trimEnd()}…` : text,
+  };
+}
+function webSearchView(row: WebSearchRow): WebSearchView {
+  const results = JSON.parse(row.results_json) as WebSearchResult[];
+  return { id: row.id, query: row.query, mode: row.mode, createdAt: new Date(row.created_at).toISOString(), resultCount: results.length, results };
+}
+
+export async function runResearchWebSearch(context: WorkspaceContext, input: { query: string; mode: WebSearchMode },
+  dependencies: { search?: typeof exaSearch } = {}): Promise<WebSearchView> {
+  await authorize(context);
+  const apiKey = exaApiKey();
+  if (!apiKey && !dependencies.search) throw new ResearchError('unsupported', 'A busca na web ainda não está configurada. Peça ao administrador a chave da Exa.');
+  let pages: WebPage[];
+  try {
+    pages = await (dependencies.search ?? exaSearch)(input.query, {
+      apiKey: apiKey ?? '', type: input.mode, numResults: WEB_SEARCH_RESULTS, signal: context.signal,
+    });
+  } catch {
+    throw new ResearchError('unsupported', 'A busca na web não respondeu. Tente de novo em instantes.');
+  }
+  const results = pages.map(webResult);
+  const row = await database.prepare(`INSERT INTO research_web_search(id,office_id,user_id,query,mode,results_json)
+    VALUES(?,?,?,?,?,?) RETURNING id,query,mode,results_json,created_at`)
+    .get<WebSearchRow>(randomUUID(), context.officeId, context.userId, input.query, input.mode, JSON.stringify(results));
+  if (!row) throw new ResearchError('unsupported', 'Não foi possível guardar a pesquisa.');
+  return webSearchView(row);
+}
+
+export async function listResearchWebSearches(context: WorkspaceContext): Promise<WebSearchHistoryItem[]> {
+  await authorize(context);
+  const rows = await database.prepare(`SELECT id,query,mode,results_json,created_at FROM research_web_search
+    WHERE office_id=? AND user_id=? ORDER BY created_at DESC,id DESC LIMIT 100`)
+    .all<WebSearchRow>(context.officeId, context.userId);
+  return rows.map((row) => {
+    const { id, query, mode, createdAt, resultCount } = webSearchView(row);
+    return { id, query, mode, createdAt, resultCount };
+  });
+}
+
+export async function getResearchWebSearch(context: WorkspaceContext, searchId: string): Promise<WebSearchView> {
+  await authorize(context);
+  const row = await database.prepare(`SELECT id,query,mode,results_json,created_at FROM research_web_search
+    WHERE id=? AND office_id=? AND user_id=?`).get<WebSearchRow>(searchId, context.officeId, context.userId);
+  if (!row) throw new ResearchError('not_found', 'Pesquisa não encontrada.');
+  return webSearchView(row);
 }

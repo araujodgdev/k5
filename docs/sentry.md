@@ -25,6 +25,13 @@ de push usam `captureOperationalError`. Essa função preserva classe e localiza
 substituindo mensagens externas por uma mensagem técnica estável. Não passe prompts, documentos,
 credenciais, corpos HTTP ou dados de clientes como tags, extras ou mensagens de erro.
 
+O Lume gera um span `gen_ai.invoke_agent` por resposta do chat e por análise estruturada, com
+um span `gen_ai.execute_tool` para cada ferramenta que executa (`traceAgentTurn` e `traceToolCall`
+em `src/lib/observability/report.ts`). Eles levam só identificadores e contagens: tarefa,
+provedor, modelo, nome da ferramenta, tokens, número de chamadas, resultados retidos pelo guarda
+e o desfecho (`completed`, `halted`, `failed` ou `cancelled`). `beforeSendSpan` descarta qualquer
+outro atributo.
+
 ## Ambientes e privacidade
 
 Erros são coletados integralmente quando o SDK está ativo. Traces usam amostragem de 10%.

@@ -2,6 +2,7 @@ import 'server-only';
 import { database } from '@/lib/database';
 import { createConversation, conversation } from '@/lib/ai-store';
 import { requireAgentApproval } from './approvals-service';
+import { forgetThread, readMemory, clearMemory } from '@/lib/agent-memory';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
@@ -41,5 +42,14 @@ export async function deleteConversation(context: WorkspaceContext, input: Capab
   await requireAgentApproval(context, 'k5_conversations_delete', input.approvalId, { conversationId: input.conversationId }, input.conversationId, 'Excluir uma conversa pede confirmação.');
 
   await database.prepare('DELETE FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?').run(input.conversationId, context.officeId, context.userId);
+  await forgetThread(context, input.conversationId);
   return { success: true };
+}
+
+export async function getMemory(context: WorkspaceContext): Promise<CapabilityOutput<'k5_memory_get'>> {
+  return readMemory(context);
+}
+
+export async function clearAgentMemory(context: WorkspaceContext): Promise<CapabilityOutput<'k5_memory_clear'>> {
+  return clearMemory(context);
 }

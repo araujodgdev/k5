@@ -296,6 +296,44 @@ test("vectorize: a rejected upsert is reported with its stage and code, never th
   });
 });
 
+test("indexing: a worker that lost its lease cannot overwrite the outcome of the one that took it", async () => {
+  await withContainerVectorize(async (fake) => {
+    const { officeId, userId } = await seedOfficeWithEmbedding();
+    const doc = await seedDocument(officeId, userId, ["documento em processamento"]);
+    const queued = (await enqueueIndexJob(officeId, doc.documentId))!;
+    let release!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    fake.binding.upsert = async () => {
+      entered();
+      await blocked;
+      throw new Error("VECTOR_UPSERT_ERROR (code = 40008): rejected fixture upsert");
+    };
+    const running = processNextIndexJob();
+    try {
+      await Promise.race([started, running.then(() => { throw new Error("Index worker never reached the pending upsert"); })]);
+      const replacement = randomUUID();
+      await testDb.prepare("UPDATE knowledge_index_job SET lease_owner = ?, lease_until = ? WHERE id = ? AND status = 'running'")
+        .run(replacement, Date.now() + 300_000, queued.jobId);
+      const held = await testDb.prepare("SELECT status, lease_owner, error FROM knowledge_index_job WHERE id = ?")
+        .get<{ status: string; lease_owner: string; error: string | null }>(queued.jobId);
+      assert.equal(held?.status, "running");
+      assert.equal(held?.lease_owner, replacement);
+      release();
+      await running;
+      const after = await testDb.prepare("SELECT status, lease_owner, error FROM knowledge_index_job WHERE id = ?")
+        .get(queued.jobId);
+      assert.deepEqual(after, held, "the stale worker's real failure path cannot clear or requeue the replacement's lease");
+    } finally {
+      release();
+      await running;
+      await testDb.prepare("UPDATE knowledge_index_job SET status = 'cancelled', lease_owner = NULL, lease_until = 0 WHERE id = ?")
+        .run(queued.jobId);
+    }
+  });
+});
+
 test("vectorize ids: within 64 bytes, reversible, and refused rather than truncated for unknown shapes", () => {
   const generationId = randomUUID();
   const hex = createHash("sha256").update("x").digest("hex");

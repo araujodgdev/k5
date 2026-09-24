@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { database, type Database } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
-import { decryptCredential, encryptCredential, parseCredentialKeyring, credentialNeedsReencryption, type CredentialKeyring } from '@/lib/platform-crypto';
+import { decryptCredential, encryptCredential, parseCredentialKeyring } from '@/lib/platform-crypto';
 import { googleOAuthConfig, identityScopes, moduleScopes, modulesForScopes, type GoogleModule } from './config';
 import { apiErrorFrom, decodeJson, GoogleApiError, googleHosts, googleTransport, type GoogleService, type TransportResponse } from './transport';
 import { checkGoogleWrite } from './write-context';
@@ -31,8 +31,9 @@ export async function findLiveConnection(owner: Owner, db: Pick<Database, 'prepa
 
 export async function rolloutFor(officeId: string, db: Pick<Database, 'prepare'> = database): Promise<Record<GoogleModule, boolean>> {
   const rows = await db.prepare('SELECT module, enabled FROM google_rollout WHERE office_id=?').all<{ module: GoogleModule; enabled: number }>(officeId);
-  const enabled = new Set(rows.filter(row => row.enabled).map(row => row.module));
-  return { gmail: enabled.has('gmail'), calendar: enabled.has('calendar'), drive: enabled.has('drive'), docs: enabled.has('docs') };
+  // Missing overrides inherit access; explicit platform blocks remain effective.
+  const disabled = new Set(rows.filter(row => !row.enabled).map(row => row.module));
+  return { gmail: !disabled.has('gmail'), calendar: !disabled.has('calendar'), drive: !disabled.has('drive'), docs: !disabled.has('docs') };
 }
 
 /**
@@ -347,31 +348,3 @@ export async function googleJson<T>(connection: Pick<ConnectionRow, 'id'>, reque
 }
 
 export { GoogleApiError };
-
-// ---------- Key rotation ----------
-
-export async function googleSecretsNeedingReencryption(db: Database, ring: CredentialKeyring) {
-  const rows = await db.prepare(`SELECT id,encrypted_refresh_token,encrypted_access_token FROM google_connection WHERE encrypted_refresh_token IS NOT NULL OR encrypted_access_token IS NOT NULL`)
-    .all<{ id: string; encrypted_refresh_token: string | null; encrypted_access_token: string | null }>();
-  const stale = (value: string | null) => { if (!value) return false; try { return credentialNeedsReencryption(value, ring); } catch { return true; } };
-  return rows.filter(row => stale(row.encrypted_refresh_token) || stale(row.encrypted_access_token));
-}
-
-/** Re-encrypts Google tokens with the current master key. Unreadable tokens abort before any write. */
-export async function reencryptGoogleSecrets(db: Database, ring: CredentialKeyring) {
-  const pending = await googleSecretsNeedingReencryption(db, ring);
-  const again = (value: string | null) => value ? encryptCredential(decryptCredential(value, ring), ring) : null;
-  const writes = pending.map(row => db.prepare(`UPDATE google_connection SET encrypted_refresh_token=?,encrypted_access_token=? WHERE id=?
-    AND encrypted_refresh_token IS NOT DISTINCT FROM ? AND encrypted_access_token IS NOT DISTINCT FROM ?`)
-    .bind(again(row.encrypted_refresh_token), again(row.encrypted_access_token), row.id, row.encrypted_refresh_token, row.encrypted_access_token));
-  const operations = await db.prepare('SELECT id,encrypted_args,encrypted_result,checkpoint_json FROM google_operation').all<{ id: string; encrypted_args: string; encrypted_result: string | null; checkpoint_json: string | null }>();
-  for (const row of operations) {
-    if (!credentialNeedsReencryption(row.encrypted_args, ring) && (!row.encrypted_result || !credentialNeedsReencryption(row.encrypted_result, ring)) && (!row.checkpoint_json || !credentialNeedsReencryption(row.checkpoint_json, ring))) continue;
-    writes.push(db.prepare(`UPDATE google_operation SET encrypted_args=?,encrypted_result=?,checkpoint_json=? WHERE id=? AND encrypted_args=? AND encrypted_result IS NOT DISTINCT FROM ? AND checkpoint_json IS NOT DISTINCT FROM ?`)
-      .bind(again(row.encrypted_args), again(row.encrypted_result), again(row.checkpoint_json), row.id, row.encrypted_args, row.encrypted_result, row.checkpoint_json));
-  }
-  const states = await db.prepare('SELECT id,encrypted_verifier FROM google_oauth_state').all<{ id: string; encrypted_verifier: string }>();
-  for (const row of states) if (credentialNeedsReencryption(row.encrypted_verifier, ring)) writes.push(db.prepare('UPDATE google_oauth_state SET encrypted_verifier=? WHERE id=? AND encrypted_verifier=?').bind(again(row.encrypted_verifier), row.id, row.encrypted_verifier));
-  if (writes.length) await db.batch(writes);
-  return writes.length;
-}

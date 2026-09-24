@@ -171,6 +171,10 @@ test("PWA: accepted update keeps old-tab chunks available after the deployment r
   const old = worker({ version: "old" });
   await old.fetch("/_next/static/chunks/old-hash.js");
   await old.fetch("/_next/static/css/old-hash.css");
+  assert.equal(old.cached.size, 2);
+  old.setOffline();
+  assert.equal(await (await old.fetch("/_next/static/chunks/old-hash.js"))?.text(), "network");
+  assert.equal(old.networkCalls, 2, "same-build assets are reused without a network request");
   const next = worker({ version: "new", buckets: old.buckets, clients: [{ id: "old-tab" }, { id: "updating-tab" }] });
   await next.dispatch("install");
   await next.dispatch("message", { data: { type: "SKIP_WAITING" } });
@@ -243,15 +247,6 @@ test("PWA: errors and private responses cannot poison the public asset cache", a
     await sw.fetch("/_next/static/app.js");
     assert.equal(sw.cached.size, 0);
   }
-});
-
-test("PWA: public assets can be reused offline", async () => {
-  const sw = worker();
-  assert.equal(await (await sw.fetch("/_next/static/app.js"))?.text(), "network");
-  assert.equal(sw.cached.size, 1);
-  sw.setOffline();
-  assert.equal(await (await sw.fetch("/_next/static/app.js"))?.text(), "network");
-  assert.equal(sw.networkCalls, 1);
 });
 
 test("PWA: push shows only generic copy, notifies tabs, and opens the guarded route", async () => {

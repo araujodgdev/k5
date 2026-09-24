@@ -2,7 +2,7 @@ import { testDb } from './test-setup';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
-import { candidateSources, citationNumbers, findCitationSpans, type CitationSource } from '../src/lib/citations/detect';
+import { candidateSources, findCitationSpans, type CitationSource } from '../src/lib/citations/detect';
 import { composeCitation } from '../src/lib/citations/verdict';
 import { reviewCitations } from '../src/lib/citations/review';
 import { conversationSources, recordSources, sourcesFromTool } from '../src/lib/citations/sources';
@@ -18,19 +18,6 @@ const text = [
   '',
   'O STJ decidiu no REsp 1.234.567/SP que o dano é presumido. Aplica-se a Lei 8.078/1990.',
 ].join('\n');
-
-test('citations: candidates cover statutes, precedents, cases and CNJ numbers, without trailing punctuation', () => {
-  const spans = findCitationSpans(text);
-  assert.deepEqual(spans.map(span => [span.anchor, span.text]), [
-    ['cnj', '1234567-89.2024.8.26.0100'],
-    ['article', 'art. 319, IV, do CPC'],
-    ['precedent', 'Súmula 54 do STJ'],
-    ['case', 'REsp 1.234.567/SP'],
-    ['norm', 'Lei 8.078/1990'],
-  ]);
-  assert.match(spans[1].paragraph, /^Requer a citação/);
-  assert.deepEqual(citationNumbers('REsp 1.234.567/SP'), ['1234567']);
-});
 
 test('citations: a source matches on the main number and the named code or court', () => {
   const sources: CitationSource[] = [
@@ -86,9 +73,11 @@ test('citations: Jev decides what is a citation and whether the consulted source
   assert.equal(sources.length, 2);
 
   const asked: string[] = [];
+  const sentCitations: Array<{ text: string; paragraph: string }> = [];
   const send = async (_key: string, request: DecisionRequest) => {
     asked.push(...Object.keys(request.questions));
-    const state = request.state as { citations: Array<{ text: string }> };
+    const state = request.state as { citations: Array<{ text: string; paragraph: string }> };
+    sentCitations.push(...state.citations);
     // A well-formed choice spreads its probability over every criterion, as the service does.
     const pick = (name: string, value: string, confidence: number) => {
       const keys = Object.keys((request.questions[name] as { criteria: Record<string, string> }).criteria);
@@ -107,6 +96,10 @@ test('citations: Jev decides what is a citation and whether the consulted source
   };
   const review = await reviewCitations(owner, text, sources, { send });
   assert.equal(review.status, 'evaluated');
+  assert.deepEqual(sentCitations.map(citation => citation.text), [
+    '1234567-89.2024.8.26.0100', 'art. 319, IV, do CPC', 'Súmula 54 do STJ', 'REsp 1.234.567/SP', 'Lei 8.078/1990',
+  ]);
+  assert.match(sentCitations.find(citation => citation.text === 'art. 319, IV, do CPC')!.paragraph, /^Requer a citação/);
   assert.equal(review.mentions, 1, 'the client case number is not a citation');
   assert.deepEqual(review.items.map(item => [item.text, item.kind, item.status, item.source?.title ?? null]), [
     ['art. 319, IV, do CPC', 'statute', 'weak', 'manual.pdf — página 3'],

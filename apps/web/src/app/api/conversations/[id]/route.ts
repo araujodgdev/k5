@@ -3,6 +3,7 @@ import { apiWorkspace, apiError, ApiError } from '@/lib/workspace-api';
 import { conversation } from '@/lib/ai-store';
 import { objectStorage } from '@/lib/storage';
 import { captureOperationalError } from '@/lib/observability/report';
+import { forgetThread } from '@/lib/agent-memory';
 type Context = { params: Promise<{ id: string }> };
 export async function GET(request: Request, context: Context) {
   try {
@@ -19,6 +20,7 @@ export async function DELETE(request: Request, context: Context) {
     const attachments=await database.prepare('SELECT storage_key FROM ai_chat_attachment WHERE conversation_id=? AND office_id=? AND user_id=?').all<{storage_key:string}>(id,office.officeId,user.id);
     const result = await database.prepare('DELETE FROM ai_conversation WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(id, (office).officeId, user.id, Date.now());
     if (!result.changes) throw new ApiError(409, 'Conversa indisponível ou em processamento.');
+    await forgetThread({ officeId: office.officeId, userId: user.id }, id);
     if(attachments.length) {
       const storage=await objectStorage();
       await Promise.all(attachments.map(row=>storage.delete(row.storage_key).catch(error=>captureOperationalError(error,'chat.attachment.delete'))));

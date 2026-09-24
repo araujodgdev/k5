@@ -62,10 +62,6 @@ export function permits(permissions: SourcePermissions, dimension: PermissionDim
 export const operationEffects = ['neutral_query', 'possible_notice', 'filing', 'unknown'] as const;
 export type OperationEffect = (typeof operationEffects)[number];
 
-export function isWorkerSafe(effect: OperationEffect): effect is 'neutral_query' {
-  return effect === 'neutral_query';
-}
-
 export const connectorOperations = [
   'describeCapabilities', 'lookupCase', 'listChanges', 'fetchPublication', 'fetchDocument', 'health',
 ] as const;

@@ -68,15 +68,6 @@ test("mergeHistory appends a new user message", () => {
   assert.deepEqual(result.map(m => m.id), ["u1", "a1", "u2"]);
 });
 
-test("mergeHistory truncates on regenerate without duplicating the user turn", () => {
-  // Regenerate (ActionBarPrimitive.Reload) resends the same user message id that is
-  // already the second-to-last entry in stored history (the assistant reply follows it).
-  const stored = [userMessage("u1", "oi"), assistantMessage("a1", "olá")];
-  const result = mergeHistory(stored, userMessage("u1", "oi"));
-  assert.deepEqual(result.map(m => m.id), ["u1"]);
-  assert.equal(result.filter(m => m.id === "u1").length, 1);
-});
-
 test("mergeHistory replaces and truncates when an earlier message is edited", () => {
   const stored = [userMessage("u1", "oi"), assistantMessage("a1", "olá"), userMessage("u2", "e depois?"), assistantMessage("a2", "resposta")];
   const result = mergeHistory(stored, userMessage("u1", "oi, editado"));

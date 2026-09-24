@@ -107,13 +107,28 @@ desvincular ou consultar um tribunal, sobrescrever uma minuta) viram uma propost
 `capability_approval` e só rodam quando a pessoa aperta **Confirmar** no chat
 (`/api/chat/approvals/[id]`), com exatamente os argumentos propostos.
 
-Com modelos OpenAI ou Anthropic, o Lume tem a busca na web do próprio provedor. Pedidos de
+Com modelos OpenAI ou Anthropic, o Lume tem a busca na web do próprio provedor. Com os demais
+(Gemini inclusive, que não combina Google Search com ferramentas), `web_search` usa o Exa quando
+`EXA_API_KEY` está configurada; só a consulta sai do escritório, e as páginas devolvidas entram na
+conferência de citações. Sem a chave, esses modelos ficam sem busca na web. Pedidos de
 jurisprudência usam `k5_research_web_jurisprudence`: o modelo pesquisa, o código mantém só links
 que a busca devolveu, e o Jev (modo **Pesquisa** em `/app/admin/ai`) pontua a relevância e
 descarta o que não é decisão judicial. A lista aparece no chat a partir do resultado da ferramenta.
+
+O módulo **Pesquisa** (`/app/research`) busca sempre na web pelo Exa, no tipo escolhido pela pessoa
+(instantânea, rápida, automática ou profunda), e exige `EXA_API_KEY`. Cada busca fica em
+`research_web_search`, visível só para quem a fez, e reabre pelo Histórico sem nova consulta.
 O microfone do composer grava, mostra o nível do áudio e, ao parar, envia a gravação para
 `/api/chat/transcribe`; a transcrição vira a mensagem da pessoa. Modelos OpenAI transcrevem com a
 chave do escritório (`gpt-4o-mini-transcribe`); Gemini transcreve o próprio áudio. O áudio não é guardado.
+O Lume tem uma memória de trabalho por pessoa e escritório (Mastra Memory, tabelas `mastra_*` da
+migração 0023, sem criar tabelas em tempo de execução). Ela guarda preferências e o que a pessoa
+pediu para lembrar, e acompanha as conversas seguintes. `k5_memory_get` mostra e `k5_memory_clear`
+apaga a memória (`/api/agent/memory`). O histórico das conversas continua só em `ai_conversation`.
+Resultados de ferramentas com texto de terceiros (Gmail, Google Docs, publicações judiciais,
+jurisprudência e busca na web) passam pelo `PromptInjectionDetector` do Mastra, com o modelo de
+extração, antes de o modelo lê-los. Se houver instruções dirigidas ao assistente, o conteúdo é
+retido e o Lume avisa a pessoa (`src/lib/agent-guard.ts`).
 Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
 escritas verificam origem e papel. Chaves de idempotência evitam criação duplicada em
 repetições, inclusive simultâneas. `k5_ui_open_resource` abre agenda, cliente e atividade.

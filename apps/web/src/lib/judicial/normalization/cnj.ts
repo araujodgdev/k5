@@ -1,5 +1,3 @@
-import type { Degree } from '../contracts';
-
 /**
  * CNJ proceeding numbers (Resolução CNJ 65/2008): NNNNNNN-DD.AAAA.J.TR.OOOO, twenty digits.
  *
@@ -96,30 +94,4 @@ export function formatCnjNumber(digits: string): string {
 
 export function isValidCnjNumber(value: string): boolean {
   return parseCnjNumber(value).ok;
-}
-
-/**
- * Accepts whatever a person or a source provided and returns both identities. A value that does
- * not validate is kept as `nativeNumber`: refusing it would lose a real proceeding, and promoting
- * it to `cnjNumber` would let an unchecked string join on the CNJ index.
- */
-export function toCaseIdentity(value: string, degree: Degree): {
-  cnjNumber: string | null;
-  nativeNumber: string | null;
-  degree: Degree;
-} {
-  const parsed = parseCnjNumber(value);
-  if (parsed.ok) return { cnjNumber: parsed.normalized, nativeNumber: null, degree };
-  return { cnjNumber: null, nativeNumber: value.trim(), degree };
-}
-
-/**
- * The segment and court digits say which installation could hold a proceeding. Used to warn that
- * a number belongs to a different court — never to link it automatically to one.
- */
-export function cnjRoutingHint(digits: string): { segment: string; court: string } | null {
-  const value = stripCnjPunctuation(digits);
-  if (value.length !== 20) return null;
-  const parts = splitParts(value);
-  return { segment: parts.segment, court: parts.court };
 }

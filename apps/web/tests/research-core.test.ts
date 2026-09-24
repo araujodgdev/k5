@@ -148,7 +148,7 @@ test('FTS pesquisa além dos 400 mais recentes e pagina sem repetir IDs',async()
 test('página externa persiste antes de exibir e replay de cursor não dispara nova página',async()=>{
   const installation=await source(),person=(await actor()),unique=`lookup-${randomUUID()}`;
   const fixture=new Map([[fixtureKey(installation.id,'POST','/api/v1/pesquisa'),{
-    body:JSON.stringify({hits:{value:1},registros:[{identificador:unique,ementa:'Guarda avó com estudo psicossocial',
+    body:JSON.stringify({hits:{value:21},registros:[{identificador:unique,ementa:'Guarda avó com estudo psicossocial',
       possuiInteiroTeor:true,inteiroTeorHtml:'Inteiro Teor indisponível.'}]})}]]);
   const started=await startResearchSearch(person,{theme:`temaexclusivo${randomUUID().replaceAll('-','')}`,
     includeSources:true,idempotencyKey:randomUUID()});
@@ -159,11 +159,11 @@ test('página externa persiste antes de exibir e replay de cursor não dispara n
   assert.equal(done.pages[0].results.some((item)=>item.sourceJudgmentId===unique),true);
   assert.equal(done.pages[0].results.find((item)=>item.sourceJudgmentId===unique)?.fullTextStatus,'unavailable');
   const cursor=done.pages[0].nextCursor;
-  if (cursor) {
-    const next=await requestResearchPage(person,started.id,cursor);
-    const replay=await requestResearchPage(person,started.id,cursor);
-    assert.equal(next.id,replay.id);
-  }
+  assert.ok(cursor, 'a source reporting another page must return a continuation cursor');
+  const next=await requestResearchPage(person,started.id,cursor);
+  const replay=await requestResearchPage(person,started.id,cursor);
+  assert.equal(next.id,replay.id);
+  assert.equal((await testDb.prepare("SELECT count(*) AS n FROM research_job WHERE search_id=? AND page_id=? AND kind='search_page'").get(started.id,next.id))!.n,1);
 });
 
 test('repetir coleta mantém versão e IDs de trechos; alteração cria versão sem apagar a antiga',async()=>{

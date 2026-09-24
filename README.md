@@ -86,8 +86,8 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/app/vault` | Cofre |
 | `/app/agenda` | Tarefas, agenda e clientes |
 | `/app/agenda/clients/[id]` | Detalhes do cliente, contato, casos e atividades |
-| `/app/notifications` | Caixa pessoal e preferências de notificações |
-| `/app/research` | Pesquisa de jurisprudência, acervo e histórico pessoal |
+| `/app/notifications` | Abre o painel de notificações (sino no rodapé do menu) |
+| `/app/research` | Pesquisa na web pela Exa, com histórico pessoal |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/app/admin` | Administração da plataforma: feedback, conexões de IA por escritório e TypeSafe |
 

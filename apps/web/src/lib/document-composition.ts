@@ -15,7 +15,7 @@ export type DraftSection = { markdown: string; issues: string[]; refs: SourceRef
 const kindLabel: Record<Divergence['kind'], string> = { data: 'Datas divergentes', valor: 'Valores divergentes', envolvidos: 'Envolvidos divergentes', outro: 'Possível divergência' };
 
 /** "contrato.pdf — página:3" -> "contrato.pdf — página 3". */
-export function readableLabel(label: string) {
+function readableLabel(label: string) {
   return label.replace(/(^|[\s—-])(página|parágrafo|mensagem|linha|aba):\s*/giu, '$1$2 ').replace(/\s+/g, ' ').trim();
 }
 const oneLine = (text: string) => text.replace(/\s+/g, ' ').trim();
@@ -26,7 +26,7 @@ export function escapeMarkdown(text: string) {
 }
 
 type DateInfo = { kind: 'full' | 'partial' | 'unknown'; key: string; label: string };
-export function dateInfo(date: string | null): DateInfo {
+function dateInfo(date: string | null): DateInfo {
   const value = date?.trim() ?? '';
   const full = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (full) {
@@ -44,7 +44,7 @@ function tokens(text: string) {
   return text.normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 }
 /** Same normalized text, or ≥80% token overlap with identical numbers (so "parcela 1" ≠ "parcela 2"). */
-export function similarDescriptions(a: string, b: string) {
+function similarDescriptions(a: string, b: string) {
   const ta = tokens(a), tb = tokens(b);
   if (!ta.length || !tb.length) return false;
   if (ta.join(' ') === tb.join(' ')) return true;

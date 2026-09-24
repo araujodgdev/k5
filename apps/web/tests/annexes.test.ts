@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
-import { annexFileName, analyzeAnnexes, generateAnnexes, orderAnnexPlan } from '../src/lib/annexes';
+import { analyzeAnnexes, generateAnnexes, orderAnnexPlan } from '../src/lib/annexes';
 import { objectStorage, storageKey } from '../src/lib/storage';
 import { createVaultDocument, readVaultOriginal, findVaultDocument } from '../src/lib/vault';
 import { runCapability } from '../src/lib/agent-tools';
@@ -28,13 +28,6 @@ async function scannedPdf(owner: { officeId: string; userId: string; caseId: str
   await testDb.prepare('UPDATE vault_document SET status=? WHERE id=?').run(status, document.id);
   return document.id;
 }
-
-test('annexes: PJe file names drop accents, cedillas and special characters', () => {
-  assert.equal(annexFileName(1, 'Procuração'), '01_procuracao.pdf');
-  assert.equal(annexFileName(4, 'Certidão de nascimento do filho (menor)'), '04_certidao_de_nascimento_do_filho_menor.pdf');
-  assert.equal(annexFileName(12, '  RG / CPF — cônjuge  '), '12_rg_cpf_conjuge.pdf');
-  assert.equal(annexFileName(2, '***'), '02_documento.pdf');
-});
 
 test('annexes: order follows the first citation in the petition, not the scan order', () => {
   const petition = `Os autores, por seu advogado (procuração anexa), requerem o divórcio. Juntam documentos de identificação.
@@ -62,10 +55,11 @@ test('annexes: generation cuts the reviewed ranges into a new folder, scoped to 
   const scan = await scannedPdf(owner, 6);
   const result = await generateAnnexes(owner, { caseId: owner.caseId, scanDocumentId: scan, folderName: 'Anexos do divórcio', items: [
     { label: 'Procuração', startPage: 1, endPage: 1 },
-    { label: 'Documentos de identificação', startPage: 2, endPage: 3 },
-    { label: 'Certidão de casamento', startPage: 6, endPage: 6 },
+    { label: '  RG / CPF — cônjuge  ', startPage: 2, endPage: 3 },
+    { label: 'Certidão de nascimento do filho (menor)', startPage: 6, endPage: 6 },
+    { label: '***', startPage: 4, endPage: 4 },
   ] });
-  assert.deepEqual(result.documents.map(document => document.name), ['01_procuracao.pdf', '02_documentos_de_identificacao.pdf', '03_certidao_de_casamento.pdf']);
+  assert.deepEqual(result.documents.map(document => document.name), ['01_procuracao.pdf', '02_rg_cpf_conjuge.pdf', '03_certidao_de_nascimento_do_filho_menor.pdf', '04_documento.pdf']);
   const folder = await testDb.prepare('SELECT name,case_id FROM vault_folder WHERE id=?').get<{ name: string; case_id: string }>(result.folderId);
   assert.deepEqual(folder, { name: 'Anexos do divórcio', case_id: owner.caseId });
   const second = await findVaultDocument(owner.officeId, result.documents[1].id);

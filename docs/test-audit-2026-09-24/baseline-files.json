@@ -1,0 +1,338 @@
+{
+  "sha": "5e6ab96da61fd85e1d5c617c91702a8854707761",
+  "note": "Pinned main plus the pre-existing Google default-access change; original tests preserved in original-tests.",
+  "executed": 441,
+  "missing": [],
+  "files": [
+    {
+      "file": "tests/agenda.test.ts",
+      "sha256": "73acc42b4b46c1dec1f2270e9389b43acaeb3a3501b810638ff7b8166de0c770",
+      "declarations": 7,
+      "result": "pass"
+    },
+    {
+      "file": "tests/agent-approvals.test.ts",
+      "sha256": "2ebe47c8aa42ebcc5fe8110eb04aa3a84cf534d422cf49f82658179a12f9245f",
+      "declarations": 5,
+      "result": "pass"
+    },
+    {
+      "file": "tests/agent-instructions.test.ts",
+      "sha256": "be4537fcd8f14add2b856a3131615861b541b38672f83d8be3da71887f242ac4",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/agent-knowledge.test.ts",
+      "sha256": "b1fc3bb0bb9ec9d7891ab5e5cd3449e1e127a13721e3c8e80c66dfc38da782b7",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/agent-profile.test.ts",
+      "sha256": "75e7b5535dba59d63748c02540b7fb5bd02080aa801abfb10c56f941386289fe",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/ai-providers.test.ts",
+      "sha256": "66de533f509ded58ea6a06e613d4a3b2c0e1efb9c058cee497422abe7cddcb82",
+      "declarations": 5,
+      "result": "pass"
+    },
+    {
+      "file": "tests/ai-store.test.ts",
+      "sha256": "9de4de1dd90185310225c63ec5dc157079629801e7ad4e409e9549138a4287d8",
+      "declarations": 10,
+      "result": "pass"
+    },
+    {
+      "file": "tests/animation-ssr.test.ts",
+      "sha256": "da36e39f31cc997563b99848b3f3879c59ec884397312ed0974a6ae0f9d7f9d2",
+      "declarations": 1,
+      "result": "pass"
+    },
+    {
+      "file": "tests/annexes.test.ts",
+      "sha256": "b457c70f145e5adada18cc512b3a34e2a3c58c8597d7cc8233ec88729179d61b",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/artifact-edits.test.ts",
+      "sha256": "79d37bcba927e6d8cdfe9b989fbb2eb08d8eae23c590bb8535ac3455b4cb6873",
+      "declarations": 5,
+      "result": "pass"
+    },
+    {
+      "file": "tests/auth.test.ts",
+      "sha256": "f7a8539e9332da3a818769efd8bef04c8e22b7ca7a185a5e460e888f2ee14d8d",
+      "declarations": 11,
+      "result": "pass"
+    },
+    {
+      "file": "tests/calendar-days.test.ts",
+      "sha256": "551fd73e86f4140ce43ef2df00f45bd4709677dc2aec2f8f843b4eb1771f1ce1",
+      "declarations": 2,
+      "result": "pass"
+    },
+    {
+      "file": "tests/capabilities.test.ts",
+      "sha256": "a79e45f0b3c1ed8178ba1639361c2a6f238eabc0c4bc7e82d1d7dd93e0bb4df4",
+      "declarations": 23,
+      "result": "pass"
+    },
+    {
+      "file": "tests/chat-attachments.test.ts",
+      "sha256": "2f61bae4e72ca19e7aeeec2acccfae3fd38554ff526c599c40721d91fe979e45",
+      "declarations": 5,
+      "result": "pass"
+    },
+    {
+      "file": "tests/chat-contract.test.ts",
+      "sha256": "efb15b4be7b5ba5a02226a2e18e71817909d9eb6cc79ee6cd3936a043f12bc35",
+      "declarations": 2,
+      "result": "pass"
+    },
+    {
+      "file": "tests/citations.test.ts",
+      "sha256": "4fd53d329fda6d0d546ef70dcf72bceeae582ba93247415be7e71ec07ba6020c",
+      "declarations": 5,
+      "result": "pass"
+    },
+    {
+      "file": "tests/conversation-time.test.ts",
+      "sha256": "76bd5241e5067009febb6d2633508955b7ce5e63c2578b750f24cf31678dfc80",
+      "declarations": 2,
+      "result": "pass"
+    },
+    {
+      "file": "tests/credential-rotation.test.ts",
+      "sha256": "877e5904eb4ae54528bc95cd57d6139c08ff8364c4242cf6ccb82a7f8812a6a7",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/deploy-database.test.ts",
+      "sha256": "d8c9b7d8a511dd0256283cb074c416f108f71b5e8e578170a8b3123e42797999",
+      "declarations": 5,
+      "result": "pass"
+    },
+    {
+      "file": "tests/document-extraction.test.ts",
+      "sha256": "6936183e088674d91e3cbc63052abf78ad67567615b59c45d75a64922c64604c",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/document-panel.test.ts",
+      "sha256": "0fd4e07f9648e44a67dd128a13675f749bbe5a8053513853b10e8804c9ec15d0",
+      "declarations": 2,
+      "result": "pass"
+    },
+    {
+      "file": "tests/documents.test.ts",
+      "sha256": "8a951a8f978e4184e3b23061538baae39141c378f729dd06e73d1e9dab1cdc17",
+      "declarations": 11,
+      "result": "pass"
+    },
+    {
+      "file": "tests/feedback-tickets.test.ts",
+      "sha256": "b98c87bf0f2d7dcc1c7507dfadc341c6605b96b7965e6e6a7be4cdf2a57f92aa",
+      "declarations": 5,
+      "result": "pass"
+    },
+    {
+      "file": "tests/feedback.test.ts",
+      "sha256": "36e399b3d50ba6c2d37ba858cee7fc10304261d8ddff15bc3a06fafbf2b75a28",
+      "declarations": 8,
+      "result": "pass"
+    },
+    {
+      "file": "tests/google-calendar.test.ts",
+      "sha256": "277ae54c4ca06b970173b57cc971fa37eb7a0a5672be22bf0556e03d6ed2f6b8",
+      "declarations": 13,
+      "result": "pass"
+    },
+    {
+      "file": "tests/google-default-access.test.ts",
+      "sha256": "26bee4694dac032c4dd8d5c8f3518c2058022eadf94a2c32edcbb31def7551a8",
+      "declarations": 2,
+      "result": "pass"
+    },
+    {
+      "file": "tests/google-drive.test.ts",
+      "sha256": "8ad108c8365fe97073a0440de0eaa41b88ad7ed6109fac37d485d8de45103608",
+      "declarations": 18,
+      "result": "pass"
+    },
+    {
+      "file": "tests/google-email-triage.test.ts",
+      "sha256": "cedef084036d612791d28d41c2bcf38f1778c97dfc88038b68d0f2bd7069ef80",
+      "declarations": 8,
+      "result": "pass"
+    },
+    {
+      "file": "tests/google-foundation.test.ts",
+      "sha256": "803cbcfdd43563d789b7eb075a5142cd98af77dd5b34386a03b638d6fa9fda62",
+      "declarations": 11,
+      "result": "pass"
+    },
+    {
+      "file": "tests/google-gmail.test.ts",
+      "sha256": "511c47f8996452a7823bc736a88655d21b641d48a2666a8b71fbb68d57910f8f",
+      "declarations": 16,
+      "result": "pass"
+    },
+    {
+      "file": "tests/indexing.test.ts",
+      "sha256": "1e91ed5587c6b4c7af00ec821e2697ba9c49969ef327a87334819a44f0dca3dc",
+      "declarations": 9,
+      "result": "pass"
+    },
+    {
+      "file": "tests/judicial-connector.test.ts",
+      "sha256": "f25a66db70153f9dce8c0029df537932caeefc36260984ce671601152089632d",
+      "declarations": 19,
+      "result": "pass"
+    },
+    {
+      "file": "tests/judicial-normalization.test.ts",
+      "sha256": "3e3dd9212b245a100a1067defffdc349de367e2aece666336c1c451fe7058ab9",
+      "declarations": 15,
+      "result": "pass"
+    },
+    {
+      "file": "tests/judicial-pipeline.test.ts",
+      "sha256": "cbe99c898c33962accbbc4afcea4b535d8a538a58cb39e47172951efd0d7c4b6",
+      "declarations": 34,
+      "result": "pass"
+    },
+    {
+      "file": "tests/judicial-transport.test.ts",
+      "sha256": "c05c7b51c23f049224321ac9dc88ff8d2b7556ef90cf3857d37ee6e2837600d1",
+      "declarations": 1,
+      "result": "pass"
+    },
+    {
+      "file": "tests/multipart-limit.test.ts",
+      "sha256": "b23396c10abea67c90b784838f121721e3e38e4c5052c451e0ec01738240028e",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/notifications.test.ts",
+      "sha256": "978757a8827e084ed0ce7020dc7db2849bfbeb305d1654d1a1d02432b78d8fd7",
+      "declarations": 8,
+      "result": "pass"
+    },
+    {
+      "file": "tests/observability.test.ts",
+      "sha256": "d9d0f55ff5085bcb44d191a3890ac0d7f8f8c81450f42ff7c05c603c77537d8c",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/openai-effort.test.ts",
+      "sha256": "8d2a7475d86ac63c80b62c1604f826e16564c8bba706702e704e2e82eacb68f9",
+      "declarations": 1,
+      "result": "pass"
+    },
+    {
+      "file": "tests/platform-auth.test.ts",
+      "sha256": "981a63c198867663a01f79560f91b1193be086a618923e124d7a55897323b1f9",
+      "declarations": 2,
+      "result": "pass"
+    },
+    {
+      "file": "tests/platform.test.ts",
+      "sha256": "572737b9fb010fdceb14edb2df46aac6e7a5bca846f487e9c4b7a39fd52ab7ff",
+      "declarations": 15,
+      "result": "pass"
+    },
+    {
+      "file": "tests/postgres.test.ts",
+      "sha256": "21b65ce616d44eedd4456a1299994acb9616b14e9c3a5693316b8892238ad096",
+      "declarations": 6,
+      "result": "pass"
+    },
+    {
+      "file": "tests/preview-config.test.ts",
+      "sha256": "e0f43a0f4de426dcfda8e37f4dc3351933f29b2e533416cd75ce1c97309c8cbf",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/processors.test.ts",
+      "sha256": "cc348a80efef0e91898f566e710d575d7fe1492d2cce9ec51a881e806e6d7620",
+      "declarations": 2,
+      "result": "pass"
+    },
+    {
+      "file": "tests/pwa.test.ts",
+      "sha256": "752fd1eb0c14f9bbba765409e5696f07f597660096cda51eb389818ff183a619",
+      "declarations": 12,
+      "result": "pass"
+    },
+    {
+      "file": "tests/research-capabilities.test.ts",
+      "sha256": "85c0ec1ae1a7df3dba07c7ad45256dc0226b60d57206e59dcc6e0489592adf4c",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/research-case.test.ts",
+      "sha256": "8514911b1992c608cb27cc8d1deb128486ccb11313101568950d7d59aa4262de",
+      "declarations": 7,
+      "result": "pass"
+    },
+    {
+      "file": "tests/research-core.test.ts",
+      "sha256": "efe37d170a3083036a9f7e7f93a44ac7ecae7888e2f7d76af36d51cd0238cd0d",
+      "declarations": 23,
+      "result": "pass"
+    },
+    {
+      "file": "tests/research-stj.test.ts",
+      "sha256": "1925668325477a00a1f16abdf0c728e6c1b554d2ea670d7cc793b2ecc85a3862",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/security.test.ts",
+      "sha256": "a0160c6dcc9b1457cd32d976f5cd8f0cc841edd1c12462c3719eddbe9ef0dffb",
+      "declarations": 17,
+      "result": "pass"
+    },
+    {
+      "file": "tests/typesafe.test.ts",
+      "sha256": "ad4b5fb733be809b3ea7bd6df40af4f347316394c5e40f4bda8f87c5c857e01e",
+      "declarations": 24,
+      "result": "pass"
+    },
+    {
+      "file": "tests/vault-observability.test.ts",
+      "sha256": "ee0c837f3ddf3e8cf2208202f34143f2b32c0f617c1361a0c836848ce1b45b60",
+      "declarations": 1,
+      "result": "pass"
+    },
+    {
+      "file": "tests/vectorize-contract.test.ts",
+      "sha256": "5d40f0d7075bf9bcba259396b513cd88ab29902d4d6df64af7e9ebb7e4ac48bb",
+      "declarations": 7,
+      "result": "pass"
+    },
+    {
+      "file": "tests/web-jurisprudence.test.ts",
+      "sha256": "ff98d13733c423b4b719cfbfbee8e8180619d9aa5fdf12eaa5df2c90a722e0c0",
+      "declarations": 4,
+      "result": "pass"
+    },
+    {
+      "file": "tests/worker-scheduler.test.ts",
+      "sha256": "d787208c5902ddf3f215192d4579e9bf6d97699bf6c3c8ff8ccbc73ae6d2351b",
+      "declarations": 2,
+      "result": "pass"
+    }
+  ]
+}

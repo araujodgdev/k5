@@ -1,0 +1,17 @@
+{
+  "node": "v26.6.0",
+  "baselineHead": "5e6ab96da61fd85e1d5c617c91702a8854707761",
+  "install": "pnpm install --offline --frozen-lockfile",
+  "pnpm": "12.4.2",
+  "coverageTool": "c8@12.0.0",
+  "versions": {
+    "@mastra/core": "1.67.0",
+    "@mastra/ai-sdk": "1.10.3"
+  },
+  "hashes": {
+    "package.json": "8fd43b3a3f8741cb7499e697522a402e46d89bcda82472a629fbbffc0674c20b",
+    "pnpm-lock.yaml": "fdf6adc7c3dcd59e24d295f54a8fdfd23fe2705e39d1719ea28c6c221f79eddc",
+    "pnpm-workspace.yaml": "6fe3d36eda924484d059846d9ddb54ef5370e40d289cdd42b1c622ffa3a57a4a",
+    "apps/web/package.json": "8db300ed51c5baeec9196b15e10100654ad0b8436d254d319878c762945657a7"
+  }
+}

@@ -27,7 +27,7 @@ export const annexModelOutput = z.object({
 export type AnnexModelOutput = z.infer<typeof annexModelOutput>;
 
 /** Accents, cedillas and anything but letters and digits removed, as the PJe upload expects. */
-export function annexFileName(position: number, label: string) {
+function annexFileName(position: number, label: string) {
   const base = label.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60).replace(/_+$/, '');
   return `${String(position).padStart(2, '0')}_${base || 'documento'}.pdf`;

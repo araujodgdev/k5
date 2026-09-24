@@ -42,6 +42,8 @@
     "@js-temporal/polyfill": "^0.5.1",
     "@mastra/ai-sdk": "^1.10.3",
     "@mastra/core": "^1.67.0",
+    "@mastra/memory": "~1.30.0",
+    "@mastra/pg": "~1.25.0",
     "@mmmike/web-push": "^1.3.0",
     "@napi-rs/canvas": "^1.0.9",
     "@radix-ui/react-focus-scope": "1.1.16",

@@ -13,7 +13,6 @@ import { withIdempotency } from "../src/lib/application/idempotency-service";
 import { assertStorageKey, objectStorage, resetObjectStorageForTests, storageKey } from "../src/lib/storage";
 import { findVaultDocument, listVaultDocuments, retryVaultDocument, VaultHttpError } from "../src/lib/vault";
 import { isTrustedOrigin } from "../src/lib/trusted-origins";
-import { vaultErrorResponse } from "../src/lib/vault-api";
 import { activityData } from "../src/lib/capabilities/agenda";
 
 async function seedOffices() {
@@ -370,12 +369,6 @@ test("origins: the wildcard the tunnel default declares is honoured, and nothing
   assert.equal(isTrustedOrigin("http://localhost:3000/api/chat", patterns), false);
   assert.equal(isTrustedOrigin("null", patterns), false);
   assert.equal(isTrustedOrigin("https://going-officials-kenny-axis.trycloudflare.com", []), false);
-});
-
-test("vault routes answer domain validation errors with 400 and the domain message", async () => {
-  const response = vaultErrorResponse(new CapabilityError("INVALID", "O arquivo está vazio."));
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: "O arquivo está vazio.", code: "INVALID" });
 });
 
 test("approval responses omit tenant ids and the stored input", () => {

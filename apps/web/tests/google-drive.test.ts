@@ -381,6 +381,9 @@ test('efeito desconhecido de renomear bloqueia compartilhamento do mesmo arquivo
   fake.failNetwork('PATCH', /\/drive\/v3\/files\/drive-file-123456789$/);
   const renamed = await renameFile(owner.context, { fileId: file.id, name: 'Novo nome.pdf', idempotencyKey: 'uncertain-rename' });
   assert.equal(renamed.operation.status, 'unknown');
+  const replay = await renameFile(owner.context, { fileId: file.id, name: 'Novo nome.pdf', idempotencyKey: 'uncertain-rename' });
+  assert.equal(replay.operation.status, 'unknown');
+  assert.equal(fake.count('PATCH', /\/drive\/v3\/files\/drive-file-123456789$/), 1);
   await assert.rejects(shareFile(owner.context, { fileId: file.id, email: 'pessoa@example.com', role: 'reader', notify: true,
     idempotencyKey: 'share-different-key' }), /em andamento|em verificação/i);
   assert.equal(fake.count('POST', /\/drive\/v3\/files\/drive-file-123456789\/permissions$/), 0);

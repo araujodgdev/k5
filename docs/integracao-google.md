@@ -1,7 +1,9 @@
 # Configuração e operação da integração Google
 
 Implementa o [plano](plano-integracao-google.md). A integração é opcional, separada do login
-Better Auth, e permanece fechada por escritório/módulo até a liberação da plataforma.
+Better Auth, e fica liberada por padrão para todos os escritórios e módulos quando o ambiente
+tem OAuth configurado. A plataforma pode bloquear módulos explicitamente por escritório;
+as regras do escritório e o consentimento individual continuam obrigatórios.
 Não há credenciais Google de homologação no repositório. Os testes locais usam transporte
 simulado; a matriz de homologação real abaixo precisa ser executada antes da liberação.
 
@@ -121,8 +123,10 @@ a agenda usa consultas periódicas. Para testar push local, use um endereço HTT
 estável e configure-o como webhook; o callback OAuth continua precisando do endereço exato
 registrado no Google.
 
-O responsável pela plataforma deve já estar cadastrado e possuir o papel de plataforma.
-A liberação é independente das regras do administrador do escritório:
+Não é necessário executar uma liberação manual para escritórios novos ou existentes sem
+configuração específica em `google_rollout`. Bloqueios explícitos existentes são preservados.
+Para sobrescrever o padrão, o responsável deve estar cadastrado e possuir o papel de plataforma.
+Essas exceções são independentes das regras do administrador do escritório:
 
 ```sh
 pnpm integrations:admin --email operador@exemplo.com --office ID_DO_ESCRITORIO --modules gmail,calendar,drive,docs --enabled true

@@ -28,7 +28,7 @@ function OverviewSection({ title, href, module, children, loading, failed }: { t
   return <section aria-label={title} className={`relative min-h-56 min-w-0 border-t pt-4 before:absolute before:-top-px before:left-0 before:h-0.5 before:w-10 ${moduleRule[module]}`}><header className="mb-2 flex items-center justify-between gap-3"><h2 className="font-medium">{title}</h2><Link href={href} className={linkStyle}>Ver tudo<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only"> em {title}</span></Link></header>{loading ? <p role="status" className="py-5 text-sm text-muted-foreground">Carregando…</p> : failed ? <p role="alert" className="py-5 text-sm text-destructive">Não foi possível carregar. Use Atualizar para tentar novamente.</p> : children}</section>;
 }
 
-export function CommandCenter({ role, name }: { role: OfficeRole; name: string }) {
+export function CommandCenter({ role }: { role: OfficeRole }) {
   const [data, setData] = useState<Overview>({});
   const [pending, setPending] = useState(pendingSections);
   const loading = Object.values(pending).some(Boolean);
@@ -69,18 +69,9 @@ export function CommandCenter({ role, name }: { role: OfficeRole; name: string }
     catch (error) { setFailure(error instanceof Error ? error.message : 'Não foi possível concluir a tarefa.'); }
     finally { setBusy(null); }
   }
-  const date = today ? new Date(`${today}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   const empty = (text: string) => <p className="py-5 text-sm text-muted-foreground">{text}</p>;
   return <div className="min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
-    <header className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="page-title max-md:sr-only">Início</h1><p className="min-h-10 md:mt-3 text-sm text-muted-foreground">Olá, {name.replace(/[.!?]+$/, '')}.{date && ` Hoje é ${date}.`}</p></div><div className="flex items-center gap-2"><Button variant="ghost" size="lg" disabled={loading} onClick={() => setRevision(value => value + 1)}>Atualizar</Button>{role !== 'reviewer' && <Button asChild size="lg"><Link href="/app/agenda?action=new"><Plus className="size-4" />Nova atividade</Link></Button>}</div></header>
-    <div className="my-7 grid grid-cols-2 gap-x-6 gap-y-5 border-y py-5 sm:grid-cols-4" aria-label="Resumo do escritório">
-      {[
-        ['Até hoje', data.tasks?.total, '/app/agenda', 'bg-module-agenda'],
-        ['Reuniões a seguir', data.meetings?.total, '/app/agenda?view=calendar', 'bg-module-agenda'],
-        ['Clientes ativos', data.clients?.total, '/app/agenda?view=clients', 'bg-module-agenda'],
-        ['Casos no Cofre', data.vault?.cases.length, '/app/vault', 'bg-module-vault'],
-      ].map(([label, count, href, tone]) => <Link key={String(label)} href={String(href)} className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="flex items-center gap-2 text-xs text-muted-foreground"><span className={`size-1.5 rounded-full ${tone}`} aria-hidden="true" />{label}</span><span className="mt-2 block text-2xl tabular-nums">{count === undefined ? '—' : count}</span></Link>)}
-    </div>
+    <header className="mb-7 flex flex-wrap items-center justify-between gap-4 max-md:justify-end"><h1 className="page-title max-md:sr-only">Início</h1><div className="flex items-center gap-2"><Button variant="ghost" size="lg" disabled={loading} onClick={() => setRevision(value => value + 1)}>Atualizar</Button>{role !== 'reviewer' && <Button asChild size="lg"><Link href="/app/agenda?action=new"><Plus className="size-4" />Nova atividade</Link></Button>}</div></header>
     {failure && <p role="alert" className="mb-4 text-sm text-destructive">{failure}</p>}
     <div className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-2">
       <OverviewSection title="Tarefas até hoje" href="/app/agenda" module="agenda" loading={pending.tasks && !data.tasks} failed={!data.tasks}>

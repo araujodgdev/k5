@@ -238,6 +238,7 @@ test('rascunho alterado remotamente após preparação não é sobrescrito', asy
 test('mesmo rascunho com nova chave não é enviado duas vezes enquanto o resultado é desconhecido', async () => {
   const owner = await googleFixture();
   await setRule(owner.officeId, 'gmail.send', { mode: 'automatic' });
+  await setRule(owner.officeId, 'gmail.draft', { mode: 'automatic' });
   const fake = installFakeGoogle();
   fake.on('GET', /\/users\/me\/drafts\/draft1$/, () => respond(200, { id: 'draft1', message: {
     id: 'draftMessage1', threadId: 'thread1', payload: { headers: headers(['To', 'destino@example.com'], ['Subject', 'Tema']),
@@ -248,6 +249,8 @@ test('mesmo rascunho com nova chave não é enviado duas vezes enquanto o result
   assert.equal(first.operation.status, 'unknown');
   await assert.rejects(() => sendMail(owner.context, { ...empty, draftId: 'draft1', idempotencyKey: randomUUID() }),
     /operação equivalente/);
+  await assert.rejects(() => deleteDraft(owner.context, { draftId: 'draft1', idempotencyKey: randomUUID() }), /operação equivalente/);
+  assert.equal(fake.count('DELETE', /\/drafts\/draft1$/), 0);
   assert.equal(fake.count('POST', /\/drafts\/send$/), 1);
 });
 

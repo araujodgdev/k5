@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
       ],
     }];
   },
-  serverExternalPackages: ['@mastra/core', '@mastra/ai-sdk', 'pdfjs-dist', 'unpdf', 'tesseract.js', '@napi-rs/canvas', 'mammoth', 'mailparser', 'exceljs', 'pizzip', 'docx'],
+  serverExternalPackages: ['@mastra/core', '@mastra/ai-sdk', '@mastra/memory', '@mastra/pg', 'pdfjs-dist', 'unpdf', 'tesseract.js', '@napi-rs/canvas', 'mammoth', 'mailparser', 'exceljs', 'pizzip', 'docx'],
   allowedDevOrigins: ["*.trycloudflare.com"],
   outputFileTracingExcludes: {
     "/*": ["./.data/**/*", "./.env", "./.env.*"],

@@ -62,6 +62,9 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   const [caseId, setCaseId] = useState(initialCaseId);
   const [clientId, setClientId] = useState(initialClientId);
   const [status, setStatus] = useState('');
+  // Tasks split into open work and an archive of completed or cancelled ones.
+  const [archivedTasks, setArchivedTasks] = useState(false);
+  const activityStatus = view === 'tasks' ? (archivedTasks ? status || 'completed' : 'pending') : status;
   const [legalArea, setLegalArea] = useState('');
   const [query, setQuery] = useState('');
   const searchQuery = useDebouncedValue(query);
@@ -149,7 +152,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
           const from = new Date(`${day}T00:00:00`); const to = new Date(from); to.setDate(to.getDate() + 1);
           const result = await agendaCall('k5_agenda_list_activities', {
             query: searchQuery, ...(view === 'tasks' ? { kind: 'task' } : { dueFrom: day, dueTo: day, from: from.toISOString(), to: to.toISOString() }),
-            ...(caseId ? { caseId } : {}), ...(clientId ? { clientId } : {}), ...(status ? { status } : {}), limit: 50, offset,
+            ...(caseId ? { caseId } : {}), ...(clientId ? { clientId } : {}), ...(activityStatus ? { status: activityStatus as AgendaActivity['status'] } : {}), limit: 50, offset,
           });
           if (!cancelled) { setActivities(result.activities); setTotal(result.total); }
         }
@@ -158,9 +161,10 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     }
     void load();
     return () => { cancelled = true; };
-  }, [view, calendarMode, day, caseId, clientId, searchQuery, status, legalArea, offset, revision]);
+  }, [view, calendarMode, day, caseId, clientId, searchQuery, status, activityStatus, legalArea, offset, revision]);
 
-  function changeView(value: View) { setView(value); setStatus(''); setOffset(0); setQuery(''); setLoading(true); }
+  function changeView(value: View) { setView(value); setStatus(''); setArchivedTasks(false); setOffset(0); setQuery(''); setLoading(true); }
+  function changeTaskArchive(value: boolean) { if (value === archivedTasks) return; setArchivedTasks(value); setStatus(''); setOffset(0); setLoading(true); }
   function inspect(value: Editor) { if (value.mode === 'client' && value.client) router.push(`/app/agenda/clients/${encodeURIComponent(value.client.id)}`); else if (canWrite) setEditor(value); else setDetail(value); }
   async function complete(activity: AgendaActivity) {
     setBusy(true); setFailure('');
@@ -207,6 +211,10 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   return <div className="flex min-w-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10 [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9">
     <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-5"><h1 className="page-title max-md:sr-only">Tarefas e Agenda</h1><div className="flex gap-2"><Button variant="ghost" onClick={refresh} disabled={loading && !(view === 'calendar' && calendarMode === 'personal')}>Atualizar</Button>{canWrite && !(view === 'calendar' && calendarMode === 'personal') && <Button disabled={!optionsReady} className="h-11 md:h-9" onClick={() => setEditor({ mode: view === 'clients' ? 'client' : 'activity' })}>{view === 'clients' ? 'Novo cliente' : 'Nova atividade'}</Button>}</div></header>
     <nav aria-label="Visões de tarefas e agenda" className="flex gap-5 border-b">{([['tasks', 'Tarefas'], ['calendar', 'Agenda'], ['clients', 'Clientes']] as const).map(([value, label]) => <button key={value} type="button" aria-current={view === value ? 'page' : undefined} onClick={() => changeView(value)} className={`min-h-12 border-b-2 px-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${view === value ? 'border-foreground font-medium' : 'border-transparent text-muted-foreground'}`}>{label}</button>)}</nav>
+    {view === 'tasks' && <nav aria-label="Situação das tarefas" className="flex gap-5 border-b">
+      {([[false, 'Abertas'], [true, 'Arquivadas']] as const).map(([value, label]) => <button key={label} type="button" aria-current={archivedTasks === value ? 'page' : undefined} onClick={() => changeTaskArchive(value)}
+        className={`min-h-11 border-b-2 px-1 text-sm focus-visible:ring-2 focus-visible:ring-ring ${archivedTasks === value ? 'border-foreground font-medium' : 'border-transparent text-muted-foreground'}`}>{label}</button>)}
+    </nav>}
     {view === 'calendar' && <nav aria-label="Origem da agenda" className="flex gap-5 border-b">
       <button type="button" aria-current={calendarMode === 'office' ? 'page' : undefined} onClick={() => setCalendarMode('office')}
         className={`min-h-11 border-b-2 px-1 text-sm focus-visible:ring-2 focus-visible:ring-ring ${calendarMode === 'office' ? 'border-foreground font-medium' : 'border-transparent text-muted-foreground'}`}>Escritório</button>
@@ -218,7 +226,8 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       <select aria-label="Filtrar por caso" value={caseId} onChange={event => { setCaseId(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">Todos os casos</option>{caseId && !cases.some(c => c.id === caseId) && <option value={caseId}>Caso selecionado</option>}{cases.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
       {view === 'clients' && <select aria-label="Filtrar área" value={legalArea} onChange={event => { setLegalArea(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">Todas as áreas</option>{legalAreas.map(area => <option key={area} value={area}>{legalAreaLabels[area]}</option>)}</select>}
       {view !== 'clients' && <ClientPicker label="Filtrar por cliente" emptyLabel="Todos os clientes" value={clientId} choices={clients} onChange={(id, client) => { setClientId(id); setOffset(0); setLoading(true); if (client) setClients(current => [...current.filter(item => item.id !== client.id), client]); }} />}
-      <select aria-label={view === 'clients' ? 'Filtrar relacionamento' : 'Filtrar situação'} value={status} onChange={event => { setStatus(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">{view === 'clients' ? 'Todos os relacionamentos' : 'Todas as situações'}</option>{Object.entries(view === 'clients' ? stageLabels : statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      {view === 'tasks' ? archivedTasks && <select aria-label="Filtrar situação" value={status || 'completed'} onChange={event => { setStatus(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="completed">Concluídas</option><option value="cancelled">Canceladas</option></select>
+        : <select aria-label={view === 'clients' ? 'Filtrar relacionamento' : 'Filtrar situação'} value={status} onChange={event => { setStatus(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">{view === 'clients' ? 'Todos os relacionamentos' : 'Todas as situações'}</option>{Object.entries(view === 'clients' ? stageLabels : statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}
     </div>}
     {canWrite && optionsReady && view !== 'clients' && !(view === 'calendar' && calendarMode === 'personal') && <AgendaSuggestions cases={cases} clients={clients} members={members} day={day} timeZone={timeZone} initialProposalId={initialProposalId} refreshed={refresh} />}
     {(failure || optionsFailure || detailFailure) && <div className="mb-4 flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-destructive">{failure || optionsFailure || detailFailure}</p><Button variant="outline" onClick={refresh}>Tentar novamente</Button></div>}
@@ -228,7 +237,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       {view === 'calendar' && calendarMode === 'personal' && day ? <section aria-label="Agenda Google pessoal" className="min-w-0 flex-1"><h2 className="mb-4 text-base font-medium">{dateLabel(day)}</h2><CalendarPanel role={role} day={day} initialEventId={initialPersonalEventId} /></section> :
       <section aria-label={view === 'clients' ? 'Clientes' : 'Atividades'} aria-busy={loading} className="min-w-0 flex-1">
         {view === 'calendar' && <div className="mb-4"><h2 className="text-base font-medium">{day && dateLabel(day)}</h2><p className="mt-1 text-xs text-muted-foreground">Horários em {timeZone}</p></div>}
-        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : 'Nenhuma tarefa encontrada.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-[13px] text-muted-foreground">{stageLabels[client.stage]}{client.legalAreas.length ? ` · ${client.legalAreas.map(area => legalAreaLabels[area]).join(', ')}` : ''}{client.city ? ` · ${client.city}${client.state ? `/${client.state}` : ''}` : ''}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : view === 'tasks' ? <div>{taskGroups.map(name => {
+        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : archivedTasks ? 'Nenhuma tarefa arquivada.' : 'Nenhuma tarefa aberta.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-[13px] text-muted-foreground">{stageLabels[client.stage]}{client.legalAreas.length ? ` · ${client.legalAreas.map(area => legalAreaLabels[area]).join(', ')}` : ''}{client.city ? ` · ${client.city}${client.state ? `/${client.state}` : ''}` : ''}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : view === 'tasks' ? <div>{taskGroups.map(name => {
           const rows = activities.filter(activity => taskGroup(activity) === name);
           return rows.length ? <section key={name} className="pt-6 first:pt-0"><h2 className="pb-2 text-[13px] text-muted-foreground">{name}</h2><div className="divide-y border-y">{rows.map(activityRow)}</div></section> : null;
         })}</div> : <div className="divide-y border-y">{activities.map(activityRow)}</div>}

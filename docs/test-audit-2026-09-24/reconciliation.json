@@ -1,0 +1,130 @@
+{
+  "baselineCases": 441,
+  "finalCases": 420,
+  "removedCases": 21,
+  "reductionPercent": 4.761904761904762,
+  "baselineDeclarations": 435,
+  "finalDeclarations": 414,
+  "testLinesBefore": 10073,
+  "testLinesAfter": 9929,
+  "supportLinesBefore": 352,
+  "supportLinesAfter": 352,
+  "removedDeclarations": [
+    {
+      "file": "tests/ai-store.test.ts",
+      "line": 71,
+      "name": "\"mergeHistory truncates on regenerate without duplicating the user turn\""
+    },
+    {
+      "file": "tests/annexes.test.ts",
+      "line": 32,
+      "name": "'annexes: PJe file names drop accents, cedillas and special characters'"
+    },
+    {
+      "file": "tests/capabilities.test.ts",
+      "line": 341,
+      "name": "\"idempotency: cached execution prevents duplicated writes\""
+    },
+    {
+      "file": "tests/citations.test.ts",
+      "line": 22,
+      "name": "'citations: candidates cover statutes, precedents, cases and CNJ numbers, without trailing punctuation'"
+    },
+    {
+      "file": "tests/documents.test.ts",
+      "line": 36,
+      "name": "\"composition: readable labels, dates and similarity helpers\""
+    },
+    {
+      "file": "tests/documents.test.ts",
+      "line": 154,
+      "name": "\"export: markdown tokens become Word-neutral blocks\""
+    },
+    {
+      "file": "tests/google-foundation.test.ts",
+      "line": 125,
+      "name": "'resposta perdida mantém unknown e bloqueia envio equivalente com chave nova'"
+    },
+    {
+      "file": "tests/indexing.test.ts",
+      "line": 114,
+      "name": "\"indexing: a worker that lost its lease cannot overwrite the outcome of the one that took it\""
+    },
+    {
+      "file": "tests/judicial-connector.test.ts",
+      "line": 81,
+      "name": "\"DJEN normalize: pure, and it separates the dates the court keeps apart\""
+    },
+    {
+      "file": "tests/judicial-connector.test.ts",
+      "line": 97,
+      "name": "\"DJEN normalize: an unverifiable number is not written to the CNJ column\""
+    },
+    {
+      "file": "tests/judicial-normalization.test.ts",
+      "line": 55,
+      "name": "\"CNJ: a legacy number survives as native identity instead of being dropped or promoted\""
+    },
+    {
+      "file": "tests/judicial-normalization.test.ts",
+      "line": 66,
+      "name": "\"CNJ: the routing hint reports the court digits without linking anything automatically\""
+    },
+    {
+      "file": "tests/judicial-normalization.test.ts",
+      "line": 126,
+      "name": "\"fingerprints: a movement code and its date alone do not identify an event\""
+    },
+    {
+      "file": "tests/judicial-normalization.test.ts",
+      "line": 135,
+      "name": "\"fingerprints: the source identity wins when there is one, and whitespace never splits a row\""
+    },
+    {
+      "file": "tests/platform.test.ts",
+      "line": 56,
+      "name": "\"writes require an allowed same origin\""
+    },
+    {
+      "file": "tests/platform.test.ts",
+      "line": 178,
+      "name": "\"rotation re-encrypts every live secret with the current key, audits without secrets and is atomic\""
+    },
+    {
+      "file": "tests/pwa.test.ts",
+      "line": 248,
+      "name": "\"PWA: public assets can be reused offline\""
+    },
+    {
+      "file": "tests/security.test.ts",
+      "line": 375,
+      "name": "\"vault routes answer domain validation errors with 400 and the domain message\""
+    },
+    {
+      "file": "tests/typesafe.test.ts",
+      "line": 175,
+      "name": "'agenda dates: rejected DST times have an actionable Portuguese error'"
+    },
+    {
+      "file": "tests/typesafe.test.ts",
+      "line": 356,
+      "name": "'typesafe: key rotation includes decision connections in the atomic batch'"
+    },
+    {
+      "file": "tests/web-jurisprudence.test.ts",
+      "line": 73,
+      "name": "'web jurisprudence: only the Lume gets the tool'"
+    },
+    {
+      "file": "tests/worker-scheduler.test.ts",
+      "line": 25,
+      "name": "'worker shutdown drains the active verification and does not claim its requeued batch'"
+    }
+  ],
+  "addedDeclarations": [
+    {
+      "file": "tests/vectorize-contract.test.ts",
+      "name": "\"indexing: a worker that lost its lease cannot overwrite the outcome of the one that took it\""
+    }
+  ]
+}

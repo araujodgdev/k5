@@ -1,0 +1,311 @@
+{
+  "changes": {
+    "lines": {
+      "before": {
+        "total": 39033,
+        "covered": 15496,
+        "skipped": 0,
+        "pct": 39.69
+      },
+      "after": {
+        "total": 38931,
+        "covered": 15557,
+        "skipped": 0,
+        "pct": 39.96
+      },
+      "dropPercentagePoints": -0.2607,
+      "withinTwoPoints": true,
+      "withinTwoPercentRelative": true
+    },
+    "statements": {
+      "before": {
+        "total": 39033,
+        "covered": 15496,
+        "skipped": 0,
+        "pct": 39.69
+      },
+      "after": {
+        "total": 38931,
+        "covered": 15557,
+        "skipped": 0,
+        "pct": 39.96
+      },
+      "dropPercentagePoints": -0.2607,
+      "withinTwoPoints": true,
+      "withinTwoPercentRelative": true
+    },
+    "functions": {
+      "before": {
+        "total": 4104,
+        "covered": 2544,
+        "skipped": 0,
+        "pct": 61.98
+      },
+      "after": {
+        "total": 4122,
+        "covered": 2558,
+        "skipped": 0,
+        "pct": 62.05
+      },
+      "dropPercentagePoints": -0.0689,
+      "withinTwoPoints": true,
+      "withinTwoPercentRelative": true
+    },
+    "branches": {
+      "before": {
+        "total": 9033,
+        "covered": 6722,
+        "skipped": 0,
+        "pct": 74.41
+      },
+      "after": {
+        "total": 9219,
+        "covered": 6855,
+        "skipped": 0,
+        "pct": 74.35
+      },
+      "dropPercentagePoints": 0.0587,
+      "withinTwoPoints": true,
+      "withinTwoPercentRelative": true
+    }
+  },
+  "beforeFiles": 444,
+  "afterFiles": 444,
+  "missingFiles": [],
+  "losses": [
+    {
+      "file": "apps\\web\\src\\lib\\judicial\\repositories\\installations.ts",
+      "coveredLinesDelta": -45,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -21.23
+    },
+    {
+      "file": "apps\\web\\src\\lib\\judicial\\normalization\\cnj.ts",
+      "coveredLinesDelta": -24,
+      "totalLinesDelta": -28,
+      "linePercentagePoints": -6.97
+    },
+    {
+      "file": "apps\\web\\src\\lib\\google\\operations.ts",
+      "coveredLinesDelta": -16,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -3.91
+    },
+    {
+      "file": "apps\\web\\src\\lib\\application\\judicial-service.ts",
+      "coveredLinesDelta": -13,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -3.37
+    },
+    {
+      "file": "apps\\web\\src\\lib\\application\\research-capability-service.ts",
+      "coveredLinesDelta": -12,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -16.44
+    },
+    {
+      "file": "apps\\web\\src\\lib\\judicial\\normalization\\fingerprint.ts",
+      "coveredLinesDelta": -12,
+      "totalLinesDelta": -20,
+      "linePercentagePoints": 4.75
+    },
+    {
+      "file": "apps\\web\\src\\lib\\google\\jobs.ts",
+      "coveredLinesDelta": -11,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -17.18
+    },
+    {
+      "file": "apps\\web\\src\\lib\\google\\drive\\service.ts",
+      "coveredLinesDelta": -10,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -3.3
+    },
+    {
+      "file": "apps\\web\\src\\lib\\ai-connections-core.ts",
+      "coveredLinesDelta": -9,
+      "totalLinesDelta": -17,
+      "linePercentagePoints": 0.99
+    },
+    {
+      "file": "apps\\web\\src\\lib\\auth-validation.ts",
+      "coveredLinesDelta": -9,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -32.15
+    },
+    {
+      "file": "apps\\web\\src\\lib\\knowledge\\indexing.ts",
+      "coveredLinesDelta": -9,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -2.53
+    },
+    {
+      "file": "apps\\web\\src\\lib\\application\\idempotency-service.ts",
+      "coveredLinesDelta": -7,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -9.33
+    },
+    {
+      "file": "apps\\web\\src\\lib\\db\\postgres.ts",
+      "coveredLinesDelta": -7,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -6.93
+    },
+    {
+      "file": "apps\\web\\src\\lib\\judicial\\repositories\\evidence.ts",
+      "coveredLinesDelta": -7,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -1.65
+    },
+    {
+      "file": "apps\\web\\src\\lib\\judicial\\jobs\\queue.ts",
+      "coveredLinesDelta": -5,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -1.35
+    },
+    {
+      "file": "apps\\web\\src\\lib\\research\\storage.ts",
+      "coveredLinesDelta": -5,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -4.35
+    },
+    {
+      "file": "apps\\web\\src\\lib\\google\\config.ts",
+      "coveredLinesDelta": -4,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -6.45
+    },
+    {
+      "file": "apps\\web\\src\\lib\\feedback-tickets-contract.ts",
+      "coveredLinesDelta": -3,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -4.84
+    },
+    {
+      "file": "apps\\web\\src\\lib\\agent-tools\\index.ts",
+      "coveredLinesDelta": -3,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.65
+    },
+    {
+      "file": "apps\\web\\src\\lib\\application\\vault-service.ts",
+      "coveredLinesDelta": -3,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.91
+    },
+    {
+      "file": "apps\\web\\src\\lib\\typesafe\\agenda.ts",
+      "coveredLinesDelta": -3,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -2.34
+    },
+    {
+      "file": "apps\\web\\src\\lib\\annexes.ts",
+      "coveredLinesDelta": -2,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -1.28
+    },
+    {
+      "file": "apps\\web\\src\\lib\\platform-crypto.ts",
+      "coveredLinesDelta": -2,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -1.94
+    },
+    {
+      "file": "apps\\web\\src\\lib\\google\\gmail\\service.ts",
+      "coveredLinesDelta": -2,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.61
+    },
+    {
+      "file": "apps\\web\\src\\lib\\ai-sources.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -1.16
+    },
+    {
+      "file": "apps\\web\\src\\lib\\application\\approvals-service.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.52
+    },
+    {
+      "file": "apps\\web\\src\\lib\\application\\artifacts-service.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.76
+    },
+    {
+      "file": "apps\\web\\src\\lib\\application\\context.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -1.69
+    },
+    {
+      "file": "apps\\web\\src\\lib\\application\\knowledge-service.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.57
+    },
+    {
+      "file": "apps\\web\\src\\lib\\application\\uploads-service.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.71
+    },
+    {
+      "file": "apps\\web\\src\\lib\\google\\drive\\formats.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -1.44
+    },
+    {
+      "file": "apps\\web\\src\\lib\\google\\gmail\\mime.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.63
+    },
+    {
+      "file": "apps\\web\\src\\lib\\judicial\\normalization\\dates.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": -5,
+      "linePercentagePoints": 1.78
+    },
+    {
+      "file": "apps\\web\\src\\lib\\judicial\\repositories\\links.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.57
+    },
+    {
+      "file": "apps\\web\\src\\lib\\knowledge\\embedding-provider.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.9
+    },
+    {
+      "file": "apps\\web\\src\\lib\\knowledge\\vector-index.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.24
+    },
+    {
+      "file": "apps\\web\\src\\lib\\research\\case-material.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -1.62
+    },
+    {
+      "file": "apps\\web\\src\\lib\\research\\case-profile.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.86
+    },
+    {
+      "file": "apps\\web\\src\\lib\\research\\contracts.ts",
+      "coveredLinesDelta": -1,
+      "totalLinesDelta": 0,
+      "linePercentagePoints": -0.93
+    }
+  ]
+}

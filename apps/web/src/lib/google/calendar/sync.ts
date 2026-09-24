@@ -138,8 +138,8 @@ export async function renewCalendarChannel(job: GoogleJob, db: Database = databa
 export async function scheduleCalendarWork(db: Database = database): Promise<number> {
   const rows=await db.prepare(`SELECT c.* FROM google_calendar c JOIN google_connection g ON g.id=c.connection_id AND g.status='active'
     JOIN office_member m ON m.office_id=c.office_id AND m.user_id=c.user_id
-    JOIN google_rollout r ON r.office_id=c.office_id AND r.module='calendar' AND r.enabled=1
-    WHERE c.selected=1`).all<CalendarRow>();
+    LEFT JOIN google_rollout r ON r.office_id=c.office_id AND r.module='calendar'
+    WHERE c.selected=1 AND COALESCE(r.enabled,1)=1`).all<CalendarRow>();
   let queued=0;
   for(const row of rows){
     if(!row.last_synced_at||Date.parse(row.last_synced_at)<Date.now()-15*60_000||row.sync_state!=='idle'){
@@ -152,8 +152,8 @@ export async function scheduleCalendarWork(db: Database = database): Promise<num
     }
   }
   const connections=await db.prepare(`SELECT g.id,g.office_id,g.user_id FROM google_connection g JOIN office_member m ON m.office_id=g.office_id AND m.user_id=g.user_id
-    JOIN google_rollout r ON r.office_id=g.office_id AND r.module='calendar' AND r.enabled=1
-    WHERE g.status='active'`)
+    LEFT JOIN google_rollout r ON r.office_id=g.office_id AND r.module='calendar'
+    WHERE g.status='active' AND COALESCE(r.enabled,1)=1`)
     .all<{id:string;office_id:string;user_id:string}>();
   for(const c of connections){await enqueueGoogleJob({officeId:c.office_id,userId:c.user_id,connectionId:c.id,
     kind:'calendar_list',dedupeKey:`calendar-list:${c.id}`},db);queued++;}
@@ -164,8 +164,9 @@ export async function acceptCalendarNotification(headers:Headers,db:Database=dat
   const state=headers.get('x-goog-resource-state'),number=headers.get('x-goog-message-number');
   if(!id||!token||!resource||!number||!/^\d+$/.test(number)||!['sync','exists','not_exists'].includes(state??''))return 'ignored';
   const row=await db.prepare(`SELECT c.* FROM google_calendar c JOIN google_connection g ON g.id=c.connection_id AND g.status='active'
-    JOIN office_member m ON m.office_id=c.office_id AND m.user_id=c.user_id JOIN google_rollout r ON r.office_id=c.office_id AND r.module='calendar' AND r.enabled=1
-    WHERE c.channel_id=? AND c.selected=1`).get<CalendarRow>(id);
+    JOIN office_member m ON m.office_id=c.office_id AND m.user_id=c.user_id
+    LEFT JOIN google_rollout r ON r.office_id=c.office_id AND r.module='calendar'
+    WHERE c.channel_id=? AND c.selected=1 AND COALESCE(r.enabled,1)=1`).get<CalendarRow>(id);
   if(!row?.channel_token_hash||!row.channel_resource_id||row.channel_resource_id!==resource)return 'ignored';
   const candidate=Buffer.from(hash(token),'hex'),stored=Buffer.from(row.channel_token_hash,'hex');
   if(candidate.length!==stored.length||!timingSafeEqual(candidate,stored))return 'ignored';

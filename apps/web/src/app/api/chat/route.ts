@@ -19,11 +19,14 @@ import { resolveChatAttachments, claimChatAttachments, publicChatAttachment } fr
 import { attachmentPart } from '@/lib/chat-attachment-contract';
 import { chatPromptMessages } from '@/lib/chat-prompt';
 import { clockContext } from '@/lib/chat-clock';
-import { webSearchTool } from '@mastra/core/tools';
 import { resolveModelConfig } from '@/lib/ai-connections';
 import { transcribeAudio, transcribesAudio } from '@/lib/audio-transcription';
 import { instructionsPrompt } from '@/lib/agent-instructions';
 import { knowledgePrompt } from '@/lib/agent-knowledge';
+import { agentMemory, memoryInstructions, memoryResource } from '@/lib/agent-memory';
+import { injectionDetector, isWithheld, UntrustedToolResultGuard } from '@/lib/agent-guard';
+import { webSearchFor, type WebPage } from '@/lib/agent-web-search';
+import { traceAgentTurn } from '@/lib/observability/report';
 
 export const runtime = 'nodejs';
 
@@ -121,25 +124,30 @@ export async function POST(request: Request) {
     // Gated calls land here during the stream and become Confirmar buttons after their tool result.
     const approvals: ApprovalRequest[] = [];
     const officeTools = agentTools(context, request => approvals.push(request));
-    // Grounding on the open web uses the provider's own search tool. Gemini does not mix Google
-    // Search with function calling, so only OpenAI and Anthropic get it next to the office tools.
+    // Grounding on the open web: the provider's own search for OpenAI and Anthropic, Exa for the rest
+    // (Gemini does not mix Google Search with function calling). See agent-web-search.ts.
     const provider = (await resolveModelConfig('chat')).provider;
     const [writingRules, knowledge] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner)]);
     // Only the person's own document is named; an id they do not own is ignored, not an error.
     const focusedId = body.selection?.artifactId ?? body.openDocumentId;
     const focused = focusedId ? await ownedArtifact(database, owner, focusedId) : undefined;
     const documentFocus = focused ? documentFocusPrompt(focused, body.selection?.artifactId === focused.id ? body.selection.excerpt : undefined) : '';
-    const tools = ['openai', 'anthropic'].includes(provider) ? { ...officeTools, web_search: webSearchTool } : officeTools;
+    const tools = { ...officeTools, ...webSearchFor(provider) };
+    // Third-party text (e-mail, Docs, publications, web pages) is checked before the model reads it,
+    // by the extraction model: a classifier does not need the chat's.
+    const guard = new UntrustedToolResultGuard(injectionDetector(() => resolveModelConfig('extraction')));
     const { agent, config } = await createAgent(
       'chat',
       [
         // Rules shape the voice; the policies after them keep the last word.
-        conversationStyle, ...[writingRules, knowledge].filter(Boolean), chatGrounding, toolInstructions, clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
+        conversationStyle, ...[writingRules, knowledge].filter(Boolean), chatGrounding, toolInstructions, memoryInstructions, clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
         scope,
         researchScope,
         ...(documentFocus ? [documentFocus] : []),
       ].join('\n\n'),
       tools,
+      undefined,
+      { memory: await agentMemory(), outputProcessors: [guard] },
     );
     const locked = await database.prepare('UPDATE ai_conversation SET busy_until=? WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(Date.now() + 240_000, id, (office).officeId, user.id, Date.now());
     if (!locked.changes) throw new ApiError(409, 'Aguarde a resposta atual.');
@@ -161,7 +169,7 @@ export async function POST(request: Request) {
       throw error;
     }
     const stream = createUIMessageStream({
-      execute: async ({ writer }) => {
+      execute: ({ writer }) => traceAgentTurn({ task: 'chat', provider: config.provider, modelId: config.modelId }, async span => {
         const messageId = randomUUID();
         const partId = randomUUID();
         let answer = '';
@@ -245,6 +253,8 @@ export async function POST(request: Request) {
             maxSteps: MAX_STEPS,
             modelSettings: { maxOutputTokens: 6000 },
             abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(180_000), controller.signal]),
+            // Working memory only: the thread is this conversation, the resource is the person in this office.
+            memory: { thread: id, resource: memoryResource(owner) },
           });
 
           // Step count alone does not bound cost, and it does not stop an agent that calls the
@@ -283,9 +293,16 @@ export async function POST(request: Request) {
                 writer.write({ type: 'data-tool', id: chunk.payload.toolCallId, data: step });
                 // Case law also reaches the person as a list built from the tool result, with the
                 // links the search returned, next to whatever the Lume says about it.
-                if (!failed && chunk.payload.toolName === 'k5_research_web_jurisprudence') {
+                const withheld = isWithheld(chunk.payload.result);
+                if (!failed && !withheld && chunk.payload.toolName === 'k5_research_web_jurisprudence') {
                   findings.push({ id: chunk.payload.toolCallId, data: chunk.payload.result });
                   writer.write({ type: 'data-jurisprudence', id: chunk.payload.toolCallId, data: chunk.payload.result });
+                }
+                // Pages from the Exa search are sources for the citation review, like the provider's.
+                if (!failed && !withheld && chunk.payload.toolName === 'web_search') {
+                  for (const page of ((chunk.payload.result as { results?: WebPage[] }).results ?? [])) {
+                    webPages.push({ kind: 'web', ref: page.url, url: page.url, title: page.title, text: page.text || page.title });
+                  }
                 }
               }
 
@@ -301,7 +318,12 @@ export async function POST(request: Request) {
             }
           }
           if (halted) emit(halted);
-          await recordUsage(office.officeId, user.id, config, 'chat', 'completed', await response.usage);
+          const usage = await response.usage;
+          await recordUsage(office.officeId, user.id, config, 'chat', 'completed', usage);
+          span.setAttributes({
+            'gen_ai.usage.input_tokens': usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': usage?.outputTokens ?? 0,
+            'lume.tool_calls': toolCalls, 'lume.guard.withheld': guard.withheld.size, 'lume.outcome': halted ? 'halted' : 'completed',
+          });
           // Check the answer's citations against everything this conversation consulted. A failure
           // here only costs the list; the answer is already with the person.
           try {
@@ -318,6 +340,7 @@ export async function POST(request: Request) {
           if (!aborted) captureOperationalError(error, 'chat.stream');
           const message = aborted ? '\n[Resposta interrompida.]' : '\n[Não foi possível concluir a resposta. Tente novamente.]';
           if (!answer.endsWith(message)) { answer += message; writer.write({ type: 'text-delta', id: partId, delta: message }); }
+          span.setAttribute('lume.outcome', aborted ? 'cancelled' : 'failed');
           await recordUsage(office.officeId, user.id, config, 'chat', aborted ? 'cancelled' : 'failed');
         } finally {
           const parts: UIMessage['parts'] = [
@@ -332,7 +355,7 @@ export async function POST(request: Request) {
         }
         writer.write({ type: 'text-end', id: partId });
         writer.write({ type: 'finish' });
-      },
+      }),
       onError: error => {
         captureOperationalError(error, 'chat.response');
         return 'Não foi possível concluir a resposta.';

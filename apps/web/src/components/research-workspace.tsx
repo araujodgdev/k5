@@ -1,37 +1,26 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { CircleAlert, ChevronDown, LoaderCircle, Search } from 'lucide-react';
+import { ArrowUpRight, CircleAlert, LoaderCircle, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { requestCapability } from '@/lib/capabilities/http-client';
-import type { OfficeRole } from '@/lib/offices';
-import type { CorpusPage, JudgmentSummary, ResearchSearchView, SearchHistoryItem } from '@/lib/research/contracts';
-import { researchSourceMessage } from '@/lib/research/messages';
+import type { WebSearchHistoryItem, WebSearchMode, WebSearchView } from '@/lib/research/contracts';
+import { cn } from '@/lib/utils';
 
+const modes: Array<{ value: WebSearchMode; label: string; hint: string }> = [
+  { value: 'instant', label: 'Instantânea', hint: 'A resposta mais rápida, para consultas simples.' },
+  { value: 'fast', label: 'Rápida', hint: 'Rápida, com um pouco mais de cuidado na busca.' },
+  { value: 'auto', label: 'Automática', hint: 'A busca escolhe o melhor caminho para a pergunta.' },
+  { value: 'deep', label: 'Profunda', hint: 'Pesquisa em várias etapas. Demora mais; use para questões difíceis.' },
+];
+const modeLabel = (mode: WebSearchMode) => modes.find(item => item.value === mode)?.label ?? mode;
 const formatDate = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-function dateLabel(value: string | null | undefined) {
-  if (!value) return 'Data não informada';
-  const parsed = new Date(value.includes('T') ? value : value.includes(' ') ? `${value.replace(' ', 'T')}Z` : `${value}T12:00:00`);
-  return Number.isNaN(parsed.getTime()) ? value : formatDate.format(parsed);
-}
-function body<T>(result: Awaited<ReturnType<typeof requestCapability>>): T {
-  if (!result.ok) throw new Error(result.error);
-  return result.data as T;
-}
-function materialLabel(result: JudgmentSummary) {
-  if (result.fullTextStatus === 'ready') return 'Inteiro teor disponível';
-  if (result.fullTextStatus === 'pending') return 'Inteiro teor ainda não obtido';
-  if (['fetching', 'processing'].includes(result.fullTextStatus)) return 'Inteiro teor em obtenção';
-  if (result.fullTextStatus === 'restricted') return 'Inteiro teor restrito';
-  if (result.fullTextStatus === 'failed') return 'Falha na obtenção do inteiro teor';
-  return 'Inteiro teor indisponível';
-}
-function active(view: ResearchSearchView | null) {
-  return !!view && (['queued', 'running'].includes(view.status) || view.pages.some(page =>
-    ['queued', 'running'].includes(page.status)));
+function dateLabel(value: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : formatDate.format(parsed);
 }
 function updateLocation(id: string | null) {
   const url = new URL(window.location.href);
@@ -39,205 +28,124 @@ function updateLocation(id: string | null) {
   else url.searchParams.delete('search');
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
 }
+const tabStyle = (active: boolean) => cn('min-h-12 border-b-2 px-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  active ? 'border-foreground font-medium' : 'border-transparent text-muted-foreground hover:text-foreground');
 
-export function ResearchWorkspace({ role, initialSearchId }: { role: OfficeRole; initialSearchId: string | null }) {
-  const canWrite = role !== 'reviewer';
-  const [theme, setTheme] = useState('');
-  const [court, setCourt] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [includeSources, setIncludeSources] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [view, setView] = useState<ResearchSearchView | null>(null);
-  const [local, setLocal] = useState<CorpusPage | null>(null);
-  const [history, setHistory] = useState<SearchHistoryItem[]>([]);
+export function ResearchWorkspace({ initialSearchId }: { initialSearchId: string | null }) {
+  const [tab, setTab] = useState<'search' | 'history'>('search');
+  const [query, setQuery] = useState('');
+  const [mode, setMode] = useState<WebSearchMode>('auto');
+  const [view, setView] = useState<WebSearchView | null>(null);
+  const [history, setHistory] = useState<WebSearchHistoryItem[] | null>(null);
+  const [historyError, setHistoryError] = useState('');
   const [loading, setLoading] = useState(!!initialSearchId);
   const [busy, setBusy] = useState(false);
-  const [pageBusy, setPageBusy] = useState(false);
   const [error, setError] = useState('');
-  const [pollBlockedSearchId, setPollBlockedSearchId] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
   const resultHeading = useRef<HTMLHeadingElement>(null);
-  const scroller = useRef<HTMLDivElement>(null);
-  const restoreSearchId = useRef(initialSearchId);
+  const show = (next: WebSearchView) => { setView(next); setQuery(next.query); setMode(next.mode); updateLocation(next.id); };
+
 
   useEffect(() => {
+    if (!initialSearchId) return;
     let live = true;
-    const load = async () => {
-      const responses = await Promise.allSettled([
-        requestCapability('k5_research_list_history', {}),
-        initialSearchId ? requestCapability('k5_research_get_search', { searchId: initialSearchId }) : Promise.resolve(null),
-      ]);
+    void requestCapability('k5_research_get_web_search', { searchId: initialSearchId }).then(response => {
       if (!live) return;
-      if (responses[0].status === 'fulfilled' && responses[0].value.ok) setHistory((responses[0].value.data as { searches: SearchHistoryItem[] }).searches);
-      if (initialSearchId) {
-        const result = responses[1];
-        if (result.status === 'fulfilled' && result.value?.ok) {
-          const next = (result.value.data as { search: ResearchSearchView }).search;
-          setView(next); setTheme(next.theme); setCourt(next.filters.court ?? '');
-          setFromDate(next.filters.fromDate ?? ''); setToDate(next.filters.toDate ?? '');
-          setIncludeSources(next.includeSources); setHasSearched(true);
-        } else setError(result.status === 'fulfilled' && result.value && !result.value.ok ? result.value.error : 'Não foi possível abrir a pesquisa.');
-      }
+      if (response.ok) {
+        const next = (response.data as { search: WebSearchView }).search;
+        setView(next); setQuery(next.query); setMode(next.mode);
+      } else { setError(response.error); updateLocation(null); }
       setLoading(false);
-    };
-    void load();
+    });
     return () => { live = false; };
   }, [initialSearchId]);
 
-  useEffect(() => {
-    if (!view || loading || restoreSearchId.current !== view.id) return;
-    const frame = requestAnimationFrame(() => {
-      const position = sessionStorage.getItem(`research:scroll:${view.id}`);
-      if (position && scroller.current) scroller.current.scrollTop = Number(position);
-      restoreSearchId.current = null;
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [view, loading]);
+  async function loadHistory() {
+    setHistoryError('');
+    const response = await requestCapability('k5_research_list_web_searches', {});
+    if (response.ok) setHistory((response.data as { searches: WebSearchHistoryItem[] }).searches);
+    else setHistoryError(response.error);
+  }
 
-  useEffect(() => {
-    if (!view || !active(view) || pollBlockedSearchId === view.id) return;
-    const searchId = view.id;
-    let cancelled = false;
-    let running = false;
-    const timer = window.setInterval(async () => {
-      if (running || document.visibilityState !== 'visible') return;
-      running = true;
-      const response = await requestCapability('k5_research_get_search', { searchId });
-      running = false;
-      if (cancelled) return;
-      if (response.ok) setView(current => current?.id === searchId ? (response.data as { search: ResearchSearchView }).search : current);
-      else { setError(response.error); setPollBlockedSearchId(searchId); }
-    }, 3500);
-    return () => { cancelled = true; window.clearInterval(timer); };
-  }, [view, pollBlockedSearchId]);
-
-  function filters() {
-    return { ...(court.trim() ? { court: court.trim() } : {}), ...(fromDate ? { fromDate } : {}), ...(toDate ? { toDate } : {}) };
+  function changeTab(next: 'search' | 'history') {
+    setTab(next);
+    if (next === 'history' && history === null) void loadHistory();
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (theme.trim().length < 2 || busy) return;
-    setBusy(true); setError(''); setPollBlockedSearchId(null); setHasSearched(true); setLocal(null); setView(null);
-    try {
-      if (canWrite) {
-        const next = body<{ search: ResearchSearchView }>(await requestCapability('k5_research_start_search', {
-          theme: theme.trim(), filters: filters(), includeSources, idempotencyKey: crypto.randomUUID(),
-        })).search;
-        setView(next); updateLocation(next.id);
-        const response = await requestCapability('k5_research_list_history', {});
-        if (response.ok) setHistory((response.data as { searches: SearchHistoryItem[] }).searches);
-      } else {
-        setLocal(body<CorpusPage>(await requestCapability('k5_research_search_corpus', { theme: theme.trim(), filters: filters() })));
-        updateLocation(null);
-      }
+    if (query.trim().length < 2 || busy) return;
+    setBusy(true); setError(''); setView(null);
+    const response = await requestCapability('k5_research_web_search', { query: query.trim(), mode });
+    if (response.ok) {
+      show((response.data as { search: WebSearchView }).search);
+      setHistory(null);
       requestAnimationFrame(() => resultHeading.current?.focus());
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível pesquisar.'); }
-    finally { setBusy(false); }
+    } else setError(response.error);
+    setBusy(false);
   }
 
-  async function openHistory(id: string) {
+  async function open(id: string) {
+    setTab('search');
     if (view?.id === id) return;
-    restoreSearchId.current = id;
-    setLoading(true); setError(''); setPollBlockedSearchId(null); setLocal(null);
-    const response = await requestCapability('k5_research_get_search', { searchId: id });
-    if (response.ok) {
-      const next = (response.data as { search: ResearchSearchView }).search;
-      setView(next); setTheme(next.theme); setCourt(next.filters.court ?? '');
-      setFromDate(next.filters.fromDate ?? ''); setToDate(next.filters.toDate ?? '');
-      setIncludeSources(next.includeSources); setHasSearched(true); updateLocation(next.id);
-    } else setError(response.error);
+    setLoading(true); setError('');
+    const response = await requestCapability('k5_research_get_web_search', { searchId: id });
+    if (response.ok) show((response.data as { search: WebSearchView }).search);
+    else setError(response.error);
     setLoading(false);
   }
 
-  async function nextPage() {
-    if (pageBusy) return;
-    setPageBusy(true); setError('');
-    try {
-      if (view) {
-        const cursor = view.pages.at(-1)?.nextCursor;
-        if (!cursor) return;
-        body(await requestCapability('k5_research_request_page', { searchId: view.id, cursor, idempotencyKey: crypto.randomUUID() }));
-        setView(body<{ search: ResearchSearchView }>(await requestCapability('k5_research_get_search', { searchId: view.id })).search);
-      } else if (local?.nextCursor) {
-        const next = body<CorpusPage>(await requestCapability('k5_research_search_corpus', { theme: theme.trim(), filters: filters(), cursor: local.nextCursor }));
-        setLocal({ ...next, results: [...local.results, ...next.results] });
-      }
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível carregar mais resultados.'); }
-    finally { setPageBusy(false); }
-  }
+  return <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
+    <div className="border-b pb-5"><h1 className="page-title leading-none max-md:sr-only">Pesquisa</h1></div>
+    <nav aria-label="Visões da pesquisa" className="flex gap-5 border-b">
+      <button type="button" aria-current={tab === 'search' ? 'page' : undefined} onClick={() => changeTab('search')} className={tabStyle(tab === 'search')}>Pesquisar</button>
+      <button type="button" aria-current={tab === 'history' ? 'page' : undefined} onClick={() => changeTab('history')} className={tabStyle(tab === 'history')}>Histórico</button>
+    </nav>
 
-  async function cancelDownloads() {
-    if (!view) return;
-    setPageBusy(true); setError('');
-    try {
-      body(await requestCapability('k5_research_cancel_downloads', { searchId: view.id, idempotencyKey: crypto.randomUUID() }));
-      setView(body<{ search: ResearchSearchView }>(await requestCapability('k5_research_get_search', { searchId: view.id })).search);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível parar a obtenção.'); }
-    finally { setPageBusy(false); }
-  }
-
-  async function refreshSources() {
-    if (!view || busy) return;
-    setBusy(true); setError(''); setPollBlockedSearchId(null);
-    try {
-      const next = body<{ search: ResearchSearchView }>(await requestCapability('k5_research_start_search', {
-        theme: view.theme, filters: view.filters, includeSources: true, refreshSources: true,
-        idempotencyKey: crypto.randomUUID(),
-      })).search;
-      setView(next); updateLocation(next.id);
-      const response = await requestCapability('k5_research_list_history', {});
-      if (response.ok) setHistory((response.data as { searches: SearchHistoryItem[] }).searches);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível atualizar as fontes.'); }
-    finally { setBusy(false); }
-  }
-
-  const pages = view?.pages ?? [];
-  const results = view ? pages.flatMap(page => page.results) : (local?.results ?? []);
-  const nextCursor = view ? pages.at(-1)?.nextCursor : local?.nextCursor;
-  const pending = pages.reduce((total, page) => total + page.progress.pending, 0);
-  const ready = pages.reduce((total, page) => total + page.progress.ready, 0);
-  const unavailable = pages.reduce((total, page) => total + page.progress.unavailable + page.progress.failed, 0);
-  const sourceErrors = pages.flatMap(page => page.sourceError ? [page.sourceError] : []);
-
-  return <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-10 md:py-10">
-    <div className="flex items-end justify-between gap-4 border-b pb-5"><h1 className="page-title leading-none max-md:sr-only">Pesquisa</h1></div>
-    <form onSubmit={submit} className="border-b py-5">
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-        <div className="grid gap-1.5"><Label htmlFor="research-theme">Tema ou questão jurídica</Label><Input id="research-theme" value={theme} onChange={event => setTheme(event.target.value)} placeholder="Ex.: guarda de menor pela avó" minLength={2} maxLength={300} required className="h-11 md:h-9" /></div>
-        <Button type="submit" disabled={busy || theme.trim().length < 2} className="min-h-11 md:min-h-9">{busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Search aria-hidden="true" />}Pesquisar</Button>
-      </div>
-      <button type="button" className="mt-3 flex min-h-11 items-center gap-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:hidden" aria-expanded={filtersOpen} aria-controls="research-filters" onClick={() => setFiltersOpen(value => !value)}>Filtros e escopo <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} /></button>
-      <div id="research-filters" className={`${filtersOpen ? 'grid' : 'hidden'} mt-3 gap-4 md:grid md:grid-cols-[minmax(0,1fr)_10rem_10rem]`}>
-        <div className="grid gap-1.5"><Label htmlFor="research-court">Tribunal</Label><Input id="research-court" value={court} onChange={event => setCourt(event.target.value)} placeholder="Todos" maxLength={40} className="h-11 md:h-9" /></div>
-        <div className="grid gap-1.5"><Label htmlFor="research-from">De</Label><Input id="research-from" type="date" value={fromDate} max={toDate || undefined} onChange={event => setFromDate(event.target.value)} className="h-11 md:h-9" /></div>
-        <div className="grid gap-1.5"><Label htmlFor="research-to">Até</Label><Input id="research-to" type="date" value={toDate} min={fromDate || undefined} onChange={event => setToDate(event.target.value)} className="h-11 md:h-9" /></div>
-        <fieldset className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm md:col-span-3"><legend className="mb-1 text-sm font-medium">Onde pesquisar</legend>
-          <label className="flex min-h-11 items-center gap-2 md:min-h-8"><input type="radio" name="research-scope" checked={!includeSources} onChange={() => setIncludeSources(false)} className="accent-foreground" />Acervo</label>
-          {canWrite && <label className="flex min-h-11 items-center gap-2 md:min-h-8"><input type="radio" name="research-scope" checked={includeSources} onChange={() => setIncludeSources(true)} className="accent-foreground" />Acervo e fontes</label>}
+    {tab === 'history' ? <section aria-label="Histórico de pesquisas" className="py-5">
+      {historyError ? <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-destructive">{historyError}</p><Button variant="outline" onClick={() => void loadHistory()}>Tentar novamente</Button></div>
+        : history === null ? <p role="status" className="py-8 text-sm text-muted-foreground">Carregando histórico…</p>
+        : history.length === 0 ? <p className="py-10 text-sm text-subtle-foreground">Suas pesquisas aparecem aqui.</p>
+        : <div className="border-t">{history.map(item => <button key={item.id} type="button" onClick={() => void open(item.id)} aria-current={view?.id === item.id ? 'true' : undefined}
+          className="flex min-h-14 w-full items-center justify-between gap-4 border-b py-3 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+          <span className="min-w-0"><span className="block truncate text-sm">{item.query}</span><span className="mt-1 block text-[13px] text-muted-foreground">{modeLabel(item.mode)} · {item.resultCount} {item.resultCount === 1 ? 'resultado' : 'resultados'}</span></span>
+          <span className="label-mono shrink-0 text-subtle-foreground">{dateLabel(item.createdAt)}</span>
+        </button>)}</div>}
+    </section> : <>
+      <form onSubmit={submit} className="grid gap-4 border-b py-5">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div className="grid gap-1.5"><Label htmlFor="research-query">O que você quer pesquisar?</Label><Input id="research-query" value={query} onChange={event => setQuery(event.target.value)} placeholder="Ex.: guarda de menor pela avó" minLength={2} maxLength={400} required className="h-11 md:h-9" /></div>
+          <Button type="submit" disabled={busy || query.trim().length < 2} className="min-h-11 md:min-h-9">{busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Search aria-hidden="true" />}Pesquisar</Button>
+        </div>
+        <fieldset className="grid gap-2">
+          <legend className="mb-1.5 text-sm font-medium">Tipo de busca</legend>
+          <div className="grid grid-cols-2 sm:flex">{modes.map(item => <label key={item.value}
+            className={cn('-mt-px -ml-px flex min-h-11 cursor-pointer items-center justify-center border border-input px-4 text-sm transition-colors duration-200 ease-(--ease) has-focus-visible:ring-2 has-focus-visible:ring-ring md:min-h-9',
+              mode === item.value ? 'relative bg-foreground font-medium text-background' : 'text-muted-foreground hover:bg-accent hover:text-foreground')}>
+            <input type="radio" name="research-mode" value={item.value} checked={mode === item.value} onChange={() => setMode(item.value)} className="sr-only" />{item.label}
+          </label>)}</div>
+          <p className="text-[13px] text-muted-foreground">{modes.find(item => item.value === mode)?.hint}</p>
         </fieldset>
-      </div>
-    </form>
+      </form>
 
-    {error && <p role="alert" className="flex items-start gap-2 py-4 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
-    {loading && <p className="py-8 text-sm text-muted-foreground">Carregando pesquisa…</p>}
-    {!loading && <section aria-labelledby="research-results-heading" className="py-5">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="research-results-heading" ref={resultHeading} tabIndex={-1} className="text-base font-medium outline-none">Resultados</h2>{hasSearched && <span className="text-[13px] text-muted-foreground">{results.length} {results.length === 1 ? 'julgado' : 'julgados'} nesta consulta</span>}</div>
-      {view && pages.length > 0 && <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-muted-foreground" aria-live="polite"><span>Inteiro teor: {ready} prontos · {pending} pendentes · {unavailable} indisponíveis</span>{active(view) && <span>Consultando fontes e obtendo materiais…</span>}{canWrite && pending > 0 && <Button type="button" variant="ghost" size="sm" className="min-h-11 md:min-h-8" disabled={pageBusy} onClick={() => void cancelDownloads()}>Parar obtenção</Button>}{canWrite && view.includeSources && !active(view) && <Button type="button" variant="ghost" size="sm" className="min-h-11 md:min-h-8" disabled={busy} onClick={() => void refreshSources()}>Atualizar fontes</Button>}</div>}
-      {sourceErrors.length > 0 && <p className="mt-3 text-sm text-muted-foreground" role="status">Resultados parciais. {researchSourceMessage(sourceErrors[0])}</p>}
-      {!hasSearched && <p className="py-10 text-sm text-subtle-foreground">Pesquise um tema para consultar julgados do acervo.</p>}
-      {hasSearched && busy && <p className="py-10 text-sm text-muted-foreground">Pesquisando o acervo…</p>}
-      {hasSearched && !busy && !error && results.length === 0 && <p className="py-10 text-sm text-subtle-foreground">{active(view) ? 'Consultando fontes. Os resultados aparecem aqui quando estiverem prontos.' : 'Nenhum julgado encontrado. Tente outros termos ou filtros.'}</p>}
-      {results.map((result, index) => <ResultRow key={`${'resultId' in result ? result.resultId : result.id}-${index}`} result={result} searchId={view?.id ?? null} onOpen={() => { if (view && scroller.current) sessionStorage.setItem(`research:scroll:${view.id}`, String(scroller.current.scrollTop)); }} />)}
-      {nextCursor && <div className="py-5"><Button type="button" variant="outline" disabled={pageBusy} onClick={() => void nextPage()} className="min-h-11 md:min-h-9">{pageBusy ? 'Carregando…' : 'Mais resultados'}</Button></div>}
-    </section>}
-
-    {history.length > 0 && <section aria-labelledby="research-history-heading" className="mt-4 border-t py-5"><h2 id="research-history-heading" className="text-base font-medium">Histórico</h2><div className="mt-3">{history.map(item => <button key={item.id} type="button" onClick={() => void openHistory(item.id)} className="flex min-h-12 w-full items-center justify-between gap-3 border-b py-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" aria-current={view?.id === item.id ? 'true' : undefined}><span className="min-w-0 truncate">{item.theme}</span><span className="shrink-0 text-[13px] text-muted-foreground">{dateLabel(item.createdAt)}</span></button>)}</div></section>}
+      {error && <p role="alert" className="flex items-start gap-2 py-4 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
+      {loading ? <p role="status" className="py-8 text-sm text-muted-foreground">Carregando pesquisa…</p>
+        : busy ? <p role="status" className="py-10 text-sm text-muted-foreground">{mode === 'deep' ? 'Pesquisando em profundidade. Isso pode levar um minuto…' : 'Pesquisando na web…'}</p>
+        : view ? <section aria-labelledby="research-results-heading" className="py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="research-results-heading" ref={resultHeading} tabIndex={-1} className="text-base font-medium outline-none">Resultados</h2><span className="text-[13px] text-muted-foreground">{modeLabel(view.mode)} · {view.results.length} {view.results.length === 1 ? 'página' : 'páginas'}</span></div>
+          {view.results.length === 0 ? <p className="py-10 text-sm text-subtle-foreground">Nada encontrado. Tente outros termos ou a busca profunda.</p>
+            : <div className="mt-3 border-t">{view.results.map(result => <ResultRow key={result.url} result={result} />)}</div>}
+          <p className="pt-4 text-[13px] text-subtle-foreground">Resultados da web aberta. Confira a fonte antes de citar.</p>
+        </section>
+        : !error && <p className="py-10 text-sm text-subtle-foreground">Pesquise um tema para consultar a web.</p>}
+    </>}
   </div>;
 }
 
-function ResultRow({ result, searchId, onOpen }: { result: JudgmentSummary; searchId: string | null; onOpen: () => void }) {
-  const href = `/app/research/judgments/${encodeURIComponent(result.id)}${searchId ? `?search=${encodeURIComponent(searchId)}` : ''}`;
-  return <Link href={href} onClick={onOpen} className="block min-h-24 border-b py-4 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"><span className="block text-[13px] text-muted-foreground">{result.tribunal}{result.courtUnit ? ` · ${result.courtUnit}` : ''} · {dateLabel(result.decisionDate)}</span><span className="mt-1 block text-sm font-medium">{result.title || result.caseNumber || 'Julgado'}</span>{result.ementa && <span className="mt-1.5 block line-clamp-3 text-sm leading-6 text-muted-foreground">{result.ementa}</span>}<span className="mt-2 block text-[13px] text-subtle-foreground">{result.caseNumber ? `${result.caseNumber} · ` : ''}{materialLabel(result)}</span></Link>;
+function ResultRow({ result }: { result: WebSearchView['results'][number] }) {
+  const date = dateLabel(result.publishedDate);
+  return <a href={result.url} target="_blank" rel="noopener noreferrer" className="group block border-b py-4 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+    <span className="block text-[13px] text-muted-foreground">{result.host}{date ? ` · ${date}` : ''}</span>
+    <span className="mt-1 flex items-start gap-1.5 text-sm font-medium">{result.title}<ArrowUpRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ease-(--ease) group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" /><span className="sr-only"> (abre em nova aba)</span></span>
+    {result.excerpt && <span className="mt-1.5 block line-clamp-3 text-sm leading-6 text-muted-foreground">{result.excerpt}</span>}
+  </a>;
 }

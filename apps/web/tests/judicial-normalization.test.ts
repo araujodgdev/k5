@@ -3,14 +3,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  cnjCheckDigits, cnjRoutingHint, formatCnjNumber, isValidCnjNumber, parseCnjNumber, toCaseIdentity,
+  cnjCheckDigits, formatCnjNumber, isValidCnjNumber, parseCnjNumber,
 } from "../src/lib/judicial/normalization/cnj";
-import { overlappingWindow, parseSourceDate, sourceDay, windowDays } from "../src/lib/judicial/normalization/dates";
-import { alertDedupeKey, movementFingerprint, publicationFingerprint } from "../src/lib/judicial/normalization/fingerprint";
-import type { NormalizedMovement, NormalizedPublication } from "../src/lib/judicial/contracts";
+import { overlappingWindow, parseSourceDate, windowDays } from "../src/lib/judicial/normalization/dates";
+import { alertDedupeKey, publicationFingerprint } from "../src/lib/judicial/normalization/fingerprint";
+import type { NormalizedPublication } from "../src/lib/judicial/contracts";
 
 const VALID = "00000010520258260100";
-const VALID_OTHER = "12345677920248130001";
 
 test("CNJ: accepts a well-formed number in every punctuation the sources use", () => {
   for (const value of [VALID, "0000001-05.2025.8.26.0100", " 0000001-05.2025.8.26.0100 "]) {
@@ -52,23 +51,6 @@ test("CNJ: malformed inputs are rejected with the reason, never coerced", () => 
   assert.deepEqual(parseCnjNumber("00000010515008260100"), { ok: false, reason: "year" });
 });
 
-test("CNJ: a legacy number survives as native identity instead of being dropped or promoted", () => {
-  const legacy = toCaseIdentity("583.00.2011.123456-7", "first");
-  assert.equal(legacy.cnjNumber, null, "um número que não valida nunca entra na coluna CNJ");
-  assert.equal(legacy.nativeNumber, "583.00.2011.123456-7", "mas continua sendo uma identidade real");
-
-  const modern = toCaseIdentity("0000001-05.2025.8.26.0100", "second");
-  assert.equal(modern.cnjNumber, VALID);
-  assert.equal(modern.nativeNumber, null);
-  assert.equal(modern.degree, "second", "o grau vem de quem vinculou, não do número");
-});
-
-test("CNJ: the routing hint reports the court digits without linking anything automatically", () => {
-  assert.deepEqual(cnjRoutingHint(VALID), { segment: "8", court: "26" });
-  assert.deepEqual(cnjRoutingHint(VALID_OTHER), { segment: "8", court: "13" });
-  assert.equal(cnjRoutingHint("123"), null);
-});
-
 test("dates: a date with no time never acquires one", () => {
   const brazilian = parseSourceDate("12/03/2025");
   assert.deepEqual(brazilian, { value: "2025-03-12", precision: "date", timezone: null });
@@ -101,8 +83,7 @@ test("dates: an unparseable or impossible value is rejected rather than guessed"
   assert.equal(parseSourceDate("em breve"), null);
   assert.equal(parseSourceDate(null), null);
   assert.equal(parseSourceDate(""), null);
-  assert.equal(sourceDay(null), null);
-  assert.equal(sourceDay(parseSourceDate("2026-09-10T14:32:00-03:00")), "2026-09-10");
+
 });
 
 test("windows: the refresh window overlaps the watermark so a late publication is not skipped", () => {
@@ -113,32 +94,6 @@ test("windows: the refresh window overlaps the watermark so a late publication i
   // Without a watermark there is nothing to overlap: a first run asks for today only, and
   // widening history is an explicit backfill.
   assert.deepEqual(overlappingWindow(null, "2026-09-12T08:00:00Z", 2), { from: "2026-09-12", to: "2026-09-12" });
-});
-
-function movement(overrides: Partial<NormalizedMovement> = {}): NormalizedMovement {
-  return {
-    sourceMovementId: null, sourceCode: "123", sourceText: "Juntada de petição",
-    tpuCode: null, tpuSource: null, eventAt: "2026-09-10", eventPrecision: "date", eventTimezone: null,
-    ...overrides,
-  };
-}
-
-test("fingerprints: a movement code and its date alone do not identify an event", () => {
-  const first = movementFingerprint(movement({ sourceText: "Juntada de petição do autor" }));
-  const second = movementFingerprint(movement({ sourceText: "Juntada de petição do réu" }));
-  // Same code, same day, different events: a print built only from code+date would merge them
-  // and silently lose one of the two from the docket.
-  assert.notEqual(first.value, second.value);
-  assert.equal(first.strategy, "stable_fields");
-});
-
-test("fingerprints: the source identity wins when there is one, and whitespace never splits a row", () => {
-  const withId = movementFingerprint(movement({ sourceMovementId: "mov-9" }));
-  assert.equal(withId.strategy, "source_id");
-  assert.equal(withId.value, movementFingerprint(movement({ sourceMovementId: "mov-9", sourceText: "texto diferente" })).value);
-
-  const spaced = movementFingerprint(movement({ sourceText: "Juntada   de\n petição" }));
-  assert.equal(spaced.value, movementFingerprint(movement({ sourceText: "juntada de petição" })).value);
 });
 
 function publication(overrides: Partial<NormalizedPublication> = {}): NormalizedPublication {

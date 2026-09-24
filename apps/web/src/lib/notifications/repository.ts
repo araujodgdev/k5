@@ -73,15 +73,17 @@ function toView(row: NotificationRow, userId: string): NotificationView {
 }
 
 export async function listNotifications(context: WorkspaceContext, input: {
-  unreadOnly: boolean; cursor?: string; limit: number;
+  unreadOnly: boolean; archived?: boolean; cursor?: string; limit: number;
 }, db: Database = defaultDatabase) {
   await ensureNotificationDefaults(context, db);
   const rollout = await db.prepare('SELECT inbox_enabled FROM notification_rollout WHERE office_id=?')
     .get<{ inbox_enabled: number }>(context.officeId);
   if (!rollout?.inbox_enabled) return { notifications: [], nextCursor: null };
-  const clauses = ['r.office_id=?', 'r.user_id=?', 'r.archived_at IS NULL'];
+  // The inbox holds what is still unread; anything read or archived moves to "Arquivadas".
+  const clauses = ['r.office_id=?', 'r.user_id=?',
+    input.archived ? '(r.read_at IS NOT NULL OR r.archived_at IS NOT NULL)' : 'r.archived_at IS NULL'];
   const params: unknown[] = [context.officeId, context.userId];
-  if (input.unreadOnly) clauses.push('r.read_at IS NULL');
+  if (input.unreadOnly && !input.archived) clauses.push('r.read_at IS NULL');
   const cursor = decodeCursor(input.cursor);
   if (input.cursor && !cursor) throw new NotificationRequestError(400, 'Cursor de notificações inválido.');
   if (cursor) {
@@ -292,7 +294,7 @@ export function pushConfigurationView() {
 export async function resolveNotificationDestination(context: WorkspaceContext, eventId: string, db: Database = defaultDatabase) {
   const row = await db.prepare(`SELECT e.source_kind,e.source_id,e.event_type FROM notification_recipient r
     JOIN notification_event e ON e.id=r.event_id AND e.office_id=r.office_id
-    WHERE r.event_id=? AND r.office_id=? AND r.user_id=? AND r.archived_at IS NULL`)
+    WHERE r.event_id=? AND r.office_id=? AND r.user_id=?`)
     .get<{ source_kind: string; source_id: string | null; event_type: string }>(eventId, context.officeId, context.userId);
   if (!row) return null;
   await markNotificationRead(context, eventId, db);

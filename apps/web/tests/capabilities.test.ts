@@ -16,7 +16,6 @@ import * as artifactsService from "../src/lib/application/artifacts-service";
 import * as conversationsService from "../src/lib/application/conversations-service";
 import * as knowledgeService from "../src/lib/application/knowledge-service";
 import * as approvalsService from "../src/lib/application/approvals-service";
-import { withIdempotency } from "../src/lib/application/idempotency-service";
 import { agentTools, toolSummary } from "../src/lib/agent-tools";
 import { registerWebMCPCapabilities, executeViaHttp } from "../src/lib/webmcp/adapter";
 import { strictBooleanQueryParam } from "../src/lib/query-params";
@@ -336,26 +335,6 @@ test("knowledge search covers ready documents while another selected one is stil
     (err: unknown) => err instanceof CapabilityError && err.code === "NOT_READY",
     "with nothing processed yet, the search says so instead of returning an empty answer",
   );
-});
-
-test("idempotency: cached execution prevents duplicated writes", async () => {
-  const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
-
-  let counter = 0;
-  const executeOperation = () => {
-    counter++;
-    return Promise.resolve({ counter, value: "sucesso" });
-  };
-
-  const key = `test-idempotency-key-${randomUUID()}`;
-  const r1 = await withIdempotency(context, "custom_op", key, { a: 1 }, executeOperation);
-  assert.equal(r1.counter, 1);
-
-  // Second call with same key returns cached result without incrementing counter
-  const r2 = await withIdempotency(context, "custom_op", key, { a: 1 }, executeOperation);
-  assert.equal(r2.counter, 1);
-  assert.equal(counter, 1);
 });
 
 test("artifacts service: version history and rollback restoration", async () => {

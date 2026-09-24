@@ -60,7 +60,7 @@ export function findCitationSpans(text: string): CitationSpan[] {
 
 const fold = (value: string) => value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
 /** The numbers a citation hangs on, without thousands separators: "REsp 1.234.567/SP" -> ["1234567"]. */
-export function citationNumbers(span: string) {
+function citationNumbers(span: string) {
   return [...span.matchAll(/\d[\d.]*/g)].map(match => match[0].replace(/\./g, '')).filter(number => number.length >= 1);
 }
 const CODE_TOKENS = ['cpc', 'cpp', 'clt', 'cdc', 'ctn', 'eca', 'lindb', 'constituicao', 'cf', 'crfb', 'codigo civil', 'codigo penal', 'stf', 'stj', 'tst', 'tse'];

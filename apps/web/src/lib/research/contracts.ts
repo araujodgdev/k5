@@ -100,6 +100,11 @@ export type SearchHistoryItem = { id: string; theme: string; filters: SearchFilt
 export type ResearchSearchView = SearchHistoryItem & { includeSources: boolean; pages: SearchPage[] };
 export type CorpusPage = { results: JudgmentSummary[]; nextCursor: string | null; total: number };
 
+export type WebSearchMode = 'instant' | 'fast' | 'auto' | 'deep';
+export type WebSearchResult = { title: string; url: string; host: string; publishedDate: string | null; excerpt: string };
+export type WebSearchHistoryItem = { id: string; query: string; mode: WebSearchMode; createdAt: string; resultCount: number };
+export type WebSearchView = WebSearchHistoryItem & { results: WebSearchResult[] };
+
 export class ResearchError extends Error {
   constructor(public readonly code: 'forbidden' | 'not_found' | 'invalid_input' | 'source_disabled' | 'budget_exceeded' | 'unsupported', message: string) {
     super(message);

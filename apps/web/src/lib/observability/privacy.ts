@@ -47,8 +47,9 @@ export function beforeBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb | null {
 
 export function beforeSendSpan(span: SpanJSON): SpanJSON {
   const data = Object.fromEntries(Object.entries(span.data ?? {}).filter(([key, value]) =>
-    ((typeof value === 'number' || typeof value === 'boolean') && /^(sentry\.|gen_ai\.usage\.|http\.response\.|browser\.|network\.)/.test(key)) ||
-    /^(sentry\.(origin|op|source)|http\.(request.method|response.status_code)|db\.(system|operation.name)|gen_ai\.(operation.name|request.model|response.model|system))$/.test(key),
+    ((typeof value === 'number' || typeof value === 'boolean') && /^(sentry\.|gen_ai\.usage\.|http\.response\.|browser\.|network\.|lume\.)/.test(key)) ||
+    // Tool and agent names, the task and the outcome are identifiers the application minted.
+    /^(sentry\.(origin|op|source)|http\.(request.method|response.status_code)|db\.(system|operation.name)|gen_ai\.(operation.name|request.model|response.model|system|agent.name|tool.name)|lume\.(task|outcome))$/.test(key),
   ));
   // Query text and resource paths can contain literals even with body capture disabled.
   const description = span.op?.startsWith('db') ? span.op

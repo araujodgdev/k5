@@ -4,13 +4,13 @@ import { CommentRangeEnd, CommentRangeStart, CommentReference, Document, Footnot
 import PizZip from "pizzip";
 import { citationCandidates, legalMentionsWithoutSource, quoteIsPresent, unauthorizedLegalPassages, type SourceChunk } from "../src/lib/ai-policy";
 import {
-  assembleDraftSection, chronologyEvents, composeChronology, composeDraft, dateInfo, readableLabel, similarDescriptions, validateDivergences, type Extraction,
+  assembleDraftSection, chronologyEvents, composeChronology, composeDraft, validateDivergences, type Extraction,
 } from "../src/lib/document-composition";
-import { exportDocument, markdownBlocks, templateTypography } from "../src/lib/document-export";
+import { exportDocument, templateTypography } from "../src/lib/document-export";
 
 const hex = (n: number) => n.toString(16).padStart(64, "0");
 const contract: SourceChunk = { id: hex(1), documentId: "doc-a", sourceLabel: "contrato.pdf — página:3", text: "O contrato foi assinado em 10/05/2023 pelas partes Ana e Bruno. Nos termos do art. 186 do Código Civil, há dever de indenizar." };
-const email: SourceChunk = { id: hex(2), documentId: "doc-b", sourceLabel: "email.eml — mensagem:1", text: "Conforme combinado, o contrato foi assinado em 10/06/2023 pelas partes Ana e Bruno. Pagamento pendente." };
+const email: SourceChunk = { id: hex(2), documentId: "doc-b", sourceLabel: "email.eml — mensagem:1", text: "Conforme combinado, o contrato foi assinado em 10/06/2023 pelas partes Ana e Bruno. Pagamento pendente. Pagamento da parcela 1 realizado pelas partes na data acordada." };
 const notes: SourceChunk = { id: hex(3), documentId: "doc-c", sourceLabel: "notas.docx — parágrafo:2", text: "Houve reunião entre as partes em maio de 2023 para tratar da entrega." };
 
 test("policy: legal citation candidates, literal quotes and invented authorities", () => {
@@ -33,36 +33,37 @@ test("policy: legal citation candidates, literal quotes and invented authorities
   assert.deepEqual(legalMentionsWithoutSource("Com base na Lei n. 8.078/90.", contract.text), ["Lei n. 8.078/90"]);
 });
 
-test("composition: readable labels, dates and similarity helpers", () => {
-  assert.equal(readableLabel("contrato.pdf — página:3"), "contrato.pdf — página 3");
-  assert.equal(readableLabel("planilha.xlsx — aba:Pagamentos!A1:C9"), "planilha.xlsx — aba Pagamentos!A1:C9");
-  assert.deepEqual(dateInfo("2023-05-10"), { kind: "full", key: "2023-05-10", label: "10/05/2023" });
-  assert.equal(dateInfo("2023-02-30").kind, "unknown", "invalid calendar dates are not trusted");
-  assert.equal(dateInfo("2023-05").label, "05/2023");
-  assert.equal(dateInfo(null).label, "Data a confirmar");
-  assert.equal(similarDescriptions("Contrato assinado pelas partes Ana e Bruno", "Contrato assinado pelas partes, Ana e Bruno."), true);
-  assert.equal(similarDescriptions("Pagamento da parcela 1 realizado", "Pagamento da parcela 2 realizado"), false);
-});
-
 const extraction = (source: SourceChunk, events: Extraction["events"], gaps: string[] = []): Extraction => ({ sourceId: source.id, sourceLabel: source.sourceLabel, events, gaps });
 
 test("composition: chronology orders events, exposes divergences and gaps with readable sources", () => {
+  const payments: SourceChunk = { id: hex(4), documentId: "doc-d", sourceLabel: "planilha.xlsx — aba:Pagamentos!A1:C9", text: "Data inválida no comprovante. Pagamento da parcela 2 realizado pelas partes na data acordada." };
   const extracted = [
     extraction(email, [
       { date: "2023-06-10", description: "Contrato assinado pelas partes Ana e Bruno", quote: "o contrato foi assinado em 10/06/2023" },
       { date: null, description: "Pagamento pendente", quote: "10/06/2023 pelas partes Ana e Bruno. Pagamento pendente" },
+      { date: "2023-07-01", description: "Pagamento da parcela 1 realizado pelas partes na data acordada", quote: "Pagamento da parcela 1 realizado pelas partes na data acordada." },
     ]),
     extraction(contract, [
       { date: "2023-05-10", description: "Contrato assinado pelas partes Ana e Bruno.", quote: "O contrato foi assinado em 10/05/2023" },
       { date: "2023-05-10", description: "Contrato assinado pelas partes Ana e Bruno.", quote: "O contrato foi assinado em 10/05/2023" },
     ], ["Página sem assinatura legível."]),
     extraction(notes, [{ date: "2023-05", description: "Reunião entre as partes sobre a entrega", quote: "Houve reunião entre as partes em maio de 2023" }]),
+    extraction(payments, [
+      { date: "2023-07-01", description: "Pagamento da parcela 2 realizado pelas partes na data acordada", quote: "Pagamento da parcela 2 realizado pelas partes na data acordada." },
+      { date: "2023-02-30", description: "Data inválida no comprovante", quote: "Data inválida no comprovante." },
+    ]),
   ];
-  assert.equal(chronologyEvents(extracted).length, 4, "duplicate events from the same source collapse");
-  const result = composeChronology(extracted, [contract, email, notes]);
+  assert.equal(chronologyEvents(extracted).length, 7, "duplicate events from the same source collapse");
+  const result = composeChronology(extracted, [contract, email, notes, payments]);
 
   assert.doesNotMatch(result.content, /[0-9a-f]{64}/, "no raw chunk ids in content");
   assert.match(result.content, /Fonte: contrato\.pdf — página 3/);
+  assert.match(result.content, /Fonte: planilha\.xlsx — aba Pagamentos!A1:C9/);
+  const body = result.content.slice(0, result.content.indexOf("## Divergências"));
+  assert.match(body, /^Pagamento da parcela 1 realizado pelas partes na data acordada$/m);
+  assert.match(body, /^Pagamento da parcela 2 realizado pelas partes na data acordada$/m, "different installments must not merge");
+  assert.doesNotMatch(body, /30\/02\/2023/);
+  assert.match(body.slice(body.indexOf("## Data a confirmar")), /Data inválida no comprovante/);
   const order = ["## 05/2023 (data parcial)", "## 10/05/2023", "## 10/06/2023", "## Data a confirmar", "## Divergências", "## Lacunas e revisão"].map(h => result.content.indexOf(h));
   assert.ok(order.every((index, i) => index >= 0 && (i === 0 || index > order[i - 1])), `sections out of order: ${order}`);
 
@@ -73,13 +74,13 @@ test("composition: chronology orders events, exposes divergences and gaps with r
   assert.match(divergences, /10\/06\/2023 em email\.eml — mensagem 1/);
 
   const gaps = result.content.slice(result.content.indexOf("## Lacunas"));
-  assert.match(gaps, /Trechos analisados: 3 de 3/);
+  assert.match(gaps, /Trechos analisados: 4 de 4/);
   assert.match(gaps, /Página sem assinatura legível/);
   assert.match(gaps, /Sem data documentada: Pagamento pendente/);
   assert.match(gaps, /Data parcial \(05\/2023\)/);
   assert.ok(result.issues.some(i => /divergência/.test(i)));
 
-  assert.deepEqual(result.refs.map(r => r.id).sort(), [contract.id, email.id, notes.id].sort());
+  assert.deepEqual(result.refs.map(r => r.id).sort(), [contract.id, email.id, notes.id, payments.id].sort());
   assert.equal(result.refs.find(r => r.id === contract.id)?.excerpt, "O contrato foi assinado em 10/05/2023");
   assert.equal(result.refs.find(r => r.id === contract.id)?.sourceLabel, "contrato.pdf — página 3");
   assert.equal(result.refs.find(r => r.id === contract.id)?.documentId, "doc-a");
@@ -150,26 +151,31 @@ test("composition: draft paragraphs require verifiable evidence; missing referen
 const markdown = "# Petição\n\nTexto com **negrito** e _itálico_ & <tag> \"aspas\" R$&1.\nSegunda linha\n\n## Dos fatos\n\n- primeiro **item**\n- segundo\n\n3. terceiro\n4. quarto\n\n> citação literal";
 
 function documentXml(buffer: Buffer) { return new PizZip(buffer).file("word/document.xml")!.asText(); }
-
-test("export: markdown tokens become Word-neutral blocks", () => {
-  const blocks = markdownBlocks(markdown);
-  assert.deepEqual(blocks.map(b => b.kind), ["heading", "paragraph", "heading", "item", "item", "item", "item", "paragraph"]);
-  const paragraph = blocks[1];
-  assert.ok(paragraph.kind === "paragraph" && paragraph.runs.some(r => r.bold && r.text === "negrito") && paragraph.runs.some(r => r.italic && r.text === "itálico") && paragraph.runs.some(r => r.break));
-  assert.deepEqual(blocks.flatMap(b => b.kind === "item" ? [b.marker] : []), ["•", "•", "3.", "4."]);
-  const quote = blocks.at(-1);
-  assert.ok(quote?.kind === "paragraph" && quote.quote);
-});
+function wordText(xml: string) { return [...xml.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(match => match[1]).join(""); }
 
 test("export: docx library path renders bold runs and lists without literal markdown", async () => {
-  const xml = documentXml(await exportDocument(markdown));
+  const zip = new PizZip(await exportDocument(markdown));
+  const xml = zip.file("word/document.xml")!.asText();
   assert.match(xml, /<w:b\/>/);
-  assert.match(xml, /<w:i\/>/);
-  assert.match(xml, /<w:numPr>/);
+  const bold = xml.match(/<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g)!.find(run => wordText(run) === "negrito");
+  assert.ok(bold, "the emphasized paragraph text is exported");
+  assert.match(bold, /<w:b\/>/, "paragraph bold must survive independently of list styling");
+  const emphasized = xml.match(/<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g)!.find(run => wordText(run) === "itálico");
+  assert.ok(emphasized, "the inline emphasis text is exported");
+  assert.match(emphasized, /<w:i\/>/, "inline emphasis must survive independently of blockquote styling");
+  const paragraphs = xml.match(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)!;
+  assert.deepEqual(paragraphs.filter(paragraph => paragraph.includes("<w:numPr>")).map(wordText),
+    ["primeiro item", "segundo", "terceiro", "quarto"], "every list item is exported in document order");
   assert.match(xml, /Heading1|Heading2/);
   assert.doesNotMatch(xml, /\*\*|^- |## /m);
   assert.match(xml, /&amp; <\/w:t>[\s\S]*?&lt;tag&gt;/);
   assert.match(xml, /R\$&amp;1\./);
+  assert.match(xml, /<w:br\/>[\s\S]*?Segunda linha/);
+  assert.match(zip.file("word/numbering.xml")!.asText(), /<w:start w:val="3"\/>/);
+  const quote = paragraphs.find(paragraph => paragraph.includes("citação literal"));
+  assert.ok(quote, "the quoted paragraph is exported");
+  assert.match(quote, /<w:ind\b[^>]*w:left="720"/);
+  assert.match(quote, /<w:i\/>/);
 });
 
 test("export: template path keeps header and separators, drops prior body, comments, notes and metadata", async () => {
@@ -189,8 +195,9 @@ test("export: template path keeps header and separators, drops prior body, comme
   assert.match(xml, /<w:sectPr\b[\s\S]*<\/w:sectPr><\/w:body>/);
   assert.doesNotMatch(xml, /Fato do caso anterior|commentReference|footnoteReference/);
   assert.match(xml, /<w:b\/>/);
-  assert.match(xml, /<w:t xml:space="preserve">•<\/w:t><w:tab\/>/);
-  assert.match(xml, /<w:t xml:space="preserve">3\.<\/w:t>/);
+  const listParagraphs = xml.match(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)!.filter(paragraph => paragraph.includes("<w:tab/>"));
+  assert.deepEqual(listParagraphs.map(wordText), ["•primeiro item", "•segundo", "3.terceiro", "4.quarto"],
+    "template list markers preserve bullets and the complete ordered sequence");
   assert.match(xml, /w:ascii="Garamond"/, "body run fonts follow the template");
   assert.doesNotMatch(xml, /\*\*|&lt;w:/);
   assert.match(xml, /&lt;tag&gt;<\/w:t><\/w:r><w:r>[\s\S]*?&quot;aspas&quot; R\$&amp;1\./);
@@ -219,14 +226,16 @@ test("export: editor typography comes from the template's body paragraphs and pa
 
 test("export: Markdown tables become Word tables on both paths, header row repeating", async () => {
   const table = "| Parcela | Vencimento |\n| --- | --- |\n| **1** | 10/01/2026 |\n| 2 | 10/02/2026 |";
-  const [block] = markdownBlocks(table);
-  assert.equal(block.kind, "table");
-  assert.ok(block.kind === "table" && block.header.length === 2 && block.rows.length === 2 && block.rows[0][0].some(run => run.bold && run.text === "1"));
-
   const plain = documentXml(await exportDocument(table));
   assert.equal(plain.match(/<w:tr[ >]/g)?.length, 3);
   assert.match(plain, /<w:tblHeader\/>/);
   assert.doesNotMatch(plain, /\| Parcela/);
+  const headerRow = plain.match(/<w:tr(?:\s[^>]*)?>[\s\S]*?<\/w:tr>/)![0];
+  assert.deepEqual(headerRow.match(/<w:tc(?:\s[^>]*)?>[\s\S]*?<\/w:tc>/g)!.map(wordText),
+    ["Parcela", "Vencimento"], "padding cannot substitute for a missing header cell");
+  const firstValueCell = plain.match(/<w:tc(?:\s[^>]*)?>[\s\S]*?<\/w:tc>/g)!.find(cell => /<w:t(?:\s[^>]*)?>1<\/w:t>/.test(cell));
+  assert.ok(firstValueCell, "the first installment is exported as a table cell");
+  assert.match(firstValueCell, /<w:b\/>/);
 
   const template = await Packer.toBuffer(new Document({ sections: [{ children: [new Paragraph({ children: [new TextRun({ text: "Corpo", font: "Garamond" })] })] }] }));
   const xml = new PizZip(await exportDocument(`Antes\n\n${table}`, template)).file("word/document.xml")!.asText();

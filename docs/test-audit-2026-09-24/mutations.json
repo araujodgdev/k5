@@ -1,0 +1,58 @@
+[
+  {
+    "id": "djen-total",
+    "command": "pnpm --filter @k5/web test --test-name-pattern=\"DJEN listChanges: reports coverage\" tests/judicial-connector.test.ts",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "originalSha256": "5b5b445d668f30454c265a34a26c9027c1d9cbe704592ae5329c29215742630a",
+    "restoredByteForByte": true
+  },
+  {
+    "id": "index-lease",
+    "command": "pnpm --filter @k5/web test --test-name-pattern=\"indexing: a worker that lost its lease\" tests/vectorize-contract.test.ts",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "originalSha256": "e2d9d075ce71d8d666b44e0b6bcc22a04dd51e09c2102efe835878a9805c12a3",
+    "restoredByteForByte": true
+  },
+  {
+    "id": "inline-italic",
+    "command": "pnpm --filter @k5/web test --test-name-pattern=\"export: docx library path\" tests/documents.test.ts",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "originalSha256": "364303f182f96030cbf5dfe45bbd2e7e216c14c64827bfe07037983ba1115ae6",
+    "restoredByteForByte": true
+  },
+  {
+    "id": "list-tail",
+    "command": "pnpm --filter @k5/web test --test-name-pattern=\"export: template path\" tests/documents.test.ts",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "originalSha256": "364303f182f96030cbf5dfe45bbd2e7e216c14c64827bfe07037983ba1115ae6",
+    "restoredByteForByte": true
+  },
+  {
+    "id": "table-header",
+    "command": "pnpm --filter @k5/web test --test-name-pattern=\"export: Markdown tables\" tests/documents.test.ts",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "originalSha256": "364303f182f96030cbf5dfe45bbd2e7e216c14c64827bfe07037983ba1115ae6",
+    "restoredByteForByte": true
+  },
+  {
+    "id": "rotation-plaintext",
+    "command": "pnpm --filter @k5/web test --test-name-pattern=\"rotation covers every encrypted column\" tests/credential-rotation.test.ts",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "originalSha256": "670a26384ec7b4ed5bff801c205f42c7d18aba6a9c3d0e00409adf6738d19035",
+    "restoredByteForByte": true
+  },
+  {
+    "id": "paragraph-bold",
+    "command": "pnpm --filter @k5/web test --test-name-pattern=\"export: docx library path\" tests/documents.test.ts",
+    "exitCode": 1,
+    "assertionFailure": true,
+    "originalSha256": "364303f182f96030cbf5dfe45bbd2e7e216c14c64827bfe07037983ba1115ae6",
+    "restoredByteForByte": true
+  }
+]

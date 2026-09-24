@@ -6,7 +6,7 @@ import type { WorkspaceContext } from './context';
 import { searchWebJurisprudence } from '@/lib/research/web-jurisprudence';
 import { ResearchError } from '@/lib/research/contracts';
 import {
-  cancelResearchDownloads, getResearchJudgment, getResearchSearch, listResearchHistory,
+  cancelResearchDownloads, getResearchJudgment, getResearchWebSearch, listResearchWebSearches, runResearchWebSearch, getResearchSearch, listResearchHistory,
   requestResearchMaterial, requestResearchPage, searchResearchCorpus, startResearchSearch,
 } from './research-service';
 import {
@@ -39,6 +39,12 @@ export const getJudgment = (context: WorkspaceContext, input: CapabilityInput<'k
       version: material.version ? { ...material.version, originalAvailable: !!material.version.storageKey } : null,
     })) } };
   });
+export const webSearch = (context: WorkspaceContext, input: CapabilityInput<'k5_research_web_search'>) =>
+  operation(async () => ({ search: await runResearchWebSearch(context, { query: input.query, mode: input.mode ?? 'auto' }) }));
+export const listWebSearches = (context: WorkspaceContext) =>
+  operation(async () => ({ searches: await listResearchWebSearches(context) }));
+export const getWebSearch = (context: WorkspaceContext, input: CapabilityInput<'k5_research_get_web_search'>) =>
+  operation(async () => ({ search: await getResearchWebSearch(context, input.searchId) }));
 export const listHistory = (context: WorkspaceContext) =>
   operation(async () => ({ searches: await listResearchHistory(context) }));
 export const getSearch = (context: WorkspaceContext, input: CapabilityInput<'k5_research_get_search'>) =>

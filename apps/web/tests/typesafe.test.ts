@@ -1,7 +1,7 @@
 import { testDb, testDatabase } from './test-setup';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { saveConnection, connectionView, removeConnection } from '../src/lib/typesafe/config';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
 import { evaluate, type DecisionTransport, type DecisionRequest } from '../src/lib/typesafe/client';
@@ -14,8 +14,8 @@ import { publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts'
 import { agendaCapabilities } from '../src/lib/capabilities/agenda';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import { ownedArtifact } from '../src/lib/ai-store';
-import { createCredentialKeyring, decryptCredential, encryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
-import { reencryptAiConnectionSecrets } from '../src/lib/ai-connections-core';
+import { decryptCredential, encryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
+
 import { runWorkerQueues } from '../src/lib/worker-scheduler';
 import { enqueueDeletion, processNextDeletion } from '../src/lib/knowledge/indexing';
 import { withTransaction } from '../src/lib/database';
@@ -44,7 +44,6 @@ function response(request: DecisionRequest, choices: Record<string, string> = {}
 }
 const send: DecisionTransport = async (_key, request) => response(request);
 const request = { state: 'Texto de teste privado', questionVersion: 'test-v1', questions: { present: { type: 'noul' as const, instructions: 'Existe texto?' } } };
-
 
 test('typesafe: an existing office key is adopted once as the platform connection', async () => {
   const a = (await fixture()); const b = (await fixture());
@@ -172,12 +171,6 @@ test('typesafe: two rerank batches can share an office with concurrency one', as
   assert.deepEqual(ranked.sources.map(source => source.sourceId), ['b', 'a']);
 });
 
-test('agenda dates: rejected DST times have an actionable Portuguese error', () => {
-  for (const [day, time] of [['2026-03-08', '02:30'], ['2026-11-01', '01:30']]) {
-    assert.throws(() => localInstant(day, time, 'America/New_York'), /horário.*Escolha outro horário/);
-  }
-});
-
 test('typesafe: cancelling a multi-batch rerank preserves the baseline and skips remaining calls', async () => {
   const context = (await fixture()); await configure(context, { concurrency: 1 });
   const sources = [{ sourceId: 'a', text: 'a'.repeat(12000) }, { sourceId: 'b', text: 'b'.repeat(12000) }];
@@ -232,8 +225,8 @@ test('agenda dates: civil date, year omission, midnight, invalid and duplicated 
   assert.ok(temporalCandidates('dia 30/02/2026', '2026-09-21T12:00:00Z', 'America/Sao_Paulo').questions.length);
   assert.ok(temporalCandidates('sexta às 9', '2026-09-21T12:00:00Z', 'America/Sao_Paulo').questions.length);
   assert.equal(localInstant('2026-09-21', '09:00', 'America/Sao_Paulo'), '2026-09-21T12:00:00Z');
-  assert.throws(() => localInstant('2026-03-08', '02:30', 'America/New_York'));
-  assert.throws(() => localInstant('2026-11-01', '01:30', 'America/New_York'));
+  assert.throws(() => localInstant('2026-03-08', '02:30', 'America/New_York'), /horário.*Escolha outro horário/);
+  assert.throws(() => localInstant('2026-11-01', '01:30', 'America/New_York'), /horário.*Escolha outro horário/);
 });
 async function documentFixture(context: WorkspaceContext) {
   const docId = randomUUID(); const sourceId = randomUUID(); const artifactId = randomUUID(); const runId = randomUUID();
@@ -351,15 +344,6 @@ test('worker scheduling: a blocked verification does not delay pending deletion 
   assert.deepEqual(errors, []);
   const report = (await getVerification(context, { artifactId: data.artifact.id })).verification!;
   assert.equal(report.checked, 4); assert.equal(report.total, 9); assert.equal(report.status, 'queued');
-});
-
-test('typesafe: key rotation includes decision connections in the atomic batch', async () => {
-  const context = (await fixture()); await configure(context);
-  const current = parseCredentialKeyring(); const next = createCredentialKeyring(randomBytes(32), [current.current.key]);
-  const result = await reencryptAiConnectionSecrets(testDatabase, next, context.userId);
-  assert.ok(result.reencrypted > 0);
-  const row = (await testDb.prepare('SELECT encrypted_api_key FROM typesafe_platform_connection WHERE id=1').get())!;
-  assert.equal(decryptCredential(String(row.encrypted_api_key), next), `fake-${context.officeId}`);
 });
 
 test('typesafe: simultaneous reservations respect platform concurrency', async () => {

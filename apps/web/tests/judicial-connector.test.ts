@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
-  ConnectorError, isRetryable, isWorkerSafe, permits, type InstallationRef,
+  ConnectorError, isRetryable, permits, type InstallationRef,
 } from "../src/lib/judicial/contracts";
 import { createDjenConnector, normalizeCommunications, plainTextFromGazette, DJEN_PARSER_VERSION } from "../src/lib/judicial/connectors/djen";
 import { fixtureKey, fixtureTransport, isPrivateAddress, liveTransport } from "../src/lib/judicial/connectors/transport";
@@ -72,33 +72,10 @@ test("DJEN capabilities: declares what it does not do instead of staying silent"
 
   const listChanges = capabilities.operations.find((operation) => operation.operation === "listChanges");
   assert.equal(listChanges?.supported, true);
-  assert.equal(isWorkerSafe(listChanges!.effect), true, "ler diário público é consulta neutra");
+  assert.equal(listChanges!.effect, "neutral_query", "ler diário público é consulta neutra");
 
   const fetchDocument = capabilities.operations.find((operation) => operation.operation === "fetchDocument");
-  assert.equal(isWorkerSafe(fetchDocument!.effect), false, "efeito desconhecido nunca entra no worker genérico");
-});
-
-test("DJEN normalize: pure, and it separates the dates the court keeps apart", () => {
-  const parsed = normalizeCommunications(fixture("djen-page-1.json"));
-  assert.equal(parsed.items.length, 3);
-  assert.equal(parsed.rejected, 0);
-  assert.equal(parsed.totalReported, 3);
-
-  const [first] = parsed.items;
-  assert.equal(first.cnjNumber, VALID, "o número é normalizado para vinte dígitos");
-  assert.equal(first.madeAvailableOn, "2026-09-10");
-  assert.equal(first.publishedOn, "2026-09-11", "publicação e disponibilização não são o mesmo campo");
-  assert.equal(first.edition, "3210");
-
-  // Same bytes in, same records out: that is what lets a parser fix re-read stored snapshots.
-  assert.deepEqual(normalizeCommunications(fixture("djen-page-1.json")), parsed);
-});
-
-test("DJEN normalize: an unverifiable number is not written to the CNJ column", () => {
-  const parsed = normalizeCommunications(fixture("djen-page-1.json"));
-  const legacy = parsed.items[2];
-  assert.equal(legacy.cnjNumber, null, "numeração legada não entra no índice CNJ");
-  assert.match(legacy.body, /numeracao legada/i, "mas a publicação continua sendo coletada");
+  assert.equal(fetchDocument!.effect, "unknown", "efeito desconhecido nunca entra no worker genérico");
 });
 
 test("DJEN normalize: gazette markup becomes text, and the text is data, not instructions", () => {
@@ -137,6 +114,14 @@ test("DJEN listChanges: reports coverage of the window it actually walked", asyn
   const result = await connector.listChanges!(inst, WINDOW);
 
   assert.equal(result.items.length, 3);
+  assert.equal(result.coverage.rejected, 0);
+  assert.equal(result.coverage.totalReported, 3);
+  assert.equal(result.items[0].cnjNumber, VALID);
+  assert.equal(result.items[0].madeAvailableOn, "2026-09-10");
+  assert.equal(result.items[0].publishedOn, "2026-09-11");
+  assert.equal(result.items[0].edition, "3210");
+  assert.equal(result.items[2].cnjNumber, null);
+  assert.match(result.items[2].body, /numeracao legada/i);
   assert.equal(result.coverage.pagesFetched, 1);
   assert.equal(result.coverage.truncated, false);
   assert.equal(result.coverage.windowFrom, "2026-09-08");

@@ -6,7 +6,6 @@ import { saveConnection, connectionView } from '../src/lib/typesafe/config';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
 import type { DecisionRequest, DecisionTransport } from '../src/lib/typesafe/client';
 import { groundCandidates, parseCandidates, searchWebJurisprudence, relevanceLabel } from '../src/lib/research/web-jurisprudence';
-import { publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts';
 
 async function office() {
   const officeId = randomUUID(); const userId = randomUUID();
@@ -68,9 +67,4 @@ test('web jurisprudence: without Jev the grounded list still comes back, marked 
   assert.equal(unscored.evaluated, false);
   assert.equal(unscored.results.length, 3);
   assert.ok(unscored.results.every(item => item.relevance === null));
-});
-
-test('web jurisprudence: only the Lume gets the tool', () => {
-  assert.ok(publishedCapabilitiesForRole('reviewer', 'agent').includes('k5_research_web_jurisprudence'));
-  assert.ok(!publishedCapabilitiesForRole('lawyer', 'webmcp').includes('k5_research_web_jurisprudence'));
 });

@@ -5,8 +5,8 @@ import { testDatabase, testDb } from './test-setup';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import { createActivity } from '../src/lib/application/agenda-service';
 import {
-  getCaseFollowState, getNotificationPreferences, listNotifications, markAllNotificationsRead,
-  registerPushSubscription, setCaseFollowState, unreadCount,
+  archiveNotification, getCaseFollowState, getNotificationPreferences, listNotifications, markAllNotificationsRead,
+  markNotificationRead, registerPushSubscription, setCaseFollowState, unreadCount,
 } from '../src/lib/notifications/repository';
 import { revokePushSubscriptionsForUser } from '../src/lib/notifications/revocation';
 import { eventInsertStatement } from '../src/lib/notifications/events';
@@ -145,6 +145,29 @@ test('notifications: subscriptions are encrypted, delivery is generic, and logou
   await revokePushSubscriptionsForUser(testDatabase, value.recipientId);
   assert.equal((await testDb.prepare('SELECT state FROM push_subscription WHERE id=?').get(subscriptionId))!.state, 'revoked');
   await assert.rejects(registerPushSubscription(value.recipient, input, testDatabase), /autorização.*expirou/i);
+});
+
+test('notifications: read or archived items leave the inbox for the archived list', async () => {
+  const value = (await notificationFixture());
+  const caseId = randomUUID();
+  (await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)')
+    .run(caseId, value.officeId, 'Caso acompanhado', value.actorId));
+  await setCaseFollowState(value.recipient, caseId, true, testDatabase);
+  const now = '2026-09-22T12:00:00.000Z';
+  const ids = [randomUUID(), randomUUID(), randomUUID()];
+  await testDatabase.batch(ids.map((id, index) => eventInsertStatement(testDatabase, {
+    id, officeId: value.officeId, eventType: 'judicial.publication.new', sourceKind: 'case', sourceId: caseId,
+    sourceVersion: index + 1, actorUserId: null, intendedRecipientIds: [value.recipientId], data: { caseName: 'Caso acompanhado' },
+    dedupeKey: randomUUID(), createdAt: new Date(Date.parse(now) - index * 1000).toISOString(), expiresAt: null,
+  })));
+  for (let index = 0; index < ids.length; index++) await projectNextNotification(testDatabase, now);
+  await markNotificationRead(value.recipient, ids[0], testDatabase);
+  await archiveNotification(value.recipient, ids[1], testDatabase);
+  const inbox = await listNotifications(value.recipient, { unreadOnly: true, limit: 25 }, testDatabase);
+  const archived = await listNotifications(value.recipient, { unreadOnly: false, archived: true, limit: 25 }, testDatabase);
+  assert.deepEqual(inbox.notifications.map(({ id }) => id), [ids[2]]);
+  assert.deepEqual(archived.notifications.map(({ id }) => id).sort(), [ids[0], ids[1]].sort());
+  assert.deepEqual((await listNotifications(value.actor, { unreadOnly: false, archived: true, limit: 25 }, testDatabase)).notifications, []);
 });
 
 test('notifications: case following is personal and the inbox rollout switch hides projected rows', async () => {

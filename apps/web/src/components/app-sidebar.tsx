@@ -10,6 +10,7 @@ import { LumeMark } from "@/components/lume-mark";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { InstallApp } from "@/components/pwa-provider";
 import { FeedbackDialog, FeedbackTrigger } from "@/components/feedback-dialog";
+import { NotificationPanel, NotificationTrigger } from "@/components/notification-panel";
 import { navIcons, navTone } from "@/components/nav-icons";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { readNavCollapsed, subscribeNavCollapsed, writeNavCollapsed } from "@/lib/nav-collapse";
@@ -46,6 +47,8 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
   const [unread, setUnread] = useState(0);
   const [feedback, setFeedback] = useState<{ open: boolean; view: "form" | "history" }>({ open: false, view: "form" });
   const feedbackOpener = useRef<HTMLElement | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsOpener = useRef<HTMLElement | null>(null);
   const navRef = useRef<HTMLUListElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
   const tabbarRef = useRef<HTMLElement>(null);
@@ -108,6 +111,33 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
     rest.delete("feedback");
     router.replace(rest.size ? `${pathname}?${rest}` : pathname, { scroll: false });
   }, [reportsRequested, searchParams, pathname, router]);
+
+  // The old page and the notification fallback link arrive with ?notificacoes=1 and open the panel.
+  const notificationsRequested = searchParams.get("notificacoes") === "1";
+  const [notificationsHandled, setNotificationsHandled] = useState(false);
+  if (notificationsRequested !== notificationsHandled) {
+    setNotificationsHandled(notificationsRequested);
+    if (notificationsRequested) setNotificationsOpen(true);
+  }
+  useEffect(() => {
+    if (!notificationsRequested) return;
+    const rest = new URLSearchParams(searchParams);
+    rest.delete("notificacoes");
+    router.replace(rest.size ? `${pathname}?${rest}` : pathname, { scroll: false });
+  }, [notificationsRequested, searchParams, pathname, router]);
+
+  function openNotifications(opener: HTMLElement) {
+    notificationsOpener.current = opener;
+    setSheetOpen(false);
+    setNotificationsOpen(true);
+  }
+
+  function restoreFocus(opener: HTMLElement | null) {
+    // The sheet that held the mobile trigger is gone by now; its "Mais" button takes the focus back.
+    if (opener?.isConnected && opener.offsetParent !== null) opener.focus();
+    else if (moreButtonRef.current?.offsetParent) moreButtonRef.current.focus();
+    else document.getElementById("main-content")?.focus();
+  }
 
   function openFeedback(opener: HTMLElement) {
     feedbackOpener.current = opener;
@@ -206,10 +236,6 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
                     <SidebarMenuButton asChild isActive={active} tooltip={item.label} className={navRow}>
                       <Link href={href} aria-current={active ? "page" : undefined} aria-label={collapsed ? item.label : undefined}>
                         <Icon aria-hidden="true" className={navTone[item.slug]} /><span className="nav-label">{item.label}</span>
-                        {item.slug === "notifications" && unread > 0 && <>
-                          <span className="nav-label label-mono ml-auto opacity-70" aria-label={`${unread} notificações não lidas`}>{unread}</span>
-                          <span className="nav-dot absolute top-2 left-[1.9rem] hidden size-1.5 bg-brand" aria-hidden="true" />
-                        </>}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -235,6 +261,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
                 </SidebarMenuItem>
               </SidebarMenu>
               <FeedbackTrigger onOpen={openFeedback} />
+              <NotificationTrigger unread={unread} onOpen={openNotifications} />
               <InstallApp />
               <ThemeSwitch />
             </div>
@@ -258,7 +285,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return <TabItem key={slug} href={href} icon={<Icon className={cn("size-[18px]", !active && navTone[slug])} aria-hidden="true" />} label={item.short} active={active} />;
         })}
-        <TabItem ref={moreButtonRef} icon={<Ellipsis className="size-[18px]" aria-hidden="true" />} label="Mais" active={overflowActive} onClick={() => setSheetOpen(true)} aria-haspopup="dialog" aria-expanded={sheetOpen} />
+        <TabItem ref={moreButtonRef} icon={<span className="relative"><Ellipsis className="size-[18px]" aria-hidden="true" />{unread > 0 && <span className="absolute -top-0.5 -right-1 size-1.5 rounded-full bg-brand" aria-hidden="true" />}</span>} label="Mais" active={overflowActive} onClick={() => setSheetOpen(true)} aria-haspopup="dialog" aria-expanded={sheetOpen} aria-label={unread > 0 ? `Mais, ${unread} notificações não lidas` : undefined} />
       </nav>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -272,7 +299,6 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
               <Link key={item.slug} href={href} aria-current={active ? "page" : undefined} onClick={() => setSheetOpen(false)}
                 className={cn("flex min-h-12 items-center gap-3 px-3 text-base transition-colors", active ? "bg-foreground font-medium text-background [&_svg]:text-background" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                 <Icon className={cn("size-[18px]", navTone[item.slug])} aria-hidden="true" />{item.label}
-                {item.slug === "notifications" && unread > 0 && <span className="ml-auto text-sm" aria-label={`${unread} notificações não lidas`}>{unread}</span>}
               </Link>
             );
           })}
@@ -286,6 +312,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
               <LogOut className="size-[18px]" aria-hidden="true" />{pending ? "Saindo…" : "Sair"}
             </button>
             <FeedbackTrigger className="size-12" onOpen={openFeedback} />
+            <NotificationTrigger className="size-12" unread={unread} onOpen={openNotifications} />
             <InstallApp className="size-12" />
             <ThemeSwitch className="size-12" />
           </div>
@@ -294,13 +321,8 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
 
       <FeedbackDialog open={feedback.open} initialView={feedback.view} pathname={pathname}
         onOpenChange={(open) => setFeedback((current) => ({ ...current, open }))}
-        onCloseFocus={() => {
-          // The sheet that held the mobile trigger is gone by now; its "Mais" button takes the focus back.
-          const opener = feedbackOpener.current;
-          if (opener?.isConnected && opener.offsetParent !== null) opener.focus();
-          else if (moreButtonRef.current?.offsetParent) moreButtonRef.current.focus();
-          else document.getElementById("main-content")?.focus();
-        }} />
+        onCloseFocus={() => restoreFocus(feedbackOpener.current)} />
+      <NotificationPanel open={notificationsOpen} onOpenChange={setNotificationsOpen} onCloseFocus={() => restoreFocus(notificationsOpener.current)} />
     </>
   );
 }

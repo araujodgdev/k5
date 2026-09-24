@@ -30,12 +30,15 @@ import { getVerification, requestVerification } from '@/lib/typesafe/verificatio
 import { interpretAgenda, getProposal, listProposals, applyProposal } from '@/lib/typesafe/agenda';
 import { endGlobalSession } from '@/lib/application/ui-service';
 import { recordSources, sourcesFromTool } from '@/lib/citations/sources';
-import { captureOperationalError } from '@/lib/observability/report';
+import { captureOperationalError, traceToolCall } from '@/lib/observability/report';
 
 type Executor = (context: WorkspaceContext, input: never) => unknown;
 
 /** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_research_web_search: research.webSearch,
+  k5_research_list_web_searches: research.listWebSearches,
+  k5_research_get_web_search: research.getWebSearch,
   k5_research_search_corpus: research.searchCorpus,
   k5_research_web_jurisprudence: research.webJurisprudence,
   k5_research_get_judgment: research.getJudgment,
@@ -108,6 +111,8 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_conversations_get: conversations.getConversation,
   k5_conversations_create: conversations.createNewConversation,
   k5_conversations_delete: conversations.deleteConversation,
+  k5_memory_get: conversations.getMemory,
+  k5_memory_clear: conversations.clearAgentMemory,
   k5_context_set_sources: knowledge.setScopeSources,
   k5_judicial_list_sources: judicial.listJudicialSources,
   k5_judicial_list_links: judicial.listJudicialLinks,
@@ -219,7 +224,7 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (
     outputSchema: capability.output,
     execute: async (input: unknown) => {
       try {
-        const result = await runCapability({ ...context, invocation: 'agent' }, name, input);
+        const result = await traceToolCall(name, () => runCapability({ ...context, invocation: 'agent' }, name, input));
         // What the Lume read is kept before it sees it, so a document it writes next in this same
         // turn is checked against these sources too.
         if (context.conversationId) {
@@ -348,6 +353,9 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_conversations_get: 'Consultou uma conversa',
     k5_conversations_create: 'Criou uma nova conversa',
     k5_conversations_delete: 'Excluiu uma conversa',
+    k5_memory_get: 'Consultou a memória',
+    k5_memory_clear: 'Apagou a memória',
+    updateWorkingMemory: 'Atualizou a memória',
     k5_context_set_sources: 'Definiu o escopo de documentos',
     k5_judicial_list_sources: 'Consultou as fontes judiciais',
     k5_judicial_list_links: 'Consultou os processos vinculados',

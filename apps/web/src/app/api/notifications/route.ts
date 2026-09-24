@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit') ?? 25) || 25, 50));
     return noStore(Response.json(await listNotifications(workspaceContext(workspace), {
       unreadOnly: url.searchParams.get('unreadOnly') === 'true',
+      archived: url.searchParams.get('archived') === 'true',
       cursor: url.searchParams.get('cursor') ?? undefined,
       limit,
     })));

@@ -1,9 +1,8 @@
-import { NotificationInbox } from '@/components/notification-inbox';
+import { redirect } from 'next/navigation';
 import { requireWorkspace } from '@/lib/session';
 
-export const metadata = { title: 'Notificações' };
-
+// Notifications are a panel beside the menu; old links and the open fallback land here.
 export default async function NotificationsPage() {
   await requireWorkspace();
-  return <NotificationInbox />;
+  redirect('/app/command-center?notificacoes=1');
 }

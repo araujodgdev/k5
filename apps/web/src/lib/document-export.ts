@@ -2,8 +2,8 @@ import { AlignmentType, Document, HeadingLevel, LevelFormat, Packer, Paragraph, 
 import { marked, type Token, type Tokens } from 'marked';
 import PizZip from 'pizzip';
 
-export type Run = { text: string; bold?: boolean; italic?: boolean; break?: boolean };
-export type Block =
+type Run = { text: string; bold?: boolean; italic?: boolean; break?: boolean };
+type Block =
   | { kind: 'heading'; level: number; runs: Run[] }
   | { kind: 'paragraph'; runs: Run[]; quote?: boolean; indent?: number }
   | { kind: 'item'; ordered: boolean; marker: string; start: number; list: number; level: number; runs: Run[] }
@@ -31,7 +31,7 @@ function inline(tokens: Token[] | undefined, style: Omit<Run, 'text'> = {}): Run
 }
 
 /** Markdown subset produced by the editor (headings, bold, italic, lists, quotes) as Word-neutral blocks. */
-export function markdownBlocks(content: string): Block[] {
+function markdownBlocks(content: string): Block[] {
   const blocks: Block[] = [];
   let lists = 0;
   const walk = (tokens: Token[], quote: boolean, level: number) => {

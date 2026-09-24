@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createAgent, recordUsage, RequestContext } from '@/lib/ai-runtime';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { evaluate, type DecisionTransport } from '@/lib/typesafe/client';
+import { exaApiKey, exaWebSearchTool } from '@/lib/agent-web-search';
 
 /**
  * Case law found on the open web, for a question the person asked. Two judges, two jobs:
@@ -74,11 +75,16 @@ export function groundCandidates(candidates: WebCandidate[], sources: string[]) 
 }
 
 async function providerSearch(officeId: string, userId: string, query: string, signal?: AbortSignal) {
-  const { agent, config } = await createAgent('chat',
-    'Você pesquisa jurisprudência brasileira na web para advogados. Responda apenas com JSON.', { web_search: webSearchTool });
-  if (!WEB_SEARCH_PROVIDERS.has(config.provider)) {
-    throw new CapabilityError('NOT_READY', 'O modelo configurado não pesquisa na web. Peça ao administrador um modelo OpenAI, Anthropic ou Google.');
+  const instructions = 'Você pesquisa jurisprudência brasileira na web para advogados. Responda apenas com JSON.';
+  const created = await createAgent('chat', instructions, { web_search: webSearchTool });
+  const { config } = created;
+  // Providers without their own search use Exa; the links then come from the tool's results.
+  const native = WEB_SEARCH_PROVIDERS.has(config.provider);
+  const exaKey = native ? undefined : exaApiKey();
+  if (!native && !exaKey) {
+    throw new CapabilityError('NOT_READY', 'O modelo configurado não pesquisa na web. Peça ao administrador um modelo OpenAI, Anthropic ou Google, ou a configuração da busca Exa.');
   }
+  const agent = native ? created.agent : (await createAgent('chat', instructions, { web_search: exaWebSearchTool(exaKey!) })).agent;
   const ctx = new RequestContext();
   ctx.set('provider', config.provider); ctx.set('modelId', config.modelId); ctx.set('apiKey', config.apiKey);
   const prompt = `Pesquise na web julgados de tribunais brasileiros sobre a questão abaixo. Prefira páginas oficiais de tribunais (stf.jus.br, stj.jus.br, tst.jus.br, tribunais regionais e estaduais) e repositórios de inteiro teor.
@@ -92,10 +98,15 @@ Questão: ${query}`;
       abortSignal: AbortSignal.any([AbortSignal.timeout(120_000), ...(signal ? [signal] : [])]),
     });
     if (result.error || result.finishReason === 'error') throw new Error('web_search_failed');
-    const sources = (result.sources ?? []).flatMap(source => {
-      const payload = (source as { payload?: { url?: string } }).payload ?? (source as { url?: string });
-      return typeof payload.url === 'string' ? [payload.url] : [];
-    });
+    const sources = native
+      ? (result.sources ?? []).flatMap(source => {
+        const payload = (source as { payload?: { url?: string } }).payload ?? (source as { url?: string });
+        return typeof payload.url === 'string' ? [payload.url] : [];
+      })
+      : (result.toolResults ?? []).flatMap(item => {
+        const output = ((item as { payload?: { result?: unknown } }).payload ?? (item as { result?: unknown })).result as { results?: Array<{ url?: unknown }> } | undefined;
+        return (output?.results ?? []).flatMap(page => typeof page.url === 'string' ? [page.url] : []);
+      });
     await recordUsage(officeId, userId, config, 'research-web', 'completed', result.usage);
     return { text: result.text, sources };
   } catch (error) {

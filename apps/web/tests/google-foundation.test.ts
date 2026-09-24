@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { testDb } from './test-setup';
 import { googleFixture, installFakeGoogle, respond, setRule } from './google-fixture';
-import { accessToken, completeGoogleConnect, disconnectGoogle, startGoogleConnect, requireConnection, reencryptGoogleSecrets } from '../src/lib/google/connections';
+import { accessToken, completeGoogleConnect, disconnectGoogle, startGoogleConnect, requireConnection } from '../src/lib/google/connections';
 import { runGoogleOperation, markOperationEffect, type OperationSpec } from '../src/lib/google/operations';
-import { setGoogleTransport, GoogleNetworkError } from '../src/lib/google/transport';
+import { setGoogleTransport } from '../src/lib/google/transport';
 import { approveProposal, approvalIdFromMessage } from '../src/lib/application/approvals-service';
 import { decryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
 import { googleApprovalReview } from '../src/lib/google/approval-review';
@@ -122,17 +122,6 @@ test('limite automático concorrente reserva somente uma unidade e não revela c
   assert.ok(row); assert.ok(!row.encrypted_args.includes('Segredo'));
 });
 
-test('resposta perdida mantém unknown e bloqueia envio equivalente com chave nova', async () => {
-  const f=await googleFixture(); await setRule(f.officeId,'gmail.send',{mode:'automatic'});
-  let calls=0;
-  const uncertain: Partial<OperationSpec<string>>={ effectKey:'draft:one',execute:async()=>{calls++;throw new GoogleNetworkError('response');},reconcile:async()=>({state:'unknown'}) };
-  assert.equal((await runGoogleOperation(f.context,spec({idempotencyKey:'unknown-key'},uncertain))).operation.status,'unknown');
-  await assert.rejects(()=>runGoogleOperation(f.context,spec({idempotencyKey:'different-key'},uncertain)),/equivalente/);
-  await assert.rejects(()=>runGoogleOperation(f.context,spec({idempotencyKey:'delete-while-unknown'}, {...uncertain,capabilityName:'k5_gmail_delete_draft',actions:['gmail.draft']})),/equivalente/);
-  assert.equal((await runGoogleOperation(f.context,spec({idempotencyKey:'unknown-key'},uncertain))).operation.status,'unknown');
-  assert.equal(calls,1);
-});
-
 test('checkpoint de efeito parcial permanece cifrado; falha posterior não libera repetição', async()=>{
   const f=await googleFixture(); await setRule(f.officeId,'gmail.send',{mode:'automatic'});
   const result=await runGoogleOperation(f.context,spec({}, {execute:async op=>{await markOperationEffect(op,{private:'sigiloso'});throw new Error('failure');}}));
@@ -140,7 +129,6 @@ test('checkpoint de efeito parcial permanece cifrado; falha posterior não liber
   const row=await testDb.prepare('SELECT checkpoint_json FROM google_operation WHERE id=?').get<{checkpoint_json:string}>(result.operation.id);
   assert.ok(row); assert.ok(!row.checkpoint_json.includes('sigiloso'));
   assert.deepEqual(JSON.parse(decryptCredential(row.checkpoint_json,parseCredentialKeyring())),{private:'sigiloso'});
-  await reencryptGoogleSecrets(testDb,parseCredentialKeyring());
 });
 
 test('sessão encerrada e papel removido interrompem ações interativas',async()=>{

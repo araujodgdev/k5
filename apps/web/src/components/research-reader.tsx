@@ -94,7 +94,8 @@ function ResearchReaderContent({ judgmentId, searchId, role }: { judgmentId: str
     setBusy(false);
   }
 
-  const back = `/app/research${searchId ? `?search=${encodeURIComponent(searchId)}` : ''}`;
+  // The Pesquisa screen now lists web searches; acervo searches are no longer reopened from there.
+  const back = '/app/research';
   const ementa = judgment?.materials.find(item => item.kind === 'ementa');
   const full = judgment?.materials.find(item => item.kind === 'full_text');
   const source = officialUrl(judgment?.sourceUrl ?? null);

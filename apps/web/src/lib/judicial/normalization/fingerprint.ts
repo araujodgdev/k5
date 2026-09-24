@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { NormalizedMovement, NormalizedPublication } from '../contracts';
+import type { NormalizedPublication } from '../contracts';
 
 /**
  * Deduplication identities (section 6). Prefer the identity the source gave; fall back to a
@@ -19,26 +19,6 @@ function digest(parts: Array<string | null>): string {
 /** Collapses the whitespace a court portal varies between requests without changing the text. */
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-/**
- * A movement code and its date do not identify an event: the same code appears repeatedly on the
- * same day in a busy docket. The text participates in the print precisely for that reason.
- */
-export function movementFingerprint(movement: NormalizedMovement): Fingerprint {
-  if (movement.sourceMovementId) {
-    return { value: digest(['mov:id', movement.sourceMovementId]), strategy: 'source_id' };
-  }
-  return {
-    value: digest([
-      'mov:fields',
-      movement.eventAt,
-      movement.eventPrecision,
-      movement.sourceCode,
-      normalizeText(movement.sourceText),
-    ]),
-    strategy: 'stable_fields',
-  };
 }
 
 /**

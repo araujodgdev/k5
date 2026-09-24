@@ -26,6 +26,7 @@ test('somente leituras de acervo, julgado e referências são publicadas', async
   assert.ok(tools.k5_research_search_corpus);
   assert.ok(!tools.k5_research_start_search);
   assert.ok(!tools.k5_research_add_reference);
+  assert.ok(publishedCapabilitiesForRole('reviewer', 'agent').includes('k5_research_web_jurisprudence'));
 });
 
 test('invocação de agente não burla publicação e revisor não inicia pesquisa', async () => {
@@ -57,6 +58,35 @@ test('pesquisa fica no autor e chave idempotente não aceita outro tema', async 
   await assert.rejects(runCapability(a, 'k5_research_start_search', { ...input, theme: 'alimentos', idempotencyKey }), { code: 'CONFLICT' });
   await assert.rejects(runCapability(colleague, 'k5_research_get_search', { searchId: started.search.id }), { code: 'NOT_FOUND' });
   await assert.rejects(runCapability(otherOffice, 'k5_research_get_search', { searchId: started.search.id }), { code: 'NOT_FOUND' });
+});
+
+test('pesquisa na web usa o modo escolhido, fica no histórico e só o autor a reabre', async (t) => {
+  const a = (await actor('reviewer'));
+  const colleague = (await actor('lawyer', a.officeId));
+  const sent: Array<Record<string, unknown>> = [];
+  const originalKey = process.env.EXA_API_KEY;
+  process.env.EXA_API_KEY = 'exa-test';
+  t.after(() => { if (originalKey === undefined) delete process.env.EXA_API_KEY; else process.env.EXA_API_KEY = originalKey; });
+  t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    sent.push(JSON.parse(String(init.body)));
+    return Response.json({ results: [
+      { title: 'REsp 1.234.567', url: 'https://www.stj.jus.br/julgado', publishedDate: '2025-03-10', text: 'Guarda   concedida à avó.' },
+      { title: 'Sem protocolo', url: 'javascript:alert(1)', text: 'descartado' },
+    ] });
+  });
+  const query = `guarda da avó ${randomUUID()}`;
+  const { search } = await runCapability(a, 'k5_research_web_search', { query, mode: 'deep' }) as { search: { id: string; mode: string; results: Array<{ host: string; excerpt: string }> } };
+  assert.equal(sent[0].type, 'deep');
+  assert.equal(sent[0].query, query);
+  assert.equal(search.mode, 'deep');
+  assert.deepEqual(search.results.map(({ host, excerpt }) => ({ host, excerpt })), [{ host: 'stj.jus.br', excerpt: 'Guarda concedida à avó.' }]);
+  const history = await runCapability(a, 'k5_research_list_web_searches', {}) as { searches: Array<{ id: string; resultCount: number }> };
+  assert.deepEqual(history.searches.map(({ id, resultCount }) => ({ id, resultCount })), [{ id: search.id, resultCount: 1 }]);
+  const reopened = await runCapability(a, 'k5_research_get_web_search', { searchId: search.id }) as { search: { results: unknown[] } };
+  assert.equal(reopened.search.results.length, 1);
+  assert.equal(sent.length, 1);
+  await assert.rejects(runCapability(colleague, 'k5_research_get_web_search', { searchId: search.id }), { code: 'NOT_FOUND' });
+  assert.deepEqual((await runCapability(colleague, 'k5_research_list_web_searches', {}) as { searches: unknown[] }).searches, []);
 });
 
 test('tema privado segue no corpo do POST de busca do acervo', async () => {

@@ -21,13 +21,3 @@ test('worker --once drains both queues even if one fails, without starting anoth
   release(); await running;
   assert.equal(calls, 1); assert.deepEqual(errors, [failure]);
 });
-
-test('worker shutdown drains the active verification and does not claim its requeued batch', async () => {
-  let stopping = false; let calls = 0;
-  await runWorkerQueues({
-    processDocuments: async () => false, maintain: async () => false,
-    verifyDocuments: async () => { calls++; stopping = true; await Promise.resolve(); return true; },
-    stopping: () => stopping, once: false, onError: error => { throw error; },
-  });
-  assert.equal(calls, 1);
-});

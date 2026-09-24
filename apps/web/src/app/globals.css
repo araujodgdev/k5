@@ -375,11 +375,11 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   border-radius: var(--radius-2xl);
 }
 
-/* The feedback panel opens beside the menu, near the button that opened it, and follows the
-   menu's width. Plain CSS, like the sheet above, so it beats the dialog's centring utilities. */
+/* The feedback and notification panels open beside the menu, near the button that opened them,
+   and follow the menu's width. Plain CSS, like the sheet above, so it beats the dialog's centring utilities. */
 @media (min-width: 768px) {
-  .feedback-panel { left: calc(15.5rem + .75rem); bottom: .75rem; }
-  html[data-nav="collapsed"] .feedback-panel { left: calc(3.75rem + .75rem); }
+  .feedback-panel, .notification-panel { left: calc(15.5rem + .75rem); bottom: .75rem; }
+  html[data-nav="collapsed"] :is(.feedback-panel, .notification-panel) { left: calc(3.75rem + .75rem); }
 }
 
 @media (prefers-reduced-motion: reduce) {

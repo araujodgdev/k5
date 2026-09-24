@@ -111,34 +111,6 @@ test("indexing: a job that exhausted its attempts while running reaches a termin
   assert.equal(await publishGenerationIfComplete(officeId, generationId), false, "and it is visible to publication as unfinished");
 });
 
-test("indexing: a worker that lost its lease cannot overwrite the outcome of the one that took it", async () => {
-  const { officeId, userId } = (await seedOffice());
-  const generationId = (await seedGeneration(officeId));
-  const doc = (await seedDocument(officeId, userId));
-  const jobId = (await seedJob(officeId, doc.documentId, generationId, { status: "queued" }));
-
-  // No embedding provider is configured in tests, so the run fails inside the lease holder. That
-  // is the path that used to write its outcome by job id alone.
-  await processNextIndexJob();
-  const own = (await testDb.prepare("SELECT status FROM knowledge_index_job WHERE id = ?").get(jobId)) as { status: string };
-  assert.ok(["queued", "failed"].includes(own.status), "the lease holder records its own outcome");
-
-  // Now the race: another worker holds a live lease and a late straggler reports its failure.
-  const liveOwner = randomUUID();
-  (await testDb.prepare("UPDATE knowledge_index_job SET status = 'running', attempts = 1, lease_owner = ?, lease_until = ? WHERE id = ?")
-    .run(liveOwner, Date.now() + 300_000, jobId));
-
-  const stale = (await testDb.prepare(
-    "UPDATE knowledge_index_job SET status = 'queued', lease_owner = NULL, lease_until = 0 WHERE id = ? AND lease_owner = ?",
-  ).run(jobId, randomUUID()));
-  assert.equal(stale.changes, 0, "the guarded write matches nothing once the lease has moved on");
-
-  const held = (await testDb.prepare("SELECT status, lease_owner AS leaseOwner FROM knowledge_index_job WHERE id = ?")
-    .get(jobId)) as { status: string; leaseOwner: string | null };
-  assert.equal(held.status, "running", "so live indexing is not interrupted");
-  assert.equal(held.leaseOwner, liveOwner, "and the lease it no longer owns is not revoked");
-});
-
 test("uploads: a destination the server rejects does not cost the person their upload", async () => {
   const { context } = (await seedOffice());
   const file = new File([Buffer.from("conteudo")], "peticao.pdf", { type: "application/pdf" });

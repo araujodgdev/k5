@@ -48,7 +48,29 @@ const webResult = z.object({
   url: z.string(), summary: z.string(), relevance: z.number().nullable(), relevanceLabel: z.string().nullable(),
 });
 
+const webSearchMode = z.enum(['instant', 'fast', 'auto', 'deep']);
+const webSearchItem = z.object({ id: z.string(), query: z.string(), mode: webSearchMode, createdAt: z.string(), resultCount: z.number() });
+const webSearchView = webSearchItem.extend({
+  results: z.array(z.object({ title: z.string(), url: z.string(), host: z.string(), publishedDate: z.string().nullable(), excerpt: z.string() })),
+});
+
 export const researchCapabilities = {
+  k5_research_web_search: {
+    module: 'research', effect: 'read', roles: readers, publish: [],
+    description: 'Pesquisa na web pela Exa, no modo escolhido, e guarda a pesquisa no histórico da pessoa.',
+    input: z.object({ query: z.string().trim().min(2).max(400), mode: webSearchMode.default('auto') }),
+    output: z.object({ search: webSearchView }),
+  },
+  k5_research_list_web_searches: {
+    module: 'research', effect: 'read', roles: readers, publish: [],
+    description: 'Lista as pesquisas na web feitas pela pessoa neste escritório.',
+    input: z.object({}), output: z.object({ searches: z.array(webSearchItem) }),
+  },
+  k5_research_get_web_search: {
+    module: 'research', effect: 'read', roles: readers, publish: [],
+    description: 'Reabre uma pesquisa na web do histórico, sem pesquisar de novo.',
+    input: z.object({ searchId: identifier }), output: z.object({ search: webSearchView }),
+  },
   k5_research_web_jurisprudence: {
     module: 'research', effect: 'read', roles: readers,
     description: 'Pesquisa jurisprudência na web aberta para uma questão jurídica que a pessoa pediu. Devolve só julgados com link verificado na busca, avaliados pelo Jev quanto à relevância. A lista aparece para a pessoa abaixo da sua resposta, com os links: não a repita nem cite números, tribunais ou ementas no texto; comente em uma ou duas frases o que foi encontrado.',

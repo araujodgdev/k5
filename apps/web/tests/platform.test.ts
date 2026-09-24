@@ -4,11 +4,11 @@ import { createCipheriv, randomBytes, randomUUID } from "node:crypto";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
-  AI_PROVIDERS, AiConnectionError, connectionInputSchema, connectionPatchSchema, connectionTestSchema, countSecretsNeedingReencryption, createAiConnection, deleteAiConnection,
-  listAiConnections, reencryptAiConnectionSecrets, resolveModelConfigFromDatabase, testAiConnection, updateAiConnection,
+  AI_PROVIDERS, AiConnectionError, connectionInputSchema, connectionPatchSchema, connectionTestSchema, createAiConnection, deleteAiConnection,
+  listAiConnections, resolveModelConfigFromDatabase, testAiConnection, updateAiConnection,
 } from "../src/lib/ai-connections-core";
 import {
-  assertPlatformAdmin, assertSameOrigin, findUserForPlatformGrant, grantPlatformAdmin, isPlatformAdmin, platformErrorResponse, PlatformRequestError, readPlatformJson, revokePlatformAdmin,
+  assertPlatformAdmin, findUserForPlatformGrant, grantPlatformAdmin, isPlatformAdmin, platformErrorResponse, PlatformRequestError, readPlatformJson, revokePlatformAdmin,
 } from "../src/lib/platform-core";
 import {
   createCredentialKeyring, CredentialDecryptError, CredentialKeyError, credentialKeyId, credentialNeedsReencryption, decryptCredential, encryptCredential,
@@ -53,15 +53,6 @@ test("platform role is independent and revocation takes effect immediately", asy
   await assert.rejects(() => findUserForPlatformGrant(database, { email: "a", id: "b" }), /exatamente/);
 });
 
-test("writes require an allowed same origin", () => {
-  const request = (origin?: string) => new Request("https://k5.example/api/platform", { method: "POST", headers: origin ? { origin } : {} });
-  assert.doesNotThrow(() => assertSameOrigin(request("https://k5.example")));
-  assert.throws(() => assertSameOrigin(request("https://admin.k5.example")), /não autorizada/);
-  assert.throws(() => assertSameOrigin(request("https://evil.example")), /não autorizada/);
-  assert.throws(() => assertSameOrigin(request()), /ausente/);
-  assert.throws(() => assertSameOrigin(request("not a url")), /inválida/);
-});
-
 test("platform connections are masked, audited, rotated and serve every office", async () => {
   const { db, database, admin, key } = (await fixture());
   await grantPlatformAdmin(database, admin);
@@ -80,6 +71,9 @@ test("platform connections are masked, audited, rotated and serve every office",
   await updateAiConnection(database, key, admin, a.id, { enabled: true });
   const audited = await db.prepare("SELECT count(*) total FROM platform_audit_log WHERE connection_id = ? AND office_id IS NULL").get(a.id);
   assert.ok(Number(audited?.total) >= 3);
+  await db.prepare('UPDATE ai_connection SET encrypted_api_key=? WHERE id=?').run(encryptCredential('sk-damaged-key', randomBytes(32)), a.id);
+  await assert.rejects(() => resolveModelConfigFromDatabase(database, key, 'chat'),
+    (error) => error instanceof AiConnectionError && error.code === 'credential' && !error.message.includes('sk-'));
 });
 
 test("per-office rows from before 0022 are never read, and the migration adopts the most recent office's", async () => {
@@ -173,35 +167,6 @@ test("master key versioning: key id in envelope, previous keys decrypt, legacy v
   assert.equal(fromEnv.keys.size, 2);
   assert.equal(parseCredentialKeyring(newKey.toString("base64"), "").keys.size, 1);
   assert.throws(() => parseCredentialKeyring(newKey.toString("base64"), "invalida"), (error) => error instanceof CredentialKeyError && /PREVIOUS_KEYS/.test(error.message) && !error.message.includes("invalida"));
-});
-
-test("rotation re-encrypts every live secret with the current key, audits without secrets and is atomic", async () => {
-  const { db, database, admin, officeA } = (await fixture());
-  const oldKey = randomBytes(32), newKey = randomBytes(32);
-  const a = await createAiConnection(database, oldKey, admin, { name: "Alfa", provider: "openai", apiKey: "sk-alpha-rotation", models: { chat: "m-a", extraction: null, drafting: null } });
-  // A per-office row from before 0022 is no longer read, but its secret still follows the key.
-  const b = randomUUID();
-  await db.prepare(`INSERT INTO ai_connection (id, office_id, name, provider, encrypted_api_key, api_key_hint) VALUES (?, ?, 'Beta', 'google', ?, '••••')`)
-    .run(b, officeA, legacyV1("sk-beta-rotation", oldKey));
-  const gone = await createAiConnection(database, oldKey, admin, { name: "Removida", provider: "anthropic", apiKey: "sk-gone", models: {} });
-  await deleteAiConnection(database, admin, gone.id);
-  const keyring = createCredentialKeyring(newKey, [oldKey]);
-  assert.equal(await countSecretsNeedingReencryption(database, keyring), 2);
-  assert.deepEqual(await reencryptAiConnectionSecrets(database, keyring, admin), { total: 2, reencrypted: 2, keyId: credentialKeyId(newKey) });
-  assert.equal(await countSecretsNeedingReencryption(database, keyring), 0);
-  assert.equal((await reencryptAiConnectionSecrets(database, keyring, admin)).reencrypted, 0);
-  assert.equal((await resolveModelConfigFromDatabase(database, newKey, "chat")).apiKey, "sk-alpha-rotation");
-  const legacyRow = await db.prepare("SELECT encrypted_api_key FROM ai_connection WHERE id = ?").get(b) as { encrypted_api_key: string };
-  assert.equal(decryptCredential(legacyRow.encrypted_api_key, newKey), "sk-beta-rotation");
-  const audit = JSON.stringify((await db.prepare("SELECT * FROM platform_audit_log WHERE action = 'ai_connection.master_key_reencrypted'").all()));
-  assert.ok(audit.includes(a.id) && audit.includes(b));
-  assert.equal(/sk-alpha|sk-beta/.test(audit) || audit.includes(newKey.toString("base64")) || audit.includes(oldKey.toString("base64")), false);
-
-  (await db.prepare("UPDATE ai_connection SET encrypted_api_key = ? WHERE id = ?").run(encryptCredential("sk-alpha-rotation", randomBytes(32)), a.id));
-  const before = (await db.prepare("SELECT encrypted_api_key FROM ai_connection ORDER BY id").all());
-  await assert.rejects(() => reencryptAiConnectionSecrets(database, createCredentialKeyring(randomBytes(32), [newKey]), admin), (error) => error instanceof AiConnectionError && error.code === "credential" && !error.message.includes("sk-"));
-  assert.deepEqual((await db.prepare("SELECT encrypted_api_key FROM ai_connection ORDER BY id").all()), before);
-  await assert.rejects(() => resolveModelConfigFromDatabase(database, newKey, "chat"), (error) => error instanceof AiConnectionError && error.code === "credential");
 });
 
 test("connection test accepts any enabled connection, hides provider failures and audits without secrets", async () => {

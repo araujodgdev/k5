@@ -425,6 +425,7 @@ test("collection: a backfill finding announces history, not news from today", as
 
   const alerts = await runCapability(context(officeA, lawyerA), "k5_judicial_list_alerts", {}) as { alerts: Array<{ eventKind: string }> };
   // A month of history arriving at once must not read as a storm of today's updates.
+  assert.equal(alerts.alerts.length, 3);
   assert.equal(alerts.alerts.every((alert) => alert.eventKind === "historical_publication"), true);
 });
 
