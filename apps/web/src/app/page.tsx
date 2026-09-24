@@ -11,28 +11,28 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: { absolute: "Lume — o espaço de trabalho do escritório" },
-  description: "Um agente que pesquisa, redige e organiza, com o caso inteiro à vista.",
+  description: "A plataforma do escritório de advocacia. Pesquise, redija e acompanhe prazos com um agente que conhece o caso inteiro.",
 };
 
 const modules = [
   {
     name: "Lume", Glyph: GlyphLume,
-    text: "Um agente que conhece o caso. Pesquisa, redige e revisa, e diz o que fez. Pede confirmação antes de apagar, de falar com um tribunal ou de sobrescrever um rascunho.",
+    text: "Pesquise, redija e revise peças com um agente que trabalha a partir do caso inteiro. Ele informa o que fez e pede confirmação antes de apagar, sobrescrever um rascunho ou falar com um tribunal.",
     points: ["Peças em DOCX", "Citações conferidas", "Voz e anexos", "Documento ao lado da conversa"],
   },
   {
     name: "Cofre", Glyph: GlyphVault,
-    text: "Os documentos do escritório organizados por caso, lidos inteiros, inclusive os PDFs escaneados, e prontos para o Lume consultar.",
+    text: "Organize os documentos do escritório por caso, com leitura integral, inclusive de PDFs escaneados. Depois, encontre o que importa com uma busca ou uma pergunta ao Lume.",
     points: ["Pastas por caso", "Leitura de PDFs escaneados", "Anexos nomeados para o PJe", "Busca no conteúdo"],
   },
   {
     name: "Pesquisa", Glyph: GlyphResearch,
-    text: "Jurisprudência e andamentos sem sair do caso. Cada decisão encontrada pode virar referência ou o começo de uma peça.",
+    text: "Encontre jurisprudência e acompanhe andamentos sem sair do caso. Salve cada decisão como referência ou use-a como ponto de partida de uma peça.",
     points: ["Jurisprudência na web", "Andamentos processuais", "Vínculo com o caso", "Rascunho a partir da decisão"],
   },
   {
     name: "Agenda", Glyph: GlyphAgenda,
-    text: "Prazos, tarefas e reuniões num só calendário, ligados aos clientes e aos casos, com avisos que chegam no celular.",
+    text: "Controle prazos, tarefas e reuniões em um só calendário, ligado a clientes e casos, com avisos no celular.",
     points: ["Tarefas com prazo", "Reuniões", "Clientes e casos", "Avisos no celular"],
   },
 ];
@@ -77,7 +77,7 @@ export default function Landing() {
         </div>
         <div className="flex items-stretch md:border-l md:border-line">
           <nav aria-label="Seções" className="hidden items-stretch lg:flex">
-            {[["#modulos", "Módulos"], ["#escritorio", "Escritório"], ["#comecar", "Começar"]].map(([href, label]) => (
+            {[["#modulos", "Módulos"], ["#escritorio", "Padrões"], ["#comecar", "Começar"]].map(([href, label]) => (
               <a key={href} href={href} className="hover-rise flex items-center px-4 text-[15px] transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:text-brand-foreground">{label}</a>
             ))}
           </nav>
@@ -100,11 +100,11 @@ export default function Landing() {
           <Halftone seed={7} mark={{ x: .56, y: .58, size: .95 }} className="fade-in hidden border-t border-line [--delay:.35s] md:block md:min-h-[46svh]" />
           <div className="grid border-t border-line sm:grid-cols-2 md:border-l">
             <div className="flex min-h-72 flex-col justify-between gap-10 bg-foreground p-5 text-background md:p-6">
-              <p className="fade-in text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">O espaço de trabalho do escritório de advocacia. Um agente que pesquisa, redige e organiza, com o caso inteiro à vista.</p>
+              <p className="fade-in text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">A plataforma do escritório de advocacia. Pesquise, redija e acompanhe prazos com um agente que conhece o caso inteiro.</p>
               <ArrowLink href="/sign-up" tone="clear" className="-mx-4 -mb-3">Criar conta</ArrowLink>
             </div>
             <div className="flex min-h-72 flex-col justify-between gap-10 overflow-hidden bg-brand text-brand-foreground">
-              <p className="fade-in p-5 text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.55s] md:p-6">Menos abas abertas. Mais tempo para a tese.</p>
+              <p className="fade-in p-5 text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.55s] md:p-6">O melhor trabalho do escritório em cada caso, com mais tempo para os clientes.</p>
               <div className="marquee overflow-hidden border-t border-brand-foreground/25 py-4" aria-label="Módulos do Lume">
                 <ul className="marquee-track flex w-max gap-10 pr-10 text-xl font-medium tracking-[-0.04em]">
                   {[...marquee, ...marquee].map((name, index) => (
@@ -126,7 +126,7 @@ export default function Landing() {
           </div>
           <div className="grid min-h-[44svh] grid-rows-[1fr_auto] border-t border-line bg-panel text-panel-foreground md:border-t-0 md:border-l">
             <p className="display self-end px-5 pb-6 text-[clamp(56px,8vw,140px)] md:px-6"><Rise>Num lugar só.</Rise></p>
-            <div className="border-t border-line px-5 py-5 md:px-6"><p className="max-w-md text-base leading-snug" data-fade>Casos, documentos, prazos e pesquisa conversam entre si, para quem precisa responder rápido e sem errar.</p></div>
+            <div className="border-t border-line px-5 py-5 md:px-6"><p className="max-w-md text-base leading-snug" data-fade>Casos, documentos, prazos e pesquisa na mesma plataforma, com advogados e agente trabalhando a partir do mesmo contexto.</p></div>
           </div>
         </section>
 
@@ -136,13 +136,13 @@ export default function Landing() {
             <div className="flex flex-col gap-10 px-5 py-8 md:sticky md:top-15 md:min-h-[calc(100svh-3.75rem)] md:justify-between md:px-6 md:py-6">
               <Label>Módulos</Label>
               <h2 id="modulos-title" className="display text-[clamp(56px,7.4vw,128px)] leading-[.88] uppercase">
-                <Rise>Tudo</Rise>
-                <Rise delay={.06} className="md:text-right">que o caso</Rise>
-                <Rise delay={.12}>pede</Rise>
+                <Rise>Feito</Rise>
+                <Rise delay={.06} className="md:text-right">para a</Rise>
+                <Rise delay={.12}>advocacia</Rise>
               </h2>
               <div className="flex max-w-md flex-col gap-8 self-end" data-fade>
-                <p className="text-base leading-snug">Quatro módulos que conversam entre si. O que entra no Cofre, o Lume já sabe; o que o Lume redige, a Agenda acompanha.</p>
-                <ArrowLink href="/sign-up" className="w-full sm:w-64">Começar agora</ArrowLink>
+                <p className="text-base leading-snug">Quatro módulos sobre os mesmos casos. O Lume consulta os documentos do Cofre, e a Agenda acompanha os prazos de cada caso.</p>
+                <ArrowLink href="/sign-up" className="w-full sm:w-64">Criar conta</ArrowLink>
               </div>
             </div>
           </div>
@@ -171,21 +171,21 @@ export default function Landing() {
         {/* The office: plain facts as large figures, on the grid's colors. */}
         <section id="escritorio" aria-labelledby="escritorio-title" className="scroll-mt-15 border-b border-line">
           <div className="flex items-end justify-between gap-6 border-b border-line px-5 py-8 md:px-6">
-            <h2 id="escritorio-title" className="display text-[clamp(56px,9vw,150px)]"><Rise>Escritório</Rise></h2>
-            <Label className="mb-3 hidden text-muted-foreground sm:flex">Feito para a advocacia</Label>
+            <h2 id="escritorio-title" className="display text-[clamp(56px,9vw,150px)]"><Rise>Nos seus padrões</Rise></h2>
+            <Label className="mb-3 hidden text-muted-foreground sm:flex">Formatos e isolamento de dados</Label>
           </div>
           <div className="grid md:grid-cols-4">
             <div className="flex min-h-[46svh] flex-col justify-between gap-10 bg-brand p-5 text-brand-foreground md:col-span-2 md:p-6" data-wipe>
               <p className="display text-[clamp(88px,11vw,190px)]">DOCX</p>
-              <p className="max-w-xs self-end text-right text-[17px] leading-snug">Peças exportadas no modelo do seu escritório, com fonte, margens e espaçamento.</p>
+              <p className="max-w-xs self-end text-right text-[17px] leading-snug">Exporte peças no modelo do seu escritório, com fonte, margens e espaçamento preservados.</p>
             </div>
             <div className="flex min-h-72 flex-col justify-between gap-10 border-t border-line bg-foreground p-5 text-background md:border-t-0 md:border-l md:p-6" data-wipe>
               <p className="display text-[clamp(72px,7vw,120px)]">PJe</p>
-              <p className="text-[17px] leading-snug">Anexos divididos e nomeados no padrão do processo eletrônico.</p>
+              <p className="text-[17px] leading-snug">Envie anexos já divididos e nomeados no padrão do processo eletrônico.</p>
             </div>
             <div className="flex min-h-72 flex-col justify-between gap-10 border-t border-line bg-panel p-5 text-panel-foreground md:border-t-0 md:border-l md:p-6" data-wipe>
               <p className="display text-[clamp(72px,7vw,120px)]">0</p>
-              <p className="text-[17px] leading-snug">Dados compartilhados entre escritórios. Cada um vê só o que é seu.</p>
+              <p className="text-[17px] leading-snug">Dados compartilhados entre escritórios. Cada escritório acessa apenas os próprios casos e documentos.</p>
             </div>
           </div>
         </section>
@@ -215,7 +215,7 @@ export default function Landing() {
 
       <footer className="grid md:grid-cols-2">
         <div className="flex min-h-72 flex-col justify-between gap-10 border-b border-line p-5 md:p-6">
-          <p className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Seu escritório,<br />em ordem.</p>
+          <p className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">O espaço de trabalho<br />do escritório.</p>
         </div>
         <div className="grid grid-cols-2 border-b border-line md:border-l">
           <nav aria-label="Rodapé" className="flex flex-col gap-3 p-5 text-[17px] md:p-6">
@@ -238,7 +238,7 @@ export default function Landing() {
           <p className="label-mono text-background/60">© 2026 Lume</p>
         </div>
         <Link href="/sign-up" className="group/foot relative flex min-h-64 flex-col justify-between gap-10 border-t border-background/15 bg-foreground p-5 text-background focus-visible:outline-none md:min-h-[56svh] md:border-t-0 md:border-l md:p-6">
-          <span className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Comece pelo<br />seu escritório</span>
+          <span className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Leve o Lume para<br />o seu escritório</span>
           <span className="flex items-end justify-between">
             <span className="text-[17px] font-medium underline decoration-transparent underline-offset-4 transition-colors duration-300 group-hover/foot:decoration-brand">Criar conta</span>
             <ArrowUpRight className="size-28 stroke-[.5] transition-[transform,color] duration-700 ease-(--ease) group-hover/foot:translate-x-1 group-hover/foot:-translate-y-1 group-hover/foot:text-brand md:size-36" aria-hidden="true" />
