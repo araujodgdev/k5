@@ -63,3 +63,12 @@ export function modelModalities(provider: string, modelId: string): Modalities {
 export const DOCUMENT_ACCEPT = ".pdf,.docx,.eml,.xlsx,.csv,.txt";
 export const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp";
 export const AUDIO_MIME = "audio/webm";
+
+/**
+ * Whether the provider takes a PDF file as input. It lets the chat hand over a document the Cofre
+ * is still extracting, so the person does not wait for OCR to ask about it. Other providers fall
+ * back to the extracted text once it is ready.
+ */
+export function modelReadsPdf(provider: string, modelId: string): boolean {
+  return ["anthropic", "google", "openai"].includes(provider) && modelModalities(provider, modelId).image;
+}

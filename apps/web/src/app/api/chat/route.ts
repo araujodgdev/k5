@@ -14,7 +14,7 @@ import { workspaceContext } from '@/lib/application/context';
 import { agentTools, toolSummary, type ApprovalRequest } from '@/lib/agent-tools';
 import { describeAgentApproval, resourceHref, type AgentApprovalPart } from '@/lib/application/agent-approvals';
 import { listVaultDocuments, readVaultOriginal, findVaultDocument } from '@/lib/vault';
-import { modelModalities } from '@/lib/ai-modalities';
+import { modelModalities, modelReadsPdf } from '@/lib/ai-modalities';
 import { resolveChatAttachments, claimChatAttachments, publicChatAttachment } from '@/lib/chat-attachments';
 import { attachmentPart } from '@/lib/chat-attachment-contract';
 import { chatPromptMessages } from '@/lib/chat-prompt';
@@ -30,6 +30,11 @@ export const runtime = 'nodejs';
 type CitationPart = { status: string; items: CitationItem[] };
 
 const MAX_STEPS = 8;
+// Providers cap PDF input at about 32 MB and 100 pages per request; the chat stays well below.
+const PENDING_PDF_BYTES = 12_000_000;
+const PENDING_PDF_PAGES = 90;
+/** Page objects in the file; a PDF with compressed object streams reads as 0 and relies on the byte cap. */
+const pdfPageCount = (bytes: Buffer) => bytes.toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g)?.length ?? 0;
 const MAX_TOOL_CALLS = 16;
 const MAX_REPEATS = 2;
 
@@ -100,8 +105,11 @@ export async function POST(request: Request) {
     const scopeDocuments = body.documentIds.length
       ? (await listVaultDocuments((office).officeId, {})).filter((doc) => body.documentIds.includes(doc.id))
       : [];
+    const pending = scopeDocuments.filter((doc) => doc.status === 'queued' || doc.status === 'processing');
     const scope = scopeDocuments.length
-      ? `Fontes do Cofre selecionadas nesta conversa (use estes identificadores nas ferramentas):\n${scopeDocuments.map((doc) => `${doc.id} — ${doc.name} (${doc.status})`).join('\n')}`
+      ? `Fontes do Cofre selecionadas nesta conversa (use estes identificadores nas ferramentas):\n${scopeDocuments.map((doc) => `${doc.id} — ${doc.name} (${doc.status})`).join('\n')}${pending.length
+        ? `\n\nAinda em processamento: ${pending.map((doc) => doc.name).join(', ')}. A busca do Cofre só alcança documentos prontos. Quando o modelo lê PDFs, o arquivo original desses documentos segue anexado à mensagem da pessoa; leia-o diretamente. Se não estiver anexado, diga que o documento ainda está sendo processado.`
+        : ''}`
       : 'Nenhuma fonte do Cofre foi selecionada. Os anexos das mensagens são enviados diretamente no histórico. Se precisar de outros materiais do escritório, busque no Cofre.';
     const researchScope = body.researchReferenceIds.length
       ? `Referências jurídicas selecionadas pela pessoa, somente do caso ${body.caseId} (use caseId e researchReferenceIds em k5_knowledge_search):\n${body.researchReferenceIds.map(id => {
@@ -201,6 +209,23 @@ export async function POST(request: Request) {
                 mediaParts.push({ type: 'file', data: bytes.toString('base64'), mediaType: document.mimeType });
               } catch {
                 // An unreadable original degrades to the extracted text already in the index.
+              }
+            }
+          }
+          if (modelReadsPdf(config.provider, config.modelId)) {
+            // A PDF still in extraction goes to the model as a file, so the person can ask about it
+            // right after the upload. Once ready it is reached through search, like any document.
+            let pdfBytes = 0;
+            for (const document of pending.filter((doc) => doc.mimeType === 'application/pdf').slice(0, 2)) {
+              const row = await findVaultDocument(office.officeId, document.id);
+              if (!row) continue;
+              try {
+                const bytes = await readVaultOriginal(row);
+                if (pdfBytes + bytes.byteLength > PENDING_PDF_BYTES || pdfPageCount(bytes) > PENDING_PDF_PAGES) continue;
+                pdfBytes += bytes.byteLength;
+                mediaParts.push({ type: 'file', data: bytes.toString('base64'), mediaType: 'application/pdf' });
+              } catch {
+                // Without the original the model is told the document is still being processed.
               }
             }
           }

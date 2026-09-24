@@ -415,11 +415,20 @@ export async function processDocument(documentId: string, officeId: string, leas
     .get<{ created_by: string }>(documentId, officeId);
   const owner = leaseOwner ?? randomUUID();
   if (!leaseOwner) await database.prepare(`UPDATE vault_document SET status = 'processing', progress = 1, lease_owner = ?, lease_expires_at = (CURRENT_TIMESTAMP + INTERVAL '5 minutes'), error_message = NULL WHERE id = ? AND office_id = ?`).run(owner, documentId, officeId);
-  const heartbeat = setInterval(() => { void checkpointVaultDocument(documentId, owner, document.progress || 1); }, 60_000);
+  let progress = document.progress || 1;
+  const heartbeat = setInterval(() => { void checkpointVaultDocument(documentId, owner, progress); }, 60_000);
   heartbeat.unref();
   try {
     const { extractDocumentSections } = await import("@/lib/document-extraction");
-    const sections = await extractDocumentSections(await readVaultOriginal(document), document.mimeType, document.name, document.id, { ocrImages: true });
+    // A scanned PDF is read page by page, and each page can take seconds. Reporting each one keeps
+    // the Cofre from showing 1% for the whole run, and renews the lease while the work advances.
+    const onProgress = async (done: number) => {
+      const next = Math.max(progress, Math.min(95, Math.round(done * 95)));
+      if (next === progress) return;
+      progress = next;
+      await checkpointVaultDocument(documentId, owner, progress);
+    };
+    const sections = await extractDocumentSections(await readVaultOriginal(document), document.mimeType, document.name, document.id, { ocrImages: true, onProgress });
     const insert = database.prepare("INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, ?, ?, ?)");
     let ordinal = 0;
     let characters = 0;

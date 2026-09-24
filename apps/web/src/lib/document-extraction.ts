@@ -19,9 +19,15 @@ const decoder = new TextDecoder("utf-8", { fatal: false });
  * `ocrImages` reads the pictures inside a Word file by OCR. The Cofre asks for it, because its
  * index only holds text; the chat does not, because it sends the pictures to the model itself.
  */
-export async function extractDocumentSections(data: Buffer, mimeType: string, name: string, documentId: string, options: { ocrImages?: boolean } = {}): Promise<ExtractedSection[]> {
+export type ExtractionOptions = {
+  ocrImages?: boolean;
+  /** Called after each page of a PDF with the share of pages done, from 0 to 1. */
+  onProgress?: (done: number) => Promise<void> | void;
+};
+
+export async function extractDocumentSections(data: Buffer, mimeType: string, name: string, documentId: string, options: ExtractionOptions = {}): Promise<ExtractedSection[]> {
   switch (mimeType) {
-    case "application/pdf": return extractPdf(data, documentId);
+    case "application/pdf": return extractPdf(data, documentId, options.onProgress);
     case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return extractDocx(data, documentId, options.ocrImages === true);
     case "message/rfc822": return extractEmail(data);
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": return extractXlsx(data);
@@ -36,10 +42,10 @@ export async function extractDocumentSections(data: Buffer, mimeType: string, na
  * Workers use unpdf for text-only attachments. Node processors use one PDF.js version for
  * both text and scanned pages; mixing unpdf's worker with pdfjs-dist breaks native OCR.
  */
-async function extractPdf(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
+async function extractPdf(data: Buffer, documentId: string, onProgress?: ExtractionOptions["onProgress"]): Promise<ExtractedSection[]> {
   // unpdf bundles a different PDF.js worker. Loading it in the OCR process poisons PDF.js's
   // shared fake-worker global and makes rendering fail with an API/worker version mismatch.
-  if (process.env.K5_RUNTIME !== 'cloudflare') return extractPdfLocally(data, documentId);
+  if (process.env.K5_RUNTIME !== 'cloudflare') return extractPdfLocally(data, documentId, onProgress);
   const { extractText: extractPdfText } = await import("unpdf");
   // A fresh copy per call: PDF.js takes ownership of the buffer it is handed, and the OCR
   // fallback below still needs the original bytes.
@@ -81,10 +87,10 @@ async function extractPdfOcr(data: Buffer, documentId: string): Promise<Extracte
   } finally { clearTimeout(timer); }
 }
 
-async function extractPdfLocally(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
+async function extractPdfLocally(data: Buffer, documentId: string, onProgress?: ExtractionOptions["onProgress"]): Promise<ExtractedSection[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const task = pdfjs.getDocument({ data: new Uint8Array(data) });
-  const { createOcrWorker } = await import('./ocr-worker');
+  const { createOcrWorker, ocrViewport } = await import('./ocr-worker');
   const sections: ExtractedSection[] = [];
   let worker: Awaited<ReturnType<typeof createOcrWorker>> | undefined;
   try {
@@ -99,10 +105,10 @@ async function extractPdfLocally(data: Buffer, documentId: string): Promise<Extr
       const page = await pdf.getPage(pageNumber);
       const layer = await page.getTextContent();
       const plain = layer.items.map(item => 'str' in item ? item.str : '').join(' ').replace(/\s+/g, ' ').trim();
-      if (plain) { sections.push({ reference, content: plain }); page.cleanup(); continue; }
+      if (plain) { sections.push({ reference, content: plain }); page.cleanup(); await onProgress?.(pageNumber / pdf.numPages); continue; }
       worker ??= await createOcrWorker();
-      const viewport = page.getViewport({ scale: 1.5 });
-      if (viewport.width * viewport.height > 16_000_000) throw new Error('Página acima do limite de renderização OCR.');
+      // Phone scans have pages far larger than A4; they are rendered smaller rather than refused.
+      const viewport = ocrViewport(page);
       const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
       await page.render({ canvas, canvasContext: canvas.getContext("2d"), viewport } as never).promise;
       const text = (await worker.recognize(canvas.toBuffer("image/png"))).data.text.replace(/\s+/g, " ").trim();
@@ -111,6 +117,7 @@ async function extractPdfLocally(data: Buffer, documentId: string): Promise<Extr
         await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, reference, text);
         sections.push({ reference, content: text });
       }
+      await onProgress?.(pageNumber / pdf.numPages);
     }
   } finally { await worker?.terminate(); await task.destroy(); }
   if (!sections.length) throw new Error("O OCR local não encontrou texto utilizável no PDF.");
