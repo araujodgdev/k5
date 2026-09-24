@@ -53,7 +53,7 @@ export type OperationSpec<T> = {
   reconcile?: (operation: RunningOperation) => Promise<ReconcileOutcome<T>>;
 };
 
-const keyring = () => parseCredentialKeyring(googleEnvironment().K5_CREDENTIALS_KEY, googleEnvironment().K5_CREDENTIALS_PREVIOUS_KEYS);
+const keyring = () => parseCredentialKeyring(googleEnvironment().K5_CREDENTIALS_KEY, googleEnvironment().K5_CREDENTIALS_PREVIOUS_KEYS, googleEnvironment().K5_CREDENTIALS_NEXT_KEY ?? '');
 function canonical(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map(canonical);

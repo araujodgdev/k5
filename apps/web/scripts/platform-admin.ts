@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { AiConnectionError, reencryptAiConnectionSecrets } from "../src/lib/ai-connections-core";
+import { AiConnectionError } from "../src/lib/ai-connections-core";
+import { CredentialRotationError, rotateCredentials } from "../src/lib/credential-rotation";
 import { CredentialKeyError, parseCredentialKeyring } from "../src/lib/platform-crypto";
 
 if (existsSync(resolve(".env.local"))) process.loadEnvFile(resolve(".env.local"));
@@ -14,7 +15,7 @@ function usage(): never {
 async function main() {
   const [action, flag, value, ...extra] = process.argv.slice(2);
   if (!(["grant", "revoke", "rotate-key"].includes(action)) || !(["--email", "--id"].includes(flag)) || !value || extra.length) usage();
-  const { database } = await import("../src/lib/database");
+  const { database, withTransaction } = await import("../src/lib/database");
   const { findUserForPlatformGrant, grantPlatformAdmin, isPlatformAdmin, revokePlatformAdmin } = await import("../src/lib/platform-core");
 
   const user = await findUserForPlatformGrant(database, flag === "--email" ? { email: value } : { id: value });
@@ -28,12 +29,10 @@ async function main() {
       console.error("A rotação exige um administrador da plataforma como responsável.");
       process.exit(1);
     }
-    const result = await reencryptAiConnectionSecrets(database, parseCredentialKeyring(), user.id);
-    const { reencryptGoogleSecrets } = await import('../src/lib/google/connections');
-    const google = await reencryptGoogleSecrets(database, parseCredentialKeyring());
+    const ring = parseCredentialKeyring();
+    const result = await withTransaction(tx => rotateCredentials(tx, ring, user.id, ring.current.id));
     console.log(`Chave ativa ${result.keyId}: ${result.reencrypted} de ${result.total} credenciais recriptografadas.`);
-    console.log(`Google: ${google} registros recriptografados.`);
-    if (process.env.K5_CREDENTIALS_PREVIOUS_KEYS) console.log("Após validar as conexões, remova K5_CREDENTIALS_PREVIOUS_KEYS do ambiente.");
+    console.log("Preserve as chaves anteriores necessárias aos backups e confira todos os runtimes antes de promover a nova chave.");
     return;
   }
 
@@ -45,7 +44,7 @@ async function main() {
 
 main().catch((error) => {
   // Only fixed, secret-free messages are printed.
-  const known = error instanceof CredentialKeyError || error instanceof AiConnectionError;
+  const known = error instanceof CredentialKeyError || error instanceof AiConnectionError || error instanceof CredentialRotationError;
   console.error(known ? error.message : "Não foi possível concluir a operação. Nenhuma credencial foi alterada.");
   process.exitCode = 1;
 });

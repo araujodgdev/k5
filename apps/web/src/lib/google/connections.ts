@@ -21,7 +21,7 @@ export type ConnectionRow = {
 export type Owner = { officeId: string; userId: string };
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
-const keyring = () => parseCredentialKeyring(googleEnvironment().K5_CREDENTIALS_KEY, googleEnvironment().K5_CREDENTIALS_PREVIOUS_KEYS);
+const keyring = () => parseCredentialKeyring(googleEnvironment().K5_CREDENTIALS_KEY, googleEnvironment().K5_CREDENTIALS_PREVIOUS_KEYS, googleEnvironment().K5_CREDENTIALS_NEXT_KEY ?? '');
 const STATE_TTL_MS = 10 * 60_000;
 
 export async function findLiveConnection(owner: Owner, db: Pick<Database, 'prepare'> = database) {

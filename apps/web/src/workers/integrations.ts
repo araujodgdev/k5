@@ -16,6 +16,7 @@ type Env = {
   GOOGLE_CALENDAR_WEBHOOK_URL?: string;
   K5_CREDENTIALS_KEY: string;
   K5_CREDENTIALS_PREVIOUS_KEYS?: string;
+  K5_CREDENTIALS_NEXT_KEY?: string;
 } & Pick<CloudflareEnv, 'HYPERDRIVE' | 'SENTRY_ENVIRONMENT' | 'SENTRY_TRACES_SAMPLE_RATE'>;
 
 async function withDatabase<T>(env: Env, action: (db: ReturnType<typeof postgresDatabase>) => Promise<T>) {
