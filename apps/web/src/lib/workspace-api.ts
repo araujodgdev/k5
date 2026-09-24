@@ -86,3 +86,40 @@ export async function limitedJson(request: Request, max = 256_000): Promise<unkn
   }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
+
+/** Bounds bytes before multipart parsing, including chunked requests and misleading length headers. */
+export async function limitedFormData(request: Request, max: number): Promise<FormData> {
+  if (Number(request.headers.get('content-length')) > max) {
+    await request.body?.cancel().catch(() => undefined);
+    throw new ApiError(413, 'Solicitação muito grande.');
+  }
+  const reader = request.body?.getReader();
+  if (!reader) throw new ApiError(400, 'Envie os dados da solicitação.');
+  let size = 0;
+  let exceeded = false;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { value, done } = await reader.read();
+        if (done) { controller.close(); return; }
+        size += value.byteLength;
+        if (size > max) {
+          exceeded = true;
+          await reader.cancel().catch(() => undefined);
+          controller.error(new ApiError(413, 'Solicitação muito grande.'));
+          return;
+        }
+        controller.enqueue(value);
+      } catch (error) { controller.error(error); }
+    },
+    cancel(reason) { return reader.cancel(reason); },
+  });
+  try {
+    return await new Response(body, { headers: { 'content-type': request.headers.get('content-type') ?? '' } }).formData();
+  } catch {
+    throw new ApiError(exceeded ? 413 : 400, exceeded ? 'Solicitação muito grande.' : 'Confira o arquivo enviado.');
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}

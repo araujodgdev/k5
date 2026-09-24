@@ -7,11 +7,12 @@ import { FakeGoogle, googleFixture, respond, setRule } from './google-fixture';
 import { setGoogleTransport } from '../src/lib/google/transport';
 import { registerFiles, listFiles, refreshFile, importFile, listPermissions, revokePermission, renameFile, shareFile, readDoc, editDoc } from '../src/lib/google/drive/service';
 import { processDriveImport } from '../src/lib/google/drive/import';
-import { claimGoogleJob } from '../src/lib/google/jobs';
+import { claimGoogleJob, type GoogleJob } from '../src/lib/google/jobs';
 import { documentText, editRequests, resolveEdits } from '../src/lib/google/drive/docs';
 import { GOOGLE_EXPORT_LIMIT_BYTES, MAX_IMPORT_BYTES, importFormatFor } from '../src/lib/google/drive/formats';
+import { resetObjectStorageForTests } from '../src/lib/storage';
 
-afterEach(() => setGoogleTransport(undefined));
+afterEach(() => { setGoogleTransport(undefined); resetObjectStorageForTests(); });
 const fileId = 'drive-file-123456789';
 async function caseFor(officeId: string, userId: string) {
   const id = randomUUID();
@@ -399,3 +400,60 @@ test('403 explícito antes de qualquer efeito conclui operação como falha defi
   assert.equal(row?.status, 'failed');
   assert.equal(row?.has_effect, 0);
 });
+
+for (const staleFinishesFirst of [false, true]) {
+  test(`expired import attempt cannot delete the winner's object (${staleFinishesFirst ? 'stale cleanup before commit' : 'winner commits first'})`, { timeout: 15_000 }, async () => {
+    const owner = await googleFixture();
+    const caseId = await caseFor(owner.officeId, owner.userId);
+    const { fake } = fakeDrive();
+    const file = (await registerFiles(owner.context, { googleFileIds: [fileId] })).files[0];
+    const queued = (await importFile(owner.context, { fileId: file.id, caseId, idempotencyKey: 'lease-race' })).import;
+    const claim = () => testDb.prepare(`UPDATE google_job SET status='running',lease_token=?,lease_until=CURRENT_TIMESTAMP+INTERVAL '2 minutes',attempts=attempts+1
+      WHERE subject_id=? AND kind='drive_import' RETURNING *`).get<GoogleJob>(randomUUID(), queued.id);
+    const first = await claim();
+    assert.ok(first);
+    const gate = () => { let release!: () => void; const promise = new Promise<void>(resolve => { release = resolve; }); return { promise, release }; };
+    const downloading = gate(), releaseDownload = gate(), winnerStored = gate(), releaseWinner = gate();
+    let downloads = 0;
+    fake.on('GET', /\/drive\/v3\/files\/drive-file-123456789$/, async request => {
+      if (request.query.get('alt') === 'media') {
+        if (++downloads === 1) { downloading.release(); await releaseDownload.promise; }
+        return respond(200, new TextEncoder().encode('%PDF-1.4\n'));
+      }
+      return respond(200, { id: fileId, name: 'Peça.pdf', mimeType: 'application/pdf', size: '9', version: '1',
+        modifiedTime: '2026-09-23T00:00:01Z', capabilities: { canDownload: true } });
+    });
+    const objects = new Map<string, Buffer>(), keys: string[] = [];
+    resetObjectStorageForTests({
+      async put(key, bytes) {
+        keys.push(key); objects.set(key, Buffer.from(bytes));
+        if (keys.length === 1) { winnerStored.release(); if (staleFinishesFirst) await releaseWinner.promise; }
+      },
+      async get(key) { const bytes = objects.get(key); assert.ok(bytes, 'referenced object must exist'); return bytes; },
+      async delete(key) { objects.delete(key); },
+    });
+    const stale = processDriveImport(first, testDb);
+    const staleResult = staleFinishesFirst ? assert.rejects(stale, /licença da fila expirou/i) : stale;
+    try {
+      await downloading.promise;
+      await testDb.prepare("UPDATE google_job SET lease_until=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=?").run(first.id);
+      const second = await claim(); assert.ok(second);
+      const winner = processDriveImport(second, testDb);
+      await winnerStored.promise;
+      if (staleFinishesFirst) {
+        releaseDownload.release(); await staleResult; releaseWinner.release(); await winner;
+      } else {
+        await winner; releaseDownload.release(); await staleResult;
+      }
+      const saved = await testDb.prepare(`SELECT i.status,v.stored_name FROM google_drive_import i
+        JOIN vault_document_version v ON v.document_id=i.vault_document_id AND v.version=i.vault_version WHERE i.id=?`)
+        .get<{ status: string; stored_name: string }>(queued.id);
+      assert.equal(saved?.status, 'completed');
+      assert.equal(keys.length, 2);
+      assert.notEqual(keys[0], keys[1], 'each attempt needs its own object key');
+      assert.equal(saved?.stored_name, keys[0]);
+      assert.equal(objects.size, 1);
+      assert.equal(objects.get(saved!.stored_name)?.toString(), '%PDF-1.4\n');
+    } finally { releaseDownload.release(); releaseWinner.release(); }
+  });
+}

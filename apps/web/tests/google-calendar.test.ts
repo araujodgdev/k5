@@ -54,6 +54,28 @@ test('shared event projects only owner reviewed fields and is visible to office'
   const privateResult=await getEvent(second.context,{eventId:id}).catch(error=>error.code);
   assert.equal(privateResult,'NOT_FOUND');
 });
+
+test('re-sharing refreshes the reviewed time and hides cancelled or remotely deleted events',async()=>{
+  const owner=await fixture();
+  const colleague=await googleFixture({officeId:owner.officeId,role:'administrator',modules:['calendar'],grantedModules:['calendar']});
+  const id=await event(owner);
+  const first=await shareEvent(owner.context,{eventId:id,title:'Disponível',notes:'',location:''});
+  await testDb.prepare('UPDATE personal_event SET all_day=1,start_at=NULL,end_at=NULL,start_date=?,end_date=? WHERE id=?')
+    .run('2026-09-25','2026-09-26',id);
+  const second=await shareEvent(owner.context,{eventId:id,title:'Fora do escritório',notes:'Dia inteiro',location:'Fórum'});
+  assert.equal(second.share.id,first.share.id);
+  assert.equal(second.share.version,first.share.version+1);
+  assert.deepEqual({allDay:second.share.allDay,startsAt:second.share.startsAt,endsAt:second.share.endsAt,
+    startDate:second.share.startDate,endDate:second.share.endDate},
+    {allDay:true,startsAt:null,endsAt:null,startDate:'2026-09-25',endDate:'2026-09-26'});
+  const range={from:'2026-09-25T00:00:00Z',to:'2026-09-26T00:00:00Z',limit:20};
+  assert.equal((await listShared(colleague.context,range)).events[0].title,'Fora do escritório');
+  assert.equal((await listShared(colleague.context,{from:'2026-09-23T00:00:00Z',to:'2026-09-24T00:00:00Z',limit:20})).events.length,0);
+  await testDb.prepare("UPDATE personal_event SET status='cancelled' WHERE id=?").run(id);
+  assert.equal((await listShared(colleague.context,range)).events.length,0);
+  await testDb.prepare("UPDATE personal_event SET status='confirmed',sync_state='remote_deleted' WHERE id=?").run(id);
+  assert.equal((await listShared(colleague.context,range)).events.length,0);
+});
 test('all-day recurrence expands for the requested window and reader calendars refuse writes',async()=>{
   const owner=await fixture();
   await testDb.prepare("UPDATE google_calendar SET access_role='reader' WHERE id=?").run(owner.calendarId);
@@ -94,6 +116,10 @@ test('writer without private access can edit public events but cannot read or mu
   assert.equal(listed.events[0].id,publicId);
   assert.equal(listed.events[0].readOnly,false);
   assert.ok(!JSON.stringify(listed).includes('Segredo'));
+  assert.deepEqual(await testDb.prepare('SELECT sync_state FROM personal_event WHERE id=?').get<{sync_state:string}>(privateId),{sync_state:'synced'});
+  const listedAgain=await listEvents(owner.context,{from:'2026-09-23T00:00:00Z',to:'2026-09-24T00:00:00Z',limit:20});
+  assert.deepEqual(listedAgain.events.map(item=>item.id),[publicId]);
+  assert.deepEqual(await testDb.prepare('SELECT sync_state FROM personal_event WHERE id=?').get<{sync_state:string}>(privateId),{sync_state:'synced'});
   await assert.rejects(getEvent(owner.context,{eventId:privateId}),{code:'NOT_FOUND'});
   const hiddenRow=await testDb.prepare('SELECT version FROM personal_event WHERE id=?').get<{version:number}>(privateId);
   await assert.rejects(updateEvent(owner.context,{eventId:privateId,version:hiddenRow!.version,scope:'series',changes:{title:'Novo'},idempotencyKey:'private-denied'}),{code:'FORBIDDEN'});
@@ -101,7 +127,7 @@ test('writer without private access can edit public events but cannot read or mu
   const changed=await updateEvent(owner.context,{eventId:publicId,version:publicRow!.version,scope:'series',changes:{location:'Sala 2'},idempotencyKey:'public-write'});
   assert.equal(changed.event?.location,'Sala 2');
   assert.equal(fake.count('PATCH',/\/calendar\/v3\/calendars\/primary\/events\/public-event$/),1);
-  await testDb.prepare("UPDATE personal_event SET visibility='default',sync_state='synced' WHERE id=?").run(privateId);
+  await testDb.prepare("UPDATE personal_event SET visibility='default' WHERE id=?").run(privateId);
   await assert.rejects(updateEvent(owner.context,{eventId:privateId,version:hiddenRow!.version,scope:'series',changes:{title:'Novo'},idempotencyKey:'remote-private-denied'}),{code:'FORBIDDEN'});
   assert.equal(fake.count('PATCH',/\/calendar\/v3\/calendars\/primary\/events\/private-event$/),0);
 });
@@ -220,13 +246,16 @@ test('following split preserves COUNT and a future exception with a durable chec
   const id=await event(owner,{googleId:'series-a',recurrence:['RRULE:FREQ=WEEKLY;COUNT=4']});
   const fake=installFakeGoogle();
   const first={...remote('instance-1'),recurringEventId:'series-a',originalStartTime:{dateTime:'2026-09-23T10:00:00-03:00'}};
-  const target={...remote('instance-2'),recurringEventId:'series-a',originalStartTime:{dateTime:'2026-09-30T10:00:00-03:00'},
+  const target={...remote('instance-2'),recurringEventId:'series-a',originalStartTime:{dateTime:'2026-09-30T09:00:00-04:00'},
     start:{dateTime:'2026-09-30T10:00:00-03:00',timeZone:'America/Sao_Paulo'},end:{dateTime:'2026-09-30T11:00:00-03:00',timeZone:'America/Sao_Paulo'}};
   const exception={...remote('old-exception','Exceção'),recurringEventId:'series-a',
     originalStartTime:{dateTime:'2026-10-07T10:00:00-03:00'},start:{dateTime:'2026-10-07T12:00:00-03:00',timeZone:'America/Sao_Paulo'}};
+  const earlier={...remote('earlier-exception'),recurringEventId:'series-a',originalStartTime:{dateTime:'2026-09-30T11:00:00+00:00'}};
+  const later={...remote('later-exception','Exceção após corte'),recurringEventId:'series-a',
+    originalStartTime:{dateTime:'2026-09-30T09:30:00-04:00'}};
   fake.on('GET',/\/calendar\/v3\/calendars\/primary\/events\/series-a$/,()=>respond(200,{...remote('series-a'),recurrence:['RRULE:FREQ=WEEKLY;COUNT=4']}));
   fake.on('GET',/\/calendar\/v3\/calendars\/primary\/events\/series-a\/instances$/,()=>respond(200,{items:[first,target]}));
-  fake.on('GET',/\/calendar\/v3\/calendars\/primary\/events$/,()=>respond(200,{items:[exception]}));
+  fake.on('GET',/\/calendar\/v3\/calendars\/primary\/events$/,()=>respond(200,{items:[earlier,exception,later]}));
   fake.on('PATCH',/\/calendar\/v3\/calendars\/primary\/events\/series-a$/,request=>{
     assert.deepEqual((request.json() as {recurrence:string[]}).recurrence,['RRULE:FREQ=WEEKLY;COUNT=1']);
     return respond(200,{...remote('series-a'),recurrence:['RRULE:FREQ=WEEKLY;COUNT=1']});
@@ -238,12 +267,15 @@ test('following split preserves COUNT and a future exception with a durable chec
     return respond(200,{...remote('new-series','Novo título'),recurrence:body.recurrence});
   });
   fake.on('GET',/\/calendar\/v3\/calendars\/primary\/events\/new-series\/instances$/,request=>{
-    assert.equal(request.query.get('originalStart'),'2026-10-07T10:00:00-03:00');
-    return respond(200,{items:[{...target,id:'new-instance',originalStartTime:exception.originalStartTime}]});
+    const at=request.query.get('originalStart');
+    assert.ok(at===later.originalStartTime.dateTime||at===exception.originalStartTime.dateTime);
+    return respond(200,{items:[{...target,id:at===later.originalStartTime.dateTime?'later-instance':'new-instance',
+      originalStartTime:{dateTime:at==='2026-09-30T09:30:00-04:00'?'2026-09-30T10:30:00-03:00':at!}}]});
   });
-  fake.on('PATCH',/\/calendar\/v3\/calendars\/primary\/events\/new-instance$/,request=>{
-    assert.equal((request.json() as {summary:string}).summary,'Exceção');
-    return respond(200,{...exception,id:'new-instance'});
+  fake.on('PATCH',/\/calendar\/v3\/calendars\/primary\/events\/(?:new-instance|later-instance)$/,request=>{
+    const at=request.path.split('/').at(-1);
+    assert.equal((request.json() as {summary:string}).summary,at==='later-instance'?'Exceção após corte':'Exceção');
+    return respond(200,{...(at==='later-instance'?later:exception),id:at});
   });
   const changed=await updateEvent(owner.context,{eventId:id,version:1,scope:'following',
     occurrenceStart:'2026-09-30T10:00:00-03:00',changes:{title:'Novo título'},idempotencyKey:'following-count-a'});
@@ -252,6 +284,8 @@ test('following split preserves COUNT and a future exception with a durable chec
   const operation=await testDb.prepare("SELECT has_effect,checkpoint_json FROM google_operation WHERE id=?").get<{has_effect:number;checkpoint_json:string}>(changed.operation.id);
   assert.equal(operation?.has_effect,1);
   assert.ok(operation?.checkpoint_json);
+  assert.equal(fake.count('PATCH',/\/calendar\/v3\/calendars\/primary\/events\/later-instance$/),1);
+  assert.equal(fake.count('PATCH',/\/calendar\/v3\/calendars\/primary\/events\/new-instance$/),1);
 });
 test('incremental sync keeps page cursor until last page and handles 410 with full rebuild',async()=>{
   const owner=await fixture();

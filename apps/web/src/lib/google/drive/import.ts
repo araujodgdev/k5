@@ -194,8 +194,8 @@ export async function processDriveImport(job: GoogleJob, db: Database = database
     try {
       await withTransaction(async tx => {
         // Serialize imports of the same source into the same case before choosing its Vault
-        // document. The object key is tied to the import id, so a concurrent first import
-        // cannot force us to choose a document id before this lock.
+        // document. storageKey adds a fresh UUID per attempt beneath the import id, so stale
+        // attempts can clean up only their own object, never a committed version's bytes.
         const sourceLock = [row.office_id, row.user_id, row.source_kind, row.scope, row.case_id ?? '', row.folder_id ?? '',
           row.google_file_id ?? '', row.gmail_message_id ?? '', row.gmail_attachment_part ?? ''].join(':');
         await tx.prepare('SELECT pg_advisory_xact_lock(hashtextextended(?,0))').get(sourceLock);

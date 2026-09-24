@@ -78,12 +78,13 @@ verificação de e-mail ainda não foram implementados.
 
 A [integração Google](../../docs/integracao-google.md) é opcional e usa OAuth independente
 do login. A aba Google pessoal sincroniza calendários escolhidos; a agenda do escritório
-continua separada. `/app/email` acessa Gmail; `/app/integrations` conecta a conta, configura
-regras (administrador), seleciona arquivos Drive e mostra operações. O Cofre importa cópias
-para o caso explicitamente escolhido, com procedência. Execute `pnpm integrations:worker`
+continua separada. `/app/email` acessa Gmail; `/app/integrations` conecta cada serviço e reúne
+as regras do administrador em uma aba própria. O Cofre seleciona arquivos Drive e importa cópias
+para a Biblioteca, caso ou pasta abertos, com procedência. Execute `pnpm integrations:worker`
 localmente; em Cloudflare, o Worker dedicado faz Calendar e os processadores Node fazem
 importações e reconciliação de Gmail/Drive/Docs. Sem OAuth configurado a interface informa
-o estado indisponível. Migrações aditivas: `db/postgres/0014` a `0017`.
+o estado indisponível. Migrações aditivas: `db/postgres/0014` a `0019`, incluindo importação
+para a Biblioteca (`0018`) e classificação de e-mails (`0019`).
 
 `/app/agenda` reúne tarefas, calendário com agenda do dia e CRM de
 clientes. A migração `0012_agenda.sql` adiciona clientes, vínculos com casos e atividades.

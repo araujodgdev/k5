@@ -7,6 +7,7 @@ import { apiErrorFrom, decodeJson, GoogleApiError, googleHosts, googleTransport,
 import { checkGoogleWrite } from './write-context';
 import { readPolicy } from './policy';
 import { googleEnvironment } from './environment';
+import { captureOperationalError } from '@/lib/observability/report';
 
 export type ConnectionRow = {
   id: string; office_id: string; user_id: string; google_subject: string; email: string; display_name: string | null;
@@ -257,9 +258,15 @@ export async function accessToken(connectionId: string, options: { forceRefresh?
       throw new CapabilityError('NOT_READY', 'O Google não respondeu. Tente novamente em instantes.');
     }
     if (response.status === 400 || response.status === 401) {
-      const reason = (() => { try { return decodeJson<{ error?: string }>(response.body).error ?? 'invalid_grant'; } catch { return 'invalid_grant'; } })();
-      await markReauth(connectionId, lease, reason.slice(0, 60), db);
-      throw new CapabilityError('SCOPE_REQUIRED', 'A conexão com o Google foi revogada ou expirou. Reconecte a conta em Integrações.');
+      const reason = (() => { try { return decodeJson<{ error?: unknown }>(response.body).error; } catch { return undefined; } })();
+      if (reason === 'invalid_grant') {
+        await markReauth(connectionId, lease, 'invalid_grant', db);
+        throw new CapabilityError('SCOPE_REQUIRED', 'A conexão com o Google foi revogada ou expirou. Reconecte a conta em Integrações.');
+      }
+      // A client configuration failure is not a revoked grant. Keep tokens and queued work intact.
+      await db.prepare('UPDATE google_connection SET refresh_lease_token=NULL,refresh_lease_until=NULL WHERE id=? AND refresh_lease_token=?').run(connectionId, lease);
+      captureOperationalError(new Error('OAuth refresh rejected'), 'google.oauth.refresh');
+      throw new CapabilityError('NOT_READY', 'A integração Google está temporariamente indisponível. Fale com o suporte da plataforma.');
     }
     if (response.status !== 200) {
       await db.prepare('UPDATE google_connection SET refresh_lease_token=NULL,refresh_lease_until=NULL WHERE id=? AND refresh_lease_token=?').run(connectionId, lease);

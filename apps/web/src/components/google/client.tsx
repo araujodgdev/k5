@@ -13,10 +13,18 @@ export type GoogleStatus = z.infer<typeof googleStatusDto>;
 export class GoogleClientError extends Error {
   constructor(message: string, public code?: string) { super(message); }
 }
+async function responseObject(response: Response, fallback: string): Promise<Record<string, unknown>> {
+  let body: unknown;
+  try { body = await response.json(); } catch { throw new GoogleClientError(fallback); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new GoogleClientError(fallback);
+  return body as Record<string, unknown>;
+}
 export async function googleCall<T>(operation: GoogleOperation, input: Record<string, unknown> = {}): Promise<T> {
   const response = await fetch(googleOperationPath(operation), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input), cache: 'no-store' });
-  const body = await response.json();
-  if (!response.ok) throw new GoogleClientError(body.error ?? 'Não foi possível concluir a operação.', body.code);
+  const fallback = 'Não foi possível concluir a operação. Tente novamente.';
+  const body = await responseObject(response, fallback);
+  if (!response.ok) throw new GoogleClientError(typeof body.error === 'string' ? body.error : fallback, typeof body.code === 'string' ? body.code : undefined);
+  if (!Object.keys(body).length || typeof body.error === 'string') throw new GoogleClientError(fallback);
   return body as T;
 }
 
@@ -27,9 +35,16 @@ export function GoogleApprovalReview({ approvalId, onReady }: { approvalId: stri
     let active = true;
     onReady?.(false);
     fetch(`/api/approvals/${encodeURIComponent(approvalId)}`, { cache: 'no-store' }).then(async response => {
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? 'Não foi possível carregar a confirmação.');
-      if (active) { setReview(body.review); onReady?.(body.review === null || body.review.length > 0); }
+      const fallback = 'Não foi possível carregar a confirmação. Tente novamente.';
+      const body = await responseObject(response, fallback);
+      if (!response.ok) throw new GoogleClientError(typeof body.error === 'string' ? body.error : fallback);
+      const proposal = body.proposal;
+      if (!proposal || typeof proposal !== 'object' || !('id' in proposal) || proposal.id !== approvalId || !('status' in proposal) || proposal.status !== 'pending')
+        throw new GoogleClientError(fallback);
+      const review = body.review;
+      if (!Array.isArray(review) || !review.length || !review.every(item => item !== null && typeof item === 'object' && typeof item.label === 'string' && typeof item.value === 'string'))
+        throw new GoogleClientError('A proposta não contém uma revisão completa. Prepare a operação novamente.');
+      if (active) { setReview(review); onReady?.(true); }
     }).catch(failure => { if (active) setError(failure instanceof Error ? failure.message : 'Não foi possível carregar a confirmação.'); });
     return () => { active = false; };
   }, [approvalId, onReady]);
@@ -68,7 +83,12 @@ export function useGoogleAction() {
     setConfirming(true); setError('');
     try {
       const response = await fetch(`/api/approvals/${encodeURIComponent(pending.id)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'approve' }) });
-      if (!response.ok) { const body = await response.json(); throw new Error(body.error ?? 'Não foi possível confirmar.'); }
+      const fallback = 'Não foi possível confirmar. Tente novamente.';
+      const body = await responseObject(response, fallback);
+      if (!response.ok) throw new GoogleClientError(typeof body.error === 'string' ? body.error : fallback);
+      const proposal = body.proposal;
+      if (!proposal || typeof proposal !== 'object' || !('id' in proposal) || proposal.id !== pending.id || !('status' in proposal) || proposal.status !== 'approved')
+        throw new GoogleClientError(fallback);
       decision.current?.(true);
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível confirmar.'); }
     finally { setConfirming(false); }

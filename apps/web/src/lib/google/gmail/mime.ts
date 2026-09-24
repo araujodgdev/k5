@@ -23,13 +23,17 @@ export function safeMessageId(value: string) {
   if (!/^<[A-Za-z0-9.!#$%&'*+\-/=?^_`{|}~]+@[A-Za-z0-9.-]+>$/.test(id)) throw new CapabilityError('INVALID', 'A mensagem original não tem um identificador seguro para resposta.');
   return id;
 }
+function supportedCharset(value: string): string | null {
+  const normalized = value.toLowerCase();
+  const label = normalized === 'utf8' ? 'utf-8' : normalized === 'latin1' ? 'iso-8859-1' : normalized;
+  return ['utf-8', 'iso-8859-1', 'windows-1252'].includes(label) ? label : null;
+}
 /** Gmail metadata can retain RFC 2047 encoded words. Decode only known charsets, preserving malformed words verbatim. */
 export function decodeHeaderWords(value: string): string {
   const word = /=\?([^?\s]{1,40})\?([bBqQ])\?([^?]*)\?=/g;
   const decode = (charset: string, encoding: string, encodedText: string): string | null => {
-    const normalized = charset.toLowerCase();
-    const label = normalized === 'utf8' ? 'utf-8' : normalized === 'latin1' ? 'iso-8859-1' : normalized;
-    if (!['utf-8', 'iso-8859-1', 'windows-1252'].includes(label)) return null;
+    const label = supportedCharset(charset);
+    if (!label) return null;
     let bytes: Buffer;
     if (encoding.toLowerCase() === 'b') {
       if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encodedText) || encodedText.length % 4 === 1) return null;
@@ -83,12 +87,18 @@ export function htmlAsText(html: string): string {
   return decodeEntities(html.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style|svg|iframe|object|template|head|form)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
     .replace(/<(br|p|div|li|tr|h[1-6])\b[^>]*>/gi, '\n').replace(/<[^>]*>/g, '').replace(/\n{3,}/g, '\n\n')).slice(0, 200_000).trim();
 }
+function partText(part: GmailPart): string {
+  const contentType = part.headers?.find(header => header.name.toLowerCase() === 'content-type')?.value ?? '';
+  const declared = contentType.match(/(?:^|;)\s*charset\s*=\s*(?:"([^";]{1,40})"|'([^';]{1,40})'|([^;\s]{1,40}))/i);
+  const charset = supportedCharset(declared?.[1] ?? declared?.[2] ?? declared?.[3] ?? '') ?? 'utf-8';
+  return new TextDecoder(charset).decode(decodeBase64Url(part.body!.data!, 2_000_000));
+}
 export function messageText(message: GmailMessage) {
   const parts = walkParts(message.payload);
   const plain = parts.find(p => p.mimeType?.toLowerCase() === 'text/plain' && p.body?.data && !p.filename);
-  if (plain?.body?.data) return decodeBase64Url(plain.body.data, 2_000_000).toString('utf8').slice(0, 200_000);
+  if (plain?.body?.data) return partText(plain).slice(0, 200_000);
   const html = parts.find(p => p.mimeType?.toLowerCase() === 'text/html' && p.body?.data && !p.filename);
-  return html?.body?.data ? htmlAsText(decodeBase64Url(html.body.data, 2_000_000).toString('utf8')) : '';
+  return html?.body?.data ? htmlAsText(partText(html)) : '';
 }
 export function attachmentParts(message: GmailMessage) {
   return walkParts(message.payload).filter(p => p.filename && p.body && (p.body.attachmentId || p.body.data)).map(p => ({
@@ -122,7 +132,9 @@ export function mimeMessage(input: Compose): { raw: string; sha256: string } {
     `Subject: ${encoded(subject)}`, `Message-ID: ${id}`, 'MIME-Version: 1.0'];
   if (input.replyHeader) headers.push(`In-Reply-To: ${safeMessageId(input.replyHeader)}`);
   if (input.references) {
-    const refs = input.references.split(/\s+/).filter(Boolean).map(safeMessageId).slice(-20);
+    const refs = input.references.split(/\s+/).filter(Boolean).flatMap(reference => {
+      try { return [safeMessageId(reference)]; } catch { return []; }
+    }).slice(-20);
     while (refs.join(' ').length > 850) refs.shift();
     if (refs.length) headers.push(`References: ${refs.join(' ')}`);
   }

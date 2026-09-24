@@ -16,7 +16,7 @@ type GoogleBrowser = Window & {
   google?: {
     accounts?: { oauth2?: { initTokenClient(config: { client_id: string; scope: string; hint: string; include_granted_scopes: boolean;
       callback: (reply: TokenReply) => void; error_callback: (error: TokenError) => void }): { requestAccessToken(options: { prompt: string }): void } } };
-    picker?: { PickerBuilder: new () => PickerBuilder; ViewId: { DOCS: unknown }; Action: { PICKED: string } };
+    picker?: { PickerBuilder: new () => PickerBuilder; ViewId: { DOCS: unknown }; Action: { PICKED: string; CANCEL: string } };
   };
   gapi?: { load(name: string, callback: () => void): void };
 };
@@ -84,7 +84,7 @@ export function DrivePicker({ onPicked, disabled }: { onPicked: (ids: string[]) 
                 const ids = (data.docs ?? []).map(doc => doc.id).filter((id): id is string => !!id);
                 void onPicked(ids).catch(e => setError(e instanceof Error ? e.message : 'Não foi possível registrar os arquivos.'))
                   .finally(() => setBusy(false));
-              } else setBusy(false);
+              } else if (data.action === picker.Action.CANCEL) setBusy(false);
             }).build().setVisible(true);
         },
         error_callback: failure => {

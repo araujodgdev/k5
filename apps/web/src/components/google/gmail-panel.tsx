@@ -289,7 +289,7 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
   return <div className="gmail-workspace flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4 md:px-10 md:py-6 max-md:[&_button]:min-h-11 max-md:[&_button]:min-w-11">
     <div className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b pb-4">
       <h1 className="page-title leading-none max-md:sr-only">E-mails</h1>
-      {enabled && canWrite && <Button type="button" onClick={() => { if (detailScroller.current) detailScroller.current.scrollTop = 0; setEditor(blank()); setThread(null); setFailure(''); setNotice(''); }}>
+      {enabled && canWrite && <Button type="button" onClick={() => { detailRequest.current += 1; setDetailLoading(false); if (detailScroller.current) detailScroller.current.scrollTop = 0; setEditor(blank()); setThread(null); setFailure(''); setNotice(''); }}>
         <Plus aria-hidden="true" />Novo e-mail</Button>}
     </div>
     {status && !enabled ? <GoogleConnectionNotice status={status} module="gmail" /> : null}
@@ -368,8 +368,8 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
             <div className="mt-5 whitespace-pre-wrap break-words text-sm leading-6">{mail.text || 'Esta mensagem não tem texto legível.'}</div>
             {!!mail.attachments.length && <div className="mt-5 border-t pt-4">
               <p className="mb-2 text-sm font-medium">Anexos</p>
-              {canWrite && <div className="mb-3 grid max-w-sm gap-1.5"><Label htmlFor="email-case">Importar para o caso</Label>
-                <select id="email-case" value={selectedCase} onChange={event => setSelectedCase(event.target.value)}
+              {canWrite && <div className="mb-3 grid max-w-sm gap-1.5"><Label htmlFor={`email-case-${mail.id}`}>Importar para o caso</Label>
+                <select id={`email-case-${mail.id}`} value={selectedCase} onChange={event => setSelectedCase(event.target.value)}
                   className="h-11 rounded-md border border-input bg-background px-3 text-sm md:h-9">
                   <option value="">Escolha um caso</option>{cases.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
                 <p className="text-xs text-muted-foreground">A cópia passa a seguir as permissões e a retenção do Cofre.</p></div>}

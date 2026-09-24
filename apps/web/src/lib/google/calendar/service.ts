@@ -112,8 +112,8 @@ export async function listEvents(context: WorkspaceContext, input: Input<'k5_cal
         { service: 'calendar', path: eventPath(calendar), query: { singleEvents: true, showDeleted: true,
           timeMin: input.from, timeMax: input.to, maxResults: 250, pageToken } });
       for (const remote of page.items ?? []) if (remote.id) {
-        if (privateHidden(calendar, { visibility: remote.visibility ?? 'default' })) continue;
         seen.add(remote.id);
+        if (privateHidden(calendar, { visibility: remote.visibility ?? 'default' })) continue;
         if(remote.status==='cancelled'&&!remote.start){
           const existing=await database.prepare('SELECT id FROM personal_event WHERE calendar_id=? AND google_event_id=?')
             .get<{id:string}>(calendar.id,remote.id);
@@ -252,6 +252,8 @@ async function target(context: WorkspaceContext, input: Input<'k5_calendar_updat
   return { row, calendar };
 }
 const original = (event:GoogleEvent) => event.originalStartTime?.dateTime ?? event.originalStartTime?.date ?? null;
+const compareOriginal = (left:string,right:string) => left.length===10&&right.length===10
+  ? left.localeCompare(right) : Date.parse(left)-Date.parse(right);
 async function allInstances(connection:ConnectionRow,calendar:CalendarRow,seriesId:string,stopAt:string) {
   const found:GoogleEvent[]=[];
   let pageToken:string|undefined;
@@ -260,7 +262,7 @@ async function allInstances(connection:ConnectionRow,calendar:CalendarRow,series
       {service:'calendar',path:`${eventPath(calendar,seriesId)}/instances`,query:{maxResults:250,showDeleted:true,pageToken}});
     for(const instance of page.items??[]){
       found.push(instance);
-      if(original(instance)===stopAt)return found;
+      if(original(instance)&&compareOriginal(original(instance)!,stopAt)===0)return found;
     }
     pageToken=page.nextPageToken;
     if(found.length>10_000)throw new CapabilityError('INVALID','A série excede o limite de divisão segura.');
@@ -272,15 +274,15 @@ async function futureExceptions(connection:ConnectionRow,calendar:CalendarRow,se
   do{
     const page=await googleJson<{items?:GoogleEvent[];nextPageToken?:string}>(connection,
       {service:'calendar',path:eventPath(calendar),query:{singleEvents:false,showDeleted:true,maxResults:250,pageToken}});
-    for(const event of page.items??[])if(event.recurringEventId===seriesId&&original(event)&&original(event)!>=at)found.push(event);
+    for(const event of page.items??[])if(event.recurringEventId===seriesId&&original(event)&&compareOriginal(original(event)!,at)>=0)found.push(event);
     pageToken=page.nextPageToken;
   }while(pageToken);
-  return found.sort((a,b)=>(original(a)??'').localeCompare(original(b)??''));
+  return found.sort((a,b)=>compareOriginal(original(a)!,original(b)!));
 }
 async function matchingInstance(connection:ConnectionRow,calendar:CalendarRow,seriesId:string,at:string) {
   const page=await googleJson<{items?:GoogleEvent[]}>(connection,
     {service:'calendar',path:`${eventPath(calendar,seriesId)}/instances`,query:{originalStart:at,showDeleted:true,maxResults:2}});
-  return page.items?.find(event=>original(event)===at);
+  return page.items?.find(event=>original(event)&&compareOriginal(original(event)!,at)===0);
 }
 async function resolveOccurrence(connection:ConnectionRow,calendar:CalendarRow,row:EventRow,at:string) {
   const remote=await matchingInstance(connection,calendar,row.recurring_event_id??row.google_event_id,at);
@@ -325,7 +327,7 @@ async function splitFollowing(operation:RunningOperation,calendar:CalendarRow,ro
   if(exceptions.length&&changes&&['recurrence','startsAt','endsAt','startDate','endDate','timeZone','allDay']
       .some(key=>key in changes))throw new CapabilityError('INVALID',
         'Esta série tem exceções futuras. Altere horário, fuso ou repetição por ocorrência antes de dividir a série.');
-  const prior=instances.filter(item=>original(item)!<at).length;
+  const prior=instances.filter(item=>original(item)&&compareOriginal(original(item)!,at)<0).length;
   if(!prior) {
     if(!changes){
       await googleRequest(operation.connection,{service:'calendar',method:'DELETE',path:eventPath(calendar,parentId),
@@ -335,7 +337,7 @@ async function splitFollowing(operation:RunningOperation,calendar:CalendarRow,ro
     const refreshed=await updateRemote(operation,calendar,{...row,google_event_id:parentId},changes,recipients(parent));
     return result(calendar,refreshed);
   }
-  const rules=splitRules(parent.recurrence,at,original(instances.filter(item=>original(item)!<at).at(-1)!)!,prior);
+  const rules=splitRules(parent.recurrence,at,original(instances.filter(item=>original(item)&&compareOriginal(original(item)!,at)<0).at(-1)!)!,prior);
   if(rules.next.some(rule=>/^RRULE:.*COUNT=0(?:;|$)/.test(rule)))throw new CapabilityError('INVALID','Não há próximas ocorrências para alterar.');
   await checkpointOperation(operation,{phase:'prepared',parentId,at,exceptions});
   await googleJson<GoogleEvent>(operation.connection,{service:'calendar',method:'PATCH',path:eventPath(calendar,parentId),
@@ -510,7 +512,9 @@ export async function shareEvent(context:WorkspaceContext,input:Input<'k5_calend
   if(input.occurrenceStart&&input.occurrenceStart!==event.original_start)throw new CapabilityError('NOT_FOUND','Ocorrência não encontrada.');
   const row=await database.prepare(`INSERT INTO personal_event_share(id,office_id,owner_user_id,event_id,occurrence_start,title,notes,location,all_day,starts_at,ends_at,start_date,end_date)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(event_id,occurrence_start) WHERE revoked_at IS NULL DO UPDATE SET
-    title=EXCLUDED.title,notes=EXCLUDED.notes,location=EXCLUDED.location,version=personal_event_share.version+1,updated_at=CURRENT_TIMESTAMP
+    title=EXCLUDED.title,notes=EXCLUDED.notes,location=EXCLUDED.location,all_day=EXCLUDED.all_day,
+    starts_at=EXCLUDED.starts_at,ends_at=EXCLUDED.ends_at,start_date=EXCLUDED.start_date,end_date=EXCLUDED.end_date,
+    version=personal_event_share.version+1,updated_at=CURRENT_TIMESTAMP
     RETURNING *, (SELECT name FROM "user" WHERE id=owner_user_id) AS owner_name`).get<Share>(randomUUID(),context.officeId,context.userId,event.id,
       input.occurrenceStart??'',input.title,input.notes,input.location,event.all_day,event.start_at,event.end_at,event.start_date,event.end_date);
   return {share:shareDto(row!,context)};
@@ -526,7 +530,9 @@ export async function listShared(context:WorkspaceContext,input:Input<'k5_calend
   await memberRole(context);
   if(Date.parse(input.to)<=Date.parse(input.from))throw new CapabilityError('INVALID','Período inválido.');
   const rows=await database.prepare(`SELECT s.*,u.name AS owner_name FROM personal_event_share s JOIN "user" u ON u.id=s.owner_user_id
-    WHERE s.office_id=? AND s.revoked_at IS NULL AND ((s.starts_at<? AND s.ends_at>?) OR (s.start_date<?::date AND s.end_date>?::date))
+    JOIN personal_event e ON e.id=s.event_id AND e.office_id=s.office_id
+    WHERE s.office_id=? AND s.revoked_at IS NULL AND e.status<>'cancelled' AND e.sync_state<>'remote_deleted'
+    AND ((s.starts_at<? AND s.ends_at>?) OR (s.start_date<?::date AND s.end_date>?::date))
     ORDER BY COALESCE(s.starts_at,s.start_date::timestamptz),s.id LIMIT ?`)
     .all<Share>(context.officeId,input.to,input.from,input.to.slice(0,10),input.from.slice(0,10),input.limit??200);
   return {events:rows.map(row=>shareDto(row,context))};

@@ -12,6 +12,9 @@ import { googleApprovalReview } from '../src/lib/google/approval-review';
 import { withGoogleEnvironment, googleEnvironment } from '../src/lib/google/environment';
 import { googleMaintenance } from '../src/lib/google/worker';
 import { dueProcessors } from '../src/lib/processor-schedule';
+import { enqueueGoogleJob } from '../src/lib/google/jobs';
+import { CapabilityError } from '../src/lib/capabilities/errors';
+import { getCurrentScope } from '@sentry/core';
 
 afterEach(() => setGoogleTransport(undefined));
 function spec(input: Record<string, unknown> = {}, more: Partial<OperationSpec<string>> = {}): OperationSpec<string> {
@@ -61,6 +64,37 @@ test('renovação concorrente usa um refresh; desconexão impede retorno tardio 
   const pending = accessToken(f.connectionId); const rejected = assert.rejects(pending, /encerrada/);
   await seen; await disconnectGoogle(f.context); release(); await rejected;
   assert.equal((await testDb.prepare('SELECT encrypted_access_token FROM google_connection WHERE id=?').get<{ encrypted_access_token: string|null }>(f.connectionId))?.encrypted_access_token,null);
+});
+
+for (const [status, errorBody] of [[401, { error: 'invalid_client' }], [400, { error: 'unauthorized_client' }], [400, '<html>gateway</html>'], [401, { error: { invalid: true } }]] as const) {
+  test(`OAuth refresh preserves tokens and jobs after ${status} ${JSON.stringify(errorBody)}`, async t => {
+    const owner = await googleFixture({ accessValid: false });
+    const fake = installFakeGoogle();
+    const jobId = await enqueueGoogleJob({ officeId: owner.officeId, userId: owner.userId, connectionId: owner.connectionId, kind: 'calendar_list' }, testDb);
+    const snapshot = () => testDb.prepare('SELECT status,encrypted_refresh_token,encrypted_access_token,token_generation FROM google_connection WHERE id=?').get(owner.connectionId);
+    const before = await snapshot();
+    const captured: Error[] = [];
+    t.mock.method(getCurrentScope(), 'captureException', (error: Error) => { captured.push(error); return 'test-event'; });
+    fake.on('POST', /\/token$/, () => respond(status, errorBody), 1);
+    await assert.rejects(accessToken(owner.connectionId), (error: unknown) => error instanceof CapabilityError && error.code === 'NOT_READY');
+    assert.deepEqual(await snapshot(), before);
+    assert.equal((await testDb.prepare('SELECT status FROM google_job WHERE id=?').get<{ status: string }>(jobId))?.status, 'queued');
+    assert.equal((await testDb.prepare('SELECT refresh_lease_token FROM google_connection WHERE id=?').get<{ refresh_lease_token: string | null }>(owner.connectionId))?.refresh_lease_token, null);
+    assert.equal(captured.length, 1);
+    assert.match(captured[0].message, /google.oauth.refresh/);
+    assert.equal(await accessToken(owner.connectionId), 'access-1');
+  });
+}
+
+test('OAuth invalid_grant still requires reconnection and cancels queued work', async () => {
+  const owner = await googleFixture({ accessValid: false });
+  const fake = installFakeGoogle();
+  const jobId = await enqueueGoogleJob({ officeId: owner.officeId, userId: owner.userId, connectionId: owner.connectionId, kind: 'calendar_list' }, testDb);
+  fake.on('POST', /\/token$/, () => respond(400, { error: 'invalid_grant' }));
+  await assert.rejects(accessToken(owner.connectionId), (error: unknown) => error instanceof CapabilityError && error.code === 'SCOPE_REQUIRED');
+  const row = await testDb.prepare('SELECT status,encrypted_access_token,refresh_lease_token FROM google_connection WHERE id=?').get(owner.connectionId);
+  assert.deepEqual(row, { status: 'reauth_required', encrypted_access_token: null, refresh_lease_token: null });
+  assert.equal((await testDb.prepare('SELECT status FROM google_job WHERE id=?').get<{ status: string }>(jobId))?.status, 'cancelled');
 });
 
 test('UI exige aprovação exata; mudança de conteúdo ou política invalida; proprietário isolado', async () => {

@@ -41,15 +41,19 @@ export async function evaluate(
   const reservation = await withTransaction(async tx => {
     // Serialize reservations across purposes so concurrent email batches cannot overspend.
     const live = await tx.prepare('SELECT version,enabled FROM typesafe_platform_connection WHERE id=1 FOR UPDATE').get<{ version: number; enabled: number }>();
-    if (!live?.enabled || live.version !== config.version) return { changes: 0 };
-    return tx.prepare(`INSERT INTO typesafe_evaluation(id,office_id,user_id,purpose,model,question_version,fingerprint,config_version,status,reserved_tokens,started_at,expires_at,day)
+    if (!live?.enabled) return 'disabled';
+    if (live.version !== config.version) return 'configuration_changed';
+    const inserted = await tx.prepare(`INSERT INTO typesafe_evaluation(id,office_id,user_id,purpose,model,question_version,fingerprint,config_version,status,reserved_tokens,started_at,expires_at,day)
     SELECT ?,?,?,?,?,?,?,?,'running',?,?,?,? WHERE
     (SELECT coalesce(sum(reserved_tokens),0) FROM typesafe_evaluation WHERE day=?) + ? <= ?
     AND (SELECT count(*) FROM typesafe_evaluation WHERE status='running' AND expires_at>?) < ?`)
     .run(id, context.officeId, context.userId, purpose, config.model, request.questionVersion, fingerprint(request), config.version, reserved, now, now + deadline, day,
       day, reserved, config.daily_tokens, now, config.concurrency);
+    return inserted.changes ? 'reserved' : 'platform_limit';
   });
-  if (!reservation.changes) return { status: 'budget_exceeded', mode, reason: 'platform_limit' };
+  if (reservation === 'disabled') return { status: 'disabled', mode };
+  if (reservation === 'configuration_changed') return { status: 'unavailable', mode, reason: 'configuration_changed' };
+  if (reservation === 'platform_limit') return { status: 'budget_exceeded', mode, reason: 'platform_limit' };
   let status: Evaluation['status'] = 'unavailable';
   let reason: string | undefined;
   let response: Evaluation['response'];

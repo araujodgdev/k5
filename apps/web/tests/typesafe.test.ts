@@ -18,6 +18,7 @@ import { createCredentialKeyring, decryptCredential, encryptCredential, parseCre
 import { reencryptAiConnectionSecrets } from '../src/lib/ai-connections-core';
 import { runWorkerQueues } from '../src/lib/worker-scheduler';
 import { enqueueDeletion, processNextDeletion } from '../src/lib/knowledge/indexing';
+import { withTransaction } from '../src/lib/database';
 
 async function fixture(role: WorkspaceContext['role'] = 'lawyer') {
   const officeId = randomUUID(); const userId = randomUUID();
@@ -104,6 +105,35 @@ test('typesafe: concurrent reservations bound spend and timeout remains charged'
   assert.equal(timed.status, 'unavailable');
   const row = (await testDb.prepare('SELECT reserved_tokens,input_tokens FROM typesafe_evaluation WHERE id=?').get(timed.evaluationId!))!;
   assert.ok(Number(row.reserved_tokens) > 0); assert.equal(row.input_tokens, null);
+});
+test('typesafe: mudança de configuração durante reserva distingue desativação de indisponibilidade', async () => {
+  const context = await fixture(); await configure(context);
+  async function race(update: string) {
+    let evaluation!: ReturnType<typeof evaluate>;
+    let providerCalled = false;
+    await withTransaction(async tx => {
+      await tx.prepare('SELECT id FROM typesafe_platform_connection WHERE id=1 FOR UPDATE').get();
+      evaluation = evaluate(context, 'rag', request, { send: async () => { providerCalled = true; throw new Error('provider called'); } });
+      const deadline = Date.now() + 5000;
+      while (true) {
+        const waiting = await testDb.prepare(`SELECT count(*) AS count FROM pg_stat_activity
+          WHERE wait_event_type='Lock' AND query LIKE '%SELECT version,enabled FROM typesafe_platform_connection WHERE id=1 FOR UPDATE%'`).get<{ count: number }>();
+        if (waiting?.count) break;
+        if (Date.now() > deadline) throw new Error('A reserva não aguardou o bloqueio da configuração.');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      await tx.prepare(update).run();
+    });
+    const result = await evaluation;
+    assert.equal(providerCalled, false);
+    return result;
+  }
+  const disabled = await race('UPDATE typesafe_platform_connection SET enabled=0,version=version+1 WHERE id=1');
+  assert.equal(disabled.status, 'disabled');
+  await configure(context);
+  const changed = await race('UPDATE typesafe_platform_connection SET version=version+1 WHERE id=1');
+  assert.equal(changed.status, 'unavailable');
+  assert.equal(changed.reason, 'configuration_changed');
 });
 test('typesafe: invalid answers, context limit, changed configuration and circuit breaker', async () => {
   const context = (await fixture()); await configure(context);

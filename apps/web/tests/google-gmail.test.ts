@@ -5,7 +5,7 @@ import { testDb } from './test-setup';
 import { googleFixture, installFakeGoogle, respond, setRule } from './google-fixture';
 import { setGoogleTransport } from '../src/lib/google/transport';
 import { createMailUpload, deleteDraft, getThread, importAttachment, listThreads, saveDraft, sendMail } from '../src/lib/google/gmail/service';
-import { decodeHeaderWords, gmailHeader, htmlAsText, mimeMessage } from '../src/lib/google/gmail/mime';
+import { decodeHeaderWords, gmailHeader, htmlAsText, messageText, mimeMessage } from '../src/lib/google/gmail/mime';
 
 afterEach(() => setGoogleTransport(undefined));
 const empty = { to: [], cc: [], bcc: [], subject: '', body: '', replyToMessageId: null, attachments: [] };
@@ -29,6 +29,40 @@ test('assuntos MIME codificados em UTF-8 e ISO-8859-1 são exibidos em texto leg
   assert.equal(gmailHeader({ headers: headers(['Subject', '=?UTF-8?Q?Ol=C3=A1_mundo?=']) }, 'Subject'), 'Olá mundo');
   assert.equal(decodeHeaderWords('=?UTF-8?Q?texto_=ZZ?='), '=?UTF-8?Q?texto_=ZZ?=');
   assert.equal(decodeHeaderWords('=?unknown?B?dGV4dG8=?='), '=?unknown?B?dGV4dG8=?=');
+});
+
+test('corpo de e-mail respeita charsets permitidos e mantém HTML como texto', () => {
+  const part = (mimeType: string, charset: string, text: string, encoding: BufferEncoding) => ({
+    mimeType, headers: headers(['Content-Type', `${mimeType}; charset="${charset}"`]),
+    body: { data: Buffer.from(text, encoding).toString('base64url') },
+  });
+  assert.equal(messageText({ id: 'latin', payload: part('text/plain', 'ISO-8859-1', 'Ação e café', 'latin1') }), 'Ação e café');
+  assert.equal(messageText({ id: 'alias', payload: part('text/plain', 'latin1', 'Olá', 'latin1') }), 'Olá');
+  assert.equal(messageText({ id: 'html', payload: {
+    parts: [{ mimeType: 'text/html', headers: headers(['Content-Type', 'text/html; charset=windows-1252']),
+      body: { data: Buffer.from('<script>roube()</script><p>Preço \x80 &amp; \x93valor\x94</p>', 'latin1')
+        .toString('base64url') } }],
+  } }), 'Preço € & “valor”');
+  assert.equal(messageText({ id: 'unknown', payload: part('text/plain', 'unknown', 'Olá', 'utf8') }), 'Olá');
+});
+
+test('References malformadas são ignoradas sem impedir resposta; In-Reply-To continua estrito', () => {
+  const compose = { from: 'a@example.com', to: ['b@example.com'], cc: [], bcc: [],
+    subject: 'Re: Tema', body: 'Resposta', messageId: '<reply@example.com>', files: [],
+    replyHeader: '<original@example.com>' };
+  const raw = Buffer.from(mimeMessage({ ...compose,
+    references: '<older@example.com> lixo <bad@example.com>\r\nBcc:evil@example.com <original@example.com>',
+  }).raw, 'base64url').toString();
+  assert.match(raw, /In-Reply-To: <original@example.com>/);
+  assert.match(raw, /References: <older@example.com> <bad@example.com> <original@example.com>/);
+  assert.doesNotMatch(raw, /Bcc:evil@example.com/);
+  assert.throws(() => mimeMessage({ ...compose, replyHeader: 'invalid', references: '<older@example.com>' }), /identificador seguro/);
+  const many = Array.from({ length: 25 }, (_, index) => `<id${index}@example.com>`).join(' ');
+  const bounded = Buffer.from(mimeMessage({ ...compose, references: many }).raw, 'base64url').toString();
+  const line = bounded.match(/^References: (.+)$/m)?.[1] ?? '';
+  assert.equal(line.trim().split(/\s+/).length, 20);
+  assert.ok(line.includes('<id24@example.com>'));
+  assert.ok(!line.includes('<id0@example.com>'));
 });
 
 test('lista paginada e leitura pessoal sem HTML remoto', async () => {

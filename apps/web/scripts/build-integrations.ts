@@ -6,8 +6,10 @@ import { sentryBuildOptions } from './sentry-build';
 const deploy = process.argv.includes('--deploy');
 if (deploy) {
   const config = readFileSync('wrangler.integrations.jsonc', 'utf8');
+  const webConfig = readFileSync('wrangler.jsonc', 'utf8');
   const id = config.match(/"hyperdrive"[\s\S]*?"id"\s*:\s*"([a-f0-9]{32})"/i)?.[1];
-  if (!id || /^0+$/.test(id)) throw new Error('Configure o mesmo Hyperdrive validado para web e integrações.');
+  const webId = webConfig.match(/"hyperdrive"[\s\S]*?"id"\s*:\s*"([a-f0-9]{32})"/i)?.[1];
+  if (!id || !webId || /^0+$/.test(id) || id !== webId) throw new Error('Configure o mesmo Hyperdrive validado para web e integrações.');
 }
 if (deploy && !sentryBuildOptions.authToken) throw new Error('SENTRY_AUTH_TOKEN é obrigatório para publicar com source maps.');
 
