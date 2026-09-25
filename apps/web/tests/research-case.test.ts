@@ -245,6 +245,15 @@ test('case assessment in shadow mode is kept for comparison but neither shown no
   assert.equal(stored?.status, 'evaluated'); assert.equal(stored?.mode, 'shadow'); assert.ok(stored?.result_json, 'Jev’s answer stays on record');
   const shown = await getResearchCaseAssessment(a.context, queued.id);
   assert.equal(shown.status, 'disabled'); assert.equal(shown.result, null);
+  // Nor does the reason the shadow answer produced.
+  await testDb.prepare("UPDATE research_case_assessment SET status='incomplete',reason='evidence_insufficient' WHERE id=?").run(queued.id);
+  const hidden = await getResearchCaseAssessment(a.context, queued.id);
+  assert.equal(hidden.status, 'disabled'); assert.equal(hidden.reason, null);
+  await testDb.prepare("UPDATE research_case_assessment SET status='evaluated',reason=NULL WHERE id=?").run(queued.id);
+  // A case that stopped before any evaluation still says what is missing.
+  const bare = await fixture();
+  const missing = await assessResearchCaseMaterial(bare.context, { caseId: bare.caseId, materialVersionId: material.versionId });
+  assert.equal(missing.status, 'incomplete'); assert.equal(missing.reason, 'profile_missing');
   await assert.rejects(addResearchCaseReference(a.context, { caseId: a.caseId, materialVersionId: material.versionId,
     purpose: 'foundation', assessmentId: queued.id }), { code: 'APPROVAL_REQUIRED' });
   const bypassed = await addResearchCaseReference(a.context, { caseId: a.caseId, materialVersionId: material.versionId,

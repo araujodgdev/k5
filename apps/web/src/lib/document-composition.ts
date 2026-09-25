@@ -226,7 +226,8 @@ export type EscalationReason = 'discarded' | 'empty_with_dates' | 'date_not_in_s
 
 const MONTHS = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const plain = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR');
-const DATE_IN_TEXT = new RegExp(String.raw`\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}(?:º|°|o)?\s+de\s+(?:${MONTHS.join('|')})\s+de\s+\d{4}\b`, 'i');
+// A date is not the tail of a longer number, such as the J.TR.OOOO of a CNJ process number.
+const DATE_IN_TEXT = new RegExp(String.raw`(?<!\d|\d[/.-])\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}(?!\d|[/.-]\d)|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}(?:º|°|o)?\s+de\s+(?:${MONTHS.join('|')})\s+de\s+\d{4}\b`, 'i');
 
 /** Whether the text shows a date written the way Brazilian documents write one. */
 export function textHasDate(text: string) {

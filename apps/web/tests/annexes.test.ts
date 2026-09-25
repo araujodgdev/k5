@@ -105,7 +105,7 @@ test('annexes: the agent waits for Confirmar before cutting pages; the Anexos ta
   catch (error) { assert.ok(error instanceof CapabilityError); assert.equal(error.code, 'APPROVAL_REQUIRED'); approvalId = approvalIdFromMessage(error.message); }
   assert.ok(approvalId, 'the agent call becomes a proposal');
   assert.equal(await folders(), before, 'no file is cut before the person confirms');
-  assert.equal(await describeAgentApproval(context, 'k5_vault_generate_annexes', { scanDocumentId: scan, items }), 'Gerar 2 anexos do PDF “digitalizado.pdf”');
+  assert.equal(await describeAgentApproval(context, 'k5_vault_generate_annexes', { scanDocumentId: scan, items }), 'Gerar 2 anexos do PDF “digitalizado.pdf”: Procuração (p. 1); Certidão (p. 2–4)');
   const decided = await decideAgentApproval(context, approvalId, 'confirm');
   assert.equal(decided.state, 'confirmed');
   assert.equal(await folders(), before + 1);

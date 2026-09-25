@@ -86,13 +86,16 @@ async function assessmentInput(officeId: string, caseId: string, materialVersion
   return { caseState, material, config, profile, questions, currentFingerprint, reason, state, coverage, excerpts };
 }
 
-// A shadow-mode result stays in the row for evaluation, but is shown and gated like a disabled one.
-const shownStatus = (row: AssessmentRow): ResearchAssessmentStatus =>
-  row.mode === 'shadow' && (row.status === 'evaluated' || row.status === 'incomplete') ? 'disabled' : row.status;
+// A shadow-mode result stays in the row for evaluation, but is shown and gated like a disabled one:
+// neither its status nor the reason it produced reach the person. An assessment that stopped before
+// the evaluation (missing profile, facts or text) keeps its own status and reason.
+const shadowResult = (row: AssessmentRow) => row.mode === 'shadow' && row.result_json !== null;
+const shownStatus = (row: AssessmentRow): ResearchAssessmentStatus => shadowResult(row) ? 'disabled' : row.status;
 
 const rowView = (row: AssessmentRow, current: boolean): ResearchCaseAssessment => ({
   id: row.id, caseId: row.case_id, materialVersionId: row.material_version_id, profileVersion: row.profile_version,
-  status: current ? shownStatus(row) : 'stale', current, mode: row.mode, model: row.model, reason: current ? row.reason : 'inputs_changed',
+  status: current ? shownStatus(row) : 'stale', current, mode: row.mode, model: row.model,
+  reason: !current ? 'inputs_changed' : shadowResult(row) ? null : row.reason,
   result: row.result_json && row.mode !== 'shadow' ? (() => {
     const saved = JSON.parse(row.result_json) as ResearchAssessmentResult;
     return saved.compositionVersion === researchAssessmentCompositionVersion ? saved :

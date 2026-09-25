@@ -39,8 +39,10 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
       return `Alterar ${edits === 1 ? 'um trecho' : `${edits} trechos`} do documento${quoted(title)}`;
     }
     case 'k5_vault_generate_annexes': {
-      const items = Array.isArray(input.items) ? input.items.length : 0;
-      return `Gerar ${items === 1 ? 'um anexo' : `${items} anexos`} do PDF${quoted((await findVaultDocument(context.officeId, text(input.scanDocumentId)))?.name)}`;
+      // The person confirms the exact pages that will be cut, not only how many files come out.
+      const items = Array.isArray(input.items) ? input.items as Array<{ label?: unknown; startPage?: unknown; endPage?: unknown }> : [];
+      const ranges = items.map(item => `${text(item.label)} (${item.startPage === item.endPage ? `p. ${item.startPage}` : `p. ${item.startPage}–${item.endPage}`})`);
+      return `Gerar ${items.length === 1 ? 'um anexo' : `${items.length} anexos`} do PDF${quoted((await findVaultDocument(context.officeId, text(input.scanDocumentId)))?.name)}: ${ranges.join('; ')}`;
     }
     case 'k5_judicial_confirm_link':
     case 'k5_judicial_unlink_case':

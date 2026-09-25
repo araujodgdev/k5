@@ -154,6 +154,8 @@ test('escalation: code checks, not the model, decide when a passage is redone', 
   assert.equal(dateAppearsIn('2024-03-05', 'em 2024-03-05'), true);
   assert.equal(textHasDate('audiência em 1º de dezembro de 2025'), true);
   assert.equal(textHasDate('processo 123/2024'), false);
+  assert.equal(textHasDate('Processo nº 0001234-56.2024.8.26.0100, 2ª Vara Cível'), false, 'the tail of a CNJ number is not a date');
+  assert.equal(textHasDate('Autos 0001234-56.2024.8.26.0100. Audiência em 10/04/2024.'), true);
 });
 
 test('escalation: a checked second answer replaces a rejected passage; otherwise the first stands; shadow never decides or waits', async () => {

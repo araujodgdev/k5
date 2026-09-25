@@ -38,7 +38,8 @@ async function main() {
   const apiKey = keyFile ? readFileSync(keyFile, 'utf8').trim() : process.env.OPENAI_EVAL_KEY;
   if (!apiKey) throw new Error('Defina OPENAI_EVAL_KEY ou OPENAI_EVAL_KEY_FILE para a avaliação opcional.');
   const configs = parseConfigs(argument('configs') ?? 'gpt-6-sol:xhigh,gpt-6-sol:high,gpt-6-sol:medium');
-  const repeat = Math.max(1, Number(argument('repeat') ?? 1));
+  const repeat = Number(argument('repeat') ?? 1);
+  if (!Number.isInteger(repeat) || repeat < 1) throw new Error('Configuração inválida: --repeat deve ser um inteiro positivo.');
   const officeId = randomUUID(), userId = randomUUID();
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Avaliação sintética');
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Avaliador');
