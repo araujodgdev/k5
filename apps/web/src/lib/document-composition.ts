@@ -3,9 +3,7 @@
 import { legalMentionsWithoutSource, normalizeEvidence, quoteIsPresent, unauthorizedLegalPassages, type CitationCandidate, type SourceChunk } from './ai-policy';
 
 export type ExtractedEvent = { date: string | null; description: string; quote: string };
-export type Extraction = { events: ExtractedEvent[]; gaps: string[]; sourceId: string; sourceLabel: string;
-  /** Model that produced the kept result; absent on checkpoints written before escalation existed. */
-  producedBy?: string };
+export type Extraction = { events: ExtractedEvent[]; gaps: string[]; sourceId: string; sourceLabel: string };
 export type SourceRef = { id: string; documentId?: string; sourceLabel: string; excerpt: string;
   sourceType?: 'vault' | 'research'; researchReferenceId?: string; materialVersionId?: string; judgmentId?: string; researchChunkId?: string };
 export type ChronologyEvent = ExtractedEvent & { index: number; sourceId: string; sourceLabel: string };
@@ -214,42 +212,4 @@ export function composeDraft(outlineTitle: string, sections: DraftSection[], app
     ? `## Fundamentação selecionada pelo advogado\n\n${approved.map(c => `${escapeMarkdown(c.text)}\n\nFonte fornecida: ${escapeMarkdown(readableLabel(c.sourceLabel))}. Sem verificação externa.`).join('\n\n')}`
     : '[FUNDAMENTAÇÃO JURÍDICA PENDENTE DE SELEÇÃO]';
   return { title, content: `# ${title}\n\n${[...sections.map(s => s.markdown), legal].join('\n\n')}`, issues: sections.flatMap(s => s.issues), refs: [...refs.values()] };
-}
-
-// --- Escalation of chronology extraction ---------------------------------------------------------
-// Decided by checks in code, never by the model grading itself. A literal quote proves the passage
-// exists, not that the event says what the passage says, so dates are checked against it too.
-
-/** Share of events dropped for a missing literal quote above which the passage is redone. */
-export const ESCALATION_DISCARD_RATIO = 0.2;
-export type EscalationReason = 'discarded' | 'empty_with_dates' | 'date_not_in_source';
-
-const MONTHS = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-const plain = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR');
-const DATE_IN_TEXT = new RegExp(String.raw`\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}(?:º|°|o)?\s+de\s+(?:${MONTHS.join('|')})\s+de\s+\d{4}\b`, 'i');
-
-/** Whether the text shows a date written the way Brazilian documents write one. */
-export function textHasDate(text: string) {
-  return DATE_IN_TEXT.test(plain(text));
-}
-
-/** Whether an ISO date (YYYY-MM-DD) appears in the text in a common pt-BR or ISO form. */
-export function dateAppearsIn(iso: string, text: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!match) return true;
-  const [, year, month, day] = match;
-  const d = String(Number(day)), m = String(Number(month));
-  const haystack = plain(text);
-  const numeric = new RegExp(String.raw`(?<!\d)0?${d}\s*[/.-]\s*0?${m}\s*[/.-]\s*(?:${year}|${year.slice(2)})(?!\d)`);
-  const written = new RegExp(String.raw`(?<!\d)0?${d}(?:º|°|o)?\s+de\s+${MONTHS[Number(month) - 1]}\s+de\s+${year}(?!\d)`);
-  return haystack.includes(iso) || numeric.test(haystack) || written.test(haystack);
-}
-
-/** Why a passage's extraction should be redone by the escalation model, or null when it passes. */
-export function needsEscalation(input: { returned: number; kept: ExtractedEvent[]; sourceText: string }): EscalationReason | null {
-  const discarded = input.returned - input.kept.length;
-  if (input.returned > 0 && discarded / input.returned > ESCALATION_DISCARD_RATIO) return 'discarded';
-  if (!input.kept.length && textHasDate(input.sourceText)) return 'empty_with_dates';
-  if (input.kept.some(event => event.date && !dateAppearsIn(event.date, event.quote) && !dateAppearsIn(event.date, input.sourceText))) return 'date_not_in_source';
-  return null;
 }

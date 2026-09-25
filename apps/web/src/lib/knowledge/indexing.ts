@@ -185,7 +185,7 @@ async function runIndexJob(job: JobRow, owner: string): Promise<void> {
     ).all(job.office_id, job.document_id, cursor, BATCH_SIZE) as Array<{ id: string; ordinal: number; content: string }>;
     if (!chunks.length) break;
 
-    const vectors = await stage('embedding', () => embedTexts(profile, chunks.map((chunk) => chunk.content), { officeId: job.office_id, userId: null }));
+    const vectors = await stage('embedding', () => embedTexts(profile, chunks.map((chunk) => chunk.content)));
 
     // The first batch of a fresh generation fixes its dimension for good.
     const dimension = vectors[0].length;

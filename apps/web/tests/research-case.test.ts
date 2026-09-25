@@ -232,22 +232,3 @@ test('reference update changes only its pinned version; exhausted leases termina
   assert.equal(await processNextResearchAssessment(), true);
   assert.equal((await testDb.prepare('SELECT status FROM research_case_assessment WHERE id=?').get(exhaustedId))!.status, 'unavailable');
 });
-
-test('case assessment in shadow mode is kept for comparison but neither shown nor accepted as evaluated', async () => {
-  const a = (await fixture()), material = (await publicMaterial());
-  await saveResearchCaseProfile(a.context, profileInput(a));
-  (await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(a.context.userId));
-  await saveConnection(a.context.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true,
-    research: 'shadow', version: (await connectionView()).version }));
-  const queued = await assessResearchCaseMaterial(a.context, { caseId: a.caseId, materialVersionId: material.versionId });
-  while (await processNextResearchAssessment({ send: sendOpposes }));
-  const stored = await testDb.prepare('SELECT status,mode,result_json FROM research_case_assessment WHERE id=?').get<{ status: string; mode: string; result_json: string | null }>(queued.id);
-  assert.equal(stored?.status, 'evaluated'); assert.equal(stored?.mode, 'shadow'); assert.ok(stored?.result_json, 'Jev’s answer stays on record');
-  const shown = await getResearchCaseAssessment(a.context, queued.id);
-  assert.equal(shown.status, 'disabled'); assert.equal(shown.result, null);
-  await assert.rejects(addResearchCaseReference(a.context, { caseId: a.caseId, materialVersionId: material.versionId,
-    purpose: 'foundation', assessmentId: queued.id }), { code: 'APPROVAL_REQUIRED' });
-  const bypassed = await addResearchCaseReference(a.context, { caseId: a.caseId, materialVersionId: material.versionId,
-    purpose: 'foundation', assessmentId: queued.id, bypassEvaluation: true });
-  assert.equal(bypassed.purpose, 'foundation');
-});

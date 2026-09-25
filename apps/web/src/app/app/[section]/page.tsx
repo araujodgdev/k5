@@ -6,7 +6,7 @@ import { appNavigation } from "@/lib/navigation";
 import { requireWorkspace } from "@/lib/session";
 import { database } from "@/lib/database";
 import { conversationBootstrap } from "@/lib/ai-store";
-import { resolveProfileConfig } from "@/lib/ai-connections";
+import { resolveModelConfig } from "@/lib/ai-connections";
 import { modelModalities } from "@/lib/ai-modalities";
 
 type Props = { params: Promise<{ section: string }>; searchParams: Promise<{ conversationId?: string }> };
@@ -25,7 +25,7 @@ export default async function SectionPage({ params, searchParams }: Props) {
     const { conversationId } = await searchParams;
     const [history, model] = await Promise.allSettled([
       conversationBootstrap(database, { officeId: office.officeId, userId: user.id }, conversationId),
-      resolveProfileConfig('chat'),
+      resolveModelConfig('chat'),
     ]);
     // A failed prefetch falls back to the existing API loading/error path in the chat.
     return <AgentChat key={conversationId ?? 'latest'} initialConversationId={conversationId}

@@ -38,10 +38,6 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
       const edits = Array.isArray(input.edits) ? input.edits.length : 0;
       return `Alterar ${edits === 1 ? 'um trecho' : `${edits} trechos`} do documento${quoted(title)}`;
     }
-    case 'k5_vault_generate_annexes': {
-      const items = Array.isArray(input.items) ? input.items.length : 0;
-      return `Gerar ${items === 1 ? 'um anexo' : `${items} anexos`} do PDF${quoted((await findVaultDocument(context.officeId, text(input.scanDocumentId)))?.name)}`;
-    }
     case 'k5_judicial_confirm_link':
     case 'k5_judicial_unlink_case':
     case 'k5_judicial_request_refresh': {

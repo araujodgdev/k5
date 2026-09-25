@@ -68,15 +68,3 @@ test('web jurisprudence: without Jev the grounded list still comes back, marked 
   assert.equal(unscored.results.length, 3);
   assert.ok(unscored.results.every(item => item.relevance === null));
 });
-
-test('web jurisprudence: in shadow mode Jev scores are recorded but filter nothing', async () => {
-  const context = await office();
-  await saveConnection(context.userId, connectionSettings.parse({ apiKey: `fake-${context.officeId}`, enabled: true, research: 'shadow', version: (await connectionView()).version }));
-  const result = await searchWebJurisprudence(context, { query: 'revisão da vida toda no INSS' },
-    { search: async () => ({ text: modelText, sources }), send: jev });
-  assert.equal(result.evaluated, false);
-  assert.deepEqual(result.results.map(item => item.court), ['STJ', '', 'STF'], 'the blog post stays: shadow mode never hides a candidate');
-  assert.ok(result.results.every(item => item.relevance === null));
-  const recorded = await testDb.prepare("SELECT count(*) AS n FROM typesafe_evaluation WHERE office_id=? AND purpose='research' AND status='evaluated'").get<{ n: number }>(context.officeId);
-  assert.equal(Number(recorded?.n), 1, 'the evaluation itself is kept for comparison');
-});

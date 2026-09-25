@@ -129,7 +129,7 @@ export async function searchKnowledgeEngine(
     degradedReason = 'Nenhum índice semântico ativo para este escritório.';
   } else {
     try {
-      const { embedding } = await embedQuery(query, { officeId: context.officeId, userId: context.userId ?? null });
+      const { embedding } = await embedQuery(query);
       const hits = await (await vectorIndex()).query(context.officeId, generation.id, embedding, {
         documentIds: readyIds,
         topK: Math.max(limit * 3, 24),
