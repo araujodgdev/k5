@@ -5,7 +5,7 @@ import { testDb } from './test-setup';
 import { googleFixture, installFakeGoogle, respond, setRule } from './google-fixture';
 import { accessToken, completeGoogleConnect, disconnectGoogle, startGoogleConnect, requireConnection } from '../src/lib/google/connections';
 import { runGoogleOperation, markOperationEffect, type OperationSpec } from '../src/lib/google/operations';
-import { setGoogleTransport } from '../src/lib/google/transport';
+import { GoogleApiError, setGoogleTransport } from '../src/lib/google/transport';
 import { approveProposal, approvalIdFromMessage } from '../src/lib/application/approvals-service';
 import { decryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
 import { googleApprovalReview } from '../src/lib/google/approval-review';
@@ -51,6 +51,22 @@ test('OAuth: state pessoal, uso único, consentimento parcial e logout não desc
   await testDb.prepare('DELETE FROM session WHERE id=?').run(sessionId);
   assert.equal(await accessToken(row.id), 'secret-access');
   await assert.rejects(() => requireConnection(owner, 'gmail'), /autorizou/);
+});
+
+test('OAuth: a token redirect is reported as a Google refusal with its status, a lost request as a network failure', async (t) => {
+  const f = await googleFixture({ connect: false });
+  const owner = { ...f.context, sessionId: await session(f.userId) };
+  const fake = installFakeGoogle();
+  const warnings: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { warnings.push(args); });
+  fake.on('POST', /\/token$/, () => { throw new GoogleApiError(302, 'redirect', 'Google recusou a operação (302).'); }, 1);
+  let state = new URL((await startGoogleConnect(owner, ['gmail'])).url).searchParams.get('state');
+  assert.equal((await completeGoogleConnect(owner, { state, code: 'code' })).outcome, 'failed');
+  assert.deepEqual(warnings.at(-1), ['google.oauth.callback failed: token_rejected', { status: '302', google_error: 'redirect' }]);
+  fake.failNetwork('POST', /\/token$/);
+  state = new URL((await startGoogleConnect(owner, ['gmail'])).url).searchParams.get('state');
+  assert.equal((await completeGoogleConnect(owner, { state, code: 'code' })).outcome, 'failed');
+  assert.equal(warnings.at(-1)?.[0], 'google.oauth.callback failed: token_network');
 });
 
 test('renovação concorrente usa um refresh; desconexão impede retorno tardio do token', async () => {

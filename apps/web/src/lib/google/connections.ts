@@ -142,7 +142,12 @@ export async function completeGoogleConnect(
   const response = await tokenRequest({
     code: params.code, client_id: config.clientId, client_secret: config.clientSecret, redirect_uri: config.redirectUri,
     grant_type: 'authorization_code', code_verifier: decryptCredential(state.encrypted_verifier, keyring()),
-  }).catch((error: unknown) => { connectFailure('token_network', error); return null; });
+  }).catch((error: unknown) => {
+    // The transport refuses redirects and oversized bodies itself; those are Google answering, not the network failing.
+    if (error instanceof GoogleApiError) connectFailure('token_rejected', error, { status: String(error.status), google_error: ['redirect', 'too_large'].includes(error.reason) ? error.reason : 'other' });
+    else connectFailure('token_network', error);
+    return null;
+  });
   if (!response) return { outcome: 'failed' };
   if (response.status !== 200) {
     connectFailure('token_rejected', undefined, { status: String(response.status), google_error: tokenErrorCode(response.body) });
