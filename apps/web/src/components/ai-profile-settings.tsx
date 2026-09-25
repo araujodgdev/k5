@@ -90,6 +90,8 @@ function ProfileRow({ item, connections, inherited }: { item: ProfileOverrideVie
     event.preventDefault();
     const own = draft.connectionId !== INHERIT && draft.modelId.trim();
     if (draft.connectionId !== INHERIT && !draft.modelId.trim()) { setError("Informe o modelo da conexão escolhida."); return; }
+    const incomplete = definition.variants.find((variant) => variants[variant].connectionId !== INHERIT && !variants[variant].modelId.trim());
+    if (incomplete) { setError(`Informe o modelo do ${variantLabels[incomplete].title.toLocaleLowerCase("pt-BR")}.`); return; }
     void send({
       connectionId: own ? draft.connectionId : null, modelId: own ? draft.modelId.trim() : null,
       reasoningEffort: draft.reasoningEffort === INHERIT ? null : draft.reasoningEffort,

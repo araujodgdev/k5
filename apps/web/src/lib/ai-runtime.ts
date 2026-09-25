@@ -171,7 +171,9 @@ export async function generateStructured<T extends z.ZodType>(
       // Reasoning tokens count against the output limit; a cut-off answer is not a schema problem.
       if (result.finishReason === 'length') throw new IncompleteResponse();
       const output = schema.parse(result.object);
-      await recordUsage({ ...base, status: 'completed', usage, finishReason, durationMs: performance.now() - started, validation: options.validate?.(output) });
+      // A usage row that cannot be written must not discard a valid answer or count as a provider failure.
+      await recordUsage({ ...base, status: 'completed', usage, finishReason, durationMs: performance.now() - started, validation: options.validate?.(output) })
+        .catch(recordError => captureOperationalError(recordError, 'ai.usage'));
       span.setAttributes({ 'gen_ai.usage.input_tokens': usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': usage?.outputTokens ?? 0, 'lume.outcome': 'completed' });
       return output;
     } catch (error) {
