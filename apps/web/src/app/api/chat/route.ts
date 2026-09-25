@@ -8,7 +8,7 @@ import { conversation, mergeHistory, ownedArtifact, saveMessages } from '@/lib/a
 import { documentFocusPrompt } from '@/lib/artifact-edits';
 import { reviewCitations, type CitationItem } from '@/lib/citations/review';
 import { conversationSources, recordSources, type RecordedSource } from '@/lib/citations/sources';
-import { createAgent, recordUsage, RequestContext } from '@/lib/ai-runtime';
+import { createAgent, profileContext, recordUsage } from '@/lib/ai-runtime';
 import { selectedResearchSources } from '@/lib/ai-sources';
 import { workspaceContext } from '@/lib/application/context';
 import { agentTools, toolSummary, type ApprovalRequest } from '@/lib/agent-tools';
@@ -19,7 +19,7 @@ import { resolveChatAttachments, claimChatAttachments, publicChatAttachment } fr
 import { attachmentPart } from '@/lib/chat-attachment-contract';
 import { chatPromptMessages } from '@/lib/chat-prompt';
 import { clockContext } from '@/lib/chat-clock';
-import { resolveModelConfig } from '@/lib/ai-connections';
+import { resolveModelConfig, resolveProfileConfig } from '@/lib/ai-connections';
 import { transcribeAudio, transcribesAudio } from '@/lib/audio-transcription';
 import { instructionsPrompt } from '@/lib/agent-instructions';
 import { knowledgePrompt } from '@/lib/agent-knowledge';
@@ -43,10 +43,10 @@ const MAX_REPEATS = 2;
 
 const toolInstructions = `Você opera o Lume pelas ferramentas disponíveis, em nome da pessoa que conversa com você, e age com autonomia.
 Use as ferramentas para consultar e agir; não descreva uma ação como feita sem tê-la executado. Depois de agir, diga em uma frase o que fez.
-Execute sem pedir revisão: criar, editar, concluir, cancelar ou reagendar tarefas e reuniões; criar e atualizar casos, clientes e pastas; mover e renomear documentos; separar e gerar anexos; iniciar cronologias e minutas. Pergunte apenas quando faltar um dado necessário (horário ambíguo, qual caso, qual cliente), com uma pergunta objetiva.
-Exclusões, consultas e vínculos com tribunais e a alteração de um documento que você não criou nesta conversa pedem confirmação: chame a ferramenta normalmente; quando ela responder que aguarda confirmação, a pessoa verá abaixo da sua resposta um botão Confirmar que executa exatamente essa ação. Diga em uma frase o que será feito ao confirmar. Não peça confirmação em texto, não repita a chamada e não diga que a ação foi feita.
+Execute sem pedir revisão: criar, editar, concluir, cancelar ou reagendar tarefas e reuniões; criar e atualizar casos, clientes e pastas; mover e renomear documentos; planejar anexos; iniciar cronologias e minutas. Pergunte apenas quando faltar um dado necessário (horário ambíguo, qual caso, qual cliente), com uma pergunta objetiva.
+Exclusões, a geração de anexos, consultas e vínculos com tribunais e a alteração de um documento que você não criou nesta conversa pedem confirmação: chame a ferramenta normalmente; quando ela responder que aguarda confirmação, a pessoa verá abaixo da sua resposta um botão Confirmar que executa exatamente essa ação. Diga em uma frase o que será feito ao confirmar. Não peça confirmação em texto, não repita a chamada e não diga que a ação foi feita.
 Fotos e arquivos enviados na mensagem pertencem ao chat. Leia-os diretamente. Quando a pessoa pedir para agendar uma lista fotografada, crie uma atividade por item com k5_agenda_create_activity, usando a transcrição fiel do item. Não invente datas, horários ou trechos ilegíveis: pergunte sobre eles no fim.
-Para separar os anexos de uma petição a partir de um PDF digitalizado do caso, chame k5_vault_plan_annexes e em seguida k5_vault_generate_annexes com os documentos incluídos, na ordem proposta; informe a pasta criada e lembre que a aba Anexos do caso permite refazer com ajustes.
+Para separar os anexos de uma petição a partir de um PDF digitalizado do caso, chame k5_vault_plan_annexes, resuma a proposta (rótulos e páginas) e então chame k5_vault_generate_annexes com os documentos incluídos, na ordem proposta; a geração só roda quando a pessoa confirmar. Lembre que a aba Anexos do caso permite revisar e ajustar antes.
 Tarefas humanas e reuniões usam k5_agenda_*; clientes usam k5_crm_*. k5_runs_* são apenas jobs de documentos.
 Antes de editar, consulte o registro e sua versão. Em conflito, consulte novamente e não sobrescreva silenciosamente.
 Quando a pessoa pedir um texto para usar fora da conversa (petição, contrato, notificação, parecer, procuração, e-mail formal), crie um documento com k5_artifacts_create em vez de escrever o texto no chat, e diga em uma frase o que criou, sem repetir o conteúdo. Para ajustes, use k5_artifacts_edit com trechos exatos da versão atual; reescreva o documento inteiro só quando a pessoa pedir. Se ela mencionar um documento sem dizer qual, consulte k5_artifacts_list.
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     const officeTools = agentTools(context, request => approvals.push(request));
     // Grounding on the open web: the provider's own search for OpenAI and Anthropic, Exa for the rest
     // (Gemini does not mix Google Search with function calling). See agent-web-search.ts.
-    const provider = (await resolveModelConfig('chat')).provider;
+    const provider = (await resolveProfileConfig('chat')).provider;
     const [writingRules, knowledge] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner)]);
     // Only the person's own document is named; an id they do not own is ignored, not an error.
     const focusedId = body.selection?.artifactId ?? body.openDocumentId;
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
       // A voice note for an OpenAI model becomes text before anything is stored, so the history,
       // the model and the person all see the same words.
       const spoken = transcribesAudio(config.provider)
-        ? (await Promise.all(body.attachments.filter(item => item.mediaType.startsWith('audio/')).map(item => transcribeAudio(config.apiKey, item, request.signal)
+        ? (await Promise.all(body.attachments.filter(item => item.mediaType.startsWith('audio/')).map(item => transcribeAudio(config.apiKey, item, request.signal, { officeId: office.officeId, userId: user.id, config })
           .catch(error => { captureOperationalError(error, 'chat.audio.transcription'); throw new ApiError(502, 'Não foi possível transcrever o áudio. Tente de novo ou escreva a mensagem.'); })))).filter(Boolean)
         : [];
       const input: UIMessage = { id: body.message.id, role: 'user', parts: [{ type: 'text', text: [text, ...spoken.map(item => `[Áudio] ${item}`)].join('\n\n') },...chatAttachments.map(item=>attachmentPart(publicChatAttachment(item)))] };
@@ -186,6 +186,7 @@ export async function POST(request: Request) {
         };
         writer.write({ type: 'start', messageId });
         writer.write({ type: 'text-start', id: partId });
+        const started = performance.now();
         try {
           // What the agent did in earlier turns is part of the history it gets back. Keeping only
           // text meant every turn started blind to its own tool calls and redid the work.
@@ -242,16 +243,11 @@ export async function POST(request: Request) {
             ? [...history.slice(0, -1), { role: 'user' as const, content: [...(typeof lastUser.content==='string'?[{ type: 'text' as const, text: lastUser.content }]:lastUser.content), ...mediaParts] }]
             : history;
 
-          const ctx = new RequestContext();
-          ctx.set('provider', config.provider);
-          ctx.set('modelId', config.modelId);
-          ctx.set('apiKey', config.apiKey);
-
           const controller = new AbortController();
           const response = await agent.stream(promptMessages as Parameters<typeof agent.stream>[0], {
-            requestContext: ctx,
+            requestContext: profileContext(config),
             maxSteps: MAX_STEPS,
-            modelSettings: { maxOutputTokens: 6000 },
+            modelSettings: { maxOutputTokens: config.maxOutputTokens },
             abortSignal: AbortSignal.any([request.signal, AbortSignal.timeout(180_000), controller.signal]),
             // Working memory only: the thread is this conversation, the resource is the person in this office.
             memory: { thread: id, resource: memoryResource(owner) },
@@ -277,8 +273,11 @@ export async function POST(request: Request) {
             }
             // Tool activity is part of the answer: the person sees what the agent did, and the
             // conversation keeps it, instead of a silent side effect behind the text.
-            if (chunk.type === 'tool-result') {
-              const failed = Boolean(chunk.payload.isError);
+            // Mastra 1.67 reports a tool that threw (including a call waiting for Confirmar) as
+            // `tool-error`, not as a `tool-result` with isError; both count and both can gate.
+            if (chunk.type === 'tool-result' || chunk.type === 'tool-error') {
+              const failed = chunk.type === 'tool-error' || Boolean(chunk.payload.isError);
+              const toolResult = chunk.type === 'tool-result' ? chunk.payload.result : undefined;
               const pending = approvals.findIndex(item => item.capability === chunk.payload.toolName);
               if (failed && pending >= 0) {
                 const [request] = approvals.splice(pending, 1);
@@ -287,20 +286,20 @@ export async function POST(request: Request) {
                 confirmations.push(confirmation);
                 writer.write({ type: 'data-approval', id: request.approvalId, data: confirmation });
               } else {
-                const href = failed ? undefined : resourceHref(chunk.payload.toolName, chunk.payload.result);
-                const step = { callId: chunk.payload.toolCallId, name: chunk.payload.toolName, summary: toolSummary(chunk.payload.toolName, chunk.payload.result, failed), state: failed ? 'failed' as const : 'completed' as const, ...(href ? { href } : {}) };
+                const href = failed ? undefined : resourceHref(chunk.payload.toolName, toolResult);
+                const step = { callId: chunk.payload.toolCallId, name: chunk.payload.toolName, summary: toolSummary(chunk.payload.toolName, toolResult, failed), state: failed ? 'failed' as const : 'completed' as const, ...(href ? { href } : {}) };
                 steps.push(step);
                 writer.write({ type: 'data-tool', id: chunk.payload.toolCallId, data: step });
                 // Case law also reaches the person as a list built from the tool result, with the
                 // links the search returned, next to whatever the Lume says about it.
-                const withheld = isWithheld(chunk.payload.result);
+                const withheld = isWithheld(toolResult);
                 if (!failed && !withheld && chunk.payload.toolName === 'k5_research_web_jurisprudence') {
-                  findings.push({ id: chunk.payload.toolCallId, data: chunk.payload.result });
-                  writer.write({ type: 'data-jurisprudence', id: chunk.payload.toolCallId, data: chunk.payload.result });
+                  findings.push({ id: chunk.payload.toolCallId, data: toolResult });
+                  writer.write({ type: 'data-jurisprudence', id: chunk.payload.toolCallId, data: toolResult });
                 }
                 // Pages from the Exa search are sources for the citation review, like the provider's.
                 if (!failed && !withheld && chunk.payload.toolName === 'web_search') {
-                  for (const page of ((chunk.payload.result as { results?: WebPage[] }).results ?? [])) {
+                  for (const page of ((toolResult as { results?: WebPage[] } | undefined)?.results ?? [])) {
                     webPages.push({ kind: 'web', ref: page.url, url: page.url, title: page.title, text: page.text || page.title });
                   }
                 }
@@ -319,7 +318,8 @@ export async function POST(request: Request) {
           }
           if (halted) emit(halted);
           const usage = await response.usage;
-          await recordUsage(office.officeId, user.id, config, 'chat', 'completed', usage);
+          await recordUsage({ officeId: office.officeId, userId: user.id, config, task: 'chat', status: 'completed', usage,
+            finishReason: await response.finishReason, durationMs: performance.now() - started, validation: { toolCalls, halted: Boolean(halted) } });
           span.setAttributes({
             'gen_ai.usage.input_tokens': usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': usage?.outputTokens ?? 0,
             'lume.tool_calls': toolCalls, 'lume.guard.withheld': guard.withheld.size, 'lume.outcome': halted ? 'halted' : 'completed',
@@ -341,7 +341,8 @@ export async function POST(request: Request) {
           const message = aborted ? '\n[Resposta interrompida.]' : '\n[Não foi possível concluir a resposta. Tente novamente.]';
           if (!answer.endsWith(message)) { answer += message; writer.write({ type: 'text-delta', id: partId, delta: message }); }
           span.setAttribute('lume.outcome', aborted ? 'cancelled' : 'failed');
-          await recordUsage(office.officeId, user.id, config, 'chat', aborted ? 'cancelled' : 'failed');
+          await recordUsage({ officeId: office.officeId, userId: user.id, config, task: 'chat', status: aborted ? 'cancelled' : 'failed',
+            errorKind: aborted ? 'cancelled' : 'provider', durationMs: performance.now() - started });
         } finally {
           const parts: UIMessage['parts'] = [
             ...steps.map((step, index) => ({ type: 'data-tool' as const, id: `${messageId}-${index}`, data: step })),

@@ -7,6 +7,9 @@ import { analyzeAnnexes, generateAnnexes, orderAnnexPlan } from '../src/lib/anne
 import { objectStorage, storageKey } from '../src/lib/storage';
 import { createVaultDocument, readVaultOriginal, findVaultDocument } from '../src/lib/vault';
 import { runCapability } from '../src/lib/agent-tools';
+import { CapabilityError } from '../src/lib/capabilities/errors';
+import { approvalIdFromMessage } from '../src/lib/application/approvals-service';
+import { decideAgentApproval, describeAgentApproval } from '../src/lib/application/agent-approvals';
 
 async function office() {
   const officeId = randomUUID(); const userId = randomUUID(); const caseId = randomUUID();
@@ -88,4 +91,30 @@ test('annexes: planning waits for OCR and a petition, and reviewers cannot run i
   await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), owner.officeId, reviewer, 'reviewer');
   await assert.rejects(runCapability({ officeId: owner.officeId, userId: reviewer, role: 'reviewer' }, 'k5_vault_generate_annexes',
     { caseId: owner.caseId, scanDocumentId: ready, items: [{ label: 'Procuração', startPage: 1, endPage: 1 }] }));
+});
+
+test('annexes: the agent waits for Confirmar before cutting pages; the Anexos tab does not', async () => {
+  const owner = await office();
+  const scan = await scannedPdf(owner, 4);
+  const context = { officeId: owner.officeId, userId: owner.userId, role: 'lawyer' as const };
+  const items = [{ label: 'Procuração', startPage: 1, endPage: 1 }, { label: 'Certidão', startPage: 2, endPage: 4 }];
+  const folders = async () => Number((await testDb.prepare('SELECT count(*) AS n FROM vault_folder WHERE case_id=?').get<{ n: number }>(owner.caseId))?.n);
+  const before = await folders();
+  let approvalId: string | null = null;
+  try { await runCapability({ ...context, invocation: 'agent' }, 'k5_vault_generate_annexes', { caseId: owner.caseId, scanDocumentId: scan, items }); }
+  catch (error) { assert.ok(error instanceof CapabilityError); assert.equal(error.code, 'APPROVAL_REQUIRED'); approvalId = approvalIdFromMessage(error.message); }
+  assert.ok(approvalId, 'the agent call becomes a proposal');
+  assert.equal(await folders(), before, 'no file is cut before the person confirms');
+  assert.equal(await describeAgentApproval(context, 'k5_vault_generate_annexes', { scanDocumentId: scan, items }), 'Gerar 2 anexos do PDF “digitalizado.pdf”');
+  const decided = await decideAgentApproval(context, approvalId, 'confirm');
+  assert.equal(decided.state, 'confirmed');
+  assert.equal(await folders(), before + 1);
+  // A second Confirmar, or a replayed call with the used approval, does not cut the pages again.
+  await assert.rejects(decideAgentApproval(context, approvalId, 'confirm'), (error: unknown) => error instanceof CapabilityError && error.code === 'CONFLICT');
+  await assert.rejects(runCapability({ ...context, invocation: 'agent' }, 'k5_vault_generate_annexes', { caseId: owner.caseId, scanDocumentId: scan, items, approvalId }),
+    (error: unknown) => error instanceof CapabilityError && error.code === 'CONFLICT');
+  assert.equal(await folders(), before + 1);
+  // The interface already asked the person, so its call runs at once.
+  const direct = await runCapability(context, 'k5_vault_generate_annexes', { caseId: owner.caseId, scanDocumentId: scan, folderName: 'Anexos revisados', items: items.slice(0, 1) }) as { documents: unknown[] };
+  assert.equal(direct.documents.length, 1);
 });
