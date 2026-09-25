@@ -183,9 +183,12 @@ export async function requireAgentApproval(
   input: Record<string, unknown>,
   targetResourceId: string | null,
   description: string,
+  // A retry with a consumed approval is safe for operations that land in the same state twice;
+  // one that creates something new each time must not replay.
+  options: { allowConsumedRetry?: boolean } = { allowConsumedRetry: true },
 ) {
   if (!context.invocation) return;
-  await requireAndConsumeApproval(context, capabilityName, approvalId, input, targetResourceId, null, description, { allowConsumedRetry: true });
+  await requireAndConsumeApproval(context, capabilityName, approvalId, input, targetResourceId, null, description, options);
 }
 
 /** The id the gate put in its refusal, so the chat can offer the confirmation. */

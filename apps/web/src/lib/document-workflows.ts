@@ -107,25 +107,24 @@ async function extractChunk(run: RunRow, source: SourceChunk, pinned: Partial<Pi
 /**
  * The step's model reads the passage. When the code's checks reject the result (schema or cut-off
  * answer, too many events without a quote, no event where the passage shows a date, a date the
- * passage does not contain), the escalation model pinned on the run redoes it and its result
- * replaces the first. A shadow model, when pinned, runs alongside; only its usage is recorded, and
- * its failure never fails the run. Without an escalation model a failed first call fails as before.
+ * passage does not contain), the escalation model pinned on the run redoes it. Its answer replaces
+ * the first only when it passes those checks; otherwise a usable first answer stands, and a passage
+ * fails only when neither model produced one. A shadow model, when pinned, runs alongside without
+ * holding the run: only its usage is recorded, and its failure never fails the run.
  */
 export async function extractWithEscalation(sourceText: string, plan: ChunkPlan, attempt: ChunkAttemptFn, meta: UsageMeta): Promise<Extraction> {
-  const shadowRun = plan.shadow ? attempt(plan.shadow, { ...meta, attempt: 1, variant: 'shadow' }).catch(() => undefined) : undefined;
-  try {
-    const first = await attempt(plan.primary, { ...meta, attempt: 1 });
-    const reason = 'error' in first ? first.error : needsEscalation({ returned: first.returned, kept: first.extraction.events, sourceText });
-    let chosen = first;
-    if (reason && plan.escalate) {
-      const second = await attempt(plan.escalate, { ...meta, attempt: 2, variant: 'escalate', escalatedFrom: plan.primary?.modelId ?? 'default' });
-      if (!('error' in second)) chosen = second;
-    }
-    if ('error' in chosen) throw new StructuredGenerationError(chosen.error);
-    return chosen.extraction;
-  } finally {
-    await shadowRun;
+  if (plan.shadow) {
+    void attempt(plan.shadow, { ...meta, attempt: 1, variant: 'shadow' }).catch(error => captureOperationalError(error, 'ai.shadow'));
   }
+  const first = await attempt(plan.primary, { ...meta, attempt: 1 });
+  const flagged = (result: ChunkAttempt) => 'error' in result ? result.error : needsEscalation({ returned: result.returned, kept: result.extraction.events, sourceText });
+  if (flagged(first) && plan.escalate) {
+    const second = await attempt(plan.escalate, { ...meta, attempt: 2, variant: 'escalate', escalatedFrom: plan.primary?.modelId ?? 'default' })
+      .catch((error): ChunkAttempt => { captureOperationalError(error, 'ai.escalation'); return { error: 'provider' }; });
+    if (!('error' in second) && (!flagged(second) || 'error' in first)) return second.extraction;
+  }
+  if ('error' in first) throw new StructuredGenerationError(first.error);
+  return first.extraction;
 }
 
 async function extract(run: RunRow, sources: SourceChunk[]) {

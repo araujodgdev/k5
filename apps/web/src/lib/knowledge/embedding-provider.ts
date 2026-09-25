@@ -3,7 +3,6 @@ import { resolveModelConfig } from '@/lib/ai-connections';
 import { AiConnectionError, type AiProvider } from '@/lib/ai-connections-core';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { recordUsage } from '@/lib/ai-runtime';
-import { captureOperationalError } from '@/lib/observability/report';
 
 export type EmbeddingProfile = { provider: AiProvider; modelId: string; apiKey: string; connectionId: string };
 
@@ -112,10 +111,10 @@ export async function embedTexts(profile: EmbeddingProfile, inputs: string[], ow
   return vectors;
 }
 
-// A usage row that cannot be written must not cost the search or the indexing it describes.
+// recordUsage reports its own write failures, so the search or indexing it describes is never lost.
 async function recordEmbeddingUsage(owner: EmbeddingOwner, profile: EmbeddingProfile, status: string, started: number, inputs: number, inputTokens?: number) {
   await recordUsage({ ...owner, config: { ...profile, profile: 'embedding' }, task: 'embedding', status, usage: { inputTokens },
-    durationMs: performance.now() - started, validation: { inputs } }).catch((error) => captureOperationalError(error, 'ai.usage'));
+    durationMs: performance.now() - started, validation: { inputs } });
 }
 
 /** One query vector. The model never supplies this: the server embeds the query it was given. */

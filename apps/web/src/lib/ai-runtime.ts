@@ -105,17 +105,22 @@ export type UsageRecord = UsageMeta & {
 
 const count = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null;
 
+/** Telemetry never fails the call it measures: a failed write is reported and dropped. */
 export async function recordUsage(record: UsageRecord) {
-  const { config, usage } = record;
-  await database.prepare(`INSERT INTO ai_usage(id,office_id,user_id,connection_id,provider,model_id,task,status,input_tokens,output_tokens,
-      profile,reasoning_effort,duration_ms,reasoning_tokens,cached_input_tokens,finish_reason,error_kind,run_id,step_key,attempt,escalated_from,variant,validation_json)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(randomUUID(), record.officeId, record.userId, config.connectionId, config.provider, config.modelId, record.task, record.status,
-      count(usage?.inputTokens), count(usage?.outputTokens),
-      config.profile ?? null, config.provider === 'openai' ? config.reasoningEffort ?? null : null, count(record.durationMs),
-      count(usage?.reasoningTokens), count(usage?.cachedInputTokens), record.finishReason ?? null, record.errorKind ?? null,
-      record.runId ?? null, record.stepKey ?? null, count(record.attempt), record.escalatedFrom ?? null, record.variant ?? null,
-      record.validation ? JSON.stringify(record.validation) : null);
+  try {
+    const { config, usage } = record;
+    await database.prepare(`INSERT INTO ai_usage(id,office_id,user_id,connection_id,provider,model_id,task,status,input_tokens,output_tokens,
+        profile,reasoning_effort,duration_ms,reasoning_tokens,cached_input_tokens,finish_reason,error_kind,run_id,step_key,attempt,escalated_from,variant,validation_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(randomUUID(), record.officeId, record.userId, config.connectionId, config.provider, config.modelId, record.task, record.status,
+        count(usage?.inputTokens), count(usage?.outputTokens),
+        config.profile ?? null, config.provider === 'openai' ? config.reasoningEffort ?? null : null, count(record.durationMs),
+        count(usage?.reasoningTokens), count(usage?.cachedInputTokens), record.finishReason ?? null, record.errorKind ?? null,
+        record.runId ?? null, record.stepKey ?? null, count(record.attempt), record.escalatedFrom ?? null, record.variant ?? null,
+        record.validation ? JSON.stringify(record.validation) : null);
+  } catch (error) {
+    captureOperationalError(error, 'ai.usage');
+  }
 }
 
 /** A failed structured call, with a code the caller can act on; the message stays generic for people. */
@@ -171,17 +176,14 @@ export async function generateStructured<T extends z.ZodType>(
       // Reasoning tokens count against the output limit; a cut-off answer is not a schema problem.
       if (result.finishReason === 'length') throw new IncompleteResponse();
       const output = schema.parse(result.object);
-      // A usage row that cannot be written must not discard a valid answer or count as a provider failure.
-      await recordUsage({ ...base, status: 'completed', usage, finishReason, durationMs: performance.now() - started, validation: options.validate?.(output) })
-        .catch(recordError => captureOperationalError(recordError, 'ai.usage'));
+      await recordUsage({ ...base, status: 'completed', usage, finishReason, durationMs: performance.now() - started, validation: options.validate?.(output) });
       span.setAttributes({ 'gen_ai.usage.input_tokens': usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': usage?.outputTokens ?? 0, 'lume.outcome': 'completed' });
       return output;
     } catch (error) {
       const kind = errorKindOf(error);
       captureOperationalError(error, 'ai.structured');
       span.setAttribute('lume.outcome', 'failed');
-      await recordUsage({ ...base, status: 'failed', usage, finishReason, errorKind: kind, durationMs: performance.now() - started })
-        .catch(recordError => captureOperationalError(recordError, 'ai.usage'));
+      await recordUsage({ ...base, status: 'failed', usage, finishReason, errorKind: kind, durationMs: performance.now() - started });
       throw new StructuredGenerationError(kind);
     }
   });

@@ -188,4 +188,12 @@ test('feedback triage: shadow mode keeps the answers on record and changes nothi
   assert.equal(view.kind, 'suggestion'); assert.equal(view.module, 'lume'); assert.equal(view.priority, 'p2');
   assert.equal(view.securityFlag, false, 'a shadow answer raises no flag');
   assert.equal(view.classification?.answers.kind?.choice, 'problem', 'the raw answer is kept for comparison');
+
+  // A ticket that already carries a flag and a priority keeps them through a shadow evaluation.
+  const flagged = await createTicket(author, { message: 'Vi o CPF de outro cliente na tela.', pagePath: '/app/cases', kind: 'problem', module: 'cofre' }, null);
+  await testDb.prepare("UPDATE feedback_ticket SET security_flag=true, personal_data_flag=true, severity=3, priority='p0' WHERE id=?").run(flagged.id);
+  await drain(sender({ kind: 'suggestion', module: 'lume', severity: 0, security: 0 }));
+  const kept = (await platformTicket(platform.userId, flagged.id))!;
+  assert.equal(kept.securityFlag, true, 'a shadow answer clears no flag');
+  assert.equal(kept.personalDataFlag, true); assert.equal(kept.priority, 'p0');
 });

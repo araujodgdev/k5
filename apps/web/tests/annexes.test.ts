@@ -109,6 +109,11 @@ test('annexes: the agent waits for Confirmar before cutting pages; the Anexos ta
   const decided = await decideAgentApproval(context, approvalId, 'confirm');
   assert.equal(decided.state, 'confirmed');
   assert.equal(await folders(), before + 1);
+  // A second Confirmar, or a replayed call with the used approval, does not cut the pages again.
+  await assert.rejects(decideAgentApproval(context, approvalId, 'confirm'), (error: unknown) => error instanceof CapabilityError && error.code === 'CONFLICT');
+  await assert.rejects(runCapability({ ...context, invocation: 'agent' }, 'k5_vault_generate_annexes', { caseId: owner.caseId, scanDocumentId: scan, items, approvalId }),
+    (error: unknown) => error instanceof CapabilityError && error.code === 'CONFLICT');
+  assert.equal(await folders(), before + 1);
   // The interface already asked the person, so its call runs at once.
   const direct = await runCapability(context, 'k5_vault_generate_annexes', { caseId: owner.caseId, scanDocumentId: scan, folderName: 'Anexos revisados', items: items.slice(0, 1) }) as { documents: unknown[] };
   assert.equal(direct.documents.length, 1);

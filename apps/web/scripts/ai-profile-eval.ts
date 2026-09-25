@@ -43,11 +43,13 @@ async function main() {
 
   const spent = async () => Number((await testDb.prepare('SELECT coalesce(sum(input_tokens),0)+coalesce(sum(output_tokens),0) AS n FROM ai_usage').get<{ n: number }>())!.n);
   const rows: Array<Record<string, unknown>> = [];
-  for (const setting of configs) {
+  // Reaching the budget stops new calls; what was already paid for still goes into the report.
+  let budgetReached = false;
+  evaluation: for (const setting of configs) {
     const config: ProfileConfig = { provider: 'openai', modelId: setting.modelId, apiKey, connectionId: 'avaliacao', profile: 'extraction_chunk',
       reasoningEffort: setting.reasoningEffort, maxOutputTokens: PROFILE_DEFINITIONS.extraction_chunk.maxOutputTokens };
     for (let round = 0; round < repeat; round++) for (const sample of chronologyCorpus) {
-      if (await spent() > TOKEN_BUDGET) throw new Error('Orçamento da avaliação atingido.');
+      if (await spent() >= TOKEN_BUDGET) { budgetReached = true; break evaluation; }
       const source = { id: sample.id, sourceLabel: sample.label, text: sample.text };
       const started = performance.now();
       const base = { config: `${setting.modelId}:${setting.reasoningEffort}`, sample: sample.id, round };
@@ -82,14 +84,16 @@ async function main() {
       wouldEscalate: done.filter(row => row.escalation).length,
     }];
   }));
-  const report = { date: new Date().toISOString(), limitations: [
+  if (budgetReached) console.error('Orçamento da avaliação atingido: o relatório é parcial.');
+  const report = { date: new Date().toISOString(), budgetReached, limitations: [
     'Amostra sintética pequena, sem revisão humana: serve para conferir o script, não para aprovar troca de modelo.',
     'Recall mede só datas completas; omissão de fatos sem data exige revisão humana.',
   ], summary, usage, rows };
   mkdirSync('.data', { recursive: true });
   const path = resolve('.data/ai-profile-eval.json');
   writeFileSync(path, JSON.stringify(report, null, 2));
-  console.log(JSON.stringify({ report: path, summary }, null, 2));
+  console.log(JSON.stringify({ report: path, budgetReached, summary }, null, 2));
+  if (budgetReached) process.exitCode = 1;
 }
 
 main().catch((error) => {

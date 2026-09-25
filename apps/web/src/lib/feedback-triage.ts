@@ -130,16 +130,21 @@ export async function processNextFeedbackClassification(options: { send?: Decisi
   const triage = classified ? composeTriage(evaluated.response) : null;
   const status = classified ? 'classified' : shadow || evaluated.status === 'disabled' ? 'disabled' : 'unavailable';
   // An admin correction made while the call ran wins: the model result is kept only as the raw record.
+  // Without a classification (shadow, disabled, unavailable) the ticket keeps what it already had.
   await database.batch([
     database.prepare(`UPDATE feedback_ticket SET classification_status=?,classification_json=?,lease_token=NULL,lease_until=0,
         kind=CASE WHEN classified_by='admin' THEN kind ELSE COALESCE(?,kind) END,
         module=CASE WHEN classified_by='admin' THEN module ELSE COALESCE(?,module) END,
-        priority=CASE WHEN classified_by='admin' THEN priority ELSE ? END,
-        severity=?, value_score=?, security_flag=?, personal_data_flag=?,
+        priority=CASE WHEN classified_by='admin' OR NOT ? THEN priority ELSE ? END,
+        severity=CASE WHEN classified_by='admin' OR NOT ? THEN severity ELSE ? END,
+        value_score=CASE WHEN classified_by='admin' OR NOT ? THEN value_score ELSE ? END,
+        security_flag=CASE WHEN classified_by='admin' OR NOT ? THEN security_flag ELSE ? END,
+        personal_data_flag=CASE WHEN classified_by='admin' OR NOT ? THEN personal_data_flag ELSE ? END,
         needs_review=CASE WHEN classified_by='admin' THEN needs_review ELSE ? END,
         classified_by=COALESCE(classified_by, CASE WHEN ? THEN 'model' END)
-      WHERE id=? AND lease_token=?`).bind(status, JSON.stringify(record), triage?.kind ?? null, triage?.module ?? null, triage?.priority ?? 'p2',
-      triage?.severity ?? null, triage?.valueScore ?? null, triage?.securityFlag ?? false, triage?.personalDataFlag ?? false, triage ? triage.needsReview : true, classified, row.id, token),
+      WHERE id=? AND lease_token=?`).bind(status, JSON.stringify(record), triage?.kind ?? null, triage?.module ?? null, classified, triage?.priority ?? 'p2',
+      classified, triage?.severity ?? null, classified, triage?.valueScore ?? null, classified, triage?.securityFlag ?? false,
+      classified, triage?.personalDataFlag ?? false, triage ? triage.needsReview : true, classified, row.id, token),
     database.prepare(`INSERT INTO feedback_ticket_event(id,ticket_id,actor_user_id,kind,details_json)
       SELECT ?,?,NULL,'classified',? WHERE EXISTS(SELECT 1 FROM feedback_ticket WHERE id=? AND classification_json=?)`)
       .bind(randomUUID(), row.id, JSON.stringify({ status, ...(triage ?? {}) }), row.id, JSON.stringify(record)),

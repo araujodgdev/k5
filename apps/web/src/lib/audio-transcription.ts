@@ -2,7 +2,6 @@ import 'server-only';
 import { resolveProfileConfig } from './ai-connections';
 import { modelModalities } from './ai-modalities';
 import { createAgent, profileContext, recordUsage, type ModelCredential } from './ai-runtime';
-import { captureOperationalError } from './observability/report';
 
 const OPENAI_TRANSCRIPTION_MODEL = 'gpt-4o-mini-transcribe';
 
@@ -19,7 +18,6 @@ export async function transcribeAudio(apiKey: string, audio: { mediaType: string
   const record = (status: string, usage?: { input_tokens?: number; output_tokens?: number }) => owner
     ? recordUsage({ officeId: owner.officeId, userId: owner.userId, config: { provider: owner.config.provider, apiKey: owner.config.apiKey, connectionId: owner.config.connectionId, modelId: OPENAI_TRANSCRIPTION_MODEL },
       task: 'transcription-openai', status, usage: { inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens }, durationMs: performance.now() - started })
-      .catch(error => captureOperationalError(error, 'ai.usage'))
     : Promise.resolve();
   try {
     const { text, usage } = await requestTranscription(apiKey, audio, signal);

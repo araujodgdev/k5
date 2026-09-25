@@ -156,7 +156,7 @@ test('escalation: code checks, not the model, decide when a passage is redone', 
   assert.equal(textHasDate('processo 123/2024'), false);
 });
 
-test('escalation: the second model replaces a rejected passage; a failed escalation keeps the first; shadow never decides', async () => {
+test('escalation: a checked second answer replaces a rejected passage; otherwise the first stands; shadow never decides or waits', async () => {
   const source = 'O contrato foi assinado em 05/03/2024 pelas partes.';
   const event = (date: string) => ({ date, description: 'Assinatura', quote: 'O contrato foi assinado em 05/03/2024' });
   const extraction = (date: string, producedBy: string) => ({ events: [event(date)], gaps: [], sourceId: 's1', sourceLabel: 'Contrato', producedBy });
@@ -190,6 +190,22 @@ test('escalation: the second model replaces a rejected passage; a failed escalat
     'gpt-6-luna': { returned: 1, extraction: extraction('2024-03-06', 'gpt-6-luna') }, 'gpt-6-sol': { error: 'timeout' }, 'shadow-model': { error: 'provider' },
   }), {});
   assert.equal(fallback.producedBy, 'gpt-6-luna');
+  // The second answer fails the checks too, or the call rejects: the first answer is not replaced.
+  const emptied = await extractWithEscalation(source, plan, attempts({
+    'gpt-6-luna': { returned: 2, extraction: extraction('2024-03-05', 'gpt-6-luna') }, 'gpt-6-sol': { returned: 0, extraction: { ...extraction('2024-03-05', 'gpt-6-sol'), events: [] } },
+    'shadow-model': { error: 'provider' },
+  }), {});
+  assert.equal(emptied.producedBy, 'gpt-6-luna', 'an empty second answer does not erase the events the first one kept');
+  const rejected = await extractWithEscalation(source, plan, async (pinned, meta) => {
+    if (meta.variant === 'escalate') throw new Error('conexão removida');
+    return { returned: 1, extraction: extraction('2024-03-06', pinned?.modelId ?? '') };
+  }, {});
+  assert.equal(rejected.producedBy, 'gpt-6-luna');
+  // A slow shadow model does not hold the passage.
+  const idle = await extractWithEscalation(source, plan, (pinned) => pinned?.modelId === 'shadow-model'
+    ? new Promise<ChunkAttempt>(() => undefined)
+    : Promise.resolve({ returned: 1, extraction: extraction('2024-03-05', pinned?.modelId ?? '') }), {});
+  assert.equal(idle.producedBy, 'gpt-6-luna');
   await assert.rejects(extractWithEscalation(source, plan, attempts({ 'gpt-6-luna': { error: 'incomplete' }, 'gpt-6-sol': { error: 'provider' }, 'shadow-model': { error: 'provider' } }), {}),
     (error: unknown) => error instanceof StructuredGenerationError && error.kind === 'incomplete');
   // Without an escalation model a failure fails as before, even when the shadow model succeeded.
