@@ -5,7 +5,7 @@ import { testDb } from './test-setup';
 import { googleFixture, installFakeGoogle, respond, setRule } from './google-fixture';
 import { accessToken, completeGoogleConnect, disconnectGoogle, startGoogleConnect, requireConnection } from '../src/lib/google/connections';
 import { runGoogleOperation, markOperationEffect, type OperationSpec } from '../src/lib/google/operations';
-import { setGoogleTransport } from '../src/lib/google/transport';
+import { GoogleApiError, setGoogleTransport } from '../src/lib/google/transport';
 import { approveProposal, approvalIdFromMessage } from '../src/lib/application/approvals-service';
 import { decryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
 import { googleApprovalReview } from '../src/lib/google/approval-review';
@@ -51,6 +51,22 @@ test('OAuth: state pessoal, uso único, consentimento parcial e logout não desc
   await testDb.prepare('DELETE FROM session WHERE id=?').run(sessionId);
   assert.equal(await accessToken(row.id), 'secret-access');
   await assert.rejects(() => requireConnection(owner, 'gmail'), /autorizou/);
+});
+
+test('OAuth: a token redirect is reported as a Google refusal with its status, a lost request as a network failure', async (t) => {
+  const f = await googleFixture({ connect: false });
+  const owner = { ...f.context, sessionId: await session(f.userId) };
+  const fake = installFakeGoogle();
+  const warnings: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { warnings.push(args); });
+  fake.on('POST', /\/token$/, () => { throw new GoogleApiError(302, 'redirect', 'Google recusou a operação (302).'); }, 1);
+  let state = new URL((await startGoogleConnect(owner, ['gmail'])).url).searchParams.get('state');
+  assert.equal((await completeGoogleConnect(owner, { state, code: 'code' })).outcome, 'failed');
+  assert.deepEqual(warnings.at(-1), ['google.oauth.callback failed: token_rejected', { status: '302', google_error: 'redirect' }]);
+  fake.failNetwork('POST', /\/token$/);
+  state = new URL((await startGoogleConnect(owner, ['gmail'])).url).searchParams.get('state');
+  assert.equal((await completeGoogleConnect(owner, { state, code: 'code' })).outcome, 'failed');
+  assert.equal(warnings.at(-1)?.[0], 'google.oauth.callback failed: token_network');
 });
 
 test('renovação concorrente usa um refresh; desconexão impede retorno tardio do token', async () => {
@@ -157,4 +173,21 @@ test('manutenção recupera admissão interrompida e trabalhos Google acordam No
   assert.equal((await testDb.prepare('SELECT used FROM google_usage_counter WHERE user_id=?').get<{used:number}>(f.userId))?.used,0);
   await testDb.prepare(`INSERT INTO google_job(id,office_id,user_id,connection_id,kind,runtime,status,run_after) VALUES(?,?,?,?,'drive_import','node','queued',CURRENT_TIMESTAMP)`).run(randomUUID(),f.officeId,f.userId,f.connectionId);
   assert.equal((await dueProcessors(testDb,Date.now(),false)).documents,true);
+});
+
+test('the fetch transport never asks Workers for redirect "error" and treats a Google redirect as a refusal', async () => {
+  const original = globalThis.fetch;
+  let redirect: RequestRedirect | undefined;
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    redirect = init.redirect;
+    return new Response(null, { status: 302, headers: { location: 'https://example.com/' } });
+  }) as typeof fetch;
+  try {
+    const { fetchTransport, GoogleApiError } = await import('../src/lib/google/transport');
+    await assert.rejects(
+      fetchTransport.request({ url: 'https://oauth2.googleapis.com/token', method: 'POST', headers: {}, body: '', timeoutMs: 1_000, maxBytes: 1_000 }),
+      (error: unknown) => error instanceof GoogleApiError && error.status === 302,
+    );
+    assert.equal(redirect, 'manual');
+  } finally { globalThis.fetch = original; }
 });

@@ -27,7 +27,7 @@ export interface GoogleTransport { request(request: TransportRequest): Promise<T
 
 /** Thrown when the request may or may not have reached Google (timeout, reset). */
 export class GoogleNetworkError extends Error {
-  constructor(public readonly phase: 'connect' | 'response', message = 'Google não respondeu a tempo.') { super(message); }
+  constructor(public readonly phase: 'connect' | 'response', message = 'Google não respondeu a tempo.', options?: ErrorOptions) { super(message, options); }
 }
 
 export class GoogleApiError extends Error {
@@ -69,17 +69,23 @@ export const fetchTransport: GoogleTransport = {
     try {
       response = await fetch(request.url, {
         method: request.method, headers: request.headers,
-        body: request.body as BodyInit | undefined, signal: controller.signal, redirect: 'error',
+        // Workers reject redirect: 'error' before sending; 'manual' plus the check below never follows.
+        body: request.body as BodyInit | undefined, signal: controller.signal, redirect: 'manual',
       });
-    } catch {
+    } catch (error) {
       clearTimeout(timer);
       // The request may have been delivered; callers of writes treat this as an unknown outcome.
-      throw new GoogleNetworkError('connect');
+      throw new GoogleNetworkError('connect', undefined, { cause: error });
+    }
+    if (response.status >= 300 && response.status < 400) {
+      clearTimeout(timer);
+      await response.body?.cancel();
+      throw new GoogleApiError(response.status, 'redirect', `Google recusou a operação (${response.status}).`);
     }
     try { return { status: response.status, headers: response.headers, body: await readLimited(response, request.maxBytes) }; }
     catch (error) {
       if (error instanceof GoogleApiError) throw error;
-      throw new GoogleNetworkError('response');
+      throw new GoogleNetworkError('response', undefined, { cause: error });
     } finally { clearTimeout(timer); }
   },
 };

@@ -107,6 +107,23 @@ function idTokenClaims(idToken: string, clientId: string) {
   return { subject: payload.sub, email: payload.email.toLowerCase(), name: payload.name ?? null };
 }
 
+/** OAuth error codes Google documents for the token endpoint; anything else is reported as `other`. */
+const tokenErrorCodes = new Set(['invalid_request', 'invalid_client', 'invalid_grant', 'unauthorized_client', 'unsupported_grant_type', 'invalid_scope', 'redirect_uri_mismatch', 'access_denied']);
+function tokenErrorCode(body: Uint8Array) {
+  try {
+    const code = decodeJson<{ error?: unknown }>(body).error;
+    return typeof code === 'string' && tokenErrorCodes.has(code) ? code : 'other';
+  } catch { return 'unreadable'; }
+}
+
+/** A failed connection used to leave no trace; the reason goes to logs and Sentry, never token data. */
+function connectFailure(reason: string, error?: unknown, tags: Record<string, string> = {}) {
+  // The runtime's own error class (TypeError, AbortError) says whether fetch refused or timed out.
+  const cause = error instanceof Error && error.cause instanceof Error ? error.cause.name : undefined;
+  console.warn(`google.oauth.callback failed: ${reason}`, cause ? { ...tags, cause } : tags);
+  captureOperationalError(error ?? new Error(reason), 'google.oauth.callback', { reason, ...tags });
+}
+
 export type CallbackResult = { outcome: 'connected' | 'partial' | 'denied' | 'invalid' | 'other_account' | 'account_in_use' | 'failed'; missing?: GoogleModule[] };
 
 /** Completes the flow. Everything that could bind a token to the wrong person is checked before storing it. */
@@ -125,10 +142,22 @@ export async function completeGoogleConnect(
   const response = await tokenRequest({
     code: params.code, client_id: config.clientId, client_secret: config.clientSecret, redirect_uri: config.redirectUri,
     grant_type: 'authorization_code', code_verifier: decryptCredential(state.encrypted_verifier, keyring()),
-  }).catch(() => null);
-  if (!response || response.status !== 200) return { outcome: 'failed' };
+  }).catch((error: unknown) => {
+    // The transport refuses redirects and oversized bodies itself; those are Google answering, not the network failing.
+    if (error instanceof GoogleApiError) connectFailure('token_rejected', error, { status: String(error.status), google_error: ['redirect', 'too_large'].includes(error.reason) ? error.reason : 'other' });
+    else connectFailure('token_network', error);
+    return null;
+  });
+  if (!response) return { outcome: 'failed' };
+  if (response.status !== 200) {
+    connectFailure('token_rejected', undefined, { status: String(response.status), google_error: tokenErrorCode(response.body) });
+    return { outcome: 'failed' };
+  }
   const token = decodeJson<TokenResponse>(response.body);
-  if (!token.id_token || !token.access_token || !Number.isFinite(token.expires_in) || token.expires_in <= 0) return { outcome: 'failed' };
+  if (!token.id_token || !token.access_token || !Number.isFinite(token.expires_in) || token.expires_in <= 0) {
+    connectFailure('token_incomplete');
+    return { outcome: 'failed' };
+  }
   const identity = idTokenClaims(token.id_token, config.clientId);
   const granted = (token.scope ?? '').split(/\s+/).filter(Boolean);
   const existing = await findLiveConnection(owner, db);
@@ -138,7 +167,10 @@ export async function completeGoogleConnect(
   }
   if ((existing?.id ?? null) !== state.connection_id || (existing && existing.authorization_generation !== state.connection_generation)) return { outcome: 'invalid' };
   const refresh = token.refresh_token ?? (existing?.encrypted_refresh_token ? decryptCredential(existing.encrypted_refresh_token, keyring()) : null);
-  if (!refresh) return { outcome: 'failed' };
+  if (!refresh) {
+    connectFailure('no_refresh_token');
+    return { outcome: 'failed' };
+  }
   const ring = keyring();
   const expiresAt = new Date(Date.now() + Math.max(60, token.expires_in - 60) * 1000).toISOString();
   try {

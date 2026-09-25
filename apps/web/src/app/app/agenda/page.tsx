@@ -1,7 +1,7 @@
 import { requireWorkspace } from '@/lib/session';
 import { AgendaWorkspace } from '@/components/agenda-workspace';
 
-export const metadata = { title: 'Tarefas e Agenda' };
+export const metadata = { title: 'Escritório' };
 
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { office } = await requireWorkspace();

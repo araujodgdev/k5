@@ -28,7 +28,7 @@ export const reportKindLabels: Record<ReportKind, string> = { problem: 'Problema
 /** The places the person can point to, in the order of the app's navigation. */
 export const reportModules = ['lume', 'cofre', 'pesquisa', 'agenda', 'email', 'documentos', 'notificacoes', 'integracoes', 'conta', 'instalacao', 'nao_identificado'] as const satisfies readonly TicketModule[];
 export const reportModuleLabels: Record<(typeof reportModules)[number], string> = {
-  lume: 'Lume', cofre: 'Cofre', pesquisa: 'Pesquisa', agenda: 'Tarefas e Agenda', email: 'E-mails', documentos: 'Documentos e minutas',
+  lume: 'Lume', cofre: 'Cofre', pesquisa: 'Pesquisa', agenda: 'Escritório', email: 'E-mails', documentos: 'Documentos e minutas',
   notificacoes: 'Notificações', integracoes: 'Integrações', conta: 'Conta e acesso', instalacao: 'Instalação do aplicativo', nao_identificado: 'Outro lugar',
 };
 /** The module of the screen the person is on, as the dialog's first guess. */
