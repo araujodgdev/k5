@@ -175,3 +175,17 @@ test('feedback admin: platform-only, versioned updates, history and a notificati
   assert.ok(!(await platformTickets(platform.userId, {})).tickets.some(item => item.id === ticket.id));
   assert.ok((await platformTickets(platform.userId, { status: 'resolved' })).tickets.some(item => item.id === ticket.id));
 });
+
+test('feedback triage: shadow mode keeps the answers on record and changes nothing in the queue', async () => {
+  const author = await member();
+  const platform = await admin();
+  await saveConnection(platform.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true, feedback: 'shadow', version: (await connectionView()).version }));
+  const ticket = await createTicket(author, { message: 'A exportação da minuta falhou.', pagePath: '/app/documents', kind: 'suggestion', module: 'lume' }, null);
+  await drain(sender({ kind: 'problem', module: 'cofre', severity: 3, security: 0.95 }));
+  const view = (await platformTicket(platform.userId, ticket.id))!;
+  assert.equal(view.classificationStatus, 'disabled');
+  assert.equal(view.classifiedBy, null, 'the model did not classify the ticket');
+  assert.equal(view.kind, 'suggestion'); assert.equal(view.module, 'lume'); assert.equal(view.priority, 'p2');
+  assert.equal(view.securityFlag, false, 'a shadow answer raises no flag');
+  assert.equal(view.classification?.answers.kind?.choice, 'problem', 'the raw answer is kept for comparison');
+});

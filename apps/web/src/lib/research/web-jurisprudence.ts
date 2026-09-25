@@ -2,7 +2,7 @@ import 'server-only';
 import type { Questions } from '@typesafe-ai/sdk';
 import { webSearchTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { createAgent, recordUsage, RequestContext } from '@/lib/ai-runtime';
+import { createAgent, errorKindOf, profileContext, recordUsage } from '@/lib/ai-runtime';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { evaluate, type DecisionTransport } from '@/lib/typesafe/client';
 import { exaApiKey, exaWebSearchTool } from '@/lib/agent-web-search';
@@ -76,7 +76,7 @@ export function groundCandidates(candidates: WebCandidate[], sources: string[]) 
 
 async function providerSearch(officeId: string, userId: string, query: string, signal?: AbortSignal) {
   const instructions = 'Você pesquisa jurisprudência brasileira na web para advogados. Responda apenas com JSON.';
-  const created = await createAgent('chat', instructions, { web_search: webSearchTool });
+  const created = await createAgent('research_web', instructions, { web_search: webSearchTool });
   const { config } = created;
   // Providers without their own search use Exa; the links then come from the tool's results.
   const native = WEB_SEARCH_PROVIDERS.has(config.provider);
@@ -84,17 +84,16 @@ async function providerSearch(officeId: string, userId: string, query: string, s
   if (!native && !exaKey) {
     throw new CapabilityError('NOT_READY', 'O modelo configurado não pesquisa na web. Peça ao administrador um modelo OpenAI, Anthropic ou Google, ou a configuração da busca Exa.');
   }
-  const agent = native ? created.agent : (await createAgent('chat', instructions, { web_search: exaWebSearchTool(exaKey!) })).agent;
-  const ctx = new RequestContext();
-  ctx.set('provider', config.provider); ctx.set('modelId', config.modelId); ctx.set('apiKey', config.apiKey);
+  const agent = native ? created.agent : (await createAgent('research_web', instructions, { web_search: exaWebSearchTool(exaKey!) })).agent;
   const prompt = `Pesquise na web julgados de tribunais brasileiros sobre a questão abaixo. Prefira páginas oficiais de tribunais (stf.jus.br, stj.jus.br, tst.jus.br, tribunais regionais e estaduais) e repositórios de inteiro teor.
 Devolva somente um array JSON com até ${MAX_CANDIDATES} itens, cada um com: "title" (identificação do julgado), "court" (sigla do tribunal), "caseNumber" (número do processo ou null), "date" (data de julgamento ou publicação ou null), "url" (a página exata que você consultou) e "summary" (ementa ou resumo fiel em até 600 caracteres).
 Use apenas páginas que você abriu nesta pesquisa. Não invente julgados, números nem links. Notícias e artigos só entram se o link levar ao julgado.
 
 Questão: ${query}`;
+  const started = performance.now();
   try {
     const result = await agent.generate(prompt, {
-      requestContext: ctx, maxSteps: 6, modelSettings: { maxOutputTokens: 6000 },
+      requestContext: profileContext(config), maxSteps: 6, modelSettings: { maxOutputTokens: config.maxOutputTokens },
       abortSignal: AbortSignal.any([AbortSignal.timeout(120_000), ...(signal ? [signal] : [])]),
     });
     if (result.error || result.finishReason === 'error') throw new Error('web_search_failed');
@@ -107,10 +106,12 @@ Questão: ${query}`;
         const output = ((item as { payload?: { result?: unknown } }).payload ?? (item as { result?: unknown })).result as { results?: Array<{ url?: unknown }> } | undefined;
         return (output?.results ?? []).flatMap(page => typeof page.url === 'string' ? [page.url] : []);
       });
-    await recordUsage(officeId, userId, config, 'research-web', 'completed', result.usage);
+    await recordUsage({ officeId, userId, config, task: 'research-web', status: 'completed', usage: result.usage, finishReason: result.finishReason,
+      durationMs: performance.now() - started, validation: { sources: sources.length } });
     return { text: result.text, sources };
   } catch (error) {
-    await recordUsage(officeId, userId, config, 'research-web', signal?.aborted ? 'cancelled' : 'failed');
+    await recordUsage({ officeId, userId, config, task: 'research-web', status: signal?.aborted ? 'cancelled' : 'failed',
+      errorKind: signal?.aborted ? 'cancelled' : errorKindOf(error), durationMs: performance.now() - started });
     if (error instanceof CapabilityError) throw error;
     throw new CapabilityError('NOT_READY', 'A pesquisa na web não respondeu. Tente de novo em instantes.');
   }
@@ -130,7 +131,8 @@ export async function assessCandidates(context: { officeId: string; userId: stri
     state: { query, candidates: candidates.map(({ title, court, caseNumber, date, summary, url }) => ({ title, court, caseNumber, date, summary: summary.slice(0, 700), host: new URL(url).hostname })) },
     questions, questionVersion: webJurisprudenceQuestionVersion,
   }, { signal: options.signal, send: options.send, deadlineMs: 15_000 });
-  if (evaluation.status !== 'evaluated' || !evaluation.response) {
+  // In shadow mode Jev's scores are recorded by `evaluate` but must not filter what the person sees.
+  if (evaluation.status !== 'evaluated' || !evaluation.response || evaluation.mode !== 'enabled') {
     return { results: candidates.map(item => ({ ...item, relevance: null, relevanceLabel: null })), evaluated: false };
   }
   const answers = evaluation.response.answers;

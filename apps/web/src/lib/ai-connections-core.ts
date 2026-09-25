@@ -171,6 +171,8 @@ export async function deleteAiConnection(db: Database, actorUserId: string, conn
   const current = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id IS NULL AND deleted_at IS NULL").get(connectionId) as Row | undefined;
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   if (current.chat_model || current.extraction_model || current.drafting_model || current.embedding_model) throw new AiConnectionError("in_use", "Remova as atribuições de modelos antes de excluir a conexão.");
+  const profiled = await db.prepare("SELECT 1 FROM ai_profile_override WHERE ? IN (connection_id, escalate_connection_id, shadow_connection_id) LIMIT 1").get(connectionId);
+  if (profiled) throw new AiConnectionError("in_use", "Remova os ajustes por etapa que usam esta conexão antes de excluí-la.");
   // The secret is erased and the deletion is recorded together: a connection whose key is gone
   // with no audit row is a deletion nobody can account for.
   await db.batch([
@@ -231,6 +233,13 @@ export async function resolveModelConfigFromDatabase(
   throw new AiConnectionError("not_found", task === "embedding"
     ? "Nenhuma conexão ativa da plataforma oferece embeddings."
     : "Nenhuma conexão de IA ativa na plataforma.");
+}
+
+/** One enabled platform connection with an explicit model, or null when it is gone or disabled. */
+export async function connectionModelConfig(db: Database, key: MasterKey, connectionId: string, modelId: string): Promise<ResolvedModelConfig | null> {
+  const row = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id IS NULL AND enabled = 1 AND deleted_at IS NULL").get(connectionId) as Row | undefined;
+  if (!row?.encrypted_api_key) return null;
+  return { provider: row.provider, modelId, apiKey: readSecret(row.encrypted_api_key, key), connectionId: row.id };
 }
 
 export type ResolvedModelConfig = {

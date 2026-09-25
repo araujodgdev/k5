@@ -124,9 +124,11 @@ export async function processNextFeedbackClassification(options: { send?: Decisi
       ...(answer.type === 'score' ? { score: answer.score, confidence: answer.confidence } : {}), ...(answer.type === 'noul' ? { noul: answer.noul } : {}),
     }])),
   };
-  const classified = evaluated.status === 'evaluated';
+  // Shadow mode keeps Jev's answers in the raw record only; kind, module and priority stay untouched.
+  const shadow = evaluated.status === 'evaluated' && evaluated.mode !== 'enabled';
+  const classified = evaluated.status === 'evaluated' && !shadow;
   const triage = classified ? composeTriage(evaluated.response) : null;
-  const status = classified ? 'classified' : evaluated.status === 'disabled' ? 'disabled' : 'unavailable';
+  const status = classified ? 'classified' : shadow || evaluated.status === 'disabled' ? 'disabled' : 'unavailable';
   // An admin correction made while the call ran wins: the model result is kept only as the raw record.
   await database.batch([
     database.prepare(`UPDATE feedback_ticket SET classification_status=?,classification_json=?,lease_token=NULL,lease_until=0,
