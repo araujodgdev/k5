@@ -12,7 +12,8 @@ const password = "Senha-teste-2026!";
 
 async function fixture() {
   const { db, database, pool } = await postgresFixture({seedDefaults:false});
-  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600 });
+  // validateSchema: other test files drop their schemas while this one runs (see auth-core.ts).
+  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, validateSchema: false });
   async function signup(email: string) {
     const response = await auth.handler(new Request(`${origin}/api/auth/sign-up/email`, {
       method: "POST", headers: { "content-type": "application/json", origin },

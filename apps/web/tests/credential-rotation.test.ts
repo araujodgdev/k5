@@ -102,6 +102,8 @@ test('real route requires a live platform session, same origin and the reviewed 
   process.env.BETTER_AUTH_URL = 'http://localhost:3000';
   process.env.K5_CREDENTIALS_KEY = randomBytes(32).toString('base64');
   delete process.env.K5_CREDENTIALS_NEXT_KEY;
+  // Other test files drop their schemas while this one runs (see auth-core.ts).
+  process.env.K5_AUTH_SCHEMA_CHECK = 'off';
   const { db, pool } = await postgresFixture({ seedDefaults: false });
   // Route imports use the same process-wide Node backend, with an isolated fixture pool.
   const backend = globalThis as typeof globalThis & { k5Postgres?: { database: typeof db; store: typeof pool } };

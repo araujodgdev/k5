@@ -15,7 +15,7 @@ export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
  * hook writes Lume's tables through `db`. They are the same database; the two handles exist because
  * Better Auth needs a backend it recognises and Lume needs the async seam in `db/types.ts`.
  */
-export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[]; ipHeaders?: string[] }) {
+export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[]; ipHeaders?: string[]; validateSchema?: boolean }) {
   return betterAuth({
     appName: "Lume",
     database: store,
@@ -40,6 +40,10 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
         // means no trusted header: every client shares one bucket instead of spoofing its own.
         ipAddressHeaders: settings.ipHeaders ?? ["cf-connecting-ip"],
       },
+      // Better Auth checks its tables on the first request by listing the columns of every schema
+      // in the database. Tests share one server across many short-lived schemas, and one dropped
+      // mid-listing fails that request, so they turn the check off. The app keeps the default.
+      ...(settings.validateSchema === false ? { database: { validateSchema: false } } : {}),
     },
     rateLimit: {
       enabled: true,
