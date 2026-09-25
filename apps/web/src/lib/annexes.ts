@@ -120,7 +120,7 @@ ${pageText}
 
 Petição:
 ${petition}`;
-  const raw = await generateStructured(owner.officeId, owner.userId, 'annex_plan', prompt, annexModelOutput);
+  const raw = await generateStructured(owner.officeId, owner.userId, 'extraction', prompt, annexModelOutput);
   return { pageCount, ...orderAnnexPlan(raw, pageCount, petition) };
 }
 

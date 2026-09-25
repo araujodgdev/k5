@@ -168,20 +168,8 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   tabela `platform_admin`, independente do papel no escritório, e só é concedido pela linha
   de comando: `pnpm platform:admin grant --email usuario@exemplo.com` (`revoke` retira).
   Chaves ficam cifradas com AES-256-GCM e nunca voltam ao navegador; operações são auditadas.
-  Conexões OpenAI enviam `reasoningEffort: 'xhigh'` por padrão. Em **Ajustes por etapa** o
-  administrador pode dar a cada etapa (conversa, pesquisa na web, cronologia por trecho,
-  divergências, plano de anexos, minutas) outra conexão, modelo, esforço e limite de saída; sem
-  ajuste, a etapa herda o modelo do Lume. Cronologias e minutas guardam o modelo e o esforço de
-  cada etapa ao entrar na fila (`ai_run.model_profiles`), então uma mudança só vale para execuções
-  novas. A cronologia por trecho aceita um modelo de escalonamento, que refaz o trecho quando o
-  código reprova o resultado (falha de esquema ou resposta cortada, mais de 20% dos eventos sem
-  citação literal, nenhum evento num trecho com data, data que não está no trecho), e um modelo
-  em sombra, que roda junto só para comparação. O modelo escolhido precisa aceitar o esforço
-  configurado; não há redução silenciosa. `ai_usage` registra etapa, esforço, latência, tokens
-  de raciocínio e em cache, tipo de erro, execução e escalonamento, sempre sem prompt nem
-  resposta; a aba IA mostra o uso dos últimos 7 dias. Embeddings e a transcrição OpenAI também
-  registram uso. `pnpm ai:eval` compara modelos e esforços na extração da cronologia com dados
-  sintéticos (opt-in, pago, `OPENAI_EVAL_KEY` e `TEST_DATABASE_URL`).
+  Conexões OpenAI enviam `reasoningEffort: 'xhigh'` em chat, geração estruturada e teste
+  de credencial. O modelo escolhido precisa aceitar esse esforço; não há redução silenciosa.
 - **Rotação da chave mestra:** siga os comentários de `.env.example` e execute
   `pnpm platform:admin rotate-key --email <administrador da plataforma>`.
 - **Cofre (`/app/vault`):** casos e biblioteca; PDF (com OCR), DOCX, EML, XLSX, CSV e TXT
@@ -191,8 +179,7 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   escritório propõe os documentos e as páginas; o código ordena pela primeira citação na petição
   e deixa desmarcados os não citados. Depois da revisão, `pdf-lib` recorta os intervalos e salva
   cada anexo numa nova pasta do caso, numerado e sem acentos (`01_procuracao.pdf`). Nada é gerado
-  sem confirmação; o Lume usa as mesmas capacidades (`k5_vault_plan_annexes`, `k5_vault_generate_annexes`),
-  e a geração pedida no chat espera o botão Confirmar.
+  sem confirmação; o Lume usa as mesmas capacidades (`k5_vault_plan_annexes`, `k5_vault_generate_annexes`).
 - **Lume (`/app/agents`):** conversa com histórico por usuário. O botão **+** envia documentos
   e imagens privados para a conversa, com prévia, remoção antes do envio e acesso no histórico.
   Aceita até seis anexos por mensagem, escolhidos de uma vez, com documentos de até 25 MB e imagens de até 10 MB. Eles não criam documentos no Cofre.

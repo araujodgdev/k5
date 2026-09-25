@@ -1,12 +1,11 @@
 import { PROVIDER_REGISTRY } from '@mastra/core/llm';
 import { AI_PROVIDERS, type AiProvider } from './ai-connections-core';
-import { DEFAULT_REASONING_EFFORT, type ReasoningEffort } from './ai-profiles';
 
 export type ModelCredential = { provider: AiProvider; modelId: string; apiKey: string };
 
-/** Shared by chat, structured generation and credential checks. Each step may set its own effort. */
-export function modelProviderOptions(provider: AiProvider, reasoningEffort: ReasoningEffort = DEFAULT_REASONING_EFFORT) {
-  return provider === 'openai' ? { openai: { reasoningEffort } } : undefined;
+/** Shared by chat, structured generation and credential checks. */
+export function modelProviderOptions(provider: AiProvider) {
+  return provider === 'openai' ? { openai: { reasoningEffort: 'xhigh' as const } } : undefined;
 }
 
 // Provider ids match Mastra's model router, which already knows each endpoint, protocol and model catalog.

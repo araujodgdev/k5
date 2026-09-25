@@ -2,7 +2,6 @@ import 'server-only';
 import { resolveModelConfig } from '@/lib/ai-connections';
 import { AiConnectionError, type AiProvider } from '@/lib/ai-connections-core';
 import { CapabilityError } from '@/lib/capabilities/errors';
-import { recordUsage } from '@/lib/ai-runtime';
 
 export type EmbeddingProfile = { provider: AiProvider; modelId: string; apiKey: string; connectionId: string };
 
@@ -50,11 +49,7 @@ export async function embeddingProfile(): Promise<EmbeddingProfile> {
   return config;
 }
 
-/** Who the vectors were computed for; usage is recorded per office, like every other model call. */
-export type EmbeddingOwner = { officeId: string; userId: string | null };
-type Embedded = { vectors: Float32Array[]; inputTokens?: number };
-
-async function embedOpenAiCompatible(profile: EmbeddingProfile, url: string, inputs: string[]): Promise<Embedded> {
+async function embedOpenAiCompatible(profile: EmbeddingProfile, url: string, inputs: string[]): Promise<Float32Array[]> {
   const response = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${profile.apiKey}`, 'Content-Type': 'application/json' },
@@ -65,14 +60,14 @@ async function embedOpenAiCompatible(profile: EmbeddingProfile, url: string, inp
     // Provider bodies can echo the request or a masked key; only the status leaves this function.
     throw new EmbeddingUnavailableError(`O provedor de embedding respondeu ${response.status}.`);
   }
-  const body = await response.json() as { data?: Array<{ embedding: number[]; index: number }>; usage?: { prompt_tokens?: number } };
+  const body = await response.json() as { data?: Array<{ embedding: number[]; index: number }> };
   const rows = body.data ?? [];
   if (rows.length !== inputs.length) throw new EmbeddingUnavailableError('O provedor de embedding devolveu menos vetores que o solicitado.');
   const ordered = [...rows].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
-  return { vectors: ordered.map((row) => Float32Array.from(row.embedding)), inputTokens: body.usage?.prompt_tokens };
+  return ordered.map((row) => Float32Array.from(row.embedding));
 }
 
-async function embedGoogle(profile: EmbeddingProfile, inputs: string[]): Promise<Embedded> {
+async function embedGoogle(profile: EmbeddingProfile, inputs: string[]): Promise<Float32Array[]> {
   const model = profile.modelId.startsWith('models/') ? profile.modelId : `models/${profile.modelId}`;
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/${model}:batchEmbedContents`,
@@ -87,22 +82,13 @@ async function embedGoogle(profile: EmbeddingProfile, inputs: string[]): Promise
   const body = await response.json() as { embeddings?: Array<{ values: number[] }> };
   const rows = body.embeddings ?? [];
   if (rows.length !== inputs.length) throw new EmbeddingUnavailableError('O provedor de embedding devolveu menos vetores que o solicitado.');
-  return { vectors: rows.map((row) => Float32Array.from(row.values)) };
+  return rows.map((row) => Float32Array.from(row.values));
 }
 
-export async function embedTexts(profile: EmbeddingProfile, inputs: string[], owner?: EmbeddingOwner): Promise<Float32Array[]> {
+export async function embedTexts(profile: EmbeddingProfile, inputs: string[]): Promise<Float32Array[]> {
   if (!inputs.length) return [];
   const url = OPENAI_COMPATIBLE[profile.provider];
-  const started = performance.now();
-  let embedded: Embedded;
-  try {
-    embedded = url ? await embedOpenAiCompatible(profile, url, inputs) : await embedGoogle(profile, inputs);
-  } catch (error) {
-    if (owner) await recordEmbeddingUsage(owner, profile, 'failed', started, inputs.length);
-    throw error;
-  }
-  if (owner) await recordEmbeddingUsage(owner, profile, 'completed', started, inputs.length, embedded.inputTokens);
-  const vectors = embedded.vectors;
+  const vectors = url ? await embedOpenAiCompatible(profile, url, inputs) : await embedGoogle(profile, inputs);
   const dimension = vectors[0]?.length ?? 0;
   if (!dimension) throw new EmbeddingUnavailableError('O provedor de embedding devolveu um vetor vazio.');
   if (vectors.some((vector) => vector.length !== dimension)) {
@@ -111,16 +97,10 @@ export async function embedTexts(profile: EmbeddingProfile, inputs: string[], ow
   return vectors;
 }
 
-// recordUsage reports its own write failures, so the search or indexing it describes is never lost.
-async function recordEmbeddingUsage(owner: EmbeddingOwner, profile: EmbeddingProfile, status: string, started: number, inputs: number, inputTokens?: number) {
-  await recordUsage({ ...owner, config: { ...profile, profile: 'embedding' }, task: 'embedding', status, usage: { inputTokens },
-    durationMs: performance.now() - started, validation: { inputs } });
-}
-
 /** One query vector. The model never supplies this: the server embeds the query it was given. */
-export async function embedQuery(query: string, owner?: EmbeddingOwner): Promise<{ embedding: Float32Array; profile: EmbeddingProfile }> {
+export async function embedQuery(query: string): Promise<{ embedding: Float32Array; profile: EmbeddingProfile }> {
   const profile = await embeddingProfile();
-  const [embedding] = await embedTexts(profile, [query], owner);
+  const [embedding] = await embedTexts(profile, [query]);
   if (!embedding) throw new EmbeddingUnavailableError('Não foi possível gerar o vetor da consulta.');
   return { embedding, profile };
 }
