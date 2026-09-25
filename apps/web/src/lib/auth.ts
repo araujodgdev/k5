@@ -14,6 +14,8 @@ const settings = {
   // header is only trusted when the operator names the one their own proxy overwrites.
   ipHeaders: process.env.K5_RUNTIME === 'cloudflare' ? ['cf-connecting-ip']
     : process.env.K5_CLIENT_IP_HEADER ? [process.env.K5_CLIENT_IP_HEADER.trim().toLowerCase()] : [],
+  // Only tests set this: they share one PostgreSQL across many schemas (see auth-core.ts).
+  validateSchema: process.env.K5_AUTH_SCHEMA_CHECK === 'off' ? false : undefined,
 };
 const instances = new WeakMap<Pool, ReturnType<typeof createAuth>>();
 function currentAuth() {

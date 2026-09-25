@@ -10,7 +10,8 @@ const password = "Senha-teste-2026!";
 
 async function fixture(ipHeaders?: string[]) {
   const { db, database, pool } = await postgresFixture({seedDefaults:false});
-  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders });
+  // validateSchema: other test files drop their schemas while this one runs (see auth-core.ts).
+  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders, validateSchema: false });
   async function request(path: string, body?: object, cookie = "", requestOrigin = origin, connectingIp?: string) {
     const response = await auth.handler(new Request(`${origin}/api/auth${path}`, {
       method: body ? "POST" : "GET",
@@ -32,6 +33,14 @@ async function fixture(ipHeaders?: string[]) {
   }
   return { db, database, auth, request, signup };
 }
+
+test("a conferência de schema do Better Auth fica ligada no app e só desliga quando pedido", async () => {
+  const { database, pool } = await postgresFixture({seedDefaults:false});
+  const settings = { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600 };
+  // Without the setting, Better Auth gets no database options and keeps its own default (check on).
+  assert.equal(createAuth(pool, database, settings).options.advanced?.database, undefined);
+  assert.deepEqual(createAuth(pool, database, { ...settings, validateSchema: false }).options.advanced?.database, { validateSchema: false });
+});
 
 test("cadastro cria sessão, hash forte e escritório com administrador", async (t) => {
   const { db, database, request, signup } = await fixture();
