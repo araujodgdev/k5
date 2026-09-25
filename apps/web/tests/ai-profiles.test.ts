@@ -206,6 +206,22 @@ test('escalation: a checked second answer replaces a rejected passage; otherwise
     ? new Promise<ChunkAttempt>(() => undefined)
     : Promise.resolve({ returned: 1, extraction: extraction('2024-03-05', pinned?.modelId ?? '') }), {});
   assert.equal(idle.producedBy, 'gpt-6-luna');
+  // With the run's gate, a passage skips the shadow call while the previous one is open.
+  const gate = { busy: false };
+  let release = () => {};
+  const shadowCalls: string[] = [];
+  const gated: ChunkAttemptFn = (pinned, meta) => {
+    if (meta.variant === 'shadow') { shadowCalls.push(meta.stepKey ?? ''); return new Promise<ChunkAttempt>(done => { release = () => done({ error: 'timeout' }); }); }
+    return Promise.resolve({ returned: 1, extraction: extraction('2024-03-05', pinned?.modelId ?? '') });
+  };
+  await extractWithEscalation(source, { ...plan, shadowGate: gate }, gated, { stepKey: 'a' });
+  await extractWithEscalation(source, { ...plan, shadowGate: gate }, gated, { stepKey: 'b' });
+  assert.deepEqual(shadowCalls, ['a'], 'the second passage did not open another shadow call');
+  release();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(gate.busy, false);
+  await extractWithEscalation(source, { ...plan, shadowGate: gate }, gated, { stepKey: 'c' });
+  assert.deepEqual(shadowCalls, ['a', 'c']);
   await assert.rejects(extractWithEscalation(source, plan, attempts({ 'gpt-6-luna': { error: 'incomplete' }, 'gpt-6-sol': { error: 'provider' }, 'shadow-model': { error: 'provider' } }), {}),
     (error: unknown) => error instanceof StructuredGenerationError && error.kind === 'incomplete');
   // Without an escalation model a failure fails as before, even when the shadow model succeeded.

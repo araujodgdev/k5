@@ -32,6 +32,8 @@ function parseConfigs(value: string) {
 }
 
 async function main() {
+  // An unreadable budget would compare false forever and let the evaluation spend without limit.
+  if (!Number.isFinite(TOKEN_BUDGET) || TOKEN_BUDGET <= 0) throw new Error('Configuração inválida: AI_EVAL_TOKEN_BUDGET deve ser um número positivo.');
   const keyFile = process.env.OPENAI_EVAL_KEY_FILE;
   const apiKey = keyFile ? readFileSync(keyFile, 'utf8').trim() : process.env.OPENAI_EVAL_KEY;
   if (!apiKey) throw new Error('Defina OPENAI_EVAL_KEY ou OPENAI_EVAL_KEY_FILE para a avaliação opcional.');
