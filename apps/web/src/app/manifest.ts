@@ -20,7 +20,7 @@ export default function manifest(): MetadataRoute.Manifest {
     shortcuts: [
       { name: "Lume", url: "/app/agents" },
       { name: "Cofre", url: "/app/vault" },
-      { name: "Tarefas e Agenda", url: "/app/agenda" },
+      { name: "Escritório", url: "/app/agenda" },
     ],
   };
 }

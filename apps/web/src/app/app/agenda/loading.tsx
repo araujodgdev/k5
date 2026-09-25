@@ -1,3 +1,3 @@
 export default function Loading() {
-  return <p role="status" className="p-8 text-sm text-muted-foreground">Carregando tarefas e agenda…</p>;
+  return <p role="status" className="p-8 text-sm text-muted-foreground">Carregando escritório…</p>;
 }

@@ -3,7 +3,7 @@ export const appNavigation = [
   { slug: "agents", label: "Lume", short: "Lume" },
   { slug: "vault", label: "Cofre", short: "Cofre" },
   { slug: "research", label: "Pesquisa", short: "Pesquisa" },
-  { slug: "agenda", label: "Tarefas e Agenda", short: "Agenda" },
+  { slug: "agenda", label: "Escritório", short: "Escritório" },
   { slug: "email", label: "E-mails", short: "E-mails" },
   { slug: "integrations", label: "Integrações", short: "Integrações" },
 ] as const;
