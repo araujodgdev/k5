@@ -158,3 +158,20 @@ test('manutenção recupera admissão interrompida e trabalhos Google acordam No
   await testDb.prepare(`INSERT INTO google_job(id,office_id,user_id,connection_id,kind,runtime,status,run_after) VALUES(?,?,?,?,'drive_import','node','queued',CURRENT_TIMESTAMP)`).run(randomUUID(),f.officeId,f.userId,f.connectionId);
   assert.equal((await dueProcessors(testDb,Date.now(),false)).documents,true);
 });
+
+test('the fetch transport never asks Workers for redirect "error" and treats a Google redirect as a refusal', async () => {
+  const original = globalThis.fetch;
+  let redirect: RequestRedirect | undefined;
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    redirect = init.redirect;
+    return new Response(null, { status: 302, headers: { location: 'https://example.com/' } });
+  }) as typeof fetch;
+  try {
+    const { fetchTransport, GoogleApiError } = await import('../src/lib/google/transport');
+    await assert.rejects(
+      fetchTransport.request({ url: 'https://oauth2.googleapis.com/token', method: 'POST', headers: {}, body: '', timeoutMs: 1_000, maxBytes: 1_000 }),
+      (error: unknown) => error instanceof GoogleApiError && error.status === 302,
+    );
+    assert.equal(redirect, 'manual');
+  } finally { globalThis.fetch = original; }
+});
