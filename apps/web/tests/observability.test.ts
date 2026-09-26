@@ -26,6 +26,12 @@ test('telemetry is opt-in in development/test, enabled in staging, and can be di
   for (const value of ['-1', '1.5', 'NaN', 'Infinity', '']) assert.equal(sampleRate(value), 0.1);
   assert.equal(sampleRate('0'), 0);
   assert.equal(sampleRate('1'), 1);
+  // Every chat turn is kept; everything else, structured calls included, follows the rate.
+  const sampler = serverOptions('web', { SENTRY_TRACES_SAMPLE_RATE: '0.2' }).tracesSampler;
+  const inherit = (rate: number) => rate;
+  assert.equal(sampler({ name: 'invoke_agent Lume chat', inheritOrSampleWith: inherit }), 1);
+  assert.equal(sampler({ name: 'invoke_agent Lume extraction', inheritOrSampleWith: inherit }), 0.2);
+  assert.equal(sampler({ name: 'GET /app', inheritOrSampleWith: inherit }), 0.2);
 });
 
 test('error events keep stack locations but discard request and office data', () => {

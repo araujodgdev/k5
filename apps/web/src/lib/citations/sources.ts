@@ -27,8 +27,9 @@ export async function conversationSources(owner: Owner, conversationId: string |
 export function sourcesFromTool(name: string, result: unknown): RecordedSource[] {
   if (!result || typeof result !== 'object') return [];
   const value = result as Record<string, unknown>;
-  if (name === 'k5_research_web_jurisprudence' && Array.isArray(value.results)) {
-    return (value.results as Array<Record<string, unknown>>).flatMap(item => typeof item.url === 'string' ? [{
+  // Scored case law backs citations only when its link came back from a search.
+  if (name === 'k5_research_score_jurisprudence' && Array.isArray(value.results)) {
+    return (value.results as Array<Record<string, unknown>>).flatMap(item => typeof item.url === 'string' && item.linkFound === true ? [{
       kind: 'web_jurisprudence' as const, ref: item.url, url: item.url, title: String(item.title ?? ''), court: String(item.court ?? '') || null,
       caseNumber: typeof item.caseNumber === 'string' ? item.caseNumber : null, text: [item.title, item.summary].filter(Boolean).join('\n'),
     }] : []);

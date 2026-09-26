@@ -517,9 +517,15 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
   onFinish: () => void;
   onError: (message: string) => void;
 }) {
+  // The newest message on screen: a reopened page asks the server for the turn still running,
+  // and gets nothing back when this is already its finished answer.
+  const lastMessageId = messages.at(-1)?.id ?? "";
   const transport = useMemo(
     () => new DefaultChatTransport({
       api: "/api/chat",
+      prepareReconnectToStreamRequest: () => ({
+        api: `/api/chat/${encodeURIComponent(conversationId)}/stream?last=${encodeURIComponent(lastMessageId)}`,
+      }),
       // The server holds the authoritative history; only the affected message needs to
       // travel over the wire (keeps requests under the server's body-size limit on long
       // conversations, and gives the route what it needs to merge retries/regenerations).
@@ -545,13 +551,15 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
         };
       },
     }),
-    [context.caseId, context.documentIds, context.researchReferenceIds, conversationId, focus],
+    [context.caseId, context.documentIds, context.researchReferenceIds, conversationId, focus, lastMessageId],
   );
   // K5 owns the history and thread IDs. The direct adapter avoids a second cloud thread list.
   const chat = useChat({
     id: conversationId,
     messages,
     transport,
+    // The turn runs on the server whether or not this page is open; coming back picks it up.
+    resume: true,
     onFinish,
     onError: (error) => onError(chatErrorMessage(error)),
   });
@@ -564,7 +572,12 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
     }
     return chat.sendMessage(message,options);
   };
-  const runtime = useAISDKRuntime({...chat,sendMessage});
+  // Parar stops the turn on the server; leaving the page only stops listening to it.
+  const stopTurn = async () => {
+    await chat.stop();
+    await fetch(`/api/chat/${encodeURIComponent(conversationId)}/stop`, { method: "POST" }).catch(() => undefined);
+  };
+  const runtime = useAISDKRuntime({...chat,sendMessage,stop:stopTurn});
   const { stop, status, sendMessage: send } = chat;
   useEffect(() => () => { void stop(); }, [stop]);
   useEffect(() => {

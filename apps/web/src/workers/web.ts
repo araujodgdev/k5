@@ -8,6 +8,7 @@ import { dueProcessors } from '../lib/processor-schedule';
 import { captureOperationalError } from '../lib/observability/report';
 
 export { LumeProcessor, ContainerProxy } from './processors';
+export { LumeChatRun } from './chat-runs';
 
 type WebEnv = CloudflareEnv & {
   HYPERDRIVE: { connectionString: string };

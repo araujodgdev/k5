@@ -34,7 +34,9 @@ outro atributo.
 
 ## Ambientes e privacidade
 
-Erros são coletados integralmente quando o SDK está ativo. Traces usam amostragem de 10%.
+Erros são coletados integralmente quando o SDK está ativo. Traces usam amostragem de 10%, exceto as
+respostas do chat (`invoke_agent Lume chat`), que abrem um trace próprio e são sempre enviadas. O conteúdo desses
+turnos fica no PostgreSQL (`agent_trace`, em Administração → Execuções), nunca no Sentry.
 Desenvolvimento e testes não enviam eventos por padrão; Docker local também começa desativado.
 Cloudflare usa `staging`. Para ligar ou desligar explicitamente, use `SENTRY_ENABLED` e,
 no build do navegador, `NEXT_PUBLIC_SENTRY_ENABLED` (`true` ou `false`).

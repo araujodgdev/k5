@@ -21,5 +21,6 @@ export const adminSections = [
   { slug: "feedback", label: "Feedback" },
   { slug: "clients", label: "Clientes" },
   { slug: "ai", label: "IA" },
+  { slug: "traces", label: "Execuções" },
   { slug: "credentials", label: "Credenciais" },
 ] as const;

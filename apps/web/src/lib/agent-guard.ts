@@ -21,7 +21,6 @@ export const GUARDED_TOOLS: ReadonlySet<string> = new Set([
   'k5_docs_read',
   'k5_judicial_list_publications',
   'k5_judicial_get_publication',
-  'k5_research_web_jurisprudence',
   'web_search',
 ]);
 

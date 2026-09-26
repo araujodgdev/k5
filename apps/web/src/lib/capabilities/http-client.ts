@@ -23,7 +23,7 @@ const routes: Record<CapabilityName, Route> = {
   k5_research_list_web_searches: { method: 'GET', path: () => '/api/research/web-searches' },
   k5_research_get_web_search: { method: 'GET', path: i => `/api/research/web-searches/${id(i.searchId)}` },
   k5_research_search_corpus: { method: 'POST', path: () => '/api/research/corpus', body: i => i },
-  k5_research_web_jurisprudence: { method: 'POST', path: () => '/api/research/web', body: i => i },
+  k5_research_score_jurisprudence: { method: 'POST', path: () => '/api/research/jurisprudence-score', body: i => i },
   k5_research_get_judgment: { method: 'GET', path: i => `/api/research/judgments/${id(i.judgmentId)}` },
   k5_research_list_history: { method: 'GET', path: () => '/api/research/searches' },
   k5_research_get_search: { method: 'GET', path: i => `/api/research/searches/${id(i.searchId)}` },

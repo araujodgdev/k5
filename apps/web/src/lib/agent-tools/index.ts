@@ -40,7 +40,7 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_research_list_web_searches: research.listWebSearches,
   k5_research_get_web_search: research.getWebSearch,
   k5_research_search_corpus: research.searchCorpus,
-  k5_research_web_jurisprudence: research.webJurisprudence,
+  k5_research_score_jurisprudence: research.scoreFoundJurisprudence,
   k5_research_get_judgment: research.getJudgment,
   k5_research_list_history: research.listHistory,
   k5_research_get_search: research.getSearch,
@@ -298,7 +298,7 @@ export function platformAgentTools(context: WorkspaceContext) {
 export function toolSummary(name: string, result: unknown, failed: boolean): string {
   const labels: Record<string, string> = {
     k5_agenda_interpret: 'Preparou uma sugestão para revisar na Agenda',
-    k5_research_web_jurisprudence: 'Pesquisou jurisprudência na web',
+    k5_research_score_jurisprudence: 'Avaliou a jurisprudência encontrada',
     web_search: 'Pesquisou na web',
     k5_agenda_get_proposal: 'Consultou uma sugestão de agenda',
     k5_agenda_list_proposals: 'Consultou as sugestões de agenda',
@@ -424,12 +424,17 @@ function describe(name: string, result: unknown): string {
   if (Array.isArray(value.drafts)) return `${value.drafts.length} rascunho(s)`;
   if (Array.isArray(value.files)) return `${value.files.length} arquivo(s)`;
   if (Array.isArray(value.calendars)) return `${value.calendars.length} calendário(s)`;
+  // The provider's own search reports what it did: a search with the pages found, or a page opened.
+  if (name === 'web_search' && value.action && typeof value.action === 'object') {
+    if ((value.action as { type?: unknown }).type === 'openPage') return 'abriu uma página';
+    if (Array.isArray(value.sources)) return `${value.sources.length} página(s)`;
+  }
   // `sources` means retrieved excerpts for knowledge search and court installations for the
   // judicial catalog, so the capability name settles it before the shape is read.
   if (Array.isArray(value.sources)) {
     return name === 'k5_judicial_list_sources' ? `${value.sources.length} fonte(s)` : `${value.sources.length} trecho(s)`;
   }
-  if (name === 'k5_research_web_jurisprudence' && Array.isArray(value.results)) return `${value.results.length} julgado(s) com link`;
+  if (name === 'k5_research_score_jurisprudence' && Array.isArray(value.results)) return `${value.results.length} julgado(s) avaliados`;
   if (Array.isArray(value.cases)) return `${value.cases.length} caso(s)`;
   if (Array.isArray(value.activities)) return `${value.activities.length} atividade(s)`;
   if (Array.isArray(value.clients)) return `${value.clients.length} cliente(s)`;

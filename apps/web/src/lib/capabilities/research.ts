@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { foundDecision, MAX_DECISIONS, reliabilityLevels } from '@/lib/research/jurisprudence-score-contract';
 
 const identifier = z.string().min(1).max(128);
 const readers = ['administrator', 'lawyer', 'reviewer'] as const;
@@ -43,9 +44,9 @@ const detail = judgment.extend({
 });
 const idempotencyKey = z.string().trim().min(8).max(128).optional();
 
-const webResult = z.object({
-  title: z.string(), court: z.string(), caseNumber: z.string().nullable(), date: z.string().nullable(),
-  url: z.string(), summary: z.string(), relevance: z.number().nullable(), relevanceLabel: z.string().nullable(),
+const scoredDecision = foundDecision.extend({
+  score: z.number().nullable(), isDecision: z.number().nullable(), linkFound: z.boolean(),
+  reliability: z.enum(reliabilityLevels), reason: z.string(),
 });
 
 const webSearchMode = z.enum(['instant', 'fast', 'auto', 'deep']);
@@ -71,11 +72,15 @@ export const researchCapabilities = {
     description: 'Reabre uma pesquisa na web do histórico, sem pesquisar de novo.',
     input: z.object({ searchId: identifier }), output: z.object({ search: webSearchView }),
   },
-  k5_research_web_jurisprudence: {
+  k5_research_score_jurisprudence: {
     module: 'research', effect: 'read', roles: readers,
-    description: 'Pesquisa jurisprudência na web aberta para uma questão jurídica que a pessoa pediu. Devolve só julgados com link verificado na busca, avaliados pelo Jev quanto à relevância. A lista aparece para a pessoa abaixo da sua resposta, com os links: não a repita nem cite números, tribunais ou ementas no texto; comente em uma ou duas frases o que foi encontrado.',
-    input: z.object({ query: z.string().trim().min(5).max(500).describe('A questão jurídica, em português, com os elementos que definem o tema.') }),
-    output: z.object({ query: z.string(), results: z.array(webResult), evaluated: z.boolean(), discarded: z.number(), note: z.string() }),
+    description: 'Avalia a confiabilidade dos julgados que você encontrou com web_search para o caso da pessoa. Envie a questão jurídica, os fatos relevantes do caso e cada julgado com o link exato da página da busca e a ementa fiel. O Jev mede a aderência de cada julgado ao caso (0 a 4) e se a página é uma decisão judicial; o sistema confere se o link veio de uma busca desta conversa. Devolve a confiabilidade (alta, média, baixa ou não avaliada) e o motivo de cada um.',
+    input: z.object({
+      question: z.string().trim().min(5).max(500).describe('A questão jurídica do caso, em português.'),
+      caseFacts: z.string().trim().max(2000).optional().describe('Os fatos do caso que importam para comparar os julgados.'),
+      decisions: z.array(foundDecision).min(1).max(MAX_DECISIONS),
+    }),
+    output: z.object({ results: z.array(scoredDecision), evaluated: z.boolean(), note: z.string() }),
     publish: ['agent'],
   },
   k5_research_search_corpus: {

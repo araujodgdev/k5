@@ -19,6 +19,8 @@ export type WorkspaceContext = {
   allowedResearchReferenceIds?: string[];
   /** The chat conversation of this turn, set by the chat route; decides which documents are the agent's own. */
   conversationId?: string;
+  /** Pages the web search of this chat turn returned, filled by the chat as each step finishes. */
+  consultedLinks?: ReadonlySet<string>;
 };
 
 export function workspaceContext(workspace: {

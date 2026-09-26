@@ -13,6 +13,7 @@ async function main() {
   const { runWorkerQueues } = await import('../src/lib/worker-scheduler');
   const { sweepResearchStaging, sweepResearchOrphans } = await import('../src/lib/research/storage');
   const { database } = await import('../src/lib/database');
+  const { sweepAgentTraces } = await import('../src/lib/observability/agent-trace');
 
   let stopping = false;
   process.on('SIGINT', () => { stopping = true; });
@@ -50,6 +51,7 @@ async function main() {
         await sweepResearchStaging();
         await sweepResearchOrphans();
         await database.prepare('DELETE FROM research_quarantine WHERE expires_at<CURRENT_TIMESTAMP').run();
+        await sweepAgentTraces();
         researchSweepAt = Date.now() + 60 * 60_000;
       }
       return deleted;

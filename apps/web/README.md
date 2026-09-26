@@ -120,10 +120,18 @@ desvincular ou consultar um tribunal, sobrescrever uma minuta) viram uma propost
 Com modelos OpenAI ou Anthropic, o Lume tem a busca na web do próprio provedor. Com os demais
 (Gemini inclusive, que não combina Google Search com ferramentas), `web_search` usa o Exa quando
 `EXA_API_KEY` está configurada; só a consulta sai do escritório, e as páginas devolvidas entram na
-conferência de citações. Sem a chave, esses modelos ficam sem busca na web. Pedidos de
-jurisprudência usam `k5_research_web_jurisprudence`: o modelo pesquisa, o código mantém só links
-que a busca devolveu, e o Jev (modo **Pesquisa** em `/app/admin/ai`) pontua a relevância e
-descarta o que não é decisão judicial. A lista aparece no chat a partir do resultado da ferramenta.
+conferência de citações. Sem a chave, esses modelos ficam sem busca na web. Em pedidos de
+jurisprudência o modelo pesquisa com a própria `web_search` e envia os julgados encontrados a
+`k5_research_score_jurisprudence`: o Jev (modo **Pesquisa** em `/app/admin/ai`) mede a aderência de
+cada um ao caso (0 a 4) e se a página é decisão judicial, e o código confere se o link veio de uma
+busca da conversa. Nada é descartado: o Lume apresenta cada julgado com a confiabilidade (alta,
+média, baixa ou não avaliada) e o motivo.
+
+Cada turno do chat roda fora da requisição que o pediu (`src/lib/chat-turn.ts`). No Cloudflare, o
+Durable Object `LumeChatRun` (binding `CHAT_RUNS`, um por conversa) executa o agente até o fim e
+guarda a resposta; fechar a página não interrompe mais o Lume. Ao reabrir a conversa, o chat se
+reconecta ao turno em andamento por `/api/chat/[id]/stream`, e **Parar** chama `/api/chat/[id]/stop`.
+Em Node (`pnpm dev`) e no preview, sem o binding, o próprio processo mantém o turno.
 
 O módulo **Pesquisa** (`/app/research`) busca sempre na web pelo Exa, no tipo escolhido pela pessoa
 (instantânea, rápida, automática ou profunda), e exige `EXA_API_KEY`. Cada busca fica em
@@ -344,8 +352,16 @@ antigos do servidor e confirma carregamento pelo cache, sem perder o formulário
 ## Observabilidade (Sentry)
 
 Erros de navegador, Next.js, Workers Cloudflare e filas Node são enviados ao projeto
-`lume-wr/lume`; traces usam amostragem de 10%. Desenvolvimento/testes ficam desativados por
-padrão. Veja [configuração, privacidade, source maps e verificação](../../docs/sentry.md).
+`lume-wr/lume`; traces usam amostragem de 10%, exceto as respostas do chat (`invoke_agent Lume chat`),
+sempre enviadas, com um span por etapa do modelo e por ferramenta, inclusive a busca do provedor.
+Desenvolvimento/testes ficam desativados por padrão. Veja [configuração, privacidade, source maps
+e verificação](../../docs/sentry.md).
+
+O conteúdo desses turnos não vai ao Sentry. Entradas e saídas das ferramentas, fontes das buscas,
+avaliações do Jev e erros ficam em `agent_trace` e `agent_trace_event` (migração 0025), por
+escritório, apagados com a conversa e varridos pelo worker após 30 dias. Administradores da
+plataforma os consultam em **Administração → Execuções** (`/app/admin/traces`), com o link para o
+trace correspondente no Sentry.
 
 ## Verificação
 

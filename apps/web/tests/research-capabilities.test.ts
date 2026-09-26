@@ -17,8 +17,8 @@ async function actor(role: WorkspaceContext['role'] = 'lawyer', officeId: string
 
 test('somente leituras de acervo, julgado e referências são publicadas', async () => {
   const names = ['k5_research_search_corpus', 'k5_research_get_judgment', 'k5_research_list_references'];
-  // Web case law is a read the Lume runs itself; its list reaches the person from the tool result.
-  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'agent').filter(name => capabilities[name].module === 'research'), ['k5_research_web_jurisprudence', ...names]);
+  // Scoring the case law the Lume found on the web is a read it runs itself.
+  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'agent').filter(name => capabilities[name].module === 'research'), ['k5_research_score_jurisprudence', ...names]);
   assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'webmcp').filter(name => capabilities[name].module === 'research'), names);
   assert.ok(capabilitiesForRole('reviewer').filter(name => capabilities[name].module === 'research')
     .every(name => capabilities[name].effect === 'read'));
@@ -26,7 +26,7 @@ test('somente leituras de acervo, julgado e referências são publicadas', async
   assert.ok(tools.k5_research_search_corpus);
   assert.ok(!tools.k5_research_start_search);
   assert.ok(!tools.k5_research_add_reference);
-  assert.ok(publishedCapabilitiesForRole('reviewer', 'agent').includes('k5_research_web_jurisprudence'));
+  assert.ok(publishedCapabilitiesForRole('reviewer', 'agent').includes('k5_research_score_jurisprudence'));
 });
 
 test('invocação de agente não burla publicação e revisor não inicia pesquisa', async () => {

@@ -25,9 +25,16 @@
     "instance_type": "basic",
     "constraints": { "regions": ["SAM"] }
   }],
-  "durable_objects": { "bindings": [{ "name": "PROCESSORS", "class_name": "LumeProcessor" }] },
-  // Cloudflare requires SQLite for container orchestration metadata; all business data is PostgreSQL.
-  "migrations": [{ "tag": "v1-processors", "new_sqlite_classes": ["LumeProcessor"] }],
+  // CHAT_RUNS holds each chat turn in flight, so the Lume finishes an answer after the page closes.
+  "durable_objects": { "bindings": [
+    { "name": "PROCESSORS", "class_name": "LumeProcessor" },
+    { "name": "CHAT_RUNS", "class_name": "LumeChatRun" }
+  ] },
+  // Cloudflare requires SQLite-backed classes for new Durable Objects; all business data is PostgreSQL.
+  "migrations": [
+    { "tag": "v1-processors", "new_sqlite_classes": ["LumeProcessor"] },
+    { "tag": "v2-chat-runs", "new_sqlite_classes": ["LumeChatRun"] }
+  ],
   "triggers": { "crons": ["* * * * *"] },
   "r2_buckets": [
     {

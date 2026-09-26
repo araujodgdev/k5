@@ -1,4 +1,4 @@
-import { captureException, startSpan, withIsolationScope, type Span } from '@sentry/core';
+import { captureException, startNewTrace, startSpan, withIsolationScope, type Span } from '@sentry/core';
 
 /**
  * `tags` must be application-owned identifiers (a pipeline stage, an error code the code itself
@@ -24,8 +24,8 @@ export function observeWorkerTask<T>(operation: string, task: () => Promise<T>):
  * the application minted (task, provider, model, tool names) and counts; prompts, tool inputs and
  * results never become span data, and beforeSendSpan drops anything else that gets attached.
  */
-export function traceAgentTurn<T>(turn: { task: string; provider: string; modelId: string }, action: (span: Span) => Promise<T>): Promise<T> {
-  return startSpan({
+export function traceAgentTurn<T>(turn: { task: string; provider: string; modelId: string }, action: (span: Span) => Promise<T>, options: { root?: boolean } = {}): Promise<T> {
+  const traced = () => startSpan({
     name: `invoke_agent Lume ${turn.task}`,
     op: 'gen_ai.invoke_agent',
     attributes: {
@@ -33,6 +33,9 @@ export function traceAgentTurn<T>(turn: { task: string; provider: string; modelI
       'gen_ai.system': turn.provider, 'gen_ai.request.model': turn.modelId, 'lume.task': turn.task,
     },
   }, action);
+  // A chat turn outlives the request that started it, so it opens its own trace, which the sampler
+  // always keeps (options.ts) and agent_trace links to. Structured calls stay inside their request.
+  return options.root ? startNewTrace(traced) : traced();
 }
 
 export function traceToolCall<T>(tool: string, action: () => Promise<T>): Promise<T> {
