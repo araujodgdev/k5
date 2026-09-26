@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { Ellipsis, LogOut, PanelLeftClose, PanelLeftOpen, ShieldCheck } from "lucide-react";
-import { LumeMark } from "@/components/lume-mark";
+import { TisesMark } from "@/components/tises-logo";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { InstallApp } from "@/components/pwa-provider";
 import { FeedbackDialog, FeedbackTrigger } from "@/components/feedback-dialog";
@@ -28,12 +28,12 @@ if (typeof window !== "undefined") gsap.registerPlugin(useGSAP);
 // that slides between rows, so it drops its own fill and inverts its text and icon.
 const navRow = "hover-rise relative h-10 px-4 transition-colors duration-500 ease-(--ease) hover:bg-transparent hover:text-brand-foreground hover:[&_svg]:text-brand-foreground active:bg-transparent data-[active=true]:bg-transparent data-[active=true]:font-medium data-[active=true]:text-background data-[active=true]:before:hidden data-[active=true]:[&_svg]:text-background";
 
-/** The Lume mark on an ink tile: the corner of the grid, as wide as the collapsed menu. */
+/** The Tises mark on an ink tile: the corner of the grid, as wide as the collapsed menu. */
 function MarkTile({ className }: { className?: string }) {
   return (
-    <Link href="/app" aria-label="Lume — início"
-      className={cn("hover-sweep grid shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none", className)}>
-      <LumeMark width={22} height={22} aria-hidden="true" focusable="false" />
+    <Link href="/app" aria-label="Tises — início"
+      className={cn("tises-hover hover-sweep grid shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none [&_.tises-beam]:transition-[fill] [&_.tises-beam]:duration-500 hover:[&_.tises-beam]:fill-brand-foreground focus-visible:[&_.tises-beam]:fill-brand-foreground", className)}>
+      <TisesMark width={22} height={22} aria-hidden="true" focusable="false" />
     </Link>
   );
 }
@@ -237,7 +237,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
           <SidebarHeader className="flex-row items-stretch gap-0 border-b border-line p-0">
             <MarkTile className="h-15 w-[calc(var(--sidebar-width-icon)-1px)]" />
             <div className="nav-label flex min-w-0 flex-col justify-center gap-1 px-3">
-              <span className="label-mono text-subtle-foreground">Lume</span>
+              <span className="label-mono text-subtle-foreground">Tises</span>
               <p className="truncate font-medium text-sm leading-tight" title={officeName}>{officeName}</p>
             </div>
             <NavToggle collapsed={collapsed} className="nav-label mr-2 ml-auto self-center" />

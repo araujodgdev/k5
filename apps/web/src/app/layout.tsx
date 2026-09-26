@@ -12,11 +12,11 @@ const sans = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 const metadata: Metadata = {
-  title: { default: "Lume", template: "%s | Lume" },
+  title: { default: "Tises", template: "%s | Tises" },
   description: "O espaço de trabalho do seu escritório.",
   robots: { index: false, follow: false },
-  applicationName: "Lume",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Lume" },
+  applicationName: "Tises",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Tises" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
-for (const component of ['reveal', 'app-sidebar']) {
+for (const component of ['reveal', 'app-sidebar', 'landing/landing-motion']) {
   test(`${component} can be imported for SSR without starting animation timers`, () => {
     // Workers reject timers during module initialization. A fresh process also
     // prevents an already-awake GSAP ticker from hiding this regression.

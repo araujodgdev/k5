@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ArrowRight, CircleAlert, Eye, EyeOff, LoaderCircle } from "lucide-react";
-import { LumeMark } from "@/components/lume-mark";
+import { TisesMark, TisesWordmark } from "@/components/tises-logo";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { InstallApp } from "@/components/pwa-provider";
 import { Reveal } from "@/components/reveal";
@@ -76,19 +76,20 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   return (
     <main className="grid min-h-dvh grid-rows-[auto_auto_1fr] bg-background md:grid-cols-[minmax(420px,1fr)_minmax(0,1fr)] md:grid-rows-[auto_1fr]">
       <header className="flex h-[calc(3.75rem+env(safe-area-inset-top))] items-stretch border-b border-line pt-[env(safe-area-inset-top)] md:col-span-2">
-        <Link href="/" aria-label="Lume" className="hover-sweep grid w-15 shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:text-brand-foreground">
-          <LumeMark width={22} height={22} aria-hidden="true" focusable="false" />
+        <Link href="/" aria-label="Tises — início" className="tises-hover hover-sweep grid w-15 shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:text-brand-foreground [&_.tises-beam]:transition-[fill] [&_.tises-beam]:duration-500 hover:[&_.tises-beam]:fill-brand-foreground focus-visible:[&_.tises-beam]:fill-brand-foreground">
+          <TisesMark width={22} height={22} aria-hidden="true" focusable="false" />
         </Link>
-        <p className="self-center px-5 text-lg font-medium tracking-[-0.04em]">Lume</p>
+        <TisesWordmark className="ml-5 h-[18px] w-auto self-center" aria-hidden="true" focusable="false" />
         <div className="ml-auto flex items-center gap-1 border-l border-line px-3"><InstallApp /><ThemeSwitch /></div>
       </header>
-      {/* The field answers the form: it tightens while the password is typed, flares on submit, stills on an error. */}
+      {/* The field answers the form: it tightens while the password is typed, flares on submit, stills on an error.
+          The Tises mark is cut out of it, the T in grey and the beam in brand pixels. */}
       <Halftone mood={mood} mark={{ x: .5, y: .56, size: .78 }} seed={isSignUp ? 5 : 2} className="h-36 border-b border-line md:order-last md:h-auto md:border-b-0 md:border-l" />
       <div className="flex min-w-0 flex-col px-6 pt-8 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:px-12 md:py-10 lg:px-16">
       <section className="w-full max-w-[420px] md:my-auto" aria-labelledby="auth-title">
         <Reveal>
           <p className="label-mono mb-5 flex items-center gap-2.5 text-muted-foreground" data-reveal><span className="square-dot" aria-hidden="true" />{isSignUp ? "Novo escritório" : "Acesso"}</p>
-          <h1 id="auth-title" className="display mb-8 text-[44px] md:mb-10 md:text-[64px]" data-reveal>{isSignUp ? "Crie sua conta" : "Entre no Lume"}</h1>
+          <h1 id="auth-title" className="display mb-8 text-[44px] md:mb-10 md:text-[64px]" data-reveal>{isSignUp ? "Crie sua conta" : "Entre no Tises"}</h1>
           <form onSubmit={submit} noValidate aria-busy={pending} data-reveal>
             <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
               {isSignUp && <>
