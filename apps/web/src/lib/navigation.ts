@@ -6,6 +6,7 @@ export const appNavigation = [
   { slug: "agenda", label: "Escritório", short: "Escritório" },
   { slug: "email", label: "E-mails", short: "E-mails" },
   { slug: "integrations", label: "Integrações", short: "Integrações" },
+  { slug: "billing", label: "Plano", short: "Plano" },
 ] as const;
 
 export type NavSlug = (typeof appNavigation)[number]["slug"];

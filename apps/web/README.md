@@ -349,6 +349,27 @@ O teste isolado `pnpm --filter @k5/web exec tsx scripts/verify-pwa-update.ts` in
 um servidor temporário e verifica duas atualizações com abas abertas: remove os JS/CSS
 antigos do servidor e confirma carregamento pelo cache, sem perder o formulário.
 
+## Plano e pagamentos (AbacatePay)
+
+Cada escritório paga uma mensalidade em **Plano** (`/app/billing`). Só administradores pagam; os
+demais papéis veem a situação. O pagamento usa o checkout hospedado da AbacatePay (PIX ou cartão):
+`POST /api/billing/checkout` cria (uma vez) o produto `tises-plano-mensal-<centavos>` e o cliente
+na AbacatePay e devolve a URL do checkout. Um checkout pendente dos últimos 30 minutos é reaproveitado.
+Cada pagamento confirmado soma um mês a `office_billing.paid_until`, a partir do fim do prazo
+atual quando o plano ainda está ativo; um reembolso remove exatamente o mês daquele pagamento
+(migração 0026). Por enquanto nada é bloqueado sem pagamento.
+
+A confirmação chega por dois caminhos, e o mês é creditado uma única vez: o webhook
+`POST /api/billing/webhook` (confere o `webhookSecret` da URL e a assinatura HMAC do corpo,
+e ignora entregas repetidas pelo `id`) e a própria página Plano, que consulta os checkouts
+pendentes ao abrir. Por isso o fluxo também funciona localmente, onde nenhum webhook chega.
+
+Configure `ABACATEPAY_API_KEY` (a chave de Dev mode simula pagamentos; use o cartão
+`4242 4242 4242 4242`), `ABACATEPAY_WEBHOOK_SECRET` e, se quiser, `BILLING_PLAN_PRICE_CENTS`
+(padrão R$ 199,00). No painel da AbacatePay, cadastre o webhook com a URL HTTPS pública
+`<BETTER_AUTH_URL>/api/billing/webhook?webhookSecret=<secret>` e os eventos `checkout.completed` e
+`checkout.refunded`.
+
 ## Observabilidade (Sentry)
 
 Erros de navegador, Next.js, Workers Cloudflare e filas Node são enviados ao projeto
