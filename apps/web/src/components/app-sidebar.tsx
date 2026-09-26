@@ -5,14 +5,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { Ellipsis, LogOut, ShieldCheck } from "lucide-react";
+import { Ellipsis, LogOut, PanelLeftClose, PanelLeftOpen, ShieldCheck } from "lucide-react";
 import { LumeMark } from "@/components/lume-mark";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { InstallApp } from "@/components/pwa-provider";
 import { FeedbackDialog, FeedbackTrigger } from "@/components/feedback-dialog";
 import { NotificationPanel, NotificationTrigger } from "@/components/notification-panel";
 import { navIcons, navTone } from "@/components/nav-icons";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { readNavCollapsed, subscribeNavCollapsed, writeNavCollapsed } from "@/lib/nav-collapse";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -35,6 +35,23 @@ function MarkTile({ className }: { className?: string }) {
       className={cn("hover-sweep grid shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none", className)}>
       <LumeMark width={22} height={22} aria-hidden="true" focusable="false" />
     </Link>
+  );
+}
+
+/** Collapses the menu to icons and back; Ctrl/⌘+B does the same. */
+function NavToggle({ collapsed, className }: { collapsed: boolean; className?: string }) {
+  const label = collapsed ? "Expandir menu" : "Recolher menu";
+  const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button type="button" aria-label={label} aria-expanded={!collapsed} onClick={() => writeNavCollapsed(!collapsed)}
+          className={cn("grid size-9 shrink-0 place-items-center text-muted-foreground transition-colors duration-300 ease-(--ease) hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
+          <Icon className="size-4" aria-hidden="true" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right">{label} <span className="text-muted-foreground">Ctrl+B</span></TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -223,6 +240,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
               <span className="label-mono text-subtle-foreground">Lume</span>
               <p className="truncate font-medium text-sm leading-tight" title={officeName}>{officeName}</p>
             </div>
+            <NavToggle collapsed={collapsed} className="nav-label mr-2 ml-auto self-center" />
           </SidebarHeader>
           <SidebarContent className="px-0 pt-3">
             <SidebarMenu ref={navRef} className="relative gap-0 px-0">
@@ -253,6 +271,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
           <SidebarFooter className="border-t border-line p-2">
             {error && <p role="alert" className="nav-label px-2 text-destructive text-xs">{error}</p>}
             <div className="nav-footer flex items-center gap-1">
+              <NavToggle collapsed={collapsed} className="nav-expand" />
               <SidebarMenu className="min-w-0 flex-1">
                 <SidebarMenuItem>
                   <SidebarMenuButton onClick={logout} disabled={pending} className="h-9" tooltip="Sair" aria-label={collapsed ? "Sair" : undefined} title="Encerrar sessão em todos os dispositivos">

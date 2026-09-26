@@ -2,7 +2,7 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import type { CapabilityInput as Input, CapabilityOutput as Output } from '@/lib/capabilities/contracts';
 import { CapabilityError } from '@/lib/capabilities/errors';
-import type { WorkspaceContext } from '@/lib/application/context';
+import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/application/context';
 import { database } from '@/lib/database';
 import { readVaultDocumentFile } from '@/lib/vault';
 import { objectStorage } from '@/lib/storage';
@@ -12,7 +12,7 @@ import { runGoogleOperation, markOperationEffect, digest, operationDto, operatio
 import type { GoogleAction } from '../policy';
 import { technicalLimits } from '../policy';
 import { importFormatFor } from '../drive/formats';
-import { attachmentParts, decodeBase64Url, gmailHeader, messageText, mimeMessage, safeAddress, safeMessageId,
+import { attachmentParts, decodeBase64Url, gmailHeader, messageHtml, messageText, mimeMessage, safeAddress, safeMessageId,
   type GmailMessage, type MailFile } from './mime';
 
 const root = '/users/me';
@@ -60,6 +60,18 @@ export async function getThread(context: WorkspaceContext, input: Input<'k5_gmai
   const thread = await googleJson<{ id: string; messages?: GmailMessage[] }>(connection, {
     service: 'gmail', path: `${root}/threads/${idPath(input.threadId)}`, query: { format: 'full' }, maxBytes: 12_000_000 });
   const messages = (thread.messages ?? []).map(messageDto);
+  return { thread: { id: thread.id, subject: messages[0]?.subject ?? '', messages }, untrustedContent: true };
+}
+/**
+ * The reader's view of a thread: the capability's messages plus each one's original HTML. It is a
+ * separate path so the HTML reaches only the sandboxed frame in the browser, never the agent.
+ */
+export async function getThreadForReading(context: WorkspaceContext, threadId: string): Promise<Output<'k5_gmail_get_thread'>> {
+  const authorized = await assertCapabilityAllowed(context, 'k5_gmail_get_thread');
+  const connection = await requireConnection(authorized, 'gmail');
+  const thread = await googleJson<{ id: string; messages?: GmailMessage[] }>(connection, {
+    service: 'gmail', path: `${root}/threads/${idPath(threadId)}`, query: { format: 'full' }, maxBytes: 12_000_000 });
+  const messages = (thread.messages ?? []).map(message => ({ ...messageDto(message), html: messageHtml(message) }));
   return { thread: { id: thread.id, subject: messages[0]?.subject ?? '', messages }, untrustedContent: true };
 }
 async function fetchDraft(connection: ConnectionRow, id: string): Promise<Draft> {

@@ -87,6 +87,16 @@ importações e reconciliação de Gmail/Drive/Docs. Sem OAuth configurado a int
 o estado indisponível. Migrações aditivas: `db/postgres/0014` a `0019`, incluindo importação
 para a Biblioteca (`0018`) e classificação de e-mails (`0019`).
 
+As opções inteligentes de `/app/email` (`src/lib/google/gmail/insights.ts`) resumem a caixa de
+entrada do dia, da semana ou do mês e, dentro de uma conversa, dão um panorama e sugerem
+respostas. Leem só a caixa da própria pessoa, pela conexão dela, e não alteram o Gmail. O Jev
+(TypeSafe, modo e-mail ativado) julga prioridade, se a mensagem pede resposta e que tipos de
+resposta cabem; o `gpt-6-luna` escreve o texto a partir desses julgamentos. Sem conexão OpenAI na
+plataforma, usa o modelo de extração; sem o Jev, o resumo funciona sem esses julgamentos. O que é
+gerado não é gravado: fica só na tela aberta. O HTML das mensagens chega apenas ao leitor, num
+iframe isolado (sem scripts, sem formulários, imagens externas bloqueadas até a pessoa pedir),
+por uma rota própria (`/api/integrations/google/mail-thread`); o agente continua recebendo só texto.
+
 `/app/agenda` reúne tarefas, calendário com agenda do dia e CRM de
 clientes. A migração `0012_agenda.sql` adiciona clientes, vínculos com casos e atividades.
 Dados de clientes existentes nos casos do Cofre são preservados, sem importação automática.

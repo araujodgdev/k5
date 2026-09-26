@@ -136,6 +136,8 @@
   html[data-nav="collapsed"] .app-nav .nav-dot { display: block; }
   html[data-nav="collapsed"] .app-nav [data-sidebar="menu-button"] { justify-content: center; }
   html[data-nav="collapsed"] .app-nav .nav-footer { flex-direction: column; }
+  .app-nav .nav-expand { display: none; }
+  html[data-nav="collapsed"] .app-nav .nav-expand { display: grid; }
 }
 
 /* Both panes exist in SSR. Geometry follows CSS and the preference restored in the head. */
@@ -333,6 +335,59 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   }
   &:focus-visible::before { transform: scaleX(1); }
 }
+
+/* Opções inteligentes (src/components/smart-options.tsx): the peach Lume mark. On hover a band of
+   light crosses it from the bottom-left to the top-right and its three strokes trade places,
+   forming a mirrored mark and a spark before settling back. The same motion shows while it works. */
+.smart-options {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.smart-options::after {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  z-index: -1;
+  background: linear-gradient(45deg, transparent 40%, color-mix(in oklab, var(--module-lume) 40%, transparent) 50%, transparent 60%);
+  transform: translate(-45%, 45%);
+  opacity: 0;
+  pointer-events: none;
+}
+.smart-mark { overflow: visible; transition: filter .5s var(--ease); }
+.smart-mark path { transform-box: fill-box; transform-origin: center; transition: transform .6s var(--ease); }
+@keyframes smart-shine {
+  0% { transform: translate(-45%, 45%); opacity: 0; }
+  12% { opacity: 1; }
+  55% { transform: translate(45%, -45%); opacity: 1; }
+  56%, 100% { transform: translate(45%, -45%); opacity: 0; }
+}
+@keyframes smart-a {
+  0%, 12%, 91%, 100% { transform: none; }
+  25%, 45% { transform: translate(11px, 0); }
+  58%, 78% { transform: translate(5.5px, 1.25px); }
+}
+@keyframes smart-b {
+  0%, 12%, 91%, 100% { transform: none; }
+  25%, 45% { transform: translate(0, -12px); }
+  58%, 78% { transform: translate(-1.25px, -5.5px); }
+}
+@keyframes smart-c {
+  0%, 12%, 91%, 100% { transform: none; }
+  25%, 45% { transform: translate(-5px, 3.75px) rotate(90deg); }
+  58%, 78% { transform: translate(-3px, 2.75px) rotate(180deg); }
+}
+@media (hover: hover) {
+  .smart-options:hover::after { animation: smart-shine 2.4s var(--ease) infinite; }
+  .smart-options:hover .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-lume) 75%, transparent)); }
+  .smart-options:hover .smart-mark-a { animation: smart-a 3.6s var(--ease) infinite; }
+  .smart-options:hover .smart-mark-b { animation: smart-b 3.6s var(--ease) infinite; }
+  .smart-options:hover .smart-mark-c { animation: smart-c 3.6s var(--ease) infinite; }
+}
+.smart-options:focus-visible .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-lume) 75%, transparent)); }
+.smart-options[data-busy] .smart-mark-a { animation: smart-a 3.6s var(--ease) infinite; }
+.smart-options[data-busy] .smart-mark-b { animation: smart-b 3.6s var(--ease) infinite; }
+.smart-options[data-busy] .smart-mark-c { animation: smart-c 3.6s var(--ease) infinite; }
 
 /* The small square that leads a mono label or a list item. */
 @utility square-dot {

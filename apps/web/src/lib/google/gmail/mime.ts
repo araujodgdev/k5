@@ -93,12 +93,33 @@ function partText(part: GmailPart): string {
   const charset = supportedCharset(declared?.[1] ?? declared?.[2] ?? declared?.[3] ?? '') ?? 'utf-8';
   return new TextDecoder(charset).decode(decodeBase64Url(part.body!.data!, 2_000_000));
 }
+/**
+ * Senders that generate the text part from their HTML leave Outlook conditional comments and
+ * `<url>` markers behind; they are noise to a reader and to the model.
+ */
+export function cleanPlainText(text: string): string {
+  return text.replace(/<!--\[if [^\]]*\]>(?:<!-->)?/gi, '').replace(/(?:<!--)?<!\[endif\]-->/gi, '')
+    .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
 export function messageText(message: GmailMessage) {
   const parts = walkParts(message.payload);
   const plain = parts.find(p => p.mimeType?.toLowerCase() === 'text/plain' && p.body?.data && !p.filename);
-  if (plain?.body?.data) return partText(plain).slice(0, 200_000);
+  if (plain?.body?.data) return cleanPlainText(partText(plain).slice(0, 200_000));
   const html = parts.find(p => p.mimeType?.toLowerCase() === 'text/html' && p.body?.data && !p.filename);
   return html?.body?.data ? htmlAsText(partText(html)) : '';
+}
+/**
+ * The message's own HTML, for the reader only. The browser shows it in a sandboxed frame with no
+ * scripts and remote content blocked (`src/components/google/email-frame.tsx`); it is never given
+ * to the model or the agent.
+ */
+export function messageHtml(message: GmailMessage, max = 1_500_000): string | null {
+  const html = walkParts(message.payload).find(p => p.mimeType?.toLowerCase() === 'text/html' && p.body?.data && !p.filename);
+  if (!html?.body?.data) return null;
+  try {
+    const text = partText(html);
+    return text.length <= max ? text : null;
+  } catch { return null; }
 }
 export function attachmentParts(message: GmailMessage) {
   return walkParts(message.payload).filter(p => p.filename && p.body && (p.body.attachmentId || p.body.data)).map(p => ({

@@ -74,20 +74,28 @@ export async function recordUsage(officeId: string, userId: string | null, confi
     .run(randomUUID(), officeId, userId, config.connectionId, config.provider, config.modelId, task, status, usage?.inputTokens ?? null, usage?.outputTokens ?? null);
 }
 
-export async function generateStructured<T extends z.ZodType>(officeId: string, userId: string, task: ModelTask, prompt: string, schema: T, requestedModel?: { provider?: string; modelId?: string }): Promise<z.output<T>> {
-  const { agent, config } = await createAgent(task, undefined, undefined, requestedModel);
+/**
+ * Quick features (e-mail summaries, reply suggestions) pass their own instructions and a lighter
+ * reasoning effort; the defaults keep the grounded legal instructions and the full effort.
+ */
+export type StructuredOptions = { instructions?: string; reasoningEffort?: 'low' | 'medium' | 'high'; timeoutMs?: number; maxOutputTokens?: number; signal?: AbortSignal };
+
+export async function generateStructured<T extends z.ZodType>(officeId: string, userId: string, task: ModelTask, prompt: string, schema: T, requestedModel?: { provider?: string; modelId?: string }, options: StructuredOptions = {}): Promise<z.output<T>> {
+  const { agent, config } = await createAgent(task, options.instructions, undefined, requestedModel);
   const ctx = new RequestContext();
   ctx.set('provider', config.provider);
   ctx.set('modelId', config.modelId);
   ctx.set('apiKey', config.apiKey);
+  const timeout = AbortSignal.timeout(options.timeoutMs ?? 180_000);
   return traceAgentTurn({ task, provider: config.provider, modelId: config.modelId }, async span => {
     try {
       const result = await agent.generate(prompt, {
         requestContext: ctx,
         structuredOutput: { schema },
         maxSteps: 1,
-        abortSignal: AbortSignal.timeout(180_000),
-        modelSettings: { maxOutputTokens: 12000 },
+        abortSignal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout,
+        modelSettings: { maxOutputTokens: options.maxOutputTokens ?? 12000 },
+        ...(options.reasoningEffort && config.provider === 'openai' ? { providerOptions: { openai: { reasoningEffort: options.reasoningEffort } } } : {}),
       });
       await recordUsage(officeId, userId, config, task, 'completed', result.usage);
       span.setAttributes({ 'gen_ai.usage.input_tokens': result.usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': result.usage?.outputTokens ?? 0, 'lume.outcome': 'completed' });
