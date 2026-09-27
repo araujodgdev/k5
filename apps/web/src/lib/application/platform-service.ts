@@ -52,10 +52,10 @@ export async function platformListConnections(context: WorkspaceContext) {
   };
 }
 
-export async function platformTestConnection(context: WorkspaceContext, input: { connectionId: string; task?: 'chat' | 'extraction' | 'drafting' | 'embedding' }) {
+export async function platformTestConnection(context: WorkspaceContext, input: { connectionId: string }) {
   await assertPlatformAdmin(context);
   try {
-    const result = await testAiConnection(database, parseCredentialKeyring(), context.userId, input.connectionId, input.task, testModelCredential);
+    const result = await testAiConnection(database, parseCredentialKeyring(), context.userId, input.connectionId, (config) => testModelCredential(config));
     return {
       ok: true,
       message: 'Conexão verificada com sucesso.',
@@ -80,7 +80,7 @@ export async function platformCreateConnection(context: WorkspaceContext, input:
   provider: AiProvider;
   secretRef: string;
   enabled?: boolean;
-  models?: { chat?: string | null; extraction?: string | null; drafting?: string | null; embedding?: string | null };
+  models?: { embedding?: string | null };
 }) {
   await assertPlatformAdmin(context);
   const apiKey = await consumeSecretRef(context.userId, input.secretRef);
@@ -117,7 +117,7 @@ export async function platformUpdateConnection(context: WorkspaceContext, input:
   provider?: AiProvider;
   secretRef?: string;
   enabled?: boolean;
-  models?: { chat?: string | null; extraction?: string | null; drafting?: string | null; embedding?: string | null };
+  models?: { embedding?: string | null };
 }) {
   await assertPlatformAdmin(context);
   const apiKey = input.secretRef ? await consumeSecretRef(context.userId, input.secretRef) : undefined;

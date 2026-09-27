@@ -9,8 +9,8 @@ export async function POST(request: Request, context: RouteContext<"/api/platfor
   try {
     const { db, user } = await requirePlatformRequest(request, { mutation: true });
     const { connectionId } = await context.params;
-    const { task } = await readPlatformJson(request, connectionTestSchema);
-    const result = await testAiConnection(db, parseCredentialKeyring(), user.id, connectionId, task, testModelCredential);
+    await readPlatformJson(request, connectionTestSchema);
+    const result = await testAiConnection(db, parseCredentialKeyring(), user.id, connectionId, (config) => testModelCredential(config));
     return Response.json({ ok: true, ...result });
   } catch (error) { return platformErrorResponse(error); }
 }

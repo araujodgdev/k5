@@ -84,7 +84,7 @@ export function platformErrorResponse(error: unknown) {
   if (error instanceof PlatformRequestError) return Response.json({ error: error.message }, { status: error.status });
   if (error instanceof AiConnectionError) {
     if (error.code === 'provider' || error.code === 'credential') captureOperationalError(error, `platform.ai.${error.code}`);
-    const status = { not_found: 404, conflict: 409, in_use: 409, disabled: 409, provider: 422, credential: 503, invalid: 400 }[error.code];
+    const status = { not_found: 404, conflict: 409, in_use: 409, disabled: 409, provider: 422, credential: 503, invalid: 400, unavailable: 409, task_disabled: 409 }[error.code];
     return Response.json({ error: error.message }, { status });
   }
   if (error instanceof CredentialKeyError) {

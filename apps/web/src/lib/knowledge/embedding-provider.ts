@@ -1,5 +1,5 @@
 import 'server-only';
-import { resolveModelConfig } from '@/lib/ai-connections';
+import { resolveEmbeddingConfig } from '@/lib/ai-connections';
 import { AiConnectionError, type AiProvider } from '@/lib/ai-connections-core';
 import { CapabilityError } from '@/lib/capabilities/errors';
 
@@ -34,7 +34,7 @@ export async function embeddingProfile(): Promise<EmbeddingProfile> {
     // Awaited inside the try: the resolution is asynchronous, so a rejection reaches this catch
     // only if the promise is settled here. Left un-awaited, the AiConnectionError would escape
     // past it and reach callers that only know how to answer EmbeddingUnavailableError.
-    config = await resolveModelConfig('embedding');
+    config = await resolveEmbeddingConfig();
   } catch (error) {
     if (error instanceof AiConnectionError) {
       throw new EmbeddingUnavailableError('Nenhuma conexão de IA compatível com embeddings está ativa na plataforma.');

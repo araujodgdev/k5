@@ -6,28 +6,31 @@ import {
 } from "./platform-crypto";
 import { defaultChatModel, defaultEmbeddingModel } from "./ai-defaults";
 
-type MasterKey = Uint8Array | CredentialKeyring;
+export type MasterKey = Uint8Array | CredentialKeyring;
 
 export const AI_PROVIDERS = ["openai", "anthropic", "google", "deepseek", "inception", "openrouter", "vercel"] as const;
-// Embedding is its own profile: model and dimension are fixed per index generation, so it must
-// never inherit whatever the chat profile happens to point at.
-export const AI_TASKS = ["chat", "extraction", "drafting", "embedding"] as const;
 export type AiProvider = typeof AI_PROVIDERS[number];
-export type AiTask = typeof AI_TASKS[number];
 
+/**
+ * A connection is a provider and its credential. Which connection and model serve each task lives
+ * in ai_model_assignment (src/lib/ai-assignments-core.ts). The embedding model stays on the
+ * connection: it is pinned by the search index, and changing it reindexes the Cofre.
+ * The chat, extraction and drafting columns predate migration 0030; they are kept on record and
+ * never read.
+ */
 export type ConnectionInput = {
   name: string;
   provider: AiProvider;
   apiKey: string;
   enabled?: boolean;
-  models: Record<AiTask, string | null>;
+  models?: { embedding?: string | null };
 };
 
-export type ConnectionPatch = Partial<Omit<ConnectionInput, "apiKey" | "models">> & { apiKey?: string; models?: Partial<Record<AiTask, string | null>> };
+export type ConnectionPatch = Partial<Omit<ConnectionInput, "apiKey">> & { apiKey?: string };
 
 // Shape and size checks for HTTP bodies; business rules and their messages stay in the functions below.
-const modelField = z.string().max(160).nullable().optional();
-const modelsSchema = z.strictObject({ chat: modelField, extraction: modelField, drafting: modelField, embedding: modelField });
+// Task models are no longer a connection field: a body that still sends them is refused, not ignored.
+const modelsSchema = z.strictObject({ embedding: z.string().max(160).nullable().optional() });
 const nameField = z.string().max(200);
 const apiKeyField = z.string().max(4096);
 export const connectionInputSchema = z.strictObject({
@@ -36,23 +39,25 @@ export const connectionInputSchema = z.strictObject({
 export const connectionPatchSchema = z.strictObject({
   name: nameField.optional(), provider: z.enum(AI_PROVIDERS).optional(), apiKey: apiKeyField.optional(), enabled: z.boolean().optional(), models: modelsSchema.optional(),
 });
-export const connectionTestSchema = z.strictObject({ task: z.enum(AI_TASKS).optional() });
+export const connectionTestSchema = z.strictObject({});
 
 /**
- * Tises' AI connections belong to the platform: one set of providers and task models serves every
- * office (migration 0022). A platform connection is a row with no office; rows that still carry an
+ * Tises' AI connections belong to the platform: one set of providers serves every office
+ * (migration 0022). A platform connection is a row with no office; rows that still carry an
  * office are the per-office configuration from before, kept on record and never read.
  */
 type Row = {
   id: string; office_id: string | null; name: string; provider: AiProvider; encrypted_api_key: string | null; api_key_hint: string;
-  chat_model: string | null; extraction_model: string | null; drafting_model: string | null; embedding_model: string | null; enabled: number;
-  created_at: string; updated_at: string; deleted_at: string | null;
+  embedding_model: string | null; enabled: number; created_at: string; updated_at: string; deleted_at: string | null;
 };
 
 export type AiConnectionView = ReturnType<typeof toView>;
 
 export class AiConnectionError extends Error {
-  constructor(public readonly code: "invalid" | "not_found" | "conflict" | "in_use" | "disabled" | "credential" | "provider", message: string) { super(message); }
+  constructor(
+    public readonly code: "invalid" | "not_found" | "conflict" | "in_use" | "disabled" | "credential" | "provider" | "unavailable" | "task_disabled",
+    message: string,
+  ) { super(message); }
 }
 
 function cleanModel(value: unknown): string | null {
@@ -71,40 +76,54 @@ function validateProvider(value: unknown): AiProvider {
   return value as AiProvider;
 }
 
-function cleanModels(models: Partial<Record<AiTask, unknown>> | undefined): Record<AiTask, string | null> {
-  return { chat: cleanModel(models?.chat), extraction: cleanModel(models?.extraction), drafting: cleanModel(models?.drafting), embedding: cleanModel(models?.embedding) };
-}
-
 function toView(row: Row) {
   return {
     id: row.id, name: row.name, provider: row.provider, keyHint: row.api_key_hint,
-    models: { chat: row.chat_model, extraction: row.extraction_model, drafting: row.drafting_model, embedding: row.embedding_model },
+    embeddingModel: row.embedding_model,
     enabled: Boolean(row.enabled), createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
 
 const AUDIT_SQL = "INSERT INTO platform_audit_log (id, actor_user_id, office_id, connection_id, action, details_json) VALUES (?, ?, ?, ?, ?, ?)";
 
-async function audit(db: Database, actorUserId: string, officeId: string | null, connectionId: string | null, action: string, details: object = {}) {
+export async function audit(db: Database, actorUserId: string, officeId: string | null, connectionId: string | null, action: string, details: object = {}) {
   await db.prepare(AUDIT_SQL).run(randomUUID(), actorUserId, officeId, connectionId, action, JSON.stringify(details));
 }
 
 /** The same row as `audit`, bound rather than executed, for callers writing inside a batch. */
-function auditStatement(db: Database, actorUserId: string, officeId: string | null, connectionId: string | null, action: string, details: object = {}) {
+export function auditStatement(db: Database, actorUserId: string, officeId: string | null, connectionId: string | null, action: string, details: object = {}) {
   return db.prepare(AUDIT_SQL).bind(randomUUID(), actorUserId, officeId, connectionId, action, JSON.stringify(details));
 }
 
 /**
- * Clears each task assignment from every other platform connection.
+ * Clears the embedding assignment from every other platform connection.
  *
  * Returns bound statements rather than running them, so the exclusivity, the write it protects
  * and the audit row all land in one batch: between them, two connections would otherwise claim
- * the same task, and whichever one a request read first would win.
+ * the embedding model, and whichever one a request read first would win.
  */
-function releaseTaskAssignments(db: Database, connectionId: string, models: Record<AiTask, string | null>) {
-  return AI_TASKS.filter((task) => models[task]).map((task) =>
-    db.prepare(`UPDATE ai_connection SET ${task}_model = NULL, updated_at = CURRENT_TIMESTAMP WHERE office_id IS NULL AND id <> ? AND deleted_at IS NULL AND ${task}_model IS NOT NULL`)
-      .bind(connectionId));
+function releaseEmbeddingAssignment(db: Database, connectionId: string, embeddingModel: string | null) {
+  return embeddingModel
+    ? [db.prepare("UPDATE ai_connection SET embedding_model = NULL, updated_at = CURRENT_TIMESTAMP WHERE office_id IS NULL AND id <> ? AND deleted_at IS NULL AND embedding_model IS NOT NULL").bind(connectionId)]
+    : [];
+}
+
+/**
+ * What still points at a connection: task assignments, and runs queued or running with a model
+ * plan pinned to it. Deleting the connection, or changing its provider, would break them.
+ */
+export async function connectionReferences(db: Database, connectionId: string) {
+  const assignments = await db.prepare("SELECT scope, target FROM ai_model_assignment WHERE connection_id = ? ORDER BY scope, target")
+    .all(connectionId) as Array<{ scope: "group" | "task"; target: string }>;
+  const runs = Number((await db.prepare(`SELECT count(*) AS n FROM ai_run WHERE status IN ('queued','running') AND model_plan IS NOT NULL
+    AND EXISTS (SELECT 1 FROM jsonb_each(model_plan->'tasks') planned WHERE planned.value->>'connectionId' = ?)`).get(connectionId))?.n ?? 0);
+  return { assignments, runs };
+}
+
+async function assertUnreferenced(db: Database, connectionId: string, action: string) {
+  const { assignments, runs } = await connectionReferences(db, connectionId);
+  if (assignments.length) throw new AiConnectionError("in_use", `Tire esta conexão dos modelos por tarefa antes de ${action}.`);
+  if (runs) throw new AiConnectionError("in_use", `${runs === 1 ? "Uma tarefa de documento em andamento usa" : `${runs} tarefas de documento em andamento usam`} esta conexão. Aguarde a conclusão antes de ${action}.`);
 }
 
 /** The offices on the platform, with how many people each one has. */
@@ -118,21 +137,21 @@ export async function listAiConnections(db: Database): Promise<AiConnectionView[
   return (await db.prepare("SELECT * FROM ai_connection WHERE office_id IS NULL AND deleted_at IS NULL ORDER BY lower(name)").all() as Row[]).map(toView);
 }
 
-export async function createAiConnection(db: Database, key: MasterKey, actorUserId: string, input: Omit<ConnectionInput, "models"> & { models?: ConnectionPatch["models"] }): Promise<AiConnectionView> {
+export async function createAiConnection(db: Database, key: MasterKey, actorUserId: string, input: ConnectionInput): Promise<AiConnectionView> {
   const id = randomUUID();
   const name = validateName(input.name);
   const provider = validateProvider(input.provider);
-  const models = cleanModels(input.models);
+  const embeddingModel = cleanModel(input.models?.embedding);
   const apiKey = input.apiKey?.trim();
   if (!apiKey) throw new AiConnectionError("invalid", "Informe a chave do provider.");
   try {
     await db.batch([
-      ...releaseTaskAssignments(db, id, models),
+      ...releaseEmbeddingAssignment(db, id, embeddingModel),
       db.prepare(`INSERT INTO ai_connection
-        (id, office_id, name, provider, encrypted_api_key, api_key_hint, chat_model, extraction_model, drafting_model, embedding_model, enabled)
-        VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(id, name, provider, encryptCredential(apiKey, key), credentialHint(apiKey), models.chat, models.extraction, models.drafting, models.embedding, input.enabled === false ? 0 : 1),
-      auditStatement(db, actorUserId, null, id, "ai_connection.created", { name, provider, enabled: input.enabled !== false, models }),
+        (id, office_id, name, provider, encrypted_api_key, api_key_hint, embedding_model, enabled)
+        VALUES (?, NULL, ?, ?, ?, ?, ?, ?)`)
+        .bind(id, name, provider, encryptCredential(apiKey, key), credentialHint(apiKey), embeddingModel, input.enabled === false ? 0 : 1),
+      auditStatement(db, actorUserId, null, id, "ai_connection.created", { name, provider, enabled: input.enabled !== false, embeddingModel }),
     ]);
   } catch (error) {
     if ((error as { code?: string })?.code === '23505') throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome.");
@@ -146,8 +165,10 @@ export async function updateAiConnection(db: Database, key: MasterKey, actorUser
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   const name = patch.name === undefined ? current.name : validateName(patch.name);
   const provider = patch.provider === undefined ? current.provider : validateProvider(patch.provider);
-  const existingModels = { chat: current.chat_model, extraction: current.extraction_model, drafting: current.drafting_model, embedding: current.embedding_model };
-  const models = patch.models === undefined ? existingModels : cleanModels({ ...existingModels, ...patch.models });
+  // A model ID only means something to its provider: switching the provider under an assignment or
+  // a pinned run would send that ID to a provider that does not know it.
+  if (provider !== current.provider) await assertUnreferenced(db, connectionId, "trocar o provider");
+  const embeddingModel = patch.models?.embedding === undefined ? current.embedding_model : cleanModel(patch.models.embedding);
   const apiKey = patch.apiKey?.trim();
   if (patch.apiKey !== undefined && !apiKey) throw new AiConnectionError("invalid", "A nova chave não pode estar vazia.");
   const encrypted = apiKey ? encryptCredential(apiKey, key) : current.encrypted_api_key;
@@ -155,10 +176,10 @@ export async function updateAiConnection(db: Database, key: MasterKey, actorUser
   const enabled = patch.enabled === undefined ? current.enabled : patch.enabled ? 1 : 0;
   try {
     await db.batch([
-      ...releaseTaskAssignments(db, connectionId, models),
-      db.prepare(`UPDATE ai_connection SET name = ?, provider = ?, encrypted_api_key = ?, api_key_hint = ?, chat_model = ?, extraction_model = ?, drafting_model = ?, embedding_model = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id IS NULL`)
-        .bind(name, provider, encrypted, hint, models.chat, models.extraction, models.drafting, models.embedding, enabled, connectionId),
-      auditStatement(db, actorUserId, null, connectionId, apiKey ? "ai_connection.key_rotated" : "ai_connection.updated", { name, provider, enabled: Boolean(enabled), models }),
+      ...releaseEmbeddingAssignment(db, connectionId, embeddingModel),
+      db.prepare(`UPDATE ai_connection SET name = ?, provider = ?, encrypted_api_key = ?, api_key_hint = ?, embedding_model = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id IS NULL`)
+        .bind(name, provider, encrypted, hint, embeddingModel, enabled, connectionId),
+      auditStatement(db, actorUserId, null, connectionId, apiKey ? "ai_connection.key_rotated" : "ai_connection.updated", { name, provider, enabled: Boolean(enabled), embeddingModel }),
     ]);
   } catch (error) {
     if ((error as { code?: string })?.code === '23505') throw new AiConnectionError("conflict", "Já existe uma conexão com esse nome.");
@@ -170,7 +191,8 @@ export async function updateAiConnection(db: Database, key: MasterKey, actorUser
 export async function deleteAiConnection(db: Database, actorUserId: string, connectionId: string): Promise<void> {
   const current = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id IS NULL AND deleted_at IS NULL").get(connectionId) as Row | undefined;
   if (!current) throw new AiConnectionError("not_found", "Conexão não encontrada.");
-  if (current.chat_model || current.extraction_model || current.drafting_model || current.embedding_model) throw new AiConnectionError("in_use", "Remova as atribuições de modelos antes de excluir a conexão.");
+  if (current.embedding_model) throw new AiConnectionError("in_use", "Remova o modelo de embedding antes de excluir a conexão.");
+  await assertUnreferenced(db, connectionId, "excluir a conexão");
   // The secret is erased and the deletion is recorded together: a connection whose key is gone
   // with no audit row is a deletion nobody can account for.
   await db.batch([
@@ -180,57 +202,28 @@ export async function deleteAiConnection(db: Database, actorUserId: string, conn
   ]);
 }
 
-function readSecret(payload: string, key: MasterKey) {
+export function readSecret(payload: string, key: MasterKey) {
   try { return decryptCredential(payload, key); } catch (error) {
     if (error instanceof CredentialDecryptError) throw new AiConnectionError("credential", "Não foi possível ler a credencial armazenada. Confira a chave mestra ou substitua a chave da conexão.");
     throw error;
   }
 }
 
-/** The platform connection and model that serve a task, for every office. */
-export async function resolveModelConfigFromDatabase(
-  db: Database,
-  key: MasterKey,
-  task: AiTask,
-  requestedModel?: { provider?: string; modelId?: string }
-) {
-  if (!AI_TASKS.includes(task)) throw new AiConnectionError("invalid", "Perfil de tarefa inválido.");
-
-  if (requestedModel?.provider && requestedModel?.modelId) {
-    const row = await db.prepare(
-      "SELECT * FROM ai_connection WHERE office_id IS NULL AND enabled = 1 AND deleted_at IS NULL AND provider = ? ORDER BY updated_at DESC, id LIMIT 1"
-    ).get(requestedModel.provider) as Row | undefined;
-    if (!row || !row.encrypted_api_key) {
-      throw new AiConnectionError("not_found", `Nenhum provedor ${requestedModel.provider} ativo configurado na plataforma.`);
-    }
-    return {
-      provider: row.provider,
-      modelId: requestedModel.modelId,
-      apiKey: readSecret(row.encrypted_api_key, key),
-      connectionId: row.id,
-    };
+/** The connection and model that serve semantic search, for every office. */
+export async function resolveEmbeddingConfigFromDatabase(db: Database, key: MasterKey) {
+  const assigned = await db.prepare("SELECT * FROM ai_connection WHERE office_id IS NULL AND enabled = 1 AND deleted_at IS NULL AND embedding_model IS NOT NULL ORDER BY updated_at DESC, id LIMIT 1").get() as Row | undefined;
+  if (assigned?.encrypted_api_key && assigned.embedding_model) {
+    return { provider: assigned.provider, modelId: assigned.embedding_model, apiKey: readSecret(assigned.encrypted_api_key, key), connectionId: assigned.id };
   }
-
-  const column = `${task}_model`;
-  const assigned = await db.prepare(`SELECT * FROM ai_connection WHERE office_id IS NULL AND enabled = 1 AND deleted_at IS NULL AND ${column} IS NOT NULL ORDER BY updated_at DESC, id LIMIT 1`).get() as Row | undefined;
-  if (assigned?.encrypted_api_key) {
-    return { provider: assigned.provider, modelId: assigned[column as keyof Row] as string, apiKey: readSecret(assigned.encrypted_api_key, key), connectionId: assigned.id };
-  }
-
-  // Until the administrator assigns a model, Tises uses the provider fallback. Embedding is the
-  // stricter case — only providers with an embeddings endpoint qualify, so
-  // a platform whose single connection is Anthropic gets a clear "not configured" instead of a
-  // request the provider cannot answer.
+  // Only providers with an embeddings endpoint qualify, so a platform whose single connection is
+  // Anthropic gets a clear "not configured" instead of a request the provider cannot answer.
   const candidates = await db.prepare("SELECT * FROM ai_connection WHERE office_id IS NULL AND enabled = 1 AND deleted_at IS NULL ORDER BY updated_at DESC, id").all() as Row[];
   for (const row of candidates) {
-    if (!row.encrypted_api_key) continue;
-    const modelId = task === "embedding" ? defaultEmbeddingModel(row.provider) : defaultChatModel(row.provider);
-    if (!modelId) continue;
+    const modelId = defaultEmbeddingModel(row.provider);
+    if (!row.encrypted_api_key || !modelId) continue;
     return { provider: row.provider, modelId, apiKey: readSecret(row.encrypted_api_key, key), connectionId: row.id };
   }
-  throw new AiConnectionError("not_found", task === "embedding"
-    ? "Nenhuma conexão ativa da plataforma oferece embeddings."
-    : "Nenhuma conexão de IA ativa na plataforma.");
+  throw new AiConnectionError("not_found", "Nenhuma conexão ativa da plataforma oferece embeddings.");
 }
 
 export type ResolvedModelConfig = {
@@ -240,19 +233,22 @@ export type ResolvedModelConfig = {
   connectionId: string;
 };
 
-// Tests any enabled platform connection with its own model, independent of which connection currently serves the task.
+/**
+ * Tests any enabled platform connection, independent of what it currently serves: with the model
+ * of the first task assigned to it, or with Tises' default for its provider.
+ */
 export async function testAiConnection(
-  db: Database, key: MasterKey, actorUserId: string, connectionId: string, requestedTask: AiTask | undefined,
+  db: Database, key: MasterKey, actorUserId: string, connectionId: string,
   send: (config: ResolvedModelConfig) => Promise<unknown>,
 ) {
   const row = await db.prepare("SELECT * FROM ai_connection WHERE id = ? AND office_id IS NULL AND deleted_at IS NULL").get(connectionId) as Row | undefined;
   if (!row || !row.encrypted_api_key) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   if (!row.enabled) throw new AiConnectionError("disabled", "Ative a conexão antes de testar.");
-  const task = requestedTask ?? AI_TASKS.find((item) => row[`${item}_model`]) ?? "chat";
-  // A connection with no assignment is tested with Tises' provider fallback.
-  const modelId = row[`${task}_model`] ?? (task === "embedding" ? defaultEmbeddingModel(row.provider) : defaultChatModel(row.provider));
-  if (!modelId) throw new AiConnectionError("invalid", "Este provider não tem um modelo padrão para esta tarefa.");
-  const details = { task, provider: row.provider, modelId };
+  // Transcription models answer on another endpoint; the connection test is a short conversation.
+  const assigned = await db.prepare(`SELECT model_id FROM ai_model_assignment WHERE connection_id = ? AND model_mode = 'explicit'
+    AND target NOT LIKE 'transcription%' ORDER BY scope, target LIMIT 1`).get(connectionId) as { model_id: string } | undefined;
+  const modelId = assigned?.model_id ?? defaultChatModel(row.provider);
+  const details = { provider: row.provider, modelId };
   let config: ResolvedModelConfig;
   try { config = { provider: row.provider, modelId, apiKey: readSecret(row.encrypted_api_key, key), connectionId: row.id }; } catch (error) {
     await audit(db, actorUserId, null, connectionId, "ai_connection.tested", { ...details, result: "failed", reason: "credential" });
@@ -264,7 +260,7 @@ export async function testAiConnection(
     throw new AiConnectionError("provider", "O provider recusou a requisição de teste. Confira a chave e o modelo.");
   }
   await audit(db, actorUserId, null, connectionId, "ai_connection.tested", { ...details, result: "ok" });
-  return { task, modelId };
+  return { modelId };
 }
 
 async function pendingReencryption(db: Database, keyring: CredentialKeyring) {
