@@ -2,8 +2,9 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import { ownedRun, publicRun, type RunRow } from '@/lib/ai-store';
-import { runInputSchema, validateRunSources } from '@/lib/document-workflows';
-import { resolveModelConfig } from '@/lib/ai-connections';
+import { RUN_TASKS, runInputSchema, validateRunSources } from '@/lib/document-workflows';
+import { AiConnectionError } from '@/lib/ai-connections-core';
+import { loadAssignmentSnapshot, pinRunModelPlan } from '@/lib/ai-assignments-core';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import { resolveDocumentTemplateId } from '@/lib/agent-profile';
@@ -64,8 +65,16 @@ export async function startRun(context: WorkspaceContext, raw: StartRunInput) {
   const input = runInputSchema.parse({ ...raw, templateId, writingRules, knowledge, pinnedResearchReferences: undefined, approvedCitationIds: raw.approvedCitationIds ?? [] });
   const running = Number(await (await database.prepare("SELECT count(*) AS n FROM ai_run WHERE office_id=? AND status IN ('queued','running')").get(context.officeId))?.n);
   if (running >= 5) throw new CapabilityError('RATE_LIMITED', 'Seu escritório já tem cinco tarefas em andamento.');
-  // Fail here, not three minutes into the worker: the credential has to resolve before queueing.
-  const model = await resolveModelConfig(input.kind === 'chronology' ? 'extraction' : 'drafting');
+  // Fail here, not three minutes into the worker: every task of the run must resolve before queueing,
+  // and the run keeps these models even if the administration changes them meanwhile.
+  let plan;
+  try { plan = pinRunModelPlan(await loadAssignmentSnapshot(database), RUN_TASKS[input.kind]); }
+  catch (error) {
+    if (error instanceof AiConnectionError) throw new CapabilityError('NOT_READY', error.message);
+    throw error;
+  }
+  // Kept for workers still on the previous release during a deploy, which read only these columns.
+  const first = plan.tasks[RUN_TASKS[input.kind][0]]!;
   let selection;
   try { selection = await validateRunSources(context, input); }
   catch (error) { throw new CapabilityError('SCOPE_REQUIRED', error instanceof Error ? error.message : 'Confira os documentos selecionados.'); }
@@ -73,10 +82,10 @@ export async function startRun(context: WorkspaceContext, raw: StartRunInput) {
   // The run and the citations it was approved against are written together. A run that starts
   // without its approvals would draft from passages nobody signed off on.
   await database.batch([
-    database.prepare('INSERT INTO ai_run(id,office_id,user_id,kind,input,model_provider,model_id) VALUES(?,?,?,?,?,?,?)')
+    database.prepare('INSERT INTO ai_run(id,office_id,user_id,kind,input,model_provider,model_id,model_plan) VALUES(?,?,?,?,?,?,?,?)')
       .bind(id, context.officeId, context.userId, input.kind,
         JSON.stringify({ ...input, pinnedResearchReferences: selection.pinnedResearchReferences }),
-        model.provider, model.modelId),
+        first.provider, first.modelId, JSON.stringify(plan)),
     ...selection.approved.map((citation) =>
       database.prepare(`INSERT INTO ai_citation_approval(run_id,citation_id,source_text,source_label,user_id,source_type,document_id,
         research_reference_id,material_version_id,judgment_id,research_chunk_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)`)

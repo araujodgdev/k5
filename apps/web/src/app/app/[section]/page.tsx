@@ -6,8 +6,8 @@ import { appNavigation } from "@/lib/navigation";
 import { requireWorkspace } from "@/lib/session";
 import { database } from "@/lib/database";
 import { conversationBootstrap } from "@/lib/ai-store";
-import { resolveModelConfig } from "@/lib/ai-connections";
-import { modelModalities } from "@/lib/ai-modalities";
+import { planTaskModel } from "@/lib/ai-connections";
+import { planReadsImages } from "@/lib/ai-assignments-core";
 
 type Props = { params: Promise<{ section: string }>; searchParams: Promise<{ conversationId?: string }> };
 
@@ -23,14 +23,18 @@ export default async function SectionPage({ params, searchParams }: Props) {
   if (!item) notFound();
   if (item.slug === "agents") {
     const { conversationId } = await searchParams;
-    const [history, model] = await Promise.allSettled([
+    const [history, chat, transcription] = await Promise.allSettled([
       conversationBootstrap(database, { officeId: office.officeId, userId: user.id }, conversationId),
-      resolveModelConfig('chat'),
+      planTaskModel('agent.chat'),
+      planTaskModel('transcription.voice_note'),
     ]);
+    // Images depend on the conversation's model; the microphone on the transcription task.
+    const modalities = chat.status === 'fulfilled' && transcription.status === 'fulfilled'
+      ? { image: planReadsImages(chat.value), audio: transcription.value.status === 'ready' } : undefined;
     // A failed prefetch falls back to the existing API loading/error path in the chat.
     return <AgentChat key={conversationId ?? 'latest'} initialConversationId={conversationId}
       initialData={history.status === 'fulfilled' ? history.value : undefined}
-      modalities={model.status === 'fulfilled' ? modelModalities(model.value.provider, model.value.modelId) : undefined} />;
+      modalities={modalities} />;
   }
   return (
     <Reveal className="mx-auto w-full max-w-5xl px-5 py-6 md:px-10 md:py-10">

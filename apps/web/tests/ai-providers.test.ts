@@ -4,7 +4,7 @@ import { resolveModelConfig } from "@mastra/core/llm";
 import { modelFor, providerCatalog, providerLabels, type ModelCredential } from "../src/lib/ai-providers";
 import { AI_PROVIDERS } from "../src/lib/ai-connections-core";
 import { DEFAULT_CHAT_MODEL, DEFAULT_EMBEDDING_MODEL, isChatModel } from "../src/lib/ai-defaults";
-import { modelModalities } from "../src/lib/ai-modalities";
+import { chatHearsAudio, modelModalities } from "../src/lib/ai-modalities";
 
 test("modelFor binds the given key and model id to the provider, without network calls", () => {
   for (const provider of AI_PROVIDERS) {
@@ -32,8 +32,8 @@ test("GPT-6 Sol and Luna are available to the platform administrator", async () 
   for (const modelId of ["gpt-6-sol", "gpt-6-luna"]) {
     assert.ok(catalog.openai.includes(modelId));
     assert.ok(isChatModel(modelId));
-    // Voice notes are transcribed with the office's OpenAI key, so the microphone is on.
-    assert.deepEqual(modelModalities("openai", modelId), { image: true, audio: true });
+    // What the model reads natively; the microphone depends on the transcription task.
+    assert.deepEqual(modelModalities("openai", modelId), { image: true, audio: false });
     const resolved = await resolveModelConfig(modelFor({ provider: "openai", modelId, apiKey: "test-key" }));
     assert.equal(resolved.modelId, modelId);
   }
@@ -56,10 +56,13 @@ test("Tises owns the default model of every provider, and it is a model the rout
 });
 
 test("modalities are read from the model id and fail closed on an unknown one", () => {
-  assert.deepEqual(modelModalities("openai", "gpt-5"), { image: true, audio: true });
-  // An OpenAI model behind an aggregator has no OpenAI key to transcribe with.
+  assert.deepEqual(modelModalities("openai", "gpt-5"), { image: true, audio: false });
   assert.deepEqual(modelModalities("openrouter", "openai/gpt-5"), { image: true, audio: false });
   assert.deepEqual(modelModalities("openai", "gpt-4o-audio-preview"), { image: true, audio: true });
+  // The chat hears a recording only off OpenAI, whose Responses API takes no audio parts.
+  assert.equal(chatHearsAudio("openai", "gpt-4o-audio-preview"), false);
+  assert.equal(chatHearsAudio("google", "gemini-2.5-pro"), true);
+  assert.equal(chatHearsAudio("anthropic", "claude-sonnet-4-5"), false);
   assert.deepEqual(modelModalities("google", "gemini-2.5-pro"), { image: true, audio: true });
   assert.deepEqual(modelModalities("anthropic", "claude-sonnet-4-5"), { image: true, audio: false });
   assert.deepEqual(modelModalities("deepseek", "deepseek-v4-pro"), { image: false, audio: false });

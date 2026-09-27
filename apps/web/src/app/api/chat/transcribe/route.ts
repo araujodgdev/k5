@@ -30,6 +30,7 @@ export async function POST(request: Request) {
       return Response.json({ text }, { headers: { 'Cache-Control': 'private, no-store' } });
     } catch (error) {
       if (error instanceof TranscriptionError && error.reason === 'unsupported') throw new ApiError(400, 'O Tises não aceita áudio nesta configuração.');
+      if (error instanceof TranscriptionError && error.reason === 'unavailable') throw new ApiError(503, 'A transcrição está indisponível no momento. Escreva a mensagem ou tente mais tarde.');
       if (error instanceof ApiError) throw error;
       captureOperationalError(error, 'chat.audio.transcription');
       throw new ApiError(502, 'Não foi possível transcrever o áudio. Tente de novo ou escreva a mensagem.');

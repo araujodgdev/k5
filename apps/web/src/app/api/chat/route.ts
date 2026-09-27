@@ -6,11 +6,11 @@ import { apiWorkspace, apiError, ApiError, limitedJson } from '@/lib/workspace-a
 import { conversation, mergeHistory, saveMessages } from '@/lib/ai-store';
 import { selectedResearchSources } from '@/lib/ai-sources';
 import { workspaceContext } from '@/lib/application/context';
-import { modelModalities } from '@/lib/ai-modalities';
+import { chatHearsAudio, modelModalities } from '@/lib/ai-modalities';
 import { resolveChatAttachments, claimChatAttachments, publicChatAttachment } from '@/lib/chat-attachments';
 import { attachmentPart } from '@/lib/chat-attachment-contract';
-import { resolveModelConfig } from '@/lib/ai-connections';
-import { transcribeAudio, transcribesAudio } from '@/lib/audio-transcription';
+import { planTaskModel } from '@/lib/ai-connections';
+import { transcribeVoiceNote, TranscriptionError } from '@/lib/audio-transcription';
 import { chatRunResponse, followChatRun, startChatRun } from '@/lib/chat-run';
 
 export const runtime = 'nodejs';
@@ -46,19 +46,24 @@ export async function POST(request: Request) {
     const context = workspaceContext(workspace);
     // Refuses references outside the selected case before anything is stored.
     if (body.researchReferenceIds.length) await selectedResearchSources(context, body.caseId!, body.researchReferenceIds);
-    const config = await resolveModelConfig('chat');
+    const config = await planTaskModel('agent.chat');
+    if (config.status !== 'ready') throw new ApiError(503, 'O Tises está indisponível no momento. Peça ao administrador para conferir a configuração de IA.');
 
     const locked = await database.prepare('UPDATE ai_conversation SET busy_until=? WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(Date.now() + TURN_LOCK_MS, id, (office).officeId, user.id, Date.now());
     if (!locked.changes) throw new ApiError(409, 'Aguarde a resposta atual.');
     try {
       if (chatAttachments.some(item=>item.media_type.startsWith('image/')) && !modelModalities(config.provider,config.modelId).image) throw new ApiError(400,'O modelo configurado não lê imagens. Peça ao administrador para usar um modelo com visão.');
       await claimChatAttachments(owner,id,body.message.id,chatAttachments);
-      // A voice note for an OpenAI model becomes text before anything is stored, so the history,
+      // Audio the conversation cannot hear becomes text before anything is stored, so the history,
       // the model and the person all see the same words.
-      const spoken = transcribesAudio(config.provider)
-        ? (await Promise.all(body.attachments.filter(item => item.mediaType.startsWith('audio/')).map(item => transcribeAudio(config.apiKey, item, request.signal)
-          .catch(error => { captureOperationalError(error, 'chat.audio.transcription'); throw new ApiError(502, 'Não foi possível transcrever o áudio. Tente de novo ou escreva a mensagem.'); })))).filter(Boolean)
-        : [];
+      const spoken = chatHearsAudio(config.provider, config.modelId)
+        ? []
+        : (await Promise.all(body.attachments.filter(item => item.mediaType.startsWith('audio/')).map(item =>
+          transcribeVoiceNote(owner, { mediaType: item.mediaType, bytes: Buffer.from(item.data, 'base64') }, request.signal).catch(error => {
+            if (error instanceof TranscriptionError && error.reason === 'unsupported') throw new ApiError(400, 'O Tises não aceita áudio nesta configuração.');
+            captureOperationalError(error, 'chat.audio.transcription');
+            throw new ApiError(502, 'Não foi possível transcrever o áudio. Tente de novo ou escreva a mensagem.');
+          })))).filter(Boolean);
       const input: UIMessage = { id: body.message.id, role: 'user', parts: [{ type: 'text', text: [text, ...spoken.map(item => `[Áudio] ${item}`)].join('\n\n') },...chatAttachments.map(item=>attachmentPart(publicChatAttachment(item)))] };
       await saveMessages(database, owner, id, mergeHistory(stored.messages, input));
       await startChatRun({

@@ -655,8 +655,8 @@ export const platformCapabilities = {
   },
   k5_platform_test_connection: {
     module: 'platform', effect: 'read',
-    description: 'Testa a conectividade de um provedor de IA cadastrado.',
-    input: z.object({ connectionId: identifier, task: z.enum(['chat', 'extraction', 'drafting']).optional() }),
+    description: 'Testa a conectividade de um provedor de IA cadastrado, com o modelo de uma tarefa que ele atende ou o padrão do provider.',
+    input: z.object({ connectionId: identifier }),
     output: z.object({ ok: z.boolean(), message: z.string(), modelId: z.string().optional() }),
   },
   k5_platform_create_connection: {
@@ -668,12 +668,10 @@ export const platformCapabilities = {
       // Opaque reference to a key a human already submitted through the platform form.
       secretRef: z.string().uuid().describe('Referência de segredo emitida pelo formulário da plataforma.'),
       enabled: z.boolean().optional(),
+      // Task models are chosen per task in Administração › IA; a connection keeps only the embedding model.
       models: z.object({
-        chat: z.string().max(160).nullable().optional(),
-        extraction: z.string().max(160).nullable().optional(),
-        drafting: z.string().max(160).nullable().optional(),
         embedding: z.string().max(160).nullable().optional(),
-      }).optional(),
+      }).strict().optional(),
     }),
     output: z.object({
       connection: z.object({
@@ -694,12 +692,10 @@ export const platformCapabilities = {
       provider: z.enum(['openai', 'anthropic', 'google', 'deepseek', 'inception', 'openrouter', 'vercel']).optional(),
       secretRef: z.string().uuid().optional().describe('Referência de segredo emitida pelo formulário da plataforma; obrigatória apenas ao rotacionar a chave.'),
       enabled: z.boolean().optional(),
+      // Task models are chosen per task in Administração › IA; a connection keeps only the embedding model.
       models: z.object({
-        chat: z.string().max(160).nullable().optional(),
-        extraction: z.string().max(160).nullable().optional(),
-        drafting: z.string().max(160).nullable().optional(),
         embedding: z.string().max(160).nullable().optional(),
-      }).optional(),
+      }).strict().optional(),
     }),
     output: z.object({
       connection: z.object({

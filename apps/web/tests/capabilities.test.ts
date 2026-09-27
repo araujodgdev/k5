@@ -660,7 +660,7 @@ test("platform service: create, list, and delete the platform's AI connections",
     // The key reached the server through a human form; the tool only carries the reference.
     secretRef: (await createSecretRef(userAdmin, "sk-test-fake-key-12345")).id,
     enabled: true,
-    models: { chat: "gpt-4o", extraction: null, drafting: null, embedding: null },
+    models: { embedding: null },
   });
   assert.equal(created.connection.name, "Conexão Teste OpenAI");
   assert.equal(created.connection.provider, "openai");
@@ -674,7 +674,7 @@ test("platform service: create, list, and delete the platform's AI connections",
   const updated = await platformService.platformUpdateConnection(context, {
     connectionId: created.connection.id,
     name: "Conexão Teste OpenAI v2",
-    models: { chat: null, extraction: null, drafting: null, embedding: null },
+    models: { embedding: null },
   });
   assert.equal(updated.connection.name, "Conexão Teste OpenAI v2");
 

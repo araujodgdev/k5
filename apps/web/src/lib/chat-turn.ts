@@ -10,22 +10,21 @@ import { conversation, ownedArtifact, saveMessages } from '@/lib/ai-store';
 import { documentFocusPrompt } from '@/lib/artifact-edits';
 import { reviewCitations, type CitationItem } from '@/lib/citations/review';
 import { conversationSources, recordSources, type RecordedSource } from '@/lib/citations/sources';
-import { createAgent, recordUsage, RequestContext } from '@/lib/ai-runtime';
+import { createAgent, errorClass, recordUsage, requestContextFor } from '@/lib/ai-runtime';
 import { selectedResearchSources } from '@/lib/ai-sources';
 import type { WorkspaceContext } from '@/lib/application/context';
 import { agentTools, toolSummary, type ApprovalRequest } from '@/lib/agent-tools';
 import { describeAgentApproval, resourceHref, type AgentApprovalPart } from '@/lib/application/agent-approvals';
 import { listVaultDocuments, readVaultOriginal, findVaultDocument } from '@/lib/vault';
-import { modelModalities, modelReadsPdf } from '@/lib/ai-modalities';
+import { chatHearsAudio, modelModalities, modelReadsPdf } from '@/lib/ai-modalities';
 import { chatPromptMessages } from '@/lib/chat-prompt';
 import { clockContext } from '@/lib/chat-clock';
-import { transcribesAudio } from '@/lib/audio-transcription';
 import { instructionsPrompt } from '@/lib/agent-instructions';
 import { knowledgePrompt } from '@/lib/agent-knowledge';
 import { agentMemory, memoryInstructions, memoryResource } from '@/lib/agent-memory';
 import { injectionDetector, isWithheld, UntrustedToolResultGuard } from '@/lib/agent-guard';
 import { webSearchFor, type WebPage } from '@/lib/agent-web-search';
-import { resolveModelConfig } from '@/lib/ai-connections';
+import { resolveTaskModel } from '@/lib/ai-connections';
 import { webSearchLinks } from '@/lib/research/jurisprudence-score';
 import { ToolBudget } from '@/lib/agent-budget';
 
@@ -129,7 +128,8 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     const officeTools = agentTools(context, request => approvals.push(request));
     // Grounding on the open web: the provider's own search for OpenAI and Anthropic, Exa for the rest
     // (Gemini does not mix Google Search with function calling). See agent-web-search.ts.
-    const provider = (await resolveModelConfig('chat')).provider;
+    const chatModel = await resolveTaskModel('agent.chat');
+    const provider = chatModel.provider;
     const [writingRules, knowledge] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner)]);
     // Only the person's own document is named; an id they do not own is ignored, not an error.
     const focusedId = body.selection?.artifactId ?? body.openDocumentId;
@@ -137,10 +137,12 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     const documentFocus = focused ? documentFocusPrompt(focused, body.selection?.artifactId === focused.id ? body.selection.excerpt : undefined) : '';
     const tools = { ...officeTools, ...webSearchFor(provider) };
     // Third-party text (e-mail, Docs, publications, web pages) is checked before the model reads it,
-    // by the extraction model: a classifier does not need the chat's.
-    const guard = new UntrustedToolResultGuard(injectionDetector(() => resolveModelConfig('extraction')));
+    // by the classification task's model: a classifier does not need the chat's.
+    const guard = new UntrustedToolResultGuard(injectionDetector(() => resolveTaskModel('classification.injection_guard'),
+      (guardModel, call) => recordUsage(owner.officeId, owner.userId, guardModel, guardModel.task, call.status, call.usage,
+        { durationMs: call.durationMs, errorClass: call.error === undefined ? undefined : errorClass(call.error), signals: call.signals })));
     const { agent, config } = await createAgent(
-      'chat',
+      chatModel,
       [
         // Rules shape the voice; the policies after them keep the last word.
         conversationStyle, ...[writingRules, knowledge].filter(Boolean), chatGrounding, toolInstructions, memoryInstructions, clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
@@ -149,16 +151,17 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         ...(documentFocus ? [documentFocus] : []),
       ].join('\n\n'),
       tools,
-      undefined,
       { memory: await agentMemory(), outputProcessors: [guard] },
     );
 
     await traceAgentTurn({ task: 'chat', provider: config.provider, modelId: config.modelId }, async span => {
       const trace = new AgentTrace(owner, { conversationId: id, task: 'chat', provider: config.provider, modelId: config.modelId });
       await trace.open();
+      span.setAttribute('lume.reasoning_effort', config.effort ?? 'provider_default');
       let status: TraceStatus = 'completed';
       let failure: unknown;
       let usage: { inputTokens?: number; outputTokens?: number } | undefined;
+      const started = performance.now();
       const messageId = randomUUID();
       const partId = randomUUID();
       let answer = '';
@@ -189,8 +192,8 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         const mediaParts: Array<{ type: 'file'; data: string; mediaType: string }> = [];
         for (const attachment of body.attachments) {
           const isAudio = attachment.mediaType.startsWith('audio/');
-          if (isAudio && transcribesAudio(config.provider)) continue; // already in the message as text
-          if (isAudio ? modalities.audio : modalities.image) {
+          // Audio the conversation cannot hear was transcribed into the message by the route.
+          if (isAudio ? chatHearsAudio(config.provider, config.modelId) : modalities.image) {
             mediaParts.push({ type: 'file', data: attachment.data, mediaType: attachment.mediaType });
           }
         }
@@ -230,14 +233,9 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
           ? [...history.slice(0, -1), { role: 'user' as const, content: [...(typeof lastUser.content==='string'?[{ type: 'text' as const, text: lastUser.content }]:lastUser.content), ...mediaParts] }]
           : history;
 
-        const ctx = new RequestContext();
-        ctx.set('provider', config.provider);
-        ctx.set('modelId', config.modelId);
-        ctx.set('apiKey', config.apiKey);
-
         const controller = new AbortController();
         const response = await agent.stream(promptMessages as Parameters<typeof agent.stream>[0], {
-          requestContext: ctx,
+          requestContext: requestContextFor(config),
           maxSteps: MAX_STEPS,
           modelSettings: { maxOutputTokens: 6000 },
           // Leaving the page no longer cancels the turn; only Parar (`signal`) and the budgets do.
@@ -310,7 +308,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         }
         if (halted) { emit(halted); status = 'halted'; }
         usage = await response.usage;
-        await recordUsage(owner.officeId, owner.userId, config, 'chat', 'completed', usage);
+        await recordUsage(owner.officeId, owner.userId, config, config.task, 'completed', usage, { durationMs: performance.now() - started });
         span.setAttributes({
           'gen_ai.usage.input_tokens': usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': usage?.outputTokens ?? 0,
           'lume.tool_calls': budget.total, 'lume.guard.withheld': guard.withheld.size, 'lume.outcome': status,
@@ -335,7 +333,8 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         const message = aborted ? '\n[Resposta interrompida.]' : '\n[Não foi possível concluir a resposta. Tente novamente.]';
         if (!answer.endsWith(message)) { answer += message; writer.write({ type: 'text-delta', id: partId, delta: message }); }
         span.setAttribute('lume.outcome', status);
-        await recordUsage(owner.officeId, owner.userId, config, 'chat', status);
+        await recordUsage(owner.officeId, owner.userId, config, config.task, status, undefined,
+          { durationMs: performance.now() - started, errorClass: aborted ? 'aborted' : errorClass(error) });
       } finally {
         const parts: UIMessage['parts'] = [
           ...steps.map((step, index) => ({ type: 'data-tool' as const, id: `${messageId}-${index}`, data: step })),

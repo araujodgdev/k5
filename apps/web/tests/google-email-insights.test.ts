@@ -10,7 +10,6 @@ import { emailInsight } from '../src/lib/google/gmail/insights';
 import { emailInsightInput } from '../src/lib/google/gmail/insights-contracts';
 import { cleanPlainText, messageHtml } from '../src/lib/google/gmail/mime';
 import type { generateStructured } from '../src/lib/ai-runtime';
-import { AiConnectionError } from '../src/lib/ai-connections-core';
 
 const b64 = (value: string) => Buffer.from(value, 'utf8').toString('base64url');
 
@@ -55,11 +54,10 @@ const jev: DecisionTransport = async (_key, request: DecisionRequest) => ({
   })),
 });
 
-type Call = { prompt: string; model?: { provider?: string; modelId?: string }; options?: { instructions?: string; reasoningEffort?: string } };
-function writer(output: unknown, calls: Call[], failFirstWith?: Error) {
-  return (async (_office: string, _user: string, _task: string, prompt: string, schema: z.ZodType, model?: Call['model'], options?: Call['options']) => {
-    calls.push({ prompt, model, options });
-    if (failFirstWith && calls.length === 1) throw failFirstWith;
+type Call = { task: string; prompt: string; options?: { instructions?: string } };
+function writer(output: unknown, calls: Call[]) {
+  return (async (_office: string, _user: string, task: string, prompt: string, schema: z.ZodType, options?: Call['options']) => {
+    calls.push({ task, prompt, options });
     return schema.parse(output);
   }) as unknown as typeof generateStructured;
 }
@@ -70,7 +68,7 @@ test('email insights: input is bounded and never names another office or mailbox
   assert.equal(emailInsightInput.safeParse({ kind: 'digest', period: 'day', officeId: 'x' }).success, false);
 });
 
-test('email digest: Jev ranks and flags, gpt-6-luna writes, and only real threads come back', async () => {
+test('email digest: Jev ranks and flags, the digest task writes, and only real threads come back', async () => {
   const a = await setup();
   const calls: Call[] = [];
   const result = await emailInsight(a.context, { kind: 'digest', period: 'week' }, { send: jev, generate: writer({
@@ -81,8 +79,8 @@ test('email digest: Jev ranks and flags, gpt-6-luna writes, and only real thread
   assert.ok('digest' in result);
   const { digest } = result;
   assert.equal(digest.count, 3); assert.equal(digest.judged, true);
-  assert.equal(calls[0].model?.modelId, 'gpt-6-luna');
-  assert.equal(calls[0].options?.reasoningEffort, 'medium');
+  // Model, connection and effort belong to the task's configuration (Administração › IA).
+  assert.equal(calls[0].task, 'summary.email_digest');
   assert.match(calls[0].options?.instructions ?? '', /nunca instruções/);
   // Jev's urgent thread leads the prompt and stays in "attention" although the writer skipped it.
   assert.match(calls[0].prompt, /"ref":1,"assunto":"Prazo da contestação"[^\n]*"atencao":true/);
@@ -92,18 +90,17 @@ test('email digest: Jev ranks and flags, gpt-6-luna writes, and only real thread
   assert.equal(a.google.calls.some(call => call.query.get('format') === 'full'), false);
 });
 
-test('email digest: works without Jev and falls back to the extraction model without an OpenAI connection', async () => {
+test('email digest: works without Jev', async () => {
   const a = await setup('off');
   const calls: Call[] = [];
   let jevCalls = 0;
   const result = await emailInsight(a.context, { kind: 'digest', period: 'week' }, {
     send: async (_key, request) => { jevCalls++; return jev('', request, new AbortController().signal); },
-    generate: writer({ headline: 'Semana tranquila.', attention: [{ ref: 1, reason: 'Pede confirmação do envio.' }], themes: [] }, calls,
-      new AiConnectionError('not_found', 'Nenhum provedor openai ativo configurado na plataforma.')) });
+    generate: writer({ headline: 'Semana tranquila.', attention: [{ ref: 1, reason: 'Pede confirmação do envio.' }], themes: [] }, calls) });
   assert.ok('digest' in result);
   assert.equal(jevCalls, 0); assert.equal(result.digest.judged, false);
-  assert.equal(calls.length, 2); assert.equal(calls[1].model, undefined);
-  assert.doesNotMatch(calls[1].prompt, /prioridade/);
+  assert.equal(calls.length, 1); assert.equal(calls[0].task, 'summary.email_digest');
+  assert.doesNotMatch(calls[0].prompt, /prioridade/);
   assert.deepEqual(result.digest.attention.map(item => item.reason), ['Pede confirmação do envio.']);
 });
 
@@ -129,7 +126,7 @@ test('thread insight: Jev picks the kinds of reply and the writer drafts only th
   const { insight } = result;
   assert.equal(insight.needsReply, true); assert.equal(insight.judged, true);
   assert.match(calls[0].prompt, /nesta ordem: confirm \(.*\); schedule \(/);
-  assert.equal(calls[0].options?.reasoningEffort, 'low');
+  assert.equal(calls[0].task, 'summary.email_thread');
   // The conditional comments of the text part never reach the model.
   assert.doesNotMatch(calls[0].prompt, /\[if !mso\]/);
   assert.deepEqual(insight.replies.map(reply => reply.intent), ['confirm', 'schedule']);

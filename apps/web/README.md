@@ -91,8 +91,8 @@ As opções inteligentes de `/app/email` (`src/lib/google/gmail/insights.ts`) re
 entrada do dia, da semana ou do mês e, dentro de uma conversa, dão um panorama e sugerem
 respostas. Leem só a caixa da própria pessoa, pela conexão dela, e não alteram o Gmail. O Jev
 (TypeSafe, modo e-mail ativado) julga prioridade, se a mensagem pede resposta e que tipos de
-resposta cabem; o `gpt-6-luna` escreve o texto a partir desses julgamentos. Sem conexão OpenAI na
-plataforma, usa o modelo de extração; sem o Jev, o resumo funciona sem esses julgamentos. O que é
+resposta cabem; o modelo das tarefas `summary.email_digest` e `summary.email_thread` escreve o texto a
+partir desses julgamentos. Sem o Jev, o resumo funciona sem esses julgamentos. O que é
 gerado não é gravado: fica só na tela aberta. O HTML das mensagens chega apenas ao leitor, num
 iframe isolado (sem scripts, sem formulários, imagens externas bloqueadas até a pessoa pedir),
 por uma rota própria (`/api/integrations/google/mail-thread`); o agente continua recebendo só texto.
@@ -137,15 +137,16 @@ O módulo **Pesquisa** (`/app/research`) busca sempre na web pelo Exa, no tipo e
 (instantânea, rápida, automática ou profunda), e exige `EXA_API_KEY`. Cada busca fica em
 `research_web_search`, visível só para quem a fez, e reabre pelo Histórico sem nova consulta.
 O microfone do composer grava, mostra o nível do áudio e, ao parar, envia a gravação para
-`/api/chat/transcribe`; a transcrição vira a mensagem da pessoa. Modelos OpenAI transcrevem com a
-chave do escritório (`gpt-4o-mini-transcribe`); Gemini transcreve o próprio áudio. O áudio não é guardado.
+`/api/chat/transcribe`; a transcrição vira a mensagem da pessoa. A tarefa `transcription.voice_note`
+decide o modelo: sem atribuição, segue o provider do Agente (`gpt-4o-mini-transcribe` numa conexão
+OpenAI, o próprio áudio no Gemini, microfone desligado nos demais). O áudio não é guardado.
 O Tises tem uma memória de trabalho por pessoa e escritório (Mastra Memory, tabelas `mastra_*` da
 migração 0023, sem criar tabelas em tempo de execução). Ela guarda preferências e o que a pessoa
 pediu para lembrar, e acompanha as conversas seguintes. `k5_memory_get` mostra e `k5_memory_clear`
 apaga a memória (`/api/agent/memory`). O histórico das conversas continua só em `ai_conversation`.
 Resultados de ferramentas com texto de terceiros (Gmail, Google Docs, publicações judiciais,
-jurisprudência e busca na web) passam pelo `PromptInjectionDetector` do Mastra, com o modelo de
-extração, antes de o modelo lê-los. Se houver instruções dirigidas ao assistente, o conteúdo é
+jurisprudência e busca na web) passam pelo `PromptInjectionDetector` do Mastra, com o modelo da
+tarefa `classification.injection_guard`, antes de o modelo lê-los. Se houver instruções dirigidas ao assistente, o conteúdo é
 retido e o Tises avisa a pessoa (`src/lib/agent-guard.ts`).
 Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
 escritas verificam origem e papel. Chaves de idempotência evitam criação duplicada em
@@ -176,9 +177,19 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
 - **Administração:** módulo `/app/admin`, visível só para administradores da plataforma, com
   as abas Feedback, Clientes, IA e Credenciais. A aba IA (`/app/admin/ai`) configura uma vez,
   para todos os escritórios, as conexões de IA da plataforma (OpenAI, Anthropic, Google,
-  DeepSeek, Inception, OpenRouter e AI Gateway) e a TypeSafe. O administrador escolhe o modelo
-  do Tises para conversas, extração e redação, pela lista ou digitando o ID; o modelo de
-  embeddings também é da plataforma, e trocá-lo reindexa o Cofre de todos os escritórios.
+  DeepSeek, Inception, OpenRouter e AI Gateway) e a TypeSafe. Em **Modelos por tarefa** o
+  administrador escolhe conexão, modelo e esforço de raciocínio por grupo (Agente, Redação
+  jurídica, Extração de documentos, Resumo e texto curto, Classificação e segurança, Transcrição)
+  e, quando precisar, por tarefa; o catálogo fica em `src/lib/ai-tasks.ts` e a resolução em
+  `src/lib/ai-assignments-core.ts` (migração 0029). Sem escolha própria, a tarefa segue o grupo e
+  o grupo segue o pai; modelo e esforço são herdados separadamente, e um esforço escolhido para um
+  provider não passa para outro. Uma conexão escolhida que foi desativada ou excluída interrompe a
+  tarefa com o motivo, sem trocar de provider sozinha. Cronologias e minutas fixam os modelos ao
+  entrar na fila (`ai_run.model_plan`); a conexão de uma tarefa na fila não pode ser excluída nem
+  mudar de provider. Cada chamada grava em `ai_usage` a tarefa, o esforço, a origem do modelo e do
+  esforço, a duração, a classe de erro e sinais de qualidade (como citações sem trecho literal na
+  cronologia). O modelo de embeddings continua na conexão, e trocá-lo reindexa o Cofre de todos os
+  escritórios.
   A migração 0022 adotou as conexões do escritório configurado por último; as conexões antigas
   por escritório ficam guardadas, mas não são mais lidas. Clientes é a lista de escritórios.
   O roteador do Mastra resolve endpoint e protocolo do provedor. O usuário do escritório não
@@ -186,15 +197,17 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   tabela `platform_admin`, independente do papel no escritório, e só é concedido pela linha
   de comando: `pnpm platform:admin grant --email usuario@exemplo.com` (`revoke` retira).
   Chaves ficam cifradas com AES-256-GCM e nunca voltam ao navegador; operações são auditadas.
-  Conexões OpenAI enviam `reasoningEffort: 'xhigh'` em chat, geração estruturada e teste
-  de credencial. O modelo escolhido precisa aceitar esse esforço; não há redução silenciosa.
+  Só providers que aceitam esforço o recebem (hoje, OpenAI); os demais usam o próprio padrão. A
+  migração 0029 manteve o esforço de antes: `xhigh` no Agente, na Redação e na Extração, `medium`
+  no panorama de e-mails, `low` nas respostas rápidas e na guarda contra injeção. O modelo
+  escolhido precisa aceitar o esforço; o botão **Testar** confere a combinação.
 - **Rotação da chave mestra:** siga os comentários de `.env.example` e execute
   `pnpm platform:admin rotate-key --email <administrador da plataforma>`.
 - **Cofre (`/app/vault`):** casos e biblioteca; PDF (com OCR), DOCX, EML, XLSX, CSV e TXT
   com referências estáveis por página, parágrafo, mensagem ou célula.
 - **Anexos da petição:** na aba **Anexos** do caso, a pessoa escolhe o PDF digitalizado com todos
-  os documentos (já lido pelo OCR) e a petição (arquivo do caso ou texto colado). O modelo do
-  escritório propõe os documentos e as páginas; o código ordena pela primeira citação na petição
+  os documentos (já lido pelo OCR) e a petição (arquivo do caso ou texto colado). O modelo da tarefa
+  `extraction.annex_plan` propõe os documentos e as páginas; o código ordena pela primeira citação na petição
   e deixa desmarcados os não citados. Depois da revisão, `pdf-lib` recorta os intervalos e salva
   cada anexo numa nova pasta do caso, numerado e sem acentos (`01_procuracao.pdf`). Nada é gerado
   sem confirmação; o Tises usa as mesmas capacidades (`k5_vault_plan_annexes`, `k5_vault_generate_annexes`).

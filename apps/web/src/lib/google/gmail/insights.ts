@@ -3,7 +3,6 @@ import type { Questions } from '@typesafe-ai/sdk';
 import { z } from 'zod';
 import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/application/context';
 import { generateStructured, type StructuredOptions } from '@/lib/ai-runtime';
-import { AiConnectionError } from '@/lib/ai-connections-core';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { evaluate, type DecisionTransport } from '@/lib/typesafe/client';
 import { getConnection } from '@/lib/typesafe/config';
@@ -15,11 +14,10 @@ import { emailInsightInput, replyIntents, type DigestPeriod, type DigestThread, 
 /**
  * Smart options of the e-mail module. Code owns the flow: it reads only the person's own mailbox,
  * asks Jev (TypeSafe System One) for bounded judgments — priority, whether a reply is expected,
- * which kinds of reply fit — and asks gpt-6-luna to write the overview and the reply texts from
- * those judgments. Nothing is stored and nothing in Gmail changes.
+ * which kinds of reply fit — and asks the summary tasks' model to write the overview and the reply
+ * texts from those judgments. Nothing is stored and nothing in Gmail changes.
  */
 export const emailInsightVersion = 'email-insight-pt-BR-v1';
-const writerModel = { provider: 'openai', modelId: 'gpt-6-luna' };
 const periodQuery: Record<DigestPeriod, string> = { day: '1d', week: '7d', month: '30d' };
 const periodLimit: Record<DigestPeriod, number> = { day: 30, week: 50, month: 80 };
 const periodLabel: Record<DigestPeriod, string> = { day: 'últimas 24 horas', week: 'últimos 7 dias', month: 'últimos 30 dias' };
@@ -57,14 +55,9 @@ const addressOf = (value: string) => (value.match(/<([^<>]+)>/)?.[1] ?? value).t
 const nameOf = (value: string) => value.replace(/<[^<>]*>/g, '').replace(/"/g, '').trim() || addressOf(value);
 const clip = (value: string, max: number) => value.length > max ? `${value.slice(0, max - 1)}…` : value;
 
-/** gpt-6-luna when the platform has an OpenAI connection; otherwise the model assigned to extraction. */
-async function write<T extends z.ZodType>(context: WorkspaceContext, prompt: string, schema: T, options: StructuredOptions, generate: Generate) {
-  try {
-    return await generate(context.officeId, context.userId, 'extraction', prompt, schema, writerModel, { instructions: writerInstructions, ...options });
-  } catch (error) {
-    if (!(error instanceof AiConnectionError && error.code === 'not_found')) throw error;
-    return generate(context.officeId, context.userId, 'extraction', prompt, schema, undefined, { instructions: writerInstructions, ...options });
-  }
+/** The model, connection and effort of each writer come from its summary task (Administração › IA). */
+function write<T extends z.ZodType>(context: WorkspaceContext, task: 'summary.email_digest' | 'summary.email_thread', prompt: string, schema: T, options: StructuredOptions<z.output<T>>, generate: Generate) {
+  return generate(context.officeId, context.userId, task, prompt, schema, { instructions: writerInstructions, ...options });
 }
 
 /** Jev runs only when the platform turned its e-mail judgments on; the features work without it. */
@@ -138,7 +131,7 @@ async function digest(context: WorkspaceContext, connection: ConnectionRow, peri
     attention: z.array(z.object({ ref: z.number().int(), reason: z.string() })).max(10),
     themes: z.array(z.object({ title: z.string(), summary: z.string(), refs: z.array(z.number().int()).max(40) })).max(6),
   });
-  const written = await write(context, `Hoje é ${today}. Faça um panorama dos e-mails recebidos por ${nameOf(connection.display_name ?? connection.email)} nos ${periodLabel[period]}.
+  const written = await write(context, 'summary.email_digest', `Hoje é ${today}. Faça um panorama dos e-mails recebidos por ${nameOf(connection.display_name ?? connection.email)} nos ${periodLabel[period]}.
 ${judged ? 'Cada e-mail traz a prioridade e se aguarda resposta, julgadas antes; confie nesses campos. Todo e-mail com atencao=true precisa estar em attention.' : 'Escolha para attention só os e-mails que claramente pedem ação ou resposta desta pessoa.'}
 headline: uma ou duas frases dirigidas à pessoa (você), dizendo o essencial do período.
 attention: até 8 e-mails que pedem ação, cada um com ref e um motivo de no máximo 120 caracteres (o que é pedido, e o prazo se o e-mail disser).
@@ -146,7 +139,7 @@ themes: até 5 grupos por assunto (clientes, processos, financeiro, agenda, info
 Referencie e-mails só pelos refs abaixo.
 <emails>
 ${lines.join('\n')}
-</emails>`, schema, { reasoningEffort: 'medium', timeoutMs: 90_000, maxOutputTokens: 4000, signal }, options.generate ?? generateStructured);
+</emails>`, schema, { timeoutMs: 90_000, maxOutputTokens: 4000, signal }, options.generate ?? generateStructured);
 
   const view = (item: DigestItem): DigestThread => ({ threadId: item.threadId, subject: item.subject, from: item.from, date: item.date, unread: item.unread });
   const attention = new Map<string, EmailDigest['attention'][number]>();
@@ -225,7 +218,7 @@ async function threadInsight(context: WorkspaceContext, connection: ConnectionRo
     replies: z.array(z.object({ intent: z.enum(replyIntents), label: z.string(), body: z.string() })).max(3),
   });
   const person = nameOf(connection.display_name ?? connection.email);
-  const written = await write(context, `Resuma esta conversa de e-mail para ${person}, que a está lendo.
+  const written = await write(context, 'summary.email_thread', `Resuma esta conversa de e-mail para ${person}, que a está lendo.
 overview: duas ou três frases com o que a conversa trata e em que pé está.
 points: até 4 linhas curtas com o que importa para agir: pedidos, prazos, datas, valores, documentos, próximos passos. Sem repetir o overview. Vazio se não houver.
 ${!canWrite || intents?.length === 0 ? 'replies: lista vazia.' : intents
@@ -234,7 +227,7 @@ ${!canWrite || intents?.length === 0 ? 'replies: lista vazia.' : intents
 Cada resposta: label com até 4 palavras em português dizendo o que ela faz; body pronto para enviar, no idioma da última mensagem, cordial e objetivo (até 6 frases), sem assunto, assinado apenas com "${person.split(' ')[0]}". Não prometa nada que a conversa não sustente e use [colchetes] para dados que a pessoa precisa completar.
 <conversa assunto=${JSON.stringify(subject)}>
 ${view.map(message => JSON.stringify(message)).join('\n')}
-</conversa>`, schema, { reasoningEffort: 'low', timeoutMs: 60_000, maxOutputTokens: 3000, signal: context.signal }, options.generate ?? generateStructured);
+</conversa>`, schema, { timeoutMs: 60_000, maxOutputTokens: 3000, signal: context.signal }, options.generate ?? generateStructured);
 
   const allowed = canWrite ? new Set(intents ?? replyIntents) : new Set<ReplyIntent>();
   const replies = written.replies.filter(reply => allowed.has(reply.intent) && reply.body.trim()).slice(0, 3)
