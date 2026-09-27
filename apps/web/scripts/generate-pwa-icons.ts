@@ -1,4 +1,4 @@
-/** Regenerate Lume install icons and favicon from the canonical app icon. */
+/** Regenerate Tises install icons and favicon from the canonical app icon. */
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 

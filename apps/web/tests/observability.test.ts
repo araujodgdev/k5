@@ -29,8 +29,8 @@ test('telemetry is opt-in in development/test, enabled in staging, and can be di
   // Every chat turn is kept; everything else, structured calls included, follows the rate.
   const sampler = serverOptions('web', { SENTRY_TRACES_SAMPLE_RATE: '0.2' }).tracesSampler;
   const inherit = (rate: number) => rate;
-  assert.equal(sampler({ name: 'invoke_agent Lume chat', inheritOrSampleWith: inherit }), 1);
-  assert.equal(sampler({ name: 'invoke_agent Lume extraction', inheritOrSampleWith: inherit }), 0.2);
+  assert.equal(sampler({ name: 'invoke_agent Tises chat', inheritOrSampleWith: inherit }), 1);
+  assert.equal(sampler({ name: 'invoke_agent Tises extraction', inheritOrSampleWith: inherit }), 0.2);
   assert.equal(sampler({ name: 'GET /app', inheritOrSampleWith: inherit }), 0.2);
 });
 

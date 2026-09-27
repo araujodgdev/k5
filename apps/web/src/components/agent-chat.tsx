@@ -164,7 +164,7 @@ type StepData = { callId?: string; name?: string; summary?: string; state?: stri
 
 /**
  * Documents open beside the conversation instead of replacing it. `announce` hears every tool line
- * as it renders; a document the Lume created or changed in this turn opens, or reloads if open.
+ * as it renders; a document Tises created or changed in this turn opens, or reloads if open.
  */
 type DocumentLinks = { open: (id: string) => void; announce: (step: StepData) => void; changed: (id: string) => void };
 const DocumentLinksContext = createContext<DocumentLinks | null>(null);
@@ -198,7 +198,7 @@ const ConversationIdContext = createContext("");
 type ApprovalData = { approvalId: string; capability?: string; summary: string; state: "pending" | "confirmed" | "cancelled" | "failed"; result?: string; href?: string };
 
 /**
- * The only thing the Lume asks before acting: deleting, reaching a court, or overwriting a draft.
+ * The only thing Tises asks before acting: deleting, reaching a court, or overwriting a draft.
  * Confirmar runs exactly the action it proposed on the server; nothing is retyped by the model.
  */
 function ApprovalStep({ data }: { data: ApprovalData }) {
@@ -218,7 +218,7 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision, conversationId }),
       });
       const body = await response.json().catch(() => ({})) as ApprovalData & { error?: string };
-      if (!response.ok) throw new Error(body.error || "Não foi possível concluir. Peça de novo ao Lume.");
+      if (!response.ok) throw new Error(body.error || "Não foi possível concluir. Peça de novo ao Tises.");
       setDecided({ state: body.state, result: body.result, href: body.href });
       const changedDocument = body.state === "confirmed" ? documentIdFrom(body.href) : null;
       if (changedDocument) documents?.changed(changedDocument);
@@ -248,7 +248,7 @@ type JurisprudenceData = {
 };
 
 /**
- * Case law the Lume found on the web. It is built from the tool result, not from the model's
+ * Case law Tises found on the web. It is built from the tool result, not from the model's
  * prose, so every item carries the link the search returned and Jev's relevance, in plain text.
  */
 function JurisprudenceList({ data }: { data: JurisprudenceData }) {
@@ -277,7 +277,7 @@ function JurisprudenceList({ data }: { data: JurisprudenceData }) {
 }
 
 /**
- * The answer's legal citations, checked against what the conversation consulted. The Lume writes
+ * The answer's legal citations, checked against what the conversation consulted. Tises writes
  * freely; this is where the lawyer sees which citations to confirm before relying on them.
  */
 function CitationsList({ data }: { data: { items?: CitationItem[] } }) {
@@ -377,7 +377,7 @@ function ComposerTools({ modalities, uploading, onPickFiles, voice }: ComposerTo
     window.setTimeout(() => fileInput.current?.click(), 0);
   }
 
-  const audioHint = modalities.audio ? undefined : "O Lume não aceita áudio nesta configuração.";
+  const audioHint = modalities.audio ? undefined : "O Tises não aceita áudio nesta configuração.";
 
   return (
     <>
@@ -401,13 +401,13 @@ function ComposerTools({ modalities, uploading, onPickFiles, voice }: ComposerTo
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" side="top" className="w-64 p-1">
-          <HintedControl hint={modalities.image ? undefined : "O Lume não lê imagens nesta configuração."}>
+          <HintedControl hint={modalities.image ? undefined : "O Tises não lê imagens nesta configuração."}>
             <button type="button" onClick={()=>{setMenuOpen(false);setCameraOpen(true);}} disabled={!modalities.image} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:text-subtle-foreground md:min-h-9"><Camera className="size-4 text-muted-foreground" aria-hidden="true" />Tirar foto</button>
           </HintedControl>
           <button type="button" onClick={() => pick("document")} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted md:min-h-9">
             <FileText className="size-4 text-muted-foreground" aria-hidden="true" />Documento ou planilha
           </button>
-          <HintedControl hint={modalities.image ? undefined : "O Lume não lê imagens nesta configuração."}>
+          <HintedControl hint={modalities.image ? undefined : "O Tises não lê imagens nesta configuração."}>
             <button type="button" onClick={() => pick("image")} disabled={!modalities.image} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent md:min-h-9">
               <ImageIcon className="size-4 text-muted-foreground" aria-hidden="true" />Escolher imagem
             </button>
@@ -431,7 +431,7 @@ function ComposerTools({ modalities, uploading, onPickFiles, voice }: ComposerTo
   );
 }
 
-function LumeThread({ tools }: { tools: ComposerToolsProps }) {
+function AgentThread({ tools }: { tools: ComposerToolsProps }) {
   const [away, setAway] = useState(false);
   const aui = useAui();
   // The transcript joins whatever was typed and goes out as the person's own message, so the
@@ -454,7 +454,7 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
       }}>
         <ThreadPrimitive.Empty>
           <div className="mx-auto grid w-full max-w-3xl flex-1 place-items-center px-6 py-14 text-center">
-            <p className="max-w-sm text-sm leading-6 text-subtle-foreground">Peça o que precisar. O Lume consulta os documentos do escritório e cria tarefas, reuniões e casos por você.</p>
+            <p className="max-w-sm text-sm leading-6 text-subtle-foreground">Peça o que precisar. O Tises consulta os documentos do escritório e cria tarefas, reuniões e casos por você.</p>
           </div>
         </ThreadPrimitive.Empty>
         <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
@@ -467,8 +467,8 @@ function LumeThread({ tools }: { tools: ComposerToolsProps }) {
             {voice.state==='transcribing'&&<p role="status" className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />Transcrevendo áudio…</p>}
             <ComposerPrimitive.Input
               rows={away ? 1 : 2}
-              placeholder="Pergunte ao Lume"
-              aria-label="Pergunte ao Lume"
+              placeholder="Pergunte ao Tises"
+              aria-label="Pergunte ao Tises"
               className={cn("max-h-[25dvh] w-full resize-none bg-transparent px-2 pt-2 pb-1 text-base outline-none transition-[min-height] duration-200 motion-reduce:transition-none placeholder:text-subtle-foreground md:text-sm", away ? "min-h-10" : "min-h-16")}
             />
             <div className="flex items-center gap-1">
@@ -582,12 +582,12 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
   useEffect(() => () => { void stop(); }, [stop]);
   useEffect(() => {
     sendRef.current = (text) => {
-      if (status === "submitted" || status === "streaming") throw new Error("Aguarde a resposta atual do Lume.");
+      if (status === "submitted" || status === "streaming") throw new Error("Aguarde a resposta atual do Tises.");
       void send({ text });
     };
     return () => { sendRef.current = null; };
   }, [sendRef, status, send]);
-  return <ConversationIdContext.Provider value={conversationId}><AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider></ConversationIdContext.Provider>;
+  return <ConversationIdContext.Provider value={conversationId}><AssistantRuntimeProvider runtime={runtime}><AgentThread tools={tools} /></AssistantRuntimeProvider></ConversationIdContext.Provider>;
 }
 
 export function AgentChat({ initialConversationId = '', initialData, modalities = { image: false, audio: false } }: { initialConversationId?: string; initialData?: ChatBootstrap; modalities?: Modalities }) {
@@ -803,7 +803,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   }), [loadedCalls, openDocument]);
 
   const askAboutDocument = useCallback(async (request: DocumentAsk) => {
-    if (!sendRef.current) throw new Error("Abra uma conversa para pedir ao Lume.");
+    if (!sendRef.current) throw new Error("Abra uma conversa para pedir ao Tises.");
     selectionRef.current = { artifactId: request.artifactId, excerpt: request.excerpt };
     const quote = request.excerpt.length > 280 ? `${request.excerpt.slice(0, 277)}…` : request.excerpt;
     try { sendRef.current(`No documento “${request.title}”, no trecho “${quote}”:\n${request.instruction}`); }
@@ -858,7 +858,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
               </TooltipTrigger>
               <TooltipContent>{listOpen ? "Ocultar conversas" : "Mostrar conversas"}</TooltipContent>
             </Tooltip>
-            <h1 className="page-title truncate max-md:sr-only">Lume</h1>
+            <h1 className="page-title truncate max-md:sr-only">Tises</h1>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="size-11 md:size-9" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
@@ -869,9 +869,9 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
           <div className="flex items-center gap-1.5">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Personalizar Lume"><Link href="/app/agents/settings"><SlidersHorizontal /></Link></Button>
+                <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Personalizar Tises"><Link href="/app/agents/settings"><SlidersHorizontal /></Link></Button>
               </TooltipTrigger>
-              <TooltipContent>Personalizar Lume</TooltipContent>
+              <TooltipContent>Personalizar Tises</TooltipContent>
             </Tooltip>
             <Sheet open={contextOpen} onOpenChange={setContextOpen}>
               <SheetTrigger asChild><Button variant="outline"><FileStack />Fontes{selectedCount > 0 ? ` (${selectedCount})` : ""}</Button></SheetTrigger>

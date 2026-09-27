@@ -39,7 +39,7 @@ export const connectionPatchSchema = z.strictObject({
 export const connectionTestSchema = z.strictObject({ task: z.enum(AI_TASKS).optional() });
 
 /**
- * Lume's AI connections belong to the platform: one set of providers and task models serves every
+ * Tises' AI connections belong to the platform: one set of providers and task models serves every
  * office (migration 0022). A platform connection is a row with no office; rows that still carry an
  * office are the per-office configuration from before, kept on record and never read.
  */
@@ -217,7 +217,7 @@ export async function resolveModelConfigFromDatabase(
     return { provider: assigned.provider, modelId: assigned[column as keyof Row] as string, apiKey: readSecret(assigned.encrypted_api_key, key), connectionId: assigned.id };
   }
 
-  // Until the administrator assigns a model, Lume uses the provider fallback. Embedding is the
+  // Until the administrator assigns a model, Tises uses the provider fallback. Embedding is the
   // stricter case — only providers with an embeddings endpoint qualify, so
   // a platform whose single connection is Anthropic gets a clear "not configured" instead of a
   // request the provider cannot answer.
@@ -249,7 +249,7 @@ export async function testAiConnection(
   if (!row || !row.encrypted_api_key) throw new AiConnectionError("not_found", "Conexão não encontrada.");
   if (!row.enabled) throw new AiConnectionError("disabled", "Ative a conexão antes de testar.");
   const task = requestedTask ?? AI_TASKS.find((item) => row[`${item}_model`]) ?? "chat";
-  // A connection with no assignment is tested with Lume's provider fallback.
+  // A connection with no assignment is tested with Tises' provider fallback.
   const modelId = row[`${task}_model`] ?? (task === "embedding" ? defaultEmbeddingModel(row.provider) : defaultChatModel(row.provider));
   if (!modelId) throw new AiConnectionError("invalid", "Este provider não tem um modelo padrão para esta tarefa.");
   const details = { task, provider: row.provider, modelId };

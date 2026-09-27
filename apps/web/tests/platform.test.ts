@@ -111,7 +111,7 @@ test("task assignment is exclusive and deletion erases the secret after assignme
   assert.ok(deleted.deleted_at);
 });
 
-test("the Lume's model choice applies to chat, extraction and drafting on the platform", async () => {
+test("Tises' model choice applies to chat, extraction and drafting on the platform", async () => {
   const { database, admin, key } = (await fixture());
   const old = await createAiConnection(database, key, admin, {
     name: "Anterior", provider: "anthropic", apiKey: "sk-old",
@@ -181,7 +181,7 @@ test("connection test accepts any enabled connection, hides provider failures an
   const ok = async (config: { apiKey: string; modelId: string }) => { sent.push(`${config.apiKey}:${config.modelId}`); };
   assert.deepEqual(await testAiConnection(database, key, admin, extraction.id, undefined, ok), { task: "extraction", modelId: "claude-extract" });
   assert.deepEqual(sent, ["sk-extract-test-secret:claude-extract"]);
-  // No chat assignment: the test uses the model Lume would use for this provider.
+  // No chat assignment: the test uses the model Tises would use for this provider.
   assert.deepEqual(await testAiConnection(database, key, admin, extraction.id, "chat", ok), { task: "chat", modelId: DEFAULT_CHAT_MODEL.anthropic });
   await assert.rejects(testAiConnection(database, key, admin, legacy, undefined, ok), (error) => error instanceof AiConnectionError && error.code === "not_found");
   const leaky = async () => { throw new Error("401 Incorrect API key provided: sk-cha****cret"); };
@@ -248,7 +248,7 @@ test("concurrent resolution binds the platform credential to the model, and disa
   await updateAiConnection(database, key, admin, platform.id, { enabled: false });
   const disabled = await Promise.allSettled([resolve(), resolve()]);
   assert.ok(disabled.every((item) => item.status === "rejected" && item.reason instanceof AiConnectionError && item.reason.code === "not_found"));
-  // Clearing the assignment does not disable the Lume: it supplies the model for the provider.
+  // Clearing the assignment does not disable Tises: it supplies the model for the provider.
   await updateAiConnection(database, key, admin, platform.id, { enabled: true, models: { chat: null, extraction: null, drafting: null } });
   const cleared = await resolve();
   assert.equal(cleared.modelId, DEFAULT_CHAT_MODEL.anthropic);
@@ -280,7 +280,7 @@ test("dynamic model resolution supports an internally pinned run model", async (
     models: { chat: null, extraction: null, drafting: null },
   });
 
-  // Without a requested model the platform still resolves: Lume owns the default for the provider.
+  // Without a requested model the platform still resolves: Tises owns the default for the provider.
   const fallback = await resolveModelConfigFromDatabase(database, key, "chat");
   assert.equal(fallback.provider, "inception");
   assert.equal(fallback.modelId, DEFAULT_CHAT_MODEL.inception);

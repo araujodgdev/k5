@@ -36,7 +36,7 @@ export function AgentKnowledge({ initial, initialCandidates }: { initial: Knowle
   return (
     <section aria-labelledby="knowledge-heading" className="mt-10 border-t pt-8">
       <h2 id="knowledge-heading" className="font-medium">Conhecimento</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Documentos do Cofre que o Lume consulta. &ldquo;Ler sempre&rdquo; envia o texto em toda conversa; &ldquo;Buscar quando precisar&rdquo; só procura nele quando o assunto pede.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Documentos do Cofre que o Tises consulta. &ldquo;Ler sempre&rdquo; envia o texto em toda conversa; &ldquo;Buscar quando precisar&rdquo; só procura nele quando o assunto pede.</p>
       <p className="mt-2 text-[13px] text-muted-foreground" aria-live="polite">
         Leitura fixa: {thousands(used)} de {thousands(state.budget)} caracteres.
         {used > state.budget && " Os que passarem do limite serão buscados quando precisar."}

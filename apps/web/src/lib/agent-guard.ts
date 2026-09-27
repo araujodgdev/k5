@@ -7,7 +7,7 @@ import { captureOperationalError } from './observability/report';
 
 /**
  * Text written by third parties (e-mail, Google Docs, court publications, pages from the open web)
- * reaches the Lume through these tools. Each result is checked by Mastra's PromptInjectionDetector
+ * reaches Tises through these tools. Each result is checked by Mastra's PromptInjectionDetector
  * before the model reads it, and a result that carries instructions aimed at the assistant is
  * withheld: the model gets a notice instead, and the person can still open the original.
  *

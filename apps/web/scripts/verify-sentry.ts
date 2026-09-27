@@ -14,7 +14,7 @@ Sentry.init({
 
 let eventId = '';
 await Sentry.startSpan({ name: 'sentry.setup.verify', op: 'test' }, async () => {
-  eventId = Sentry.captureException(new Error('Lume Sentry setup verification'), {
+  eventId = Sentry.captureException(new Error('Tises Sentry setup verification'), {
     tags: { verification_id: checkId },
   });
 });

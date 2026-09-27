@@ -6,7 +6,7 @@ import { authStore, database } from './database';
 import type { Owner } from './ai-store';
 
 /**
- * The Lume's working memory: what the person told it about themselves and how they work, carried
+ * Tises' working memory: what the person told it about themselves and how they work, carried
  * from one conversation to the next. Mastra Memory owns the prompt and the update tool; storage is
  * the office's PostgreSQL (migration 0023), reached through the request's own pool.
  *
@@ -20,8 +20,8 @@ export const memoryResource = (owner: Owner) => `${owner.officeId}:${owner.userI
 
 export const MEMORY_MAX_CHARACTERS = 6000;
 
-/** Sections the Lume fills in; Mastra only stores what fits them unless the person asks. */
-const template = `# Memória do Lume
+/** Sections Tises fills in; Mastra only stores what fits them unless the person asks. */
+const template = `# Memória do Tises
 ## Como a pessoa prefere trabalhar
 - Tom, tamanho e formato das respostas:
 - Convenções de redação (tratamento, citação, estrutura de peças):

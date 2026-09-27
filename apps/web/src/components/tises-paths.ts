@@ -3,7 +3,7 @@
  * components can read it. Keep src/app/icon.svg and public/tises.svg in sync with `tisesPaths`.
  */
 
-/** The mark: the old Lume geometry as a T. Two pieces cut at 45° meet across a narrow diagonal
+/** The mark: the old Tises geometry as a T. Two pieces cut at 45° meet across a narrow diagonal
  *  slit (the left arm; the stem joined to the right arm), and a beam leaves the slit on that diagonal. */
 export const tisesPaths = {
   arm: "M4 4H12L9 7H4Z",

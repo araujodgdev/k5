@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 
 type Context = { params: Promise<{ id: string }> };
 
-/** Confirmar/Cancelar pressed on an action the Lume proposed in the chat. */
+/** Confirmar/Cancelar pressed on an action Tises proposed in the chat. */
 export async function POST(request: Request, context: Context) {
   try {
     const workspace = await apiWorkspace(request, true);

@@ -24,9 +24,9 @@ Este workflow padroniza e automatiza o processo de validação de ponta a ponta 
      * **Escritório**: `Araújo & Associados Advocacia`
    - O login deve ser feito na tela `/sign-in` do sistema.
 
-2. **Modelo do Lume e Provedores de IA**:
-   - O administrador registra o provedor e a chave em `/platform/clients/[officeId]/ai` e define o modelo do Lume na mesma página, pela lista ou digitando o ID.
-   - O usuário conversa com o Lume em `/app/agents`, sem acesso ao modelo ou provedor na interface.
+2. **Modelo do Tises e Provedores de IA**:
+   - O administrador registra o provedor e a chave em `/platform/clients/[officeId]/ai` e define o modelo do Tises na mesma página, pela lista ou digitando o ID.
+   - O usuário conversa com o Tises em `/app/agents`, sem acesso ao modelo ou provedor na interface.
    - O servidor resolve o modelo configurado para o escritório em tempo de execução via `RequestContext` do Mastra.
 
 3. **Gravação Contínua e Sem Deslogamento Prematuro**:
@@ -116,5 +116,5 @@ O script deve cobrir as seguintes etapas visuais:
   As requisições `GET` no navegador não enviam cabeçalho `Origin`. Ao usar `apiWorkspace(request, write)`, defina `write = false` para leituras.
 - **Redirecionamento repentino para `/sign-in`**:
   Ocorre quando a sessão é invalidada em segundo plano enquanto o usuário navega. Mantenha a sessão íntegra até o final e execute o logout estritamente via interface.
-- **Modelo do Lume indisponível**:
+- **Modelo do Tises indisponível**:
   Verifique se o escritório possui pelo menos uma conexão habilitada em `ai_connection` (`enabled = 1` e `deleted_at IS NULL`) e se o modelo foi salvo na administração da plataforma.

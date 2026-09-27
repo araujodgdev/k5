@@ -127,7 +127,7 @@ test('feedback triage: disabled, classified, retried and never overriding an adm
   // What the person chose reaches the model as labels, as a hint next to the text.
   const hinted = await createTicket(author, { message: 'O botão de anexar some no celular.', pagePath: '/app/agents', kind: 'problem', module: 'lume' }, null);
   await drain(async (key, request) => { seen = request; return reply(request, { kind: 'problem', module: 'lume', severity: 1 }); });
-  assert.deepEqual((seen!.state as { feedback: unknown }).feedback, { message: 'O botão de anexar some no celular.', page: '/app/agents', reported_kind: 'Problema', reported_area: 'Lume (chat)' });
+  assert.deepEqual((seen!.state as { feedback: unknown }).feedback, { message: 'O botão de anexar some no celular.', page: '/app/agents', reported_kind: 'Problema', reported_area: 'Tises (chat)' });
   assert.equal((await platformTicket(platform.userId, hinted.id))!.priority, 'p2');
 
   // A provider failure is retried later instead of leaving the ticket unclassified.

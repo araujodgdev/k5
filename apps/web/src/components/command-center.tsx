@@ -20,9 +20,9 @@ type Overview = {
 const pendingSections = { tasks: true, meetings: true, clients: true, vault: true, conversations: true };
 const linkStyle = 'inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-type Module = 'agenda' | 'vault' | 'lume';
-/** The top rule of each block takes its module colour: agenda ochre, Cofre slate, Lume orange. */
-const moduleRule: Record<Module, string> = { agenda: 'before:bg-module-agenda', vault: 'before:bg-module-vault', lume: 'before:bg-module-lume' };
+type Module = 'agenda' | 'vault' | 'agent';
+/** The top rule of each block takes its module colour: agenda ochre, Cofre slate, Tises orange. */
+const moduleRule: Record<Module, string> = { agenda: 'before:bg-module-agenda', vault: 'before:bg-module-vault', agent: 'before:bg-module-agent' };
 
 function OverviewSection({ title, href, module, children, loading, failed }: { title: string; href: string; module: Module; children: ReactNode; loading: boolean; failed: boolean }) {
   return <section aria-label={title} className={`relative min-h-56 min-w-0 border-t pt-4 before:absolute before:-top-px before:left-0 before:h-0.5 before:w-10 ${moduleRule[module]}`}><header className="mb-2 flex items-center justify-between gap-3"><h2 className="font-medium">{title}</h2><Link href={href} className={linkStyle}>Ver tudo<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only"> em {title}</span></Link></header>{loading ? <p role="status" className="py-5 text-sm text-muted-foreground">Carregando…</p> : failed ? <p role="alert" className="py-5 text-sm text-destructive">Não foi possível carregar. Use Atualizar para tentar novamente.</p> : children}</section>;
@@ -91,8 +91,8 @@ export function CommandCenter({ role }: { role: OfficeRole }) {
         {data.clients?.clients.length ? <div className="divide-y">{data.clients.clients.map(client => <Link key={client.id} href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="block py-3 underline-offset-4 hover:underline"><p className="break-words text-sm">{client.name}</p><p className="mt-1 truncate text-[13px] text-muted-foreground">{client.email || client.phone || 'Contato não informado'}</p></Link>)}</div> : empty('Nenhum cliente ativo cadastrado.')}
         {role !== 'reviewer' && <Link href="/app/agenda?view=clients&action=new" className={linkStyle}>Cadastrar cliente</Link>}
       </OverviewSection>
-      <div className="lg:col-span-2"><OverviewSection title="Conversas com Lume" href="/app/agents" module="lume" loading={pending.conversations && !data.conversations} failed={!data.conversations}>
-        {data.conversations?.conversations.length ? <div className="divide-y">{data.conversations.conversations.slice(0, 3).map(conversation => <Link key={conversation.id} href={`/app/agents?conversationId=${encodeURIComponent(conversation.id)}`} className="flex min-h-14 items-center justify-between gap-4 py-3 text-sm underline-offset-4 hover:underline"><span className="truncate">{conversation.title}</span><span className="shrink-0 text-[13px] text-muted-foreground">Retomar<ArrowUpRight className="ml-1 inline size-3.5" aria-hidden="true" /></span></Link>)}</div> : <div className="flex flex-wrap items-center justify-between gap-3 py-4"><p className="text-sm text-muted-foreground">Consulte documentos e organize o trabalho com Lume.</p><Link href="/app/agents" className={linkStyle}>Abrir conversa<ArrowUpRight className="size-4" aria-hidden="true" /></Link></div>}
+      <div className="lg:col-span-2"><OverviewSection title="Conversas com Tises" href="/app/agents" module="agent" loading={pending.conversations && !data.conversations} failed={!data.conversations}>
+        {data.conversations?.conversations.length ? <div className="divide-y">{data.conversations.conversations.slice(0, 3).map(conversation => <Link key={conversation.id} href={`/app/agents?conversationId=${encodeURIComponent(conversation.id)}`} className="flex min-h-14 items-center justify-between gap-4 py-3 text-sm underline-offset-4 hover:underline"><span className="truncate">{conversation.title}</span><span className="shrink-0 text-[13px] text-muted-foreground">Retomar<ArrowUpRight className="ml-1 inline size-3.5" aria-hidden="true" /></span></Link>)}</div> : <div className="flex flex-wrap items-center justify-between gap-3 py-4"><p className="text-sm text-muted-foreground">Consulte documentos e organize o trabalho com Tises.</p><Link href="/app/agents" className={linkStyle}>Abrir conversa<ArrowUpRight className="size-4" aria-hidden="true" /></Link></div>}
       </OverviewSection></div>
     </div>
   </div>;

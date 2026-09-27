@@ -169,7 +169,7 @@ export function CalendarPanel({role,day,initialEventId}:{role:OfficeRole;day:str
     if(!edit.event){
       const saved=await perform<CapabilityOutput<'k5_calendar_create_event'>>('event-create',
         {...fields,calendarId:draft.calendarId,addMeet:draft.addMeet});
-      if(saved){setEdit(null);setNotice(saved.operation.status==='succeeded'?'Evento criado no Google.':'O Lume está verificando o resultado no Google.');}
+      if(saved){setEdit(null);setNotice(saved.operation.status==='succeeded'?'Evento criado no Google.':'O Tises está verificando o resultado no Google.');}
       return;
     }
     const original=edit.event;
@@ -186,7 +186,7 @@ export function CalendarPanel({role,day,initialEventId}:{role:OfficeRole;day:str
     const saved=await perform<CapabilityOutput<'k5_calendar_update_event'>>('event-update',
       {eventId:original.id,version:original.version,scope:draft.scope,
         ...(draft.scope!=='series'?{occurrenceStart:original.occurrenceStart||original.startsAt||original.startDate}:{}),changes});
-    if(saved){setEdit(null);setNotice(saved.operation.status==='succeeded'?'Evento atualizado no Google.':'O Lume está verificando o resultado no Google.');}
+    if(saved){setEdit(null);setNotice(saved.operation.status==='succeeded'?'Evento atualizado no Google.':'O Tises está verificando o resultado no Google.');}
   }
   async function cancel() {
     if(!edit?.event)return;
@@ -194,12 +194,12 @@ export function CalendarPanel({role,day,initialEventId}:{role:OfficeRole;day:str
     const saved=await perform<CapabilityOutput<'k5_calendar_cancel_event'>>('event-cancel',
       {eventId:event.id,version:event.version,scope:draft.scope,
         ...(draft.scope!=='series'?{occurrenceStart:event.occurrenceStart||event.startsAt||event.startDate}: {})});
-    if(saved){setEdit(null);setNotice(saved.operation.status==='succeeded'?'Evento cancelado no Google.':'O Lume está verificando o cancelamento no Google.');}
+    if(saved){setEdit(null);setNotice(saved.operation.status==='succeeded'?'Evento cancelado no Google.':'O Tises está verificando o cancelamento no Google.');}
   }
   async function respond(event:Event,response:'accepted'|'declined'|'tentative') {
     const saved=await perform<CapabilityOutput<'k5_calendar_respond'>>('event-respond',
       {eventId:event.id,occurrenceStart:event.occurrenceStart??undefined,response});
-    if(saved)setNotice(saved.operation.status==='succeeded'?'Resposta registrada no Google.':'O Lume está verificando a resposta no Google.');
+    if(saved)setNotice(saved.operation.status==='succeeded'?'Resposta registrada no Google.':'O Tises está verificando a resposta no Google.');
   }
   function openShare(event:Event) {
     setSharing(event);setShareFields({title:event.title,notes:'',location:event.location});

@@ -2,7 +2,7 @@ import { privacyOptions } from './privacy';
 import { SENTRY_DSN, sampleRate } from './settings';
 
 /** The root span of a chat turn (traceAgentTurn with task `chat`). */
-export const CHAT_TURN_SPAN = 'invoke_agent Lume chat';
+export const CHAT_TURN_SPAN = 'invoke_agent Tises chat';
 
 export function serverOptions(service: string, env: {
   SENTRY_DSN?: string;

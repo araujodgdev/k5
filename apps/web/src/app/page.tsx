@@ -6,7 +6,7 @@ import { TisesMark, TisesWordmark } from "@/components/tises-logo";
 import { Halftone } from "@/components/halftone";
 import { LandingMotion, motionScript } from "@/components/landing/landing-motion";
 import { LandingClock, LandingDial } from "@/components/landing/landing-clock";
-import { GlyphAgenda, GlyphLume, GlyphResearch, GlyphVault } from "@/components/landing/landing-glyphs";
+import { GlyphAgenda, GlyphAgent, GlyphResearch, GlyphVault } from "@/components/landing/landing-glyphs";
 import { ScreenFrame } from "@/components/landing/landing-screens";
 import { cn } from "@/lib/utils";
 
@@ -24,13 +24,13 @@ export const metadata: Metadata = {
 
 const modules = [
   {
-    name: "Lume", Glyph: GlyphLume,
+    name: "Tises", Glyph: GlyphAgent,
     text: "Pesquise, redija e revise peças com um agente que trabalha a partir do caso inteiro. Ele informa o que fez e pede confirmação antes de apagar, sobrescrever um rascunho ou falar com um tribunal.",
     points: ["Peças em DOCX", "Citações conferidas", "Voz e anexos", "Documento ao lado da conversa"],
   },
   {
     name: "Cofre", Glyph: GlyphVault,
-    text: "Organize os documentos do escritório por caso, com leitura integral, inclusive de PDFs escaneados. Depois, encontre o que importa com uma busca ou uma pergunta ao Lume.",
+    text: "Organize os documentos do escritório por caso, com leitura integral, inclusive de PDFs escaneados. Depois, encontre o que importa com uma busca ou uma pergunta ao Tises.",
     points: ["Pastas por caso", "Leitura de PDFs escaneados", "Anexos nomeados para o PJe", "Busca no conteúdo"],
   },
   {
@@ -45,7 +45,7 @@ const modules = [
   },
 ];
 
-const marquee = ["Lume", "Cofre", "Pesquisa", "Escritório", "Documentos", "E-mails", "Notificações", "Integrações"];
+const marquee = ["Tises", "Cofre", "Pesquisa", "Escritório", "Documentos", "E-mails", "Notificações", "Integrações"];
 
 const standards = [
   { figure: "DOCX", text: "Exporte peças no modelo do seu escritório, com fonte, margens e espaçamento preservados.", tone: "bg-brand text-brand-foreground" },
@@ -155,7 +155,7 @@ export default function Landing() {
                   <span className="block">advocacia</span>
                 </h2>
                 <div className="flex max-w-md flex-col gap-8 self-end">
-                  <p className="text-base leading-snug">Quatro módulos sobre os mesmos casos. O Lume consulta os documentos do Cofre, e o Escritório acompanha os prazos de cada caso.</p>
+                  <p className="text-base leading-snug">Quatro módulos sobre os mesmos casos. O Tises consulta os documentos do Cofre, e o Escritório acompanha os prazos de cada caso.</p>
                   <ArrowLink href="/sign-up" className="w-full sm:w-64">Criar conta</ArrowLink>
                 </div>
               </div>

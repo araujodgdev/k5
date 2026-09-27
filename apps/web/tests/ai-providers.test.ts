@@ -39,7 +39,7 @@ test("GPT-6 Sol and Luna are available to the platform administrator", async () 
   }
 });
 
-test("Lume owns the default model of every provider, and it is a model the router knows", () => {
+test("Tises owns the default model of every provider, and it is a model the router knows", () => {
   const catalog = providerCatalog();
   for (const provider of AI_PROVIDERS) {
     const modelId = DEFAULT_CHAT_MODEL[provider];

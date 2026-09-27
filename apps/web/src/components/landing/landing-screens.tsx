@@ -14,10 +14,10 @@ function Bar({ title }: { title: string }) {
   return <div className="flex h-11 shrink-0 items-center border-b border-border px-5 text-[15px] font-medium tracking-[-0.03em]">{title}</div>;
 }
 
-function LumeScreen() {
+function AgentScreen() {
   return (
     <div className="flex h-full flex-col">
-      <Bar title="Lume" />
+      <Bar title="Tises" />
       <div className="flex flex-1 flex-col gap-4 overflow-hidden p-5 text-[13px] leading-relaxed">
         <p className="ml-auto max-w-[78%] bg-muted px-3 py-2">Prepare a contestação do caso Silva a partir dos documentos do Cofre.</p>
         <div className="flex flex-col gap-1.5 text-muted-foreground">
@@ -28,7 +28,7 @@ function LumeScreen() {
         <p className="border-l-2 border-brand pl-3">Substituir o rascunho anterior da contestação?</p>
       </div>
       <div className="m-4 mt-0 flex items-center gap-3 border border-line px-3 py-2.5 text-muted-foreground">
-        <span className="flex-1 text-[13px] text-subtle-foreground">Pergunte ao Lume</span>
+        <span className="flex-1 text-[13px] text-subtle-foreground">Pergunte ao Tises</span>
         <Paperclip className="size-3.5" /><Mic className="size-3.5" />
         <span className="grid size-6 place-items-center bg-foreground text-background"><ArrowUp className="size-3.5" /></span>
       </div>
@@ -99,7 +99,7 @@ function AgendaScreen() {
   );
 }
 
-const screens = [LumeScreen, VaultScreen, ResearchScreen, AgendaScreen];
+const screens = [AgentScreen, VaultScreen, ResearchScreen, AgendaScreen];
 
 /** The icon rail of the app shell; the active module sits on the ink block. */
 function ScreenRail({ active }: { active?: number }) {

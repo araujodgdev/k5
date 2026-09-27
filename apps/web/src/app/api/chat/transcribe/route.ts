@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       const text = await transcribeVoiceNote({ officeId: office.officeId, userId: user.id }, { mediaType, bytes: Buffer.concat(chunks) }, request.signal);
       return Response.json({ text }, { headers: { 'Cache-Control': 'private, no-store' } });
     } catch (error) {
-      if (error instanceof TranscriptionError && error.reason === 'unsupported') throw new ApiError(400, 'O Lume não aceita áudio nesta configuração.');
+      if (error instanceof TranscriptionError && error.reason === 'unsupported') throw new ApiError(400, 'O Tises não aceita áudio nesta configuração.');
       if (error instanceof ApiError) throw error;
       captureOperationalError(error, 'chat.audio.transcription');
       throw new ApiError(502, 'Não foi possível transcrever o áudio. Tente de novo ou escreva a mensagem.');

@@ -5,7 +5,7 @@ import { canEditTemplate, documentTemplates, templateCandidates } from "@/lib/ag
 import { canEditInstructions, INSTRUCTION_BUDGET, listInstructions } from "@/lib/agent-instructions";
 import { ALWAYS_BUDGET, canEditKnowledge, knowledgeCandidates, listKnowledge } from "@/lib/agent-knowledge";
 
-export const metadata: Metadata = { title: "Personalizar Lume" };
+export const metadata: Metadata = { title: "Personalizar Tises" };
 
 export default async function AgentSettingsPage() {
   const { office, user } = await requireWorkspace();

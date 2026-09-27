@@ -8,7 +8,7 @@ import { composeCitation, type CitationItem, type CitationReview } from './verdi
 export type { CitationItem, CitationReview } from './verdict';
 
 /**
- * Checks the legal citations in a text the Lume wrote against the sources it consulted. Code finds
+ * Checks the legal citations in a text Tises wrote against the sources it consulted. Code finds
  * candidate spans and the sources sharing their numbers; Jev answers, in one request per batch,
  * whether each span is a citation at all, which source (if any) it is, and whether that source
  * backs the paragraph using it. The verdict and what goes to a person are decided in `verdict.ts`.

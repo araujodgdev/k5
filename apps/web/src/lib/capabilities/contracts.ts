@@ -110,7 +110,7 @@ export const judicialSourceDto = z.object({
     query: z.string(), cache: z.string(), documents: z.string(), redistribution: z.string(), ai: z.string(),
   }).describe('Condição de uso por dimensão: permitido, restrito, proibido ou nao_esclarecido.'),
   coverage: z.object({ from: z.string().nullable(), to: z.string().nullable() })
-    .describe('Cobertura documentada pela fonte, que não é a cobertura já coletada pelo Lume.'),
+    .describe('Cobertura documentada pela fonte, que não é a cobertura já coletada pelo Tises.'),
   hasConnector: z.boolean().describe('Falso quando ainda não existe adaptador implementado para este tipo de fonte.'),
 });
 
@@ -131,7 +131,7 @@ export const judicialPublicationDto = z.object({
   publishedOn: z.string().nullable().describe('Data de publicação; distinta da disponibilização.'),
   revisionKind: z.enum(['original', 'republication', 'errata']),
   supersedesId: z.string().nullable(),
-  collectedAt: z.string().describe('Quando o Lume consultou a fonte.'),
+  collectedAt: z.string().describe('Quando o Tises consultou a fonte.'),
   excerpt: z.string(),
 });
 
@@ -458,18 +458,18 @@ export const capabilities = {
     input: z.object({ conversationId: identifier, approvalId: z.string().optional(), idempotencyKey }),
     output: z.object({ success: z.boolean() }),
   },
-  // The memory belongs to the person in this office; the Lume reads it back and forgets it on request.
+  // The memory belongs to the person in this office; Tises reads it back and forgets it on request.
   // Only the chat has a memory, so neither is published to the browser adapter.
   k5_memory_get: {
     module: 'memory', effect: 'read', roles: readers,
-    description: 'Mostra o que o Lume guardou na memória de trabalho sobre a pessoa neste escritório (preferências e pedidos para lembrar).',
+    description: 'Mostra o que o Tises guardou na memória de trabalho sobre a pessoa neste escritório (preferências e pedidos para lembrar).',
     input: z.object({}),
     output: z.object({ memory: z.string(), updatedAt: z.string().nullable() }),
     publish: ['agent'],
   },
   k5_memory_clear: {
     module: 'memory', effect: 'write', roles: writers,
-    description: 'Apaga a memória de trabalho do Lume sobre a pessoa neste escritório. Use quando ela pedir para o Lume esquecer.',
+    description: 'Apaga a memória de trabalho do Tises sobre a pessoa neste escritório. Use quando ela pedir para o Tises esquecer.',
     input: z.object({}),
     output: z.object({ cleared: z.boolean() }),
     publish: ['agent'],
@@ -483,7 +483,7 @@ export const capabilities = {
   },
   k5_ui_open_resource: {
     module: 'ui', effect: 'read', roles: readers,
-    description: 'Resolve a URL segura da interface Lume para abrir um recurso no navegador.',
+    description: 'Resolve a URL segura da interface Tises para abrir um recurso no navegador.',
     input: z.object({
       resourceType: z.enum(['case', 'document', 'run', 'artifact', 'vault', 'agenda', 'client', 'activity']),
       resourceId: identifier.optional(),
@@ -594,7 +594,7 @@ export const capabilities = {
   },
   k5_judicial_list_alerts: {
     module: 'judicial', effect: 'read', roles: readers,
-    description: 'Lista os eventos observados pelo Lume: publicação nova, achado histórico de backfill, correção ou falha de atualização.',
+    description: 'Lista os eventos observados pelo Tises: publicação nova, achado histórico de backfill, correção ou falha de atualização.',
     input: z.object({
       caseId: identifier.optional(), installationId: identifier.optional(),
       unreadOnly: z.boolean().default(false), limit: z.number().int().min(1).max(50).default(20),

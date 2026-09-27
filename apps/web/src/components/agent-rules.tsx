@@ -31,11 +31,11 @@ export function AgentRules({ initial }: { initial: RulesState }) {
   return (
     <section aria-labelledby="rules-heading" className="mt-8">
       <h2 id="rules-heading" className="font-medium">Regras de escrita</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Como o Lume escreve: tom, forma, vocabulário. As regras não mudam o cuidado com fontes e citações jurídicas.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Como o Tises escreve: tom, forma, vocabulário. As regras não mudam o cuidado com fontes e citações jurídicas.</p>
       <RuleGroup scope="office" title="Do escritório" rules={state.office} budget={state.budget} editable={state.canEditOffice}
         emptyText="Nenhuma regra do escritório." readOnlyNote="Definidas pela administração do escritório." onChange={replace} />
       <RuleGroup scope="personal" title="Minhas regras" rules={state.personal} budget={state.budget} editable
-        emptyText="Nenhuma regra sua. O Lume segue as do escritório." note="Valem só para você e prevalecem sobre as do escritório." onChange={replace} />
+        emptyText="Nenhuma regra sua. O Tises segue as do escritório." note="Valem só para você e prevalecem sobre as do escritório." onChange={replace} />
     </section>
   );
 }

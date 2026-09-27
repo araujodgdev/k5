@@ -10,7 +10,7 @@ import { connectionView } from '@/lib/typesafe/config';
 
 export const metadata = { title: 'IA · Administração' };
 
-/** The platform's AI, configured once for every office: the Lume's model and TypeSafe. */
+/** The platform's AI, configured once for every office: Tises' model and TypeSafe. */
 export default async function PlatformAiPage() {
   const context = await requirePlatformPage();
   if (!context) notFound();
@@ -23,8 +23,8 @@ export default async function PlatformAiPage() {
   const modelCatalog = Object.fromEntries(AI_PROVIDERS.map(provider => [provider, catalog[provider].filter(isChatModel)])) as Record<AiProvider, string[]>;
   return (
     <div className="grid gap-12">
-      <section aria-labelledby="ai-lume-title">
-        <h2 id="ai-lume-title" className="text-2xl">Lume</h2>
+      <section aria-labelledby="ai-agent-title">
+        <h2 id="ai-agent-title" className="text-2xl">Tises</h2>
         <p className="mt-1 mb-8 max-w-3xl text-sm text-muted-foreground">Os provedores e o modelo que respondem em todos os escritórios: conversas, cronologias, minutas e a busca do Cofre.</p>
         <PlatformConnections initialConnections={connections} modelCatalog={modelCatalog}
           initialModel={current ? { connectionId: current.connectionId, modelId: current.modelId } : null} />

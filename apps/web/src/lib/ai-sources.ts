@@ -14,7 +14,7 @@ export async function selectedSources(officeId: string, documentIds: string[], q
   }));
 }
 
-/** Only explicitly selected links in this authenticated case enter Lume or a draft. */
+/** Only explicitly selected links in this authenticated case enter Tises or a draft. */
 export type PinnedResearchReference = { referenceId: string; materialVersionId: string };
 
 async function selectResearchSources(context: WorkspaceContext, caseId: string, referenceIds: string[], query?: string,

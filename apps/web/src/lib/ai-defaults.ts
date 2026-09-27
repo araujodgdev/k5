@@ -1,9 +1,9 @@
 import type { AiProvider } from "./ai-connections-core";
 
 /**
- * Models Lume picks, not the office.
+ * Models Tises picks, not the office.
  *
- * The platform administrator chooses Lume's model for each office. These values are fallbacks
+ * The platform administrator chooses Tises' model for each office. These values are fallbacks
  * until a choice is saved. The embedding model is separate: an index generation pins its model
  * and dimension, and changing either invalidates the vectors already published.
  */

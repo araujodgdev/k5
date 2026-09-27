@@ -6,7 +6,7 @@ import { CapabilityError } from './capabilities/errors';
 import type { WorkspaceContext } from './application/context';
 
 /**
- * Reference documents for the Lume. 'always' puts the extracted text in the prompt (the raw mode),
+ * Reference documents for Tises. 'always' puts the extracted text in the prompt (the raw mode),
  * within ALWAYS_BUDGET; 'search' only names the document, and the model reads it through
  * k5_knowledge_search (the retrieval mode). Both are Cofre documents and both reach the model as
  * data: a letterhead that says "ignore the rules" is quoted, not obeyed.

@@ -3,7 +3,7 @@ import type { Capability } from './contracts';
 
 /**
  * Google integration contracts (docs/plano-integracao-google.md). Shared by the interface routes,
- * the Mastra tools and WebMCP. Ids here are opaque Lume references or Google resource ids the
+ * the Mastra tools and WebMCP. Ids here are opaque Tises references or Google resource ids the
  * server verifies against the caller's own connection; office and owner never come from input.
  */
 const readers = ['administrator', 'lawyer', 'reviewer'] as const;
@@ -21,7 +21,7 @@ export const googleModuleEnum = z.enum(['gmail', 'calendar', 'drive', 'docs']);
 export const googleActionEnum = z.enum(['gmail.draft', 'gmail.send', 'gmail.send_attachments', 'calendar.create', 'calendar.update', 'calendar.cancel', 'calendar.respond', 'docs.edit', 'drive.rename', 'drive.replace', 'drive.share']);
 export const operationStatusEnum = z.enum(['pending', 'running', 'succeeded', 'failed', 'unknown']);
 export const operationDto = z.object({
-  id: z.string(), action: googleActionEnum, status: operationStatusEnum.describe('succeeded: concluída; failed: não aconteceu; unknown: o Lume ainda confere no Google se aconteceu; pending/running: em andamento.'),
+  id: z.string(), action: googleActionEnum, status: operationStatusEnum.describe('succeeded: concluída; failed: não aconteceu; unknown: o Tises ainda confere no Google se aconteceu; pending/running: em andamento.'),
   createdAt: z.string(), finishedAt: z.string().nullable(), errorMessage: z.string().nullable(), externalRef: z.string().nullable(),
 });
 
@@ -63,7 +63,7 @@ export const attendeeDto = z.object({
   optional: z.boolean(), organizer: z.boolean(), self: z.boolean(),
 });
 export const personalEventDto = z.object({
-  id: z.string().describe('Referência do evento no Lume.'),
+  id: z.string().describe('Referência do evento no Tises.'),
   occurrenceStart: z.string().nullable().describe('Identifica uma ocorrência de evento recorrente; informe ao editar só esta ocorrência.'),
   calendarId: z.string(), calendarName: z.string(), readOnly: z.boolean(),
   title: z.string(), description: z.string(), location: z.string(),
@@ -127,7 +127,7 @@ const composeFields = {
 // ---------- Drive and Docs ----------
 
 export const driveFileDto = z.object({
-  id: z.string().describe('Referência do arquivo no Lume.'), name: z.string(), mimeType: z.string(),
+  id: z.string().describe('Referência do arquivo no Tises.'), name: z.string(), mimeType: z.string(),
   kind: z.enum(['document', 'spreadsheet', 'presentation', 'pdf', 'other']), sizeBytes: z.number().nullable(),
   modifiedTime: z.string().nullable(), version: z.string().nullable(), sharedDrive: z.boolean(),
   capabilities: z.object({ canRename: z.boolean(), canShare: z.boolean(), canEdit: z.boolean(), canModifyContent: z.boolean(), canDownload: z.boolean() }),
@@ -231,7 +231,7 @@ export const googleCapabilities = {
   k5_gmail_delete_draft: { module: 'google', effect: 'write', roles: writers, publish: [],
     description: 'Exclui um rascunho do Gmail.', input: z.object({ draftId: id, approvalId, idempotencyKey: key }), output: z.object({ success: z.boolean() }) },
   k5_gmail_send: { module: 'google', effect: 'write', roles: writers,
-    description: 'Envia um e-mail pela conta Google da pessoa: um rascunho existente (draftId) ou uma mensagem composta aqui. Segue as regras do escritório; pode exigir confirmação. Se o resultado ficar desconhecido, não repita: o Lume confere antes.',
+    description: 'Envia um e-mail pela conta Google da pessoa: um rascunho existente (draftId) ou uma mensagem composta aqui. Segue as regras do escritório; pode exigir confirmação. Se o resultado ficar desconhecido, não repita: o Tises confere antes.',
     input: z.object({ draftId: id.optional(), ...composeFields, approvalId, idempotencyKey: key }),
     output: z.object({ messageId: z.string().nullable(), threadId: z.string().nullable(), operation: operationDto }) },
   k5_gmail_import_attachment: { module: 'google', effect: 'write', roles: writers,
@@ -243,7 +243,7 @@ export const googleCapabilities = {
     description: 'Registra arquivos escolhidos no seletor do Google Drive, verificando cada um no servidor.',
     input: z.object({ googleFileIds: z.array(z.string().regex(/^[\w-]{10,200}$/)).min(1).max(20) }), output: z.object({ files: z.array(driveFileDto) }) },
   k5_drive_list_files: { module: 'google', effect: 'read', roles: readers,
-    description: 'Lista os arquivos do Google Drive que a própria pessoa escolheu no seletor (o Lume só acessa esses).',
+    description: 'Lista os arquivos do Google Drive que a própria pessoa escolheu no seletor (o Tises só acessa esses).',
     input: z.object({ limit: z.number().int().min(1).max(100).default(50), offset: z.number().int().min(0).max(10000).default(0) }),
     output: z.object({ files: z.array(driveFileDto), total: z.number() }) },
   k5_drive_refresh_file: { module: 'google', effect: 'read', roles: readers,

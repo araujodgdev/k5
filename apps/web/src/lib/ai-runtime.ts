@@ -22,7 +22,7 @@ export type AgentFeatures = { memory?: MastraMemory; outputProcessors?: OutputPr
 function agentFor(config: ModelCredential, instructions: string, tools?: Record<string, unknown>, features: AgentFeatures = {}) {
   const agent = new Agent({
     id: 'k5',
-    name: 'Lume',
+    name: 'Tises',
     instructions,
     defaultOptions: ({ requestContext }) => ({
       providerOptions: modelProviderOptions((requestContext?.get('provider') as AiProvider | undefined) ?? config.provider),

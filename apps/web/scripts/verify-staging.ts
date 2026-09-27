@@ -105,7 +105,7 @@ async function checkPostgres() {
 }
 
 async function main() {
-  console.log('\nVerificação do ambiente de staging do Lume\n');
+  console.log('\nVerificação do ambiente de staging do Tises\n');
   await checkR2();
   await checkVectorize();
   await checkPostgres();

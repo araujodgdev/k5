@@ -7,7 +7,7 @@ import { captureException, startNewTrace, startSpan, withIsolationScope, type Sp
 export function captureOperationalError(error: unknown, operation: string, tags: Record<string, string> = {}) {
   // Provider/transport errors may embed complete prompts, response bodies or credentials.
   // Preserve the call site and error class, but send only an application-owned message.
-  const safe = new Error(`Lume: ${operation} failed`);
+  const safe = new Error(`Tises: ${operation} failed`);
   if (error instanceof Error) {
     safe.name = error.name;
     if (error.stack) safe.stack = `${safe.name}: ${safe.message}\n${error.stack.split('\n').slice(1).join('\n')}`;
@@ -20,16 +20,16 @@ export function observeWorkerTask<T>(operation: string, task: () => Promise<T>):
 }
 
 /**
- * Lume's agent loop as Sentry spans: one per turn, one per tool call. Attributes are identifiers
+ * Tises' agent loop as Sentry spans: one per turn, one per tool call. Attributes are identifiers
  * the application minted (task, provider, model, tool names) and counts; prompts, tool inputs and
  * results never become span data, and beforeSendSpan drops anything else that gets attached.
  */
 export function traceAgentTurn<T>(turn: { task: string; provider: string; modelId: string }, action: (span: Span) => Promise<T>, options: { root?: boolean } = {}): Promise<T> {
   const traced = () => startSpan({
-    name: `invoke_agent Lume ${turn.task}`,
+    name: `invoke_agent Tises ${turn.task}`,
     op: 'gen_ai.invoke_agent',
     attributes: {
-      'gen_ai.operation.name': 'invoke_agent', 'gen_ai.agent.name': 'Lume',
+      'gen_ai.operation.name': 'invoke_agent', 'gen_ai.agent.name': 'Tises',
       'gen_ai.system': turn.provider, 'gen_ai.request.model': turn.modelId, 'lume.task': turn.task,
     },
   }, action);

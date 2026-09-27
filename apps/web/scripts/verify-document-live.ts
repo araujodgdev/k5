@@ -22,7 +22,7 @@ try {
   await page.getByRole('button', { name: 'Nova conversa', exact: true }).click();
   const conversation = await (await created).json();
   await page.goto(`${baseURL}/app/agents?conversationId=${conversation.conversation?.id ?? conversation.id}`);
-  await page.getByRole('textbox', { name: 'Pergunte ao Lume' }).fill('Crie um documento chamado Validação do editor: um comunicado fictício e breve sobre organização do escritório, sem citar leis ou processos, com dois parágrafos e uma tabela de duas tarefas. É apenas um teste de edição e exportação.');
+  await page.getByRole('textbox', { name: 'Pergunte ao Tises' }).fill('Crie um documento chamado Validação do editor: um comunicado fictício e breve sobre organização do escritório, sem citar leis ou processos, com dois parágrafos e uma tabela de duas tarefas. É apenas um teste de edição e exportação.');
   await page.getByRole('button', { name: 'Enviar mensagem' }).click();
   const editor = page.getByRole('textbox', { name: 'Texto do documento' });
   await expect(editor).toBeVisible({ timeout: 180_000 });

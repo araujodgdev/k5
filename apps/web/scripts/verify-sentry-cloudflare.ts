@@ -7,7 +7,7 @@ export default withSentry(() => ({
   tracesSampleRate: 1,
 }), {
   async fetch() {
-    const eventId = captureException(new Error('Lume Cloudflare Sentry setup verification'));
+    const eventId = captureException(new Error('Tises Cloudflare Sentry setup verification'));
     return Response.json({ eventId });
   },
 });

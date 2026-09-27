@@ -28,8 +28,8 @@ export function AgentSettings({ initialTemplates, initialCandidates, initialRule
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-6 md:px-10 md:py-10">
       <div className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="icon" className="-ml-2 size-11 md:size-9" aria-label="Voltar ao Lume"><Link href="/app/agents"><ArrowLeft /></Link></Button>
-        <h1 className="page-title">Personalizar Lume</h1>
+        <Button asChild variant="ghost" size="icon" className="-ml-2 size-11 md:size-9" aria-label="Voltar ao Tises"><Link href="/app/agents"><ArrowLeft /></Link></Button>
+        <h1 className="page-title">Personalizar Tises</h1>
       </div>
 
       <AgentRules initial={initialRules} />
@@ -38,7 +38,7 @@ export function AgentSettings({ initialTemplates, initialCandidates, initialRule
 
       <section aria-labelledby="template-heading" className="mt-10 border-t pt-8">
         <h2 id="template-heading" className="font-medium">Modelo de documento</h2>
-        <p className="mt-1 text-sm text-muted-foreground">O Word com o timbrado do escritório. Documentos e minutas do Lume saem nele ao exportar, quando nenhum outro modelo foi escolhido.</p>
+        <p className="mt-1 text-sm text-muted-foreground">O Word com o timbrado do escritório. Documentos e minutas do Tises saem nele ao exportar, quando nenhum outro modelo foi escolhido.</p>
         <div className="mt-4 divide-y border-y">
           <TemplateRow scope="office" label="Do escritório" current={templates.office} editable={templates.canEditOffice}
             readOnlyNote="Definido pela administração do escritório." candidates={candidates}

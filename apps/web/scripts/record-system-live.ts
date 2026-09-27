@@ -1,5 +1,5 @@
 /**
- * Live Proof Recording and End-to-End Functional Validation Script for Lume.
+ * Live Proof Recording and End-to-End Functional Validation Script for Tises.
  *
  * Requirements:
  * 1. Chromium 1280x720 HD video recording (minimum duration >= 20.0s).
@@ -13,7 +13,7 @@
  *    - step6_agent_chat.png
  *    - step7_logged_out.png
  * 3. Stable account admin@advocacia.test / SenhaForte123!@#456 in office Araújo & Associados Advocacia.
- * 4. Genuine execution of Vault, RAG hybrid search, office-configured Lume, live streaming response, and clean logout.
+ * 4. Genuine execution of Vault, RAG hybrid search, office-configured Tises, live streaming response, and clean logout.
  * 5. Functional API validations for RAG RRF, Source Inspection, Approvals Anti-Tampering, and Untrusted Origin 403.
  */
 
@@ -52,7 +52,7 @@ async function sleep(ms: number) {
 
 async function main() {
   console.log('===============================================================');
-  console.log('Lume LIVE PROOF RECORDING & FUNCTIONAL VALIDATION');
+  console.log('Tises LIVE PROOF RECORDING & FUNCTIONAL VALIDATION');
   console.log('Target Base URL:', BASE_URL);
   console.log('Account:', USER_EMAIL);
   console.log('===============================================================');
@@ -191,7 +191,7 @@ async function main() {
     await saveScreenshot('step6_agent_without_model_picker.png');
 
     // Type prompt into chat composer
-    const composerInput = page.locator('textarea[placeholder="Pergunte ao Lume"], textarea[aria-label="Pergunte ao Lume"]');
+    const composerInput = page.locator('textarea[placeholder="Pergunte ao Tises"], textarea[aria-label="Pergunte ao Tises"]');
     await composerInput.waitFor({ state: 'visible', timeout: 10000 });
     await composerInput.fill('Qual é a multa rescisória estipulada no contrato?');
     await sleep(1500);

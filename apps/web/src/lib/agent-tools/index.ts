@@ -225,7 +225,7 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (
     execute: async (input: unknown) => {
       try {
         const result = await traceToolCall(name, () => runCapability({ ...context, invocation: 'agent' }, name, input));
-        // What the Lume read is kept before it sees it, so a document it writes next in this same
+        // What Tises read is kept before it sees it, so a document it writes next in this same
         // turn is checked against these sources too.
         if (context.conversationId) {
           await recordSources(context, context.conversationId, sourcesFromTool(name, result))

@@ -78,7 +78,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       cleanups.push(() => result.removeEventListener("updatefound", observe));
     }).catch((error: unknown) => {
       // The regular online app still works if a browser disallows service workers.
-      console.warn("Lume: não foi possível preparar o acesso offline.", error);
+      console.warn("Tises: não foi possível preparar o acesso offline.", error);
     });
     return () => {
       disposed = true;
@@ -140,12 +140,12 @@ export function InstallApp({ className }: { className?: string }) {
   const button = useRef<HTMLButtonElement>(null);
   if (installed) return null;
   return <>
-    <Button ref={button} variant="ghost" size="icon" onClick={() => { void install().then(setHelp); }} aria-label="Instalar Lume" title="Instalar Lume" className={cn("size-11 text-muted-foreground hover:text-foreground md:size-9", className)}><Download aria-hidden="true" /></Button>
+    <Button ref={button} variant="ghost" size="icon" onClick={() => { void install().then(setHelp); }} aria-label="Instalar Tises" title="Instalar Tises" className={cn("size-11 text-muted-foreground hover:text-foreground md:size-9", className)}><Download aria-hidden="true" /></Button>
     <Dialog open={help} onOpenChange={setHelp}>
       <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); button.current?.focus(); }}>
-        <DialogTitle>Instalar o Lume</DialogTitle>
-        <DialogDescription>No iPhone ou iPad, abra o Lume no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</DialogDescription>
-        <p className="text-sm text-muted-foreground">No Android ou computador, procure “Instalar aplicativo” ou “Adicionar à tela inicial” no menu do navegador. Se a opção não aparecer, continue usando o Lume pelo navegador.</p>
+        <DialogTitle>Instalar o Tises</DialogTitle>
+        <DialogDescription>No iPhone ou iPad, abra o Tises no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</DialogDescription>
+        <p className="text-sm text-muted-foreground">No Android ou computador, procure “Instalar aplicativo” ou “Adicionar à tela inicial” no menu do navegador. Se a opção não aparecer, continue usando o Tises pelo navegador.</p>
         <p className="text-sm text-muted-foreground">O acesso aos dados do escritório precisa de internet.</p>
       </DialogContent>
     </Dialog>

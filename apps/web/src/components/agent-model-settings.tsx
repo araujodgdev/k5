@@ -10,13 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export type LumeModelSelection = { connectionId: string; modelId: string } | null;
+export type AgentModelSelection = { connectionId: string; modelId: string } | null;
 
-/** The model the Lume answers with, in every office: one connection and one model ID. */
-export function LumeModelSettings({ connections, catalog, initialSelection }: {
+/** The model Tises answers with, in every office: one connection and one model ID. */
+export function AgentModelSettings({ connections, catalog, initialSelection }: {
   connections: AiConnectionView[];
   catalog: Record<AiProvider, string[]>;
-  initialSelection: LumeModelSelection;
+  initialSelection: AgentModelSelection;
 }) {
   const router = useRouter();
   const active = connections.filter((connection) => connection.enabled);
@@ -45,7 +45,7 @@ export function LumeModelSettings({ connections, catalog, initialSelection }: {
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error ?? "Não foi possível salvar o modelo.");
       setModelId(modelId.trim());
-      setNotice("Modelo do Lume atualizado.");
+      setNotice("Modelo do Tises atualizado.");
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar o modelo.");
@@ -54,24 +54,24 @@ export function LumeModelSettings({ connections, catalog, initialSelection }: {
     }
   }
 
-  return <section className="border-b pb-8" aria-labelledby="lume-model-title">
-    <h3 id="lume-model-title" className="font-medium">Modelo do Lume</h3>
+  return <section className="border-b pb-8" aria-labelledby="agent-model-title">
+    <h3 id="agent-model-title" className="font-medium">Modelo do Tises</h3>
     <p className="mt-1 text-sm text-muted-foreground">Usado nas conversas, cronologias e minutas de todos os escritórios.</p>
     {!first ? <p className="mt-5 text-sm text-subtle-foreground">Cadastre e ative uma conexão para escolher o modelo.</p> : (
       <form onSubmit={save} aria-busy={busy} className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
-          <Label htmlFor="lume-connection">Conexão</Label>
+          <Label htmlFor="agent-connection">Conexão</Label>
           <Select value={connectionId} disabled={busy} onValueChange={(value) => {
             const connection = active.find((item) => item.id === value);
             setConnectionId(value);
             setModelId(connection?.models.chat ?? (connection ? DEFAULT_CHAT_MODEL[connection.provider] : ""));
             setError(""); setNotice("");
-          }}><SelectTrigger id="lume-connection" className="w-full"><SelectValue /></SelectTrigger><SelectContent position="popper">{active.map((connection) => <SelectItem key={connection.id} value={connection.id}>{connection.name}</SelectItem>)}</SelectContent></Select>
+          }}><SelectTrigger id="agent-connection" className="w-full"><SelectValue /></SelectTrigger><SelectContent position="popper">{active.map((connection) => <SelectItem key={connection.id} value={connection.id}>{connection.name}</SelectItem>)}</SelectContent></Select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="lume-model-list">Escolher da lista</Label>
+          <Label htmlFor="agent-model-list">Escolher da lista</Label>
           <Select value={listedValue} disabled={busy} onValueChange={(value) => setModelId(value === "custom" ? "" : value)}>
-            <SelectTrigger id="lume-model-list" className="w-full"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="agent-model-list" className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent position="popper">
               {suggestions.map((id) => <SelectItem key={id} value={id}>{id}</SelectItem>)}
               <SelectItem value="custom">ID digitado</SelectItem>
@@ -79,8 +79,8 @@ export function LumeModelSettings({ connections, catalog, initialSelection }: {
           </Select>
         </div>
         <div className="grid gap-1.5 sm:col-span-2">
-          <Label htmlFor="lume-model-id">ID do modelo</Label>
-          <Input id="lume-model-id" className="h-11 md:h-9" value={modelId} onChange={(event) => setModelId(event.target.value)} maxLength={160} required disabled={busy} autoComplete="off" spellCheck={false} placeholder="Ex.: gpt-6-sol" />
+          <Label htmlFor="agent-model-id">ID do modelo</Label>
+          <Input id="agent-model-id" className="h-11 md:h-9" value={modelId} onChange={(event) => setModelId(event.target.value)} maxLength={160} required disabled={busy} autoComplete="off" spellCheck={false} placeholder="Ex.: gpt-6-sol" />
         </div>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
           <Button type="submit" className="h-11 md:h-9" disabled={busy || !selected || !modelId.trim()}>{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" />}Salvar modelo</Button>

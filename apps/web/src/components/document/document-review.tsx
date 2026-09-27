@@ -50,7 +50,7 @@ export function DocumentReview({ artifactId, version, dirty, status, issues, ref
 }
 
 /**
- * Each legal citation the Lume wrote, checked against what its conversation consulted. The ones
+ * Each legal citation Tises wrote, checked against what its conversation consulted. The ones
  * that do not match a source, or that the source does not back, are the lawyer's to confirm.
  */
 function Citations({ citations, version, rechecking, onRecheck }: { citations: StoredCitations | null; version: number; rechecking: boolean; onRecheck: () => void }) {

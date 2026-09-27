@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
-   Lume theme. Ink, paper and one grey panel, set on a grid of hard lines; the
-   earthy orange arrives on hover and marks the Lume's own work. The shadcn tokens
+   Tises theme. Ink, paper and one grey panel, set on a grid of hard lines; the
+   earthy orange arrives on hover and marks Tises' own work. The shadcn tokens
    carry the palette, so every ui/* component inherits it. Rules: apps/web/DESIGN.md.
    --------------------------------------------------------------------------- */
 :root {
@@ -23,14 +23,14 @@
   --popover: #ffffff;
   --popover-foreground: #232323;
 
-  /* Brand is the earthy orange: hover fills, focus, the Lume's own marks.
+  /* Brand is the earthy orange: hover fills, focus, Tises' own marks.
      Ink text sits on it (5.4:1); brand-ink is the hue dark enough for text on paper. */
   --brand: #d97757;
   --brand-foreground: #232323;
   --brand-ink: #b0502f;
   --brand-soft: color-mix(in oklab, #d97757 14%, #ffffff);
   /* One quiet hue per module, used on its icon and on 2px markers, never as a fill. */
-  --module-lume: #d97757;
+  --module-agent: #d97757;
   --module-vault: #4f6d8f;
   --module-agenda: #b08a2e;
   --module-research: #5f7f5a;
@@ -84,7 +84,7 @@
   --brand-foreground: #232323;
   --brand-ink: #eba184;
   --brand-soft: color-mix(in oklab, #e08a6b 18%, #232323);
-  --module-lume: #e08a6b;
+  --module-agent: #e08a6b;
   --module-vault: #8faacb;
   --module-agenda: #d6b25a;
   --module-research: #9dbb94;
@@ -259,7 +259,7 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
 .document-prose :is(th, td) { border: 1px solid var(--input); padding: .3em .5em; vertical-align: top; text-align: left; position: relative; }
 .document-prose :is(th, td) > p { margin: 0; text-indent: 0; }
 .document-prose th { font-weight: 600; }
-/* What the Lume just changed: the 2px brand rule that marks its actions, fading out. */
+/* What Tises just changed: the 2px brand rule that marks its actions, fading out. */
 .document-prose .document-changed { box-shadow: -12px 0 0 -10px var(--brand); animation: document-changed 6s ease-out forwards; }
 @keyframes document-changed { 0%, 60% { box-shadow: -12px 0 0 -10px var(--brand); } 100% { box-shadow: -12px 0 0 -10px transparent; } }
 .document-prose .selectedCell::after { content: ""; position: absolute; inset: 0; background: var(--accent); opacity: .6; pointer-events: none; }
@@ -273,7 +273,7 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
   --color-brand-soft: var(--brand-soft);
-  --color-module-lume: var(--module-lume);
+  --color-module-agent: var(--module-agent);
   --color-module-vault: var(--module-vault);
   --color-module-agenda: var(--module-agenda);
   --color-module-research: var(--module-research);
@@ -416,9 +416,10 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   &:focus-visible::before { transform: scaleX(1); }
 }
 
-/* Opções inteligentes (src/components/smart-options.tsx): the peach Lume mark. On hover a band of
-   light crosses it from the bottom-left to the top-right and its three strokes trade places,
-   forming a mirrored mark and a spark before settling back. The same motion shows while it works. */
+/* Opções inteligentes (src/components/smart-options.tsx): the agent mark (the T) in peach. On hover a
+   band of light crosses it from the bottom-left to the top-right while the slit opens, the beam rises
+   into it along the diagonal and turns across it, then everything settles. The same motion shows
+   while it works. */
 .smart-options {
   position: relative;
   isolation: isolate;
@@ -429,7 +430,7 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   position: absolute;
   inset: -60%;
   z-index: -1;
-  background: linear-gradient(45deg, transparent 40%, color-mix(in oklab, var(--module-lume) 40%, transparent) 50%, transparent 60%);
+  background: linear-gradient(45deg, transparent 40%, color-mix(in oklab, var(--module-agent) 40%, transparent) 50%, transparent 60%);
   transform: translate(-45%, 45%);
   opacity: 0;
   pointer-events: none;
@@ -444,27 +445,25 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
 }
 @keyframes smart-a {
   0%, 12%, 91%, 100% { transform: none; }
-  25%, 45% { transform: translate(11px, 0); }
-  58%, 78% { transform: translate(5.5px, 1.25px); }
+  25%, 78% { transform: translate(-1.5px, 0); }
 }
 @keyframes smart-b {
   0%, 12%, 91%, 100% { transform: none; }
-  25%, 45% { transform: translate(0, -12px); }
-  58%, 78% { transform: translate(-1.25px, -5.5px); }
+  25%, 78% { transform: translate(1.25px, 0); }
 }
 @keyframes smart-c {
   0%, 12%, 91%, 100% { transform: none; }
-  25%, 45% { transform: translate(-5px, 3.75px) rotate(90deg); }
-  58%, 78% { transform: translate(-3px, 2.75px) rotate(180deg); }
+  30%, 45% { transform: translate(4.25px, -4.25px); }
+  58%, 78% { transform: translate(4.25px, -4.25px) rotate(90deg); }
 }
 @media (hover: hover) {
   .smart-options:hover::after { animation: smart-shine 2.4s var(--ease) infinite; }
-  .smart-options:hover .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-lume) 75%, transparent)); }
+  .smart-options:hover .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-agent) 75%, transparent)); }
   .smart-options:hover .smart-mark-a { animation: smart-a 3.6s var(--ease) infinite; }
   .smart-options:hover .smart-mark-b { animation: smart-b 3.6s var(--ease) infinite; }
   .smart-options:hover .smart-mark-c { animation: smart-c 3.6s var(--ease) infinite; }
 }
-.smart-options:focus-visible .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-lume) 75%, transparent)); }
+.smart-options:focus-visible .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-agent) 75%, transparent)); }
 .smart-options[data-busy] .smart-mark-a { animation: smart-a 3.6s var(--ease) infinite; }
 .smart-options[data-busy] .smart-mark-b { animation: smart-b 3.6s var(--ease) infinite; }
 .smart-options[data-busy] .smart-mark-c { animation: smart-c 3.6s var(--ease) infinite; }
