@@ -61,6 +61,8 @@ export async function POST(request: Request) {
         : (await Promise.all(body.attachments.filter(item => item.mediaType.startsWith('audio/')).map(item =>
           transcribeVoiceNote(owner, { mediaType: item.mediaType, bytes: Buffer.from(item.data, 'base64') }, request.signal).catch(error => {
             if (error instanceof TranscriptionError && error.reason === 'unsupported') throw new ApiError(400, 'O Tises não aceita áudio nesta configuração.');
+            // A configuration problem: retrying cannot help and it is not an operational failure.
+            if (error instanceof TranscriptionError && error.reason === 'unavailable') throw new ApiError(503, 'A transcrição está indisponível no momento. Escreva a mensagem ou tente mais tarde.');
             captureOperationalError(error, 'chat.audio.transcription');
             throw new ApiError(502, 'Não foi possível transcrever o áudio. Tente de novo ou escreva a mensagem.');
           })))).filter(Boolean);

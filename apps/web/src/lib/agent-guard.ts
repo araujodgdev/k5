@@ -96,7 +96,8 @@ export function injectionDetector(credential: () => Promise<ResolvedTaskModel>, 
     let measured = 0;
     let resolved: ResolvedTaskModel | undefined;
     try {
-      resolved = await (config ??= credential());
+      // A failed resolution is not cached: one transient error must not leave the rest of the turn unchecked.
+      resolved = await (config ??= credential().catch(error => { config = undefined; throw error; }));
       const model = measuredModel(await resolveModelConfig(modelFor(resolved)), (reported) => {
         measured += 1;
         usage.inputTokens = (usage.inputTokens ?? 0) + (reported?.inputTokens ?? 0);

@@ -171,14 +171,18 @@ export async function generateStructured<T extends z.ZodType>(officeId: string, 
   const started = performance.now();
   return traceAgentTurn({ task: config.task, provider: config.provider, modelId: config.modelId }, async span => {
     span.setAttribute('lume.reasoning_effort', config.effort ?? 'provider_default');
+    // Kept outside the try: an answer that fails the schema was still billed, so its usage is recorded.
+    let usage: { inputTokens?: number; outputTokens?: number } | undefined;
     try {
       const result = await agent.generate(prompt, {
         requestContext: requestContextFor(config),
-        structuredOutput: { schema },
+        // Mastra would throw on an invalid answer and drop its usage; the schema check below decides instead.
+        structuredOutput: { schema, errorStrategy: 'warn' },
         maxSteps: 1,
         abortSignal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout,
         modelSettings: { maxOutputTokens: options.maxOutputTokens ?? 12000 },
       });
+      usage = result.usage;
       const output = schema.parse(result.object);
       let signals: Record<string, unknown> | undefined;
       try { signals = options.signals?.(output); } catch (error) { captureOperationalError(error, 'ai.structured.signals'); }
@@ -188,7 +192,7 @@ export async function generateStructured<T extends z.ZodType>(officeId: string, 
     } catch (error) {
       captureOperationalError(error, 'ai.structured');
       span.setAttribute('lume.outcome', 'failed');
-      await recordUsage(officeId, userId, config, config.task, 'failed', undefined, { durationMs: performance.now() - started, errorClass: errorClass(error) });
+      await recordUsage(officeId, userId, config, config.task, 'failed', usage, { durationMs: performance.now() - started, errorClass: errorClass(error) });
       throw new Error('A análise falhou. Confira a conexão de IA e tente novamente.');
     }
   });

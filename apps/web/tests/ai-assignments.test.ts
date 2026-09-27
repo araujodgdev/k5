@@ -21,7 +21,7 @@ import { AI_TASK_KEYS, type AiTaskKey } from '../src/lib/ai-tasks';
 import { DEFAULT_CHAT_MODEL } from '../src/lib/ai-defaults';
 import { chatHearsAudio } from '../src/lib/ai-modalities';
 import { encryptCredential } from '../src/lib/platform-crypto';
-import { measuredModel } from '../src/lib/agent-guard';
+import { injectionDetector, measuredModel } from '../src/lib/agent-guard';
 import type { Database } from '../src/lib/database';
 
 async function fixture() {
@@ -310,6 +310,14 @@ test('a measured model reports usage from generated and streamed answers, throug
   for await (const part of stream as unknown as AsyncIterable<{ type: string }>) types.push(part.type);
   assert.deepEqual(types, ['stream-start', 'text-start', 'text-delta', 'text-end', 'finish']);
   assert.deepEqual(seen, [{ inputTokens: 120, outputTokens: 7 }, { inputTokens: 120, outputTokens: 7 }]);
+});
+
+test('a failed guard model resolution is retried on the next check instead of staying cached for the turn', async () => {
+  let attempts = 0;
+  const detect = injectionDetector(async () => { attempts += 1; throw new AiConnectionError('credential', 'Chave ilegível.'); });
+  await assert.rejects(detect('Texto de terceiros.'), AiConnectionError);
+  await assert.rejects(detect('Outro texto de terceiros.'), AiConnectionError);
+  assert.equal(attempts, 2);
 });
 
 // ---------- The administration says what a change reaches ----------
