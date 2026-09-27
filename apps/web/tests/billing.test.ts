@@ -7,6 +7,7 @@ import { billingOverview, handleBillingWebhook, settleCheckout, startPlanCheckou
 import { POST as webhookPost } from '../src/app/api/billing/webhook/route';
 import { createClientCheckout, clientBillingAction, platformFinance, refreshClientBilling } from '../src/lib/billing/platform-billing';
 import { handleSubscriptionWebhook, subscriptionsForOffice } from '../src/lib/billing/subscriptions';
+import { withTransaction } from '../src/lib/database';
 
 process.env.BILLING_PLAN_PRICE_CENTS = '19900';
 process.env.BETTER_AUTH_URL = 'https://tises.example.test/';
@@ -22,7 +23,7 @@ async function office() {
 /** An in-memory AbacatePay: products by externalId, checkouts by id, and every call recorded. */
 function fakeAbacate() {
   const products = new Map<string, { id: string; externalId: string; price: number }>();
-  const checkouts = new Map<string, { id: string; url: string; amount: number; status: CheckoutStatus; devMode: boolean; receiptUrl: string | null }>();
+  const checkouts = new Map<string, { id: string; externalId?: string; url: string; amount: number; status: CheckoutStatus; devMode: boolean; receiptUrl: string | null }>();
   const calls: { name: string; input?: unknown }[] = [];
   const client: AbacatePayClient = {
     ...abacatePayClient('unused', async () => { throw new Error('Unexpected provider request'); }),
@@ -42,7 +43,7 @@ function fakeAbacate() {
     async createCheckout(input) {
       calls.push({ name: 'createCheckout', input });
       const id = `bill_${randomUUID()}`;
-      const checkout = { id, url: `https://app.abacatepay.com/pay/${id}`, amount: 19_900, status: 'PENDING' as const, devMode: true, receiptUrl: null };
+      const checkout = { id, externalId: input.externalId, url: `https://app.abacatepay.com/pay/${id}`, amount: 19_900, status: 'PENDING' as const, devMode: true, receiptUrl: null };
       checkouts.set(id, checkout);
       return checkout;
     },
@@ -52,6 +53,12 @@ function fakeAbacate() {
       if (!checkout) throw new AbacatePayError(404, 'Billing not found');
       return checkout;
     },
+  };
+  client.getSubscriptionCheckout = client.getCheckout;
+  client.getCheckoutByExternalId = client.getSubscriptionCheckoutByExternalId = async externalId => {
+    const checkout = [...checkouts.values()].find(row => row.externalId === externalId);
+    if (!checkout) throw new AbacatePayError(404, 'Billing not found');
+    return checkout;
   };
   return { client, calls, checkouts };
 }
@@ -310,8 +317,10 @@ test('returning to the page settles pending checkouts from AbacatePay', async ()
 test('concurrent checkout requests for one office open a single payment', async () => {
   const payer = await office();
   const abacate = fakeAbacate();
-  const results = await Promise.all(Array.from({ length: 4 }, () => startPlanCheckout(payer, abacate.client)));
-  assert.equal(new Set(results.map(result => result.url)).size, 1);
+  const results = await Promise.allSettled(Array.from({ length: 4 }, () => startPlanCheckout(payer, abacate.client)));
+  const urls = results.flatMap(result => result.status === 'fulfilled' ? [result.value.url] : []);
+  assert.equal(new Set(urls).size, 1);
+  for (const result of results) if (result.status === 'rejected') assert.equal(result.reason.status,409);
   assert.equal(abacate.calls.filter(call => call.name === 'createCheckout').length, 1);
   assert.equal(abacate.calls.filter(call => call.name === 'createCustomer').length, 1);
 });
@@ -322,6 +331,133 @@ test('a provider outage while reading the product never attempts to create it', 
   abacate.client.getProduct = async () => { throw new AbacatePayError(503, 'Unavailable'); };
   await assert.rejects(startPlanCheckout(payer, abacate.client));
   assert.equal(abacate.calls.length, 0);
+});
+
+test('checkout creation releases the office transaction before provider calls and fences expired owners', async () => {
+  const payer = await office(), fake = fakeAbacate();
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  const paused = new Promise<void>(resolve => { release = resolve; });
+  const createCustomer = fake.client.createCustomer;
+  fake.client.createCustomer = async input => { entered(); await paused; return createCustomer(input); };
+  const opening = startPlanCheckout(payer,fake.client);
+  const rejected = assert.rejects(opening, /cobrança está sendo preparada/);
+  await started;
+  try {
+    const unlocked = await withTransaction(tx => tx.prepare('SELECT pg_try_advisory_xact_lock(hashtextextended(?,0)) AS acquired').get<{acquired:boolean}>(`billing-checkout:${payer.officeId}`));
+    assert.equal(unlocked?.acquired,true);
+    await assert.rejects(startPlanCheckout(payer,fake.client), /cobrança está sendo preparada/);
+    await testDb.prepare("UPDATE billing_checkout_reservation SET lease_until=CURRENT_TIMESTAMP - interval '1 second' WHERE office_id=?").run(payer.officeId);
+    fake.client.createCustomer = createCustomer;
+    await startPlanCheckout(payer,fake.client);
+  } finally { release(); }
+  await rejected;
+  assert.equal(fake.calls.filter(call => call.name==='createCheckout').length,1);
+});
+
+for (const recurring of [false,true]) test(`a failed local attachment recovers the ${recurring ? 'subscription' : 'one-time'} checkout by its durable externalId`, async t => {
+  const payer = await office(), fake = fakeAbacate();
+  fake.client.createSubscription = fake.client.createCheckout;
+  const suffix = randomUUID().replaceAll('-','');
+  const fault = `billing_fault_${suffix}`;
+  await testDb.exec(`CREATE FUNCTION ${fault}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.office_id = '${payer.officeId}' THEN RAISE EXCEPTION 'injected attachment failure'; END IF;
+    RETURN NEW; END $$;
+    CREATE TRIGGER ${fault} BEFORE INSERT ON billing_checkout FOR EACH ROW EXECUTE FUNCTION ${fault}();`);
+  t.after(async () => { await testDb.exec(`DROP TRIGGER IF EXISTS ${fault} ON billing_checkout; DROP FUNCTION IF EXISTS ${fault}();`); });
+  await assert.rejects(startPlanCheckout(payer,fake.client,{recurring}), /injected attachment failure/);
+  assert.ok(await testDb.prepare('SELECT customer_id FROM office_billing WHERE office_id=? AND customer_id IS NOT NULL').get(payer.officeId));
+  assert.equal((await billingOverview(payer.officeId)).checkouts.length,0);
+  assert.equal((await testDb.prepare('SELECT state FROM billing_checkout_reservation WHERE office_id=?').get<{state:string}>(payer.officeId))?.state,'CREATING');
+  const checkout = [...fake.checkouts.values()][0];
+  checkout.status = 'PAID';
+  await testDb.exec(`DROP TRIGGER ${fault} ON billing_checkout`);
+  if (recurring) {
+    const sub = {id:`subs_${randomUUID()}`,checkoutId:checkout.id,status:'ACTIVE' as const,amount:19900,devMode:true,updatedAt:new Date().toISOString()};
+    fake.client.getSubscription = async () => sub;
+    await handleSubscriptionWebhook({id:randomUUID(),event:'subscription.completed',data:{subscription:{id:sub.id},checkout}},fake.client);
+  } else {
+    await handleBillingWebhook({id:randomUUID(),event:'checkout.completed',data:{checkout}},testDb,fake.client);
+  }
+  const until = await paidUntil(payer.officeId);
+  assert.ok(until);
+  await syncPendingCheckouts(payer.officeId,fake.client);
+  assert.equal(await paidUntil(payer.officeId),until);
+  assert.equal((await billingOverview(payer.officeId)).checkouts[0].id,checkout.id);
+  assert.equal(fake.calls.filter(call => call.name==='createCheckout').length,1);
+  assert.equal(fake.calls.filter(call => call.name==='createCustomer').length,1);
+  if (recurring) assert.equal((await subscriptionsForOffice(payer.officeId)).length,1);
+});
+
+test('a lost checkout response is recovered without a second POST and a missing result stays uncertain', async () => {
+  const payer = await office(), fake = fakeAbacate();
+  const create = fake.client.createCheckout;
+  fake.client.createCheckout = async input => { await create(input); throw new AbacatePayError(0,'connection lost'); };
+  await assert.rejects(startPlanCheckout(payer,fake.client), /Não foi possível abrir/);
+  const find = fake.client.getCheckoutByExternalId;
+  fake.client.getCheckoutByExternalId = async () => { throw new AbacatePayError(404,'Billing not found'); };
+  await assert.rejects(startPlanCheckout(payer,fake.client), /cobrança está sendo preparada/);
+  fake.client.getCheckoutByExternalId = find;
+  const recovered = await startPlanCheckout(payer,fake.client);
+  assert.equal(recovered.url,[...fake.checkouts.values()][0].url);
+  assert.equal(fake.calls.filter(call=>call.name==='createCheckout').length,1);
+});
+
+test('old subscription links are reused only until the provider confirms expiration or cancellation', async () => {
+  for (const terminal of ['EXPIRED','CANCELLED'] as const) {
+    const payer = await office(), fake = fakeAbacate();
+    fake.client.createSubscription = fake.client.createCheckout;
+    const original = await startPlanCheckout(payer,fake.client,{recurring:true});
+    const id = original.url.split('/').pop()!;
+    await testDb.prepare("UPDATE billing_checkout SET created_at=CURRENT_TIMESTAMP - interval '30 days' WHERE id=?").run(id);
+    assert.equal((await startPlanCheckout(payer,fake.client,{recurring:true})).url,original.url);
+    fake.checkouts.get(id)!.status = terminal;
+    assert.notEqual((await startPlanCheckout(payer,fake.client,{recurring:true})).url,original.url);
+    assert.equal((await subscriptionsForOffice(payer.officeId)).find(row=>row.checkoutId===id)?.status,terminal);
+  }
+});
+
+test('refresh reconciles later actions after a provider failure but surfaces unexpected errors', async () => {
+  const actor = await platformActor(), payer = await office(), fake = fakeAbacate();
+  const first = (await startPlanCheckout(payer,fake.client)).url.split('/').pop()!;
+  await settleCheckout(first,'PAID');
+  const second = (await startPlanCheckout(payer,fake.client)).url.split('/').pop()!;
+  await settleCheckout(second,'PAID');
+  for (const id of [first,second]) await testDb.prepare("INSERT INTO billing_action(id,office_id,actor_user_id,target_id,action,status) VALUES(?,?,?,?,'refund','UNCERTAIN')").run(randomUUID(),payer.officeId,actor,id);
+  const get = fake.client.getCheckout;
+  const queried: string[] = [];
+  fake.client.getCheckout = async id => {
+    queried.push(id);
+    if (id===first) throw new AbacatePayError(503,'Unavailable');
+    return {...await get(id),status:'REFUNDED'};
+  };
+  await refreshClientBilling(actor,payer.officeId,fake.client);
+  assert.deepEqual(new Set(queried),new Set([first,second]));
+  assert.equal((await testDb.prepare('SELECT status FROM billing_action WHERE target_id=?').get<{status:string}>(second))?.status,'SUCCEEDED');
+  assert.equal((await testDb.prepare('SELECT status FROM billing_action WHERE target_id=?').get<{status:string}>(first))?.status,'UNCERTAIN');
+  fake.client.getCheckout = async () => { throw new Error('unexpected failure'); };
+  await assert.rejects(refreshClientBilling(actor,payer.officeId,fake.client), /unexpected failure/);
+});
+
+test('a request interrupted before dispatch is resumed once by refresh', async t => {
+  const actor = await platformActor(), payer = await office(), fake = fakeAbacate();
+  const id = (await startPlanCheckout(payer,fake.client)).url.split('/').pop()!;
+  await settleCheckout(id,'PAID');
+  let refunds = 0;
+  fake.client.refundCheckout = async () => { refunds++; fake.checkouts.get(id)!.status='REFUNDED'; return {id:'refund_1',status:'COMPLETE'}; };
+  const fault = `dispatch_fault_${randomUUID().replaceAll('-','')}`;
+  await testDb.exec(`CREATE FUNCTION ${fault}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+    IF NEW.target_id = '${id}' AND NEW.dispatched_at IS NOT NULL THEN RAISE EXCEPTION 'injected dispatch failure'; END IF;
+    RETURN NEW; END $$;
+    CREATE TRIGGER ${fault} BEFORE UPDATE ON billing_action FOR EACH ROW EXECUTE FUNCTION ${fault}();`);
+  t.after(async () => { await testDb.exec(`DROP TRIGGER IF EXISTS ${fault} ON billing_action; DROP FUNCTION IF EXISTS ${fault}();`); });
+  await assert.rejects(clientBillingAction(actor,payer.officeId,id,'refund',fake.client), /injected dispatch failure/);
+  assert.equal(refunds,0);
+  assert.equal((await testDb.prepare('SELECT status FROM billing_action WHERE target_id=?').get<{status:string}>(id))?.status,'REQUESTED');
+  await testDb.exec(`DROP TRIGGER ${fault} ON billing_action`);
+  await Promise.all([refreshClientBilling(actor,payer.officeId,fake.client),refreshClientBilling(actor,payer.officeId,fake.client)]);
+  assert.equal(refunds,1);
+  assert.equal((await testDb.prepare('SELECT status FROM billing_action WHERE target_id=?').get<{status:string}>(id))?.status,'SUCCEEDED');
 });
 
 test('refunding a month that starts on the 31st restores the exact prior expiry', async () => {

@@ -50,3 +50,21 @@ Capturas locais não versionadas em `apps/web/playwright-report/abacatepay/`: `f
 - [Consulta de assinatura](https://docs.abacatepay.com/pages/subscriptions/get)
 - [Eventos de assinatura](https://docs.abacatepay.com/pages/webhooks/events/subscriptions)
 - [Validação inicial da integração avulsa](validacao-abacatepay.md)
+
+## Revisão do PR #23
+
+Correções dos três comentários do CodeRabbit:
+
+- [Criação dentro da transação](https://github.com/araujodgdev/k5/pull/23#discussion_r4114129025): reserva persistida antes das chamadas externas, exclusão por escritório, proteção contra um executor antigo e recuperação pelo `externalId`. O cadastro do cliente é salvo independentemente da gravação do checkout. Webhooks e atualização recuperam cobranças cuja gravação local falhou.
+- [Link de assinatura antigo](https://github.com/araujodgdev/k5/pull/23#discussion_r4114129027): consulta antes do reuso e reconciliação de assinaturas pendentes sem corte de sete dias. Apenas expiração/cancelamento confirmado libera um novo link.
+- [Falha em uma ação interrompendo a atualização](https://github.com/araujodgdev/k5/pull/23#discussion_r4114129030): falhas do provedor são isoladas por operação; as demais são reconciliadas. Erros internos continuam sendo propagados.
+
+O alerta arquitetural de interrupção antes do despacho também foi tratado: uma ação gravada e ainda não enviada pode ser retomada uma única vez, com disputa atômica entre executores. Ações antigas ou já despachadas continuam sendo consultadas sem reenvio automático. Casos ambíguos exigem conferência no provedor, conforme o procedimento no README do aplicativo.
+
+A migração aditiva `0029_billing_checkout_reservation.sql` foi aplicada localmente e deve preceder a próxima implantação destas correções. O registro de staging acima corresponde à implantação original.
+
+Os 26 testes de cobrança passaram, incluindo falhas reais injetadas no PostgreSQL durante a gravação e antes do despacho, retomada concorrente, resposta perdida, reconciliação parcial e links de assinatura com 30 dias. Consultas somente de leitura no sandbox confirmaram a recuperação por `externalId` nos dois endpoints (avulso e assinatura).
+
+A execução completa após as correções passou com **471 testes**, sem falhas. Também passaram
+`pnpm typecheck`, `pnpm lint`, `pnpm db:setup` e `pnpm build`. Permanecem o aviso preexistente
+de lint no transporte judicial e o aviso de tracing/link do Mammoth no build.
