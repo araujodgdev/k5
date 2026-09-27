@@ -84,7 +84,8 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/app/command-center` | Início: resumo do escritório e ações rápidas |
 | `/app/agents` | Tises, assistente do escritório |
 | `/app/vault` | Cofre |
-| `/app/agenda` | Tarefas, agenda e clientes |
+| `/app/agenda` | Escritório: tarefas, agenda, clientes, equipe, associados e convites |
+| `/invite/[token]` | Aceitar ou recusar um convite com a conta destinatária |
 | `/app/agenda/clients/[id]` | Detalhes do cliente, contato, casos e atividades |
 | `/app/notifications` | Abre o painel de notificações (sino no rodapé do menu) |
 | `/app/research` | Pesquisa na web pela Exa, com histórico pessoal |
@@ -111,9 +112,11 @@ Os lembretes das atividades do escritório exigem o worker de notificações
 ## Configuração e dados
 
 Veja [o guia do frontend](apps/web/README.md) e [as variáveis de exemplo](apps/web/.env.example).
-O cadastro cria um escritório e um vínculo de administrador. Os papéis de advogado
- e revisor já estão modelados; convites, gestão de papéis e operações de negócio
-ficam para as próximas etapas. Cada usuário pertence a um escritório nesta fase.
+O cadastro cria um escritório e um vínculo de administrador. Em **Escritório → Equipe**,
+administradores convidam membros e gerenciam os papéis de administrador, advogado e revisor.
+Uma pessoa pode participar de vários escritórios e alternar o escritório ativo.
+**Associados** reúne parceiros; a aba **Participantes** de cada caso permite compartilhar
+somente aquele caso. Veja [colaboração e convites](docs/colaboracao.md).
 
 O logout encerra todas as sessões do usuário. As senhas ficam sob responsabilidade
 do Better Auth, com hash scrypt; os cookies de sessão são HttpOnly. O acesso ao

@@ -15,6 +15,7 @@ import { JudicialCaseLinks } from "@/components/judicial-case-links";
 import { ResearchCaseReferences } from "@/components/research-case-references";
 import { VaultAnnexes } from "@/components/vault-annexes";
 import { DrivePanel } from "@/components/google/drive-panel";
+import { CollaborationPanel } from './collaboration-panel';
 import type { OfficeRole } from "@/lib/offices";
 import type { VaultCase, VaultDocument, VaultFolder } from "@/lib/vault";
 
@@ -24,13 +25,14 @@ function countLabel(count: number) {
   return count === 1 ? "1 arquivo" : `${count} arquivos`;
 }
 
-export function VaultCaseView({ vaultCase, folders, path, initialDocuments, folderId, role, initialSection = 'files' }: {
+export function VaultCaseView({ vaultCase, folders, path, initialDocuments, folderId, role, external = false, initialSection = 'files' }: {
   vaultCase: VaultCase;
   folders: VaultFolder[];
   path: VaultFolder[];
   initialDocuments: VaultDocument[];
   folderId: string | null;
   role: OfficeRole;
+  external?: boolean;
   initialSection?: 'files' | 'references' | 'annexes';
 }) {
   const router = useRouter();
@@ -38,7 +40,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
   const query = `caseId=${encodeURIComponent(vaultCase.id)}&folderId=${folderId ? encodeURIComponent(folderId) : "root"}`;
   const { documents, setDocuments, refresh } = usePolledDocuments(query, initialDocuments);
   const [view, setView] = useState<View>("list");
-  const [section, setSection] = useState<"files" | "processes" | "references" | "annexes">(initialSection);
+  const [section, setSection] = useState<"files" | "processes" | "references" | "annexes" | "participants">(initialSection);
   const [failure, setFailure] = useState("");
   const [folderName, setFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -98,13 +100,14 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
         {vaultCase.description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{vaultCase.description}</p>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" asChild><Link href={`/app/agenda?caseId=${encodeURIComponent(vaultCase.id)}`}>Tarefas e Agenda</Link></Button>
+        {!external && <Button variant="outline" asChild><Link href={`/app/agenda?caseId=${encodeURIComponent(vaultCase.id)}`}>Tarefas e Agenda</Link></Button>}
         {!folderId && (
-          <div className="flex gap-1" role="group" aria-label="Seção do caso">
+          <div className="flex max-w-full gap-1 overflow-x-auto" role="group" aria-label="Seção do caso">
             <Button type="button" variant="ghost" className={section === "files" ? "bg-accent text-foreground" : ""} aria-pressed={section === "files"} onClick={() => setSection("files")}>Arquivos</Button>
-            <Button type="button" variant="ghost" className={section === "processes" ? "bg-accent text-foreground" : ""} aria-pressed={section === "processes"} onClick={() => setSection("processes")}>Processos</Button>
+            {!external && <Button type="button" variant="ghost" className={section === "processes" ? "bg-accent text-foreground" : ""} aria-pressed={section === "processes"} onClick={() => setSection("processes")}>Processos</Button>}
             <Button type="button" variant="ghost" className={section === "references" ? "bg-accent text-foreground" : ""} aria-pressed={section === "references"} onClick={() => setSection("references")}>Referências</Button>
             <Button type="button" variant="ghost" className={section === "annexes" ? "bg-accent text-foreground" : ""} aria-pressed={section === "annexes"} onClick={() => setSection("annexes")}>Anexos</Button>
+            <Button type="button" variant="ghost" className={section === 'participants' ? 'bg-accent text-foreground' : ''} aria-pressed={section === 'participants'} onClick={() => setSection('participants')}>Participantes</Button>
           </div>
         )}
         {section === "files" && (
@@ -115,13 +118,14 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
             </div>
             {canWrite && <Button type="button" variant="outline" aria-expanded={creatingFolder} onClick={() => { setCreatingFolder((value) => !value); setFailure(""); }}><FolderPlus aria-hidden="true" />Nova pasta</Button>}
             <UploadControl canWrite={canWrite} scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={(document) => setDocuments((current) => [document, ...current])} />
-            <Button type="button" variant="outline" aria-expanded={driveOpen} onClick={() => setDriveOpen(open => !open)}>
+            {!external && <Button type="button" variant="outline" aria-expanded={driveOpen} onClick={() => setDriveOpen(open => !open)}>
               {driveOpen ? "Fechar Google Drive" : canWrite ? "Importar do Google Drive" : "Ver Google Drive"}
-            </Button>
+            </Button>}
           </>
         )}
         {canWrite && <Button type="button" variant="ghost" aria-expanded={editing} onClick={() => setEditing((value) => !value)}>{editing ? "Fechar detalhes" : "Detalhes"}</Button>}
-        {canWrite && <CaseDelete caseId={vaultCase.id} name={vaultCase.name} documentCount={vaultCase.documentCount} onError={setFailure} onDeleted={() => { router.push("/app/vault"); router.refresh(); }} />}
+        <Button asChild variant="outline"><Link href={`/app/agents?caseId=${encodeURIComponent(vaultCase.id)}`}>Conversar sobre o caso</Link></Button>
+        {canWrite && !external && <CaseDelete caseId={vaultCase.id} name={vaultCase.name} documentCount={vaultCase.documentCount} onError={setFailure} onDeleted={() => { router.push("/app/vault"); router.refresh(); }} />}
       </div>
     </div>
 
@@ -135,9 +139,10 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
     {failure && <p className="mt-4 flex items-start gap-2 text-sm text-destructive" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{failure}</p>}
 
     <div className="mt-5 min-h-0 overflow-auto">
+      {section === 'participants' && <CollaborationPanel caseId={vaultCase.id} />}
       {section === "files" && driveOpen && <DrivePanel role={role} initialCaseId={vaultCase.id} initialFolderId={folderId} onImported={refresh} />}
       {!folderId && section === "processes" && <JudicialCaseLinks caseId={vaultCase.id} canWrite={canWrite} />}
-      {!folderId && section === "references" && <ResearchCaseReferences caseId={vaultCase.id} canWrite={canWrite} />}
+      {!folderId && section === "references" && <ResearchCaseReferences caseId={vaultCase.id} canWrite={canWrite} external={external} />}
       {!folderId && section === "annexes" && <VaultAnnexes caseId={vaultCase.id} canWrite={canWrite} />}
 
       {section === "files" && folders.length > 0 && (view === "cards" ? (

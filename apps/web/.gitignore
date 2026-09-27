@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /.next-research-qa/
+/.next-verify/
 /out/
 
 # production

@@ -590,7 +590,7 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
   return <ConversationIdContext.Provider value={conversationId}><AssistantRuntimeProvider runtime={runtime}><AgentThread tools={tools} /></AssistantRuntimeProvider></ConversationIdContext.Provider>;
 }
 
-export function AgentChat({ initialConversationId = '', initialData, modalities = { image: false, audio: false } }: { initialConversationId?: string; initialData?: ChatBootstrap; modalities?: Modalities }) {
+export function AgentChat({ initialConversationId = '', initialCaseId, initialData, modalities = { image: false, audio: false } }: { initialConversationId?: string; initialCaseId?: string; initialData?: ChatBootstrap; modalities?: Modalities }) {
   const [conversations, setConversations] = useState<Conversation[]>(initialData?.conversations ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(initialData?.conversation?.id ?? null);
   const [messages, setMessages] = useState<UIMessage[]>(initialData?.messages ?? []);
@@ -598,7 +598,7 @@ export function AgentChat({ initialConversationId = '', initialData, modalities 
   const [loadedConversationId, setLoadedConversationId] = useState<string | null>(initialData?.conversation?.id ?? null);
   const hydratedConversation = useRef(initialData?.conversation?.id);
   const [error, setError] = useState("");
-  const [context, setContext] = useState<AgentContext>({ caseId: null, documentIds: [], researchReferenceIds: [] });
+  const [context, setContext] = useState<AgentContext>({ caseId: initialCaseId ?? null, documentIds: [], researchReferenceIds: [] });
   const [contextOpen, setContextOpen] = useState(false);
   const listOpen = useSyncExternalStore(subscribeListOpen, readListOpen, serverListOpen);
   const [uploading, setUploading] = useState(0);

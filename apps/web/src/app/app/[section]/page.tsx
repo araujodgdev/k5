@@ -8,8 +8,9 @@ import { database } from "@/lib/database";
 import { conversationBootstrap } from "@/lib/ai-store";
 import { planTaskModel } from "@/lib/ai-connections";
 import { planReadsImages } from "@/lib/ai-assignments-core";
+import { caseAccess } from '@/lib/collaboration/access';
 
-type Props = { params: Promise<{ section: string }>; searchParams: Promise<{ conversationId?: string }> };
+type Props = { params: Promise<{ section: string }>; searchParams: Promise<{ conversationId?: string; caseId?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { section } = await params;
@@ -22,7 +23,8 @@ export default async function SectionPage({ params, searchParams }: Props) {
   const item = appNavigation.find((entry) => entry.slug === section);
   if (!item) notFound();
   if (item.slug === "agents") {
-    const { conversationId } = await searchParams;
+    const { conversationId, caseId } = await searchParams;
+    if (caseId) await caseAccess(user.id, caseId);
     const [history, chat, transcription] = await Promise.allSettled([
       conversationBootstrap(database, { officeId: office.officeId, userId: user.id }, conversationId),
       planTaskModel('agent.chat'),
@@ -32,7 +34,7 @@ export default async function SectionPage({ params, searchParams }: Props) {
     const modalities = chat.status === 'fulfilled' && transcription.status === 'fulfilled'
       ? { image: planReadsImages(chat.value), audio: transcription.value.status === 'ready' } : undefined;
     // A failed prefetch falls back to the existing API loading/error path in the chat.
-    return <AgentChat key={conversationId ?? 'latest'} initialConversationId={conversationId}
+    return <AgentChat key={`${conversationId ?? 'latest'}:${caseId ?? ''}`} initialConversationId={conversationId} initialCaseId={caseId}
       initialData={history.status === 'fulfilled' ? history.value : undefined}
       modalities={modalities} />;
   }

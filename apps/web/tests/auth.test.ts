@@ -1,12 +1,29 @@
 import { postgresFixture } from './postgres-fixture';
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { createAuth } from "../src/lib/auth-core";
-import { ensureOfficeForUser, findOfficeForUser } from "../src/lib/offices";
+import { ensureOfficeForUser, findOfficeForUser, selectedOfficeForUser, listOfficesForUser } from "../src/lib/offices";
 
 const origin = "http://localhost:3000";
 const password = "Senha-teste-2026!";
+
+test('sessão autenticada seleciona apenas vínculos atuais e preserva o escritório original', async () => {
+  const { db, request, signup } = await fixture();
+  const first = await signup('first@multi.test');
+  const second = await signup('second@multi.test');
+  const user = (await request('/get-session', undefined, first.cookie)).data.user;
+  const original = (await findOfficeForUser(db, user.id))!;
+  const invited = (await findOfficeForUser(db, second.data.user.id))!;
+  await db.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), invited.officeId, user.id, 'reviewer');
+  assert.equal((await listOfficesForUser(db, user.id)).length, 2);
+  assert.equal((await selectedOfficeForUser(db, user, invited.officeId)).role, 'reviewer');
+  await db.prepare('DELETE FROM office_member WHERE office_id=? AND user_id=?').run(invited.officeId, user.id);
+  assert.equal((await selectedOfficeForUser(db, user, invited.officeId)).officeId, original.officeId);
+  assert.ok((await request('/get-session', undefined, first.cookie)).data.user);
+  await request('/sign-out', {}, first.cookie);
+  assert.equal((await request('/get-session', undefined, first.cookie)).data, null);
+});
 
 async function fixture(ipHeaders?: string[]) {
   const { db, database, pool } = await postgresFixture({seedDefaults:false});

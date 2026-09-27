@@ -3,6 +3,7 @@ node_modules
 .next
 **/.next
 **/.next-research-qa
+**/.next-verify
 .turbo
 **/.turbo
 .git

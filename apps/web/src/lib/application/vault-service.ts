@@ -27,17 +27,21 @@ export function asCapabilityError(error: unknown): unknown {
 /** `findVaultDocument` already excludes tombstones, so one lookup settles both office and liveness. */
 async function requireDocument(context: WorkspaceContext, documentId: string) {
   const document = await findVaultDocument(context.officeId, documentId);
-  if (!document) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado no Cofre deste escritório.');
+  if (!document || (context.caseScope && document.caseId !== context.caseScope.caseId)) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado no Cofre deste escritório.');
   return document;
 }
 
 export async function listCases(context: WorkspaceContext): Promise<CapabilityOutput<'k5_vault_list_cases'>> {
-  return { cases: await listVaultCases(context.officeId) };
+  const cases = await listVaultCases(context.officeId);
+  const shared = await database.prepare(`SELECT c.id,c.office_id FROM case_participant p JOIN vault_case c ON c.id=p.case_id AND c.office_id=p.office_id
+    WHERE p.user_id=? AND p.revoked_at IS NULL AND c.deleted_at IS NULL AND c.office_id<>? ORDER BY c.updated_at DESC`).all<{ id: string; office_id: string }>(context.userId, context.officeId);
+  for (const item of shared) { const record = await findVaultCase(item.office_id, item.id); if (record) cases.push(record); }
+  return { cases };
 }
 
 export async function createCase(context: WorkspaceContext, input: CapabilityInput<'k5_vault_create_case'>): Promise<CapabilityOutput<'k5_vault_create_case'>> {
   // Idempotent by natural key: a retried tool call must not leave two identical cases behind.
-  const existing = (await listCases(context)).cases.find((item) => item.name.toLowerCase() === input.name.toLowerCase());
+  const existing = (await listVaultCases(context.officeId)).find((item) => item.name.toLowerCase() === input.name.toLowerCase());
   if (existing) return { case: existing, created: false };
   try {
     return { case: await createVaultCase(context.officeId, context.userId, input.name, { description: input.description, client: input.client }), created: true };
@@ -148,6 +152,7 @@ async function storedNamesForCase(officeId: string, caseId: string) {
 }
 
 export async function listDocuments(context: WorkspaceContext, input: CapabilityInput<'k5_vault_list_documents'>): Promise<CapabilityOutput<'k5_vault_list_documents'>> {
+  if (context.caseScope) input = { ...input, caseId: context.caseScope.caseId, scope: 'case' };
   const filters = { scope: input.scope ?? null, caseId: input.caseId ?? null, ...(input.folderId === undefined ? {} : { folderId: input.folderId }) };
   // Tombstones are excluded in SQL and the page is taken in SQL: no per-row liveness query, and
   // no loading the whole office to slice twenty rows off the front of it.
@@ -248,7 +253,8 @@ export async function deleteDocument(context: WorkspaceContext, input: Capabilit
  */
 export async function addDocumentVersion(context: WorkspaceContext, input: CapabilityInput<'k5_vault_add_document_version'>): Promise<CapabilityOutput<'k5_vault_add_document_version'>> {
   const doc = await requireDocument(context, input.documentId);
-  const upload = await consumeUploadRef(context, input.uploadRef);
+  const uploadContext = context.caseScope ? { ...context, officeId: context.caseScope.homeOfficeId } : context;
+  const upload = await consumeUploadRef(uploadContext, input.uploadRef);
 
   const currentMax = await database.prepare('SELECT max(version) AS maxVersion FROM vault_document_version WHERE document_id=?')
     .get(input.documentId) as { maxVersion: number | null } | undefined;
@@ -271,7 +277,7 @@ export async function addDocumentVersion(context: WorkspaceContext, input: Capab
   } catch (error) {
     // Same reasoning as ingestUpload: the batch is atomic, so a throw left nothing written and
     // the reference is unspent.
-    await releaseUploadRef(context, input.uploadRef);
+    await releaseUploadRef(uploadContext, input.uploadRef);
     throw error;
   }
 
@@ -300,14 +306,15 @@ export async function retryIngestion(context: WorkspaceContext, input: Capabilit
  */
 export async function ingestUpload(context: WorkspaceContext, input: CapabilityInput<'k5_vault_ingest_upload'>): Promise<CapabilityOutput<'k5_vault_ingest_upload'>> {
   if (input.scope === 'case' && !input.caseId) throw new CapabilityError('INVALID', 'Escolha um caso para o documento.');
-  const upload = await consumeUploadRef(context, input.uploadRef);
+  const uploadContext = context.caseScope ? { ...context, officeId: context.caseScope.homeOfficeId } : context;
+  const upload = await consumeUploadRef(uploadContext, input.uploadRef);
   try {
     const document = await createVaultDocument(context.officeId, context.userId, upload, { scope: input.scope, caseId: input.caseId ?? null, folderId: input.folderId ?? null });
     return getDocument(context, { documentId: document.id });
   } catch (error) {
     // createVaultDocument writes in one batch, so a throw means no document and no version exist.
     // Handing the reference back is what keeps a rejected destination from costing the upload.
-    await releaseUploadRef(context, input.uploadRef);
+    await releaseUploadRef(uploadContext, input.uploadRef);
     throw asCapabilityError(error);
   }
 }

@@ -65,7 +65,7 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
       setLoadError("");
       try {
         const [response, caseResponse] = await Promise.all([
-          fetch("/api/vault/documents", { signal: controller.signal, cache: "no-store" }),
+          fetch(`/api/vault/documents${caseFilter !== ALL_CASES ? `?caseId=${encodeURIComponent(caseFilter)}` : ''}`, { signal: controller.signal, cache: "no-store" }),
           fetch("/api/vault/cases", { signal: controller.signal, cache: "no-store" }),
         ]);
         if (!response.ok) throw new Error(await responseError(response, "Não foi possível carregar o Cofre."));
@@ -80,7 +80,7 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
     }
     void load();
     return () => controller.abort();
-  }, []);
+  }, [caseFilter]);
 
   useEffect(() => {
     if (!context.caseId) return;
@@ -121,7 +121,7 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
     setCaseFilter(value);
     setReferences([]);
     const next = value === ALL_CASES ? null : value;
-    onChange({ ...context, caseId: next, researchReferenceIds: next === context.caseId ? context.researchReferenceIds : [] });
+    onChange({ ...context, caseId: next, documentIds: next === context.caseId ? context.documentIds : [], researchReferenceIds: next === context.caseId ? context.researchReferenceIds : [] });
   }
 
   function toggleReference(id: string) {
@@ -141,7 +141,7 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
       <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-5 [&>*]:min-w-0">
         {attached.length === 0 && context.researchReferenceIds.length === 0 && (
           <p className="text-sm text-subtle-foreground">
-            Nenhuma fonte selecionada. O assistente ainda pode procurar no Cofre; escolha arquivos ou referências para esta conversa.
+            {context.caseId ? 'O assistente pode consultar os arquivos deste caso. Escolha arquivos ou referências para limitar as fontes da conversa.' : 'Nenhuma fonte selecionada. O assistente ainda pode procurar no Cofre; escolha arquivos ou referências para esta conversa.'}
           </p>
         )}
         {attached.map((document) => (

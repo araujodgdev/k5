@@ -27,8 +27,10 @@ function countLabel(count: number) {
  * The office drive. A case is a folder with its own page; the library is where documents that
  * belong to no case live. Nothing here decides what will be done with a file.
  */
-export function VaultBrowser({ initialCases, libraryCount, role }: { initialCases: VaultCase[]; libraryCount: number; role: OfficeRole }) {
+export function VaultBrowser({ initialCases, libraryCount, role, ownCaseIds }: { initialCases: VaultCase[]; libraryCount: number; role: OfficeRole; ownCaseIds?: string[] }) {
   const [cases, setCases] = useState(initialCases);
+  const [ownedIds, setOwnedIds] = useState(ownCaseIds);
+  const isShared = (id: string) => Boolean(ownedIds && !ownedIds.includes(id));
   const [view, setView] = useState<View>("cards");
   const [creating, setCreating] = useState(false);
   const [advanced, setAdvanced] = useState(false);
@@ -54,6 +56,7 @@ export function VaultBrowser({ initialCases, libraryCount, role }: { initialCase
     setBusy(false);
     if (!response.ok || !result?.case) { setFailure(result?.error ?? "Não foi possível criar o caso."); return; }
     setCases((current) => [result.case!, ...current.filter((item) => item.id !== result.case!.id)]);
+    setOwnedIds(current => current ? [...current, result.case!.id] : current);
     setName(""); setDescription(""); setClient({ name: "", document: "", email: "", phone: "", notes: "" });
     setCreating(false); setAdvanced(false);
   }
@@ -104,9 +107,9 @@ export function VaultBrowser({ initialCases, libraryCount, role }: { initialCase
               <Link href={`/app/vault/cases/${item.id}`} className="grid min-h-28 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
                 <span className="flex items-center gap-2 font-medium"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate pr-8">{item.name}</span></span>
                 <span className="line-clamp-2 text-sm text-muted-foreground">{item.description || item.client.name || "Sem descrição"}</span>
-                <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(item.documentCount)} · {formatDate(item.updatedAt)}</span>
+                <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(item.documentCount)} · {formatDate(item.updatedAt)}{isShared(item.id) ? ' · Compartilhado comigo' : ''}</span>
               </Link>
-              {canWrite && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} className="absolute top-2 right-2" />}
+              {canWrite && !isShared(item.id) && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} className="absolute top-2 right-2" />}
             </div>
           ))}
         </div>
@@ -121,11 +124,11 @@ export function VaultBrowser({ initialCases, libraryCount, role }: { initialCase
           {cases.map((item) => (
             <div key={item.id} className="flex items-center border-b">
               <Link href={`/app/vault/cases/${item.id}`} className="grid min-h-12 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] items-center gap-4 py-2 text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(240px,1fr)_120px_120px]">
-                <span className="flex min-w-0 items-center gap-2"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate">{item.name}</span></span>
+                <span className="flex min-w-0 items-center gap-2"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0"><span className="block truncate">{item.name}</span>{isShared(item.id) && <span className="block text-[13px] text-muted-foreground">Compartilhado comigo</span>}</span></span>
                 <span className="hidden text-muted-foreground md:block">{item.documentCount}</span>
                 <span className="hidden text-muted-foreground md:block">{formatDate(item.updatedAt)}</span>
               </Link>
-              {canWrite && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} />}
+              {canWrite && !isShared(item.id) && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} />}
             </div>
           ))}
         </div>

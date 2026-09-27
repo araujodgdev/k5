@@ -16,6 +16,9 @@ import type { WorkspaceContext } from '@/lib/application/context';
 import { agentTools, toolSummary, type ApprovalRequest } from '@/lib/agent-tools';
 import { describeAgentApproval, resourceHref, type AgentApprovalPart } from '@/lib/application/agent-approvals';
 import { listVaultDocuments, readVaultOriginal, findVaultDocument } from '@/lib/vault';
+import { documentAccess } from '@/lib/collaboration/access';
+import { scopeCapability } from '@/lib/collaboration/capability-access';
+import { assertCapabilityAllowed } from '@/lib/application/context';
 import { chatHearsAudio, modelModalities, modelReadsPdf } from '@/lib/ai-modalities';
 import { chatPromptMessages } from '@/lib/chat-prompt';
 import { clockContext } from '@/lib/chat-clock';
@@ -107,9 +110,14 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     // Scope is the list of selected documents, resolved against the office and named so the model
     // can pass the ids to the retrieval tool. Content is no longer pre-injected: pasting 70k
     // characters into the instructions *and* registering a search tool pays for both.
+    const knowledgeContext = await assertCapabilityAllowed(await scopeCapability(context, 'k5_knowledge_search',
+      { caseId: body.caseId, documentIds: body.documentIds }), 'k5_knowledge_search');
     const scopeDocuments = body.documentIds.length
-      ? (await listVaultDocuments(owner.officeId, {})).filter((doc) => body.documentIds.includes(doc.id))
-      : [];
+      ? (await Promise.all(body.documentIds.map(async documentId => {
+          const access = await assertCapabilityAllowed(await documentAccess(knowledgeContext, documentId), 'k5_vault_get_document');
+          return findVaultDocument(access.officeId, documentId);
+        }))).filter((doc): doc is NonNullable<typeof doc> => Boolean(doc))
+      : body.caseId ? await listVaultDocuments(knowledgeContext.officeId, { caseId: body.caseId }) : [];
     const pending = scopeDocuments.filter((doc) => doc.status === 'queued' || doc.status === 'processing');
     const scope = scopeDocuments.length
       ? `Fontes do Cofre selecionadas nesta conversa (use estes identificadores nas ferramentas):\n${scopeDocuments.map((doc) => `${doc.id} — ${doc.name} (${doc.status})`).join('\n')}${pending.length
@@ -200,10 +208,12 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         if (modalities.image) {
           // Bounded on purpose: three images is a readable exhibit, thirty is a bill.
           for (const document of scopeDocuments.filter((doc) => doc.mimeType.startsWith('image/')).slice(0, 3)) {
-            const row = await findVaultDocument(owner.officeId, document.id);
+            const access = await assertCapabilityAllowed(await documentAccess(knowledgeContext, document.id), 'k5_vault_get_document');
+            const row = await findVaultDocument(access.officeId, document.id);
             if (!row) continue;
             try {
               const bytes = await readVaultOriginal(row);
+              await assertCapabilityAllowed(await documentAccess(access, document.id), 'k5_vault_get_document');
               if (bytes.byteLength > 6_000_000) continue;
               mediaParts.push({ type: 'file', data: bytes.toString('base64'), mediaType: document.mimeType });
             } catch {
@@ -216,10 +226,12 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
           // right after the upload. Once ready it is reached through search, like any document.
           let pdfBytes = 0;
           for (const document of pending.filter((doc) => doc.mimeType === 'application/pdf').slice(0, 2)) {
-            const row = await findVaultDocument(owner.officeId, document.id);
+            const access = await assertCapabilityAllowed(await documentAccess(knowledgeContext, document.id), 'k5_vault_get_document');
+            const row = await findVaultDocument(access.officeId, document.id);
             if (!row) continue;
             try {
               const bytes = await readVaultOriginal(row);
+              await assertCapabilityAllowed(await documentAccess(access, document.id), 'k5_vault_get_document');
               if (pdfBytes + bytes.byteLength > PENDING_PDF_BYTES || pdfPageCount(bytes) > PENDING_PDF_PAGES) continue;
               pdfBytes += bytes.byteLength;
               mediaParts.push({ type: 'file', data: bytes.toString('base64'), mediaType: 'application/pdf' });

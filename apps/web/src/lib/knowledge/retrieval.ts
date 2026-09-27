@@ -37,6 +37,7 @@ export async function searchKnowledgeEngine(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_search'>,
 ): Promise<SearchKnowledgeResult> {
+  if (context.caseScope) input = { ...input, caseId: context.caseScope.caseId };
   const { query } = input;
   const limit = input.limit ?? 8;
   const researchReferenceIds = input.researchReferenceIds ?? [];

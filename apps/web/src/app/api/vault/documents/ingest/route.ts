@@ -1,21 +1,18 @@
 import { after } from 'next/server';
-import { apiWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
-import { workspaceContext } from '@/lib/application/context';
+import { apiPersonalWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
+import { workspaceContext, assertCapabilityAllowed } from '@/lib/application/context';
+import { scopeCapability } from '@/lib/collaboration/capability-access';
 import { ingestUpload } from '@/lib/application/vault-service';
 import { drainQueuedDocument } from '@/lib/vault';
-import { z } from 'zod';
+import { capabilities } from '@/lib/capabilities/contracts';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
-    const workspace = await apiWorkspace(request, true);
-    const body = z.object({
-      uploadRef: z.string().min(1),
-      scope: z.enum(['library', 'case']),
-      caseId: z.string().optional(),
-    }).parse(await limitedJson(request));
-    const context = workspaceContext(workspace);
+    const workspace = await apiPersonalWorkspace(request, true);
+    const body = capabilities.k5_vault_ingest_upload.input.parse(await limitedJson(request));
+    const context = await assertCapabilityAllowed(await scopeCapability(workspaceContext(workspace), 'k5_vault_ingest_upload', body), 'k5_vault_ingest_upload');
     const result = await ingestUpload(context, body);
     // The same kick the browser upload does. This is the path an agent takes, and without it a
     // document the agent files stays queued while the chat reports it as filed.

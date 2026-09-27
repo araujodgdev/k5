@@ -10,6 +10,7 @@ export async function findOfficeForUser(db: Database, userId: string, officeId?:
     SELECT o.id AS officeId, o.name AS officeName, m.role
     FROM office o JOIN office_member m ON m.office_id = o.id
     WHERE m.user_id = ? AND (?::text IS NULL OR o.id = ?)
+    ORDER BY m.created_at, m.id LIMIT 1
   `).get(userId, officeId ?? null, officeId ?? null) as OfficeMembership | undefined;
 }
 
@@ -22,16 +23,28 @@ export async function ensureOfficeForUser(db: Database, user: { id: string; offi
   try {
     const officeId = randomUUID();
     await db.batch([
-      db.prepare("INSERT INTO office (id, name) VALUES (?, ?)").bind(officeId, user.officeName),
-      db.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, 'administrator')")
-        .bind(randomUUID(), officeId, user.id),
+      db.prepare('SELECT id FROM "user" WHERE id=? FOR UPDATE').bind(user.id),
+      db.prepare("INSERT INTO office (id, name) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM office_member WHERE user_id=?)")
+        .bind(officeId, user.officeName, user.id),
+      db.prepare("INSERT INTO office_member (id, office_id, user_id, role) SELECT ?, ?, ?, 'administrator' WHERE EXISTS (SELECT 1 FROM office WHERE id=?)")
+        .bind(randomUUID(), officeId, user.id, officeId),
     ]);
   } catch {
-    // Two concurrent sign-ins can both read "no office". `office_member` is UNIQUE per user, so
-    // the loser's batch rolls back whole and the winner's row is the one to read back below.
+    // Provisioning serializes on the user row; a concurrent request can already have succeeded.
   }
 
   const provisioned = await findOfficeForUser(db, user.id);
   if (!provisioned) throw new Error("Não foi possível provisionar o escritório deste usuário.");
   return provisioned;
+}
+
+export const ACTIVE_OFFICE_COOKIE = 'k5-office';
+
+export async function selectedOfficeForUser(db: Database, user: { id: string; officeName: string }, officeId?: string) {
+  return (officeId ? await findOfficeForUser(db, user.id, officeId) : undefined) ?? ensureOfficeForUser(db, user);
+}
+
+export async function listOfficesForUser(db: Database, userId: string) {
+  return db.prepare(`SELECT o.id AS officeId,o.name AS officeName,m.role FROM office_member m
+    JOIN office o ON o.id=m.office_id WHERE m.user_id=? ORDER BY m.created_at,m.id`).all<OfficeMembership>(userId);
 }

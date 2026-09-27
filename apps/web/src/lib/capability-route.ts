@@ -3,6 +3,7 @@ import { apiWorkspace, apiPersonalWorkspace, apiError, limitedJson } from '@/lib
 import { workspaceContext } from '@/lib/application/context';
 import { capabilities, type CapabilityName } from '@/lib/capabilities/contracts';
 import { runCapability } from '@/lib/agent-tools';
+import { sharedCaseCapabilities } from '@/lib/collaboration/capability-access';
 
 /**
  * HTTP entry point for a capability. Both adapters now converge on `runCapability`, so the role
@@ -16,8 +17,8 @@ export async function handleCapability(
 ) {
   try {
     const write = capabilities[name].effect === 'write';
-    const workspace = capabilities[name].module === 'research' && !write
-      ? await apiPersonalWorkspace(request)
+    const workspace = sharedCaseCapabilities.has(name) || (capabilities[name].module === 'research' && !write)
+      ? await apiPersonalWorkspace(request, write)
       : await apiWorkspace(request, write);
     let body: Record<string, unknown> = {};
     if (request.method !== 'GET' && request.method !== 'DELETE') {

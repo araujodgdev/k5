@@ -3,19 +3,28 @@ import { Reveal } from "@/components/reveal";
 import { VaultCaseView } from "@/components/vault-case-view";
 import { requireWorkspace } from "@/lib/session";
 import { findVaultCase, findVaultFolder, listVaultDocuments, listVaultFolders, vaultFolderPath } from "@/lib/vault";
+import { caseAccess } from '@/lib/collaboration/access';
+import { CapabilityError } from '@/lib/capabilities/errors';
+
+async function accessForPage(userId: string, caseId: string) {
+  try { return await caseAccess(userId, caseId); }
+  catch (error) { if (error instanceof CapabilityError && error.code === 'NOT_FOUND') notFound(); throw error; }
+}
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ folder?: string; section?: string }> };
 
 // Pages redirect an expired session to sign-in; the 401 of requireVaultWorkspace is for the APIs.
 export async function generateMetadata({ params }: Props) {
-  const { office } = await requireWorkspace();
+  const { user } = await requireWorkspace();
   const { id } = await params;
-  return { title: (await findVaultCase(office.officeId, id))?.name ?? "Caso" };
+  const access = await accessForPage(user.id, id);
+  return { title: (await findVaultCase(access.officeId, id))?.name ?? "Caso" };
 }
 
 export default async function VaultCasePage({ params, searchParams }: Props) {
-  const { office } = await requireWorkspace();
+  const { user, office: activeOffice } = await requireWorkspace();
   const [{ id }, { folder: requested, section }] = await Promise.all([params, searchParams]);
+  const office = await accessForPage(user.id, id);
   const vaultCase = await findVaultCase(office.officeId, id);
   if (!vaultCase) notFound();
 
@@ -38,6 +47,7 @@ export default async function VaultCasePage({ params, searchParams }: Props) {
         initialDocuments={initialDocuments}
         folderId={folderId}
         role={office.role}
+        external={office.external || office.officeId !== activeOffice.officeId}
         initialSection={!folderId && (section === 'references' || section === 'annexes') ? section : 'files'}
       />
     </Reveal>

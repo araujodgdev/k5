@@ -3,16 +3,22 @@ import { assertSameOrigin, createVaultDocument, drainQueuedDocument, listVaultDo
 import { vaultErrorResponse } from "@/lib/vault-api";
 import { workspaceContext } from "@/lib/application/context";
 import { consumeUploadRef, createUploadRef } from "@/lib/application/uploads-service";
+import { contextForCase } from '@/lib/collaboration/access';
+import { assertCapabilityAllowed } from '@/lib/application/context';
+import { limitedFormData } from '@/lib/workspace-api';
+import { MAX_UPLOAD_BYTES } from '@/lib/application/uploads-service';
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    const { office } = await requireVaultWorkspace();
+    const workspace = await requireVaultWorkspace();
     const url = new URL(request.url);
+    const caseId = url.searchParams.get('caseId');
+    const context = await assertCapabilityAllowed(caseId ? await contextForCase(workspaceContext(workspace), caseId) : workspaceContext(workspace), 'k5_vault_list_documents');
     const folder = url.searchParams.get("folderId");
     return Response.json({
-      documents: await listVaultDocuments(office.officeId, {
+      documents: await listVaultDocuments(context.officeId, {
         scope: url.searchParams.get("scope"),
         caseId: url.searchParams.get("caseId"),
         // `folderId=root` is how the browser asks for a case's own level, as distinct from "any folder".
@@ -31,11 +37,12 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const workspace = await requireVaultWorkspace();
-    requireVaultWriteRole(workspace.office.role);
-    const form = await request.formData();
+    const form = await limitedFormData(request, MAX_UPLOAD_BYTES + 64_000);
     const file = form.get("file");
     if (!(file instanceof File)) throw new VaultHttpError(400, "Escolha um arquivo para enviar.");
-    const context = workspaceContext(workspace);
+    const caseId = form.get('scope') === 'case' && typeof form.get('caseId') === 'string' ? String(form.get('caseId')) : null;
+    const context = await assertCapabilityAllowed(caseId ? await contextForCase(workspaceContext(workspace), caseId) : workspaceContext(workspace), 'k5_vault_ingest_upload');
+    requireVaultWriteRole(context.role);
     const upload = await createUploadRef(context, file);
     // Consumed here, in the same request that created it: an unclaimed reference is garbage the
     // sweeper is entitled to delete, and it would take this document's bytes with it.

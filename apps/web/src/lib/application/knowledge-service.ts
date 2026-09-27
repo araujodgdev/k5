@@ -4,9 +4,17 @@ import { database } from '@/lib/database';
 import { findVaultDocument } from '@/lib/vault';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
-import type { WorkspaceContext } from './context';
+import { assertCapabilityAllowed, type WorkspaceContext } from './context';
 import { searchKnowledgeEngine } from '@/lib/knowledge/retrieval';
 import { activeGeneration, enqueueIndexJob } from '@/lib/knowledge/indexing';
+import { scopeCapability } from '@/lib/collaboration/capability-access';
+
+async function requireSourceDocument(context: WorkspaceContext, documentId: string) {
+  const doc = await findVaultDocument(context.officeId, documentId);
+  if (!doc || (context.caseScope && doc.caseId !== context.caseScope.caseId))
+    throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
+  return doc;
+}
 
 export async function searchKnowledge(
   context: WorkspaceContext,
@@ -19,8 +27,7 @@ export async function getKnowledgeSource(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_get_source'>
 ): Promise<CapabilityOutput<'k5_knowledge_get_source'>> {
-  const doc = await findVaultDocument(context.officeId, input.documentId);
-  if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
+  const doc = await requireSourceDocument(context, input.documentId);
 
   const targetChunk = await database.prepare(
     'SELECT * FROM vault_document_chunk WHERE office_id=? AND document_id=? AND stable_reference=?'
@@ -46,6 +53,9 @@ export async function getKnowledgeSource(
 
   const adjacentContext = adjacentRows.map(r => `[${r.stable_reference}]\n${r.content}`).join('\n---\n').slice(0, 4000);
 
+  await assertCapabilityAllowed(context, 'k5_knowledge_get_source');
+  await requireSourceDocument(context, input.documentId);
+
   return {
     source: {
       sourceId: targetChunk.id,
@@ -62,8 +72,7 @@ export async function getKnowledgeIndexStatus(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_get_index_status'>
 ): Promise<CapabilityOutput<'k5_knowledge_get_index_status'>> {
-  const doc = await findVaultDocument(context.officeId, input.documentId);
-  if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
+  const doc = await requireSourceDocument(context, input.documentId);
 
   const generation = await activeGeneration(context.officeId);
 
@@ -81,6 +90,8 @@ export async function getKnowledgeIndexStatus(
 
   // Extraction and semantic indexing are distinct states: a document can be searchable lexically
   // while its vectors are still pending, and saying so is the point of reporting them apart.
+  await assertCapabilityAllowed(context, 'k5_knowledge_get_index_status');
+  await requireSourceDocument(context, input.documentId);
   return {
     documentId: doc.id,
     status: doc.status,
@@ -101,8 +112,7 @@ export async function reindexKnowledge(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_reindex'>
 ): Promise<CapabilityOutput<'k5_knowledge_reindex'>> {
-  const doc = await findVaultDocument(context.officeId, input.documentId);
-  if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
+  const doc = await requireSourceDocument(context, input.documentId);
   if (doc.status !== 'ready') throw new CapabilityError('NOT_READY', `O documento "${doc.name}" ainda está em processamento.`);
 
   // Extraction is not redone: the chunks already exist and only the embeddings are recomputed.
@@ -133,12 +143,8 @@ export async function setScopeSources(
   if (input.conversationId && !await database.prepare('SELECT 1 FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?')
     .get(input.conversationId, context.officeId, context.userId))
     throw new CapabilityError('NOT_FOUND', 'Conversa não encontrada.');
-  const marks = input.documentIds.map(() => '?').join(',');
-  const valid = await database.prepare(
-    `SELECT id FROM vault_document WHERE office_id=? AND deleted_at IS NULL AND id IN (${marks})`
-  ).all(context.officeId, ...input.documentIds) as Array<{ id: string }>;
-
-  const validatedIds = valid.map(v => v.id);
+  await scopeCapability(context, 'k5_knowledge_search', { documentIds: input.documentIds, caseId: input.caseId });
+  const validatedIds = [...new Set(input.documentIds)];
 
   if (input.conversationId) {
     const existing = await database.prepare(

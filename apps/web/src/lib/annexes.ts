@@ -125,7 +125,7 @@ ${petition}`;
 }
 
 /** Cuts the reviewed ranges into separate PDFs in a new folder of the case, in the given order. */
-export async function generateAnnexes(owner: Owner, input: { caseId: string; scanDocumentId: string; folderName?: string; items: Array<{ label: string; startPage: number; endPage: number }> }) {
+export async function generateAnnexes(owner: Owner, input: { caseId: string; scanDocumentId: string; folderName?: string; items: Array<{ label: string; startPage: number; endPage: number }> }, checkAccess?: () => Promise<unknown>) {
   const { document, pdf } = await scannedPdf(owner, input.caseId, input.scanDocumentId);
   const pageCount = pdf.getPageCount();
   for (const item of input.items) {
@@ -139,10 +139,12 @@ export async function generateAnnexes(owner: Owner, input: { caseId: string; sca
     for (const page of pages) part.addPage(page);
     return { name: annexFileName(index + 1, item.label), bytes: Buffer.from(await part.save()) };
   }));
+  await checkAccess?.();
   const folder = await createVaultFolder(owner.officeId, owner.userId, input.caseId, input.folderName?.trim() || `Anexos de ${document.name}`.slice(0, 120));
   const storage = await objectStorage();
   const created = [];
   for (const file of files) {
+    await checkAccess?.();
     const id = randomUUID();
     const key = storageKey(owner.officeId, id, 'pdf');
     await storage.put(key, file.bytes);

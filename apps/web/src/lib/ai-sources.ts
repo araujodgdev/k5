@@ -6,6 +6,7 @@ import type { WorkspaceContext } from './application/context';
 import { CapabilityError } from './capabilities/errors';
 import { assertResearchCaseAccess } from './research/case-profile';
 import { materialSnapshot } from './research/case-material';
+import { contextForCase } from './collaboration/access';
 
 export async function selectedSources(officeId: string, documentIds: string[], query?: string): Promise<SourceChunk[]> {
   if (!documentIds.length) return [];
@@ -20,6 +21,7 @@ export type PinnedResearchReference = { referenceId: string; materialVersionId: 
 async function selectResearchSources(context: WorkspaceContext, caseId: string, referenceIds: string[], query?: string,
   pinned?: PinnedResearchReference[]): Promise<SourceChunk[]> {
   if (!referenceIds.length) return [];
+  context = await contextForCase(context, caseId);
   if (referenceIds.length > 30) throw new CapabilityError('INVALID', 'Selecione até 30 referências.');
   if (context.invocation && (context.allowedResearchCaseId !== caseId ||
     referenceIds.some(id => !context.allowedResearchReferenceIds?.includes(id))))

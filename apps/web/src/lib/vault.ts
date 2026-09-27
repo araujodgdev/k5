@@ -4,7 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { database } from "@/lib/database";
-import { ensureOfficeForUser, type OfficeMembership } from "@/lib/offices";
+import { type OfficeMembership } from "@/lib/offices";
 import { assertStorageKey, objectStorage, StorageError } from "@/lib/storage";
 import { isTrustedOrigin } from "@/lib/trusted-origins";
 import type { UploadRef } from "@/lib/application/uploads-service";
@@ -54,10 +54,10 @@ const documentSelect = `
 
 export async function requireVaultWorkspace(): Promise<{ user: { id: string }; office: OfficeMembership }> {
   // Lazy: the worker imports this module outside Next, where the session module cannot load.
-  const { getSession } = await import("@/lib/session");
+  const { getSession, requireWorkspace } = await import("@/lib/session");
   const session = await getSession();
   if (!session) throw new VaultHttpError(401, "Sua sessão expirou.");
-  return { user: session.user, office: await ensureOfficeForUser(database, session.user) };
+  return requireWorkspace();
 }
 
 export function requireVaultWriteRole(role: OfficeMembership["role"]) {

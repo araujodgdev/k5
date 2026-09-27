@@ -3,6 +3,7 @@ import { database, type Database } from '@/lib/database';
 import type { WorkspaceContext } from '@/lib/application/context';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { z } from 'zod';
+import { caseAccess } from '@/lib/collaboration/access';
 
 const uuid = z.uuid();
 const factList = z.array(z.string().trim().min(2).max(1200)).max(40);
@@ -41,6 +42,12 @@ const view = (row: ProfileRow): ResearchCaseProfile => ({
 export async function assertResearchCaseAccess(context: WorkspaceContext, caseId: string, write = false, db: Database = database) {
   if (context.sessionId && !await db.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>?').get(context.sessionId, context.userId, new Date().toISOString()))
     throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente.');
+  if (context.caseScope) {
+    const access = await caseAccess(context.userId, caseId, db);
+    if (context.caseScope.caseId !== caseId || access.officeId !== context.officeId || (write && access.role === 'reviewer'))
+      throw new CapabilityError('FORBIDDEN', 'Seu acesso não permite esta operação.');
+    return;
+  }
   const member = await db.prepare('SELECT role FROM office_member WHERE user_id=? AND office_id=?')
     .get<{ role: string }>(context.userId, context.officeId);
   if (!member || (write && member.role === 'reviewer')) throw new CapabilityError('FORBIDDEN', 'Seu papel permite apenas consultas.');

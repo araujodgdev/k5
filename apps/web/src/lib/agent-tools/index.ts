@@ -171,6 +171,7 @@ const executors: { [N in CapabilityName]: Executor } = {
 export type ToolEvent = { name: CapabilityName; state: 'completed' | 'failed'; summary: string };
 
 import { withIdempotency } from '@/lib/application/idempotency-service';
+import { scopeCapability, sharedCaseCapabilities } from '@/lib/collaboration/capability-access';
 
 /**
  * Single execution path for a capability, whatever called it. The Mastra tool and the HTTP route
@@ -187,8 +188,22 @@ export async function runCapability<N extends CapabilityName>(
       !capability.publish?.includes(context.invocation)) {
     throw new CapabilityError('FORBIDDEN', 'Esta ação da Pesquisa precisa ser feita na interface.');
   }
-  const authorized = await assertCapabilityAllowed(context, name);
-  const input = capability.input.parse(rawInput) as Record<string, unknown>;
+  let officeDenial: CapabilityError | undefined;
+  // A viewer in their active office may be an editor of a case shared by another office.
+  // Session failures never fall through; only a case grant can replace the office role gate.
+  try { await assertCapabilityAllowed(context, name); }
+  catch (error) {
+    if (!(error instanceof CapabilityError) || error.code !== 'FORBIDDEN' || !sharedCaseCapabilities.has(name) || context.caseScope) throw error;
+    officeDenial = error;
+  }
+  const parsed = capability.input.safeParse(rawInput);
+  if (!parsed.success) throw officeDenial ?? parsed.error;
+  const input = parsed.data as Record<string, unknown>;
+  if (name === 'k5_knowledge_search' && !input.caseId && context.allowedResearchCaseId) input.caseId = context.allowedResearchCaseId;
+  let scoped: WorkspaceContext;
+  try { scoped = await scopeCapability(context, name, input); }
+  catch (error) { throw officeDenial ?? error; }
+  const authorized = await assertCapabilityAllowed(scoped, name);
 
   const execute = async () => {
     const result = await (executors[name] as (context: WorkspaceContext, input: unknown) => unknown)(authorized, input);

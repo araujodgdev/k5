@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage, signInSchema, signUpSchema } from "@/lib/auth-validation";
 
-export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
+export function AuthForm({ mode, invite }: { mode: "sign-in" | "sign-up"; invite?: string }) {
   const router = useRouter();
   const isSignUp = mode === "sign-up";
   const [pending, setPending] = useState(false);
@@ -57,7 +57,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         setPending(false);
         return;
       }
-      router.replace("/app");
+      router.replace(invite ? `/invite/${encodeURIComponent(invite)}` : '/app');
       router.refresh();
     } catch {
       setError("Não foi possível conectar. Confira sua conexão e tente novamente.");
@@ -134,7 +134,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           </form>
           <p className="mt-6 text-muted-foreground text-sm" data-reveal>
             {isSignUp ? "Já tem uma conta?" : "Ainda não tem uma conta?"}{" "}
-            <Link href={isSignUp ? "/sign-in" : "/sign-up"} className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors duration-300 hover:decoration-brand">{isSignUp ? "Entrar" : "Criar conta"}</Link>
+            <Link href={`${isSignUp ? '/sign-in' : '/sign-up'}${invite ? `?invite=${encodeURIComponent(invite)}` : ''}`} className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors duration-300 hover:decoration-brand">{isSignUp ? "Entrar" : "Criar conta"}</Link>
           </p>
         </Reveal>
       </section>

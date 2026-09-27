@@ -1,18 +1,9 @@
-import { apiWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
-import { workspaceContext } from '@/lib/application/context';
-import { addDocumentVersion } from '@/lib/application/vault-service';
-import { z } from 'zod';
+import { handleCapability } from '@/lib/capability-route';
 
 export const runtime = 'nodejs';
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: Context) {
-  try {
-    const workspace = await apiWorkspace(request, true);
-    const documentId = (await context.params).id;
-    const body = z.object({ uploadRef: z.string().min(1) }).parse(await limitedJson(request));
-    const result = await addDocumentVersion(workspaceContext(workspace), { documentId, uploadRef: body.uploadRef });
-    return Response.json(result, { status: 201 });
-  } catch (error) { return apiError(error); }
+  return handleCapability(request, 'k5_vault_add_document_version', { documentId: (await context.params).id });
 }

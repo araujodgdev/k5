@@ -3,12 +3,16 @@ import { database } from '@/lib/database';
 import type { OfficeRole } from '@/lib/offices';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { capabilities, type CapabilityName } from '@/lib/capabilities/contracts';
+import { caseAccess } from '@/lib/collaboration/access';
+import { sharedCaseCapabilities } from '@/lib/collaboration/capability-access';
 
 /** Trusted context, always built on the server from the session. The model never supplies these fields. */
 export type WorkspaceContext = {
   userId: string;
   officeId: string;
   role: OfficeRole;
+  /** Server-resolved guest scope; never accepted from a browser or model. */
+  caseScope?: { caseId: string; homeOfficeId: string };
   sessionId?: string;
   /** Set by server adapters, never read from capability inputs. */
   invocation?: 'agent' | 'webmcp';
@@ -49,6 +53,13 @@ export async function assertCapabilityAllowed(context: WorkspaceContext, name: C
     if (!live) throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente para continuar.');
   }
 
+  if (context.caseScope) {
+    if (!sharedCaseCapabilities.has(name)) throw new CapabilityError('FORBIDDEN', 'Esta operação exige acesso ao escritório.');
+    const access = await caseAccess(context.userId, context.caseScope.caseId);
+    if (access.officeId !== context.officeId || !(capability.roles as readonly OfficeRole[]).includes(access.role))
+      throw new CapabilityError('FORBIDDEN', 'Sua participação não permite esta operação.');
+    return { ...context, role: access.role };
+  }
   const current = await database.prepare('SELECT role FROM office_member WHERE user_id=? AND office_id=?')
     .get(context.userId, context.officeId) as { role: OfficeRole } | undefined;
   if (!current) throw new CapabilityError('FORBIDDEN', 'Seu acesso a este escritório foi removido.');

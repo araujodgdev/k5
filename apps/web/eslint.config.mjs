@@ -34,6 +34,7 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     ".next-research-qa/**",
+    ".next-verify/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

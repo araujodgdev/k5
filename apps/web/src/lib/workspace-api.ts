@@ -2,7 +2,8 @@ import 'server-only';
 import { captureOperationalError } from './observability/report';
 import { getSession, requireWorkspace } from './session';
 import { auth } from './auth';
-import { ensureOfficeForUser } from './offices';
+import { ACTIVE_OFFICE_COOKIE, selectedOfficeForUser } from './offices';
+import { cookies } from 'next/headers';
 import { database } from './database';
 import { ZodError } from 'zod';
 import { VaultHttpError } from './vault';
@@ -68,7 +69,7 @@ export async function apiPersonalWorkspace(request: Request, write = false) {
   });
   if (!session) throw new ApiError(401, 'Entre novamente para continuar.');
   if (write && !isTrustedOrigin(request.headers.get('origin'))) throw new ApiError(403, 'Origem não autorizada.');
-  const office = await ensureOfficeForUser(database, session.user);
+  const office = await selectedOfficeForUser(database, session.user, (await cookies()).get(ACTIVE_OFFICE_COOKIE)?.value);
   return { user: session.user, office, session: { id: session.session?.id } };
 }
 

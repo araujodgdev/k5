@@ -56,24 +56,35 @@ as migrações explicitamente; não use o gerador local de segredos.
   Na Cloudflare usa-se `cf-connecting-ip`; fora dela, `K5_CLIENT_IP_HEADER` nomeia o
   cabeçalho que o seu proxy sobrescreve.
 
-## Modelo inicial
+## Escritórios e colaboração
 
 O Better Auth mantém `user`, `account`, `session`, `verification` e `rateLimit`.
 `user.officeName` guarda o nome informado no cadastro para permitir retomar a
 criação do escritório após uma interrupção; o nome oficial fica em `office.name`.
 
 `office_member` relaciona usuário e escritório com chaves estrangeiras e papel:
-`administrator`, `lawyer` ou `reviewer`. O primeiro usuário é administrador. Nesta
-fase, cada usuário tem um único escritório. O provisionamento é idempotente e a
-criação de escritório/vínculo é atômica.
+`administrator`, `lawyer` ou `reviewer`. O primeiro usuário é administrador. Uma pessoa
+pode integrar vários escritórios; aceitar um convite mantém seus vínculos anteriores.
+O provisionamento é idempotente e a criação de escritório/vínculo é atômica, serializada
+no usuário para suportar cadastros e aceites concorrentes.
 
-`requireWorkspace()` deriva usuário e escritório da sessão. `findOfficeForUser()`
-sempre filtra a consulta pelo usuário, inclusive quando recebe um ID de escritório.
+`requireWorkspace()` deriva o usuário da sessão e valida o escritório escolhido no cookie
+HttpOnly `k5-office`. `findOfficeForUser()` sempre filtra pelo usuário, inclusive quando
+recebe um ID de escritório. Se o vínculo foi removido, a seleção volta a um vínculo atual.
 Novas tabelas de negócio deverão exigir `office_id`, e novas operações deverão
 usar esse contexto autenticado e verificar o papel correspondente.
 
-O papel `reviewer` apenas consulta Cofre e documentos. Convites, recuperação de senha e
-verificação de e-mail ainda não foram implementados.
+O papel `reviewer` apenas consulta os dados compartilhados. **Equipe**, **Associados** e
+**Convites** ficam no módulo Escritório. **Participantes**, dentro de um caso, concede
+consulta ou colaboração somente naquele caso, sem liberar a biblioteca ou os demais casos.
+Os arquivos, fontes de conhecimento e referências são resolvidos pelo servidor para o
+escritório proprietário, com permissões revalidadas em cada operação.
+
+A migração `0031_collaboration.sql` acrescenta associados, participantes, convites com
+expiração e histórico de acesso. Os convites chegam à caixa da conta existente e também
+geram um link para compartilhar; não há envio automático por e-mail. Endereços sem conta
+exigem o link secreto e login com o mesmo e-mail. Recuperação de senha e verificação de
+e-mail ainda não foram implementadas. Consulte [o fluxo e os limites](../../docs/colaboracao.md).
 
 ## Tarefas e Agenda
 

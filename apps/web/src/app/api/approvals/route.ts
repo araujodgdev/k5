@@ -1,4 +1,4 @@
-import { apiWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
+import { apiPersonalWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
 import { createApprovalProposal, publicApproval, type ApprovalRow } from '@/lib/application/approvals-service';
 import { database } from '@/lib/database';
@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {
-    const workspace = await apiWorkspace(request);
+    const workspace = await apiPersonalWorkspace(request);
     const rows = await database.prepare(
       "SELECT * FROM capability_approval WHERE office_id=? AND user_id=? AND status='pending' AND expires_at > ? ORDER BY created_at DESC"
     ).all((workspace.office).officeId, workspace.user.id, Date.now()) as ApprovalRow[];
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const workspace = await apiWorkspace(request, true);
+    const workspace = await apiPersonalWorkspace(request, true);
     const body = z.object({
       capabilityName: z.string().min(1),
       input: z.record(z.string(), z.unknown()),

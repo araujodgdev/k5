@@ -6,6 +6,7 @@ import { apiWorkspace, apiError, ApiError, limitedJson } from '@/lib/workspace-a
 import { conversation, mergeHistory, saveMessages } from '@/lib/ai-store';
 import { selectedResearchSources } from '@/lib/ai-sources';
 import { workspaceContext } from '@/lib/application/context';
+import { scopeCapability } from '@/lib/collaboration/capability-access';
 import { chatHearsAudio, modelModalities } from '@/lib/ai-modalities';
 import { resolveChatAttachments, claimChatAttachments, publicChatAttachment } from '@/lib/chat-attachments';
 import { attachmentPart } from '@/lib/chat-attachment-contract';
@@ -44,6 +45,8 @@ export async function POST(request: Request) {
     if (!text || text.length > 20000) throw new ApiError(400, 'Escreva uma mensagem de até 20 mil caracteres.');
     if (body.researchReferenceIds.length && !body.caseId) throw new ApiError(400, 'Selecione o caso das referências.');
     const context = workspaceContext(workspace);
+    // Resolve case and file access before storing a message or scheduling a model request.
+    await scopeCapability(context, 'k5_knowledge_search', { caseId: body.caseId, documentIds: body.documentIds });
     // Refuses references outside the selected case before anything is stored.
     if (body.researchReferenceIds.length) await selectedResearchSources(context, body.caseId!, body.researchReferenceIds);
     const config = await planTaskModel('agent.chat');

@@ -1,5 +1,6 @@
 import { requireWorkspace } from '@/lib/session';
 import { AgendaWorkspace } from '@/components/agenda-workspace';
+import { CollaborationPanel } from '@/components/collaboration-panel';
 
 export const metadata = { title: 'Escritório' };
 
@@ -7,6 +8,8 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   const { office } = await requireWorkspace();
   const params = await searchParams;
   const value = (key: string) => typeof params[key] === 'string' ? params[key] as string : '';
+  const peopleView = value('view');
+  if (peopleView === 'team' || peopleView === 'associates' || peopleView === 'invites') return <CollaborationPanel key={peopleView} view={peopleView} />;
   const view = value('view') === 'calendar' ? 'calendar' : value('view') === 'clients' ? 'clients' : 'tasks';
   return <AgendaWorkspace key={JSON.stringify([value('caseId'), value('clientId'), value('activityId'), value('proposalId'), value('personalEventId'), view, value('action')])} role={office.role} initialView={view} initialAction={value('action')} initialCaseId={value('caseId')} initialClientId={value('clientId')} initialActivityId={value('activityId')} initialProposalId={value('proposalId')} initialPersonalEventId={value('personalEventId')} />;
 }
