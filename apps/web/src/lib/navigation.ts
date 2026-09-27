@@ -21,6 +21,7 @@ export const adminNavigation = { href: "/app/admin", label: "Administração", s
 export const adminSections = [
   { slug: "feedback", label: "Feedback" },
   { slug: "clients", label: "Clientes" },
+  { slug: "finance", label: "Financeiro" },
   { slug: "ai", label: "IA" },
   { slug: "traces", label: "Execuções" },
   { slug: "credentials", label: "Credenciais" },

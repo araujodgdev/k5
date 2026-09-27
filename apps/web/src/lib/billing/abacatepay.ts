@@ -29,6 +29,8 @@ export type AbacateCheckout = {
 
 export type AbacateProduct = { id: string; externalId: string; price: number };
 export type AbacateCustomer = { id: string };
+export type AbacateSubscription = { id: string; checkoutId: string; status: 'ACTIVE' | 'CANCELLED'; amount: number; devMode: boolean; updatedAt: string };
+type CheckoutInput = { items: { id: string; quantity: number }[]; customerId?: string; externalId?: string; returnUrl?: string; completionUrl?: string; metadata?: Record<string, string> };
 
 /** A refusal or failure from AbacatePay. `status` is the HTTP status, 0 when the network failed. */
 export class AbacatePayError extends Error {
@@ -52,8 +54,8 @@ export function abacatePayClient(apiKey: string, transport: AbacatePayTransport 
     } catch (error) {
       throw new AbacatePayError(0, error instanceof Error ? error.message : 'network');
     }
-    const envelope = await response.json().catch(() => null) as { data?: T; error?: unknown } | null;
-    if (!response.ok || !envelope || envelope.error || envelope.data === undefined) {
+    const envelope = await response.json().catch(() => null) as { data?: T; success?: boolean; error?: unknown } | null;
+    if (!response.ok || !envelope || envelope.success === false || envelope.error || envelope.data == null) {
       const reason = typeof envelope?.error === 'string' ? envelope.error : `HTTP ${response.status}`;
       throw new AbacatePayError(response.status, reason);
     }
@@ -62,7 +64,7 @@ export function abacatePayClient(apiKey: string, transport: AbacatePayTransport 
 
   return {
     getProduct: (externalId: string) => call<AbacateProduct>('GET', '/products/get', undefined, { externalId }),
-    createProduct: (product: { externalId: string; name: string; price: number; description?: string }) =>
+    createProduct: (product: { externalId: string; name: string; price: number; description?: string; cycle?: 'MONTHLY' }) =>
       call<AbacateProduct>('POST', '/products/create', { ...product, currency: 'BRL' }),
     createCustomer: (customer: { email: string; name?: string; metadata?: Record<string, string> }) =>
       call<AbacateCustomer>('POST', '/customers/create', customer),
@@ -71,6 +73,12 @@ export function abacatePayClient(apiKey: string, transport: AbacatePayTransport 
       returnUrl?: string; completionUrl?: string; metadata?: Record<string, string>;
     }) => call<AbacateCheckout>('POST', '/checkouts/create', checkout),
     getCheckout: (id: string) => call<AbacateCheckout>('GET', '/checkouts/get', undefined, { id }),
+    createSubscription: (checkout: CheckoutInput) => call<AbacateCheckout>('POST', '/subscriptions/create', { ...checkout, methods: ['CARD'] }),
+    getSubscriptionCheckout: (id: string) => call<AbacateCheckout>('GET', '/subscriptions/checkouts/get', undefined, { id }),
+    getSubscription: (id: string) => call<AbacateSubscription>('GET', '/subscriptions/get', undefined, { id }),
+    listCheckoutSubscriptions: (checkoutId: string) => call<AbacateSubscription[]>('GET', '/subscriptions/list', undefined, { checkoutId }),
+    cancelSubscription: (id: string) => call<AbacateSubscription>('POST', '/subscriptions/cancel', { id }),
+    refundCheckout: (id: string) => call<{ id: string; status: string }>('POST', '/checkouts/refund', { id }),
   };
 }
 
