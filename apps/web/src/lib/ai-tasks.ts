@@ -4,9 +4,9 @@ import type { AiProvider } from "./ai-connections-core";
  * Tises' model work, named by what it does rather than by the model that happens to run it.
  *
  * The catalog lives in code: adding a task is a code change. Which connection, model and reasoning
- * effort serve a task is platform configuration (ai_model_assignment, migration 0029). A task
+ * effort serve a task is platform configuration (ai_model_assignment, migration 0030). A task
  * without its own assignment takes its group's; a group without one takes its parent's. The root
- * group falls back to the provider default of the first active connection, as before 0029.
+ * group falls back to the provider default of the first active connection, as before 0030.
  *
  * Embeddings are not here: their model and dimension are pinned by the search index.
  */

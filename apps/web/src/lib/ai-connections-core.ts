@@ -15,7 +15,7 @@ export type AiProvider = typeof AI_PROVIDERS[number];
  * A connection is a provider and its credential. Which connection and model serve each task lives
  * in ai_model_assignment (src/lib/ai-assignments-core.ts). The embedding model stays on the
  * connection: it is pinned by the search index, and changing it reindexes the Cofre.
- * The chat, extraction and drafting columns predate migration 0029; they are kept on record and
+ * The chat, extraction and drafting columns predate migration 0030; they are kept on record and
  * never read.
  */
 export type ConnectionInput = {

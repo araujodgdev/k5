@@ -220,7 +220,7 @@ export async function resolvePinnedTaskModel(db: Database, key: MasterKey, rawPl
 }
 
 /**
- * Runs queued before migration 0029 pinned a provider and a model, and took the most recent active
+ * Runs queued before migration 0030 pinned a provider and a model, and took the most recent active
  * connection of that provider, with the xhigh effort every OpenAI call carried then.
  */
 export async function resolveLegacyRunModel(db: Database, key: MasterKey, task: AiTaskKey, provider: string, modelId: string): Promise<ResolvedTaskModel> {

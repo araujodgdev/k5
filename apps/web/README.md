@@ -181,7 +181,7 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   administrador escolhe conexão, modelo e esforço de raciocínio por grupo (Agente, Redação
   jurídica, Extração de documentos, Resumo e texto curto, Classificação e segurança, Transcrição)
   e, quando precisar, por tarefa; o catálogo fica em `src/lib/ai-tasks.ts` e a resolução em
-  `src/lib/ai-assignments-core.ts` (migração 0029). Sem escolha própria, a tarefa segue o grupo e
+  `src/lib/ai-assignments-core.ts` (migração 0030). Sem escolha própria, a tarefa segue o grupo e
   o grupo segue o pai; modelo e esforço são herdados separadamente, e um esforço escolhido para um
   provider não passa para outro. Uma conexão escolhida que foi desativada ou excluída interrompe a
   tarefa com o motivo, sem trocar de provider sozinha. Cronologias e minutas fixam os modelos ao
@@ -198,7 +198,7 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   de comando: `pnpm platform:admin grant --email usuario@exemplo.com` (`revoke` retira).
   Chaves ficam cifradas com AES-256-GCM e nunca voltam ao navegador; operações são auditadas.
   Só providers que aceitam esforço o recebem (hoje, OpenAI); os demais usam o próprio padrão. A
-  migração 0029 manteve o esforço de antes: `xhigh` no Agente, na Redação e na Extração, `medium`
+  migração 0030 manteve o esforço de antes: `xhigh` no Agente, na Redação e na Extração, `medium`
   no panorama de e-mails, `low` nas respostas rápidas e na guarda contra injeção. O modelo
   escolhido precisa aceitar o esforço; o botão **Testar** confere a combinação.
 - **Rotação da chave mestra:** siga os comentários de `.env.example` e execute

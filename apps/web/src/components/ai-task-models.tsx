@@ -50,29 +50,36 @@ function PlanSummary({ plan, level, root }: { plan: TaskModelPlan; level: Level;
   </div>;
 }
 
+const inherits = (assignments: Map<string, AssignmentView>, levels: Level[], field: "model" | "effort") =>
+  levels.every(item => { const row = assignments.get(`${item.scope}:${item.target}`); return !row || row[field].mode === "inherit"; });
+
 /**
  * Which tasks a change at this level reaches: those whose chain passes through it with nothing
  * set below. The rest keep a choice of their own, which the administrator should see before saving.
+ * Transcription is outside the agent's chain but, with no model of its own, follows the agent's
+ * provider, so a change to the agent can turn the microphone off.
  */
-function reach(level: Level, assignments: Map<string, AssignmentView>) {
+export function reach(level: Level, assignments: Map<string, AssignmentView>) {
   const tasks = level.scope === "task" ? [level.target as AiTaskKey] : AI_TASK_KEYS.filter(task => groupChain(AI_TASK_DEFINITIONS[task].group).includes(level.target as AiTaskGroup));
-  return tasks.map(task => {
+  const items = tasks.map(task => {
     const levels = levelsOf(task);
     const below = levels.slice(0, levels.findIndex(item => item.scope === level.scope && item.target === level.target));
-    const own = below.map(item => assignments.get(`${item.scope}:${item.target}`));
-    return { task, model: own.every(row => !row || row.model.mode === "inherit"), effort: own.every(row => !row || row.effort.mode === "inherit") };
+    return { task, model: inherits(assignments, below, "model"), effort: inherits(assignments, below, "effort") };
   });
+  const voiceNote = level.scope === "group" && level.target === "agent" && inherits(assignments, levelsOf("transcription.voice_note"), "model");
+  return { items, voiceNote };
 }
 
 function Reach({ level, assignments }: { level: Level; assignments: Map<string, AssignmentView> }) {
   if (level.scope === "task") return null;
-  const items = reach(level, assignments);
+  const { items, voiceNote } = reach(level, assignments);
   const follow = items.filter(item => item.model || item.effort)
     .map(item => `${AI_TASK_DEFINITIONS[item.task].label}${item.model && !item.effort ? " (só o modelo)" : !item.model ? " (só o esforço)" : ""}`);
   const own = items.filter(item => !item.model && !item.effort).map(item => AI_TASK_DEFINITIONS[item.task].label);
   return <p className="text-muted-foreground text-xs sm:col-span-2">
     {follow.length ? `Vale para: ${follow.join(", ")}.` : "Nenhuma tarefa segue este nível agora."}
     {own.length ? ` Continuam com escolha própria: ${own.join(", ")}.` : ""}
+    {voiceNote ? " A nota de voz segue o provider do Agente: na OpenAI usa o modelo de transcrição; com um modelo que não ouve áudio, o microfone é desligado." : ""}
   </p>;
 }
 

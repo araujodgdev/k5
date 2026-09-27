@@ -36,7 +36,7 @@ const set = (db: Database, admin: string, input: AssignmentUpdate) => updateMode
 const explicit = (connectionId: string, modelId: string) => ({ mode: 'explicit' as const, connectionId, modelId });
 const inherit = { mode: 'inherit' as const };
 
-// ---------- Migration 0029 reproduces the resolver it replaces ----------
+// ---------- Migration 0030 reproduces the resolver it replaces ----------
 
 type LegacyConnection = {
   id: string; provider: AiProvider; key: boolean; enabled?: boolean; deleted?: boolean; updatedAt: string;
@@ -45,7 +45,7 @@ type LegacyConnection = {
 type Outcome = { connectionId: string; modelId: string; effort: string | null } | 'not_found' | 'disabled';
 
 /**
- * The resolution before 0029, written down as the reference: resolveModelConfigFromDatabase for
+ * The resolution before 0030, written down as the reference: resolveModelConfigFromDatabase for
  * chat, extraction and drafting, the e-mail writer's request for gpt-6-luna with its fallback, the
  * guard on extraction, and transcription following the chat's provider.
  */
@@ -108,9 +108,9 @@ const scenarios: Record<string, LegacyConnection[]> = {
     { id: 'o2', provider: 'openai', key: true, updatedAt: '2026-03-01T00:00:00Z' }],
 };
 
-test('migration 0029 gives every task the connection, model and effort it resolved to before', async () => {
+test('migration 0030 gives every task the connection, model and effort it resolved to before', async () => {
   const { db, key } = await fixture();
-  const migration = readFileSync(new URL('../db/postgres/0029_ai_model_assignments.sql', import.meta.url), 'utf8');
+  const migration = readFileSync(new URL('../db/postgres/0030_ai_model_assignments.sql', import.meta.url), 'utf8');
   const adoption = migration.slice(migration.indexOf('-- Adoption:'));
   for (const [name, connections] of Object.entries(scenarios)) {
     await db.exec('DELETE FROM ai_model_assignment; DELETE FROM ai_connection;');
@@ -276,7 +276,7 @@ test('a queued run keeps its pinned models, and its connection cannot be deleted
   await deleteAiConnection(db, admin, oa.id);
 });
 
-test('runs queued before 0029 keep their provider and model, with the effort OpenAI calls carried then', async () => {
+test('runs queued before 0030 keep their provider and model, with the effort OpenAI calls carried then', async () => {
   const { db, admin, key } = await fixture();
   await createAiConnection(db, key, admin, { name: 'OpenAI', provider: 'openai', apiKey: 'sk-oa' });
   const legacyRun = await resolveLegacyRunModel(db, key, 'drafting.section', 'openai', 'gpt-6-sol');
@@ -310,4 +310,17 @@ test('a measured model reports usage from generated and streamed answers, throug
   for await (const part of stream as unknown as AsyncIterable<{ type: string }>) types.push(part.type);
   assert.deepEqual(types, ['stream-start', 'text-start', 'text-delta', 'text-end', 'finish']);
   assert.deepEqual(seen, [{ inputTokens: 120, outputTokens: 7 }, { inputTokens: 120, outputTokens: 7 }]);
+});
+
+// ---------- The administration says what a change reaches ----------
+
+test('changing the agent warns that the voice note follows it until transcription has a model', async () => {
+  const { reach } = await import('../src/components/ai-task-models');
+  const agent = { scope: 'group' as const, target: 'agent' };
+  const none = new Map();
+  assert.equal(reach(agent, none).voiceNote, true);
+  assert.ok(!reach(agent, none).items.some(item => item.task === 'transcription.voice_note'), 'transcription is not in the agent chain');
+  assert.equal(reach({ scope: 'group', target: 'extraction' }, none).voiceNote, false);
+  const own = new Map([['group:transcription', { model: { mode: 'explicit' as const, connectionId: 'c', modelId: 'gpt-4o-mini-transcribe' }, effort: { mode: 'inherit' as const, value: null }, updatedAt: '' }]]);
+  assert.equal(reach(agent, own).voiceNote, false);
 });
