@@ -1,7 +1,7 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database, withTransaction, type Transaction } from '../database';
-import { billingClient, credit, type WebhookPayload } from './office-billing';
+import { billingClient, credit, recoverReservedCheckout, type WebhookPayload } from './office-billing';
 import type { AbacatePayClient, AbacateSubscription } from './abacatepay';
 
 type Subscription = { id: string; checkoutId: string; officeId: string; providerId: string | null; status: string; amount: number; devMode: boolean; paymentFailed: boolean };
@@ -50,6 +50,7 @@ export async function handleSubscriptionWebhook(payload: WebhookPayload, client:
   const sub = payload.data?.subscription;
   if (typeof sub?.id !== 'string' || typeof payload.id !== 'string') throw new Error('Missing subscription event identity');
   const provider = await client.getSubscription(sub.id);
+  await recoverReservedCheckout(provider.checkoutId,true,client);
   return withTransaction(async tx => {
     await tx.prepare('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))').get(`subscription:${sub.id}`);
     if (await tx.prepare('SELECT 1 FROM billing_event WHERE id = ?').get(payload.id)) return 'duplicate' as const;

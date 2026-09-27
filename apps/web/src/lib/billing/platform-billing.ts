@@ -60,12 +60,13 @@ export async function clientBillingAction(actorId: string, officeId: string, tar
   await assertPlatformAdmin(database, actorId);
   const operation = await withTransaction(async tx => {
     await tx.prepare('SELECT pg_advisory_xact_lock(hashtextextended(?,0))').get(`billing-action:${action}:${targetId}`);
-    const previous = await tx.prepare(`SELECT status FROM billing_action WHERE target_id=? AND action=? AND status <> 'FAILED'`).get<{ status: string }>(targetId,action);
+    const previous = await tx.prepare(`SELECT id,status,dispatched_at AS "dispatchedAt" FROM billing_action WHERE target_id=? AND action=? AND status <> 'FAILED'`).get<{ id: string; status: string; dispatchedAt: string | null }>(targetId,action);
     const target = action === 'refund'
       ? await tx.prepare('SELECT id,status,kind FROM billing_checkout WHERE office_id=? AND id=?').get<{ id: string; status: string; kind: string }>(officeId,targetId)
       : await tx.prepare(`SELECT provider_id AS id,status,'SUBSCRIPTION' AS kind FROM billing_subscription WHERE office_id=? AND provider_id=?`).get<{ id: string; status: string; kind: string }>(officeId,targetId);
     if (!target) throw new BillingError(404, 'Cobrança ou assinatura não encontrada neste cliente.');
     if (previous?.status === 'SUCCEEDED') return null;
+    if (previous?.status === 'REQUESTED' && !previous.dispatchedAt) return previous.id;
     if (previous) throw new BillingError(409, 'A operação já foi solicitada. Atualize os pagamentos para conferir a confirmação antes de tentar novamente.');
     if (action === 'refund' && (target.status !== 'PAID' || target.kind !== 'ONE_TIME')) throw new BillingError(409, 'Somente pagamentos avulsos confirmados podem ser reembolsados pela API.');
     if (action === 'cancel' && target.status !== 'ACTIVE') throw new BillingError(409, 'Esta assinatura não está ativa.');
@@ -76,6 +77,15 @@ export async function clientBillingAction(actorId: string, officeId: string, tar
     return id;
   });
   if (!operation) return;
+  await dispatchBillingAction(operation,officeId,targetId,action,client);
+}
+
+async function dispatchBillingAction(operation: string, officeId: string, targetId: string, action: 'refund' | 'cancel', client: AbacatePayClient) {
+  // A committed request can be resumed until this durable dispatch claim. After it,
+  // even a process interruption must be reconciled with the provider, never replayed.
+  const claimed = await database.prepare(`UPDATE billing_action SET dispatched_at=CURRENT_TIMESTAMP,status='UNCERTAIN'
+    WHERE id=? AND office_id=? AND status='REQUESTED' AND dispatched_at IS NULL`).run(operation,officeId);
+  if (!claimed.changes) return;
   let accepted = false;
   try {
     if (action === 'refund') {
@@ -109,13 +119,23 @@ export async function refreshClientBilling(actorId: string, officeId: string, cl
   await assertPlatformAdmin(database,actorId);
   if (!await database.prepare('SELECT id FROM office WHERE id=?').get(officeId)) throw new BillingError(404,'Cliente não encontrado.');
   await syncPendingCheckouts(officeId,client);
-  await syncOfficeSubscriptions(officeId,client);
-  const operations = await database.prepare(`SELECT id,target_id AS "targetId",action FROM billing_action WHERE office_id=? AND status IN ('REQUESTED','UNCERTAIN')`).all<{ id: string; targetId: string; action: string }>(officeId);
+  try { await syncOfficeSubscriptions(officeId,client); }
+  catch (error) { if (!(error instanceof AbacatePayError)) throw error; }
+  const operations = await database.prepare(`SELECT id,target_id AS "targetId",action,dispatched_at AS "dispatchedAt",status FROM billing_action WHERE office_id=? AND status IN ('REQUESTED','UNCERTAIN')`).all<{ id: string; targetId: string; action: 'refund' | 'cancel'; dispatchedAt: string | null; status: string }>(officeId);
   for (const operation of operations) {
-    const result = operation.action === 'refund' ? await client.getCheckout(operation.targetId) : await client.getSubscription(operation.targetId);
-    if (result.status === 'REFUNDED' || result.status === 'CANCELLED') {
-      if (operation.action === 'refund') await settleCheckout(operation.targetId,'REFUNDED');
-      await database.prepare("UPDATE billing_action SET status='SUCCEEDED' WHERE id=?").run(operation.id);
+    try {
+      if (operation.status === 'REQUESTED' && !operation.dispatchedAt) {
+        await dispatchBillingAction(operation.id,officeId,operation.targetId,operation.action,client);
+        continue;
+      }
+      const result = operation.action === 'refund' ? await client.getCheckout(operation.targetId) : await client.getSubscription(operation.targetId);
+      if (result.status === 'REFUNDED' || result.status === 'CANCELLED') {
+        if (operation.action === 'refund') await settleCheckout(operation.targetId,'REFUNDED');
+        else await database.prepare("UPDATE billing_subscription SET status='CANCELLED' WHERE provider_id=? AND office_id=?").run(operation.targetId,officeId);
+        await database.prepare("UPDATE billing_action SET status='SUCCEEDED' WHERE id=?").run(operation.id);
+      }
+    } catch (error) {
+      if (!(error instanceof AbacatePayError) && !(error instanceof BillingError)) throw error;
     }
   }
 }

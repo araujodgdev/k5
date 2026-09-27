@@ -73,8 +73,10 @@ export function abacatePayClient(apiKey: string, transport: AbacatePayTransport 
       returnUrl?: string; completionUrl?: string; metadata?: Record<string, string>;
     }) => call<AbacateCheckout>('POST', '/checkouts/create', checkout),
     getCheckout: (id: string) => call<AbacateCheckout>('GET', '/checkouts/get', undefined, { id }),
+    getCheckoutByExternalId: (externalId: string) => call<AbacateCheckout>('GET', '/checkouts/get', undefined, { externalId }),
     createSubscription: (checkout: CheckoutInput) => call<AbacateCheckout>('POST', '/subscriptions/create', { ...checkout, methods: ['CARD'] }),
     getSubscriptionCheckout: (id: string) => call<AbacateCheckout>('GET', '/subscriptions/checkouts/get', undefined, { id }),
+    getSubscriptionCheckoutByExternalId: (externalId: string) => call<AbacateCheckout>('GET', '/subscriptions/checkouts/get', undefined, { externalId }),
     getSubscription: (id: string) => call<AbacateSubscription>('GET', '/subscriptions/get', undefined, { id }),
     listCheckoutSubscriptions: (checkoutId: string) => call<AbacateSubscription[]>('GET', '/subscriptions/list', undefined, { checkoutId }),
     cancelSubscription: (id: string) => call<AbacateSubscription>('POST', '/subscriptions/cancel', { id }),

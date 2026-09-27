@@ -423,6 +423,26 @@ Cada evento é associado a um checkout do Tises por consulta ao provedor, nunca 
 metadados enviados pelo cliente. Uma renovação soma um mês uma única vez, mesmo se a confirmação
 chegar por mais de um caminho. Eventos atrasados não reativam uma assinatura cancelada.
 
+A migração `0029_billing_checkout_reservation.sql` registra a identidade de criação antes de
+contatar a AbacatePay. As chamadas externas não mantêm uma transação PostgreSQL aberta. Se a
+resposta se perder ou a gravação local falhar, **Atualizar pagamentos**, o retorno à página Plano
+ou um webhook recuperam o checkout pelo `externalId` persistido, sem repetir a criação.
+Preparações interrompidas antes do envio podem ser retomadas após cinco minutos. Uma criação
+já enviada não expira automaticamente: uma consulta sem resultado ainda pode ser temporária.
+
+Pedidos de reembolso/cancelamento gravados, mas ainda não despachados, são retomados ao atualizar.
+Depois da marca de despacho, o Tises somente consulta o resultado. Se a operação continuar
+incerta, confira o ID da cobrança/assinatura no painel da AbacatePay antes de qualquer ação
+manual; após confirmação no provedor, atualize novamente no Tises. Não apague registros de
+auditoria nem libere uma tentativa incerta por tempo decorrido. Para uma criação sem resultado,
+use o ID de `billing_checkout_reservation` como `externalId` na consulta ao provedor e encaminhe
+essa referência ao suporte se a ambiguidade persistir. Um cancelamento necessário pode ser
+concluído no painel do provedor após conferir o estado; a atualização importará a confirmação.
+
+Links de assinatura pendentes são consultados mesmo após sete dias e só substituídos quando o
+provedor confirma expiração/cancelamento. Uma falha de consulta de uma ação não impede a
+reconciliação das demais; erros internos de banco ou programação continuam sendo propagados.
+
 Referências: [assinaturas](https://docs.abacatepay.com/pages/subscriptions/get),
 [eventos](https://docs.abacatepay.com/pages/webhooks/events/subscriptions),
 [limites do reembolso](https://docs.abacatepay.com/pages/payment/refund).
