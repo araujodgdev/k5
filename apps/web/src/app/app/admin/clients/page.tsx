@@ -1,6 +1,7 @@
 import { listOfficesForPlatform } from "@/lib/ai-connections-core";
 import { requirePlatformPage } from "@/lib/platform";
 import { notFound } from "next/navigation";
+import Link from 'next/link';
 
 export const metadata = { title: "Clientes · Administração" };
 
@@ -18,7 +19,7 @@ export default async function PlatformClientsPage() {
           <thead className="border-b text-muted-foreground text-[13px]"><tr><th className="py-3 pr-4 font-normal">Escritório</th><th className="px-4 py-3 text-right font-normal">Pessoas</th><th className="hidden py-3 pl-4 text-right font-normal sm:table-cell">Desde</th></tr></thead>
           <tbody>{offices.map((office) => (
             <tr key={office.id} className="border-b last:border-0">
-              <td className="py-4 pr-4 font-medium">{office.name}<span className="mt-1 block font-normal text-muted-foreground text-[13px] sm:hidden">Desde {dateFormat.format(new Date(office.createdAt))}</span></td>
+              <td className="py-4 pr-4 font-medium"><Link className="underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring" href={`/app/admin/clients/${office.id}`}>{office.name}</Link><span className="mt-1 block font-normal text-muted-foreground text-[13px] sm:hidden">Desde {dateFormat.format(new Date(office.createdAt))}</span></td>
               <td className="px-4 py-4 text-right tabular-nums text-muted-foreground">{Number(office.memberCount)}</td>
               <td className="hidden py-4 pl-4 text-right text-muted-foreground sm:table-cell">{dateFormat.format(new Date(office.createdAt))}</td>
             </tr>

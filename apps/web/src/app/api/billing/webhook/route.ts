@@ -19,6 +19,7 @@ export async function POST(request: Request) {
   }
   let payload: unknown;
   try { payload = JSON.parse(raw); } catch { return new Response(null, { status: 400 }); }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return new Response(null, { status: 400 });
   try {
     await handleBillingWebhook(payload as Parameters<typeof handleBillingWebhook>[0]);
     return new Response(null, { status: 204 });

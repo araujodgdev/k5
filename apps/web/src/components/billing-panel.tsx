@@ -16,11 +16,11 @@ const statuses: Record<BillingCheckoutRow['status'], string> = {
 };
 
 /** The office's plan: its state in one sentence, the one action that pays for a month, and the history. */
-export function BillingPanel({ overview, canPay, returned }: { overview: Overview; canPay: boolean; returned: boolean }) {
+export function BillingPanel({ overview, canPay, returned, hasSubscription = false }: { overview: Overview; canPay: boolean; returned: boolean; hasSubscription?: boolean }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const { configured, price, paidUntil, active, checkouts } = overview;
-  const waiting = checkouts[0]?.status === 'PENDING';
+  const latestStatus = checkouts[0]?.status;
 
   async function pay() {
     setPending(true);
@@ -42,7 +42,9 @@ export function BillingPanel({ overview, canPay, returned }: { overview: Overvie
 
       {returned && (
         <p role="status" className="border-l-2 border-brand pl-3 text-sm" data-reveal>
-          {waiting ? 'Aguardando a confirmação do pagamento. O novo prazo aparece aqui assim que ele for confirmado.' : 'Pagamento confirmado. Obrigado!'}
+          {latestStatus === 'PAID' ? 'Pagamento confirmado. Obrigado!' : latestStatus === 'PENDING'
+            ? 'Aguardando a confirmação do pagamento. Atualize a página para conferir o novo prazo.'
+            : 'Nenhum novo pagamento confirmado. Confira a situação no histórico abaixo.'}
         </p>
       )}
 
@@ -53,6 +55,7 @@ export function BillingPanel({ overview, canPay, returned }: { overview: Overvie
             {active && paidUntil ? `Ativo até ${longDay(paidUntil)}` : paidUntil ? `Venceu em ${longDay(paidUntil)}` : 'Sem plano ativo'}
           </h2>
           <p className="text-sm text-muted-foreground">{money(price)} por mês, por escritório. Cada pagamento soma um mês ao prazo.</p>
+          {hasSubscription && <p className="text-sm">Assinatura mensal ativa, com renovação automática. Para gerenciar ou cancelar, fale com a administração do Tises. Um pagamento avulso adiciona um mês além da assinatura.</p>}
         </div>
         {!configured ? (
           <p className="text-sm text-subtle-foreground">Os pagamentos ainda não foram configurados neste ambiente.</p>

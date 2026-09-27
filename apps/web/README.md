@@ -354,7 +354,8 @@ antigos do servidor e confirma carregamento pelo cache, sem perder o formulário
 Cada escritório paga uma mensalidade em **Plano** (`/app/billing`). Só administradores pagam; os
 demais papéis veem a situação. O pagamento usa o checkout hospedado da AbacatePay (PIX ou cartão):
 `POST /api/billing/checkout` cria (uma vez) o produto `tises-plano-mensal-<centavos>` e o cliente
-na AbacatePay e devolve a URL do checkout. Um checkout pendente dos últimos 30 minutos é reaproveitado.
+na AbacatePay e devolve a URL do checkout. Um checkout pendente dos últimos 30 minutos é reaproveitado,
+inclusive quando chegam pedidos simultâneos do mesmo escritório (lock transacional no PostgreSQL).
 Cada pagamento confirmado soma um mês a `office_billing.paid_until`, a partir do fim do prazo
 atual quando o plano ainda está ativo; um reembolso remove exatamente o mês daquele pagamento
 (migração 0026). Por enquanto nada é bloqueado sem pagamento.
@@ -366,9 +367,72 @@ pendentes ao abrir. Por isso o fluxo também funciona localmente, onde nenhum we
 
 Configure `ABACATEPAY_API_KEY` (a chave de Dev mode simula pagamentos; use o cartão
 `4242 4242 4242 4242`), `ABACATEPAY_WEBHOOK_SECRET` e, se quiser, `BILLING_PLAN_PRICE_CENTS`
-(padrão R$ 199,00). No painel da AbacatePay, cadastre o webhook com a URL HTTPS pública
-`<BETTER_AUTH_URL>/api/billing/webhook?webhookSecret=<secret>` e os eventos `checkout.completed` e
-`checkout.refunded`.
+(padrão R$ 199,00). Cadastre o endpoint HTTPS público
+`<BETTER_AUTH_URL>/api/billing/webhook`, informe o mesmo segredo no campo `secret` da AbacatePay
+e assine os eventos `checkout.completed` e `checkout.refunded`. O provedor acrescenta
+`?webhookSecret=<secret>` nas entregas.
+
+O staging usa `https://k5-staging.k5-web.workers.dev/api/billing/webhook`, com a chave de
+**Dev mode** e os dois segredos no Worker Cloudflare. A validação de PIX, cartão e webhook está
+registrada em [validação AbacatePay](../../docs/validacao-abacatepay.md). Isso não habilita cobranças
+reais: produção exige chave e webhook próprios no ambiente de produção da AbacatePay.
+
+### Administração financeira
+
+`/app/admin/finance` reúne somente cobranças criadas pelo Tises, com filtros de cliente, período,
+situação e ambiente. Testes e produção ficam separados; os totais são brutos, antes das taxas,
+e o valor após reembolsos não representa saldo disponível na AbacatePay. A lista de Clientes abre
+`/app/admin/clients/[officeId]`, com histórico paginado, comprovantes, assinaturas e ações auditadas.
+
+Administradores **da plataforma** podem gerar/copiar um link avulso ou de assinatura mensal,
+reembolsar integralmente um avulso pago, atualizar as cobranças e cancelar a renovação de uma
+assinatura ativa. As mutações verificam sessão, papel de plataforma, origem e vínculo do recurso
+com o escritório. O responsável selecionado precisa ser administrador daquele escritório;
+o cadastro de cobrança existente é reutilizado. Não há envio automático de mensagens.
+
+A assinatura usa o produto `tises-assinatura-mensal-<centavos>`, com `cycle: MONTHLY`, e checkout
+no cartão. Só fica ativa após a adesão do cliente. Não se abre outro link enquanto houver assinatura
+ativa ou aguardando adesão. O cancelamento preserva o prazo pago; retomar requer nova adesão.
+Reembolso de assinatura **não é suportado pela API v2**. As migrações 0027/0028 distinguem os IDs
+do checkout (`bill_`), assinatura (`subs_`) e pagamentos; múltiplas adesões ao mesmo link são
+registradas separadamente. Solicitações de reembolso/cancelamento são gravadas antes do envio;
+em caso de timeout, o botão de atualização consulta o resultado sem repetir a operação.
+
+Permissões da chave: `CHECKOUT:CREATE`, `CHECKOUT:READ`, `SUBSCRIPTION:CREATE`,
+`SUBSCRIPTION:READ`, `SUBSCRIPTION:DELETE`, `REFUND:CREATE`, `CUSTOMER:CREATE`,
+`PRODUCT:CREATE`, `PRODUCT:READ`. Configuração de webhooks é feita separadamente; a chave do
+aplicativo não precisa gerenciá-los. Nunca coloque a chave no frontend.
+
+Além dos eventos avulsos, registre `subscription.completed`, `subscription.renewed`,
+`subscription.cancelled` e `subscription.payment_failed` no mesmo endpoint/segredo. A renovação
+depende desses eventos; a consulta ao voltar do checkout recupera apenas o primeiro pagamento.
+Cada evento é associado a um checkout do Tises por consulta ao provedor, nunca pelo e-mail ou por
+metadados enviados pelo cliente. Uma renovação soma um mês uma única vez, mesmo se a confirmação
+chegar por mais de um caminho. Eventos atrasados não reativam uma assinatura cancelada.
+
+A migração `0029_billing_checkout_reservation.sql` registra a identidade de criação antes de
+contatar a AbacatePay. As chamadas externas não mantêm uma transação PostgreSQL aberta. Se a
+resposta se perder ou a gravação local falhar, **Atualizar pagamentos**, o retorno à página Plano
+ou um webhook recuperam o checkout pelo `externalId` persistido, sem repetir a criação.
+Preparações interrompidas antes do envio podem ser retomadas após cinco minutos. Uma criação
+já enviada não expira automaticamente: uma consulta sem resultado ainda pode ser temporária.
+
+Pedidos de reembolso/cancelamento gravados, mas ainda não despachados, são retomados ao atualizar.
+Depois da marca de despacho, o Tises somente consulta o resultado. Se a operação continuar
+incerta, confira o ID da cobrança/assinatura no painel da AbacatePay antes de qualquer ação
+manual; após confirmação no provedor, atualize novamente no Tises. Não apague registros de
+auditoria nem libere uma tentativa incerta por tempo decorrido. Para uma criação sem resultado,
+use o ID de `billing_checkout_reservation` como `externalId` na consulta ao provedor e encaminhe
+essa referência ao suporte se a ambiguidade persistir. Um cancelamento necessário pode ser
+concluído no painel do provedor após conferir o estado; a atualização importará a confirmação.
+
+Links de assinatura pendentes são consultados mesmo após sete dias e só substituídos quando o
+provedor confirma expiração/cancelamento. Uma falha de consulta de uma ação não impede a
+reconciliação das demais; erros internos de banco ou programação continuam sendo propagados.
+
+Referências: [assinaturas](https://docs.abacatepay.com/pages/subscriptions/get),
+[eventos](https://docs.abacatepay.com/pages/webhooks/events/subscriptions),
+[limites do reembolso](https://docs.abacatepay.com/pages/payment/refund).
 
 ## Observabilidade (Sentry)
 
