@@ -243,7 +243,7 @@ export default function Landing() {
         {/* 5. The invitation: words on blocks over the pixel field, which leans toward the pointer. */}
         <section id="comecar" aria-labelledby="comecar-title" className="relative isolate grid min-h-[88svh] scroll-mt-15 place-items-center overflow-hidden border-y border-line">
           <div data-field-reveal className="absolute inset-0 -z-10">
-            <Halftone seed={11} density={-.1} mark={{ x: .5, y: .5, size: .82 }} className="absolute inset-0" />
+            <Halftone seed={11} density={-.1} mark={{ x: .5, y: .5, size: .82 }} markTone="panel" className="absolute inset-0" />
           </div>
           <h2 id="comecar-title" className="w-full">
             <Link href="/sign-up" className="group/start display block text-[clamp(52px,11.5vw,210px)] leading-[.9] uppercase focus-visible:outline-none">

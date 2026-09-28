@@ -37,19 +37,21 @@ function colorWord(ctx: CanvasRenderingContext2D, value: string) {
 }
 
 /**
- * A dithered field of square ink pixels drifting over paper, with the Tises mark cut out: the seal as
- * a flat grey silhouette and its diamond in brand, the field's only color. It leans toward the
+ * A dithered field of square ink pixels drifting over paper, with the Tises mark cut out: the whole seal
+ * in brand, the field's only color, or grey halves under a brand diamond where text sits over it. It leans toward the
  * pointer; `mood` lets a form answer through it.
  * The canvas holds one pixel per dither cell and is shown at a whole number of CSS pixels per cell,
  * without smoothing, so the pixels stay square. The mark is a vector on top: drawn into the canvas
  * it would be as coarse as the cells, which grow on large screens.
  * Decorative: aria-hidden, paused off screen, one still frame under reduced motion.
  */
-export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell = 3, density = 0 }: {
+export function Halftone({ className, mood = "idle", mark = null, markTone = "brand", seed = 1, cell = 3, density = 0 }: {
   className?: string;
   mood?: HalftoneMood;
   /** Where the mark sits, as fractions of the field: centre x, centre y and height. */
   mark?: Mark | null;
+  /** The mark in `brand` (it stands alone, as on sign-in) or in `panel` grey (text sits over it). */
+  markTone?: "brand" | "panel";
   seed?: number;
   /** CSS pixels per dither pixel. */
   cell?: number;
@@ -242,8 +244,8 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
       <canvas ref={canvasRef} className="halftone-canvas absolute top-0 left-0 [image-rendering:pixelated]" />
       {mark && (
         <svg viewBox="0 0 24 24" className="absolute aspect-square -translate-1/2" style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, height: `${mark.size * 100}%` }}>
-          <path className="fill-panel" d={tisesPaths.upper} />
-          <path className="fill-panel" d={tisesPaths.lower} />
+          <path className={markTone === "brand" ? "fill-brand" : "fill-panel"} d={tisesPaths.upper} />
+          <path className={markTone === "brand" ? "fill-brand" : "fill-panel"} d={tisesPaths.lower} />
           <path className="fill-brand" d={tisesPaths.beam} />
         </svg>
       )}
