@@ -18,7 +18,8 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
-import { adminNavigation, appNavigation, mobileTabs } from "@/lib/navigation";
+import { Avatar } from "@/components/profile/avatar";
+import { adminNavigation, appNavigation, mobileTabs, profileNavigation } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 // Registration wakes GSAP's ticker; Workers forbid timers during SSR imports.
@@ -55,7 +56,9 @@ function NavToggle({ collapsed, className }: { collapsed: boolean; className?: s
   );
 }
 
-export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled = false }: { officeName: string; platformAdmin?: boolean; whatsappEnabled?: boolean }) {
+type Person = { name: string; avatarUrl: string | null };
+
+export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled = false, person }: { officeName: string; platformAdmin?: boolean; whatsappEnabled?: boolean; person: Person }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -220,12 +223,13 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
   }
 
   const adminActive = pathname === adminNavigation.href || pathname.startsWith(`${adminNavigation.href}/`);
+  const profileActive = pathname === profileNavigation.href;
   const visibleNavigation = appNavigation.filter((item) => item.slug !== "whatsapp" || whatsappEnabled);
   const overflow = visibleNavigation.filter((item) => !mobileTabs.includes(item.slug));
-  const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`) || adminActive;
+  const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`) || adminActive || profileActive;
   const currentModule = pathname.startsWith("/app/documents/")
     ? "Cofre"
-    : adminActive ? adminNavigation.label : visibleNavigation.find((item) => {
+    : profileActive ? profileNavigation.label : adminActive ? adminNavigation.label : visibleNavigation.find((item) => {
         const href = `/app/${item.slug}`;
         return pathname === href || pathname.startsWith(`${href}/`);
       })?.label ?? "Início";
@@ -270,6 +274,16 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="border-t border-line p-2">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={profileActive} tooltip={`${profileNavigation.label} · ${person.name}`} className="h-10 data-[active=true]:bg-accent">
+                  <Link href={profileNavigation.href} aria-current={profileActive ? "page" : undefined} aria-label={collapsed ? `${profileNavigation.label}: ${person.name}` : undefined}>
+                    <Avatar name={person.name} src={person.avatarUrl} className="size-6 text-[10px]" />
+                    <span className="nav-label min-w-0 truncate">{person.name}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
             {error && <p role="alert" className="nav-label px-2 text-destructive text-xs">{error}</p>}
             <div className="nav-footer flex items-center gap-1">
               <NavToggle collapsed={collapsed} className="nav-expand" />
@@ -311,6 +325,13 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="bottom" className="gap-1 p-2" onOpenAutoFocus={(event) => { event.preventDefault(); moreTitleRef.current?.focus(); }} onCloseAutoFocus={(event) => { event.preventDefault(); moreButtonRef.current?.focus(); }}>
           <SheetTitle ref={moreTitleRef} tabIndex={-1} className="label-mono px-3 py-2 pr-12 text-muted-foreground outline-none">Mais opções</SheetTitle>
+          <Link href={profileNavigation.href} aria-current={profileActive ? "page" : undefined} onClick={() => setSheetOpen(false)}
+            className={cn("flex min-h-12 items-center gap-3 px-3 text-base transition-colors", profileActive ? "bg-foreground font-medium text-background" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+            <Avatar name={person.name} src={person.avatarUrl} className="size-7 text-[10px]" />
+            <span className="min-w-0 flex-1 truncate">{person.name}</span>
+            <span className="label-mono">{profileNavigation.label}</span>
+          </Link>
+          <Separator className="my-1.5" />
           {overflow.map((item) => {
             const href = `/app/${item.slug}`;
             const Icon = navIcons[item.slug];

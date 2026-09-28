@@ -25,6 +25,9 @@ export const mobileTabs: NavSlug[] = ["command-center", "agents", "vault", "agen
 /** Shown only to platform administrators, after the office's sections, on desktop and in "Mais". */
 export const adminNavigation = { href: "/app/admin", label: "Administração", short: "Admin" } as const;
 
+/** The person's own page: reached from their name in the sidebar footer and from "Mais" on mobile. */
+export const profileNavigation = { href: "/app/profile", label: "Perfil" } as const;
+
 /** Tabs inside the Administração module. */
 export const adminSections = [
   { slug: "feedback", label: "Feedback" },

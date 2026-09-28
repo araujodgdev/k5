@@ -205,11 +205,13 @@ export async function collaborationOverview(context: WorkspaceContext, caseId?: 
   const role = await memberRole(database, context.userId, officeId);
   const canManage = access ? access.canManage : role === 'administrator';
   const canAssociate = Boolean(role && role !== 'reviewer');
-  const members = !access || !access.external ? await database.prepare(`SELECT u.id,u.name,u.email,m.role FROM office_member m
-    JOIN "user" u ON u.id=m.user_id WHERE m.office_id=? ORDER BY u.name,u.id`).all(officeId) : [];
-  const participants = caseId ? await database.prepare(`SELECT u.id,u.name,u.email,p.permission AS role,p.can_invite AS "canInvite"
-    FROM case_participant p JOIN "user" u ON u.id=p.user_id WHERE p.case_id=? AND p.revoked_at IS NULL ORDER BY u.name,u.id`).all(caseId) : [];
-  const associates = !access?.external ? await database.prepare(`SELECT u.id,u.name,u.email FROM office_associate a JOIN "user" u ON u.id=a.user_id WHERE a.office_id=? ORDER BY u.name,u.id`).all(officeId) : [];
+  // The photo version lets the list show each person's avatar; the agent's DTO drops it.
+  const photo = 'LEFT JOIN user_profile up ON up.user_id=u.id';
+  const members = !access || !access.external ? await database.prepare(`SELECT u.id,u.name,u.email,m.role,up.avatar_version AS "avatarVersion" FROM office_member m
+    JOIN "user" u ON u.id=m.user_id ${photo} WHERE m.office_id=? ORDER BY u.name,u.id`).all(officeId) : [];
+  const participants = caseId ? await database.prepare(`SELECT u.id,u.name,u.email,p.permission AS role,p.can_invite AS "canInvite",up.avatar_version AS "avatarVersion"
+    FROM case_participant p JOIN "user" u ON u.id=p.user_id ${photo} WHERE p.case_id=? AND p.revoked_at IS NULL ORDER BY u.name,u.id`).all(caseId) : [];
+  const associates = !access?.external ? await database.prepare(`SELECT u.id,u.name,u.email,up.avatar_version AS "avatarVersion" FROM office_associate a JOIN "user" u ON u.id=a.user_id ${photo} WHERE a.office_id=? ORDER BY u.name,u.id`).all(officeId) : [];
   const outgoing = canManage || (!caseId && canAssociate) ? await database.prepare(`${inviteSelect}
     WHERE i.office_id=? AND ${caseId ? 'i.case_id=?' : "i.case_id IS NULL AND (i.kind='associate' OR ?)"}
     AND i.status='pending' AND i.expires_at>CURRENT_TIMESTAMP AND (? OR i.invited_by=?)

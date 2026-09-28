@@ -190,3 +190,41 @@ test("logout de outra origem não encerra a sessão legítima", async (t) => {
   assert.equal(result.response.status, 403);
   assert.ok((await request("/get-session", undefined, user.cookie)).data?.user);
 });
+
+test("troca de e-mail exige a senha atual e não assume endereço de outra conta", async (t) => {
+  const { db, request, signup } = await fixture();
+  t.after(async () => (await db.close()));
+  const ana = await signup("ana@example.test");
+  await signup("bia@example.test");
+  const denied = await request("/change-email", { newEmail: "ana.nova@example.test" }, ana.cookie);
+  assert.equal(denied.response.status, 400);
+  assert.equal(denied.data.code, "INVALID_PASSWORD");
+  const wrong = await request("/change-email", { newEmail: "ana.nova@example.test", currentPassword: "Errada-2026!" }, ana.cookie);
+  assert.equal(wrong.data.code, "INVALID_PASSWORD");
+  assert.equal((await request("/get-session", undefined, ana.cookie)).data.user.email, "ana@example.test");
+  const taken = await request("/change-email", { newEmail: "bia@example.test", currentPassword: password }, ana.cookie);
+  assert.equal(taken.response.status, 200);
+  assert.equal((await request("/get-session", undefined, ana.cookie)).data.user.email, "ana@example.test");
+  const changed = await request("/change-email", { newEmail: "Ana.Nova@example.test", currentPassword: password }, ana.cookie);
+  assert.equal(changed.response.status, 200, JSON.stringify(changed.data));
+  assert.equal((await request("/get-session", undefined, ana.cookie)).data.user.email, "ana.nova@example.test");
+  assert.equal((await request("/sign-in/email", { email: "ana@example.test", password })).response.status, 401);
+  assert.equal((await request("/sign-in/email", { email: "ana.nova@example.test", password })).response.status, 200);
+});
+
+test("troca de senha confere a atual e pode encerrar as outras sessões", async (t) => {
+  const { db, request, signup } = await fixture();
+  t.after(async () => (await db.close()));
+  const phone = await signup("ana@example.test");
+  const laptop = await request("/sign-in/email", { email: "ana@example.test", password });
+  const wrong = await request("/change-password", { currentPassword: "Errada-2026!", newPassword: "Nova-senha-2026!" }, laptop.cookie);
+  assert.equal(wrong.data.code, "INVALID_PASSWORD");
+  const changed = await request("/change-password", { currentPassword: password, newPassword: "Nova-senha-2026!", revokeOtherSessions: true }, laptop.cookie);
+  assert.equal(changed.response.status, 200, JSON.stringify(changed.data));
+  assert.equal((await request("/get-session", undefined, phone.cookie)).data, null);
+  // The response refreshes the old cookie before setting the new session; the browser keeps the last one.
+  const current = changed.cookie.split("; ").at(-1);
+  assert.ok((await request("/get-session", undefined, current)).data.user);
+  assert.equal((await request("/sign-in/email", { email: "ana@example.test", password })).response.status, 401);
+  assert.equal((await request("/sign-in/email", { email: "ana@example.test", password: "Nova-senha-2026!" })).response.status, 200);
+});

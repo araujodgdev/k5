@@ -24,6 +24,9 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
     trustedOrigins: [settings.baseURL, ...(settings.extraOrigins ?? [])],
     emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 128 },
     user: {
+      // There is no e-mail delivery, so the address changes at once; the hook below asks for the
+      // current password first, so a borrowed session cannot move the account to another address.
+      changeEmail: { enabled: true, updateEmailWithoutVerification: true },
       additionalFields: {
         // Retained to recover office provisioning after an interrupted registration.
         officeName: { type: "string", required: true, validator: { input: z.string().trim().min(2).max(160) } },
@@ -49,6 +52,9 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       customRules: {
         "/sign-in/email": { window: 60, max: 10 },
         "/sign-up/email": { window: 60, max: 10 },
+        // Both check the current password, so they get the sign-in budget.
+        "/change-password": { window: 60, max: 10 },
+        "/change-email": { window: 60, max: 10 },
       },
     },
     hooks: {
@@ -57,6 +63,13 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
           const result = signUpSchema.safeParse(ctx.body);
           if (!result.success) throw new APIError("BAD_REQUEST", { code: "INVALID_SIGN_UP", message: "Confira os dados do cadastro." });
           return { context: { body: { ...ctx.body, ...result.data } } };
+        }
+        if (ctx.path === "/change-email") {
+          const currentPassword = typeof ctx.body?.currentPassword === "string" ? ctx.body.currentPassword : "";
+          const session = await getSessionFromCtx(ctx, { disableCookieCache: true });
+          const account = session && await ctx.context.internalAdapter.findCredentialAccount(session.user.id);
+          if (!currentPassword || !account?.password || !await ctx.context.password.verify({ hash: account.password, password: currentPassword }))
+            throw new APIError("BAD_REQUEST", { code: "INVALID_PASSWORD", message: "Senha atual incorreta." });
         }
         if (ctx.path === "/sign-out") {
           const session = await getSessionFromCtx(ctx, { disableCookieCache: true });
