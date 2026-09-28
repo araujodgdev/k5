@@ -5,6 +5,7 @@ import { ThemeSwitch } from "@/components/theme-provider";
 import { TisesMark, TisesWordmark } from "@/components/tises-logo";
 import { Halftone } from "@/components/halftone";
 import { LandingMotion, motionScript } from "@/components/landing/landing-motion";
+import { BootScript } from "@/components/boot-script";
 import { LandingClock, LandingDial } from "@/components/landing/landing-clock";
 import { GlyphAgenda, GlyphAgent, GlyphResearch, GlyphVault } from "@/components/landing/landing-glyphs";
 import { ScreenFrame } from "@/components/landing/landing-screens";
@@ -82,7 +83,7 @@ const inFilm = "hidden [[data-motion]_&]:block";
 export default function Landing() {
   return (
     <LandingMotion className="relative min-h-dvh bg-background text-foreground">
-      <script dangerouslySetInnerHTML={{ __html: motionScript }} />
+      <BootScript code={motionScript} />
       <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:border focus:border-line focus:bg-background focus:px-3 focus:py-2">Ir para o conteúdo</a>
 
       <header className="appear fixed inset-x-0 top-0 z-30 grid h-[calc(3.75rem+env(safe-area-inset-top))] grid-cols-[1fr_auto] border-b border-line bg-background pt-[env(safe-area-inset-top)] [--delay:2.8s] md:grid-cols-2">
@@ -242,7 +243,7 @@ export default function Landing() {
         {/* 5. The invitation: words on blocks over the pixel field, which leans toward the pointer. */}
         <section id="comecar" aria-labelledby="comecar-title" className="relative isolate grid min-h-[88svh] scroll-mt-15 place-items-center overflow-hidden border-y border-line">
           <div data-field-reveal className="absolute inset-0 -z-10">
-            <Halftone seed={11} density={-.1} mark={{ x: .5, y: .5, size: 1.05 }} className="absolute inset-0" />
+            <Halftone seed={11} density={-.1} mark={{ x: .5, y: .5, size: .82 }} className="absolute inset-0" />
           </div>
           <h2 id="comecar-title" className="w-full">
             <Link href="/sign-up" className="group/start display block text-[clamp(52px,11.5vw,210px)] leading-[.9] uppercase focus-visible:outline-none">

@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 
 /*
  * Tises identity (geometry in tises-paths.ts). Two finishes:
- * - `flat`: the pieces in currentColor and the beam in `brand`, for small places (header, shell, icons).
- * - `metal`: brushed metal pieces (silver on dark, graphite on light, `--metal-*` in globals.css),
- *   a peach metal beam with a glow layer behind it, and a band of light that can cross the metal
+ * - `flat`: the two halves in currentColor and the diamond in `brand`, for small places (header,
+ *   shell, icons).
+ * - `metal`: brushed metal halves (silver on dark, graphite on light, `--metal-*` in globals.css),
+ *   a peach metal diamond with a glow layer behind it, and a band of light that can cross the metal
  *   parallel to the slit (`.tises-sheen`). For the large marks on the public pages.
  *
  * The motion is CSS in globals.css, so it runs from the first paint and stops under reduced motion:
@@ -37,17 +38,17 @@ function MetalDefs({ id, span = [4, 4, 20, 20] }: { id: string; span?: [number, 
   );
 }
 
-/** The mark: a T of two cut pieces and a beam. */
+/** The mark: a seal ring cut in two halves across the slit, and a diamond of light. */
 export function TisesMark({ finish = "flat", className, ...props }: SVGProps<SVGSVGElement> & { finish?: Finish }) {
   const id = useId().replace(/:/g, "");
   const metal = finish === "metal";
   const piece = metal ? `url(#${id}-metal)` : "currentColor";
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" className={cn("tises-mark overflow-visible", className)} {...props}>
-      {metal && <defs><MetalDefs id={id} /><clipPath id={`${id}-clip`}><path d={tisesPaths.arm} /><path d={tisesPaths.body} /></clipPath></defs>}
+      {metal && <defs><MetalDefs id={id} span={[2.5, 2.5, 21.5, 21.5]} /><clipPath id={`${id}-clip`}><path d={tisesPaths.upper} /><path d={tisesPaths.lower} /></clipPath></defs>}
       {metal && <path className="tises-beam tises-glow" fill="var(--brand)" filter={`url(#${id}-glow)`} d={tisesPaths.beam} />}
-      <path className="tises-arm" fill={piece} d={tisesPaths.arm} />
-      <path className="tises-body" fill={piece} d={tisesPaths.body} />
+      <path className="tises-upper" fill={piece} d={tisesPaths.upper} />
+      <path className="tises-lower" fill={piece} d={tisesPaths.lower} />
       {metal && (
         <g clipPath={`url(#${id}-clip)`}>
           <g transform="rotate(45 12 12)"><rect className="tises-sheen" x="-2.5" y="-18" width="5" height="60" fill={`url(#${id}-sheen)`} /></g>

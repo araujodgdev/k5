@@ -2,7 +2,7 @@
 
 import { ArrowRight, RotateCcw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SmartMark } from '@/components/smart-options';
+import { SmartWorking } from '@/components/smart-options';
 import type { DigestPeriod, DigestThread, EmailDigest, EmailInsightResult, ThreadInsight } from '@/lib/google/gmail/insights-contracts';
 import { cn } from '@/lib/utils';
 
@@ -25,12 +25,7 @@ export async function requestInsight(body: { kind: 'digest'; period: DigestPerio
 const when = (value: string) => value ? new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 const sender = (value: string) => value.replace(/<[^<>]*>/g, '').replace(/"/g, '').trim() || value;
 
-/** Tises at work: the mark trades its strokes while the text says what is happening. */
-function Working({ children }: { children: React.ReactNode }) {
-  return <p role="status" className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
-    <span className="smart-options grid size-6 place-items-center text-module-agent" data-busy><SmartMark width={18} height={18} /></span>{children}
-  </p>;
-}
+const Working = ({ children }: { children: React.ReactNode }) => <SmartWorking className="py-8">{children}</SmartWorking>;
 
 function ThreadRow({ thread, detail, onOpen }: { thread: DigestThread; detail?: React.ReactNode; onOpen: (id: string) => void }) {
   return <button type="button" onClick={() => onOpen(thread.threadId)}

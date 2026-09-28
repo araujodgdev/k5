@@ -109,7 +109,7 @@ export function LandingMotion({ children, className }: { children: React.ReactNo
         gsap.fromTo(field, { clipPath: "inset(16% 16% 16% 16%)" }, { clipPath: "inset(0% 0% 0% 0%)", ease: "power2.out", scrollTrigger: { trigger: field, start: "top 95%", end: "top 20%", scrub: 1 } });
       });
 
-      // The spark: once the hero's beam has landed, light leaves it on the same diagonal and
+      // The spark: once the hero's diamond has landed, light leaves it and
       // becomes the tittle of the i. It lives in the hero scene, so it travels with the camera.
       // Web Animations keep it on the same clock as the CSS intro, even in a background tab.
       const played: Animation[] = [];

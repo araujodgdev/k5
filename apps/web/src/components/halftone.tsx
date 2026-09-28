@@ -37,9 +37,12 @@ function colorWord(ctx: CanvasRenderingContext2D, value: string) {
 }
 
 /**
- * A dithered field of square ink pixels drifting over paper, with the Tises mark cut out: the T as
- * a flat grey silhouette and its beam in brand pixels, the field's only color. It leans toward the
+ * A dithered field of square ink pixels drifting over paper, with the Tises mark cut out: the seal as
+ * a flat grey silhouette and its diamond in brand, the field's only color. It leans toward the
  * pointer; `mood` lets a form answer through it.
+ * The canvas holds one pixel per dither cell and is shown at a whole number of CSS pixels per cell,
+ * without smoothing, so the pixels stay square. The mark is a vector on top: drawn into the canvas
+ * it would be as coarse as the cells, which grow on large screens.
  * Decorative: aria-hidden, paused off screen, one still frame under reduced motion.
  */
 export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell = 3, density = 0 }: {
@@ -73,11 +76,12 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
     const probe = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    let cols = 0, rows = 0;
+    const field = canvas.parentElement!;
+    let cols = 0, rows = 0, px = 0, fieldWidth = 0, fieldHeight = 0;
     let image: ImageData | null = null;
     let words: Uint32Array | null = null;
     let mask: Uint8Array | null = null;
-    let palette = { ink: 0, paper: 0, panel: 0, brand: 0 };
+    let palette = { ink: 0, paper: 0 };
     let darkPaper = false;
     const pointer = { x: .5, y: .5, tx: .5, ty: .5, lean: 0, target: 0 };
     let visible = true;
@@ -90,14 +94,14 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
       palette = {
         ink: colorWord(probe, styles.getPropertyValue("--foreground").trim()),
         paper: colorWord(probe, styles.getPropertyValue("--background").trim()),
-        panel: colorWord(probe, styles.getPropertyValue("--panel").trim()),
-        brand: colorWord(probe, styles.getPropertyValue("--brand").trim()),
       };
       // Light pixels on a dark page read heavier than ink on paper, so dark themes draw fewer.
       const paper = palette.paper;
       darkPaper = (paper & 255) * .3 + ((paper >> 8) & 255) * .59 + ((paper >> 16) & 255) * .11 < 128;
     };
 
+    // The cells the mark's vector covers, even partly, stay paper, so no pixel touches its edges.
+    // Placed in CSS pixels like the overlay, then divided into cells.
     const buildMask = () => {
       mask = null;
       if (markX === undefined || markY === undefined || !markSize || !cols || !rows) return;
@@ -105,36 +109,33 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
       shape.width = cols;
       shape.height = rows;
       const sctx = shape.getContext("2d", { willReadFrequently: true })!;
-      const size = markSize * rows;
-      sctx.translate(markX * cols - size / 2, markY * rows - size / 2);
-      sctx.scale(size / 24, size / 24);
-      // The mark spans 4–20 on its 24-unit grid, so it is already centred. The T reads as a
-      // grey cut-out (1) and the beam as brand pixels (2).
-      const read = () => sctx.getImageData(0, 0, cols, rows).data;
-      sctx.fill(new Path2D(tisesPaths.arm));
-      sctx.fill(new Path2D(tisesPaths.body));
-      const piece = read();
-      sctx.save();
-      sctx.setTransform(1, 0, 0, 1, 0, 0);
-      sctx.clearRect(0, 0, cols, rows);
-      sctx.restore();
-      sctx.fill(new Path2D(tisesPaths.beam));
-      const beam = read();
+      const unit = markSize * fieldHeight / 24 / px;
+      sctx.translate(markX * fieldWidth / px - 12 * unit, markY * fieldHeight / px - 12 * unit);
+      sctx.scale(unit, unit);
+      for (const d of [tisesPaths.upper, tisesPaths.lower, tisesPaths.beam]) sctx.fill(new Path2D(d));
+      const covered = sctx.getImageData(0, 0, cols, rows).data;
       mask = new Uint8Array(cols * rows);
-      for (let i = 0; i < mask.length; i++) mask[i] = beam[i * 4 + 3] > 110 ? 2 : piece[i * 4 + 3] > 110 ? 1 : 0;
+      for (let i = 0; i < mask.length; i++) mask[i] = covered[i * 4 + 3] > 0 ? 1 : 0;
     };
 
     const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      // Large fields grow their pixels so a frame stays near 60k cells (about 6ms).
-      const size = Math.max(cell, Math.sqrt((rect.width * rect.height) / 60_000));
+      const rect = field.getBoundingClientRect();
+      // Large fields grow their pixels so a frame stays near 60k cells (about 6ms). A whole number
+      // of CSS pixels per cell keeps every pixel the same size.
+      const size = Math.max(cell, Math.ceil(Math.sqrt((rect.width * rect.height) / 60_000)));
       const nextCols = Math.max(1, Math.ceil(rect.width / size));
       const nextRows = Math.max(1, Math.ceil(rect.height / size));
-      if (nextCols === cols && nextRows === rows) return;
+      const moved = rect.width !== fieldWidth || rect.height !== fieldHeight;
+      fieldWidth = rect.width;
+      fieldHeight = rect.height;
+      if (nextCols === cols && nextRows === rows && size === px) { if (moved) buildMask(); return; }
       cols = nextCols;
       rows = nextRows;
+      px = size;
       canvas.width = cols;
       canvas.height = rows;
+      canvas.style.width = `${cols * size}px`;
+      canvas.style.height = `${rows * size}px`;
       image = ctx.createImageData(cols, rows);
       words = new Uint32Array(image.data.buffer);
       buildMask();
@@ -150,12 +151,12 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
       const px = pointer.x * cols, py = pointer.y * rows;
       const reach = Math.max(cols, rows) * .32;
       const lean = pointer.lean * .42;
-      const { ink, paper, panel, brand } = palette;
+      const { ink, paper } = palette;
       for (let y = 0; y < rows; y++) {
         const ny = y * scale;
         for (let x = 0; x < cols; x++) {
           const i = y * cols + x;
-          if (mask && mask[i]) { words[i] = mask[i] === 2 ? brand : panel; continue; }
+          if (mask && mask[i]) { words[i] = paper; continue; }
           const nx = x * scale;
           let n = noise(nx + t * .06, ny - t * .04, seed) * .65 + noise(nx * 2.3 - t * .09, ny * 2.3 + t * .05, seed + 1) * .35;
           n = (n - .5) * contrast + .5 + bias;
@@ -211,7 +212,7 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
     draw();
 
     const sizeObserver = new ResizeObserver(() => { resize(); draw(); });
-    sizeObserver.observe(canvas);
+    sizeObserver.observe(field);
     const viewObserver = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
       if (visible) start(); else stop();
@@ -238,7 +239,14 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
 
   return (
     <div aria-hidden="true" className={cn("relative overflow-hidden bg-background", className)}>
-      <canvas ref={canvasRef} className="halftone-canvas absolute inset-0 size-full" />
+      <canvas ref={canvasRef} className="halftone-canvas absolute top-0 left-0 [image-rendering:pixelated]" />
+      {mark && (
+        <svg viewBox="0 0 24 24" className="absolute aspect-square -translate-1/2" style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, height: `${mark.size * 100}%` }}>
+          <path className="fill-panel" d={tisesPaths.upper} />
+          <path className="fill-panel" d={tisesPaths.lower} />
+          <path className="fill-brand" d={tisesPaths.beam} />
+        </svg>
+      )}
     </div>
   );
 }

@@ -8,17 +8,25 @@ import { cn } from "@/lib/utils";
 export type SmartOption = { id: string; label: string; description?: string; disabled?: boolean };
 
 /**
- * The agent mark (the T) whose pieces move while it is hovered or busy: the slit opens, the beam
- * rises into it and turns across it, then everything settles back.
+ * The agent mark (the seal) whose pieces move while it is hovered or busy: the halves part along
+ * the slit, the diamond moves into the hole and the seal closes over it, then it opens again and
+ * the diamond springs back out.
  * Same paths as <AgentMark />; the motion lives in globals.css (`.smart-mark`).
  */
 export function SmartMark({ className, ...props }: React.SVGProps<SVGSVGElement>) {
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none"
     aria-hidden="true" focusable="false" className={cn("smart-mark", className)} {...props}>
-    <path className="smart-mark-a" d={tisesPaths.arm} />
-    <path className="smart-mark-b" d={tisesPaths.body} />
+    <path className="smart-mark-a" d={tisesPaths.upper} />
+    <path className="smart-mark-b" d={tisesPaths.lower} />
     <path className="smart-mark-c" d={tisesPaths.beam} />
   </svg>;
+}
+
+/** Tises at work: the mark trades its strokes while the text says what is happening. */
+export function SmartWorking({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <p role="status" className={cn("flex items-center gap-3 text-sm text-muted-foreground", className)}>
+    <span className="smart-options grid size-6 shrink-0 place-items-center text-module-agent" data-busy><SmartMark width={18} height={18} /></span>{children}
+  </p>;
 }
 
 /**
