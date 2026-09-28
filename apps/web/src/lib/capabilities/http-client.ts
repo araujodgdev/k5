@@ -18,6 +18,13 @@ const googleRoutes = Object.fromEntries<Route>(Object.entries(googleOperations).
   [name, { method: 'POST', path: () => googleOperationPath(operation as GoogleOperation), body: (i: Record<string, unknown>) => i } satisfies Route])) as Record<GoogleCapabilityName, Route>;
 
 const routes: Record<CapabilityName, Route> = {
+  k5_honorarios_list: { method: 'POST', path: () => '/api/honorarios/list', body: i => i },
+  k5_honorarios_get: { method: 'POST', path: () => '/api/honorarios/get', body: i => i },
+  k5_honorarios_options: { method: 'POST', path: () => '/api/honorarios/options', body: i => i },
+  k5_honorarios_create: { method: 'POST', path: () => '/api/honorarios/create', body: i => i },
+  k5_honorarios_receive: { method: 'POST', path: () => '/api/honorarios/receive', body: i => i },
+  k5_honorarios_reverse: { method: 'POST', path: () => '/api/honorarios/reverse', body: i => i },
+  k5_honorarios_cancel: { method: 'POST', path: () => '/api/honorarios/cancel', body: i => i },
   k5_whatsapp_list_threads: { method: 'GET', path: i => `/api/whatsapp/threads?${new URLSearchParams({ limit: String(i.limit ?? 30), ...(i.cursor ? { cursor: String(i.cursor) } : {}) })}` },
   k5_whatsapp_read_thread: { method: 'GET', path: i => `/api/whatsapp/threads/${id(i.threadId)}/messages?${new URLSearchParams({ limit: String(i.limit ?? 30), ...(i.cursor ? { cursor: String(i.cursor) } : {}) })}` },
   k5_whatsapp_send: { method: 'POST', path: () => '/api/whatsapp/send', body: i => i },

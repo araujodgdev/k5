@@ -20,6 +20,7 @@ import * as ui from '@/lib/application/ui-service';
 import * as platform from '@/lib/application/platform-service';
 import * as judicial from '@/lib/application/judicial-service';
 import * as agenda from '@/lib/application/agenda-service';
+import * as honorarios from '@/lib/honorarios/service';
 import * as research from '@/lib/application/research-capability-service';
 import * as annexes from '@/lib/application/annexes-service';
 import * as google from '@/lib/application/google-service';
@@ -38,6 +39,13 @@ type Executor = (context: WorkspaceContext, input: never) => unknown;
 
 /** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_honorarios_list: honorarios.listHonorarios,
+  k5_honorarios_get: honorarios.getHonorario,
+  k5_honorarios_options: honorarios.honorariosOptions,
+  k5_honorarios_create: honorarios.createHonorario,
+  k5_honorarios_receive: honorarios.receiveHonorario,
+  k5_honorarios_reverse: honorarios.reverseHonorario,
+  k5_honorarios_cancel: honorarios.cancelHonorario,
   k5_whatsapp_list_threads: listWhatsAppThreads,
   k5_whatsapp_read_thread: readWhatsAppThread,
   k5_whatsapp_send: sendWhatsAppText,
@@ -189,6 +197,9 @@ export async function runCapability<N extends CapabilityName>(
   rawInput: unknown,
 ): Promise<unknown> {
   const capability: Capability = capabilities[name];
+  if (capability.module === 'honorarios' && context.invocation) {
+    throw new CapabilityError('FORBIDDEN', 'Honorários devem ser gerenciados pela interface.');
+  }
   if (capability.module === 'research' && context.invocation &&
       !capability.publish?.includes(context.invocation)) {
     throw new CapabilityError('FORBIDDEN', 'Esta ação da Pesquisa precisa ser feita na interface.');
@@ -220,7 +231,7 @@ export async function runCapability<N extends CapabilityName>(
   const key = typeof input.idempotencyKey === 'string' ? input.idempotencyKey : undefined;
   // Google owns durable pending/unknown states and reconciliation; caching an unknown response
   // in the generic idempotency store would prevent later reads from observing its outcome.
-  if (capability.effect === 'write' && key && capability.module !== 'google' && capability.module !== 'whatsapp') return withIdempotency(authorized, name, key, input, execute);
+  if (capability.effect === 'write' && key && capability.module !== 'google' && capability.module !== 'whatsapp' && capability.module !== 'honorarios') return withIdempotency(authorized, name, key, input, execute);
   return execute();
 }
 

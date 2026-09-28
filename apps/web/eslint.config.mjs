@@ -44,6 +44,8 @@ const eslintConfig = defineConfig([
     ".wrangler/**",
     // Local data and browser audit artifacts can contain generated bundles.
     ".data/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

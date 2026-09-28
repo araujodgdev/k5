@@ -88,6 +88,7 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/app/agenda` | Escritório: tarefas, agenda, clientes, equipe, associados e convites |
 | `/invite/[token]` | Aceitar ou recusar um convite com a conta destinatária |
 | `/app/agenda/clients/[id]` | Detalhes do cliente, contato, casos e atividades |
+| `/app/honorarios` | Honorários: parcelas, recebimentos e saldos do escritório |
 | `/app/notifications` | Abre o painel de notificações (sino no rodapé do menu) |
 | `/app/research` | Pesquisa na web pela Exa, com histórico pessoal |
 | `/app/whatsapp` | Conversas do WhatsApp Business, para escritórios habilitados no piloto |
@@ -111,6 +112,12 @@ com operações também disponíveis ao agente e ao WebMCP. Veja o
 pessoal sincronizada e convites, Gmail, Drive e Docs; veja [configuração e homologação](docs/integracao-google.md).
 Os lembretes das atividades do escritório exigem o worker de notificações
 (`pnpm notifications:worker`) em execução.
+
+O módulo [Honorários](docs/honorarios.md) registra valores por cliente, com caso opcional,
+parcelas e recebimentos manuais. Cada pessoa controla seus honorários e os participantes
+dos casos vinculados podem consultar os valores. O dono corrige baixas com histórico
+e cancela honorários sem recebimentos. Não há emissão de cobrança
+bancária nesta versão.
 
 A integração WhatsApp Business usa Zernio e liberação por escritório via Flagship.
 Ela oferece caixa compartilhada e ferramentas do agente com confirmação de envio.

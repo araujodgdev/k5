@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { agendaCapabilities } from './agenda';
+import { honorariosCapabilities } from './honorarios';
 import { annexCapabilities } from './annexes';
 import { researchCapabilities } from './research';
 import { researchCaseCapabilities } from './research-case';
@@ -17,7 +18,7 @@ import type { OfficeRole } from '@/lib/offices';
 export type CapabilitySurface = 'agent' | 'webmcp';
 
 export type Capability = {
-  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'memory' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google' | 'whatsapp';
+  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'memory' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google' | 'whatsapp' | 'honorarios';
   description: string;
   effect: 'read' | 'write';
   roles: readonly OfficeRole[];
@@ -157,6 +158,7 @@ export const judicialAlertDto = z.object({
 
 export const capabilities = {
   ...agendaCapabilities,
+  ...honorariosCapabilities,
   ...annexCapabilities,
   ...researchCapabilities,
   ...researchCaseCapabilities,
