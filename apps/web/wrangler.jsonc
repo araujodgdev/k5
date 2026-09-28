@@ -25,7 +25,7 @@
     "instance_type": "basic",
     "constraints": { "regions": ["SAM"] }
   }],
-  // CHAT_RUNS holds each chat turn in flight, so Tises finishes an answer after the page closes.
+  // CHAT_RUNS holds each chat turn in flight, so the Lume finishes an answer after the page closes.
   "durable_objects": { "bindings": [
     { "name": "PROCESSORS", "class_name": "LumeProcessor" },
     { "name": "CHAT_RUNS", "class_name": "LumeChatRun" }
@@ -52,7 +52,7 @@
     }
   ],
 
-  // No cache binding on purpose. Tises serves per-office authenticated data, and an edge cache in
+  // No cache binding on purpose. Lume serves per-office authenticated data, and an edge cache in
   // front of a dynamic multi-tenant response is how one office ends up reading another's.
   "observability": {
     "enabled": true,

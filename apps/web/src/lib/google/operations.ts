@@ -69,7 +69,7 @@ const errorMessages: Record<string, string> = {
   not_found: 'O item não existe mais no Google.',
   conflict: 'O item mudou no Google. Atualize e tente novamente.',
   rate_limited: 'O Google limitou as solicitações. Tente novamente em instantes.',
-  unknown: 'Não foi possível confirmar se o Google concluiu a operação. O Tises vai verificar antes de permitir nova tentativa.',
+  unknown: 'Não foi possível confirmar se o Google concluiu a operação. O Lume vai verificar antes de permitir nova tentativa.',
 };
 
 function failureFrom(error: unknown): { status: 'failed' | 'unknown'; code: string; message: string; capability?: CapabilityError } {

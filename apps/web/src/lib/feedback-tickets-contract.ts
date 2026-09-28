@@ -21,14 +21,14 @@ export const authorStatusLabels: Record<TicketStatus, string> = { new: 'Recebido
 export const statusLabels: Record<TicketStatus, string> = { new: 'Novo', in_progress: 'Em análise', resolved: 'Resolvido', dismissed: 'Descartado' };
 export const kindLabels: Record<TicketKind, string> = { problem: 'Problema', suggestion: 'Sugestão', question: 'Dúvida', praise: 'Elogio', other: 'Outro' };
 export const moduleLabels: Record<TicketModule, string> = {
-  lume: 'Tises (chat)', cofre: 'Cofre', agenda: 'Agenda e clientes', pesquisa: 'Pesquisa', documentos: 'Minutas e documentos',
+  lume: 'Lume (chat)', cofre: 'Cofre', agenda: 'Agenda e clientes', pesquisa: 'Pesquisa', documentos: 'Minutas e documentos',
   email: 'E-mails', integracoes: 'Integrações', notificacoes: 'Notificações', conta: 'Conta e acesso', instalacao: 'Instalação', nao_identificado: 'Não identificado',
 };
 export const reportKindLabels: Record<ReportKind, string> = { problem: 'Problema', suggestion: 'Melhoria', question: 'Dúvida' };
 /** The places the person can point to, in the order of the app's navigation. */
 export const reportModules = ['lume', 'cofre', 'pesquisa', 'agenda', 'email', 'documentos', 'notificacoes', 'integracoes', 'conta', 'instalacao', 'nao_identificado'] as const satisfies readonly TicketModule[];
 export const reportModuleLabels: Record<(typeof reportModules)[number], string> = {
-  lume: 'Tises', cofre: 'Cofre', pesquisa: 'Pesquisa', agenda: 'Escritório', email: 'E-mails', documentos: 'Documentos e minutas',
+  lume: 'Lume', cofre: 'Cofre', pesquisa: 'Pesquisa', agenda: 'Escritório', email: 'E-mails', documentos: 'Documentos e minutas',
   notificacoes: 'Notificações', integracoes: 'Integrações', conta: 'Conta e acesso', instalacao: 'Instalação do aplicativo', nao_identificado: 'Outro lugar',
 };
 /** The module of the screen the person is on, as the dialog's first guess. */

@@ -10,7 +10,7 @@ export const metadata = { title: "Execuções · Administração" };
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: "America/Sao_Paulo" });
 const filters = [["", "Todas"], ["failed", "Com falha"], ["halted", "Interrompidas"], ["running", "Em andamento"]] as const;
 
-/** Tises' recent chat turns, newest first, to open one and follow what the agent did. */
+/** The Lume's recent chat turns, newest first, to open one and follow what the agent did. */
 export default async function PlatformTracesPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const context = await requirePlatformPage();
   if (!context) notFound();
@@ -18,7 +18,7 @@ export default async function PlatformTracesPage({ searchParams }: { searchParam
   const traces = await listAgentTraces(context.db, { status });
   return (
     <section>
-      <p className="max-w-3xl text-sm text-muted-foreground">Cada resposta do Tises nos últimos 30 dias: etapas do modelo, ferramentas, buscas e erros. Os registros trazem conteúdo de clientes; use-os só para depurar.</p>
+      <p className="max-w-3xl text-sm text-muted-foreground">Cada resposta do Lume nos últimos 30 dias: etapas do modelo, ferramentas, buscas e erros. Os registros trazem conteúdo de clientes; use-os só para depurar.</p>
       <nav aria-label="Filtrar execuções" className="mt-5 flex flex-wrap gap-1">
         {filters.map(([value, label]) => (
           <Link key={value} href={value ? `/app/admin/traces?status=${value}` : "/app/admin/traces"} aria-current={status === value ? "page" : undefined}
@@ -28,7 +28,7 @@ export default async function PlatformTracesPage({ searchParams }: { searchParam
       </nav>
       <div className="mt-6 overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <caption className="sr-only">Execuções recentes do Tises</caption>
+          <caption className="sr-only">Execuções recentes do Lume</caption>
           <thead className="border-b text-[13px] text-muted-foreground"><tr>
             <th className="py-3 pr-4 font-normal">Início</th><th className="px-4 py-3 font-normal">Escritório</th>
             <th className="hidden px-4 py-3 font-normal md:table-cell">Modelo</th><th className="px-4 py-3 font-normal">Resultado</th>

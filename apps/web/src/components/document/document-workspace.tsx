@@ -67,7 +67,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   onClose?: () => void;
   /** Present beside the chat: sends a request about a selected excerpt to the conversation. */
   onAsk?: (request: DocumentAsk) => Promise<void>;
-  /** Bumped by the chat when Tises changed this document. */
+  /** Bumped by the chat when the Lume changed this document. */
   revision?: number;
   ref?: Ref<DocumentWorkspaceHandle>;
 }) {
@@ -83,10 +83,10 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   const [editorKey, setEditorKey] = useState(0);
   // What the editor starts from; replaced (with a new key) whenever the stored text is reloaded.
   const [editorSeed, setEditorSeed] = useState("");
-  const [agentChanged, setAgentChanged] = useState(false);
+  const [lumeChanged, setLumeChanged] = useState(false);
   const [edits, setEdits] = useState(0);
   const [asked, setAsked] = useState(false);
-  // The previous version's blocks, when a reload came from Tises, so its changes can be marked.
+  // The previous version's blocks, when a reload came from the Lume, so its changes can be marked.
   const [highlightAgainst, setHighlightAgainst] = useState<string[] | null>(null);
   const [citations, setCitations] = useState<StoredCitations | null>(null);
   const [rechecking, setRechecking] = useState(false);
@@ -111,7 +111,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     setEditorSeed(next.content);
     setEditorKey((key) => key + 1);
     markState("saved");
-    setAgentChanged(false);
+    setLumeChanged(false);
     setError("");
     setPhase("ready");
   }, [markState]);
@@ -132,7 +132,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   const load = useCallback((highlight = false, preserveEdits = false) => {
     const previous = highlight ? editorRef.current?.blockTexts() ?? null : null;
     return fetchArtifact().then((next) => {
-      if (preserveEdits && saveStateRef.current !== "saved") { setAgentChanged(true); return; }
+      if (preserveEdits && saveStateRef.current !== "saved") { setLumeChanged(true); return; }
       apply(next); setHighlightAgainst(previous);
     }, fail);
   }, [fetchArtifact, apply, fail]);
@@ -148,7 +148,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     return () => controller.abort();
   }, [artifactId, fetchArtifact, apply, fail]);
 
-  // The citation check of the stored text; Tises' writes refresh it on the server.
+  // The citation check of the stored text; the Lume's writes refresh it on the server.
   const storedVersion = artifact?.version;
   useEffect(() => {
     if (!storedVersion) return;
@@ -231,30 +231,30 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     };
   }, [save]);
 
-  // Tises changed the document: reload, unless the person has words the reload would discard.
+  // The Lume changed the document: reload, unless the person has words the reload would discard.
   const seenRevision = useRef(revision);
   useEffect(() => {
     if (revision === seenRevision.current) return;
     seenRevision.current = revision;
     setAsked(false);
-    if (saveStateRef.current !== "saved") setAgentChanged(true);
+    if (saveStateRef.current !== "saved") setLumeChanged(true);
     else void load(true, true);
   }, [revision, load]);
 
   async function keepMine() {
-    // Tises' version stays in the history; the person's text becomes the newest version.
+    // The Lume's version stays in the history; the person's text becomes the newest version.
     const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}`, { cache: "no-store" });
     const latest = response.ok ? unwrap(await response.json()) : null;
     if (latest) versionRef.current = latest.version;
-    setAgentChanged(false);
+    setLumeChanged(false);
     markState("dirty");
     await save(true);
   }
 
-  // Tises reads the stored text, so what is on screen is saved as a version first.
+  // The Lume reads the stored text, so what is on screen is saved as a version first.
   async function ask(request: { excerpt: string; instruction: string }) {
     if (!onAsk) return;
-    if (!(await save(true)) && saveStateRef.current !== "saved") throw new Error("Salve o documento antes de pedir ao Tises.");
+    if (!(await save(true)) && saveStateRef.current !== "saved") throw new Error("Salve o documento antes de pedir ao Lume.");
     await onAsk({ artifactId, title: titleRef.current.trim() || "Documento sem título", ...request });
     setAsked(true);
   }
@@ -306,7 +306,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
         <div>
           <p className="text-sm text-destructive">{error || "Documento não encontrado."}</p>
           {onClose ? <Button variant="outline" className="mt-4" onClick={onClose}>Fechar</Button>
-            : <Button asChild variant="outline" className="mt-4"><Link href="/app/agents">Voltar ao Tises</Link></Button>}
+            : <Button asChild variant="outline" className="mt-4"><Link href="/app/agents">Voltar ao Lume</Link></Button>}
         </div>
       </div>
     );
@@ -354,16 +354,16 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
         <span className="ml-auto hidden truncate pl-3 text-xs text-subtle-foreground md:inline">{templateName ? `Modelo: ${templateName}` : "Sem modelo de documento"}</span>
       </div>
 
-      {asked && !agentChanged && (
+      {asked && !lumeChanged && (
         <div className="flex flex-wrap items-center gap-2 border-b border-l-2 border-l-brand px-4 py-2 text-sm" role="status">
-          <span className="min-w-0 flex-1">Pedido enviado ao Tises. A alteração aparece aqui quando ele terminar.</span>
+          <span className="min-w-0 flex-1">Pedido enviado ao Lume. A alteração aparece aqui quando ele terminar.</span>
           {onClose && <Button size="sm" variant="ghost" className="min-h-11 lg:hidden" onClick={() => void close()}>Ver conversa</Button>}
         </div>
       )}
-      {agentChanged && (
+      {lumeChanged && (
         <div className="flex flex-wrap items-center gap-2 border-b border-l-2 border-l-brand px-4 py-2 text-sm" role="status">
-          <span className="min-w-0 flex-1">O Tises alterou este documento enquanto você editava.</span>
-          <Button size="sm" variant="outline" className="min-h-11 md:min-h-8" onClick={() => void load(true)}>Ver versão do Tises</Button>
+          <span className="min-w-0 flex-1">O Lume alterou este documento enquanto você editava.</span>
+          <Button size="sm" variant="outline" className="min-h-11 md:min-h-8" onClick={() => void load(true)}>Ver versão do Lume</Button>
           <Button size="sm" variant="ghost" className="min-h-11 md:min-h-8" onClick={() => void keepMine()}>Manter a minha</Button>
         </div>
       )}

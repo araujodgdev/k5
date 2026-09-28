@@ -14,7 +14,7 @@ import { abacatePayClient, AbacatePayError, type AbacateCheckout, type AbacatePa
  * page opens, which is also what makes the flow work locally, where no webhook can reach us.
  */
 
-export const PLAN_NAME = 'Plano Tises';
+export const PLAN_NAME = 'Plano Lume';
 const DEFAULT_PRICE = 19_900;
 /** A pending checkout is reused for this long instead of opening another. */
 const REUSE_MINUTES = 30;
@@ -60,7 +60,7 @@ async function planProduct(client: AbacatePayClient, price: number, recurring = 
     pending = client.getProduct(externalId).then(product => product.id, async (error) => {
       // v2 currently returns 400 with this message for a missing product.
       if (!(error instanceof AbacatePayError) || !(error.status === 404 || (error.status === 400 && error.message === 'Product not found'))) throw error;
-      const product = await client.createProduct({ externalId, name: PLAN_NAME, price, description: recurring ? 'Assinatura mensal do Tises.' : 'Um mês do Tises para o escritório.', ...(recurring ? { cycle: 'MONTHLY' as const } : {}) });
+      const product = await client.createProduct({ externalId, name: PLAN_NAME, price, description: recurring ? 'Assinatura mensal do Lume.' : 'Um mês do Lume para o escritório.', ...(recurring ? { cycle: 'MONTHLY' as const } : {}) });
       return product.id;
     });
     products.set(externalId, pending);

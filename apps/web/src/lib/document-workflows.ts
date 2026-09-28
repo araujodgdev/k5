@@ -84,7 +84,7 @@ export async function validateRunSources(context: WorkspaceContext, input: RunIn
   const pinnedResearchReferences = [...new Map(researchSources.map(source => [source.researchReferenceId!,
     { referenceId: source.researchReferenceId!, materialVersionId: source.materialVersionId! }])).values()];
   const template = input.templateId ? await selectedSources(officeId, [input.templateId]) : [];
-  if (input.kind === 'draft' && !template.length) throw new Error(input.templateId ? 'O modelo de documento ainda está em processamento no Cofre.' : 'Selecione um modelo ou defina o modelo padrão em Personalizar Tises.');
+  if (input.kind === 'draft' && !template.length) throw new Error(input.templateId ? 'O modelo de documento ainda está em processamento no Cofre.' : 'Selecione um modelo ou defina o modelo padrão em Personalizar Lume.');
   const candidates = citationCandidates([...sources, ...researchSources, ...template]);
   const approved = input.approvedCitationIds.map(id => {
     const item = candidates.find(c => c.id === id);
@@ -189,7 +189,7 @@ async function executeRun(run: RunRow) {
     current.id === citation.id && current.text === citation.text && current.materialVersionId === citation.materialVersionId)))
     throw new Error('Uma citação aprovada deixou de corresponder ao material fixado.');
   const idSchema = z.object({ runId: z.string() });
-  // SQL checkpoints are intentionally owned by Tises. A worker can recreate this workflow
+  // SQL checkpoints are intentionally owned by Lume. A worker can recreate this workflow
   // after process loss and skip completed per-document / per-section steps.
   const analyze = createStep({ id: 'analyze', inputSchema: idSchema, outputSchema: idSchema, execute: async () => {
     await progress(run, 5);

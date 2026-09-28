@@ -108,7 +108,7 @@ export function WhatsAppConnectionPanel({ initialStatus }: { initialStatus?: Con
     </>}
     <Dialog open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Desconectar o WhatsApp?</DialogTitle><DialogDescription>O Tises deixará de receber e enviar mensagens desta conta. Você poderá conectar a conta novamente em Integrações.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Desconectar o WhatsApp?</DialogTitle><DialogDescription>O Lume deixará de receber e enviar mensagens desta conta. Você poderá conectar a conta novamente em Integrações.</DialogDescription></DialogHeader>
         <DialogFooter><Button variant="outline" disabled={busy} onClick={() => setConfirmDisconnect(false)}>Cancelar</Button><Button disabled={busy} onClick={() => void disconnect()}>{action === 'disconnecting' ? 'Desconectando…' : 'Desconectar'}</Button></DialogFooter>
       </DialogContent>
     </Dialog>

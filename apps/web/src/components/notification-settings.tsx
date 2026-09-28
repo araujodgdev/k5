@@ -24,7 +24,7 @@ type Device = {
 type PushConfig = { available: boolean; publicKey: string | null; keyId: string | null; authorizationGeneration: number };
 
 const categoryLabels: Record<Exclude<NotificationCategory, "system">, string> = {
-  agenda: "Escritório", vault: "Cofre", documents: "Tises e documentos", judicial: "Judicial",
+  agenda: "Escritório", vault: "Cofre", documents: "Lume e documentos", judicial: "Judicial",
 };
 
 function readError(response: Response, fallback: string) {
@@ -208,7 +208,7 @@ export function NotificationSettings() {
           {pushStatus === "active" && <p className="text-sm font-medium">Ativadas neste dispositivo</p>}
           {pushStatus === "active" && currentDevice && <Button variant="outline" className="min-h-11 md:min-h-9" disabled={busy === `test-${currentDevice.id}`} onClick={() => void sendTest(currentDevice)}>{busy === `test-${currentDevice.id}` ? "Enfileirando…" : "Enviar teste"}</Button>}
         </div>
-        {(support === "unsupported" || support === "blocked") && /iPhone|iPad/.test(navigator.userAgent) && <p className="mt-3 text-sm text-muted-foreground">No iPhone ou iPad, instale o Tises na Tela de Início pelo Safari e ative os avisos dentro do aplicativo instalado.</p>}
+        {(support === "unsupported" || support === "blocked") && /iPhone|iPad/.test(navigator.userAgent) && <p className="mt-3 text-sm text-muted-foreground">No iPhone ou iPad, instale o Lume na Tela de Início pelo Safari e ative os avisos dentro do aplicativo instalado.</p>}
       </div>
 
       {devices.length > 0 && <div className="border-t pt-5"><h3 className="font-medium">Dispositivos</h3><div className="mt-2">{devices.map((device) => <div key={device.id} className="flex flex-wrap items-center gap-3 border-b py-3 text-sm"><span className="min-w-0 flex-1 truncate">{device.deviceId === (typeof window === "undefined" ? "" : deviceId()) ? "Este dispositivo" : device.deviceLabel || "Dispositivo"}</span><span className="text-muted-foreground">{device.state === "active" ? "Ativo" : "Revogado"}</span>{device.state === "active" && <Button variant="ghost" className="min-h-11 md:min-h-9" disabled={busy === device.id} onClick={() => void revokeDevice(device)}>{busy === device.id ? "Revogando…" : "Revogar"}</Button>}</div>)}</div></div>}

@@ -1,6 +1,6 @@
 # WhatsApp Business
 
-O Tises compartilha uma caixa de conversas individuais por escritório. A conexão usa o fluxo de coexistência da Zernio com o WhatsApp Business App. A elegibilidade do número e o histórico autorizado precisam ser conferidos no fluxo real do titular.
+O Lume compartilha uma caixa de conversas individuais por escritório. A conexão usa o fluxo de coexistência da Zernio com o WhatsApp Business App. A elegibilidade do número e o histórico autorizado precisam ser conferidos no fluxo real do titular.
 
 Administradores conectam e desconectam o número em Integrações. Administradores e advogados respondem a conversas existentes. Revisores consultam o histórico. O envio aceita texto ou um arquivo por mensagem, dentro das 24 horas posteriores à última mensagem recebida do cliente. Templates, grupos, campanhas, novos destinatários e respostas automáticas não fazem parte desta versão.
 
@@ -8,7 +8,7 @@ A caixa atualiza automaticamente enquanto está visível. Um botão de recupera�
 
 ## Mídias e documentos
 
-Arquivos são enviados como multipart autenticado à Zernio. O recebimento usa o identificador de mídia do webhook e a rota autenticada do provedor. Os bytes ficam no armazenamento privado do Tises; a interface recebe uma rota autorizada por sessão e escritório. Nenhuma chave de API ou URL pública de armazenamento vai ao navegador.
+Arquivos são enviados como multipart autenticado à Zernio. O recebimento usa o identificador de mídia do webhook e a rota autenticada do provedor. Os bytes ficam no armazenamento privado do Lume; a interface recebe uma rota autorizada por sessão e escritório. Nenhuma chave de API ou URL pública de armazenamento vai ao navegador.
 
 | Arquivo | Limite por envio |
 | --- | --- |
@@ -65,7 +65,7 @@ Chaves substituídas ou conhecidas após uma tentativa cancelada são revogadas 
 
 ## Homologação
 
-Os testes usam PostgreSQL real e respostas controladas nas fronteiras Zernio/Flagship. Eles não comprovam coexistência, elegibilidade ou entrega ao aparelho. Antes de liberar um número, confira a conexão no aplicativo e no Tises, o recebimento nas duas superfícies, o reflexo de uma resposta pelo aplicativo, os IDs de conversa entre REST e webhook e a desconexão.
+Os testes usam PostgreSQL real e respostas controladas nas fronteiras Zernio/Flagship. Eles não comprovam coexistência, elegibilidade ou entrega ao aparelho. Antes de liberar um número, confira a conexão no aplicativo e no Lume, o recebimento nas duas superfícies, o reflexo de uma resposta pelo aplicativo, os IDs de conversa entre REST e webhook e a desconexão.
 
 A documentação da Zernio contém descrições conflitantes sobre o identificador da conversa WhatsApp. O adaptador segue `InboxWebhookConversation.platformConversationId` como o ID usado pela listagem e pelas operações REST. A homologação precisa confirmar isso com eventos reais, sem correlacionar conversas apenas por texto.
 

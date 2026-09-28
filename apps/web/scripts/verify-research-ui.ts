@@ -169,13 +169,13 @@ try {
     await sources.getByRole('button', { name: /Julgado 01.*Selecionar/ }).click();
     await sources.getByRole('button', { name: 'Fechar fontes' }).click();
     await expect(page.getByRole('button', { name: 'Fontes (1)' })).toBeVisible();
-    await snapshot('12-referencia-no-tises');
-    checks.push('referência selecionada como fonte do Tises');
+    await snapshot('12-referencia-no-lume');
+    checks.push('referência selecionada como fonte do Lume');
     checks.push('chat usa o modelo configurado para o escritório');
-    await page.getByRole('textbox', { name: 'Pergunte ao Tises' }).fill('Na AMOSTRA DE TESTE selecionada, qual é a questão jurídica? Responda em uma frase e indique que o julgado é fictício.');
+    await page.getByRole('textbox', { name: 'Pergunte ao Lume' }).fill('Na AMOSTRA DE TESTE selecionada, qual é a questão jurídica? Responda em uma frase e indique que o julgado é fictício.');
     await page.getByRole('button', { name: 'Enviar mensagem' }).click();
     await expect(page.getByRole('button', { name: 'Copiar resposta' }).last()).toBeEnabled({ timeout: 90000 });
-    await snapshot('13-tises-stream');
+    await snapshot('13-lume-stream');
     checks.push('prompt enviado e resposta recebida por streaming real');
     }
   }

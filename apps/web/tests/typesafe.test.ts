@@ -189,7 +189,7 @@ test('agenda interpretation: no mutation, no invented meeting end, owner-scoped 
   assert.equal((await testDb.prepare('SELECT count(*) AS n FROM agenda_activity WHERE office_id=?').get(context.officeId))!.n, 0);
   await assert.rejects(runCapability(other, 'k5_agenda_get_proposal', { proposalId: result.proposal.id }), { code: 'NOT_FOUND' });
 });
-test('agenda autonomy: Tises saves activities itself, WebMCP only suggests', async () => {
+test('agenda autonomy: the Lume saves activities itself, WebMCP only suggests', async () => {
   const context = (await fixture());
   const catalog = publishedCapabilitiesForRole('lawyer', 'webmcp');
   assert.ok(catalog.includes('k5_agenda_interpret')); assert.ok(!catalog.includes('k5_agenda_create_activity')); assert.ok(!catalog.includes('k5_agenda_apply_proposal'));

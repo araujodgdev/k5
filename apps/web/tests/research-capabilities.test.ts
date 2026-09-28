@@ -17,7 +17,7 @@ async function actor(role: WorkspaceContext['role'] = 'lawyer', officeId: string
 
 test('somente leituras de acervo, julgado e referências são publicadas', async () => {
   const names = ['k5_research_search_corpus', 'k5_research_get_judgment', 'k5_research_list_references'];
-  // Scoring the case law Tises found on the web is a read it runs itself.
+  // Scoring the case law the Lume found on the web is a read it runs itself.
   assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'agent').filter(name => capabilities[name].module === 'research'), ['k5_research_score_jurisprudence', ...names]);
   assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'webmcp').filter(name => capabilities[name].module === 'research'), names);
   assert.ok(capabilitiesForRole('reviewer').filter(name => capabilities[name].module === 'research')

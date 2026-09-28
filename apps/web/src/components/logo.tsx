@@ -1,11 +1,12 @@
-import { TisesLogo, TisesMark } from "@/components/tises-logo";
+import { LumeMark } from "@/components/lume-mark";
 import { cn } from "@/lib/utils";
 
-/** Tises logo for compact places: the mark with its name, or the mark alone. Inherits color. */
+/** Lume wordmark. Inherits color and keeps the geometric mark tied to its name. */
 export function Logo({ height = 20, className, markOnly = false }: { height?: number; className?: string; markOnly?: boolean }) {
   return (
-    <span className={cn("inline-flex shrink-0 items-center", className)} aria-hidden="true">
-      {markOnly ? <TisesMark width={height} height={height} focusable="false" /> : <TisesLogo size={height} />}
+    <span className={cn("inline-flex shrink-0 items-center", className)} style={{ gap: height * 0.32 }} aria-hidden="true">
+      <LumeMark width={height} height={height} focusable="false" />
+      {!markOnly && <span className="font-medium leading-none tracking-[-0.045em]" style={{ fontSize: height * 1.18 }}>Lume</span>}
     </span>
   );
 }

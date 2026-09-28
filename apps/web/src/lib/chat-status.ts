@@ -1,5 +1,5 @@
 /**
- * What Tises is doing right now, in one short line under the answer. The chat turn sends it as a
+ * What Lume is doing right now, in one short line under the answer. The chat turn sends it as a
  * transient part (never stored), so it works with any provider, whether or not it streams reasoning.
  */
 export type ChatStatus = { label: string };

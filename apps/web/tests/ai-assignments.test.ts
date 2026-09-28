@@ -299,7 +299,7 @@ test('a measured model reports usage from generated and streamed answers, throug
   const seen: unknown[] = [];
   const measured = measuredModel(model, reported => seen.push(reported));
   // The detector's own agent answers with structured output, as here.
-  const agent = new Agent({ id: 'k5', name: 'Tises', instructions: 'Teste.', model: measured as never });
+  const agent = new Agent({ id: 'k5', name: 'Lume', instructions: 'Teste.', model: measured as never });
   new Mastra({ agents: { k5: agent }, logger: noopLogger });
   const result = await agent.generate('Responda.', { structuredOutput: { schema: z.object({ ok: z.boolean() }) } });
   assert.deepEqual(result.object, { ok: true });

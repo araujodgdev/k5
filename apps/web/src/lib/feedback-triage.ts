@@ -21,7 +21,7 @@ const kindCriteria: Record<TicketKind, string> = {
   other: 'Não se encaixa nas opções anteriores ou não dá para entender o pedido.',
 };
 const moduleCriteria: Record<TicketModule, string> = {
-  lume: 'Tises: o chat com o assistente de IA, respostas, anexos, câmera e fontes da conversa.',
+  lume: 'Lume: o chat com o assistente de IA, respostas, anexos, câmera e fontes da conversa.',
   cofre: 'Cofre: casos, pastas, envio, leitura e busca de documentos do escritório.',
   agenda: 'Tarefas, agenda, reuniões e cadastro de clientes.',
   pesquisa: 'Pesquisa de jurisprudência, julgados e referências do caso.',

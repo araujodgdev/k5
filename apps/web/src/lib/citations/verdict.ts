@@ -8,10 +8,10 @@ type Answer = z.infer<typeof decisionAnswer> | undefined;
 
 export type CitationKind = 'statute' | 'precedent';
 /**
- * verified: the source Tises consulted is the one cited and backs the paragraph.
+ * verified: the source the Lume consulted is the one cited and backs the paragraph.
  * weak: it is the source, but backs the paragraph only partly, or Jev is unsure.
  * contradicted: the source says the opposite.
- * no_source: nothing Tises consulted is this authority; it came from memory.
+ * no_source: nothing the Lume consulted is this authority; it came from memory.
  * unchecked: sources may exist, but Jev did not judge them (disabled, shadow or unavailable).
  */
 export type CitationStatus = 'verified' | 'weak' | 'contradicted' | 'no_source' | 'unchecked';

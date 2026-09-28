@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     // Refuses references outside the selected case before anything is stored.
     if (body.researchReferenceIds.length) await selectedResearchSources(context, body.caseId!, body.researchReferenceIds);
     const config = await planTaskModel('agent.chat');
-    if (config.status !== 'ready') throw new ApiError(503, 'O Tises está indisponível no momento. Peça ao administrador para conferir a configuração de IA.');
+    if (config.status !== 'ready') throw new ApiError(503, 'O Lume está indisponível no momento. Peça ao administrador para conferir a configuração de IA.');
 
     const locked = await database.prepare('UPDATE ai_conversation SET busy_until=? WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(Date.now() + TURN_LOCK_MS, id, (office).officeId, user.id, Date.now());
     if (!locked.changes) throw new ApiError(409, 'Aguarde a resposta atual.');
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
         ? []
         : (await Promise.all(body.attachments.filter(item => item.mediaType.startsWith('audio/')).map(item =>
           transcribeVoiceNote(owner, { mediaType: item.mediaType, bytes: Buffer.from(item.data, 'base64') }, request.signal).catch(error => {
-            if (error instanceof TranscriptionError && error.reason === 'unsupported') throw new ApiError(400, 'O Tises não aceita áudio nesta configuração.');
+            if (error instanceof TranscriptionError && error.reason === 'unsupported') throw new ApiError(400, 'O Lume não aceita áudio nesta configuração.');
             // A configuration problem: retrying cannot help and it is not an operational failure.
             if (error instanceof TranscriptionError && error.reason === 'unavailable') throw new ApiError(503, 'A transcrição está indisponível no momento. Escreva a mensagem ou tente mais tarde.');
             captureOperationalError(error, 'chat.audio.transcription');

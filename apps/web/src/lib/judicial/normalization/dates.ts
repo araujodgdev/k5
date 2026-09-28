@@ -86,7 +86,7 @@ export function parseSourceDate(input: string | null | undefined): SourceDate | 
   return null;
 }
 
-/** The instant Tises acted, always UTC and always at second precision. */
+/** The instant Lume acted, always UTC and always at second precision. */
 export function nowIso(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 }

@@ -7,7 +7,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import { TableKit } from "@tiptap/extension-table";
 import { ArrowUp, Bold, Heading2, Italic, List, ListOrdered, LoaderCircle, Quote, Redo2, Table, Undo2 } from "lucide-react";
-import { AgentMark } from "@/components/agent-mark";
+import { LumeMark } from "@/components/lume-mark";
 import { ChangeHighlight, changeHighlightKey, highlightDecorations } from "./change-highlight";
 import { blockTexts, changedBlocks } from "./change-blocks";
 import { DecorationSet } from "@tiptap/pm/view";
@@ -15,10 +15,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export type RichEditorHandle = {
-  /** Replaces the text without counting as an edit, e.g. after Tises changed the document. */
+  /** Replaces the text without counting as an edit, e.g. after the Lume changed the document. */
   setMarkdown: (markdown: string) => void;
   focus: () => void;
-  /** The text of each block, to compare with the next version when Tises changes it. */
+  /** The text of each block, to compare with the next version when the Lume changes it. */
   blockTexts: () => string[];
 };
 
@@ -35,7 +35,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   onSave?: () => void;
   style?: CSSProperties;
   label: string;
-  /** Sends the selected text and what to change about it to Tises; absent hides the option. */
+  /** Sends the selected text and what to change about it to the Lume; absent hides the option. */
   onAsk?: (request: { excerpt: string; instruction: string }) => Promise<void>;
   /** Block texts of the version before this one; blocks not among them are marked for a moment. */
   highlightAgainst?: string[] | null;
@@ -152,8 +152,8 @@ function Tool({ label, pressed, disabled, onClick, children }: { label: string; 
 }
 
 /**
- * A selection gets one action: ask Tises to change just that. The request goes to the
- * conversation with the excerpt, and Tises answers by editing the document.
+ * A selection gets one action: ask the Lume to change just that. The request goes to the
+ * conversation with the excerpt, and the Lume answers by editing the document.
  */
 function AskMenu({ editor, onAsk }: { editor: Editor; onAsk: (request: { excerpt: string; instruction: string }) => Promise<void> }) {
   const [asking, setAsking] = useState<string | null>(null);
@@ -189,7 +189,7 @@ function AskMenu({ editor, onAsk }: { editor: Editor; onAsk: (request: { excerpt
       className="z-20 rounded-md border bg-popover text-popover-foreground shadow-[var(--shadow-float)]">
       {asking === null ? (
         <Button type="button" variant="ghost" size="sm" className="min-h-11 md:min-h-8" onMouseDown={(event) => event.preventDefault()} onClick={start}>
-          <AgentMark className="size-4 text-brand" aria-hidden="true" />Pedir ao Tises
+          <LumeMark className="size-4 text-brand" aria-hidden="true" />Pedir ao Lume
         </Button>
       ) : (
         <form onSubmit={(event) => void submit(event)} className="grid w-[min(22rem,calc(100vw-2rem))] gap-1.5 p-2">
@@ -198,7 +198,7 @@ function AskMenu({ editor, onAsk }: { editor: Editor; onAsk: (request: { excerpt
             <input id="document-ask" autoFocus value={instruction} onChange={(event) => setInstruction(event.target.value)} maxLength={2000} disabled={busy}
               onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); reset(); editor.commands.focus(); } }}
               placeholder="O que mudar neste trecho?" className="h-11 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm outline-none placeholder:text-subtle-foreground focus-visible:ring-2 focus-visible:ring-ring md:h-9" />
-            <Button type="submit" size="icon" className="size-11 md:size-9" disabled={busy || !instruction.trim()} aria-label="Enviar ao Tises">
+            <Button type="submit" size="icon" className="size-11 md:size-9" disabled={busy || !instruction.trim()} aria-label="Enviar ao Lume">
               {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}
             </Button>
           </div>

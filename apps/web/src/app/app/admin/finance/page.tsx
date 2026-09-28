@@ -17,7 +17,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const data = await platformFinance(filters);
   function href(page: number) { return `/app/admin/finance?${new URLSearchParams({ environment: filters.sandbox ? 'sandbox' : 'production', days: String(filters.days),status: filters.status,q: filters.query,page: String(page) })}`; }
   return <section className="space-y-6">
-    <div><h2 className="text-2xl tracking-tight">Financeiro</h2><p className="mt-2 text-sm text-muted-foreground">Cobranças dos clientes do Tises. {filters.sandbox ? 'Exibindo pagamentos de teste, sem movimentação real.' : 'Exibindo pagamentos reais.'}</p></div>
+    <div><h2 className="text-2xl tracking-tight">Financeiro</h2><p className="mt-2 text-sm text-muted-foreground">Cobranças dos clientes do Lume. {filters.sandbox ? 'Exibindo pagamentos de teste, sem movimentação real.' : 'Exibindo pagamentos reais.'}</p></div>
     <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_9rem_9rem_12rem_auto] lg:items-end">
       <label className="grid gap-1.5 text-xs">Cliente<Input name="q" defaultValue={filters.query} placeholder="Buscar escritório" className="h-11 md:h-9" /></label>
       <label className="grid gap-1.5 text-xs">Ambiente<select className={selectStyle} name="environment" defaultValue={filters.sandbox ? 'sandbox' : 'production'}><option value="production">Produção</option><option value="sandbox">Teste</option></select></label>

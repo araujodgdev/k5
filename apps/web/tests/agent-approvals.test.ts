@@ -82,7 +82,7 @@ test('agent approvals: gated calls in the agent stream become a Confirmar each, 
   ];
   const model = new MockLanguageModelV4({ doStream: async () => ({ stream: simulateReadableStream({ chunks: turns.shift() ?? [] }) }) as never });
   const pending: ApprovalRequest[] = [];
-  const tises = new Agent({ id: 'k5', name: 'Tises', instructions: 'Teste.', model, tools: agentTools(agent, request => pending.push(request)) } as ConstructorParameters<typeof Agent>[0]);
+  const tises = new Agent({ id: 'k5', name: 'Lume', instructions: 'Teste.', model, tools: agentTools(agent, request => pending.push(request)) } as ConstructorParameters<typeof Agent>[0]);
   new Mastra({ agents: { k5: tises }, logger: noopLogger });
 
   // A tool that throws reaches the stream as `tool-error`; the chat read only `tool-result`,

@@ -28,7 +28,7 @@ async function bindSubscription(tx: Transaction, provider: AbacateSubscription) 
   return row!;
 }
 
-/** A provider ID is bound only through a checkout created by Tises, never by customer/metadata. */
+/** A provider ID is bound only through a checkout created by Lume, never by customer/metadata. */
 export async function syncOfficeSubscriptions(officeId: string, client: AbacatePayClient = billingClient()) {
   const rows = await subscriptionsForOffice(officeId);
   for (const checkoutId of new Set(rows.map(row => row.checkoutId))) {

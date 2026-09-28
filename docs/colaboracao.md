@@ -13,7 +13,7 @@
   permite alternar os escritórios sem perder o original.
 
 Os convites expiram em sete dias e podem ser cancelados antes do aceite. Contas existentes
-recebem o convite dentro do Tises. O criador também recebe um link que pode copiar e
+recebem o convite dentro do Lume. O criador também recebe um link que pode copiar e
 compartilhar. **Não há envio automático por e-mail.** Para um endereço ainda sem conta,
 o destinatário precisa do link secreto e deve entrar ou cadastrar-se com aquele e-mail.
 O banco guarda apenas o hash do token; o link completo é apresentado quando criado.
@@ -36,7 +36,7 @@ A permissão **Pode convidar** é independente da edição. Quando delegada, per
 para o mesmo caso, com acesso igual ou menor, sem delegar essa permissão a terceiros.
 Somente a equipe responsável gerencia as permissões e remove participantes.
 
-**Conversar sobre o caso** seleciona o caso no Tises e usa suas fontes autorizadas.
+**Conversar sobre o caso** seleciona o caso no Lume e usa suas fontes autorizadas.
 Conversas, memória pessoal, rascunhos de documentos e conexões Google continuam pessoais;
 aceitar um convite não compartilha esses dados. Processos judiciais e tarefas de Pesquisa
 executadas pelo escritório permanecem disponíveis à equipe. As referências já vinculadas

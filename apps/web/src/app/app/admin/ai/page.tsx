@@ -16,7 +16,7 @@ export const metadata = { title: 'IA · Administração' };
 /** OpenAI's transcription endpoint models; the registry lists chat models only. */
 const TRANSCRIPTION_MODELS = ['gpt-4o-mini-transcribe', 'gpt-4o-transcribe', 'whisper-1'];
 
-/** The platform's AI, configured once for every office: Tises' models per task, its connections and TypeSafe. */
+/** The platform's AI, configured once for every office: Lume's models per task, its connections and TypeSafe. */
 export default async function PlatformAiPage() {
   const context = await requirePlatformPage();
   if (!context) notFound();
@@ -40,7 +40,7 @@ export default async function PlatformAiPage() {
   return (
     <div className="grid gap-12">
       <section aria-labelledby="ai-agent-title">
-        <h2 id="ai-agent-title" className="text-2xl">Tises</h2>
+        <h2 id="ai-agent-title" className="text-2xl">Lume</h2>
         <p className="mt-1 mb-8 max-w-3xl text-sm text-muted-foreground">Os modelos e os provedores que respondem em todos os escritórios: conversas, e-mails, cronologias, minutas, anexos e a busca do Cofre.</p>
         <AiTaskModels initial={overview} catalogs={{ chat, transcription }} />
         <PlatformConnections initialConnections={connections} usage={usage} />

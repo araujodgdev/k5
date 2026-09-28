@@ -35,9 +35,9 @@ function content(row: ClaimedEmail) {
   const sender = row.sender_name.replace(/[\r\n\u0000-\u001f]/g, ' ').slice(0, 120);
   const text = body.kind === 'text' ? body.text : body.kind === 'document_share'
     ? `${sender} compartilhou o documento "${body.name}".` : `${sender} convidou você para o caso "${body.caseName}".`;
-  const note = 'Esta mensagem foi enviada pelo Tises. Respostas por e-mail não entram na conversa.';
-  return { subject: `Nova mensagem de ${sender}`, text: `${text}\n\nAbrir no Tises: ${link}\n\n${note}`,
-    html: `<p style="white-space:pre-wrap">${escapeHtml(text)}</p><p><a href="${escapeHtml(link)}">Abrir no Tises</a></p><p>${note}</p>` };
+  const note = 'Esta mensagem foi enviada pelo Lume. Respostas por e-mail não entram na conversa.';
+  return { subject: `Nova mensagem de ${sender}`, text: `${text}\n\nAbrir no Lume: ${link}\n\n${note}`,
+    html: `<p style="white-space:pre-wrap">${escapeHtml(text)}</p><p><a href="${escapeHtml(link)}">Abrir no Lume</a></p><p>${note}</p>` };
 }
 
 async function claim(): Promise<ClaimedEmail | undefined> {

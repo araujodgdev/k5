@@ -1,4 +1,4 @@
-# Tises
+# Lume
 
 Monorepo pnpm + Turborepo. Frontend em Next.js 16, TypeScript e Tailwind CSS.
 Autenticação com Better Auth e PostgreSQL. Workers Cloudflare acessam o banco pelo Hyperdrive.
@@ -14,7 +14,7 @@ pnpm install
 pnpm dev
 ```
 
-Abra http://localhost:3000. A raiz é a página pública do Tises; o acesso fica em `/sign-in`.
+Abra http://localhost:3000. A raiz é a página pública do Lume; o acesso fica em `/sign-in`.
 `pnpm dev` prepara o PostgreSQL e gera `apps/web/.env.local` com um segredo aleatório,
 caso ainda não exista configuração. Não sobrescreve dados nem segredos existentes.
 No primeiro acesso, escolha **Criar conta** para cadastrar seu escritório.
@@ -83,7 +83,7 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/sign-up` | Criar conta |
 | `/app` | Redireciona para o Início |
 | `/app/command-center` | Início: resumo do escritório e ações rápidas |
-| `/app/agents` | Tises, assistente do escritório |
+| `/app/agents` | Lume, assistente do escritório |
 | `/app/vault` | Cofre |
 | `/app/agenda` | Escritório: tarefas, agenda, clientes, equipe, associados e convites |
 | `/invite/[token]` | Aceitar ou recusar um convite com a conta destinatária |
@@ -95,7 +95,7 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/app/admin` | Administração da plataforma: feedback, conexões de IA por escritório e TypeSafe |
 
-As áreas de `/app` exigem sessão válida no servidor. Início, Tises, Cofre e Tarefas e Agenda estão implementados.
+As áreas de `/app` exigem sessão válida no servidor. Início, Lume, Cofre e Tarefas e Agenda estão implementados.
 `/app/admin` exige o papel de administrador da plataforma; os endereços antigos em `/platform` redirecionam para lá.
 Tarefas de documentos precisam do worker (`pnpm worker`) em execução; veja
 [`apps/web/README.md`](apps/web/README.md).
@@ -103,7 +103,7 @@ A consulta a tribunais também precisa de `pnpm judicial:worker` e de uma instal
 habilitada pelo operador. A extração de PDF e as avaliações de Pesquisa usam `pnpm worker`.
 Veja [operação da Pesquisa](apps/web/README.md#pesquisa-de-jurisprudência).
 A interface usa pt-BR, temas claro/escuro (ou o tema do sistema) e sidebar responsiva.
-O Tises pode ser instalado como PWA; veja [instalação e funcionamento offline](apps/web/README.md#pwa-e-temas).
+O Lume pode ser instalado como PWA; veja [instalação e funcionamento offline](apps/web/README.md#pwa-e-temas).
 
 Tarefas e Agenda reúne clientes, vínculos com casos do Cofre, tarefas e reuniões internas,
 com operações também disponíveis ao agente e ao WebMCP. Veja o
@@ -117,7 +117,7 @@ Ela oferece caixa compartilhada e ferramentas do agente com confirmação de env
 Veja [configuração e homologação](apps/web/docs/integracao-whatsapp.md) e
 [verificação local](apps/web/docs/whatsapp-verificacao.md).
 
-O módulo [Mensagens](docs/mensagens.md) permite conversar com outras pessoas no Tises
+O módulo [Mensagens](docs/mensagens.md) permite conversar com outras pessoas no Lume
 e compartilhar documentos e casos do Cofre. Destinatários externos recebem e-mail;
 respostas por e-mail não são importadas nesta versão. O envio externo exige a
 configuração do Cloudflare Email Service e o worker de integrações.

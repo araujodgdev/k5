@@ -167,7 +167,7 @@ test("connection test accepts any enabled connection, hides provider failures an
   // A connection that serves a task is tested with that task's model.
   assert.deepEqual(await testAiConnection(database, key, admin, extraction.id, ok), { modelId: "claude-extract" });
   assert.deepEqual(sent, ["sk-extract-test-secret:claude-extract"]);
-  // One that serves nothing directly is tested with Tises' default for its provider.
+  // One that serves nothing directly is tested with Lume's default for its provider.
   assert.deepEqual(await testAiConnection(database, key, admin, chat.id, ok), { modelId: DEFAULT_CHAT_MODEL.openai });
   await assert.rejects(testAiConnection(database, key, admin, legacy, ok), (error) => error instanceof AiConnectionError && error.code === "not_found");
   const leaky = async () => { throw new Error("401 Incorrect API key provided: sk-cha****cret"); };
@@ -239,7 +239,7 @@ test("concurrent resolution binds the platform credential to the model, and disa
   const disabled = await Promise.allSettled([resolve(), resolve()]);
   // An explicit choice that broke is reported, never replaced by another connection.
   assert.ok(disabled.every((item) => item.status === "rejected" && item.reason instanceof AiConnectionError && item.reason.code === "unavailable"));
-  // Clearing the choice does not disable Tises: it supplies the model for the provider.
+  // Clearing the choice does not disable Lume: it supplies the model for the provider.
   await updateAiConnection(database, key, admin, platform.id, { enabled: true });
   await updateModelAssignment(database, admin, { scope: "group", target: "agent", model: { mode: "inherit" }, effort: { mode: "inherit" } });
   const cleared = await resolve();

@@ -121,7 +121,7 @@ export async function createProfileKey(profileId: string, operationId?: string):
 export async function connectionUrl(profileId: string, redirectUrl: string): Promise<string> {
   const response = await zernioRequest(masterKey(), '/connect/whatsapp', {
     query: { profileId, redirect_url: redirectUrl, signup: 'hosted',
-      onboarding: 'business_app', brandName: 'Tises', language: 'pt-BR' },
+      onboarding: 'business_app', brandName: 'Lume', language: 'pt-BR' },
     schema: z.object({ authUrl: z.url() }),
   });
   const url = new URL(response.authUrl);

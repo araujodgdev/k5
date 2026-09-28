@@ -2,7 +2,7 @@
 
 import { ArrowRight, RotateCcw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SmartWorking } from '@/components/smart-options';
+import { SmartMark } from '@/components/smart-options';
 import type { DigestPeriod, DigestThread, EmailDigest, EmailInsightResult, ThreadInsight } from '@/lib/google/gmail/insights-contracts';
 import { cn } from '@/lib/utils';
 
@@ -25,7 +25,12 @@ export async function requestInsight(body: { kind: 'digest'; period: DigestPerio
 const when = (value: string) => value ? new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 const sender = (value: string) => value.replace(/<[^<>]*>/g, '').replace(/"/g, '').trim() || value;
 
-const Working = ({ children }: { children: React.ReactNode }) => <SmartWorking className="py-8">{children}</SmartWorking>;
+/** The Lume at work: the mark trades its strokes while the text says what is happening. */
+function Working({ children }: { children: React.ReactNode }) {
+  return <p role="status" className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
+    <span className="smart-options grid size-6 place-items-center text-module-lume" data-busy><SmartMark width={18} height={18} /></span>{children}
+  </p>;
+}
 
 function ThreadRow({ thread, detail, onOpen }: { thread: DigestThread; detail?: React.ReactNode; onOpen: (id: string) => void }) {
   return <button type="button" onClick={() => onOpen(thread.threadId)}
@@ -72,7 +77,7 @@ export function DigestView({ period, state, onPeriod, onOpenThread, onRetry, onC
       </div>)}
       <p className="mt-8 text-xs leading-5 text-subtle-foreground">
         {digest.count === 1 ? '1 conversa' : `${digest.count} conversas`} {periodSpan[period]} na caixa de entrada{digest.truncated ? ', as mais recentes' : ''}, sem promoções e redes sociais.
-        {digest.judged ? ' Prioridade e respostas pendentes julgadas pelo Jev (TypeSafe AI).' : ''} Resumo escrito pelo Tises; confira os e-mails antes de agir.
+        {digest.judged ? ' Prioridade e respostas pendentes julgadas pelo Jev (TypeSafe AI).' : ''} Resumo escrito pelo Lume; confira os e-mails antes de agir.
       </p>
     </div>}
   </section>;
@@ -85,10 +90,10 @@ export function ThreadInsightView({ state, canWrite, onUseReply, onRetry, onClos
   if (state.status === 'failed') return <div className="border-b py-5"><p role="alert" className="text-sm text-destructive">{state.error}</p>
     <Button type="button" variant="outline" className="mt-3" onClick={onRetry}><RotateCcw aria-hidden="true" />Tentar novamente</Button></div>;
   const insight = state.value;
-  return <section aria-label="Resumo do Tises" className="border-b py-5">
+  return <section aria-label="Resumo do Lume" className="border-b py-5">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0 flex-1 border-l-2 border-brand pl-4">
-        <p className="label-mono text-subtle-foreground">Resumo do Tises</p>
+        <p className="label-mono text-subtle-foreground">Resumo do Lume</p>
         <p className="mt-2 text-sm leading-6">{insight.overview}</p>
         {insight.points.length > 0 && <div className="mt-3 divide-y border-y">{insight.points.map(point => <p key={point} className="py-2 text-sm text-muted-foreground">{point}</p>)}</div>}
         {insight.needsReply === true && <p className="mt-3 text-sm font-medium">Aguarda sua resposta.</p>}

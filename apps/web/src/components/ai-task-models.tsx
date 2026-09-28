@@ -38,7 +38,7 @@ function PlanSummary({ plan, level, root }: { plan: TaskModelPlan; level: Level;
   if (plan.status === "unconfigured") return <p className="text-sm text-subtle-foreground">{plan.message}</p>;
   if (plan.status === "disabled") return <p className="text-sm text-muted-foreground">{plan.reason === "unsupported" ? "Indisponível: o modelo do Agente não ouve áudio. Escolha um modelo de transcrição." : "Desativada."}</p>;
   const from = (origin: Origin) => sameLevel(origin, level) ? "definido aqui"
-    : origin.scope === "default" ? (root === "transcription" ? "segue o provider do Agente" : "padrão do Tises: primeira conexão ativa")
+    : origin.scope === "default" ? (root === "transcription" ? "segue o provider do Agente" : "padrão do Lume: primeira conexão ativa")
     : `herdado de ${labelOf(origin)}`;
   const effort = plan.effort ? `esforço ${reasoningEffortLabels[plan.effort].toLowerCase()}` : "esforço padrão do provider";
   const effortWhy = plan.effortNote === "unsupported" ? "o provider não recebe esforço"
@@ -117,7 +117,7 @@ function Editor({ level, item, overview, catalogs, assignments, onSaved, onCance
   const parentPlan = parent ? overview.groups.find(entry => entry.key === parent.target)?.plan : undefined;
   const provider = draft.model === "explicit" ? connection?.provider : parentPlan?.status === "ready" ? parentPlan.provider : undefined;
   const effortAccepted = provider === undefined || supportsReasoningEffort(provider);
-  const inheritLabel = parent ? `Herdar de ${labelOf(parent)}` : group.key === "transcription" ? "Seguir o provider do Agente" : "Padrão do Tises (primeira conexão ativa)";
+  const inheritLabel = parent ? `Herdar de ${labelOf(parent)}` : group.key === "transcription" ? "Seguir o provider do Agente" : "Padrão do Lume (primeira conexão ativa)";
 
   async function save(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError("");
@@ -237,7 +237,7 @@ function Row({ level, item, root, overview, catalogs, assignments, editing, setE
   </div>;
 }
 
-/** Tises' models per group of tasks, with exceptions per task. One configuration serves every office. */
+/** Lume's models per group of tasks, with exceptions per task. One configuration serves every office. */
 export function AiTaskModels({ initial, catalogs }: { initial: AssignmentOverview; catalogs: Catalogs }) {
   const router = useRouter();
   const [overview, setOverview] = useState(initial);

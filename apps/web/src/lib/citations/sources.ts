@@ -6,7 +6,7 @@ import type { CitationSource } from './detect';
 type Owner = { officeId: string; userId: string };
 export type RecordedSource = Omit<CitationSource, 'id'> & { ref: string };
 
-/** Keeps what a tool call showed Tises, so its citations can be checked against it later. */
+/** Keeps what a tool call showed the Lume, so its citations can be checked against it later. */
 export async function recordSources(owner: Owner, conversationId: string, sources: RecordedSource[]) {
   const unique = [...new Map(sources.filter(source => source.ref).map(source => [`${source.kind}:${source.ref}`, source])).values()].slice(0, 60);
   if (!unique.length) return;

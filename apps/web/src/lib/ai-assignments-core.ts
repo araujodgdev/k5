@@ -81,7 +81,7 @@ export function groupLevels(group: AiTaskGroup): Level[] {
 function levelLabel(level: Level | Origin): string {
   if (level.scope === "task" && isAiTaskKey(level.target)) return AI_TASK_DEFINITIONS[level.target].label;
   if (level.scope === "group" && isAiTaskGroup(level.target)) return AI_TASK_GROUP_DEFINITIONS[level.target].label;
-  return "Tises";
+  return "Lume";
 }
 
 const usable = (connection: ConnectionSummary | undefined): boolean =>
@@ -209,7 +209,7 @@ const RUN_UNAVAILABLE = "A conexão de IA fixada para esta tarefa foi desativada
 export async function resolvePinnedTaskModel(db: Database, key: MasterKey, rawPlan: unknown, task: AiTaskKey): Promise<ResolvedTaskModel> {
   const parsed = runModelPlanSchema.safeParse(typeof rawPlan === "string" ? JSON.parse(rawPlan) : rawPlan);
   const entry = parsed.success ? parsed.data.tasks[task] : undefined;
-  if (!entry) throw new AiConnectionError("unavailable", "Esta tarefa foi criada por outra versão do Tises. Inicie a tarefa de novo.");
+  if (!entry) throw new AiConnectionError("unavailable", "Esta tarefa foi criada por outra versão do Lume. Inicie a tarefa de novo.");
   const row = await db.prepare("SELECT provider, enabled, deleted_at, encrypted_api_key FROM ai_connection WHERE id = ? AND office_id IS NULL")
     .get(entry.connectionId) as { provider: string; enabled: number; deleted_at: string | null; encrypted_api_key: string | null } | undefined;
   if (!row || row.deleted_at || !row.enabled || !row.encrypted_api_key || row.provider !== entry.provider) throw new AiConnectionError("unavailable", RUN_UNAVAILABLE);

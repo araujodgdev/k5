@@ -5,7 +5,7 @@ import { evaluate, type DecisionTransport } from '@/lib/typesafe/client';
 import { foundDecision, MAX_DECISIONS, type FoundDecisionInput, type Reliability, type ScoredDecision } from './jurisprudence-score-contract';
 
 /**
- * Case law Tises found with its own web search, scored against the case. Three parties, three
+ * Case law the Lume found with its own web search, scored against the case. Three parties, three
  * jobs: the model searches and brings the decisions; Jev (TypeSafe) judges how well each one fits
  * the case and whether the page is a court decision at all; code checks that each link came back
  * from a search in this conversation. Nothing is dropped: the model reports every decision with

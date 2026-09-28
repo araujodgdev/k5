@@ -227,13 +227,13 @@ export async function requestCapability(
     // operation succeeded.
     if (!response.ok) {
       const body = payload as { error?: string; code?: string } | null;
-      if (response.status === 401) return { ok: false, code: 'UNAUTHENTICATED', error: 'Sua sessão expirou. Entre novamente no Tises para continuar.' };
+      if (response.status === 401) return { ok: false, code: 'UNAUTHENTICATED', error: 'Sua sessão expirou. Entre novamente no Lume para continuar.' };
       return { ok: false, code: body?.code ?? String(response.status), error: body?.error ?? 'Não foi possível concluir a operação.' };
     }
     return { ok: true, data: payload };
   } catch (error) {
     if (signal?.aborted) return { ok: false, code: 'CANCELLED', error: 'Operação cancelada.' };
     void error;
-    return { ok: false, code: 'NETWORK', error: 'Não foi possível falar com o Tises.' };
+    return { ok: false, code: 'NETWORK', error: 'Não foi possível falar com o Lume.' };
   }
 }

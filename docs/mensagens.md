@@ -1,12 +1,12 @@
 # Mensagens entre pessoas
 
-O módulo Mensagens separa conversas entre pessoas do chat com o agente Tises. A caixa pertence ao usuário autenticado. Trocar o escritório ativo muda as sugestões de contatos e as opções do Cofre, sem transferir a caixa a outros membros.
+O módulo Mensagens separa conversas entre pessoas do chat com o agente Lume. A caixa pertence ao usuário autenticado. Trocar o escritório ativo muda as sugestões de contatos e as opções do Cofre, sem transferir a caixa a outros membros.
 
 ## Destinatários e e-mail
 
 Uma conversa pode começar pela seleção de um membro ou associado conhecido, ou por um endereço completo de e-mail. Um endereço comprovado pode resolver diretamente para a conta correspondente. Um endereço sem prova recebe a mensagem por e-mail, mesmo quando já existe um cadastro não verificado. A interface informa o canal antes do envio.
 
-Os e-mails são somente de saída. Respostas por e-mail não voltam para o Tises nesta versão. Cadastrar uma conta com o mesmo endereço não importa mensagens antigas. O link recebido no endereço exige uma sessão da conta correspondente e um token válido de uso único. O aceite habilita mensagens futuras na conversa. Concessões de documentos são aceitas individualmente.
+Os e-mails são somente de saída. Respostas por e-mail não voltam para o Lume nesta versão. Cadastrar uma conta com o mesmo endereço não importa mensagens antigas. O link recebido no endereço exige uma sessão da conta correspondente e um token válido de uso único. O aceite habilita mensagens futuras na conversa. Concessões de documentos são aceitas individualmente.
 
 ## Cofre
 

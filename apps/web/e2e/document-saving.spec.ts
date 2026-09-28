@@ -88,7 +88,7 @@ test('large documents finish saving before the panel closes', async ({ page }) =
 });
 
 for (const failure of ['error', 'conflict'] as const) {
-  test(`a Tises revision preserves local text after a save ${failure}`, async ({ page }) => {
+  test(`a Lume revision preserves local text after a save ${failure}`, async ({ page }) => {
     const data = await documentFixture(page);
     await page.goto('/app/agents?doc=saving-regression');
     await expect(editor(page)).toBeVisible();
@@ -97,7 +97,7 @@ for (const failure of ['error', 'conflict'] as const) {
     await editor(page).fill('Rascunho humano que não pode desaparecer');
     await expect(page.getByText(failure === 'error' ? 'Não salvo' : 'Conflito de versão', { exact: true })).toBeVisible();
     await page.route('**/api/chat', route => {
-      data.artifact.content = 'Versão recebida do Tises';
+      data.artifact.content = 'Versão recebida do Lume';
       data.artifact.version++;
       const chunks = [
         { type: 'start', messageId: `qa-${failure}` },
@@ -110,9 +110,9 @@ for (const failure of ['error', 'conflict'] as const) {
       return route.fulfill({ contentType: 'text/event-stream', headers: { 'x-vercel-ai-ui-message-stream': 'v1' },
         body: chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n' });
     });
-    await page.getByRole('textbox', { name: 'Pergunte ao Tises' }).fill('Atualize o documento');
+    await page.getByRole('textbox', { name: 'Pergunte ao Lume' }).fill('Atualize o documento');
     await page.getByRole('button', { name: 'Enviar mensagem' }).click();
-    await expect(page.getByText('O Tises alterou este documento enquanto você editava.')).toBeVisible();
+    await expect(page.getByText('O Lume alterou este documento enquanto você editava.')).toBeVisible();
     await expect(editor(page)).toContainText('Rascunho humano que não pode desaparecer');
   });
 }

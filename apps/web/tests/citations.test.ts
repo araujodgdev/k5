@@ -64,7 +64,7 @@ test('citations: Jev decides what is a citation and whether the consulted source
   const owner = await fixture();
   await saveConnection(owner.userId, connectionSettings.parse({ apiKey: `fake-${owner.officeId}`, enabled: true, documents: 'enabled', version: (await connectionView()).version }));
   const conversation = await createConversation(testDb, owner);
-  // Tises searched case law and read one excerpt of the Cofre during the conversation.
+  // The Lume searched case law and read one excerpt of the Cofre during the conversation.
   await recordSources(owner, conversation.id, [
     ...sourcesFromTool('k5_research_score_jurisprudence', { results: [{ title: 'REsp 1.234.567/SP', court: 'STJ', caseNumber: '1.234.567', url: 'https://stj.jus.br/resp', summary: 'Dano moral presumido em negativação indevida.', linkFound: true },
       { title: 'REsp inventado', court: 'STJ', caseNumber: '9.999.999', url: 'https://stj.jus.br/inventado', summary: 'Sem fonte.', linkFound: false }] }),

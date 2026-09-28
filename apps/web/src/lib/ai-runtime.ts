@@ -28,7 +28,7 @@ type EffortCredential = ModelCredential & { effort?: ReasoningEffort | null };
 function agentFor(config: EffortCredential, instructions: string, tools?: Record<string, unknown>, features: AgentFeatures = {}) {
   const agent = new Agent({
     id: 'k5',
-    name: 'Tises',
+    name: 'Lume',
     instructions,
     defaultOptions: ({ requestContext }) => {
       const provider = (requestContext?.get('provider') as AiProvider | undefined) ?? config.provider;

@@ -159,9 +159,9 @@ export const provenanceSchema = z.object({
   publishedOn: z.string().nullable(),
   /** Last change the source itself declares. */
   sourceUpdatedAt: z.string().nullable(),
-  /** When Tises asked. */
+  /** When Lume asked. */
   collectedAt: z.string(),
-  /** When Tises committed it. */
+  /** When Lume committed it. */
   ingestedAt: z.string(),
 });
 export type Provenance = z.infer<typeof provenanceSchema>;

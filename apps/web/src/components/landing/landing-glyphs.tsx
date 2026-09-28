@@ -3,8 +3,8 @@
 
 const figure = "size-full transition-transform duration-[1600ms] ease-(--ease) group-hover:rotate-90 motion-reduce:transition-none";
 
-/** Tises: rings turning around one axis, the agent working through a case. */
-export function GlyphAgent() {
+/** Lume: rings turning around one axis, the agent working through a case. */
+export function GlyphLume() {
   return (
     <svg viewBox="0 0 200 200" fill="none" stroke="currentColor" strokeWidth=".8" aria-hidden="true" className={figure}>
       <circle cx="100" cy="100" r="96" strokeDasharray="1 3" />

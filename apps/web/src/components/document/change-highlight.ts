@@ -5,7 +5,7 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 /**
- * Marks the blocks Tises changed, for a few seconds after its edit loads. Decorations only:
+ * Marks the blocks the Lume changed, for a few seconds after its edit loads. Decorations only:
  * nothing is written into the document, so the marks never reach the Markdown or the Word file.
  */
 export const changeHighlightKey = new PluginKey<DecorationSet>("changeHighlight");

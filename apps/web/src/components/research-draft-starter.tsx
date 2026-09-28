@@ -21,7 +21,7 @@ export function ResearchDraftStarter({ caseId, references }: { caseId: string; r
   const [documents, setDocuments] = useState<Document[]>([]);
   const [templates, setTemplates] = useState<Document[]>([]);
   const [templateId, setTemplateId] = useState('');
-  // The letterhead from Personalizar Tises; with it, picking a template here becomes optional.
+  // The letterhead from Personalizar Lume; with it, picking a template here becomes optional.
   const [defaultTemplate, setDefaultTemplate] = useState<string | null>(null);
   const [documentIds, setDocumentIds] = useState<string[]>([]);
   const [referenceIds, setReferenceIds] = useState<string[]>([]);

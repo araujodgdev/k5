@@ -3,7 +3,7 @@ import { readPlatformJson } from "@/lib/platform-core";
 import { requirePlatformRequest } from "@/lib/platform";
 import { platformErrorResponse } from "../../_shared";
 
-/** Tises' models per group and task: one configuration serves every office. */
+/** Lume's models per group and task: one configuration serves every office. */
 export async function GET(request: Request) {
   try {
     const { db } = await requirePlatformRequest(request);

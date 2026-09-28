@@ -253,7 +253,7 @@ function executeHttpsRequest(
         host: url.host,
         accept: 'application/json, application/xml;q=0.9, text/plain;q=0.8',
         ...(options.body === undefined ? {} : { 'content-type': 'application/json; charset=utf-8' }),
-        'user-agent': 'Tises-Judicial/0.1 (+contato: suporte@k5.app)',
+        'user-agent': 'Lume-Judicial/0.1 (+contato: suporte@k5.app)',
         ...options.headers,
       },
       servername: isIpHost ? undefined : rawHostname,

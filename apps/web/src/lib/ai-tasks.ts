@@ -1,7 +1,7 @@
 import type { AiProvider } from "./ai-connections-core";
 
 /**
- * Tises' model work, named by what it does rather than by the model that happens to run it.
+ * Lume's model work, named by what it does rather than by the model that happens to run it.
  *
  * The catalog lives in code: adding a task is a code change. Which connection, model and reasoning
  * effort serve a task is platform configuration (ai_model_assignment, migration 0030). A task
@@ -40,7 +40,7 @@ export type AiTaskGroupDefinition = {
 
 export const AI_TASK_GROUP_DEFINITIONS: Record<AiTaskGroup, AiTaskGroupDefinition> = {
   agent: { key: "agent", label: "Agente", parent: null, execution: "tool_agent", canDisable: false,
-    description: "Conversa do Tises com ferramentas, busca e memória." },
+    description: "Conversa do Lume com ferramentas, busca e memória." },
   drafting: { key: "drafting", label: "Redação jurídica", parent: "agent", execution: "structured", canDisable: false,
     description: "Estrutura e texto das minutas que o advogado revisa e assina." },
   extraction: { key: "extraction", label: "Extração de documentos", parent: "agent", execution: "structured", canDisable: false,
@@ -57,7 +57,7 @@ export const AI_TASK_GROUP_DEFINITIONS: Record<AiTaskGroup, AiTaskGroupDefinitio
 export type AiTaskDefinition = { key: AiTaskKey; group: AiTaskGroup; label: string; description: string };
 
 export const AI_TASK_DEFINITIONS: Record<AiTaskKey, AiTaskDefinition> = {
-  "agent.chat": { key: "agent.chat", group: "agent", label: "Conversa", description: "Cada turno do Tises, com até oito passos de ferramenta." },
+  "agent.chat": { key: "agent.chat", group: "agent", label: "Conversa", description: "Cada turno do Lume, com até oito passos de ferramenta." },
   "drafting.outline": { key: "drafting.outline", group: "drafting", label: "Estrutura da minuta", description: "Seções e termos de busca a partir do pedido e do modelo." },
   "drafting.section": { key: "drafting.section", group: "drafting", label: "Seções da minuta", description: "Texto de cada seção, com evidências das fontes do caso." },
   "extraction.chronology_facts": { key: "extraction.chronology_facts", group: "extraction", label: "Fatos da cronologia", description: "Acontecimentos de cada fonte, com citação literal verificada." },

@@ -2,35 +2,32 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
-import { tisesPaths } from "@/components/tises-paths";
 import { cn } from "@/lib/utils";
 
 export type SmartOption = { id: string; label: string; description?: string; disabled?: boolean };
 
 /**
- * The agent mark (the seal) whose pieces move while it is hovered or busy: the halves part along
- * the slit, the diamond moves into the hole and the seal closes over it, then it opens again and
- * the diamond springs back out.
- * Same paths as <AgentMark />; the motion lives in globals.css (`.smart-mark`).
+ * The Lume mark whose three strokes trade places, forming new shapes while it is hovered or busy.
+ * Same paths as <LumeMark />; the motion lives in globals.css (`.smart-mark`).
  */
 export function SmartMark({ className, ...props }: React.SVGProps<SVGSVGElement>) {
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none"
     aria-hidden="true" focusable="false" className={cn("smart-mark", className)} {...props}>
-    <path className="smart-mark-a" d={tisesPaths.upper} />
-    <path className="smart-mark-b" d={tisesPaths.lower} />
-    <path className="smart-mark-c" d={tisesPaths.beam} />
+    <path className="smart-mark-a" d="M5 4h3v10.5l-3 3V4Z" />
+    <path className="smart-mark-b" d="m6.5 19 3-3H20v3H6.5Z" />
+    <path className="smart-mark-c" d="m11 11.5 6.5-6.5L19 6.5 12.5 13 11 11.5Z" />
   </svg>;
 }
 
-/** Tises at work: the mark trades its strokes while the text says what is happening. */
+/** The Lume at work: the mark trades its strokes while the text says what is happening. */
 export function SmartWorking({ children, className }: { children: React.ReactNode; className?: string }) {
   return <p role="status" className={cn("flex items-center gap-3 text-sm text-muted-foreground", className)}>
-    <span className="smart-options grid size-6 shrink-0 place-items-center text-module-agent" data-busy><SmartMark width={18} height={18} /></span>{children}
+    <span className="smart-options grid size-6 shrink-0 place-items-center text-module-lume" data-busy><SmartMark width={18} height={18} /></span>{children}
   </p>;
 }
 
 /**
- * "Opções inteligentes": Tises' actions for the current module, behind one peach mark.
+ * "Opções inteligentes": the Lume's actions for the current module, behind one peach mark.
  * Hover (or focus and Enter, or a tap) shows the options; each module passes its own list.
  */
 export function SmartOptions({ options, onSelect, busy = false, label = "Opções inteligentes", align = "start", className }: {
@@ -63,13 +60,13 @@ export function SmartOptions({ options, onSelect, busy = false, label = "Opçõe
   return <Popover open={open} onOpenChange={setOpen}>
     <PopoverAnchor asChild>
       <button ref={button} type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} data-busy={busy || undefined}
-        className={cn("smart-options grid size-9 shrink-0 place-items-center text-module-agent outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-11", className)}
+        className={cn("smart-options grid size-9 shrink-0 place-items-center text-module-lume outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-11", className)}
         onPointerEnter={event => { if (event.pointerType === "mouse") schedule(true, 120); }}
         onPointerLeave={event => { if (event.pointerType === "mouse") schedule(false, 220); }}
         onKeyDown={event => { if (["Enter", " ", "ArrowDown"].includes(event.key)) { event.preventDefault(); viaKeyboard.current = true; setOpen(true); } }}
         onClick={event => { if (event.detail === 0) return; window.clearTimeout(timer.current); setOpen(value => hoverable.current ? true : !value); }}>
         <SmartMark />
-        {busy && <span className="sr-only">O Tises está trabalhando…</span>}
+        {busy && <span className="sr-only">O Lume está trabalhando…</span>}
       </button>
     </PopoverAnchor>
     <PopoverContent align={align} sideOffset={6} className="w-72 gap-0 rounded-none p-1"
@@ -78,7 +75,7 @@ export function SmartOptions({ options, onSelect, busy = false, label = "Opçõe
       onInteractOutside={event => { if (button.current?.contains(event.target as Node)) event.preventDefault(); }}
       onCloseAutoFocus={event => { event.preventDefault(); if (!document.activeElement || document.activeElement === document.body) button.current?.focus(); }}
       onOpenAutoFocus={event => { event.preventDefault(); if (viaKeyboard.current) requestAnimationFrame(() => items()[0]?.focus()); viaKeyboard.current = false; }}>
-      <p className="label-mono flex items-center gap-2 px-3 pt-2 pb-1.5 text-subtle-foreground"><span className="square-dot text-module-agent" aria-hidden="true" />Tises</p>
+      <p className="label-mono flex items-center gap-2 px-3 pt-2 pb-1.5 text-subtle-foreground"><span className="square-dot text-module-lume" aria-hidden="true" />Lume</p>
       <div ref={list} role="menu" aria-label={label} onKeyDown={onMenuKey}>
         {options.map(option => <button key={option.id} type="button" role="menuitem" disabled={option.disabled}
           onClick={() => { setOpen(false); onSelect(option.id); }}

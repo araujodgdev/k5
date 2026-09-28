@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Tises — Seu escritório",
-    short_name: "Tises",
+    name: "Lume — Seu escritório",
+    short_name: "Lume",
     description: "O espaço de trabalho do seu escritório.",
     lang: "pt-BR",
     start_url: "/app",
@@ -18,7 +18,7 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "Tises", url: "/app/agents" },
+      { name: "Lume", url: "/app/agents" },
       { name: "Cofre", url: "/app/vault" },
       { name: "Escritório", url: "/app/agenda" },
     ],

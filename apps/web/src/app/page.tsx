@@ -1,37 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
-import { ThemeSwitch } from "@/components/theme-provider";
-import { TisesMark, TisesWordmark } from "@/components/tises-logo";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Halftone } from "@/components/halftone";
-import { LandingMotion, motionScript } from "@/components/landing/landing-motion";
-import { BootScript } from "@/components/boot-script";
+import { LumeMark } from "@/components/lume-mark";
+import { ThemeSwitch } from "@/components/theme-provider";
 import { LandingClock, LandingDial } from "@/components/landing/landing-clock";
-import { GlyphAgenda, GlyphAgent, GlyphResearch, GlyphVault } from "@/components/landing/landing-glyphs";
-import { ScreenFrame } from "@/components/landing/landing-screens";
+import { LandingMotion } from "@/components/landing/landing-motion";
+import { GlyphAgenda, GlyphLume, GlyphResearch, GlyphVault } from "@/components/landing/landing-glyphs";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: { absolute: "Tises — o espaço de trabalho do escritório" },
+  title: { absolute: "Lume — o espaço de trabalho do escritório" },
   description: "A plataforma do escritório de advocacia. Pesquise, redija e acompanhe prazos com um agente que conhece o caso inteiro.",
 };
 
-/*
- * The landing is a camera move built from the grid's own pieces (DESIGN.md, "Landing"): scenes
- * come from the back and pass the viewer, the modules slide by as a strip of cells, a statement
- * crosses on a diagonal, the standards arrive as colored blocks, and the invitation sits on the
- * pixel field. Without motion it is a plain page.
- */
-
 const modules = [
   {
-    name: "Tises", Glyph: GlyphAgent,
+    name: "Lume", Glyph: GlyphLume,
     text: "Pesquise, redija e revise peças com um agente que trabalha a partir do caso inteiro. Ele informa o que fez e pede confirmação antes de apagar, sobrescrever um rascunho ou falar com um tribunal.",
     points: ["Peças em DOCX", "Citações conferidas", "Voz e anexos", "Documento ao lado da conversa"],
   },
   {
     name: "Cofre", Glyph: GlyphVault,
-    text: "Organize os documentos do escritório por caso, com leitura integral, inclusive de PDFs escaneados. Depois, encontre o que importa com uma busca ou uma pergunta ao Tises.",
+    text: "Organize os documentos do escritório por caso, com leitura integral, inclusive de PDFs escaneados. Depois, encontre o que importa com uma busca ou uma pergunta ao Lume.",
     points: ["Pastas por caso", "Leitura de PDFs escaneados", "Anexos nomeados para o PJe", "Busca no conteúdo"],
   },
   {
@@ -40,26 +31,20 @@ const modules = [
     points: ["Jurisprudência na web", "Andamentos processuais", "Vínculo com o caso", "Rascunho a partir da decisão"],
   },
   {
-    name: "Escritório", Glyph: GlyphAgenda,
+    name: "Agenda", Glyph: GlyphAgenda,
     text: "Controle prazos, tarefas e reuniões em um só calendário, ligado a clientes e casos, com avisos no celular.",
     points: ["Tarefas com prazo", "Reuniões", "Clientes e casos", "Avisos no celular"],
   },
 ];
 
-const marquee = ["Tises", "Cofre", "Pesquisa", "Escritório", "Documentos", "E-mails", "Notificações", "Integrações"];
-
-const standards = [
-  { figure: "DOCX", text: "Exporte peças no modelo do seu escritório, com fonte, margens e espaçamento preservados.", tone: "bg-brand text-brand-foreground" },
-  { figure: "PJe", text: "Envie anexos já divididos e nomeados no padrão do processo eletrônico.", tone: "bg-foreground text-background" },
-  { figure: "0", text: "Dados compartilhados entre escritórios. Cada escritório acessa apenas os próprios casos e documentos.", tone: "bg-panel text-panel-foreground" },
-];
+const marquee = ["Lume", "Cofre", "Pesquisa", "Agenda", "Documentos", "E-mails", "Notificações", "Integrações"];
 
 /** An action in mono caps with an arrow; the brand sweeps in from the left on hover. */
-function ArrowLink({ href, children, tone = "ink", className }: { href: string; children: React.ReactNode; tone?: "ink" | "line"; className?: string }) {
+function ArrowLink({ href, children, tone = "ink", className }: { href: string; children: React.ReactNode; tone?: "ink" | "clear"; className?: string }) {
   return (
     <Link href={href} className={cn(
       "hover-sweep group/arrow label-mono inline-flex h-12 items-center justify-between gap-10 px-4 transition-colors duration-700 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none",
-      tone === "ink" ? "bg-foreground text-background" : "border border-input",
+      tone === "ink" ? "bg-foreground text-background" : "text-current",
       className)}>
       {children}
       <ArrowRight className="size-4 transition-transform duration-500 ease-(--ease) group-hover/arrow:translate-x-1" aria-hidden="true" />
@@ -68,35 +53,31 @@ function ArrowLink({ href, children, tone = "ink", className }: { href: string; 
 }
 
 /** A mono section label led by a small square. */
-function Label({ children, className, ...props }: React.ComponentProps<"p">) {
-  return <p className={cn("label-mono flex items-center gap-2.5", className)} {...props}><span className="square-dot" aria-hidden="true" />{children}</p>;
+function Label({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <p className={cn("label-mono flex items-center gap-2.5", className)}><span className="square-dot" aria-hidden="true" />{children}</p>;
 }
 
-/** Words set on a block of color, the way the grid's cells carry type. */
-function Block({ children, tone, className, ...props }: React.ComponentProps<"span"> & { tone: string }) {
-  return <span className={cn("inline-block px-3 pt-2 pb-1", tone, className)} {...props}>{children}</span>;
+/** Words that rise out of their own line box as they scroll in. */
+function Rise({ children, delay, className }: { children: React.ReactNode; delay?: number; className?: string }) {
+  return <span className={cn("block overflow-hidden pb-[.08em]", className)}><span className="block" data-rise={delay}>{children}</span></span>;
 }
-
-/** Visible only while the camera runs; the plain page doesn't need it. */
-const inFilm = "hidden [[data-motion]_&]:block";
 
 export default function Landing() {
   return (
-    <LandingMotion className="relative min-h-dvh bg-background text-foreground">
-      <BootScript code={motionScript} />
+    <LandingMotion className="min-h-dvh bg-background text-foreground">
       <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:border focus:border-line focus:bg-background focus:px-3 focus:py-2">Ir para o conteúdo</a>
 
-      <header className="appear fixed inset-x-0 top-0 z-30 grid h-[calc(3.75rem+env(safe-area-inset-top))] grid-cols-[1fr_auto] border-b border-line bg-background pt-[env(safe-area-inset-top)] [--delay:2.8s] md:grid-cols-2">
+      <header className="sticky top-0 z-30 grid h-[calc(3.75rem+env(safe-area-inset-top))] grid-cols-[1fr_auto] border-b border-line bg-background pt-[env(safe-area-inset-top)] md:grid-cols-2">
         <div className="flex min-w-0 items-stretch">
-          <Link href="/" aria-label="Tises — início" className="tises-hover hover-sweep grid w-15 shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none [&_.tises-beam]:transition-[fill] [&_.tises-beam]:duration-500 hover:[&_.tises-beam]:fill-brand-foreground focus-visible:[&_.tises-beam]:fill-brand-foreground">
-            <TisesMark width={22} height={22} aria-hidden="true" focusable="false" />
+          <Link href="/" aria-label="Lume — início" className="hover-sweep grid w-15 shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none">
+            <LumeMark width={22} height={22} aria-hidden="true" focusable="false" />
           </Link>
-          <TisesWordmark className="ml-5 h-[18px] w-auto self-center md:hidden" aria-hidden="true" focusable="false" />
+          <p className="self-center px-5 text-lg font-medium tracking-[-0.04em] md:hidden">Lume</p>
           <LandingClock className="hidden self-center px-6 text-sm tabular-nums md:block lg:px-24" />
         </div>
         <div className="flex items-stretch md:border-l md:border-line">
           <nav aria-label="Seções" className="hidden items-stretch lg:flex">
-            {[["#modulos", "Módulos"], ["#padroes", "Padrões"], ["#comecar", "Começar"]].map(([href, label]) => (
+            {[["#modulos", "Módulos"], ["#escritorio", "Padrões"], ["#comecar", "Começar"]].map(([href, label]) => (
               <a key={href} href={href} className="hover-rise flex items-center px-4 text-[15px] transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:text-brand-foreground">{label}</a>
             ))}
           </nav>
@@ -107,149 +88,116 @@ export default function Landing() {
         </div>
       </header>
 
-      <main id="conteudo" className="relative z-10">
-        {/* 1. Forward: the name, then the promise on blocks of color that pass the viewer. */}
-        <section aria-labelledby="hero-title" className="film depth" style={{ "--length": 4 } as React.CSSProperties}>
-          <div className="film-stage">
-            <div className="depth-scene relative min-h-svh">
-              <div className="flex flex-col items-center gap-8 text-center md:gap-10">
-                {/* The mark builds itself in metal; a spark leaves its beam and lights the i of the name. */}
-                <TisesMark finish="metal" data-hero-mark className="tises-intro size-[clamp(84px,11vw,140px)] [--start:.1s]" aria-hidden="true" focusable="false" />
-                <h1 id="hero-title" data-hero-word className="w-[clamp(250px,44vw,600px)]">
-                  <TisesWordmark finish="metal" className="tises-write h-auto w-full [--start:1.2s]" role="img" aria-label="Tises" />
-                </h1>
-                <span data-spark aria-hidden="true" className="pointer-events-none absolute top-0 left-0 h-[3px] w-6 bg-brand opacity-0 shadow-[0_0_14px_3px_var(--brand)]" />
-                <p className="settle max-w-2xl text-[clamp(18px,1.9vw,24px)] leading-snug tracking-[-0.03em] text-muted-foreground [--delay:2.45s]">
-                  A plataforma do escritório de advocacia. Pesquise, redija e acompanhe prazos com um agente que conhece o caso inteiro.
-                </p>
-                <div className="settle flex flex-wrap justify-center gap-2 [--delay:2.6s]">
-                  <ArrowLink href="/sign-up" className="w-56">Criar conta</ArrowLink>
-                  <ArrowLink href="/sign-in" tone="line" className="w-56">Entrar</ArrowLink>
-                </div>
-              </div>
-              <div className={cn("scroll-cue absolute bottom-3 left-1/2 h-8 w-px -translate-x-1/2 overflow-hidden bg-border", inFilm)} aria-hidden="true"><span className="block size-full bg-foreground" /></div>
+      <main id="conteudo">
+        {/* Hero: the name, the field, and what the Lume is, set on the grid. */}
+        <section aria-labelledby="hero-title" className="grid border-b border-line md:grid-cols-2">
+          <div className="flex min-h-[38svh] items-end px-5 pb-4 md:min-h-[54svh] md:px-6">
+            <h1 id="hero-title" className="display overflow-hidden pb-[.12em] text-[clamp(104px,19vw,280px)] leading-[.85]">
+              <span className="rise-in block">Lume</span>
+            </h1>
+          </div>
+          <Halftone seed={3} density={-.08} className="fade-in h-44 border-t border-line [--delay:.2s] md:h-auto md:border-t-0 md:border-l" />
+          <Halftone seed={7} mark={{ x: .56, y: .58, size: .95 }} className="fade-in hidden border-t border-line [--delay:.35s] md:block md:min-h-[46svh]" />
+          <div className="grid border-t border-line sm:grid-cols-2 md:border-l">
+            <div className="flex min-h-72 flex-col justify-between gap-10 bg-foreground p-5 text-background md:p-6">
+              <p className="fade-in text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">A plataforma do escritório de advocacia. Pesquise, redija e acompanhe prazos com um agente que conhece o caso inteiro.</p>
+              <ArrowLink href="/sign-up" tone="clear" className="-mx-4 -mb-3">Criar conta</ArrowLink>
             </div>
-            <div className="depth-scene">
-              <p className="display text-center text-[clamp(64px,11vw,184px)] leading-[.86] uppercase"><Block tone="bg-foreground text-background">Do prazo</Block></p>
-            </div>
-            <div className="depth-scene">
-              <p className="display text-center text-[clamp(64px,11vw,184px)] leading-[.86] uppercase"><Block tone="bg-brand text-brand-foreground">à peça.</Block></p>
-            </div>
-            <div className="depth-scene">
-              <div className="flex flex-col items-center gap-8 text-center">
-                <p className="display text-[clamp(56px,9vw,150px)] leading-[.86]"><Block tone="bg-panel text-panel-foreground">Num lugar só.</Block></p>
-                <p className="max-w-md text-base leading-snug text-muted-foreground md:text-[17px]">Casos, documentos, prazos e pesquisa na mesma plataforma, com advogados e agente trabalhando a partir do mesmo contexto.</p>
+            <div className="flex min-h-72 flex-col justify-between gap-10 overflow-hidden bg-brand text-brand-foreground">
+              <p className="fade-in p-5 text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.55s] md:p-6">O melhor trabalho do escritório em cada caso, com mais tempo para os clientes.</p>
+              <div className="marquee overflow-hidden border-t border-brand-foreground/25 py-4" aria-label="Módulos do Lume">
+                <ul className="marquee-track flex w-max gap-10 pr-10 text-xl font-medium tracking-[-0.04em]">
+                  {[...marquee, ...marquee].map((name, index) => (
+                    <li key={index} aria-hidden={index >= marquee.length || undefined} className="flex items-center gap-10">{name}<span className="square-dot size-1.5" aria-hidden="true" /></li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>
         </section>
 
-        {/* 2. Sideways: the modules slide by as a strip of cells, each screen turning as it crosses. */}
-        <section id="modulos" data-track aria-labelledby="modulos-title" className="track scroll-mt-15 bg-foreground text-background" style={{ "--length": 5 } as React.CSSProperties}>
-          <div className="track-stage">
-            <div data-track-row className="track-row">
-              <div data-track-panel className="track-panel flex flex-col justify-between gap-10 bg-panel px-5 pt-24 pb-12 text-panel-foreground md:px-[6vw] md:pb-[10svh]">
-                <Label>Módulos</Label>
-                <h2 id="modulos-title" className="display text-[clamp(56px,8vw,140px)] leading-[.88] uppercase" data-parallax=".15">
-                  <span className="block">Feito</span>
-                  <span className="block md:pl-[18vw]">para a</span>
-                  <span className="block">advocacia</span>
-                </h2>
-                <div className="flex max-w-md flex-col gap-8 self-end">
-                  <p className="text-base leading-snug">Quatro módulos sobre os mesmos casos. O Tises consulta os documentos do Cofre, e o Escritório acompanha os prazos de cada caso.</p>
-                  <ArrowLink href="/sign-up" className="w-full sm:w-64">Criar conta</ArrowLink>
-                </div>
-              </div>
-              {modules.map(({ name, Glyph, text, points }, index) => (
-                <article key={name} data-track-panel className="group track-panel grid content-center gap-8 border-background/15 px-5 pt-20 pb-14 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-center md:gap-14 md:border-l md:px-[6vw] md:pb-[8svh]">
-                  <div className="flex flex-col gap-6" data-parallax=".25">
-                    <div className="flex items-center gap-5">
-                      <div className="aspect-square w-16 shrink-0 text-background/80 md:w-24"><Glyph /></div>
-                      <h3 className="display text-[clamp(44px,4.6vw,72px)]">{name}</h3>
-                    </div>
-                    <p className="max-w-md text-base leading-snug tracking-[-0.02em] md:text-[17px]">{text}</p>
-                    <ul className="hidden flex-col gap-2 sm:flex">
-                      {points.map((point) => (
-                        <li key={point} className="label-mono flex items-center gap-3"><span className="square-dot text-brand" aria-hidden="true" />{point}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div data-tilt><ScreenFrame index={index} className="h-64 text-foreground md:h-[27rem]" /></div>
-                </article>
-              ))}
-            </div>
-            <div className={cn("absolute inset-x-5 bottom-6 h-px bg-background/20 md:inset-x-[6vw]", inFilm)} aria-hidden="true">
-              <div data-track-progress className="h-full origin-left bg-brand" />
-            </div>
+        {/* Statement band. */}
+        <section aria-label="Do prazo à peça" className="grid border-b border-line md:grid-cols-2">
+          <div className="flex min-h-[44svh] flex-col justify-end bg-foreground px-5 py-6 text-background md:px-6">
+            <p className="display text-[clamp(64px,10.5vw,176px)] leading-[.86] uppercase">
+              <Rise>Do prazo</Rise>
+              <Rise delay={.08}>à peça.</Rise>
+            </p>
+          </div>
+          <div className="grid min-h-[44svh] grid-rows-[1fr_auto] border-t border-line bg-panel text-panel-foreground md:border-t-0 md:border-l">
+            <p className="display self-end px-5 pb-6 text-[clamp(56px,8vw,140px)] md:px-6"><Rise>Num lugar só.</Rise></p>
+            <div className="border-t border-line px-5 py-5 md:px-6"><p className="max-w-md text-base leading-snug" data-fade>Casos, documentos, prazos e pesquisa na mesma plataforma, com advogados e agente trabalhando a partir do mesmo contexto.</p></div>
           </div>
         </section>
 
-        {/* A strip of what the office gets, sliding slowly on the brand. */}
-        <div className="marquee relative z-10 overflow-hidden border-b border-line bg-brand py-5 text-brand-foreground" aria-label="Módulos do Tises">
-          <ul className="marquee-track flex w-max gap-12 pr-12 text-[clamp(32px,4.4vw,64px)] font-[450] tracking-[-0.045em]">
-            {[...marquee, ...marquee].map((name, index) => (
-              <li key={index} aria-hidden={index >= marquee.length || undefined} className="flex items-center gap-12">{name}<span className="square-dot size-2.5" aria-hidden="true" /></li>
-            ))}
-          </ul>
-        </div>
-
-        {/* 3. Across: how the agent behaves, crossing from the lower left to the upper right. */}
-        <section data-diagonal aria-labelledby="age-title" className="film" style={{ "--length": 3 } as React.CSSProperties}>
-          <div className="film-stage flex flex-col items-center justify-center gap-12 px-4 py-24 md:gap-16 [[data-motion]_&]:py-0">
-            <div className="flex flex-col items-center gap-6">
-              <Label className="text-muted-foreground" data-diag>O agente</Label>
-              <h2 id="age-title" className="display text-center text-[clamp(40px,6.4vw,100px)] leading-[.9] uppercase">
-                <span className="block" data-diag>Age, depois conta.</span>
-                <span className="block text-subtle-foreground" data-diag>Pergunta antes de apagar.</span>
+        {/* Modules. */}
+        <section id="modulos" aria-labelledby="modulos-title" className="grid scroll-mt-15 border-b border-line md:grid-cols-2">
+          <div className="border-line bg-panel text-panel-foreground md:border-r">
+            <div className="flex flex-col gap-10 px-5 py-8 md:sticky md:top-15 md:min-h-[calc(100svh-3.75rem)] md:justify-between md:px-6 md:py-6">
+              <Label>Módulos</Label>
+              <h2 id="modulos-title" className="display text-[clamp(56px,7.4vw,128px)] leading-[.88] uppercase">
+                <Rise>Feito</Rise>
+                <Rise delay={.06} className="md:text-right">para a</Rise>
+                <Rise delay={.12}>advocacia</Rise>
               </h2>
-            </div>
-            <div data-rise-from-back aria-hidden="true" className="flex w-full max-w-xl flex-col gap-5 border border-line bg-background p-5 text-[14px] leading-relaxed shadow-(--shadow-float) md:p-6">
-              <div className="flex flex-col gap-1.5 text-muted-foreground">
-                <p className="flex items-center gap-2"><Check className="size-4 text-brand-ink" />Conferiu 4 citações da contestação</p>
-                <p className="flex items-center gap-2"><Check className="size-4 text-brand-ink" />Atualizou “Contestação — Silva”<span className="label-mono ml-auto text-foreground">Abrir</span></p>
-              </div>
-              <div className="relative flex flex-col gap-4 pl-4">
-                <span data-rule className="absolute inset-y-0 left-0 w-0.5 bg-brand" />
-                <p>Posso substituir o rascunho que você salvou ontem pela versão revisada?</p>
-                <div className="flex gap-2">
-                  <span className="inline-flex h-9 items-center bg-foreground px-3.5 text-sm font-medium text-background">Confirmar</span>
-                  <span className="inline-flex h-9 items-center px-3.5 text-sm font-medium text-muted-foreground">Cancelar</span>
-                </div>
+              <div className="flex max-w-md flex-col gap-8 self-end" data-fade>
+                <p className="text-base leading-snug">Quatro módulos sobre os mesmos casos. O Lume consulta os documentos do Cofre, e a Agenda acompanha os prazos de cada caso.</p>
+                <ArrowLink href="/sign-up" className="w-full sm:w-64">Criar conta</ArrowLink>
               </div>
             </div>
           </div>
-        </section>
-
-        {/* 4. Forward again: the office's standards, each on its own block of color. */}
-        <section id="padroes" aria-labelledby="padroes-title" className="film depth scroll-mt-15" style={{ "--length": 4 } as React.CSSProperties}>
-          <div className="film-stage">
-            <div className="depth-scene">
-              <div className="flex flex-col items-center gap-6 text-center">
-                <Label className="text-muted-foreground">Formatos e isolamento de dados</Label>
-                <h2 id="padroes-title" className="display text-[clamp(56px,9vw,150px)] leading-[.9] uppercase">Nos seus padrões</h2>
-              </div>
-            </div>
-            {standards.map(({ figure, text, tone }) => (
-              <div key={figure} className="depth-scene">
-                <div className={cn("flex aspect-[4/3] w-[min(86vw,640px)] flex-col justify-between p-5 md:p-6", tone)}>
-                  <p className="display text-[clamp(88px,13vw,200px)]">{figure}</p>
-                  <p className="max-w-xs self-end text-right text-[17px] leading-snug">{text}</p>
+          <ol className="bg-foreground text-background">
+            {modules.map(({ name, Glyph, text, points }, index) => (
+              <li key={name} className="group grid gap-8 border-b border-background/15 px-5 py-10 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:px-6 lg:py-12">
+                <div className="flex flex-col justify-between gap-10">
+                  <h3 className="flex items-baseline gap-5 text-[clamp(36px,3.6vw,56px)] leading-none font-[450] tracking-[-0.045em]">
+                    <span className="label-mono text-background/50">{String(index + 1).padStart(2, "0")}</span>{name}
+                  </h3>
+                  <div className="aspect-square w-36 text-background/80 lg:w-44" data-fade><Glyph /></div>
                 </div>
-              </div>
+                <div className="flex flex-col justify-between gap-10">
+                  <p className="text-[17px] leading-snug tracking-[-0.02em]" data-fade>{text}</p>
+                  <ul className="flex flex-col gap-2" data-fade>
+                    {points.map((point) => (
+                      <li key={point} className="label-mono flex items-center gap-3"><span className="square-dot text-brand" aria-hidden="true" />{point}</li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
             ))}
+          </ol>
+        </section>
+
+        {/* The office: plain facts as large figures, on the grid's colors. */}
+        <section id="escritorio" aria-labelledby="escritorio-title" className="scroll-mt-15 border-b border-line">
+          <div className="flex items-end justify-between gap-6 border-b border-line px-5 py-8 md:px-6">
+            <h2 id="escritorio-title" className="display text-[clamp(56px,9vw,150px)]"><Rise>Nos seus padrões</Rise></h2>
+            <Label className="mb-3 hidden text-muted-foreground sm:flex">Formatos e isolamento de dados</Label>
+          </div>
+          <div className="grid md:grid-cols-4">
+            <div className="flex min-h-[46svh] flex-col justify-between gap-10 bg-brand p-5 text-brand-foreground md:col-span-2 md:p-6" data-wipe>
+              <p className="display text-[clamp(88px,11vw,190px)]">DOCX</p>
+              <p className="max-w-xs self-end text-right text-[17px] leading-snug">Exporte peças no modelo do seu escritório, com fonte, margens e espaçamento preservados.</p>
+            </div>
+            <div className="flex min-h-72 flex-col justify-between gap-10 border-t border-line bg-foreground p-5 text-background md:border-t-0 md:border-l md:p-6" data-wipe>
+              <p className="display text-[clamp(72px,7vw,120px)]">PJe</p>
+              <p className="text-[17px] leading-snug">Envie anexos já divididos e nomeados no padrão do processo eletrônico.</p>
+            </div>
+            <div className="flex min-h-72 flex-col justify-between gap-10 border-t border-line bg-panel p-5 text-panel-foreground md:border-t-0 md:border-l md:p-6" data-wipe>
+              <p className="display text-[clamp(72px,7vw,120px)]">0</p>
+              <p className="text-[17px] leading-snug">Dados compartilhados entre escritórios. Cada escritório acessa apenas os próprios casos e documentos.</p>
+            </div>
           </div>
         </section>
 
-        {/* 5. The invitation: words on blocks over the pixel field, which leans toward the pointer. */}
-        <section id="comecar" aria-labelledby="comecar-title" className="relative isolate grid min-h-[88svh] scroll-mt-15 place-items-center overflow-hidden border-y border-line">
-          <div data-field-reveal className="absolute inset-0 -z-10">
-            <Halftone seed={11} density={-.1} mark={{ x: .5, y: .5, size: .82 }} markTone="panel" className="absolute inset-0" />
-          </div>
+        {/* Call to action on the field. */}
+        <section id="comecar" aria-labelledby="comecar-title" className="relative isolate grid min-h-[80svh] scroll-mt-15 place-items-center overflow-hidden border-b border-line">
+          <Halftone seed={11} mark={{ x: .5, y: .5, size: 1.05 }} className="absolute inset-0 -z-10" />
           <h2 id="comecar-title" className="w-full">
             <Link href="/sign-up" className="group/start display block text-[clamp(52px,11.5vw,210px)] leading-[.9] uppercase focus-visible:outline-none">
               <span className="flex flex-wrap justify-between gap-y-2">
-                <Block tone="bg-foreground text-background" data-fade>Abra</Block>
-                <Block tone="bg-foreground text-background" data-fade=".1">o seu</Block>
+                <span className="bg-foreground px-3 pt-2 pb-1 text-background" data-fade>Abra</span>
+                <span className="bg-foreground px-3 pt-2 pb-1 text-background" data-fade=".1">o seu</span>
               </span>
               <span className="mt-2 flex justify-center">
                 <span className="flex items-stretch bg-background" data-fade=".2">
@@ -265,7 +213,7 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="relative z-10 grid bg-background md:grid-cols-2">
+      <footer className="grid md:grid-cols-2">
         <div className="flex min-h-72 flex-col justify-between gap-10 border-b border-line p-5 md:p-6">
           <p className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">O espaço de trabalho<br />do escritório.</p>
         </div>
@@ -284,14 +232,13 @@ export default function Landing() {
           </div>
         </div>
         <div className="flex min-h-80 flex-col justify-between gap-10 bg-foreground p-5 text-background md:min-h-[56svh] md:p-6">
-          <div className="flex flex-1 items-center justify-center gap-[.18em] text-[clamp(72px,10vw,168px)]">
-            <TisesMark className="size-[.8em]" aria-hidden="true" focusable="false" />
-            <TisesWordmark className="h-[.66em] w-auto" role="img" aria-label="Tises" />
+          <div className="flex flex-1 items-center justify-center gap-[.18em] text-[clamp(72px,10vw,168px)] font-medium tracking-[-0.05em]">
+            <LumeMark className="size-[.82em]" aria-hidden="true" focusable="false" />Lume
           </div>
-          <p className="label-mono text-background/60">© 2026 Tises</p>
+          <p className="label-mono text-background/60">© 2026 Lume</p>
         </div>
         <Link href="/sign-up" className="group/foot relative flex min-h-64 flex-col justify-between gap-10 border-t border-background/15 bg-foreground p-5 text-background focus-visible:outline-none md:min-h-[56svh] md:border-t-0 md:border-l md:p-6">
-          <span className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Leve o Tises para<br />o seu escritório</span>
+          <span className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Leve o Lume para<br />o seu escritório</span>
           <span className="flex items-end justify-between">
             <span className="text-[17px] font-medium underline decoration-transparent underline-offset-4 transition-colors duration-300 group-hover/foot:decoration-brand">Criar conta</span>
             <ArrowUpRight className="size-28 stroke-[.5] transition-[transform,color] duration-700 ease-(--ease) group-hover/foot:translate-x-1 group-hover/foot:-translate-y-1 group-hover/foot:text-brand md:size-36" aria-hidden="true" />

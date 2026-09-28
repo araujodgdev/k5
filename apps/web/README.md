@@ -2,7 +2,7 @@
 
 Next.js App Router com Better Auth, PostgreSQL, TypeScript e Tailwind CSS.
 
-O produto se chama **Tises**. Identificadores técnicos existentes — como o pacote
+O produto se chama **Lume**. Identificadores técnicos existentes — como o pacote
 `@k5/web`, variáveis `K5_*`, capabilities `k5_*` e nomes de recursos de infraestrutura —
 permanecem estáveis por compatibilidade e não aparecem como marca na interface.
 
@@ -122,26 +122,26 @@ Tarefas usam datas civis opcionais; reuniões exigem início e fim com offset, p
 UTC e apresentados no fuso do navegador. Não há cálculo automático de prazos judiciais.
 
 As capacidades `k5_crm_*` e `k5_agenda_*` usam o mesmo executor da interface,
-Mastra e WebMCP. O Tises cria, altera, conclui e reagenda atividades direto, com o
+Mastra e WebMCP. O Lume cria, altera, conclui e reagenda atividades direto, com o
 papel e o escritório da sessão; WebMCP continua preparando sugestões por `k5_agenda_interpret`.
-Ações de alto impacto pedidas pelo Tises (excluir caso, documento, pasta ou conversa, vincular,
+Ações de alto impacto pedidas pelo Lume (excluir caso, documento, pasta ou conversa, vincular,
 desvincular ou consultar um tribunal, sobrescrever uma minuta) viram uma proposta em
 `capability_approval` e só rodam quando a pessoa aperta **Confirmar** no chat
 (`/api/chat/approvals/[id]`), com exatamente os argumentos propostos.
 
-Com modelos OpenAI ou Anthropic, o Tises tem a busca na web do próprio provedor. Com os demais
+Com modelos OpenAI ou Anthropic, o Lume tem a busca na web do próprio provedor. Com os demais
 (Gemini inclusive, que não combina Google Search com ferramentas), `web_search` usa o Exa quando
 `EXA_API_KEY` está configurada; só a consulta sai do escritório, e as páginas devolvidas entram na
 conferência de citações. Sem a chave, esses modelos ficam sem busca na web. Em pedidos de
 jurisprudência o modelo pesquisa com a própria `web_search` e envia os julgados encontrados a
 `k5_research_score_jurisprudence`: o Jev (modo **Pesquisa** em `/app/admin/ai`) mede a aderência de
 cada um ao caso (0 a 4) e se a página é decisão judicial, e o código confere se o link veio de uma
-busca da conversa. Nada é descartado: o Tises apresenta cada julgado com a confiabilidade (alta,
+busca da conversa. Nada é descartado: o Lume apresenta cada julgado com a confiabilidade (alta,
 média, baixa ou não avaliada) e o motivo.
 
 Cada turno do chat roda fora da requisição que o pediu (`src/lib/chat-turn.ts`). No Cloudflare, o
 Durable Object `LumeChatRun` (binding `CHAT_RUNS`, um por conversa) executa o agente até o fim e
-guarda a resposta; fechar a página não interrompe mais o Tises. Ao reabrir a conversa, o chat se
+guarda a resposta; fechar a página não interrompe mais o Lume. Ao reabrir a conversa, o chat se
 reconecta ao turno em andamento por `/api/chat/[id]/stream`, e **Parar** chama `/api/chat/[id]/stop`.
 Em Node (`pnpm dev`) e no preview, sem o binding, o próprio processo mantém o turno.
 
@@ -152,14 +152,14 @@ O microfone do composer grava, mostra o nível do áudio e, ao parar, envia a gr
 `/api/chat/transcribe`; a transcrição vira a mensagem da pessoa. A tarefa `transcription.voice_note`
 decide o modelo: sem atribuição, segue o provider do Agente (`gpt-4o-mini-transcribe` numa conexão
 OpenAI, o próprio áudio no Gemini, microfone desligado nos demais). O áudio não é guardado.
-O Tises tem uma memória de trabalho por pessoa e escritório (Mastra Memory, tabelas `mastra_*` da
+O Lume tem uma memória de trabalho por pessoa e escritório (Mastra Memory, tabelas `mastra_*` da
 migração 0023, sem criar tabelas em tempo de execução). Ela guarda preferências e o que a pessoa
 pediu para lembrar, e acompanha as conversas seguintes. `k5_memory_get` mostra e `k5_memory_clear`
 apaga a memória (`/api/agent/memory`). O histórico das conversas continua só em `ai_conversation`.
 Resultados de ferramentas com texto de terceiros (Gmail, Google Docs, publicações judiciais,
 jurisprudência e busca na web) passam pelo `PromptInjectionDetector` do Mastra, com o modelo da
 tarefa `classification.injection_guard`, antes de o modelo lê-los. Se houver instruções dirigidas ao assistente, o conteúdo é
-retido e o Tises avisa a pessoa (`src/lib/agent-guard.ts`).
+retido e o Lume avisa a pessoa (`src/lib/agent-guard.ts`).
 Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
 escritas verificam origem e papel. Chaves de idempotência evitam criação duplicada em
 repetições, inclusive simultâneas. `k5_ui_open_resource` abre agenda, cliente e atividade.
@@ -222,8 +222,8 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   `extraction.annex_plan` propõe os documentos e as páginas; o código ordena pela primeira citação na petição
   e deixa desmarcados os não citados. Depois da revisão, `pdf-lib` recorta os intervalos e salva
   cada anexo numa nova pasta do caso, numerado e sem acentos (`01_procuracao.pdf`). Nada é gerado
-  sem confirmação; o Tises usa as mesmas capacidades (`k5_vault_plan_annexes`, `k5_vault_generate_annexes`).
-- **Tises (`/app/agents`):** conversa com histórico por usuário. O botão **+** envia documentos
+  sem confirmação; o Lume usa as mesmas capacidades (`k5_vault_plan_annexes`, `k5_vault_generate_annexes`).
+- **Lume (`/app/agents`):** conversa com histórico por usuário. O botão **+** envia documentos
   e imagens privados para a conversa, com prévia, remoção antes do envio e acesso no histórico.
   Aceita até seis anexos por mensagem, escolhidos de uma vez, com documentos de até 25 MB e imagens de até 10 MB. Eles não criam documentos no Cofre.
   **Fontes** seleciona arquivos existentes do Cofre e referências do caso. Cronologia e minuta rodam como tarefas duráveis e abrem no
@@ -231,7 +231,7 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
 - **Câmera:** **+ → Tirar foto** abre a câmera do dispositivo após a permissão do navegador,
   permite conferir ou repetir a foto e a anexa à mensagem. Exige HTTPS (ou localhost) e um
   modelo com visão. A alternativa **Escolher foto** permanece disponível quando a câmera
-  não pode ser aberta. Para listas fotografadas, o Tises prepara uma sugestão de Agenda por
+  não pode ser aberta. Para listas fotografadas, o Lume prepara uma sugestão de Agenda por
   item solicitado; a pessoa confere os campos e salva na Agenda.
 - **Worker:** processamento de documentos, cronologias e minutas roda fora da requisição.
   Em outro terminal, execute `pnpm worker` na raiz. Sem ele, os itens ficam na fila.
@@ -243,7 +243,7 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   verificação documental, sugestões da Agenda e triagem de feedback possuem modos independentes:
   desligado, avaliar sem aplicar e ativado. A triagem de feedback começa ativada; as demais, desligadas.
   A chave usa a mesma cifra/rotação das demais conexões; não existe chave global
-  de produção em variável de ambiente. Jev não é um modelo de conversa do Tises.
+  de produção em variável de ambiente. Jev não é um modelo de conversa do Lume.
   A verificação documental roda no worker e nunca aprova uma minuta automaticamente.
   Veja [operação e validação TypeSafe](../../docs/typesafe-implementacao.md).
 - **Feedback:** o ícone de inseto ao lado de Instalar abre um diálogo para qualquer papel do
@@ -319,9 +319,9 @@ no rodapé da sidebar, em **Mais** no celular e no cabeçalho da plataforma.
 A escolha fica neste navegador e acompanha as outras abas; **Sistema** segue as
 mudanças de aparência do dispositivo. A preferência é aplicada antes da hidratação.
 
-Use **Instalar Tises** para instalar em navegadores compatíveis. No iPhone/iPad, use
+Use **Instalar Lume** para instalar em navegadores compatíveis. No iPhone/iPad, use
 Safari → Compartilhar → Adicionar à Tela de Início. O manifesto define abertura em
-janela própria, ícones normais/maskable e atalhos para Tises, Cofre e Agenda.
+janela própria, ícones normais/maskable e atalhos para Lume, Cofre e Agenda.
 Instalação e service worker exigem HTTPS em produção (localhost funciona para testes).
 
 O service worker é registrado somente no build de produção. O build gera
@@ -404,7 +404,7 @@ reais: produção exige chave e webhook próprios no ambiente de produção da A
 
 ### Administração financeira
 
-`/app/admin/finance` reúne somente cobranças criadas pelo Tises, com filtros de cliente, período,
+`/app/admin/finance` reúne somente cobranças criadas pelo Lume, com filtros de cliente, período,
 situação e ambiente. Testes e produção ficam separados; os totais são brutos, antes das taxas,
 e o valor após reembolsos não representa saldo disponível na AbacatePay. A lista de Clientes abre
 `/app/admin/clients/[officeId]`, com histórico paginado, comprovantes, assinaturas e ações auditadas.
@@ -431,7 +431,7 @@ aplicativo não precisa gerenciá-los. Nunca coloque a chave no frontend.
 Além dos eventos avulsos, registre `subscription.completed`, `subscription.renewed`,
 `subscription.cancelled` e `subscription.payment_failed` no mesmo endpoint/segredo. A renovação
 depende desses eventos; a consulta ao voltar do checkout recupera apenas o primeiro pagamento.
-Cada evento é associado a um checkout do Tises por consulta ao provedor, nunca pelo e-mail ou por
+Cada evento é associado a um checkout do Lume por consulta ao provedor, nunca pelo e-mail ou por
 metadados enviados pelo cliente. Uma renovação soma um mês uma única vez, mesmo se a confirmação
 chegar por mais de um caminho. Eventos atrasados não reativam uma assinatura cancelada.
 
@@ -443,9 +443,9 @@ Preparações interrompidas antes do envio podem ser retomadas após cinco minut
 já enviada não expira automaticamente: uma consulta sem resultado ainda pode ser temporária.
 
 Pedidos de reembolso/cancelamento gravados, mas ainda não despachados, são retomados ao atualizar.
-Depois da marca de despacho, o Tises somente consulta o resultado. Se a operação continuar
+Depois da marca de despacho, o Lume somente consulta o resultado. Se a operação continuar
 incerta, confira o ID da cobrança/assinatura no painel da AbacatePay antes de qualquer ação
-manual; após confirmação no provedor, atualize novamente no Tises. Não apague registros de
+manual; após confirmação no provedor, atualize novamente no Lume. Não apague registros de
 auditoria nem libere uma tentativa incerta por tempo decorrido. Para uma criação sem resultado,
 use o ID de `billing_checkout_reservation` como `externalId` na consulta ao provedor e encaminhe
 essa referência ao suporte se a ambiguidade persistir. Um cancelamento necessário pode ser
@@ -462,7 +462,7 @@ Referências: [assinaturas](https://docs.abacatepay.com/pages/subscriptions/get)
 ## Observabilidade (Sentry)
 
 Erros de navegador, Next.js, Workers Cloudflare e filas Node são enviados ao projeto
-`lume-wr/lume`; traces usam amostragem de 10%, exceto as respostas do chat (`invoke_agent Tises chat`),
+`lume-wr/lume`; traces usam amostragem de 10%, exceto as respostas do chat (`invoke_agent Lume chat`),
 sempre enviadas, com um span por etapa do modelo e por ferramenta, inclusive a busca do provedor.
 Desenvolvimento/testes ficam desativados por padrão. Veja [configuração, privacidade, source maps
 e verificação](../../docs/sentry.md).

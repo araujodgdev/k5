@@ -50,12 +50,12 @@ export function BillingPanel({ overview, canPay, returned, hasSubscription = fal
 
       <section aria-labelledby="plan-state" className="grid gap-6 border-y border-line py-8 md:grid-cols-[1fr_auto] md:items-end" data-reveal>
         <div className="space-y-3">
-          <p className="label-mono flex items-center gap-2.5 text-muted-foreground"><span className="square-dot" aria-hidden="true" />Plano Tises</p>
+          <p className="label-mono flex items-center gap-2.5 text-muted-foreground"><span className="square-dot" aria-hidden="true" />Plano Lume</p>
           <h2 id="plan-state" className="display text-4xl md:text-5xl">
             {active && paidUntil ? `Ativo até ${longDay(paidUntil)}` : paidUntil ? `Venceu em ${longDay(paidUntil)}` : 'Sem plano ativo'}
           </h2>
           <p className="text-sm text-muted-foreground">{money(price)} por mês, por escritório. Cada pagamento soma um mês ao prazo.</p>
-          {hasSubscription && <p className="text-sm">Assinatura mensal ativa, com renovação automática. Para gerenciar ou cancelar, fale com a administração do Tises. Um pagamento avulso adiciona um mês além da assinatura.</p>}
+          {hasSubscription && <p className="text-sm">Assinatura mensal ativa, com renovação automática. Para gerenciar ou cancelar, fale com a administração do Lume. Um pagamento avulso adiciona um mês além da assinatura.</p>}
         </div>
         {!configured ? (
           <p className="text-sm text-subtle-foreground">Os pagamentos ainda não foram configurados neste ambiente.</p>

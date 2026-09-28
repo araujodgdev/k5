@@ -42,7 +42,7 @@ export const connectionPatchSchema = z.strictObject({
 export const connectionTestSchema = z.strictObject({});
 
 /**
- * Tises' AI connections belong to the platform: one set of providers serves every office
+ * Lume's AI connections belong to the platform: one set of providers serves every office
  * (migration 0022). A platform connection is a row with no office; rows that still carry an
  * office are the per-office configuration from before, kept on record and never read.
  */
@@ -235,7 +235,7 @@ export type ResolvedModelConfig = {
 
 /**
  * Tests any enabled platform connection, independent of what it currently serves: with the model
- * of the first task assigned to it, or with Tises' default for its provider.
+ * of the first task assigned to it, or with Lume's default for its provider.
  */
 export async function testAiConnection(
   db: Database, key: MasterKey, actorUserId: string, connectionId: string,

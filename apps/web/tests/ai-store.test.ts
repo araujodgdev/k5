@@ -190,7 +190,7 @@ test('updateArtifact: concurrent replacements preserve the autosaved text and re
   await updateArtifact(database, owner, id, 'Documento', 'texto humano a preservar', 2, { snapshot: false });
   const results = await Promise.all([
     updateArtifact(database, owner, id, 'Documento', 'restaurado', 3),
-    updateArtifact(database, owner, id, 'Documento', 'edição do Tises', 3),
+    updateArtifact(database, owner, id, 'Documento', 'edição do Lume', 3),
   ]);
   assert.equal(results.filter(Boolean).length, 1);
   const history = await db.prepare('SELECT version,content FROM ai_artifact_version WHERE artifact_id=? ORDER BY version').all(id);

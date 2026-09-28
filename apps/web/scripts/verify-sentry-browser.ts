@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises';
 
 const baseURL = process.env.BASE_URL || 'http://localhost:3105';
 const browser = await chromium.launch({ headless: true });
-const check = `Tises browser Sentry verification ${Date.now()}`;
+const check = `Lume browser Sentry verification ${Date.now()}`;
 await mkdir('playwright-report/sentry', { recursive: true });
 
 try {

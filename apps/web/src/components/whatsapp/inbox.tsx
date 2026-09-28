@@ -290,7 +290,7 @@ function Conversation({ thread, canSendRole, connected, draft, attempt, revision
   const windowOpen = loadedThread.windowClosesAt !== null && Date.parse(loadedThread.windowClosesAt) > now;
   const allowed = canSendRole && connected && history.kind === 'ready' && history.data.canSend && windowOpen;
   const unresolved = sendingUnresolved(attempt);
-  const disabledReason = !canSendRole ? 'Seu acesso permite apenas ler as conversas.' : !connected ? 'Reconecte a conta em Integrações para enviar mensagens.' : history.kind !== 'ready' ? 'Aguarde o carregamento da conversa.' : !windowOpen ? 'O prazo de 24 horas terminou. Aguarde uma nova mensagem do cliente para responder pelo Tises.' : !history.data.canSend ? 'O envio não está disponível para esta conversa.' : '';
+  const disabledReason = !canSendRole ? 'Seu acesso permite apenas ler as conversas.' : !connected ? 'Reconecte a conta em Integrações para enviar mensagens.' : history.kind !== 'ready' ? 'Aguarde o carregamento da conversa.' : !windowOpen ? 'O prazo de 24 horas terminou. Aguarde uma nova mensagem do cliente para responder pelo Lume.' : !history.data.canSend ? 'O envio não está disponível para esta conversa.' : '';
   const checkable = attempt?.kind === 'uncertain' || (attempt?.kind === 'receipt' && ['pending', 'dispatching', 'unknown'].includes(attempt.receipt.status));
   const audioAttachment = attachment?.mimeType?.startsWith('audio/') ?? false;
   const textLimit = attachment ? audioAttachment ? 0 : 1024 : 4096;
@@ -304,7 +304,7 @@ function Conversation({ thread, canSendRole, connected, draft, attempt, revision
   return <section aria-labelledby="whatsapp-conversation-title" className="flex min-h-0 min-w-0 flex-col">
     <header className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-4 md:px-8">
       <Button variant="ghost" className="min-h-11 min-w-11 md:hidden" aria-label="Voltar para as conversas" onClick={onBack}><ArrowLeft aria-hidden="true" /></Button>
-      <div className="min-w-0"><h2 ref={title} tabIndex={-1} id="whatsapp-conversation-title" className="truncate font-medium outline-none">{thread.participantName || 'Contato'}</h2><p className="mt-1 text-xs text-muted-foreground">{windowOpen && loadedThread.windowClosesAt ? `Respostas pelo Tises até ${dateLabel(loadedThread.windowClosesAt)}` : 'Prazo de resposta encerrado'}</p></div>
+      <div className="min-w-0"><h2 ref={title} tabIndex={-1} id="whatsapp-conversation-title" className="truncate font-medium outline-none">{thread.participantName || 'Contato'}</h2><p className="mt-1 text-xs text-muted-foreground">{windowOpen && loadedThread.windowClosesAt ? `Respostas pelo Lume até ${dateLabel(loadedThread.windowClosesAt)}` : 'Prazo de resposta encerrado'}</p></div>
     </header>
     <div ref={viewport} role="region" aria-label="Mensagens da conversa" tabIndex={0} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand" onScroll={event => {
       const element = event.currentTarget;
