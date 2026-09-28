@@ -67,6 +67,8 @@ import type { DocumentAsk, DocumentWorkspaceHandle } from "./document/document-w
 import { DocumentPanel } from "./document/document-panel";
 import type { CitationItem } from "@/lib/citations/verdict";
 import { citationStatusLabel, sourceHref, toReview } from "@/lib/citations/labels";
+import { SmartWorking } from "@/components/smart-options";
+import { THINKING, type ChatStatus } from "@/lib/chat-status";
 
 type Selection = { artifactId: string; excerpt: string };
 /** Read when a message is sent: the document open beside the chat, and a selection spent by that one request. */
@@ -310,17 +312,18 @@ function CitationsList({ data }: { data: { items?: CitationItem[] } }) {
 
 const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep, jurisprudence: JurisprudenceList, citations: CitationsList } } };
 
+/** What Tises is doing in the running turn ("Consultando o Cofre…"), sent by the server as it goes. */
+const WorkingContext = createContext("");
+
 function AssistantMessage() {
+  const working = useContext(WorkingContext);
   return (
     <MessagePrimitive.Root className="group mx-auto w-full max-w-3xl px-4 py-4 md:px-8">
       <div className="max-w-[72ch] text-sm leading-7 text-foreground">
-        <MessagePrimitive.If hasContent={false}>
-          <p className="flex items-center gap-2 text-subtle-foreground" aria-live="polite"><span className="size-1.5 animate-pulse rounded-full bg-brand motion-reduce:animate-none" aria-hidden="true" />Pensando…</p>
-        </MessagePrimitive.If>
         <MessagePrimitive.Parts components={assistantParts} />
         <MessagePrimitive.If last>
           <AuiIf condition={(state) => state.thread.isRunning}>
-            <span className="mt-3 inline-block h-3 w-1.5 animate-pulse bg-foreground motion-reduce:animate-none" aria-label="Respondendo" />
+            <SmartWorking className="not-first:mt-3">{working || THINKING}</SmartWorking>
           </AuiIf>
         </MessagePrimitive.If>
         <MessagePrimitive.Error>
@@ -553,6 +556,7 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
     }),
     [context.caseId, context.documentIds, context.researchReferenceIds, conversationId, focus, lastMessageId],
   );
+  const [working, setWorking] = useState("");
   // K5 owns the history and thread IDs. The direct adapter avoids a second cloud thread list.
   const chat = useChat({
     id: conversationId,
@@ -562,6 +566,7 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
     resume: true,
     onFinish,
     onError: (error) => onError(chatErrorMessage(error)),
+    onData: (part) => { if (part.type === "data-status") setWorking((part.data as ChatStatus).label); },
   });
   const sendMessage:typeof chat.sendMessage=async(message,options)=>{
     if(message&&tools.pendingFiles.length) {
@@ -587,7 +592,10 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
     };
     return () => { sendRef.current = null; };
   }, [sendRef, status, send]);
-  return <ConversationIdContext.Provider value={conversationId}><AssistantRuntimeProvider runtime={runtime}><AgentThread tools={tools} /></AssistantRuntimeProvider></ConversationIdContext.Provider>;
+  // Until the new turn says anything, the line from the previous one does not apply.
+  return <ConversationIdContext.Provider value={conversationId}><WorkingContext.Provider value={status === "submitted" ? "" : working}>
+    <AssistantRuntimeProvider runtime={runtime}><AgentThread tools={tools} /></AssistantRuntimeProvider>
+  </WorkingContext.Provider></ConversationIdContext.Provider>;
 }
 
 export function AgentChat({ initialConversationId = '', initialCaseId, initialData, modalities = { image: false, audio: false } }: { initialConversationId?: string; initialCaseId?: string; initialData?: ChatBootstrap; modalities?: Modalities }) {

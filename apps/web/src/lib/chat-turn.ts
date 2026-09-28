@@ -21,6 +21,9 @@ import { scopeCapability } from '@/lib/collaboration/capability-access';
 import { assertCapabilityAllowed } from '@/lib/application/context';
 import { chatHearsAudio, modelModalities, modelReadsPdf } from '@/lib/ai-modalities';
 import { chatPromptMessages } from '@/lib/chat-prompt';
+import { takeApproval, toolOutcome } from '@/lib/chat-tool-outcome';
+import { CHECKING_CITATIONS, THINKING, WRITING, toolStatus, type ChatStatus } from '@/lib/chat-status';
+import { capabilities, type Capability } from '@/lib/capabilities/contracts';
 import { clockContext } from '@/lib/chat-clock';
 import { instructionsPrompt } from '@/lib/agent-instructions';
 import { knowledgePrompt } from '@/lib/agent-knowledge';
@@ -183,8 +186,16 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         answer += text;
         writer.write({ type: 'text-delta', id: partId, delta: text });
       };
+      // The line under the answer says what Tises is doing. It is transient: shown, never stored.
+      let working = '';
+      const announce = (label: string) => {
+        if (label === working) return;
+        working = label;
+        writer.write({ type: 'data-status', data: { label } satisfies ChatStatus, transient: true });
+      };
       writer.write({ type: 'start', messageId });
       writer.write({ type: 'text-start', id: partId });
+      announce(THINKING);
       try {
         // What the agent did in earlier turns is part of the history it gets back. Keeping only
         // text meant every turn started blind to its own tool calls and redid the work.
@@ -273,9 +284,11 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
           if (chunk.type === 'tool-call') {
             budget.called(chunk.payload.toolCallId, chunk.payload.args, Boolean(chunk.payload.providerExecuted));
             trace.toolCall(chunk.payload.toolCallId, chunk.payload.toolName, chunk.payload.args, Boolean(chunk.payload.providerExecuted));
+            announce(toolStatus(chunk.payload.toolName, (capabilities as Partial<Record<string, Capability>>)[chunk.payload.toolName]?.effect));
             continue;
           }
-          if (chunk.type === 'text-delta') { emit(chunk.payload.text); continue; }
+          if (chunk.type === 'reasoning-start') { announce(THINKING); continue; }
+          if (chunk.type === 'text-delta') { announce(WRITING); emit(chunk.payload.text); continue; }
           if (chunk.type === 'source' && chunk.payload.url) {
             webPages.push({ kind: 'web', ref: chunk.payload.url, url: chunk.payload.url, title: chunk.payload.title ?? '', text: chunk.payload.title ?? '' });
             consultedLinks.add(chunk.payload.url);
@@ -283,36 +296,39 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
             continue;
           }
           // Tool activity is part of the answer: the person sees what the agent did, and the
-          // conversation keeps it, instead of a silent side effect behind the text.
-          if (chunk.type === 'tool-result') {
-            const failed = Boolean(chunk.payload.isError);
-            trace.toolResult(chunk.payload.toolCallId, chunk.payload.toolName, chunk.payload.result, failed);
-            const pending = approvals.findIndex(item => item.capability === chunk.payload.toolName);
-            if (failed && pending >= 0) {
-              const [request] = approvals.splice(pending, 1);
+          // conversation keeps it, instead of a silent side effect behind the text. A tool that
+          // threw arrives as `tool-error`, and that is how a gated action arrives too.
+          const outcome = toolOutcome(chunk);
+          if (outcome) {
+            const { callId, name, result, failed } = outcome;
+            trace.toolResult(callId, name, result, failed);
+            const request = takeApproval(approvals, outcome);
+            if (request) {
               const confirmation: AgentApprovalPart = { approvalId: request.approvalId, capability: request.capability, state: 'pending',
                 summary: await describeAgentApproval(context, request.capability, request.input) };
               confirmations.push(confirmation);
               trace.event('approval', request.capability, { approvalId: request.approvalId });
               writer.write({ type: 'data-approval', id: request.approvalId, data: confirmation });
             } else {
-              const href = failed ? undefined : resourceHref(chunk.payload.toolName, chunk.payload.result);
-              const step = { callId: chunk.payload.toolCallId, name: chunk.payload.toolName, summary: toolSummary(chunk.payload.toolName, chunk.payload.result, failed), state: failed ? 'failed' as const : 'completed' as const, ...(href ? { href } : {}) };
+              const href = failed ? undefined : resourceHref(name, result);
+              const step = { callId, name, summary: toolSummary(name, result, failed), state: failed ? 'failed' as const : 'completed' as const, ...(href ? { href } : {}) };
               steps.push(step);
-              writer.write({ type: 'data-tool', id: chunk.payload.toolCallId, data: step });
+              writer.write({ type: 'data-tool', id: callId, data: step });
               // Pages from the web search are sources for the citation review, like the provider's.
-              if (!failed && !isWithheld(chunk.payload.result) && chunk.payload.toolName === 'web_search') {
+              if (chunk.type === 'tool-result' && !failed && !isWithheld(result) && name === 'web_search') {
                 for (const link of webSearchLinks({ toolResults: [chunk] })) consultedLinks.add(link);
-                for (const page of ((chunk.payload.result as { results?: WebPage[] }).results ?? [])) {
+                for (const page of ((result as { results?: WebPage[] }).results ?? [])) {
                   webPages.push({ kind: 'web', ref: page.url, url: page.url, title: page.title, text: page.text || page.title });
                 }
               }
             }
+            // The model reads the result before it acts or writes again.
+            announce(THINKING);
 
-            const stop = budget.finished(chunk.payload.toolCallId, chunk.payload.toolName, chunk.payload.result);
+            const stop = budget.finished(callId, name, result);
             if (stop) {
               halted = stop.message;
-              trace.event('halt', chunk.payload.toolName, { reason: stop.reason, toolCalls: budget.total });
+              trace.event('halt', name, { reason: stop.reason, toolCalls: budget.total });
               controller.abort();
               break;
             }
@@ -328,6 +344,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         // Check the answer's citations against everything this conversation consulted. A failure
         // here only costs the list; the answer is already with the person.
         try {
+          announce(CHECKING_CITATIONS);
           await recordSources(owner, id, webPages);
           const review = await reviewCitations(owner, answer, await conversationSources(owner, id),
             { signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]) });

@@ -2,11 +2,17 @@ import { testDb } from './test-setup';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { runCapability } from '../src/lib/agent-tools';
+import { Agent } from '@mastra/core/agent';
+import { Mastra } from '@mastra/core';
+import { noopLogger } from '@mastra/core/logger';
+import { simulateReadableStream } from 'ai';
+import { MockLanguageModelV4 } from 'ai/test';
+import { agentTools, runCapability, type ApprovalRequest } from '../src/lib/agent-tools';
 import { CapabilityError } from '../src/lib/capabilities/errors';
 import { createVaultFolder, findVaultFolder } from '../src/lib/vault';
 import { approvalIdFromMessage } from '../src/lib/application/approvals-service';
 import { decideAgentApproval, describeAgentApproval, resourceHref } from '../src/lib/application/agent-approvals';
+import { takeApproval, toolOutcome, type ToolOutcome } from '../src/lib/chat-tool-outcome';
 import type { WorkspaceContext } from '../src/lib/application/context';
 
 async function office(role: WorkspaceContext['role'] = 'lawyer') {
@@ -60,6 +66,48 @@ test('agent approvals: deleting waits for Confirmar in the chat, then runs exact
   const part = JSON.parse(stored!.messages)[0].parts[1];
   assert.equal(part.data.state, 'confirmed', 'the button does not come back after a reload');
   await assert.rejects(decideAgentApproval(context, approvalId, 'confirm'), { code: 'CONFLICT' });
+});
+
+test('agent approvals: gated calls in the agent stream become a Confirmar each, paired by call', async () => {
+  const { context, agent, caseId } = await office();
+  const drafts = await createVaultFolder(context.officeId, context.userId, caseId, 'Rascunhos');
+  const evidence = await createVaultFolder(context.officeId, context.userId, caseId, 'Provas');
+  const usage = { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } };
+  const call = (toolCallId: string, folderId: string) => ({ type: 'tool-call', toolCallId, toolName: 'k5_vault_delete_folder', input: JSON.stringify({ folderId }) });
+  const turns: Array<Array<Record<string, unknown>>> = [
+    [{ type: 'stream-start', warnings: [] }, call('call-drafts', drafts.id), call('call-evidence', evidence.id), call('call-missing', randomUUID()),
+      { type: 'finish', finishReason: { unified: 'tool-calls', raw: 'tool_calls' }, usage }],
+    [{ type: 'stream-start', warnings: [] }, { type: 'text-start', id: 't' }, { type: 'text-delta', id: 't', delta: 'Confirme abaixo.' }, { type: 'text-end', id: 't' },
+      { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage }],
+  ];
+  const model = new MockLanguageModelV4({ doStream: async () => ({ stream: simulateReadableStream({ chunks: turns.shift() ?? [] }) }) as never });
+  const pending: ApprovalRequest[] = [];
+  const tises = new Agent({ id: 'k5', name: 'Tises', instructions: 'Teste.', model, tools: agentTools(agent, request => pending.push(request)) } as ConstructorParameters<typeof Agent>[0]);
+  new Mastra({ agents: { k5: tises }, logger: noopLogger });
+
+  // A tool that throws reaches the stream as `tool-error`; the chat read only `tool-result`,
+  // so the Confirmar button never appeared.
+  const outcomes: ToolOutcome[] = [];
+  for await (const chunk of (await tises.stream('Apague as pastas Rascunhos e Provas.', { maxSteps: 3 })).fullStream) {
+    const outcome = toolOutcome(chunk);
+    if (outcome) outcomes.push(outcome);
+  }
+  const byCall = new Map(outcomes.map(outcome => [outcome.callId, outcome]));
+  assert.deepEqual([...byCall.keys()].sort(), ['call-drafts', 'call-evidence', 'call-missing']);
+  assert.ok(outcomes.every(outcome => outcome.failed));
+
+  const missing = takeApproval(pending, byCall.get('call-missing')!);
+  assert.equal(missing, undefined, 'an ordinary failure is a failed step, not a confirmation');
+  const evidenceRequest = takeApproval(pending, byCall.get('call-evidence')!);
+  const draftsRequest = takeApproval(pending, byCall.get('call-drafts')!);
+  assert.equal(evidenceRequest?.input.folderId, evidence.id);
+  assert.equal(draftsRequest?.input.folderId, drafts.id);
+  assert.equal(pending.length, 0);
+  assert.ok(await findVaultFolder(context.officeId, drafts.id), 'nothing is removed before the person confirms');
+
+  assert.equal((await decideAgentApproval(context, draftsRequest!.approvalId, 'confirm')).state, 'confirmed');
+  assert.equal(await findVaultFolder(context.officeId, drafts.id), undefined);
+  assert.ok(await findVaultFolder(context.officeId, evidence.id), 'confirming one card runs only its own call');
 });
 
 test('agent approvals: cancel changes nothing, and a proposal cannot be reused for another target', async () => {

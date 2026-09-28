@@ -224,7 +224,7 @@ export async function runCapability<N extends CapabilityName>(
  * session and are re-checked inside every call, so a revoked membership stops the next step.
  * Capabilities marked unpublished are absent from the catalog entirely.
  */
-export type ApprovalRequest = { capability: CapabilityName; approvalId: string; input: Record<string, unknown> };
+export type ApprovalRequest = { toolCallId?: string; capability: CapabilityName; approvalId: string; input: Record<string, unknown> };
 
 export function agentTools(context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void) {
   return Object.fromEntries(publishedCapabilitiesForRole(context.role, 'agent').map((name) => [name, toolFor(name, context, onApproval)]));
@@ -237,7 +237,7 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (
     description: capability.description,
     inputSchema: capability.input,
     outputSchema: capability.output,
-    execute: async (input: unknown) => {
+    execute: async (input: unknown, execution?: { agent?: { toolCallId?: string } }) => {
       try {
         const result = await traceToolCall(name, () => runCapability({ ...context, invocation: 'agent' }, name, input));
         // What Tises read is kept before it sees it, so a document it writes next in this same
@@ -250,9 +250,10 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (
       }
       catch (error) {
         // A gated action is not a failure: the chat turns it into a Confirmar button that runs it.
+        // The call id pairs the button with this call when the model asks for two in one step.
         const approvalId = error instanceof CapabilityError && error.code === 'APPROVAL_REQUIRED' ? approvalIdFromMessage(error.message) : null;
         if (approvalId && onApproval) {
-          onApproval({ capability: name, approvalId, input: input as Record<string, unknown> });
+          onApproval({ toolCallId: execution?.agent?.toolCallId, capability: name, approvalId, input: input as Record<string, unknown> });
           throw new CapabilityError('APPROVAL_REQUIRED', 'Aguardando a pessoa pressionar Confirmar no chat; a ação roda quando ela confirmar. Não repita esta chamada.');
         }
         throw error;
