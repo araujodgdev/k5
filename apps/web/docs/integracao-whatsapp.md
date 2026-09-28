@@ -33,7 +33,9 @@ As cotas locais padrão são 60 chamadas por minuto para a conta Zernio e 15 por
 
 ## Cloudflare
 
-O web Worker e o Durable Object do chat recebem o ambiente WhatsApp por contexto da requisição. É possível usar o binding nativo `FLAGS`, com `getBooleanValue`, ou as três variáveis de avaliação REST acima. Para o binding nativo, acrescente ao Wrangler uma entrada na lista `flagship` com `binding: "FLAGS"` e o `app_id` real. Não publique IDs de exemplo.
+O web Worker e o Durable Object do chat recebem o ambiente WhatsApp por contexto da requisição. O staging usa o binding nativo `FLAGS`, com `getBooleanValue`, nos Workers `k5-staging` e `k5-integrations-staging`. Os dois arquivos Wrangler apontam para o app Flagship `lume-staging`, ID `2563a30d-9bc9-45e2-a06b-fafec09b879a`; esse binding dispensa token REST nos Workers. Processos Node usam as três variáveis de avaliação REST acima.
+
+A flag `whatsapp-integration` tem as variações `disabled: false` e `enabled: true`, com `disabled` como padrão. Para liberar um escritório, adicione uma regra com o atributo `office_id` igual ao ID do escritório e a variação `enabled`. Sem regras, todos continuam desativados. O controle geral da flag deve estar ligado para avaliar as regras; desligá-lo retorna o padrão `false` para todos.
 
 O web Worker produz notificações na fila `k5-integrations-staging`, por `INTEGRATIONS_QUEUE`. Provisione essa fila antes de publicar a configuração. O Worker de integrações a consome e também varre os jobs a cada minuto, recuperando notificações perdidas. As notificações só ocorrem depois do commit; o PostgreSQL continua sendo a fonte dos jobs, leases e resultados.
 
