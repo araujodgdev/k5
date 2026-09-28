@@ -32,7 +32,7 @@ async function requestFlagship(path: string, body?: Flag): Promise<unknown> {
     const response = await whatsappTransport()(
       `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/flagship/apps/${encodeURIComponent(appId)}/${path}`,
       { method: body ? 'PUT' : 'GET', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        ...(body ? { body: JSON.stringify(body) } : {}), cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000) },
+        ...(body ? { body: JSON.stringify(body) } : {}), cache: 'no-store', redirect: 'manual', signal: AbortSignal.timeout(8000) },
     );
     if (!response.ok) {
       void response.body?.cancel().catch(() => undefined);
