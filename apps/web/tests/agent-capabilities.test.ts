@@ -112,7 +112,7 @@ test('resultText reads every string, in order, and nothing else', () => {
 test('web search: provider search for OpenAI and Anthropic, Exa for the others when configured', async () => {
   const previous = process.env.EXA_API_KEY;
   try {
-    delete process.env.EXA_API_KEY;
+    Reflect.deleteProperty(process.env, 'EXA_API_KEY');
     assert.ok(webSearchFor('openai').web_search);
     assert.deepEqual(webSearchFor('google'), {});
     process.env.EXA_API_KEY = 'exa-test-key';
@@ -120,7 +120,7 @@ test('web search: provider search for OpenAI and Anthropic, Exa for the others w
     assert.equal(tool.id, 'web_search');
     assert.notEqual(webSearchFor('anthropic').web_search, tool, 'native search keeps priority');
   } finally {
-    if (previous === undefined) delete process.env.EXA_API_KEY; else process.env.EXA_API_KEY = previous;
+    if (previous === undefined) Reflect.deleteProperty(process.env, 'EXA_API_KEY'); else process.env.EXA_API_KEY = previous;
   }
 });
 

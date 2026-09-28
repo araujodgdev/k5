@@ -65,7 +65,7 @@ test('pesquisa na web usa o modo escolhido, fica no histórico e só o autor a r
   const sent: Array<Record<string, unknown>> = [];
   const originalKey = process.env.EXA_API_KEY;
   process.env.EXA_API_KEY = 'exa-test';
-  t.after(() => { if (originalKey === undefined) delete process.env.EXA_API_KEY; else process.env.EXA_API_KEY = originalKey; });
+  t.after(() => { if (originalKey === undefined) Reflect.deleteProperty(process.env, 'EXA_API_KEY'); else process.env.EXA_API_KEY = originalKey; });
   t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
     sent.push(JSON.parse(String(init.body)));
     return Response.json({ results: [
