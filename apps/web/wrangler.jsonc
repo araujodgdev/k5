@@ -64,6 +64,8 @@
   },
 
   "vars": {
+    "CLOUDFLARE_ACCOUNT_ID": "bf552f67bcf46921dbe4137ee0ff8980",
+    "FLAGSHIP_APP_ID": "2563a30d-9bc9-45e2-a06b-fafec09b879a",
     "PROCESSORS_ENABLED": "true",
     "SENTRY_ENVIRONMENT": "staging",
     "SENTRY_TRACES_SAMPLE_RATE": "0.1",

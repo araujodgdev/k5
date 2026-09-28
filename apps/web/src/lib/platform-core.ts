@@ -4,11 +4,11 @@ import { AiConnectionError } from "./ai-connections-core";
 import { CredentialKeyError } from "./platform-crypto";
 import { captureOperationalError } from "./observability/report";
 
-export async function isPlatformAdmin(db: Database, userId: string): Promise<boolean> {
+export async function isPlatformAdmin(db: Pick<Database, 'prepare'>, userId: string): Promise<boolean> {
   return Boolean(await db.prepare("SELECT 1 FROM platform_admin WHERE user_id = ?").get(userId));
 }
 
-export async function assertPlatformAdmin(db: Database, userId: string): Promise<void> {
+export async function assertPlatformAdmin(db: Pick<Database, 'prepare'>, userId: string): Promise<void> {
   if (!await isPlatformAdmin(db, userId)) throw new PlatformRequestError(403, "Acesso restrito aos administradores da plataforma.");
 }
 

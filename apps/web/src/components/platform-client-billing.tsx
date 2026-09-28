@@ -8,6 +8,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from './ui/alert-dialog';
 import { PlatformPayments, PaymentPagination, formatMoney, formatDate } from './platform-payments';
+import { PlatformClientWhatsApp } from './platform-client-whatsapp';
 
 type Confirmation = { action: 'refund' | 'cancel'; targetId: string; amount: number; sandbox: boolean };
 const subscriptionStatuses: Record<string,string> = { PENDING: 'Aguardando adesão', ACTIVE: 'Ativa', CANCELLED: 'Cancelada', EXPIRED: 'Expirada' };
@@ -49,6 +50,7 @@ export function PlatformClientBilling({ data }: { data: ClientBilling }) {
   }
   return <section className="space-y-8">
     <div><Link className="text-sm underline underline-offset-4" href="/app/admin/clients">Voltar para clientes</Link><h2 className="mt-4 break-words text-3xl tracking-tight">{data.office.name}</h2><p className="mt-2 text-sm text-muted-foreground">Cliente desde {formatDate(data.office.createdAt)} · {data.members.length} {data.members.length === 1 ? 'pessoa' : 'pessoas'}</p></div>
+    <PlatformClientWhatsApp key={data.office.id} officeId={data.office.id} />
     <div className="flex flex-wrap items-end justify-between gap-4 border-y border-line py-5"><div><p className="label-mono text-muted-foreground">Plano Lume</p><p className="mt-2 text-xl">{data.overview.paidUntil ? `${data.overview.active ? 'Pago até' : 'Venceu em'} ${formatDate(data.overview.paidUntil)}` : 'Sem período pago'}</p></div><Button variant="outline" disabled={busy || !data.overview.configured} className="h-11 md:h-9" onClick={()=>void command({ action: 'refresh' })}>{busy ? 'Aguarde…' : 'Atualizar pagamentos'}</Button></div>
     <section aria-labelledby="new-payment" className="space-y-4">
       <h3 id="new-payment" className="label-mono">Gerar cobrança</h3>

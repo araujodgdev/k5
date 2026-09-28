@@ -37,6 +37,10 @@ O web Worker e o Durable Object do chat recebem o ambiente WhatsApp por contexto
 
 A flag `whatsapp-integration` tem as variações `disabled: false` e `enabled: true`, com `disabled` como padrão. Para liberar um escritório, adicione uma regra com o atributo `office_id` igual ao ID do escritório e a variação `enabled`. Sem regras, todos continuam desativados. O controle geral da flag deve estar ligado para avaliar as regras; desligá-lo retorna o padrão `false` para todos.
 
+Administradores da plataforma também podem ativar ou desativar o WhatsApp em **Administração → Clientes → escritório → WhatsApp Business**. O controle consulta o estado no Flagship e salva uma regra explícita para aquele `office_id`, preservando as demais regras e o padrão global. Desativar mantém uma regra `false`, mesmo quando o padrão libera outros escritórios. A pausa geral continua sendo controlada no Flagship.
+
+Essa gestão exige `CLOUDFLARE_ACCOUNT_ID`, `FLAGSHIP_APP_ID` e o segredo `FLAGSHIP_MANAGE_TOKEN` no web Worker. Use um token restrito ao app com permissões **Flagship App Read**, **Flagship App Write** e **Flagship App Evaluate**. O token fica somente no servidor. As alterações são auditadas; edições simultâneas pelo Lume são serializadas e telas desatualizadas precisam consultar o estado novamente. Evite editar a mesma flag simultaneamente pelo painel da Cloudflare, pois a API substitui a definição inteira sem atualização condicional. Uma confirmação incerta exige consultar o estado antes de repetir.
+
 O web Worker produz notificações na fila `k5-integrations-staging`, por `INTEGRATIONS_QUEUE`. Provisione essa fila antes de publicar a configuração. O Worker de integrações a consome e também varre os jobs a cada minuto, recuperando notificações perdidas. As notificações só ocorrem depois do commit; o PostgreSQL continua sendo a fonte dos jobs, leases e resultados.
 
 Configure os segredos necessários tanto no web Worker quanto no Worker de integrações. A chave de criptografia deve ser a mesma. `pnpm integrations:build` valida o bundle sem publicar. O deploy continua separado da validação local.
