@@ -6,38 +6,43 @@ import { LumeMark } from "@/components/lume-mark";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { LandingClock, LandingDial } from "@/components/landing/landing-clock";
 import { LandingMotion } from "@/components/landing/landing-motion";
-import { GlyphAgenda, GlyphLume, GlyphResearch, GlyphVault } from "@/components/landing/landing-glyphs";
+import { GlyphAgenda, GlyphFees, GlyphLume, GlyphResearch, GlyphVault } from "@/components/landing/landing-glyphs";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: { absolute: "Lume — o espaço de trabalho do escritório" },
-  description: "A plataforma do escritório de advocacia. Pesquise, redija e acompanhe prazos com um agente que conhece o caso inteiro.",
+  title: { absolute: "Lume, espaço de trabalho para a advocacia" },
+  description: "Documentos por caso, assistente com IA, tarefas, prazos e honorários. Para advogados e pequenos escritórios.",
 };
 
 const modules = [
   {
     name: "Lume", Glyph: GlyphLume,
-    text: "Pesquise, redija e revise peças com um agente que trabalha a partir do caso inteiro. Ele informa o que fez e pede confirmação antes de apagar, sobrescrever um rascunho ou falar com um tribunal.",
+    text: "Peça uma cronologia dos fatos, uma análise ou uma minuta a partir dos documentos do caso. Você confere as fontes e decide o que usar. Antes de apagar um arquivo, sobrescrever um rascunho ou falar com um tribunal, o Lume pede sua confirmação.",
     points: ["Peças em DOCX", "Citações conferidas", "Voz e anexos", "Documento ao lado da conversa"],
   },
   {
     name: "Cofre", Glyph: GlyphVault,
-    text: "Organize os documentos do escritório por caso, com leitura integral, inclusive de PDFs escaneados. Depois, encontre o que importa com uma busca ou uma pergunta ao Lume.",
+    text: "Guarde os documentos em pastas por caso. O Lume lê cada arquivo inteiro, inclusive PDFs escaneados, e você acha um trecho com uma busca ou uma pergunta.",
     points: ["Pastas por caso", "Leitura de PDFs escaneados", "Anexos nomeados para o PJe", "Busca no conteúdo"],
   },
   {
     name: "Pesquisa", Glyph: GlyphResearch,
-    text: "Encontre jurisprudência e acompanhe andamentos sem sair do caso. Salve cada decisão como referência ou use-a como ponto de partida de uma peça.",
+    text: "Descreva a questão, escolha entre uma busca rápida ou profunda e confira as decisões encontradas. Salve uma decisão no caso ou comece uma peça a partir dela. Os andamentos do processo aparecem no mesmo caso.",
     points: ["Jurisprudência na web", "Andamentos processuais", "Vínculo com o caso", "Rascunho a partir da decisão"],
   },
   {
-    name: "Agenda", Glyph: GlyphAgenda,
-    text: "Controle prazos, tarefas e reuniões em um só calendário, ligado a clientes e casos, com avisos no celular.",
-    points: ["Tarefas com prazo", "Reuniões", "Clientes e casos", "Avisos no celular"],
+    name: "Escritório", Glyph: GlyphAgenda,
+    text: "Cada cliente tem contatos, observações, casos e as próximas tarefas. Tarefas, prazos e reuniões entram num só calendário, com responsável e aviso no celular.",
+    points: ["Clientes e casos", "Tarefas com responsável", "Prazos e reuniões", "Avisos no celular"],
+  },
+  {
+    name: "Honorários", Glyph: GlyphFees,
+    text: "Divida o honorário em parcelas e registre cada recebimento, inclusive pagamentos parciais. O saldo a receber muda a cada registro. O Lume não movimenta dinheiro.",
+    points: ["Parcelas com vencimento", "Pagamentos parciais", "Parcelas em atraso", "Saldo a receber"],
   },
 ];
 
-const marquee = ["Lume", "Cofre", "Pesquisa", "Agenda", "Documentos", "E-mails", "Notificações", "Integrações"];
+const marquee = ["Lume", "Cofre", "Pesquisa", "Escritório", "Honorários", "E-mails", "Mensagens", "WhatsApp", "Integrações"];
 
 /** An action in mono caps with an arrow; the brand sweeps in from the left on hover. */
 function ArrowLink({ href, children, tone = "ink", className }: { href: string; children: React.ReactNode; tone?: "ink" | "clear"; className?: string }) {
@@ -69,7 +74,7 @@ export default function Landing() {
 
       <header className="sticky top-0 z-30 grid h-[calc(3.75rem+env(safe-area-inset-top))] grid-cols-[1fr_auto] border-b border-line bg-background pt-[env(safe-area-inset-top)] md:grid-cols-2">
         <div className="flex min-w-0 items-stretch">
-          <Link href="/" aria-label="Lume — início" className="hover-sweep grid w-15 shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none">
+          <Link href="/" aria-label="Lume, início" className="hover-sweep grid w-15 shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none">
             <LumeMark width={22} height={22} aria-hidden="true" focusable="false" />
           </Link>
           <p className="self-center px-5 text-lg font-medium tracking-[-0.04em] md:hidden">Lume</p>
@@ -100,11 +105,11 @@ export default function Landing() {
           <Halftone seed={7} mark={{ x: .56, y: .58, size: .95 }} className="fade-in hidden border-t border-line [--delay:.35s] md:block md:min-h-[46svh]" />
           <div className="grid border-t border-line sm:grid-cols-2 md:border-l">
             <div className="flex min-h-72 flex-col justify-between gap-10 bg-foreground p-5 text-background md:p-6">
-              <p className="fade-in text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">A plataforma do escritório de advocacia. Pesquise, redija e acompanhe prazos com um agente que conhece o caso inteiro.</p>
+              <p className="fade-in text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">O Lume guarda os documentos de cada caso, prepara rascunhos a partir deles e acompanha tarefas, prazos e honorários.</p>
               <ArrowLink href="/sign-up" tone="clear" className="-mx-4 -mb-3">Criar conta</ArrowLink>
             </div>
             <div className="flex min-h-72 flex-col justify-between gap-10 overflow-hidden bg-brand text-brand-foreground">
-              <p className="fade-in p-5 text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.55s] md:p-6">O melhor trabalho do escritório em cada caso, com mais tempo para os clientes.</p>
+              <p className="fade-in p-5 text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.55s] md:p-6">Para quem advoga sozinho e para escritórios de 2 a 5 advogados.</p>
               <div className="marquee overflow-hidden border-t border-brand-foreground/25 py-4" aria-label="Módulos do Lume">
                 <ul className="marquee-track flex w-max gap-10 pr-10 text-xl font-medium tracking-[-0.04em]">
                   {[...marquee, ...marquee].map((name, index) => (
@@ -117,16 +122,16 @@ export default function Landing() {
         </section>
 
         {/* Statement band. */}
-        <section aria-label="Do prazo à peça" className="grid border-b border-line md:grid-cols-2">
+        <section aria-label="O caso inteiro" className="grid border-b border-line md:grid-cols-2">
           <div className="flex min-h-[44svh] flex-col justify-end bg-foreground px-5 py-6 text-background md:px-6">
             <p className="display text-[clamp(64px,10.5vw,176px)] leading-[.86] uppercase">
-              <Rise>Do prazo</Rise>
-              <Rise delay={.08}>à peça.</Rise>
+              <Rise>O caso</Rise>
+              <Rise delay={.08}>inteiro.</Rise>
             </p>
           </div>
           <div className="grid min-h-[44svh] grid-rows-[1fr_auto] border-t border-line bg-panel text-panel-foreground md:border-t-0 md:border-l">
             <p className="display self-end px-5 pb-6 text-[clamp(56px,8vw,140px)] md:px-6"><Rise>Num lugar só.</Rise></p>
-            <div className="border-t border-line px-5 py-5 md:px-6"><p className="max-w-md text-base leading-snug" data-fade>Casos, documentos, prazos e pesquisa na mesma plataforma, com advogados e agente trabalhando a partir do mesmo contexto.</p></div>
+            <div className="border-t border-line px-5 py-5 md:px-6"><p className="max-w-md text-base leading-snug" data-fade>Documentos, clientes, tarefas, prazos e honorários ficam ligados ao caso. Quando outro advogado assume, ele encontra os arquivos e vê o que falta fazer.</p></div>
           </div>
         </section>
 
@@ -141,7 +146,7 @@ export default function Landing() {
                 <Rise delay={.12}>advocacia</Rise>
               </h2>
               <div className="flex max-w-md flex-col gap-8 self-end" data-fade>
-                <p className="text-base leading-snug">Quatro módulos sobre os mesmos casos. O Lume consulta os documentos do Cofre, e a Agenda acompanha os prazos de cada caso.</p>
+                <p className="text-base leading-snug">Os cinco módulos usam os mesmos casos. O Lume lê os documentos do Cofre, o Escritório mostra os prazos de cada caso e Honorários mostra quanto falta receber.</p>
                 <ArrowLink href="/sign-up" className="w-full sm:w-64">Criar conta</ArrowLink>
               </div>
             </div>
@@ -181,7 +186,7 @@ export default function Landing() {
             </div>
             <div className="flex min-h-72 flex-col justify-between gap-10 border-t border-line bg-foreground p-5 text-background md:border-t-0 md:border-l md:p-6" data-wipe>
               <p className="display text-[clamp(72px,7vw,120px)]">PJe</p>
-              <p className="text-[17px] leading-snug">Envie anexos já divididos e nomeados no padrão do processo eletrônico.</p>
+              <p className="text-[17px] leading-snug">Os anexos saem divididos e nomeados no padrão do processo eletrônico.</p>
             </div>
             <div className="flex min-h-72 flex-col justify-between gap-10 border-t border-line bg-panel p-5 text-panel-foreground md:border-t-0 md:border-l md:p-6" data-wipe>
               <p className="display text-[clamp(72px,7vw,120px)]">0</p>
@@ -215,7 +220,7 @@ export default function Landing() {
 
       <footer className="grid md:grid-cols-2">
         <div className="flex min-h-72 flex-col justify-between gap-10 border-b border-line p-5 md:p-6">
-          <p className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">O espaço de trabalho<br />do escritório.</p>
+          <p className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Os documentos do caso.<br />A rotina do escritório.</p>
         </div>
         <div className="grid grid-cols-2 border-b border-line md:border-l">
           <nav aria-label="Rodapé" className="flex flex-col gap-3 p-5 text-[17px] md:p-6">

@@ -57,3 +57,16 @@ export function GlyphAgenda() {
     </svg>
   );
 }
+
+/** Honorários: a fee split into three installments, the first paid and the second in part. */
+export function GlyphFees() {
+  return (
+    <svg viewBox="0 0 200 200" fill="none" stroke="currentColor" strokeWidth=".8" aria-hidden="true" className={figure}>
+      <circle cx="100" cy="100" r="96" strokeDasharray="1 3" />
+      {[-44, 0, 44].map((y) => <rect key={y} x="40" y={88 + y} width="120" height="24" />)}
+      {Array.from({ length: 14 }, (_, i) => <line key={i} x1={44 + i * 8.3} y1="48" x2={44 + i * 8.3} y2="64" />)}
+      {Array.from({ length: 6 }, (_, i) => <line key={i} x1={44 + i * 8.3} y1="92" x2={44 + i * 8.3} y2="108" />)}
+      <rect x="163" y="97" width="6" height="6" className="fill-brand" stroke="none" />
+    </svg>
+  );
+}
