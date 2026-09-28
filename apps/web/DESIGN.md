@@ -67,9 +67,13 @@ Dark is the default theme: paper becomes `#232323`, ink becomes `#f5f5f5`, and t
 
 `<LumeMark />` in `src/components/lume-mark.tsx` is the symbol, built from an open L and a diagonal beam of light. In the shell, auth and landing it sits white on an ink tile in the grid's top-left corner, the width of the collapsed menu (3.75rem); the tile takes the brand sweep on hover. `<Logo height={n} />` in `src/components/logo.tsx` pairs the symbol with a Geist nameplate for compact places. Both inherit `currentColor`. `public/lume.svg` is the standalone vector, while `src/app/icon.svg` provides the dark app icon used to generate the favicon and PWA assets. Keep the symbol paths in sync, including the copy in `src/components/halftone.tsx`. Don't put the logo inside page content.
 
+### Traço
+
+The mark's entrance, `.lume-trace` in `globals.css`: the outline of each piece draws in a fine line (stem, base, then beam, 0.15s apart, `--ease-in-out`), then each piece fills (`--ease`). About 1.8s, once, on the sign-in and sign-up field and on `public/offline.html` (which repeats the CSS, since it runs without the app's stylesheet). Paths carry `pathLength="1"` and `--i`; the line width is in the mark's units (`--trace-width`), because a non-scaling stroke ignores `pathLength`. The resting state is the filled mark, so reduced motion shows it still.
+
 ## Halftone
 
-`<Halftone />` (`src/components/halftone.tsx`) is the product's one image: square ink pixels, ordered-dithered over slow noise, with a sprinkle of brand pixels in the mid-tones and, optionally, the Lume mark cut out as a flat `panel` silhouette. It leans toward the pointer. It is decorative (`aria-hidden`), pauses off screen and in hidden tabs, draws one still frame under reduced motion, re-reads the palette when the theme changes, and caps itself near 60k pixels per frame by growing its cells on large areas. It fills the sign-in panel and the landing's image cells; it never goes inside the app's working screens.
+`<Halftone />` (`src/components/halftone.tsx`) is the product's one image: square ink pixels, ordered-dithered over slow noise, with a sprinkle of brand pixels in the mid-tones and, optionally, the Lume mark cut out of it (`markTone`). Where text sits over the field (the landing) the mark is a flat `panel` silhouette in the field's own pixels. Where it stands alone (sign-in and sign-up) it is a `brand` vector over a paper cut-out one cell wider than the mark, so it stays sharp and draws itself in with the Traço. It leans toward the pointer. It is decorative (`aria-hidden`), pauses off screen and in hidden tabs, draws one still frame under reduced motion, re-reads the palette when the theme changes, and caps itself near 60k pixels per frame by growing its cells on large areas. It fills the sign-in panel and the landing's image cells; it never goes inside the app's working screens.
 
 ## Components
 

@@ -83,7 +83,7 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
         <div className="ml-auto flex items-center gap-1 border-l border-line px-3"><InstallApp /><ThemeSwitch /></div>
       </header>
       {/* The field answers the form: it tightens while the password is typed, flares on submit, stills on an error. */}
-      <Halftone mood={mood} mark={{ x: .5, y: .56, size: .78 }} seed={isSignUp ? 5 : 2} className="h-36 border-b border-line md:order-last md:h-auto md:border-b-0 md:border-l" />
+      <Halftone mood={mood} mark={{ x: .5, y: .56, size: .78 }} markTone="brand" seed={isSignUp ? 5 : 2} className="h-36 border-b border-line md:order-last md:h-auto md:border-b-0 md:border-l" />
       <div className="flex min-w-0 flex-col px-6 pt-8 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:px-12 md:py-10 lg:px-16">
       <section className="w-full max-w-[420px] md:my-auto" aria-labelledby="auth-title">
         <Reveal>

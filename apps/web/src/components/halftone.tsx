@@ -38,15 +38,19 @@ function colorWord(ctx: CanvasRenderingContext2D, value: string) {
 }
 
 /**
- * A dithered field of square ink pixels drifting over paper, with the Lume mark cut out as a
- * flat grey silhouette. It leans toward the pointer; `mood` lets a form answer through it.
+ * A dithered field of square ink pixels drifting over paper, with the Lume mark cut out of it.
+ * A grey mark is drawn in the field's own pixels; a peach mark is a vector laid over a paper
+ * cut-out, so it stays sharp and draws itself in with the Traço (`.lume-trace` in globals.css).
+ * It leans toward the pointer; `mood` lets a form answer through it.
  * Decorative: aria-hidden, paused off screen, one still frame under reduced motion.
  */
-export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell = 3, density = 0 }: {
+export function Halftone({ className, mood = "idle", mark = null, markTone = "panel", seed = 1, cell = 3, density = 0 }: {
   className?: string;
   mood?: HalftoneMood;
   /** Where the mark sits, as fractions of the field: centre x, centre y and height. */
   mark?: Mark | null;
+  /** `panel`: grey pixels, where text sits over the field. `brand`: a peach vector with the Traço, where the mark stands alone. */
+  markTone?: "panel" | "brand";
   seed?: number;
   /** CSS pixels per dither pixel. */
   cell?: number;
@@ -65,6 +69,7 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
   }, [mood]);
 
   const markX = mark?.x, markY = mark?.y, markSize = mark?.size;
+  const vector = markTone === "brand";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -113,6 +118,18 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
       const data = sctx.getImageData(0, 0, cols, rows).data;
       mask = new Uint8Array(cols * rows);
       for (let i = 0; i < mask.length; i++) mask[i] = data[i * 4 + 3] > 110 ? 1 : 0;
+      // Under the vector, the cut-out grows by one cell so no pixel touches the mark's edge.
+      if (vector) {
+        const grown = new Uint8Array(mask.length);
+        for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+          if (!mask[y * cols + x]) continue;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < cols && ny < rows) grown[ny * cols + nx] = 1;
+          }
+        }
+        mask = grown;
+      }
     };
 
     const resize = () => {
@@ -141,12 +158,13 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
       const px = pointer.x * cols, py = pointer.y * rows;
       const reach = Math.max(cols, rows) * .32;
       const lean = pointer.lean * .42;
-      const { ink, paper, panel, brand } = palette;
+      const { ink, paper, brand } = palette;
+      const markColor = vector ? paper : palette.panel;
       for (let y = 0; y < rows; y++) {
         const ny = y * scale;
         for (let x = 0; x < cols; x++) {
           const i = y * cols + x;
-          if (mask && mask[i]) { words[i] = panel; continue; }
+          if (mask && mask[i]) { words[i] = markColor; continue; }
           const nx = x * scale;
           let n = noise(nx + t * .06, ny - t * .04, seed) * .65 + noise(nx * 2.3 - t * .09, ny * 2.3 + t * .05, seed + 1) * .35;
           n = (n - .5) * contrast + .5 + bias;
@@ -226,11 +244,19 @@ export function Halftone({ className, mood = "idle", mark = null, seed = 1, cell
       document.removeEventListener("visibilitychange", onVisibility);
       reduced.removeEventListener("change", onMotion);
     };
-  }, [cell, density, seed, markX, markY, markSize]);
+  }, [cell, density, seed, markX, markY, markSize, vector]);
 
   return (
     <div aria-hidden="true" className={cn("relative overflow-hidden bg-background", className)}>
       <canvas ref={canvasRef} className="halftone-canvas absolute inset-0 size-full" />
+      {vector && mark && (
+        // Same placement as the cut-out: centred on (x, y), as tall as `size`; the viewBox offset
+        // matches the half-unit shift that centres the symbol in buildMask.
+        <svg viewBox=".5 -.5 24 24" className="lume-trace absolute aspect-square w-auto -translate-1/2 overflow-visible text-brand"
+          style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, height: `${mark.size * 100}%` }}>
+          {MARK_PATHS.map((d, i) => <path key={d} d={d} pathLength={1} style={{ "--i": i } as React.CSSProperties} />)}
+        </svg>
+      )}
     </div>
   );
 }
