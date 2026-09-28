@@ -6,21 +6,8 @@ import { CapabilityError } from '@/lib/capabilities/errors';
 import type { WorkspaceContext } from '@/lib/application/context';
 import { caseAccess } from './access';
 
-const officeRole = z.enum(['administrator', 'lawyer', 'reviewer']);
-const permission = z.enum(['viewer', 'editor']);
-export const invitationInput = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('team'), email: z.email().max(254), role: officeRole }),
-  z.object({ kind: z.literal('associate'), email: z.email().max(254) }),
-  z.object({ kind: z.literal('case'), email: z.email().max(254), caseId: z.string().min(1), role: permission, canInvite: z.boolean().default(false) }),
-]);
-export const collaborationAction = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('invite'), invitation: invitationInput }),
-  z.object({ action: z.literal('respond'), id: z.string().min(1), accept: z.boolean(), token: z.string().max(128).optional() }),
-  z.object({ action: z.literal('cancel'), id: z.string().min(1) }),
-  z.object({ action: z.literal('member'), userId: z.string().min(1), role: officeRole.nullable() }),
-  z.object({ action: z.literal('associate'), userId: z.string().min(1) }),
-  z.object({ action: z.literal('participant'), caseId: z.string().min(1), userId: z.string().min(1), role: permission.nullable(), canInvite: z.boolean().default(false) }),
-]);
+import { invitationInput, collaborationAction } from './contracts';
+export { invitationInput, collaborationAction } from './contracts';
 type Invitation = { id: string; office_id: string; kind: 'team' | 'associate' | 'case'; case_id: string | null;
   email: string; recipient_user_id: string | null; invited_by: string; role: string; can_invite: boolean;
   token_hash: string; status: string; expires_at: string };

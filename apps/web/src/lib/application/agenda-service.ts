@@ -52,9 +52,9 @@ export async function listClients(context: WorkspaceContext, input: Input<'k5_cr
   return { clients: await Promise.all(rows.map(row => clientFromRow(context, row))), total: count!.total };
 }
 
-async function saveClient(context: WorkspaceContext, value: Omit<CrmClient, 'createdAt' | 'updatedAt'>, creating: boolean) {
+async function saveClient(context: WorkspaceContext, value: Omit<CrmClient, 'createdAt' | 'updatedAt'>, creating: boolean, validateCaseIds = true) {
   const caseIds = [...new Set(value.caseIds)];
-  for (const caseId of caseIds) await validateReferences(context, { caseId });
+  if (validateCaseIds) for (const caseId of caseIds) await validateReferences(context, { caseId });
   const token = randomUUID();
   const now = new Date().toISOString();
   // Blank text is stored as absent; areas are a set.
@@ -90,7 +90,7 @@ export function createClient(context: WorkspaceContext, input: Input<'k5_crm_cre
 export async function updateClient(context: WorkspaceContext, input: Input<'k5_crm_update_client'>) {
   const { client } = await getClient(context, input);
   const changes = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
-  return saveClient(context, crmClientDto.parse({ ...client, ...changes }), false);
+  return saveClient(context, crmClientDto.parse({ ...client, ...changes }), false, input.caseIds !== undefined);
 }
 
 export async function listMembers(context: WorkspaceContext) {

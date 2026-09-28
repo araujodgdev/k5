@@ -18,6 +18,28 @@ const googleRoutes = Object.fromEntries<Route>(Object.entries(googleOperations).
   [name, { method: 'POST', path: () => googleOperationPath(operation as GoogleOperation), body: (i: Record<string, unknown>) => i } satisfies Route])) as Record<GoogleCapabilityName, Route>;
 
 const routes: Record<CapabilityName, Route> = {
+  k5_help_search: { method: 'POST', path: () => '/api/capabilities/k5_help_search', body: i => i },
+  k5_collaboration_get: { method: 'POST', path: () => '/api/capabilities/k5_collaboration_get', body: i => i },
+  k5_collaboration_change: { method: 'POST', path: () => '/api/capabilities/k5_collaboration_change', body: i => i },
+  k5_messages_contacts: { method: 'POST', path: () => '/api/capabilities/k5_messages_contacts', body: i => i },
+  k5_messages_list: { method: 'POST', path: () => '/api/capabilities/k5_messages_list', body: i => i },
+  k5_messages_read: { method: 'POST', path: () => '/api/capabilities/k5_messages_read', body: i => i },
+  k5_messages_start: { method: 'POST', path: () => '/api/capabilities/k5_messages_start', body: i => i },
+  k5_messages_send: { method: 'POST', path: () => '/api/capabilities/k5_messages_send', body: i => i },
+  k5_messages_mark_read: { method: 'POST', path: () => '/api/capabilities/k5_messages_mark_read', body: i => i },
+  k5_messages_document_options: { method: 'POST', path: () => '/api/capabilities/k5_messages_document_options', body: i => i },
+  k5_messages_case_options: { method: 'POST', path: () => '/api/capabilities/k5_messages_case_options', body: i => i },
+  k5_messages_share: { method: 'POST', path: () => '/api/capabilities/k5_messages_share', body: i => i },
+  k5_messages_revoke_share: { method: 'POST', path: () => '/api/capabilities/k5_messages_revoke_share', body: i => i },
+  k5_notifications_list: { method: 'POST', path: () => '/api/capabilities/k5_notifications_list', body: i => i },
+  k5_notifications_read: { method: 'POST', path: () => '/api/capabilities/k5_notifications_read', body: i => i },
+  k5_notifications_archive: { method: 'POST', path: () => '/api/capabilities/k5_notifications_archive', body: i => i },
+  k5_notifications_get_preferences: { method: 'POST', path: () => '/api/capabilities/k5_notifications_get_preferences', body: i => i },
+  k5_notifications_update_preferences: { method: 'POST', path: () => '/api/capabilities/k5_notifications_update_preferences', body: i => i },
+  k5_notifications_follow_case: { method: 'POST', path: () => '/api/capabilities/k5_notifications_follow_case', body: i => i },
+  k5_agent_settings_get: { method: 'POST', path: () => '/api/capabilities/k5_agent_settings_get', body: i => i },
+  k5_agent_settings_change: { method: 'POST', path: () => '/api/capabilities/k5_agent_settings_change', body: i => i },
+
   k5_honorarios_list: { method: 'POST', path: () => '/api/honorarios/list', body: i => i },
   k5_honorarios_get: { method: 'POST', path: () => '/api/honorarios/get', body: i => i },
   k5_honorarios_options: { method: 'POST', path: () => '/api/honorarios/options', body: i => i },

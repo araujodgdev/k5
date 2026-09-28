@@ -57,18 +57,18 @@ const webSearchView = webSearchItem.extend({
 
 export const researchCapabilities = {
   k5_research_web_search: {
-    module: 'research', effect: 'read', roles: readers, publish: [],
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
     description: 'Pesquisa na web pela Exa, no modo escolhido, e guarda a pesquisa no histórico da pessoa.',
     input: z.object({ query: z.string().trim().min(2).max(400), mode: webSearchMode.default('auto') }),
     output: z.object({ search: webSearchView }),
   },
   k5_research_list_web_searches: {
-    module: 'research', effect: 'read', roles: readers, publish: [],
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
     description: 'Lista as pesquisas na web feitas pela pessoa neste escritório.',
     input: z.object({}), output: z.object({ searches: z.array(webSearchItem) }),
   },
   k5_research_get_web_search: {
-    module: 'research', effect: 'read', roles: readers, publish: [],
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
     description: 'Reabre uma pesquisa na web do histórico, sem pesquisar de novo.',
     input: z.object({ searchId: identifier }), output: z.object({ search: webSearchView }),
   },
@@ -97,35 +97,35 @@ export const researchCapabilities = {
     publish: ['agent', 'webmcp'],
   },
   k5_research_list_history: {
-    module: 'research', effect: 'read', roles: readers, publish: [],
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
     description: 'Lista as pesquisas feitas pela pessoa neste escritório.',
     input: z.object({}), output: z.object({ searches: z.array(historyItem) }),
   },
   k5_research_get_search: {
-    module: 'research', effect: 'read', roles: readers, publish: [],
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
     description: 'Lê uma pesquisa e seu progresso sem consultar fontes externas.',
     input: z.object({ searchId: identifier }), output: z.object({ search: searchView }),
   },
   k5_research_start_search: {
-    module: 'research', effect: 'write', roles: writers, publish: [],
+    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
     description: 'Inicia pesquisa por tema no acervo e, quando solicitado, nas fontes habilitadas.',
-    input: z.object({ theme: z.string().trim().min(2).max(300), filters, includeSources: z.boolean().default(false), refreshSources: z.boolean().optional(), idempotencyKey }),
+    input: z.object({ theme: z.string().trim().min(2).max(300), filters, includeSources: z.boolean().default(false), refreshSources: z.boolean().optional(), idempotencyKey, approvalId: z.uuid().optional() }),
     output: z.object({ search: searchView }),
   },
   k5_research_request_page: {
-    module: 'research', effect: 'write', roles: writers, publish: [],
+    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
     description: 'Solicita uma página adicional de uma pesquisa já criada.',
-    input: z.object({ searchId: identifier, cursor: z.string().max(200).optional(), idempotencyKey }),
+    input: z.object({ searchId: identifier, cursor: z.string().max(200).optional(), idempotencyKey, approvalId: z.uuid().optional() }),
     output: z.object({ page }),
   },
   k5_research_request_material: {
-    module: 'research', effect: 'write', roles: writers, publish: [],
+    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
     description: 'Solicita obtenção de material oficial de um julgado.',
-    input: z.object({ judgmentId: identifier, kind: z.enum(['ementa', 'full_text']), searchId: identifier.optional(), idempotencyKey }),
+    input: z.object({ judgmentId: identifier, kind: z.enum(['ementa', 'full_text']), searchId: identifier.optional(), idempotencyKey, approvalId: z.uuid().optional() }),
     output: z.object({ jobId: z.string().nullable(), status: materialStatus }),
   },
   k5_research_cancel_downloads: {
-    module: 'research', effect: 'write', roles: writers, publish: [],
+    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
     description: 'Para obtenções pendentes desta pesquisa sem eliminar material já coletado.',
     input: z.object({ searchId: identifier, idempotencyKey }), output: z.object({ cancelled: z.number() }),
   },

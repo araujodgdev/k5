@@ -131,6 +131,8 @@ configuração do Cloudflare Email Service e o worker de integrações.
 
 ## Configuração e dados
 
+Consulte o [Manual do Lume](docs/manual-lume.md) para o funcionamento de cada módulo e os limites do assistente. A [operação do agente e da ajuda](docs/agente-modulos-e-ajuda.md) descreve ferramentas, confirmações e publicação da base de conhecimento na Cloudflare.
+
 Veja [o guia do frontend](apps/web/README.md) e [as variáveis de exemplo](apps/web/.env.example).
 O cadastro cria um escritório e um vínculo de administrador. Em **Escritório → Equipe**,
 administradores convidam membros e gerenciam os papéis de administrador, advogado e revisor.

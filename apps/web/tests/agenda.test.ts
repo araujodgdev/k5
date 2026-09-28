@@ -37,6 +37,16 @@ test('agenda: clients, links, partial updates and stale versions preserve data',
   assert.equal(page.total, 1);
 });
 
+test('client notes remain editable after a linked case is deleted', async () => {
+  const { context, caseId } = await fixture();
+  const { client } = agendaCapabilities.k5_crm_create_client.output.parse(await runCapability(context, 'k5_crm_create_client', { name: 'Simons', caseIds: [caseId], notes: 'Original' }));
+  await testDb.prepare('UPDATE vault_case SET deleted_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=?').run(caseId, context.officeId);
+  const read = agendaCapabilities.k5_crm_get_client.output.parse(await runCapability(context, 'k5_crm_get_client', { clientId: client.id }));
+  const result = agendaCapabilities.k5_crm_update_client.output.parse(await runCapability(context, 'k5_crm_update_client', { clientId: read.client.id, version: read.client.version, notes: 'Atualizada' }));
+  assert.equal(result.client.notes, 'Atualizada');
+  await assert.rejects(runCapability(context, 'k5_crm_update_client', { clientId: client.id, version: result.client.version, caseIds: [caseId] }), { code: 'NOT_FOUND' });
+});
+
 test('agenda: office isolation covers reads, updates and every foreign reference', async () => {
   const a = (await fixture()); const b = (await fixture());
   const { client } = await call(b.context, 'k5_crm_create_client', { name: 'Cliente externo' }) as z.output<typeof agendaCapabilities.k5_crm_create_client.output>;

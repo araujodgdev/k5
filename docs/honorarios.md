@@ -32,7 +32,7 @@ Os contratos ficam em `apps/web/src/lib/honorarios/contracts.ts`. O serviço em 
 
 Cada gravação exige uma chave de idempotência. A reserva da chave, a alteração e a resposta são confirmadas na mesma transação. Repetir a mesma solicitação retorna o resultado salvo. Reutilizar a chave com dados diferentes resulta em conflito. Recebimentos, correções e cancelamentos bloqueiam o mesmo honorário durante a transação, impedindo que duas baixas ultrapassem o saldo.
 
-As operações não são publicadas para o assistente ou WebMCP nesta versão. O controle é manual e não emite PIX, boletos, notas fiscais, juros, correção monetária ou cobranças recorrentes. Os pagamentos da assinatura Lume continuam no módulo Plano e no financeiro da administração da plataforma.
+As sete operações estão publicadas para o assistente e WebMCP, respeitando as permissões da pessoa. O agente consulta parcelas pelo módulo Honorários e registra recebimentos com valor, data, meio e chave idempotente; não substitui uma baixa financeira por uma nota no cadastro do cliente. Estornos e cancelamentos exigem confirmação vinculada aos argumentos exatos da ação. O controle não emite PIX, boletos, notas fiscais, juros, correção monetária ou cobranças recorrentes. Os pagamentos da assinatura Lume continuam no módulo Plano e no financeiro da administração da plataforma.
 
 ## Verificação
 

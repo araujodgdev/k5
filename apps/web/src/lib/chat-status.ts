@@ -23,6 +23,8 @@ const actions: Record<string, string> = {
 
 /** Where each group of tools works, named as the person knows it. */
 const places: ReadonlyArray<readonly [prefix: string, place: string]> = [
+  ['k5_honorarios_', 'os honorários'], ['k5_messages_', 'as mensagens'], ['k5_collaboration_', 'a equipe e os convites'],
+  ['k5_notifications_', 'as notificações'], ['k5_agent_settings_', 'as preferências do Lume'], ['k5_help_', 'a documentação do Lume'],
   ['k5_vault_', 'o Cofre'], ['k5_knowledge_', 'os documentos do Cofre'], ['k5_context_', 'as fontes da conversa'],
   ['k5_agenda_', 'a Agenda'], ['k5_crm_', 'os clientes'], ['k5_artifacts_', 'os documentos'], ['k5_runs_', 'as tarefas de documentos'],
   ['k5_citations_', 'as citações'], ['k5_research_', 'a Pesquisa'], ['k5_judicial_', 'os processos'], ['k5_conversations_', 'as conversas'],

@@ -7,6 +7,9 @@ import { researchCaseCapabilities } from './research-case';
 import { verificationCapabilities } from './verification';
 import { googleCapabilities } from './google';
 import { whatsappCapabilities } from './whatsapp';
+import { workspaceCapabilities } from './workspace';
+import { agentSettingsCapabilities } from './agent-settings';
+import { helpSearchInput, helpSearchOutput } from '@/lib/platform-help/contracts';
 import type { OfficeRole } from '@/lib/offices';
 
 /**
@@ -18,7 +21,7 @@ import type { OfficeRole } from '@/lib/offices';
 export type CapabilitySurface = 'agent' | 'webmcp';
 
 export type Capability = {
-  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'memory' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google' | 'whatsapp' | 'honorarios';
+  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'memory' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google' | 'whatsapp' | 'honorarios' | 'collaboration' | 'messages' | 'notifications' | 'agent_settings' | 'help';
   description: string;
   effect: 'read' | 'write';
   roles: readonly OfficeRole[];
@@ -157,6 +160,11 @@ export const judicialAlertDto = z.object({
 });
 
 export const capabilities = {
+  k5_help_search: { module: 'help', effect: 'read', roles: readers,
+    description: 'Consulta o manual oficial do Lume por assunto. Use para dúvidas sobre a plataforma, o próprio assistente, módulos, fluxos, confirmações e limitações. Retorna trechos e links do manual; não consulta dados privados do escritório.',
+    input: helpSearchInput, output: helpSearchOutput },
+  ...workspaceCapabilities,
+  ...agentSettingsCapabilities,
   ...agendaCapabilities,
   ...honorariosCapabilities,
   ...annexCapabilities,

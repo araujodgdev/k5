@@ -15,29 +15,28 @@ async function actor(role: WorkspaceContext['role'] = 'lawyer', officeId: string
   return { officeId, userId, role };
 }
 
-test('somente leituras de acervo, julgado e referências são publicadas', async () => {
-  const names = ['k5_research_search_corpus', 'k5_research_get_judgment', 'k5_research_list_references'];
-  // Scoring the case law the Lume found on the web is a read it runs itself.
-  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'agent').filter(name => capabilities[name].module === 'research'), ['k5_research_score_jurisprudence', ...names]);
-  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'webmcp').filter(name => capabilities[name].module === 'research'), names);
+test('pesquisa publica operações autorizadas de leitura e escrita', async () => {
+  const names = capabilitiesForRole('lawyer').filter(name => capabilities[name].module === 'research');
+  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'agent').filter(name => capabilities[name].module === 'research'), names);
+  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'webmcp').filter(name => capabilities[name].module === 'research'), names.filter(name => name !== 'k5_research_score_jurisprudence'));
   assert.ok(capabilitiesForRole('reviewer').filter(name => capabilities[name].module === 'research')
     .every(name => capabilities[name].effect === 'read'));
   const tools = agentTools((await actor()));
   assert.ok(tools.k5_research_search_corpus);
-  assert.ok(!tools.k5_research_start_search);
-  assert.ok(!tools.k5_research_add_reference);
+  assert.ok(tools.k5_research_start_search);
+  assert.ok(tools.k5_research_add_reference);
   assert.ok(publishedCapabilitiesForRole('reviewer', 'agent').includes('k5_research_score_jurisprudence'));
 });
 
-test('invocação de agente não burla publicação e revisor não inicia pesquisa', async () => {
+test('agente solicita confirmação para pesquisa externa e revisor não inicia pesquisa', async () => {
   const lawyer = (await actor());
   await assert.rejects(
     runCapability({ ...lawyer, invocation: 'agent' }, 'k5_research_start_search', { theme: 'guarda da avó', includeSources: false }),
-    { code: 'FORBIDDEN' },
+    { code: 'APPROVAL_REQUIRED' },
   );
   await assert.rejects(
     runCapability({ ...lawyer, invocation: 'webmcp' }, 'k5_research_assess_material', { caseId: randomUUID(), materialVersionId: randomUUID() }),
-    { code: 'FORBIDDEN' },
+    { code: 'NOT_FOUND' },
   );
   const reviewer = (await actor('reviewer'));
   await assert.rejects(

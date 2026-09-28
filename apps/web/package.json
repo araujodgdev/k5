@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "help:generate": "tsx scripts/generate-platform-help.ts",
+    "help:check": "tsx scripts/generate-platform-help.ts --check",
+    "help:publish": "pnpm help:check && tsx scripts/publish-platform-help.ts",
     "dev": "pnpm db:setup && next dev",
     "build": "tsx scripts/generate-service-worker.ts && next build",
     "start": "next start",

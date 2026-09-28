@@ -9,6 +9,9 @@ import { publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts'
 import type { WorkspaceContext } from '../src/lib/application/context';
 import * as dto from '../src/lib/honorarios/contracts';
 import * as service from '../src/lib/honorarios/service';
+import { CapabilityError } from '../src/lib/capabilities/errors';
+import { approvalIdFromMessage } from '../src/lib/application/approvals-service';
+import { decideAgentApproval, describeAgentApproval } from '../src/lib/application/agent-approvals';
 
 async function fixture(role: WorkspaceContext['role'] = 'administrator') {
   const officeId = randomUUID(); const userId = randomUUID(); const caseId = randomUUID(); const clientId = randomUUID();
@@ -20,6 +23,53 @@ async function fixture(role: WorkspaceContext['role'] = 'administrator') {
   return { context: { officeId, userId, role }, caseId, clientId };
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
+test('agent can find the second installment and register its receipt without editing the client', async () => {
+  const f = await fixture();
+  const created = dto.honorarioDetailDto.parse(await runCapability(f.context, 'k5_honorarios_create', {
+    ...creation(f), installments: [{ amountCents: 5000, dueOn: '2024-01-10' }, { amountCents: 5000, dueOn: '2024-02-10' }],
+  }));
+  const context = { ...f.context, invocation: 'agent' as const };
+  const listed = dto.honorariosListDto.parse(await runCapability(context, 'k5_honorarios_list', { query: 'Maria' }));
+  const second = listed.installments.find(row => row.number === 2);
+  assert.ok(second);
+  assert.ok(agentTools(f.context).k5_honorarios_receive);
+  const input = { installmentId: second.id, amountCents: second.pendingCents, receivedOn: '2024-03-01', method: 'other', idempotencyKey: randomUUID() };
+  const paid = dto.honorarioDetailDto.parse(await runCapability(context, 'k5_honorarios_receive', input));
+  assert.equal(paid.installments[1].status, 'received');
+  assert.equal(paid.installments[0].status, 'pending');
+  assert.deepEqual(await runCapability(context, 'k5_honorarios_receive', input), paid);
+  assert.equal(paid.agreement.id, created.agreement.id);
+});
+
+test('agent reversals and cancellation wait for confirmation of the exact financial record', async () => {
+  const f = await fixture();
+  const initial = await create(f, 5000);
+  const paid = await receive(f, initial, 5000);
+  const context = { ...f.context, invocation: 'agent' as const };
+  async function proposal(call: Promise<unknown>) {
+    try { await call; } catch (error) {
+      assert.ok(error instanceof CapabilityError); assert.equal(error.code, 'APPROVAL_REQUIRED');
+      const id = approvalIdFromMessage(error.message); assert.ok(id); return id;
+    }
+    assert.fail('expected confirmation');
+  }
+  const reversal = { receiptId: paid.receipts[0].id, reason: 'Lançamento duplicado', idempotencyKey: randomUUID() };
+  const id = await proposal(runCapability(context, 'k5_honorarios_reverse', reversal));
+  assert.equal((await service.getHonorario(f.context, { agreementId: initial.agreement.id })).agreement.receivedCents, 5000);
+  assert.match(await describeAgentApproval(context, 'k5_honorarios_reverse', reversal), /50,00.*parcela 1 de Maria Silva/);
+  const other = await fixture();
+  await assert.rejects(decideAgentApproval(other.context, id, 'confirm'), { code: 'NOT_FOUND' });
+  assert.equal((await decideAgentApproval(f.context, id, 'confirm')).state, 'confirmed');
+  assert.equal((await service.getHonorario(f.context, { agreementId: initial.agreement.id })).agreement.receivedCents, 0);
+  const cancellation = { agreementId: initial.agreement.id, reason: 'Contrato encerrado', idempotencyKey: randomUUID() };
+  const cancelled = await proposal(runCapability(context, 'k5_honorarios_cancel', cancellation));
+  await decideAgentApproval(f.context, cancelled, 'cancel');
+  assert.equal((await service.getHonorario(f.context, { agreementId: initial.agreement.id })).agreement.status, 'active');
+  const confirmed = await proposal(runCapability(context, 'k5_honorarios_cancel', { ...cancellation, idempotencyKey: randomUUID() }));
+  assert.equal((await decideAgentApproval(f.context, confirmed, 'confirm')).state, 'confirmed');
+  assert.equal((await service.getHonorario(f.context, { agreementId: initial.agreement.id })).agreement.status, 'cancelled');
+});
+
 function creation(f: Fixture, amountCents = 10001) {
   return { clientId: f.clientId, caseId: f.caseId, title: 'Honorários contratuais', notes: 'Contrato assinado', installments: [{ amountCents, dueOn: '2024-02-29' }], idempotencyKey: randomUUID() };
 }
@@ -139,7 +189,7 @@ test('honorários: office references, owned options, cross-office reads/mutation
   await assert.rejects(testDb.prepare('INSERT INTO honorario_installment(id,office_id,agreement_id,number,due_on,amount_cents) VALUES(?,?,?,1,?,1)').run(randomUUID(), a.context.officeId, outside.agreement.id, '2024-02-29'), { code: '23503' });
 });
 
-test('honorários: fresh roles/sessions, manual interface and no implicit shared-case context', async () => {
+test('honorários: fresh roles/sessions, agent access and no implicit shared-case context', async () => {
   const a = await fixture(); const detail = await create(a);
   const names = ['k5_honorarios_list', 'k5_honorarios_get', 'k5_honorarios_options', 'k5_honorarios_create', 'k5_honorarios_receive', 'k5_honorarios_reverse', 'k5_honorarios_cancel'] as const;
   const reviewer = await fixture('reviewer');
@@ -148,11 +198,11 @@ test('honorários: fresh roles/sessions, manual interface and no implicit shared
   await assert.rejects(service.getHonorario(reviewer.context, { agreementId: detail.agreement.id }), { code: 'NOT_FOUND' });
   await assert.rejects(service.createHonorario(reviewer.context, creation(reviewer)), { code: 'FORBIDDEN' });
   for (const invocation of ['agent', 'webmcp'] as const) {
-    for (const name of names) await assert.rejects(runCapability({ ...a.context, invocation }, name, {}), { code: 'FORBIDDEN' });
-    await assert.rejects(service.listHonorarios({ ...a.context, invocation }), { code: 'FORBIDDEN' });
+    assert.equal(dto.honorariosListDto.parse(await runCapability({ ...a.context, invocation }, 'k5_honorarios_list', {})).total, 1);
+    assert.equal((await service.listHonorarios({ ...a.context, invocation })).total, 1);
   }
-  assert.ok(!agentTools(a.context).k5_honorarios_list);
-  assert.ok(!publishedCapabilitiesForRole('administrator', 'webmcp').some(name => name.startsWith('k5_honorarios_')));
+  assert.ok(agentTools(a.context).k5_honorarios_list);
+  assert.ok(publishedCapabilitiesForRole('administrator', 'webmcp').includes('k5_honorarios_receive'));
   const scoped = { ...a.context, caseScope: { caseId: a.caseId, homeOfficeId: a.context.officeId } };
   for (const name of names) await assert.rejects(runCapability(scoped, name, {}), { code: 'FORBIDDEN' });
   await assert.rejects(service.listHonorarios(scoped), { code: 'FORBIDDEN' });

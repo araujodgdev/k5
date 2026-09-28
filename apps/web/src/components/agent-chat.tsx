@@ -207,7 +207,8 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
   const conversationId = useContext(ConversationIdContext);
   const documents = useContext(DocumentLinksContext);
   const [decided, setDecided] = useState<Pick<ApprovalData, "state" | "result" | "href"> | null>(null);
-  const googleApproval = /^k5_(gmail|calendar|drive|docs)_/.test(data?.capability ?? '');
+  const googleApproval = /^k5_(gmail|calendar|drive|docs)_/.test(data?.capability ?? '') &&
+    !['k5_calendar_discard_pending', 'k5_calendar_share_event', 'k5_calendar_unshare_event'].includes(data.capability ?? '');
   const [reviewReady, setReviewReady] = useState(false);
   const [busy, setBusy] = useState<"" | "confirm" | "cancel">("");
   const [error, setError] = useState("");
@@ -229,7 +230,7 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
   }
   return (
     <div className="mt-3 grid gap-3 border-l-2 border-brand py-1 pl-4" role="group" aria-label="Confirmação">
-      <p className={cn("text-sm text-foreground", data.capability === 'k5_whatsapp_send' && "whitespace-pre-wrap break-words")}>{data.summary}</p>
+      <p className="whitespace-pre-wrap break-words text-sm text-foreground">{data.summary}</p>
       {googleApproval && current.state === 'pending' && <GoogleApprovalReview approvalId={data.approvalId} onReady={setReviewReady} />}
       {current.state === "pending" ? <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" className="h-11 md:h-9" disabled={Boolean(busy) || (googleApproval && !reviewReady)} onClick={() => void decide("confirm")}>

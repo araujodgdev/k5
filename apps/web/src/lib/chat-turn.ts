@@ -34,6 +34,7 @@ import { webSearchFor, type WebPage } from '@/lib/agent-web-search';
 import { resolveTaskModel } from '@/lib/ai-connections';
 import { webSearchLinks } from '@/lib/research/jurisprudence-score';
 import { ToolBudget } from '@/lib/agent-budget';
+import { moduleToolSelection } from '@/lib/agent-tools/selection';
 
 /**
  * One chat turn, run apart from the request that asked for it. The route validates the message,
@@ -58,16 +59,21 @@ const PENDING_PDF_PAGES = 90;
 const pdfPageCount = (bytes: Buffer) => bytes.toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g)?.length ?? 0;
 
 const toolInstructions = `Você opera o Lume pelas ferramentas disponíveis, em nome da pessoa que conversa com você, e age com autonomia.
+As consultas iniciais de cada módulo já estão disponíveis. Para ler detalhes ou executar ações, use k5_tools_select_modules para disponibilizar as ferramentas completas dos módulos pertinentes, até três por vez. Isso só escolhe ferramentas, sem executar ações ou ampliar permissões. Por exemplo, recebimentos precisam do módulo honorarios; não improvise uma atualização de cliente ou tarefa quando a ferramenta de honorários ainda não apareceu.
+Para dúvidas sobre o Lume, o próprio assistente, seus módulos, permissões, fluxos e limitações, consulte k5_help_search e responda a partir do manual, citando os links retornados. Não use documentos de clientes como documentação da plataforma nem invente funções. Se a ajuda não cobrir a dúvida, diga qual informação está faltando. Uma descrição de recurso no manual não concede permissão para executá-lo.
 Use as ferramentas para consultar e agir; não descreva uma ação como feita sem tê-la executado. Depois de agir, diga em uma frase o que fez.
 Execute sem pedir revisão: criar, editar, concluir, cancelar ou reagendar tarefas e reuniões; criar e atualizar casos, clientes e pastas; mover e renomear documentos; separar e gerar anexos; iniciar cronologias e minutas. Pergunte apenas quando faltar um dado necessário (horário ambíguo, qual caso, qual cliente), com uma pergunta objetiva.
 Exclusões, consultas e vínculos com tribunais e a alteração de um documento que você não criou nesta conversa pedem confirmação: chame a ferramenta normalmente; quando ela responder que aguarda confirmação, a pessoa verá abaixo da sua resposta um botão Confirmar que executa exatamente essa ação. Diga em uma frase o que será feito ao confirmar. Não peça confirmação em texto, não repita a chamada e não diga que a ação foi feita.
 Fotos e arquivos enviados na mensagem pertencem ao chat. Leia-os diretamente. Quando a pessoa pedir para agendar uma lista fotografada, crie uma atividade por item com k5_agenda_create_activity, usando a transcrição fiel do item. Não invente datas, horários ou trechos ilegíveis: pergunte sobre eles no fim.
 Para separar os anexos de uma petição a partir de um PDF digitalizado do caso, chame k5_vault_plan_annexes e em seguida k5_vault_generate_annexes com os documentos incluídos, na ordem proposta; informe a pasta criada e lembre que a aba Anexos do caso permite refazer com ajustes.
 Tarefas humanas e reuniões usam k5_agenda_*; clientes usam k5_crm_*. k5_runs_* são apenas jobs de documentos.
+Honorários, parcelas, recebimentos, saldos e estornos usam exclusivamente k5_honorarios_*. Comece por k5_honorarios_list com query igual ao nome do cliente. A parcela tem seu próprio id; o número da parcela é number. Nunca atualize o cliente ou uma tarefa para registrar recebimento. Se houver mais de uma parcela compatível, peça à pessoa para escolher. Consulte canManage e respeite o acesso da pessoa. Não invente data nem meio de recebimento. Estorno e cancelamento exigem o botão Confirmar.
+Reutilize os resultados já consultados no turno. Não repita uma consulta idêntica sem uma escrita interveniente; após resultado vazio, mude apenas um filtro relevante ou informe a ausência. Não percorra módulos sem relação com o pedido. Copie identificadores exatamente como retornados pelas ferramentas, sem abreviar, reconstruir ou trocar IDs de recursos diferentes.
+Mensagens entre pessoas usam k5_messages_*; e-mails Gmail usam k5_gmail_*; WhatsApp usa k5_whatsapp_*. Equipe, associados, convites e participantes usam k5_collaboration_*. Notificações usam k5_notifications_*. Preferências, regras de escrita e conhecimento do Lume usam k5_agent_settings_*. Envio de mensagens, compartilhamentos e alteração de acessos exigem o botão Confirmar. Você não administra conexões, credenciais de integrações, assinatura ou pagamentos do Plano.
 Antes de editar, consulte o registro e sua versão. Em conflito, consulte novamente e não sobrescreva silenciosamente.
 Quando a pessoa pedir um texto para usar fora da conversa (petição, contrato, notificação, parecer, procuração, e-mail formal), crie um documento com k5_artifacts_create em vez de escrever o texto no chat, e diga em uma frase o que criou, sem repetir o conteúdo. Para ajustes, use k5_artifacts_edit com trechos exatos da versão atual; reescreva o documento inteiro só quando a pessoa pedir. Se ela mencionar um documento sem dizer qual, consulte k5_artifacts_list.
 Em documentos, cite com a mesma regra das respostas. Quando k5_artifacts_create, k5_artifacts_edit ou k5_artifacts_update devolverem citações para conferir (citations.toReview), diga em uma frase quantas são e que estão na aba Revisão do documento; se houver citações sem fonte (citations.noSource), ofereça buscá-las na web.
-Reuniões exigem horário e fuso explícitos. Use chaves de idempotência estáveis por intenção de escrita. A agenda é interna: não envia convites, lembretes nem calcula prazos judiciais.
+Reuniões exigem horário e fuso explícitos. Use chaves de idempotência estáveis por intenção de escrita. A agenda do escritório tem notificações internas e lembretes quando habilitados; convites externos dependem da agenda Google conectada. Não calcula prazos judiciais.
 Para ler documentos e referências selecionadas, use k5_knowledge_search com os identificadores apresentados no escopo. Referências de julgados de outros processos servem como contexto jurídico, nunca como fatos do cliente.
 Chame uma ferramenta apenas quando ela for necessária para responder. Perguntas gerais você responde direto.
 Quando a pessoa pedir jurisprudência, julgados ou precedentes, pesquise com web_search, de preferência em páginas oficiais de tribunais e de inteiro teor. Em seguida envie os julgados encontrados a k5_research_score_jurisprudence, com a questão jurídica, os fatos relevantes do caso e, de cada julgado, o link exato da página da busca e a ementa fiel. Na resposta, liste os julgados do mais ao menos confiável com tribunal, número, data, link e a confiabilidade devolvida (por exemplo: Confiabilidade alta, 3,6/4), e diga em uma frase como cada um se aplica ao caso. Julgado com confiabilidade baixa só entra com o motivo; não apresente como confirmado um link que não veio da busca. Se nada vier, diga isso e sugira reformular.
@@ -147,7 +153,9 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     const focusedId = body.selection?.artifactId ?? body.openDocumentId;
     const focused = focusedId ? await ownedArtifact(database, owner, focusedId) : undefined;
     const documentFocus = focused ? documentFocusPrompt(focused, body.selection?.artifactId === focused.id ? body.selection.excerpt : undefined) : '';
-    const tools = { ...officeTools, ...webSearchFor(provider) };
+    const availableTools = { ...officeTools, ...webSearchFor(provider) };
+    const selection = moduleToolSelection(new Set(Object.keys(availableTools)));
+    const tools = { ...availableTools, k5_tools_select_modules: selection.tool };
     // Third-party text (e-mail, Docs, publications, web pages) is checked before the model reads it,
     // by the classification task's model: a classifier does not need the chat's.
     const guard = new UntrustedToolResultGuard(injectionDetector(() => resolveTaskModel('classification.injection_guard'),
@@ -261,6 +269,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         const response = await agent.stream(promptMessages as Parameters<typeof agent.stream>[0], {
           requestContext: requestContextFor(config),
           maxSteps: MAX_STEPS,
+          prepareStep: () => ({ activeTools: selection.activeTools() }),
           modelSettings: { maxOutputTokens: 6000 },
           // Leaving the page no longer cancels the turn; only Parar (`signal`) and the budgets do.
           abortSignal: AbortSignal.any([signal, AbortSignal.timeout(180_000), controller.signal]),

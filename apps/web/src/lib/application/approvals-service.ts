@@ -166,7 +166,20 @@ export async function requireAndConsumeApproval(
  * Someone acting in the interface already confirmed by clicking, so only agent and WebMCP calls
  * are gated here; the proposal stores the exact input, and the chat executes that input.
  */
+export const centralApprovalCapabilities = [
+  'k5_calendar_discard_pending', 'k5_calendar_share_event', 'k5_calendar_unshare_event',
+  'k5_research_add_reference', 'k5_research_update_reference', 'k5_research_remove_reference',
+  'k5_research_start_search', 'k5_research_request_page', 'k5_research_request_material',
+  'k5_agent_settings_change',
+  'k5_collaboration_change', 'k5_messages_send', 'k5_messages_share', 'k5_messages_revoke_share',
+] as const;
+export function centrallyConfirmed(name: string): name is (typeof centralApprovalCapabilities)[number] {
+  return centralApprovalCapabilities.some(capability => capability === name);
+}
+
 export const agentConfirmedCapabilities = [
+  ...centralApprovalCapabilities,
+  'k5_honorarios_reverse', 'k5_honorarios_cancel',
   'k5_whatsapp_send',
   'k5_vault_delete_case', 'k5_vault_delete_document', 'k5_vault_delete_folder', 'k5_conversations_delete',
   'k5_judicial_confirm_link', 'k5_judicial_unlink_case', 'k5_judicial_request_refresh', 'k5_artifacts_update',

@@ -39,8 +39,8 @@ export const createHonorarioInput = z.object({
   installments: z.array(z.object({ amountCents: amount, dueOn: civilDate })).min(1).max(120), idempotencyKey: key,
 }).refine(v => v.installments.reduce((sum, row) => sum + row.amountCents, 0) <= 99_999_999_999, 'O total excede o valor permitido.');
 export const receiveHonorarioInput = z.object({ installmentId: id, amountCents: amount, receivedOn: civilDate, method: paymentMethod, notes: z.string().trim().max(2000).default(''), idempotencyKey: key });
-export const reverseHonorarioInput = z.object({ receiptId: id, reason: z.string().trim().min(3).max(1000), idempotencyKey: key });
-export const cancelHonorarioInput = z.object({ agreementId: id, reason: z.string().trim().min(3).max(1000), idempotencyKey: key });
+export const reverseHonorarioInput = z.object({ receiptId: id, reason: z.string().trim().min(3).max(1000), idempotencyKey: key, approvalId: z.string().uuid().optional() });
+export const cancelHonorarioInput = z.object({ agreementId: id, reason: z.string().trim().min(3).max(1000), idempotencyKey: key, approvalId: z.string().uuid().optional() });
 export type HonorarioAgreement = z.output<typeof honorarioAgreementDto>;
 export type HonorarioInstallment = z.output<typeof honorarioInstallmentDto>;
 export type HonorarioReceipt = z.output<typeof honorarioReceiptDto>;

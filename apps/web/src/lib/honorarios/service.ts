@@ -5,6 +5,7 @@ import { withTransaction, type Transaction } from '@/lib/database';
 import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/application/context';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { caseAccess } from '@/lib/collaboration/access';
+import { requireAgentApproval } from '@/lib/application/approvals-service';
 import * as contract from './contracts';
 
 const missing = () => new CapabilityError('NOT_FOUND', 'Registro não encontrado neste escritório.');
@@ -12,7 +13,7 @@ const conflict = (message: string) => new CapabilityError('CONFLICT', message);
 const todayInSaoPaulo = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
 async function authorize(context: WorkspaceContext, write = false) {
-  if (context.invocation || context.caseScope) throw new CapabilityError('FORBIDDEN', 'Honorários devem ser acessados pela interface do escritório.');
+  if (context.caseScope) throw new CapabilityError('FORBIDDEN', 'Honorários exigem o contexto do escritório ativo.');
   return assertCapabilityAllowed(context, write ? 'k5_honorarios_create' : 'k5_honorarios_list');
 }
 
@@ -187,7 +188,8 @@ export async function receiveHonorario(context: WorkspaceContext, raw: z.input<t
 
 export async function reverseHonorario(context: WorkspaceContext, raw: z.input<typeof contract.reverseHonorarioInput>) {
   context = await authorize(context, true);
-  const input = contract.reverseHonorarioInput.parse(raw);
+  const { approvalId, ...input } = contract.reverseHonorarioInput.parse(raw);
+  await requireAgentApproval(context, 'k5_honorarios_reverse', approvalId, input, input.receiptId, 'Estornar o recebimento de honorários');
   return mutate(context, 'reverse', input, async tx => {
     const row = await tx.prepare(`SELECT i.agreement_id FROM honorario_receipt r JOIN honorario_installment i ON i.office_id=r.office_id AND i.id=r.installment_id WHERE r.office_id=? AND r.id=?`).get(context.officeId, input.receiptId);
     if (!row) throw missing();
@@ -201,7 +203,8 @@ export async function reverseHonorario(context: WorkspaceContext, raw: z.input<t
 
 export async function cancelHonorario(context: WorkspaceContext, raw: z.input<typeof contract.cancelHonorarioInput>) {
   context = await authorize(context, true);
-  const input = contract.cancelHonorarioInput.parse(raw);
+  const { approvalId, ...input } = contract.cancelHonorarioInput.parse(raw);
+  await requireAgentApproval(context, 'k5_honorarios_cancel', approvalId, input, input.agreementId, 'Cancelar o honorário e suas parcelas');
   return mutate(context, 'cancel', input, async tx => {
     await lockAgreement(tx, context, input.agreementId);
     const current = await detail(tx, context, input.agreementId);

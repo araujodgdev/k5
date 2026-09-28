@@ -9,6 +9,12 @@ import { conversation, ownedArtifact, saveMessages } from '@/lib/ai-store';
 import { runCapability, toolSummary } from '@/lib/agent-tools';
 import type { WorkspaceContext } from './context';
 import { agentConfirmedCapabilities, approveProposal, getApprovalProposal, rejectProposal } from './approvals-service';
+import { collaborationAction, collaborationOverviewDto } from '@/lib/collaboration/contracts';
+import { collaborationOverview } from '@/lib/collaboration/service';
+import { createShareInput } from '@/lib/personal-chat/domain';
+import { agentSettingsCapabilities } from '@/lib/capabilities/agent-settings';
+import { getAgentSettings } from './agent-settings-service';
+import { getThread } from '@/lib/personal-chat/service';
 
 export type AgentApprovalState = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 export type AgentApprovalPart = { approvalId: string; capability: string; summary: string; state: AgentApprovalState; result?: string; href?: string };
@@ -20,7 +26,74 @@ const isConfirmed = (name: string): name is Confirmed => (agentConfirmedCapabili
 export async function describeAgentApproval(context: WorkspaceContext, capability: string, input: Record<string, unknown>): Promise<string> {
   const text = (value: unknown) => typeof value === 'string' ? value : '';
   const quoted = (name: string | undefined | null) => name ? ` “${name}”` : '';
+  const roleLabel = (role: string) => ({ administrator: 'administrador', lawyer: 'advogado', reviewer: 'revisor', viewer: 'leitor', editor: 'editor' })[role] ?? role;
   switch (capability) {
+    case 'k5_collaboration_change': {
+      const change = collaborationAction.parse(input.change);
+      if (change.action === 'invite') {
+        const invite = change.invitation;
+        const target = invite.kind === 'case' ? ` ao caso${quoted((await findVaultCase(context.officeId, invite.caseId))?.name)}` : '';
+        return `Convidar ${invite.email} como ${invite.kind === 'associate' ? 'associado' : roleLabel(invite.role)}${target}${invite.kind === 'case' && invite.canInvite ? ', com permissão para convidar outras pessoas' : ''}`;
+      }
+      const overview = collaborationOverviewDto.parse(await collaborationOverview(context, change.action === 'participant' ? change.caseId : undefined));
+      if (change.action === 'respond' || change.action === 'cancel') {
+        const invite = [...overview.incoming, ...overview.outgoing].find(item => item.id === change.id);
+        if (!invite) throw new CapabilityError('NOT_FOUND', 'Convite indisponível.');
+        return `${change.action === 'cancel' ? 'Cancelar' : change.accept ? 'Aceitar' : 'Recusar'} o convite de ${invite.officeName} para ${invite.email}${quoted(invite.caseName)}`;
+      }
+      const user = [...overview.members, ...overview.associates, ...overview.participants].find(item => item.id === change.userId);
+      if (!user) throw new CapabilityError('NOT_FOUND', 'Pessoa indisponível neste contexto.');
+      return `${'role' in change && change.role ? `Alterar acesso para ${roleLabel(change.role)}` : 'Remover acesso'} de ${user.name} (${user.email})${change.action === 'participant' && change.canInvite ? ', com permissão para convidar outras pessoas' : ''}`;
+    }
+    case 'k5_messages_send':
+    case 'k5_messages_share': {
+      const row = await database.prepare('SELECT email,name FROM "user" WHERE id=?').get<{ email: string; name: string }>(context.userId);
+      if (!row) return 'Conversa indisponível';
+      const thread = await getThread({ ...row, userId: context.userId, sessionId: context.sessionId }, text(input.threadId));
+      if (capability === 'k5_messages_send') {
+        const body = input.body;
+        return `Enviar mensagem para ${thread.peer.email}\n\n${body && typeof body === 'object' && 'text' in body ? text(body.text) : ''}`;
+      }
+      const share = createShareInput.parse(input.share);
+      if (share.kind === 'document') return `Compartilhar o documento${quoted((await findVaultDocument(context.officeId, share.documentId))?.name)}, versão ${share.version}, com ${thread.peer.email}`;
+      return `Convidar ${thread.peer.email} para o caso${quoted((await findVaultCase(context.officeId, share.caseId))?.name)} como ${roleLabel(share.permission)}${share.canInvite ? ', com permissão para convidar outras pessoas' : ''}`;
+    }
+    case 'k5_messages_revoke_share': return `Revogar o compartilhamento ${text(input.shareId)}`;
+    case 'k5_honorarios_reverse': {
+      const receipt = await database.prepare(`SELECT a.title,c.name,r.amount_cents AS amount,i.number FROM honorario_receipt r
+        JOIN honorario_installment i ON i.office_id=r.office_id AND i.id=r.installment_id
+        JOIN honorario_agreement a ON a.office_id=i.office_id AND a.id=i.agreement_id
+        JOIN crm_client c ON c.office_id=a.office_id AND c.id=a.client_id
+        WHERE r.id=? AND a.office_id=? AND a.created_by=?`).get<{ title: string; name: string; amount: number; number: number }>(text(input.receiptId), context.officeId, context.userId);
+      if (!receipt) throw new CapabilityError('NOT_FOUND', 'Recebimento indisponível.');
+      const amount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receipt.amount / 100);
+      return `Estornar ${amount} da parcela ${receipt.number} de ${receipt.name}${quoted(receipt.title)}. Motivo: ${text(input.reason)}`;
+    }
+    case 'k5_honorarios_cancel': {
+      const agreement = await database.prepare(`SELECT a.title,c.name FROM honorario_agreement a JOIN crm_client c ON c.office_id=a.office_id AND c.id=a.client_id
+        WHERE a.id=? AND a.office_id=? AND a.created_by=?`).get<{ title: string; name: string }>(text(input.agreementId), context.officeId, context.userId);
+      if (!agreement) throw new CapabilityError('NOT_FOUND', 'Honorário indisponível.');
+      return `Cancelar o honorário${quoted(agreement.title)} de ${agreement.name} e suas parcelas. Motivo: ${text(input.reason)}`;
+    }
+    case 'k5_agent_settings_change': {
+      const { scope, change } = agentSettingsCapabilities.k5_agent_settings_change.input.parse(input);
+      const target = scope === 'office' ? 'do escritório' : 'pessoal';
+      const current = await getAgentSettings(context);
+      switch (change.action) {
+        case 'create_instruction': case 'update_instruction': return `${change.action === 'create_instruction' ? 'Criar' : 'Alterar'} regra ${target}${quoted(change.title)} (${change.enabled ? 'ativa' : 'inativa'}):\n${change.content}`;
+        case 'delete_instruction': return `Excluir regra ${target}${quoted(current.instructions[scope].find(item => item.id === change.id)?.title)}`;
+        case 'add_knowledge': return `Adicionar ao conhecimento ${target} o documento${quoted((await findVaultDocument(context.officeId, change.documentId))?.name)} (${change.mode === 'always' ? 'usar sempre' : 'consultar na busca'}). ${change.note}`;
+        case 'update_knowledge': return `Alterar conhecimento ${target}${quoted(current.knowledge[scope].find(item => item.id === change.id)?.name)} para ${change.mode === 'always' ? 'usar sempre' : 'consultar na busca'}. ${change.note}`;
+        case 'remove_knowledge': return `Remover do conhecimento ${target} o documento${quoted(current.knowledge[scope].find(item => item.id === change.id)?.name)}`;
+        case 'set_template': return change.documentId ? `Definir modelo Word ${target}${quoted((await findVaultDocument(context.officeId, change.documentId))?.name)}` : `Remover modelo Word ${target}`;
+      }
+    }
+    case 'k5_research_start_search': return `Pesquisar julgados sobre${quoted(text(input.theme))}${input.includeSources ? ', consultando também fontes externas habilitadas' : ' no acervo disponível'}`;
+    case 'k5_research_request_page': return `Obter a próxima página da pesquisa ${text(input.searchId)}`;
+    case 'k5_research_request_material': return `Obter ${input.kind === 'full_text' ? 'o inteiro teor' : 'a ementa'} do julgado ${text(input.judgmentId)}`;
+    case 'k5_research_add_reference': return `Vincular o material ${text(input.materialVersionId)} ao caso${quoted((await findVaultCase(context.officeId, text(input.caseId)))?.name)}${input.bypassEvaluation ? ', dispensando a avaliação de pertinência' : ''}. ${text(input.notes)}`;
+    case 'k5_research_update_reference': return `Alterar a referência ${text(input.referenceId)}${input.materialVersionId ? ` para a versão ${text(input.materialVersionId)}` : ''}${input.bypassEvaluation ? ', dispensando a avaliação de pertinência' : ''}. ${text(input.notes)}`;
+    case 'k5_research_remove_reference': return `Remover a referência ${text(input.referenceId)} do caso, mantendo o julgado no acervo`;
     case 'k5_vault_delete_document': return `Excluir o documento${quoted((await findVaultDocument(context.officeId, text(input.documentId)))?.name)}`;
     case 'k5_vault_delete_case': {
       const name = (await findVaultCase(context.officeId, text(input.caseId)))?.name;
@@ -65,6 +138,10 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
     case 'k5_calendar_create_event': return `Criar o evento${quoted(text(input.title))} na sua agenda Google`;
     case 'k5_calendar_update_event': return `Alterar o evento${quoted(text((input.changes as { title?: string } | undefined)?.title))} na sua agenda Google`;
     case 'k5_calendar_cancel_event': return 'Cancelar o evento na sua agenda Google';
+    case 'k5_calendar_discard_pending': return `Descartar as alterações ainda não sincronizadas do evento ${text(input.eventId)}`;
+    case 'k5_calendar_share_event': return `Compartilhar com o escritório o evento${quoted(text(input.title))}\nLocal: ${text(input.location)}\nNotas: ${text(input.notes)}`;
+    case 'k5_calendar_unshare_event': return `Remover do escritório o evento compartilhado ${text(input.shareId)}`;
+    case 'k5_gmail_delete_draft': return `Excluir o rascunho ${text(input.draftId)} do Gmail`;
     case 'k5_calendar_respond': return `Responder ao convite (${({ accepted: 'aceitar', declined: 'recusar', tentative: 'talvez' } as Record<string, string>)[text(input.response)] ?? text(input.response)})`;
     case 'k5_docs_edit': {
       const edits = Array.isArray(input.edits) ? input.edits.length : 0;
@@ -81,6 +158,9 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
 /** Where the person can see the result of an agent action. Only ids from the result, never from the model's text. */
 export function resourceHref(name: string, result: unknown): string | undefined {
   if (!result || typeof result !== 'object') return undefined;
+  if (name.startsWith('k5_honorarios_')) return '/app/honorarios';
+  if (name.startsWith('k5_messages_')) return '/app/messages';
+  if (name.startsWith('k5_collaboration_')) return '/app/agenda?view=team';
   const value = result as Record<string, { id?: string; caseId?: string | null } | string | undefined>;
   const id = (key: string) => { const item = value[key]; return item && typeof item === 'object' && typeof item.id === 'string' ? item.id : undefined; };
   if (name.startsWith('k5_agenda_') && id('activity')) return `/app/agenda?activityId=${encodeURIComponent(id('activity')!)}`;

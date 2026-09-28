@@ -34,11 +34,37 @@ import { interpretAgenda, getProposal, listProposals, applyProposal } from '@/li
 import { endGlobalSession } from '@/lib/application/ui-service';
 import { recordSources, sourcesFromTool } from '@/lib/citations/sources';
 import { captureOperationalError, traceToolCall } from '@/lib/observability/report';
+import { ToolReadGuard } from './repetition';
+import * as workspace from '@/lib/application/workspace-agent-service';
+import { getAgentSettings, changeAgentSettings } from '@/lib/application/agent-settings-service';
+import { searchPlatformHelp } from '@/lib/platform-help/service';
+import { centrallyConfirmed, requireAgentApproval } from '@/lib/application/approvals-service';
 
 type Executor = (context: WorkspaceContext, input: never) => unknown;
 
 /** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_help_search: searchPlatformHelp,
+  k5_agent_settings_get: getAgentSettings,
+  k5_agent_settings_change: changeAgentSettings,
+  k5_collaboration_get: workspace.collaborationGet,
+  k5_collaboration_change: workspace.collaborationChange,
+  k5_messages_contacts: workspace.contacts,
+  k5_messages_list: workspace.listMessages,
+  k5_messages_read: workspace.readMessages,
+  k5_messages_start: workspace.startMessageThread,
+  k5_messages_send: workspace.sendMessage,
+  k5_messages_mark_read: workspace.markMessagesRead,
+  k5_messages_document_options: workspace.documentOptions,
+  k5_messages_case_options: workspace.caseOptions,
+  k5_messages_share: workspace.shareMessage,
+  k5_messages_revoke_share: workspace.revokeMessageShare,
+  k5_notifications_list: workspace.listNotifications,
+  k5_notifications_read: workspace.readNotification,
+  k5_notifications_archive: workspace.archiveNotification,
+  k5_notifications_get_preferences: workspace.getPreferences,
+  k5_notifications_update_preferences: workspace.updatePreferences,
+  k5_notifications_follow_case: workspace.followCase,
   k5_honorarios_list: honorarios.listHonorarios,
   k5_honorarios_get: honorarios.getHonorario,
   k5_honorarios_options: honorarios.honorariosOptions,
@@ -197,9 +223,6 @@ export async function runCapability<N extends CapabilityName>(
   rawInput: unknown,
 ): Promise<unknown> {
   const capability: Capability = capabilities[name];
-  if (capability.module === 'honorarios' && context.invocation) {
-    throw new CapabilityError('FORBIDDEN', 'Honorários devem ser gerenciados pela interface.');
-  }
   if (capability.module === 'research' && context.invocation &&
       !capability.publish?.includes(context.invocation)) {
     throw new CapabilityError('FORBIDDEN', 'Esta ação da Pesquisa precisa ser feita na interface.');
@@ -222,6 +245,10 @@ export async function runCapability<N extends CapabilityName>(
   const authorized = await assertCapabilityAllowed(scoped, name);
 
   const execute = async () => {
+    if (centrallyConfirmed(name)) {
+      const { approvalId, ...proposal } = input;
+      await requireAgentApproval(authorized, name, typeof approvalId === 'string' ? approvalId : undefined, proposal, null, capability.description);
+    }
     const result = await (executors[name] as (context: WorkspaceContext, input: unknown) => unknown)(authorized, input);
     // Zod strips anything the contract does not declare, so an internal column added to a row
     // later cannot reach the model or the browser by accident.
@@ -243,12 +270,13 @@ export async function runCapability<N extends CapabilityName>(
 export type ApprovalRequest = { toolCallId?: string; capability: CapabilityName; approvalId: string; input: Record<string, unknown> };
 
 export function agentTools(context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void, options: { whatsappEnabled?: boolean } = {}) {
+  const reads = new ToolReadGuard();
   return Object.fromEntries(publishedCapabilitiesForRole(context.role, 'agent')
     .filter(name => capabilities[name].module !== 'whatsapp' || options.whatsappEnabled)
-    .map((name) => [name, toolFor(name, context, onApproval)]));
+    .map((name) => [name, toolFor(name, context, reads, onApproval)]));
 }
 
-function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void) {
+function toolFor(name: CapabilityName, context: WorkspaceContext, reads: ToolReadGuard, onApproval?: (request: ApprovalRequest) => void) {
   const capability: Capability = capabilities[name];
   return createTool({
     id: name,
@@ -257,6 +285,7 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (
     outputSchema: capability.output,
     execute: async (input: unknown, execution?: { agent?: { toolCallId?: string } }) => {
       try {
+        reads.before(name, capability.input.parse(input), capability.effect);
         const result = await traceToolCall(name, () => runCapability({ ...context, invocation: 'agent' }, name, input));
         // What the Lume read is kept before it sees it, so a document it writes next in this same
         // turn is checked against these sources too.
@@ -331,6 +360,35 @@ export function platformAgentTools(context: WorkspaceContext) {
 /** Short pt-BR line describing what a finished tool call did, stored with the conversation. */
 export function toolSummary(name: string, result: unknown, failed: boolean): string {
   const labels: Record<string, string> = {
+    k5_tools_select_modules: 'Selecionou as ferramentas necessárias',
+    k5_help_search: 'Consultou o manual do Lume',
+    k5_agent_settings_get: 'Consultou as preferências do Lume',
+    k5_agent_settings_change: 'Atualizou as preferências do Lume',
+    k5_collaboration_get: 'Consultou equipe, associados e convites',
+    k5_collaboration_change: 'Atualizou a colaboração',
+    k5_messages_contacts: 'Consultou os contatos',
+    k5_messages_list: 'Consultou as conversas de Mensagens',
+    k5_messages_read: 'Leu a conversa de Mensagens',
+    k5_messages_start: 'Abriu uma conversa de Mensagens',
+    k5_messages_send: 'Enviou a mensagem',
+    k5_messages_mark_read: 'Marcou as mensagens como lidas',
+    k5_messages_document_options: 'Consultou documentos para compartilhar',
+    k5_messages_case_options: 'Consultou casos para compartilhar',
+    k5_messages_share: 'Compartilhou pelo módulo Mensagens',
+    k5_messages_revoke_share: 'Revogou o compartilhamento',
+    k5_notifications_list: 'Consultou as notificações',
+    k5_notifications_read: 'Marcou a notificação como lida',
+    k5_notifications_archive: 'Arquivou a notificação',
+    k5_notifications_get_preferences: 'Consultou as preferências de notificações',
+    k5_notifications_update_preferences: 'Atualizou as preferências de notificações',
+    k5_notifications_follow_case: 'Atualizou o acompanhamento do caso',
+    k5_honorarios_list: 'Consultou as parcelas de honorários',
+    k5_honorarios_get: 'Consultou um honorário e seus recebimentos',
+    k5_honorarios_options: 'Consultou clientes e casos para honorários',
+    k5_honorarios_create: 'Cadastrou honorários',
+    k5_honorarios_receive: 'Registrou o recebimento da parcela',
+    k5_honorarios_reverse: 'Estornou um recebimento',
+    k5_honorarios_cancel: 'Cancelou um honorário',
     k5_agenda_interpret: 'Preparou uma sugestão para revisar na Agenda',
     k5_research_score_jurisprudence: 'Avaliou a jurisprudência encontrada',
     web_search: 'Pesquisou na web',
@@ -420,6 +478,10 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_calendar_update_event: 'Alterou um evento na agenda Google',
     k5_calendar_cancel_event: 'Cancelou um evento na agenda Google',
     k5_calendar_respond: 'Respondeu a um convite',
+    k5_calendar_discard_pending: 'Descartou alterações pendentes',
+    k5_calendar_share_event: 'Compartilhou um evento com o escritório',
+    k5_calendar_unshare_event: 'Removeu um evento compartilhado',
+    k5_gmail_delete_draft: 'Excluiu um rascunho do Gmail',
     k5_calendar_list_shared: 'Consultou eventos compartilhados',
     k5_gmail_list_threads: 'Consultou e-mails',
     k5_gmail_get_thread: 'Leu uma conversa de e-mail',

@@ -2,6 +2,7 @@ import { testDb , testDatabase } from "./test-setup";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import test from "node:test";
+import { workspaceCapabilityInputs } from './workspace-capability-inputs';
 
 import {
   capabilities,
@@ -73,6 +74,7 @@ test("capabilities contract: complete catalog and role permissions", () => {
   // Reviewer only has read capabilities on office data (plus self session termination)
   for (const name of reviewerCaps) {
     if (name === 'k5_session_end_global') continue;
+    if (['messages', 'notifications'].includes(capabilities[name].module) || name === 'k5_collaboration_change') continue;
     if (['k5_calendar_select_calendars', 'k5_calendar_sync_now', 'k5_drive_register_files'].includes(name)) {
       assert.deepEqual((capabilities[name] as { publish?: readonly string[] }).publish, [], 'Personal setup is never an agent tool');
       continue;
@@ -633,7 +635,7 @@ test("webmcp: every published capability has a route, a schema and typed failure
     assert.ok(!published.includes("k5_session_end_global"), "global logout is never a browser tool");
 
     for (const name of published) {
-      const result = await executeViaHttp(name, {
+      const result = await executeViaHttp(name, workspaceCapabilityInputs[name] ?? {
         caseId: randomUUID(), documentId: randomUUID(), artifactId: randomUUID(),
         runId: randomUUID(), conversationId: randomUUID(), uploadRef: randomUUID(), folderId: randomUUID(),
         documentIds: [randomUUID()], query: "teste", name: "nome do caso", title: "titulo",

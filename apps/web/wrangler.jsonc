@@ -45,6 +45,7 @@
     }
   ],
   "vectorize": [
+    { "binding": "LUME_HELP", "index_name": "k5-platform-help-staging" },
     {
       // 1536 dimensions, cosine: must match the embedding model or ingestion fails at upsert.
       "binding": "KNOWLEDGE",
@@ -54,6 +55,7 @@
 
   // No cache binding on purpose. Lume serves per-office authenticated data, and an edge cache in
   // front of a dynamic multi-tenant response is how one office ends up reading another's.
+  "ai": { "binding": "LUME_HELP_AI" },
   "observability": {
     "enabled": true,
     "logs": { "enabled": true, "persist": true },

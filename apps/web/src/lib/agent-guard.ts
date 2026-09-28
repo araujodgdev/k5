@@ -18,6 +18,8 @@ import { captureOperationalError } from './observability/report';
  * Anthropic web_search) are consumed inside the provider and never pass through this hook.
  */
 export const GUARDED_TOOLS: ReadonlySet<string> = new Set([
+  'k5_messages_read', 'k5_messages_list',
+  'k5_research_web_search', 'k5_research_get_web_search',
   'k5_whatsapp_list_threads',
   'k5_whatsapp_read_thread',
   'k5_gmail_list_threads',
