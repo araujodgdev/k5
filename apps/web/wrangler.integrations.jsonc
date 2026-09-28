@@ -11,7 +11,8 @@
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Server-only guards are for Next bundles; the Worker imports the same server modules directly.
   "alias": { "server-only": "./empty-stub.js" },
-  "vars": { "SENTRY_ENVIRONMENT": "staging", "SENTRY_TRACES_SAMPLE_RATE": "0.1" },
+  "vars": { "SENTRY_ENVIRONMENT": "staging", "SENTRY_TRACES_SAMPLE_RATE": "0.1", "VAULT_STORAGE_BACKEND": "r2" },
+  "r2_buckets": [{ "binding": "VAULT", "bucket_name": "k5-vault-staging" }],
   // Same PostgreSQL as the web, with query caching disabled.
   "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "cb3229db2c05407aa00420f68bcb6f8f" }],
   "triggers": { "crons": ["* * * * *"] },

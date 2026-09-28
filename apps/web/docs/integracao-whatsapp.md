@@ -2,13 +2,29 @@
 
 O Tises compartilha uma caixa de conversas individuais por escritório. A conexão usa o fluxo de coexistência da Zernio com o WhatsApp Business App. A elegibilidade do número e o histórico autorizado precisam ser conferidos no fluxo real do titular.
 
-Administradores conectam e desconectam o número em Integrações. Administradores e advogados respondem a conversas existentes. Revisores consultam o histórico. A primeira versão envia somente texto, dentro das 24 horas posteriores à última mensagem recebida do cliente. Anexos aparecem como metadados. Templates, grupos, campanhas, novos destinatários e respostas automáticas não fazem parte desta versão.
+Administradores conectam e desconectam o número em Integrações. Administradores e advogados respondem a conversas existentes. Revisores consultam o histórico. O envio aceita texto ou um arquivo por mensagem, dentro das 24 horas posteriores à última mensagem recebida do cliente. Templates, grupos, campanhas, novos destinatários e respostas automáticas não fazem parte desta versão.
+
+A caixa atualiza automaticamente enquanto está visível. Um botão de recuperação aparece apenas quando a atualização falha. A gestão da conexão fica em Integrações.
+
+## Mídias e documentos
+
+Arquivos são enviados como multipart autenticado à Zernio. O recebimento usa o identificador de mídia do webhook e a rota autenticada do provedor. Os bytes ficam no armazenamento privado do Tises; a interface recebe uma rota autorizada por sessão e escritório. Nenhuma chave de API ou URL pública de armazenamento vai ao navegador.
+
+| Arquivo | Limite por envio |
+| --- | --- |
+| JPEG e PNG | 5 MB |
+| MP4 e áudio MP3, OGG, AMR ou AAC | 16 MB |
+| PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX e TXT | 25 MB |
+
+Legendas aceitam até 1.024 caracteres. Áudio é enviado sem legenda. Imagens, áudio e vídeo têm controles no chat. PDF, DOCX e texto abrem uma pré-visualização. Formatos legados oferecem download. A reprodução depende dos codecs do navegador.
+
+O backend confere tamanho, formato e conteúdo dos arquivos. Pacotes Office têm limites de expansão. A prévia Word fica isolada em um frame sem scripts ou recursos remotos. Arquivos expirados no provedor aparecem como indisponíveis; a caixa não inventa uma prévia para conteúdo que não recebeu.
 
 ## Configuração local
 
 1. Configure `ZERNIO_API_KEY`, `ZERNIO_WEBHOOK_SECRET`, `K5_CREDENTIALS_KEY` e `BETTER_AUTH_URL` em `.env.local`. A chave principal da Zernio fica no servidor. Cada escritório recebe um perfil e uma chave limitada às mensagens daquele perfil.
 2. Configure `CLOUDFLARE_ACCOUNT_ID`, `FLAGSHIP_APP_ID` e `FLAGSHIP_EVALUATE_TOKEN`. Crie a flag booleana `whatsapp-integration`, com padrão `false`, e habilite os escritórios piloto pelo atributo `office_id`. O `targetingKey` também é o ID do escritório.
-3. Execute `pnpm db:setup` na raiz. A migração `0032_whatsapp.sql` acrescenta as tabelas, sem alterar dados existentes.
+3. Execute `pnpm db:setup` na raiz. As migrações `0032_whatsapp.sql`, `0033_whatsapp_media.sql` e `0035_whatsapp_attachment_retries.sql` acrescentam as tabelas e preservam os anexos de tentativas anteriores. A migração `0034_personal_messages.sql` pertence ao módulo de mensagens pessoais.
 4. Execute a aplicação e `pnpm integrations:worker`. O processo de integrações compartilha a fila persistida no PostgreSQL com o Worker da Cloudflare.
 5. Cadastre na Zernio um webhook para `https://SEU_DOMINIO/api/whatsapp/webhook`, com o mesmo segredo configurado no servidor. Ative os eventos de mensagens, conversa e desconexão disponíveis para a conta.
 6. Entre como administrador de um escritório liberado e use **Integrações → Conectar WhatsApp**. O callback verifica a sessão, o usuário, o perfil e a conta retornada pelo provedor antes de ativar a conexão.
@@ -22,6 +38,8 @@ O web Worker e o Durable Object do chat recebem o ambiente WhatsApp por contexto
 O web Worker produz notificações na fila `k5-integrations-staging`, por `INTEGRATIONS_QUEUE`. Provisione essa fila antes de publicar a configuração. O Worker de integrações a consome e também varre os jobs a cada minuto, recuperando notificações perdidas. As notificações só ocorrem depois do commit; o PostgreSQL continua sendo a fonte dos jobs, leases e resultados.
 
 Configure os segredos necessários tanto no web Worker quanto no Worker de integrações. A chave de criptografia deve ser a mesma. `pnpm integrations:build` valida o bundle sem publicar. O deploy continua separado da validação local.
+
+Web e integrações usam o mesmo binding privado `VAULT` para os anexos. O Wrangler de integrações declara o mesmo bucket R2 do web Worker. No Node, use a mesma configuração de armazenamento e o mesmo diretório persistente quando os processos estiverem na mesma máquina.
 
 A flag é avaliada no servidor para abrir a caixa, consultar mensagens, criar ferramentas e enviar respostas. Ausência, erro ou timeout fecham o acesso. Desligá-la não apaga mensagens nem impede que o administrador desconecte a conta. A ingestão de contas já verificadas continua para preservar eventos durante uma interrupção do piloto.
 

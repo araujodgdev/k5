@@ -2,7 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database, type Transaction } from '@/lib/database';
 
-export type WhatsAppJobKind = 'event' | 'history' | 'history_refresh' | 'conversations' | 'disconnect' | 'revoke_key';
+export type WhatsAppJobKind = 'event' | 'history' | 'history_refresh' | 'conversations' | 'disconnect' | 'revoke_key' | 'media';
 export type WhatsAppJob = {
   id: string; office_id: string; connection_id: string; generation: number;
   kind: WhatsAppJobKind; subject_id: string | null; dedupe_key: string;
@@ -36,7 +36,7 @@ export async function claimWhatsAppJob(): Promise<WhatsAppJob | null> {
       SELECT 1 FROM whatsapp_connection c WHERE c.id=j.connection_id AND c.office_id=j.office_id AND (
         (j.kind='event' AND (c.status IN ('connected','reconnect_required') OR (c.status='pending' AND c.verified_at IS NOT NULL))) OR
         (j.kind='disconnect' AND c.status='disconnecting' AND c.generation=j.generation) OR
-        (j.kind IN ('history','history_refresh','conversations') AND c.status='connected' AND c.generation=j.generation)))`).run();
+        (j.kind IN ('history','history_refresh','conversations','media') AND c.status='connected' AND c.generation=j.generation)))`).run();
   await database.prepare(`UPDATE whatsapp_job SET status='failed',locked_until=NULL,
     last_error='attempts_exhausted',updated_at=CURRENT_TIMESTAMP
     WHERE attempts>=? AND (status='queued' OR (status='running' AND locked_until<CURRENT_TIMESTAMP))`)

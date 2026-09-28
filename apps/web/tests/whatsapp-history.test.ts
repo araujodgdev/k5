@@ -51,7 +51,7 @@ test('páginas locais têm ordem estável, isolamento por escritório/conta e n�
   });
 });
 
-test('consultas revalidam flag, papel e sessão e expõem anexos somente como metadados', async () => {
+test('consultas revalidam flag, papel e sessão e mostram anexo sem mídia como indisponível', async () => {
   const fixture = await whatsappFixture();
   const threadId = await seedMessage(fixture, fact({ attachments: [{ kind: 'file', filename: 'arquivo.pdf', mimeType: 'application/pdf' }] }));
   await testDb.prepare('UPDATE whatsapp_thread SET history_complete=true WHERE id=?').run(threadId);
@@ -59,7 +59,10 @@ test('consultas revalidam flag, papel e sessão e expõem anexos somente como me
     await testDb.prepare(`UPDATE office_member SET role='reviewer' WHERE office_id=? AND user_id=?`).run(fixture.officeId, fixture.userId);
     const history = await readThread(fixture.context, { threadId, limit: 10 });
     assert.equal(history.canSend, false);
-    assert.deepEqual(history.items[0]?.attachments, [{ kind: 'file', filename: 'arquivo.pdf', mimeType: 'application/pdf' }]);
+    const attachment = history.items[0]?.attachments[0];
+    assert.ok(attachment?.id);
+    assert.deepEqual(attachment, { id: attachment.id, kind: 'file', filename: 'arquivo.pdf', mimeType: 'application/pdf', byteLength: null,
+      state: 'unavailable', contentUrl: null });
     await testDb.prepare('DELETE FROM session WHERE id=?').run(fixture.context.sessionId);
     await assert.rejects(listThreads(fixture.context, { limit: 10 }), /sessão/);
   });

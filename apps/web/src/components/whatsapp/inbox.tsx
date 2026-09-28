@@ -1,27 +1,28 @@
 'use client';
 
-import Link from 'next/link';
-import { ArrowLeft, ArrowUp, CircleAlert, RefreshCw, Send } from 'lucide-react';
+import { ArrowLeft, ArrowUp, CircleAlert, Paperclip, Send, X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { MessageAttachment } from '@/components/message-attachment';
 import { cn } from '@/lib/utils';
 import {
-  connectionStatusDto, historyPageDto, sendReceiptDto, threadPageDto,
+  connectionStatusDto, historyPageDto, sendReceiptDto, threadPageDto, uploadReceiptDto,
   type ConnectionStatus, type HistoryPage, type InboxMessage, type SendReceipt, type Thread, type ThreadPage,
 } from '@/lib/whatsapp/domain';
 import { requestMessage, useVisiblePoll, whatsappRequest, WhatsAppRequestError } from './client';
 
 type Remote<T> = { kind: 'loading' } | { kind: 'error'; error: string } | { kind: 'ready'; data: T; error: string | null };
-type SendIntent = { threadId: string; text: string; idempotencyKey: string };
+type SendIntent = { threadId: string; text: string; idempotencyKey: string; attachmentId?: string };
+type UploadedAttachment = z.infer<typeof uploadReceiptDto>;
 type SendAttempt =
   | { kind: 'sending'; intent: SendIntent }
   | { kind: 'uncertain'; intent: SendIntent; error: string }
   | { kind: 'failed'; intent: SendIntent; error: string }
   | { kind: 'receipt'; intent: SendIntent; receipt: SendReceipt };
 
-const syncResult = z.object({ queued: z.literal(true) });
+const syncResult = z.object({ queued: z.boolean() });
 const messageLabels = {
   received: 'Recebida', pending: 'Aguardando envio', dispatching: 'Enviando', accepted: 'Envio aceito',
   sent: 'Enviada', delivered: 'Entregue', read: 'Lida', failed: 'Falha no envio', unknown: 'Envio não confirmado',
@@ -60,6 +61,7 @@ export function WhatsAppInbox({ canSendRole }: { canSendRole: boolean }) {
   const [connectionError, setConnectionError] = useState('');
   const [selected, setSelected] = useState<Thread | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [attachments, setAttachments] = useState<Record<string, UploadedAttachment | undefined>>({});
   const [attempts, setAttempts] = useState<Record<string, SendAttempt>>({});
   const [sync, setSync] = useState<'idle' | 'requesting' | 'queued'>('idle');
   const [syncError, setSyncError] = useState('');
@@ -121,8 +123,8 @@ export function WhatsAppInbox({ canSendRole }: { canSendRole: boolean }) {
     requests.current.add(controller);
     setSync('requesting'); setSyncError('');
     try {
-      await whatsappRequest('sync', syncResult, 'Não foi possível solicitar a sincronização.', { method: 'POST', signal: controller.signal });
-      if (!controller.signal.aborted) { setSync('queued'); setRevision(value => value + 1); }
+      const result = await whatsappRequest('sync', syncResult, 'Não foi possível retomar a atualização.', { method: 'POST', signal: controller.signal });
+      if (!controller.signal.aborted) { setSync(result.queued ? 'queued' : 'idle'); setRevision(value => value + 1); }
     } catch (failure) {
       if (!controller.signal.aborted) { setSync('idle'); setSyncError(requestMessage(failure, 'Não foi possível solicitar a sincronização.')); }
     } finally { requests.current.delete(controller); }
@@ -145,6 +147,7 @@ export function WhatsAppInbox({ canSendRole }: { canSendRole: boolean }) {
       setAttempts(current => ({ ...current, [intent.threadId]: { kind: 'receipt', intent, receipt } }));
       if (['accepted', 'sent', 'delivered', 'read'].includes(receipt.status)) {
         setDrafts(current => current[intent.threadId]?.trim() === intent.text ? { ...current, [intent.threadId]: '' } : current);
+        setAttachments(current => current[intent.threadId]?.id === intent.attachmentId ? { ...current, [intent.threadId]: undefined } : current);
       }
       setRevision(value => value + 1);
     } catch (failure) {
@@ -170,22 +173,18 @@ export function WhatsAppInbox({ canSendRole }: { canSendRole: boolean }) {
   return <div className="whatsapp-workspace flex min-h-0 min-w-0 flex-1 flex-col" data-whatsapp-inbox>
     <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 md:px-10 md:py-6">
       <h1 className="page-title max-md:sr-only">WhatsApp</h1>
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" className="min-h-11 md:min-h-9" disabled={!connected || syncPending} onClick={() => void synchronize()}><RefreshCw aria-hidden="true" />{syncPending ? 'Sincronizando…' : 'Sincronizar conversas'}</Button>
-        <Link href="/app/integrations" className="text-sm underline underline-offset-4 decoration-input/40 hover:decoration-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Gerenciar conexão</Link>
-      </div>
     </header>
     {(connectionError || syncError) && <p role="alert" className="flex items-center gap-2 border-b px-5 py-3 text-sm text-destructive md:px-10"><CircleAlert className="size-4 shrink-0" aria-hidden="true" />{syncError || connectionError}</p>}
     {status && !connected && <p role="status" className="border-b border-line px-5 py-3 text-sm md:px-10">{!status.enabled ? 'O WhatsApp está desativado para este escritório.' : status.connection?.status === 'reconnect_required' ? 'Reconecte a conta em Integrações para voltar a receber e enviar mensagens. O histórico disponível continua aqui.' : status.connection?.status === 'pending' ? 'Conclua a conexão no WhatsApp Business. As conversas aparecerão após a sincronização.' : status.connection?.status === 'disconnecting' ? 'A conta está sendo desconectada.' : 'Conecte o WhatsApp Business em Integrações para receber as conversas do escritório.'}</p>}
     {sync === 'queued' && !syncPending && <p role="status" className="border-b px-5 py-2 text-sm text-muted-foreground md:px-10">Sincronização solicitada. As conversas serão atualizadas aqui.</p>}
-    {threads.kind === 'ready' && threads.data.syncState === 'error' && <p className="border-b px-5 py-2 text-sm text-muted-foreground md:px-10">A última sincronização não terminou. Você pode solicitá-la novamente.</p>}
+    {threads.kind === 'ready' && threads.data.syncState === 'error' && <div className="flex flex-wrap items-center gap-3 border-b px-5 py-3 md:px-10"><p role="status" className="text-sm text-muted-foreground">Não foi possível atualizar as conversas.</p><Button variant="outline" className="min-h-11 md:min-h-9" disabled={!connected || syncPending} onClick={() => void synchronize()}>{syncPending ? 'Atualizando…' : 'Tentar novamente'}</Button></div>}
     <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden md:grid-cols-[minmax(16rem,21rem)_minmax(0,1fr)]">
       <section aria-label="Conversas do WhatsApp" className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden border-line md:border-r', selected && 'hidden md:flex')}>
         <div className="flex items-center justify-between border-b px-5 py-3"><h2 className="label-mono text-muted-foreground">Conversas</h2>{threads.kind === 'ready' && <span className="text-xs text-muted-foreground">{threads.data.items.length} carregadas</span>}</div>
         {threads.kind === 'loading' && <p role="status" className="px-5 py-6 text-sm text-muted-foreground">Carregando conversas…</p>}
         {threads.kind !== 'loading' && threads.error && <div className="space-y-3 border-b px-5 py-4"><p role="alert" className="text-sm text-destructive">{threads.error}</p><Button variant="outline" className="min-h-11 md:min-h-9" onClick={() => setRevision(value => value + 1)}>Tentar novamente</Button></div>}
         {threads.kind === 'ready' && <>
-          {threads.data.items.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">{threads.data.syncState === 'pending' ? 'Buscando as primeiras conversas…' : 'Nenhuma conversa disponível. Sincronize a conta para buscar mensagens.'}</p>}
+          {threads.data.items.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">{threads.data.syncState === 'pending' ? 'Buscando as primeiras conversas…' : 'As mensagens recebidas aparecerão aqui automaticamente.'}</p>}
           <div className="min-h-0 flex-1 divide-y overflow-y-auto overscroll-contain">{threads.data.items.map(thread => <button key={thread.id} id={`whatsapp-thread-${thread.id}`} type="button" aria-current={selected?.id === thread.id ? 'true' : undefined} aria-label={`${thread.participantName || 'Contato'}, ${thread.unreadCount} mensagens não lidas`} onClick={() => setSelected(thread)} className={cn('group hover-rise relative block w-full border-l-2 px-5 py-4 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand hover:text-brand-foreground', selected?.id === thread.id ? 'border-foreground bg-brand-soft' : 'border-transparent')}>
             <span className="flex items-baseline justify-between gap-3"><span className="min-w-0 truncate text-sm font-medium">{thread.participantName || 'Contato'}</span><time dateTime={thread.lastMessageAt} className="shrink-0 text-[11px] text-muted-foreground group-hover:text-brand-foreground">{dateLabel(thread.lastMessageAt)}</time></span>
             <span className="mt-1 block truncate text-sm text-muted-foreground group-hover:text-brand-foreground">{thread.lastText || 'Mensagem sem texto'}</span>
@@ -195,29 +194,53 @@ export function WhatsAppInbox({ canSendRole }: { canSendRole: boolean }) {
         </>}
       </section>
       {currentThread ? <Conversation key={currentThread.id} thread={currentThread} canSendRole={canSendRole} connected={Boolean(connected)} draft={drafts[currentThread.id] ?? ''} attempt={attempts[currentThread.id]} revision={revision}
+        attachment={attachments[currentThread.id]} onAttachment={file => setAttachments(current => ({ ...current, [currentThread.id]: file }))}
         onDraft={text => setDrafts(current => ({ ...current, [currentThread.id]: text }))} onBack={back}
-        onSend={(intent, windowClosesAt, checkExisting) => void send(intent, windowClosesAt, checkExisting)}
-        onSync={() => void synchronize()} syncPending={syncPending} /> : <div className="hidden items-center justify-center p-10 text-sm text-muted-foreground md:flex">Escolha uma conversa para ler as mensagens.</div>}
+        onSend={(intent, windowClosesAt, checkExisting) => void send(intent, windowClosesAt, checkExisting)} /> : <div className="hidden items-center justify-center p-10 text-sm text-muted-foreground md:flex">Escolha uma conversa para ler as mensagens.</div>}
     </div>
   </div>;
 }
 
-function Conversation({ thread, canSendRole, connected, draft, attempt, revision, onDraft, onBack, onSend, onSync, syncPending }: {
+function Conversation({ thread, canSendRole, connected, draft, attempt, revision, attachment, onAttachment, onDraft, onBack, onSend }: {
   thread: Thread; canSendRole: boolean; connected: boolean; draft: string; attempt: SendAttempt | undefined; revision: number;
+  attachment: UploadedAttachment | undefined; onAttachment: (attachment: UploadedAttachment | undefined) => void;
   onDraft: (text: string) => void; onBack: () => void; onSend: (intent: SendIntent, windowClosesAt: string | null, checkExisting?: boolean) => void;
-  onSync: () => void; syncPending: boolean;
 }) {
   const [history, setHistory] = useState<Remote<HistoryPage>>({ kind: 'loading' });
   const [paging, setPaging] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [awayFromEnd, setAwayFromEnd] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInput = useRef<HTMLInputElement>(null);
+  const uploadController = useRef<AbortController | null>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
   const nearEnd = useRef(true);
   const scrollAnchor = useRef<{ height: number; top: number } | null>(null);
   const pageController = useRef<AbortController | null>(null);
   const threadId = thread.id;
+
+  useEffect(() => () => uploadController.current?.abort(), []);
+
+  async function upload(file: File) {
+    if (uploading) return;
+    if (file.size > 25_000_000) { setUploadError('O arquivo deve ter até 25 MB. Imagens têm limite de 5 MB e áudio ou vídeo, 16 MB.'); return; }
+    const controller = new AbortController();
+    uploadController.current = controller;
+    setUploading(true); setUploadError('');
+    try {
+      const form = new FormData(); form.set('threadId', threadId); form.set('file', file);
+      const uploaded = await whatsappRequest('attachments', uploadReceiptDto, 'Não foi possível anexar o arquivo. Confira o formato e o tamanho.', { method: 'POST', body: form, signal: controller.signal });
+      if (!controller.signal.aborted) onAttachment(uploaded);
+    } catch (error) {
+      if (!controller.signal.aborted) setUploadError(requestMessage(error, 'Não foi possível anexar o arquivo.'));
+    } finally {
+      if (!controller.signal.aborted) setUploading(false);
+      uploadController.current = null;
+    }
+  }
 
   const load = useCallback(async (signal: AbortSignal) => {
     void revision; void refresh;
@@ -269,11 +292,13 @@ function Conversation({ thread, canSendRole, connected, draft, attempt, revision
   const unresolved = sendingUnresolved(attempt);
   const disabledReason = !canSendRole ? 'Seu acesso permite apenas ler as conversas.' : !connected ? 'Reconecte a conta em Integrações para enviar mensagens.' : history.kind !== 'ready' ? 'Aguarde o carregamento da conversa.' : !windowOpen ? 'O prazo de 24 horas terminou. Aguarde uma nova mensagem do cliente para responder pelo Tises.' : !history.data.canSend ? 'O envio não está disponível para esta conversa.' : '';
   const checkable = attempt?.kind === 'uncertain' || (attempt?.kind === 'receipt' && ['pending', 'dispatching', 'unknown'].includes(attempt.receipt.status));
+  const audioAttachment = attachment?.mimeType?.startsWith('audio/') ?? false;
+  const textLimit = attachment ? audioAttachment ? 0 : 1024 : 4096;
 
   function submit() {
     const text = draft.trim();
-    if (!allowed || unresolved || !text || text.length > 4096) return;
-    onSend({ threadId, text, idempotencyKey: crypto.randomUUID() }, loadedThread.windowClosesAt);
+    if (!allowed || unresolved || uploading || (!text && !attachment) || text.length > textLimit) return;
+    onSend({ threadId, text, idempotencyKey: crypto.randomUUID(), ...(attachment && { attachmentId: attachment.id }) }, loadedThread.windowClosesAt);
   }
 
   return <section aria-labelledby="whatsapp-conversation-title" className="flex min-h-0 min-w-0 flex-col">
@@ -289,14 +314,16 @@ function Conversation({ thread, canSendRole, connected, draft, attempt, revision
       {history.kind === 'loading' && <p role="status" className="px-5 py-6 text-sm text-muted-foreground md:px-8">Carregando mensagens…</p>}
       {history.kind !== 'loading' && history.error && <div className="space-y-3 border-b px-5 py-4 md:px-8"><p role="alert" className="text-sm text-destructive">{history.error}</p><Button variant="outline" className="min-h-11 md:min-h-9" onClick={() => setRefresh(value => value + 1)}>Tentar novamente</Button></div>}
       {history.kind === 'ready' && <>
-        {!history.data.thread.historyComplete && <div className="space-y-2 border-b px-5 py-4 md:px-8"><p className="text-sm text-muted-foreground">O histórico está parcial. Algumas mensagens ainda não foram sincronizadas.</p><Button variant="outline" className="min-h-11 md:min-h-9" disabled={!connected || syncPending} onClick={onSync}>{syncPending ? 'Sincronizando…' : 'Buscar histórico'}</Button></div>}
+        {!history.data.thread.historyComplete && <p className="border-b px-5 py-3 text-sm text-muted-foreground md:px-8">Parte do histórico ainda não foi carregada.</p>}
         {history.data.nextCursor && <div className="border-b px-5 py-3 md:px-8"><Button variant="ghost" className="min-h-11 w-full md:min-h-9" disabled={paging} onClick={() => void loadOlder()}>{paging ? 'Carregando…' : 'Carregar mensagens anteriores'}</Button></div>}
         {history.data.items.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground md:px-8">Nenhuma mensagem disponível nesta conversa.</p>}
         <div className="divide-y">{history.data.items.map(message => <article key={message.id} className={cn('px-5 py-5 md:px-8', message.direction === 'outbound' && 'border-l-2 border-l-brand')}>
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{message.direction === 'inbound' ? thread.participantName || 'Contato' : message.source === 'whatsapp_business_app' ? 'Enviada pelo celular' : 'Escritório'}</span><time dateTime={message.createdAt}>{dateLabel(message.createdAt)}</time></div>
           {message.deleted ? <p className="text-sm text-muted-foreground">Mensagem apagada.</p> : <>
             {message.text && <p className="whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]">{message.text}</p>}
-            {message.attachments.map((attachment, index) => <div key={`${attachment.kind}-${index}`} className="mt-3 space-y-1 text-sm"><p className="break-words font-medium">{attachment.filename || 'Anexo'}</p><p className="text-muted-foreground">Abra este anexo no WhatsApp Business.</p></div>)}
+            {message.attachments.map((file, index) => file.state === 'ready' && file.contentUrl
+              ? <MessageAttachment key={file.id ?? index} filename={file.filename || 'Anexo'} mimeType={file.mimeType} url={file.contentUrl} downloadUrl={`${file.contentUrl}?download=1`} />
+              : <div key={file.id ?? index} className="mt-3 space-y-1 text-sm"><p className="break-words font-medium">{file.filename || 'Anexo'}</p><p className="text-muted-foreground">{file.state === 'pending' ? 'Carregando anexo…' : 'Este anexo não está mais disponível.'}</p></div>)}
             {!message.text && message.attachments.length === 0 && <p className="text-sm text-muted-foreground">Mensagem sem conteúdo disponível.</p>}
           </>}
           <p className="mt-2 text-xs text-muted-foreground">{messageLabels[message.status]}{message.edited ? ' · Editada' : ''}</p>
@@ -307,9 +334,13 @@ function Conversation({ thread, canSendRole, connected, draft, attempt, revision
     <form className="shrink-0 border-t border-line bg-background px-5 py-4 md:px-8" onSubmit={event => { event.preventDefault(); submit(); }}>
       {disabledReason && <p id="whatsapp-compose-reason" className="mb-3 text-sm text-muted-foreground">{disabledReason}</p>}
       {canSendRole && <>
+        {attachment && <div className="mb-3 flex min-w-0 items-start justify-between gap-3"><MessageAttachment filename={attachment.filename || 'Anexo'} mimeType={attachment.mimeType} url={attachment.contentUrl} downloadUrl={`${attachment.contentUrl}?download=1`} /><Button type="button" variant="ghost" className="min-h-11 min-w-11" disabled={unresolved || uploading} aria-label="Remover anexo" onClick={() => onAttachment(undefined)}><X aria-hidden="true" /></Button></div>}
         <label htmlFor="whatsapp-reply" className="sr-only">Mensagem para {thread.participantName || 'o contato'}</label>
-        <Textarea id="whatsapp-reply" rows={3} maxLength={4096} value={draft} onChange={event => onDraft(event.target.value)} disabled={!allowed || unresolved} aria-describedby={disabledReason ? 'whatsapp-compose-help whatsapp-compose-reason' : 'whatsapp-compose-help'} placeholder="Escreva uma mensagem" className="max-h-40 min-h-24 resize-y disabled:bg-transparent" />
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p id="whatsapp-compose-help" className="text-xs text-muted-foreground">Somente texto. {draft.length.toLocaleString('pt-BR')} de 4.096 caracteres.</p><Button type="submit" className="min-h-11 md:min-h-9" disabled={!allowed || unresolved || draft.trim().length === 0 || draft.length > 4096}><Send aria-hidden="true" />{attempt?.kind === 'sending' ? 'Enviando…' : 'Enviar'}</Button></div>
+        <Textarea id="whatsapp-reply" rows={3} maxLength={textLimit || 4096} value={draft} onChange={event => onDraft(event.target.value)} disabled={!allowed || unresolved || audioAttachment} aria-describedby={disabledReason ? 'whatsapp-compose-help whatsapp-compose-reason' : 'whatsapp-compose-help'} placeholder={audioAttachment ? 'Áudio sem legenda' : 'Escreva uma mensagem'} className="max-h-40 min-h-24 resize-y disabled:bg-transparent" />
+        <input ref={fileInput} type="file" className="sr-only" tabIndex={-1} aria-label="Arquivo para enviar" accept="image/jpeg,image/png,video/mp4,audio/mpeg,audio/ogg,audio/amr,audio/aac,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,text/plain" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void upload(file); }} />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="ghost" className="min-h-11 md:min-h-9" disabled={!allowed || unresolved || uploading} onClick={() => fileInput.current?.click()}><Paperclip aria-hidden="true" />{uploading ? 'Anexando…' : 'Anexar'}</Button><p id="whatsapp-compose-help" className="text-xs text-muted-foreground">{audioAttachment ? 'Envie o áudio sem texto.' : `${draft.length.toLocaleString('pt-BR')} de ${textLimit.toLocaleString('pt-BR')} caracteres.`}</p><Button type="submit" className="min-h-11 md:min-h-9" disabled={!allowed || unresolved || uploading || (!draft.trim() && !attachment) || draft.trim().length > textLimit}><Send aria-hidden="true" />{attempt?.kind === 'sending' ? 'Enviando…' : 'Enviar'}</Button></div>
+        {audioAttachment && draft.trim() && <p role="status" className="mt-2 text-sm text-muted-foreground">Remova o áudio para enviar o texto já escrito, ou limpe o texto para enviar só o áudio. <button type="button" className="underline" onClick={() => onDraft('')}>Limpar texto</button></p>}
+        {uploadError && <p role="alert" className="mt-2 text-sm text-destructive">{uploadError}</p>}
       </>}
       {attempt && <div className="mt-3 space-y-2 border-l-2 border-brand pl-3" aria-live="polite">
         <p className={cn('text-sm', attempt.kind === 'failed' && 'text-destructive')}>

@@ -31,13 +31,32 @@ const threadSchema = z.object({
   participantName: z.string().nullish(), lastMessage: z.string().nullish(), updatedTime: timestamp,
   unreadCount: z.number().int().nonnegative().nullish().transform(value => value ?? 0), isGroup: z.boolean().default(false),
 });
-const attachmentSchema = z.object({ type: z.string(), filename: z.string().nullish(), mimeType: z.string().nullish() });
+export const providerAttachmentSchema = z.object({ type: z.string().max(80), filename: z.string().max(500).nullish(),
+  mimeType: z.string().max(200).nullish(), url: z.string().max(8192).nullish(),
+  payload: z.object({ id: z.string().max(500).nullish(), filename: z.string().max(500).nullish(),
+    mimeType: z.string().max(200).nullish(), mime_type: z.string().max(200).nullish() }).nullish() });
+export type ProviderAttachment = { kind: string; filename: string | null; mimeType: string | null; mediaId?: string };
+export function providerAttachment(item: z.infer<typeof providerAttachmentSchema>, accountId: string): ProviderAttachment {
+  let mediaId = item.payload?.id;
+  if (!mediaId && item.url) {
+    try {
+      const url = new URL(item.url);
+      if (url.origin === 'https://zernio.com' && !url.username && !url.password && !url.hash
+        && url.searchParams.get('accountId') === accountId && [...url.searchParams.keys()].every(key => key === 'accountId')) {
+        mediaId = /^\/api\/v1\/whatsapp\/media\/([A-Za-z0-9_-]{1,500})$/.exec(url.pathname)?.[1];
+      }
+    } catch { mediaId = undefined; }
+  }
+  return { kind: item.type, filename: item.filename ?? item.payload?.filename ?? null,
+    mimeType: item.mimeType ?? item.payload?.mimeType ?? item.payload?.mime_type ?? null,
+    ...(mediaId && /^[A-Za-z0-9_-]{1,500}$/.test(mediaId) ? { mediaId } : {}) };
+}
 const messageSchema = z.object({
   id: identifier, conversationId: identifier, accountId: identifier, platform: z.string(),
   message: z.string().default(''), direction: z.enum(['incoming', 'outgoing']), createdAt: timestamp,
   deliveryStatus: z.enum(['sent', 'delivered', 'read', 'failed', 'deleted']).nullish(),
   isDeleted: z.boolean().default(false), isEdited: z.boolean().default(false), editedAt: timestamp.nullish(),
-  attachments: z.array(attachmentSchema).max(100).default([]),
+  attachments: z.array(providerAttachmentSchema).max(100).default([]),
   metadata: z.object({ source: z.string().optional() }).optional(),
 }).refine(message => message.editedAt == null || Date.parse(message.editedAt) >= Date.parse(message.createdAt));
 
@@ -61,7 +80,7 @@ export type ProviderMessage = {
   status: 'received' | 'sent' | 'delivered' | 'read' | 'failed';
   deleted: boolean;
   edited: boolean;
-  attachments: { kind: string; filename: string | null; mimeType: string | null }[];
+  attachments: ProviderAttachment[];
 };
 
 function masterKey() {
@@ -191,8 +210,7 @@ Promise<{ items: ProviderMessage[]; nextCursor: string | null }> {
       status: message.direction === 'incoming' ? 'received'
         : message.deliveryStatus === 'deleted' ? 'sent' : message.deliveryStatus ?? 'sent',
       deleted: message.isDeleted || message.deliveryStatus === 'deleted', edited: message.isEdited,
-      attachments: message.attachments.map(attachment => ({ kind: attachment.type,
-        filename: attachment.filename ?? null, mimeType: attachment.mimeType ?? null })),
+      attachments: message.attachments.map(attachment => providerAttachment(attachment, accountId)),
     })),
     nextCursor: response.pagination,
   };
@@ -205,4 +223,18 @@ export async function sendProviderText(key: string, accountId: string, providerT
     schema: z.object({ success: z.literal(true), data: z.object({ messageId: identifier }) }),
   });
   return { messageId: response.data.messageId };
+}
+
+export async function sendProviderAttachment(key: string, accountId: string, providerThreadId: string,
+  file: { bytes: Buffer; filename: string; mimeType: string }, text: string, idempotencyKey: string): Promise<{ messageId: string }> {
+  if (!file.bytes.length || file.bytes.length > 25_000_000 || !(file.bytes.buffer instanceof ArrayBuffer)) throw new ZernioError(null, 'invalid_request');
+  const multipart = new FormData();
+  multipart.set('accountId', accountId);
+  if (text) multipart.set('message', text);
+  multipart.set('attachment', new Blob([new Uint8Array(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength)], { type: file.mimeType }), file.filename);
+  const result = await zernioRequest(key, `/inbox/conversations/${encodeURIComponent(providerThreadId)}/messages`, {
+    method: 'POST', multipart, idempotencyKey,
+    schema: z.object({ success: z.literal(true), data: z.object({ messageId: identifier }) }),
+  });
+  return { messageId: result.data.messageId };
 }

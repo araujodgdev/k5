@@ -8,6 +8,7 @@ import { historyInput, listInput, isReplyWindowOpen, replyWindow, type Connectio
 import { enqueueWhatsAppJob } from './jobs';
 import { wakeWhatsAppWorker } from './wake';
 import { messageView, threadView, type MessageRow, type ThreadRow } from './projection';
+import { attachmentView, type AttachmentRow } from './media';
 
 const cursorSchema = z.object({ scope: z.string().max(500), at: z.iso.datetime(), id: z.string().uuid() });
 type Cursor = z.infer<typeof cursorSchema>;
@@ -70,6 +71,17 @@ export async function readThread(context: WorkspaceContext, input: { threadId: s
       .all<MessageRow>(context.officeId, thread.id, context.officeId, thread.id, connection.id,
         cursor?.at ?? null, cursor?.at ?? null, cursor?.id ?? null, values.limit + 1);
     const items = rows.slice(0, values.limit);
+    const sendAttachments = await tx.prepare('SELECT id,attachment_id FROM whatsapp_send WHERE office_id=? AND thread_id=? AND id=ANY(?::text[])')
+      .all<{ id: string; attachment_id: string | null }>(context.officeId, thread.id, items.map(item => item.id));
+    const attachmentBySend = new Map(sendAttachments.map(item => [item.id, item.attachment_id]));
+    const attachments = await tx.prepare(`SELECT * FROM whatsapp_attachment WHERE office_id=? AND thread_id=?
+      AND (message_id=ANY(?::text[]) OR send_id=ANY(?::text[]) OR id=ANY(?::text[])) ORDER BY attachment_index,id`)
+      .all<AttachmentRow>(context.officeId, thread.id, items.map(item => item.id), items.map(item => item.id), [...attachmentBySend.values()]);
+    const views = items.map(row => {
+      const view = messageView(row);
+      const files = attachments.filter(attachment => attachment.message_id === row.id || attachment.send_id === row.id || attachment.id === attachmentBySend.get(row.id));
+      return files.length && !row.deleted ? { ...view, attachments: files.map(attachmentView) } : view;
+    });
     const last = items.at(-1);
     const exhausted = rows.length <= values.limit;
     const needsInitial = !thread.history_complete && thread.history_cursor === null;
@@ -96,7 +108,7 @@ export async function readThread(context: WorkspaceContext, input: { threadId: s
     const nextCursor = last && (!exhausted || !thread.history_complete)
       ? encodeCursor(scope, last.created_at, last.id) : !thread.history_complete && cursor ? values.cursor ?? null : null;
     return { thread: threadView({ ...thread, unread_count: 0 }, replyWindow(thread.last_customer_message_at)),
-      items: items.reverse().map(messageView), nextCursor,
+      items: views.reverse(), nextCursor,
       canSend: connection.status === 'connected' && (member?.role === 'administrator' || member?.role === 'lawyer')
         && isReplyWindowOpen(thread.last_customer_message_at), syncState };
   });

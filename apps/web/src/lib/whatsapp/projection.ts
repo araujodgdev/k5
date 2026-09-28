@@ -2,6 +2,8 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import type { Transaction } from '@/lib/database';
 import type { ConnectionRow, InboxMessage, Thread } from './domain';
+import type { ProviderAttachment } from './provider';
+import { projectAttachments } from './media';
 
 export type ThreadRow = {
   id: string; office_id: string; connection_id: string; account_id: string; provider_id: string;
@@ -13,13 +15,14 @@ export type MessageRow = {
   id: string; office_id: string; thread_id: string; provider_id: string;
   direction: InboxMessage['direction']; source: InboxMessage['source']; text: string;
   status: InboxMessage['status']; deleted: boolean; edited: boolean;
-  attachments: InboxMessage['attachments']; created_at: string; content_updated_at: string;
+  attachments: ProviderAttachment[]; created_at: string; content_updated_at: string;
 };
 export type MessageProjection = {
   kind: 'received' | 'sent' | 'edit' | 'delete' | 'status' | 'history';
   thread: { providerId: string; participantId: string; participantName: string };
   providerId: string; createdAt: string; contentUpdatedAt: string; unread: boolean;
-} & Pick<InboxMessage, 'direction' | 'source' | 'text' | 'status' | 'deleted' | 'edited' | 'attachments'>;
+  attachments: ProviderAttachment[];
+} & Pick<InboxMessage, 'direction' | 'source' | 'text' | 'status' | 'deleted' | 'edited'>;
 
 const statusOrder: Record<InboxMessage['status'], number> = {
   received: 0, pending: 0, dispatching: 1, unknown: 2, accepted: 3, sent: 4, failed: 5, delivered: 6, read: 7,
@@ -78,14 +81,18 @@ export async function projectMessage(tx: Transaction, connection: ConnectionRow,
   const contentUpdatedAt = previous && Date.parse(previous.content_updated_at) >= Date.parse(fact.contentUpdatedAt)
     ? previous.content_updated_at : fact.contentUpdatedAt;
 
+  const messageId = previous?.id ?? randomUUID();
   await tx.prepare(`INSERT INTO whatsapp_message(id,office_id,thread_id,provider_id,direction,source,text,status,
     deleted,edited,attachments,created_at,content_updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?::jsonb,?,?)
     ON CONFLICT(thread_id,provider_id) DO UPDATE SET source=EXCLUDED.source,text=EXCLUDED.text,status=EXCLUDED.status,
       deleted=EXCLUDED.deleted,edited=EXCLUDED.edited,attachments=EXCLUDED.attachments,
       content_updated_at=EXCLUDED.content_updated_at`)
-    .run(previous?.id ?? randomUUID(), connection.office_id, thread.id, fact.providerId,
+    .run(messageId, connection.office_id, thread.id, fact.providerId,
       previous?.direction ?? fact.direction, source, text, status, deleted, edited, JSON.stringify(attachments),
       previous?.created_at ?? fact.createdAt, contentUpdatedAt);
+  const enrichAttachments = fact.kind !== 'status' && (!previous || Date.parse(fact.contentUpdatedAt) >= Date.parse(previous.content_updated_at));
+  await projectAttachments(tx, connection, messageId, thread.id, enrichAttachments ? fact.attachments : attachments,
+    { deleted, replace: Boolean(useContent), enrich: enrichAttachments, sendId: sent?.id });
   if (sent) {
     const sendStatus = advanceMessageStatus(sent.status, status);
     if (sendStatus !== 'received') await tx.prepare(`UPDATE whatsapp_send SET status=?,error=CASE WHEN ?='failed'
@@ -118,5 +125,6 @@ export function threadView(row: ThreadRow, windowClosesAt: Thread['windowClosesA
 export function messageView(row: MessageRow): InboxMessage {
   return { id: row.id, direction: row.direction, source: row.source, text: row.deleted ? '' : row.text,
     createdAt: row.created_at, status: row.status, deleted: row.deleted, edited: row.edited,
-    attachments: row.deleted ? [] : row.attachments };
+    attachments: row.deleted ? [] : row.attachments.map(attachment => ({ id: null, kind: attachment.kind,
+      filename: attachment.filename, mimeType: attachment.mimeType, byteLength: null, state: 'unavailable', contentUrl: null })) };
 }

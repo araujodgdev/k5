@@ -1,0 +1,125 @@
+import { testDb as db, testStorageRoot } from './test-setup';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { test } from 'node:test';
+import type { WorkspaceContext } from '../src/lib/application/context';
+import type { PersonContext } from '../src/lib/personal-chat/auth';
+import { createShareOutput, type CreateShareInput } from '../src/lib/personal-chat/domain';
+import { ensureOfficeForUser } from '../src/lib/offices';
+import { respond } from '../src/lib/collaboration/service';
+import { getMessageForViewer, startThread } from '../src/lib/personal-chat/service';
+import { createShare, readDocumentShare, revokeDocumentShare } from '../src/lib/personal-chat/shares';
+import { localObjectStorage, objectStorage, resetObjectStorageForTests, storageKey } from '../src/lib/storage';
+
+resetObjectStorageForTests(localObjectStorage(testStorageRoot));
+
+async function user(name: string) {
+  const id = randomUUID(), email = `${id}@share-state.test`, sessionId = randomUUID();
+  await db.prepare('INSERT INTO "user"(id,name,email,"emailVerified") VALUES(?,?,?,true)').run(id, name, email);
+  await db.prepare(`INSERT INTO session(id,userId,token,expiresAt,createdAt,updatedAt)
+    VALUES(?,?,?,CURRENT_TIMESTAMP+INTERVAL '1 day',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`).run(sessionId, id, randomUUID());
+  const office = await ensureOfficeForUser(db, { id, officeName: `${name} Advocacia` });
+  return {
+    person: { userId: id, email, name, sessionId } satisfies PersonContext,
+    workspace: { userId: id, officeId: office.officeId, role: 'administrator', sessionId } satisfies WorkspaceContext,
+  };
+}
+
+async function fixture() {
+  const owner = await user('Ana'), recipient = await user('Bia');
+  const { thread } = await startThread(owner.person, owner.workspace.officeId, {
+    requestId: randomUUID(), recipient: { kind: 'exact_email', email: recipient.person.email },
+  });
+  const documentId = randomUUID(), storedName = storageKey(owner.workspace.officeId, documentId, '.txt');
+  const content = Buffer.from('Versão compartilhada.');
+  await (await objectStorage()).put(storedName, content);
+  await db.prepare(`INSERT INTO vault_document(id,office_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by)
+    VALUES(?,?,'library','Contrato.txt',?,'text/plain',?,?,'ready',?)`)
+    .run(documentId, owner.workspace.officeId, storedName, content.length, 'a'.repeat(64), owner.person.userId);
+  await db.prepare(`INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by)
+    VALUES(?,?,?,1,'Contrato.txt',?,'text/plain',?,?,?)`)
+    .run(randomUUID(), owner.workspace.officeId, documentId, storedName, content.length, 'a'.repeat(64), owner.person.userId);
+  const input: CreateShareInput = { kind: 'document', documentId, version: 1, clientMessageId: randomUUID(), idempotencyKey: randomUUID() };
+  return { owner, recipient, thread, documentId, input, content };
+}
+
+test('an active document grant remains visible and readable when its issuer leaves the office', async () => {
+  const f = await fixture();
+  const created = createShareOutput.parse(await createShare(f.owner.person, f.owner.workspace, f.thread.id, f.input));
+  assert.equal(created.kind, 'document');
+  if (created.kind !== 'document') assert.fail('Expected a document share.');
+  await db.prepare('DELETE FROM office_member WHERE office_id=? AND user_id=?').run(f.owner.workspace.officeId, f.owner.person.userId);
+  for (const viewer of [f.recipient.person.userId, f.owner.person.userId]) {
+    const message = await getMessageForViewer(created.message.id, viewer);
+    assert.equal(message.body.kind, 'document_share');
+    if (message.body.kind !== 'document_share') assert.fail('Expected a shared document.');
+    assert.equal(message.body.state, 'active');
+    assert.equal(message.body.canRevoke, false);
+  }
+  assert.deepEqual((await readDocumentShare(f.recipient.person, created.share.id)).buffer, f.content);
+  await assert.rejects(readDocumentShare(f.owner.person, created.share.id), { code: 'NOT_FOUND' });
+});
+
+test('replaying a document share returns its revoked or unavailable state without granting access again', async () => {
+  const f = await fixture();
+  const created = createShareOutput.parse(await createShare(f.owner.person, f.owner.workspace, f.thread.id, f.input));
+  assert.equal(created.kind, 'document');
+  if (created.kind !== 'document') assert.fail('Expected a document share.');
+  await revokeDocumentShare(f.owner.workspace, created.share.id);
+  const revoked = createShareOutput.parse(await createShare(f.owner.person, f.owner.workspace, f.thread.id, f.input));
+  assert.equal(revoked.kind, 'document');
+  if (revoked.kind !== 'document') assert.fail('Expected a document share.');
+  assert.equal(revoked.message.id, created.message.id);
+  assert.equal(revoked.share.state, 'revoked');
+  await assert.rejects(readDocumentShare(f.recipient.person, revoked.share.id), { code: 'NOT_FOUND' });
+  await db.prepare('UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP WHERE id=?').run(f.documentId);
+  const unavailable = createShareOutput.parse(await createShare(f.owner.person, f.owner.workspace, f.thread.id, f.input));
+  assert.equal(unavailable.kind, 'document');
+  if (unavailable.kind !== 'document') assert.fail('Expected a document share.');
+  assert.equal(unavailable.share.state, 'unavailable');
+  const operations = await db.prepare('SELECT count(*) AS count FROM personal_share_operation WHERE author_user_id=? AND idempotency_key=?')
+    .get<{ count: string }>(f.owner.person.userId, f.input.idempotencyKey);
+  assert.equal(Number(operations?.count), 1);
+});
+
+test('a case invitation links to the current action and hides access that was removed', async () => {
+  const f = await fixture(), caseId = randomUUID();
+  await db.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)')
+    .run(caseId, f.owner.workspace.officeId, 'Caso convidado', f.owner.person.userId);
+  const input: CreateShareInput = { kind: 'case', caseId, permission: 'viewer', canInvite: false, clientMessageId: randomUUID(), idempotencyKey: randomUUID() };
+  const created = createShareOutput.parse(await createShare(f.owner.person, f.owner.workspace, f.thread.id, input));
+  assert.equal(created.kind, 'case');
+  if (created.kind !== 'case') assert.fail('Expected a case invitation.');
+  if (created.message.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
+  const casePath = `/app/vault/cases/${caseId}`;
+  assert.equal(created.message.body.actionPath, casePath);
+  const pending = await getMessageForViewer(created.message.id, f.recipient.person.userId);
+  if (pending.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
+  assert.match(pending.body.actionPath ?? '', /^\/invite\/[A-Za-z0-9_-]+$/);
+  await respond(f.recipient.workspace, created.invitation.id, true);
+  const replay = createShareOutput.parse(await createShare(f.owner.person, f.owner.workspace, f.thread.id, input));
+  assert.equal(replay.kind, 'case');
+  if (replay.kind !== 'case') assert.fail('Expected a case invitation.');
+  assert.equal(replay.message.id, created.message.id);
+  assert.equal(replay.invitation.id, created.invitation.id);
+  assert.equal(replay.invitation.state, 'accepted');
+  for (const viewer of [f.recipient.person.userId, f.owner.person.userId]) {
+    const accepted = await getMessageForViewer(created.message.id, viewer);
+    if (accepted.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
+    assert.equal(accepted.body.actionPath, casePath);
+  }
+  await db.prepare('UPDATE case_participant SET revoked_at=CURRENT_TIMESTAMP WHERE case_id=? AND user_id=?')
+    .run(caseId, f.recipient.person.userId);
+  const removed = await getMessageForViewer(created.message.id, f.recipient.person.userId);
+  if (removed.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
+  assert.equal(removed.body.actionPath, null);
+  for (const status of ['declined', 'revoked', 'pending']) {
+    await db.prepare("UPDATE collaboration_invitation SET status=?,expires_at=CURRENT_TIMESTAMP-INTERVAL '1 day' WHERE id=?")
+      .run(status, created.invitation.id);
+    for (const viewer of [f.recipient.person.userId, f.owner.person.userId]) {
+      const closed = await getMessageForViewer(created.message.id, viewer);
+      if (closed.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
+      assert.equal(closed.body.actionPath, null);
+    }
+  }
+});

@@ -2,7 +2,13 @@ import { z } from 'zod';
 
 export const connectionState = z.enum(['pending', 'connected', 'reconnect_required', 'disconnecting', 'disconnected']);
 export const sendState = z.enum(['pending', 'dispatching', 'accepted', 'sent', 'delivered', 'read', 'failed', 'unknown']);
-export const attachmentDto = z.object({ kind: z.string(), filename: z.string().nullable(), mimeType: z.string().nullable() });
+export const attachmentDto = z.object({
+  id: z.string().uuid().nullable(), kind: z.string(), filename: z.string().nullable(), mimeType: z.string().nullable(),
+  byteLength: z.number().int().nonnegative().nullable(), state: z.enum(['pending', 'ready', 'unavailable']),
+  contentUrl: z.string().nullable(),
+});
+export const uploadReceiptDto = attachmentDto.extend({ id: z.string().uuid(), state: z.literal('ready'), contentUrl: z.string() });
+export type WhatsAppAttachment = z.infer<typeof attachmentDto>;
 export const connectionStatusDto = z.object({
   enabled: z.boolean(), configured: z.boolean(), canManage: z.boolean(),
   connection: z.object({ id: z.string(), status: connectionState, number: z.string().nullable(), label: z.string().nullable(), updatedAt: z.string() }).nullable(),
@@ -21,8 +27,11 @@ export const syncState = z.enum(['idle', 'pending', 'error']);
 export const threadPageDto = z.object({ items: z.array(threadDto), nextCursor: z.string().nullable(), syncState, updatedAt: z.string().nullable() });
 export const historyPageDto = z.object({ thread: threadDto, items: z.array(messageDto), nextCursor: z.string().nullable(), canSend: z.boolean(), syncState });
 export const sendInput = z.object({
-  threadId: z.string().uuid(), text: z.string().trim().min(1).max(4096),
+  threadId: z.string().uuid(), text: z.string().trim().max(4096).default(''), attachmentId: z.string().uuid().optional(),
   idempotencyKey: z.string().uuid(), approvalId: z.string().uuid().optional(),
+}).superRefine((input, context) => {
+  if (!input.text && !input.attachmentId) context.addIssue({ code: 'custom', message: 'Escreva uma mensagem ou escolha um arquivo.' });
+  if (input.attachmentId && input.text.length > 1024) context.addIssue({ code: 'custom', message: 'A legenda pode ter até 1.024 caracteres.' });
 });
 export const sendReceiptDto = z.object({ id: z.string(), threadId: z.string(), status: sendState, error: z.string().nullable() });
 export const listInput = z.object({ cursor: z.string().max(1000).optional(), limit: z.number().int().min(1).max(50).default(30) });

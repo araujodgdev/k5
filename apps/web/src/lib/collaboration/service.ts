@@ -85,6 +85,35 @@ export async function invite(context: WorkspaceContext, raw: z.input<typeof invi
   });
 }
 
+/** Creates the case invitation chosen by personal messaging without resolving identity from an email string. */
+export async function inviteCaseInTransaction(
+  tx: Transaction,
+  context: WorkspaceContext,
+  input: { caseId: string; email: string; role: 'viewer' | 'editor'; canInvite: boolean },
+  recipient: { kind: 'user'; userId: string } | { kind: 'external' },
+) {
+  const email = input.email.trim().toLowerCase();
+  const caseRow = await tx.prepare('SELECT office_id FROM vault_case WHERE id=? AND deleted_at IS NULL').get<{office_id:string}>(input.caseId);
+  if (!caseRow || caseRow.office_id !== context.officeId) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
+  await lockOffice(tx, context.officeId);
+  await liveSession(tx, context);
+  const access = await authority(tx, context.userId, context.officeId, 'case', input.caseId);
+  if (access.external && (input.canInvite || (access.role === 'reviewer' && input.role === 'editor')))
+    throw denied('Você só pode convidar com permissões iguais ou menores que as suas, sem delegar convites.');
+  const recipientUserId = recipient.kind === 'user' ? recipient.userId : null;
+  if (recipientUserId === context.userId) throw new CapabilityError('INVALID', 'Você já tem acesso.');
+  if (recipientUserId && await tx.prepare('SELECT 1 FROM case_participant WHERE case_id=? AND user_id=? AND revoked_at IS NULL').get(input.caseId, recipientUserId))
+    throw new CapabilityError('CONFLICT', 'Esta pessoa já participa do caso.');
+  await tx.prepare(`UPDATE collaboration_invitation SET status='revoked',responded_at=CURRENT_TIMESTAMP
+    WHERE office_id=? AND kind='case' AND case_id=? AND email=? AND status='pending'`).run(context.officeId, input.caseId, email);
+  const id = randomUUID(); const token = randomBytes(32).toString('base64url');
+  await tx.prepare(`INSERT INTO collaboration_invitation(id,office_id,kind,case_id,email,recipient_user_id,invited_by,role,can_invite,token_hash)
+    VALUES(?,?,'case',?,?,?,?,?,?,?)`).run(id, context.officeId, input.caseId, email, recipientUserId, context.userId,
+      input.role, input.canInvite, digest(token));
+  await audit(tx, context.officeId, input.caseId, context.userId, recipientUserId, 'invitation.created');
+  return { id, path: `/invite/${token}`, deliveredInApp: recipient.kind === 'user' };
+}
+
 /** Unknown addresses require possession of the secret link; signing up with an address alone cannot claim an invitation. */
 function recipientMatches(invitation: Invitation, user: { id: string; email: string }, token?: string) {
   return invitation.recipient_user_id ? invitation.recipient_user_id === user.id

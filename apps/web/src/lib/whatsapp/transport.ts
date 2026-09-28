@@ -87,6 +87,7 @@ export async function zernioRequest<T>(key: string, path: string, options: {
   method?: 'GET' | 'POST' | 'DELETE';
   query?: Record<string, string | number | boolean | undefined>;
   body?: unknown;
+  multipart?: FormData;
   idempotencyKey?: string;
   schema: z.ZodType<T>;
 }): Promise<T> {
@@ -107,7 +108,8 @@ export async function zernioRequest<T>(key: string, path: string, options: {
     }
     headers.set('Idempotency-Key', options.idempotencyKey);
   }
-  let body: string | undefined;
+  if (options.multipart && options.body !== undefined) throw new ZernioError(null, 'invalid_request');
+  let body: string | FormData | undefined = options.multipart;
   if (options.body !== undefined) {
     try { body = JSON.stringify(options.body); }
     catch { throw new ZernioError(null, 'invalid_request'); }
@@ -121,7 +123,7 @@ export async function zernioRequest<T>(key: string, path: string, options: {
     timeout = setTimeout(() => {
       controller.abort();
       reject(new ZernioError(null, 'timeout', true));
-    }, REQUEST_TIMEOUT_MS);
+    }, options.multipart ? 60_000 : REQUEST_TIMEOUT_MS);
   });
   const request = async () => {
     const response = await fetchLike(url, {
@@ -149,4 +151,45 @@ export async function zernioRequest<T>(key: string, path: string, options: {
     clearTimeout(timeout);
     controller.abort();
   }
+}
+
+export async function zernioMediaBytes(key: string, accountId: string, mediaId: string, maxBytes: number) {
+  if (!key || /[^\x21-\x7e]/.test(key) || !/^[A-Za-z0-9_-]{1,500}$/.test(mediaId) || !accountId
+    || !Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > 25_000_000) throw new ZernioError(null, 'invalid_request');
+  const url = new URL(`${API_BASE}/whatsapp/media/${encodeURIComponent(mediaId)}`);
+  url.searchParams.set('accountId', accountId);
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => { controller.abort(); reject(new ZernioError(null, 'timeout', true)); }, 60_000);
+  });
+  const request = async () => {
+    const response = await whatsappTransport()(url, { headers: { Authorization: `Bearer ${key}` }, redirect: 'manual', cache: 'no-store', signal: controller.signal });
+    if (!response.ok) {
+      void response.body?.cancel().catch(() => undefined);
+      if (response.status >= 300 && response.status < 400) throw new ZernioError(response.status, 'redirect');
+      throw httpError(response.status);
+    }
+    if (!response.body || Number(response.headers.get('content-length')) > maxBytes) {
+      void response.body?.cancel().catch(() => undefined);
+      throw new ZernioError(response.status, 'response_too_large');
+    }
+    const reader = response.body.getReader(), chunks: Uint8Array[] = [];
+    let length = 0;
+    try {
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        length += chunk.value.length;
+        if (length > maxBytes) { void reader.cancel().catch(() => undefined); throw new ZernioError(response.status, 'response_too_large'); }
+        chunks.push(chunk.value);
+      }
+    } finally { reader.releaseLock(); }
+    return { bytes: Buffer.concat(chunks, length), mimeType: response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? null };
+  };
+  try { return await Promise.race([request(), deadline]); }
+  catch (error) {
+    if (error instanceof ZernioError) throw error;
+    throw new ZernioError(null, controller.signal.aborted ? 'timeout' : 'network_error', true);
+  } finally { clearTimeout(timeout); controller.abort(); }
 }

@@ -9,6 +9,7 @@ import type { ConnectionRow } from './domain';
 import { enqueueWhatsAppJob } from './jobs';
 import { wakeWhatsAppWorker } from './wake';
 import type { MessageProjection } from './projection';
+import { providerAttachment, providerAttachmentSchema } from './provider';
 
 export const MAX_WHATSAPP_WEBHOOK_BYTES = 1_048_576;
 const identifier = z.string().min(1).max(500);
@@ -23,9 +24,7 @@ const messageSchema = z.object({ id: identifier, conversationId: identifier, pla
   platform: z.literal('whatsapp'), direction: z.enum(['incoming', 'outgoing']), text: z.string().max(65_536).nullable(),
   sentAt: timestamp, isRead: z.boolean(), source: z.string().max(100).optional(),
   sender: z.object({ id: identifier, name: z.string().max(1000).optional() }),
-  attachments: z.array(z.object({ type: z.string().max(80), filename: z.string().max(500).optional(),
-    mimeType: z.string().max(200).optional(), payload: z.object({ filename: z.string().max(500).optional(),
-      mimeType: z.string().max(200).optional() }).optional() })).max(100),
+  attachments: z.array(providerAttachmentSchema).max(100),
 });
 const messageEnvelopeSchema = envelopeSchema.extend({ conversation: conversationSchema, message: messageSchema,
   editedAt: timestamp.optional(), deletedAt: timestamp.optional(), statusAt: timestamp.optional() });
@@ -86,8 +85,7 @@ export function parseWhatsAppWebhook(raw: string): WhatsAppEvent {
     source: message.source === 'whatsapp_business_app' ? 'whatsapp_business_app' : 'provider',
     text: message.text ?? '', status, deleted: kind === 'delete', edited: kind === 'edit', unread: !message.isRead,
     createdAt: message.sentAt, contentUpdatedAt: editedAt ?? deletedAt ?? message.sentAt,
-    attachments: message.attachments.map(item => ({ kind: item.type,
-      filename: item.filename ?? item.payload?.filename ?? null, mimeType: item.mimeType ?? item.payload?.mimeType ?? null })),
+    attachments: message.attachments.map(item => providerAttachment(item, accountId)),
   } };
 }
 

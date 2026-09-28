@@ -90,6 +90,7 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/app/notifications` | Abre o painel de notificações (sino no rodapé do menu) |
 | `/app/research` | Pesquisa na web pela Exa, com histórico pessoal |
 | `/app/whatsapp` | Conversas do WhatsApp Business, para escritórios habilitados no piloto |
+| `/app/messages` | Mensagens entre pessoas, associados e compartilhamentos do Cofre |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/app/admin` | Administração da plataforma: feedback, conexões de IA por escritório e TypeSafe |
 
@@ -114,6 +115,11 @@ A integração WhatsApp Business usa Zernio e liberação por escritório via Fl
 Ela oferece caixa compartilhada e ferramentas do agente com confirmação de envio.
 Veja [configuração e homologação](apps/web/docs/integracao-whatsapp.md) e
 [verificação local](apps/web/docs/whatsapp-verificacao.md).
+
+O módulo [Mensagens](docs/mensagens.md) permite conversar com outras pessoas no Tises
+e compartilhar documentos e casos do Cofre. Destinatários externos recebem e-mail;
+respostas por e-mail não são importadas nesta versão. O envio externo exige a
+configuração do Cloudflare Email Service e o worker de integrações.
 
 ## Configuração e dados
 

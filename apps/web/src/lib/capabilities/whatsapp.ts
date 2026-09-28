@@ -14,7 +14,7 @@ export const whatsappCapabilities = {
   },
   k5_whatsapp_send: {
     module: 'whatsapp', effect: 'write', roles: ['administrator', 'lawyer'],
-    description: 'Solicita confirmação para enviar o texto exato a uma conversa WhatsApp existente, dentro da janela de atendimento. Use uma UUID para idempotencyKey por intenção de envio. Não repita uma operação com resultado incerto. A pessoa confirma no chat.',
+    description: 'Solicita confirmação para enviar o texto e, opcionalmente, um arquivo já anexado a uma conversa WhatsApp existente, dentro da janela de atendimento. Use uma UUID para idempotencyKey por intenção de envio. Não repita uma operação com resultado incerto. A pessoa confirma o destinatário e o conteúdo no chat.',
     input: sendInput, output: sendReceiptDto,
   },
 } as const satisfies Record<string, Capability>;

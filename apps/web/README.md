@@ -82,7 +82,8 @@ escritório proprietário, com permissões revalidadas em cada operação.
 
 A migração `0031_collaboration.sql` acrescenta associados, participantes, convites com
 expiração e histórico de acesso. Os convites chegam à caixa da conta existente e também
-geram um link para compartilhar; não há envio automático por e-mail. Endereços sem conta
+geram um link para compartilhar. Convites criados no módulo Mensagens também entram na
+fila de envio por e-mail quando o destinatário é externo, conforme a [configuração de mensagens](../../docs/mensagens.md). Endereços sem conta
 exigem o link secreto e login com o mesmo e-mail. Recuperação de senha e verificação de
 e-mail ainda não foram implementadas. Consulte [o fluxo e os limites](../../docs/colaboracao.md).
 

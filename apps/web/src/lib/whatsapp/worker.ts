@@ -1,4 +1,5 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
 import { database, withTransaction, type Transaction } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { decryptCredential, parseCredentialKeyring } from '@/lib/platform-crypto';
@@ -9,8 +10,12 @@ import { claimWhatsAppJob, completeWhatsAppJob, enqueueWhatsAppJob, failWhatsApp
 import { reserveWhatsAppApiCall } from './limits';
 import { projectConversation, projectMessage, type ThreadRow } from './projection';
 import { listProviderConversations, listProviderMessages } from './provider';
-import { ZernioError } from './transport';
+import { ZernioError, zernioMediaBytes } from './transport';
 import { parseWhatsAppWebhook } from './webhooks';
+import { objectStorage, storageKey } from '@/lib/storage';
+import { purgeExpiredWhatsAppUploads, type AttachmentRow } from './media';
+import { MAX_WHATSAPP_MEDIA_BYTES, validateWhatsAppFile } from './media-validation';
+import { isWhatsAppEnabled } from './rollout';
 
 async function connectionForJob(job: WhatsAppJob, db: Transaction = database, lock = false) {
   return db.prepare(`SELECT * FROM whatsapp_connection WHERE id=? AND office_id=? ${lock ? 'FOR UPDATE' : ''}`)
@@ -124,6 +129,7 @@ async function processJob(job: WhatsAppJob) {
     case 'conversations': return processConversations(job);
     case 'history':
     case 'history_refresh': return processHistory(job);
+    case 'media': return processMedia(job);
     case 'disconnect':
       await finishDisconnect(job.connection_id, job.generation);
       return completeWhatsAppJob(job);
@@ -137,15 +143,57 @@ async function processJob(job: WhatsAppJob) {
   }
 }
 
+async function processMedia(job: WhatsAppJob) {
+  const initial = await connectionForJob(job);
+  if (!canSync(initial, job)) { await completeWhatsAppJob(job); return; }
+  if (!await isWhatsAppEnabled(job.office_id)) {
+    await database.prepare(`UPDATE whatsapp_job SET status='queued',attempts=attempts-1,locked_until=NULL,
+      available_at=CURRENT_TIMESTAMP+INTERVAL '5 minutes' WHERE id=? AND status='running' AND attempts=?`)
+      .run(job.id, job.attempts);
+    return;
+  }
+  const attachment = await database.prepare(`SELECT a.* FROM whatsapp_attachment a JOIN whatsapp_message m ON m.id=a.message_id
+    WHERE a.id=? AND a.office_id=? AND a.connection_id=? AND a.account_id=? AND a.generation=? AND a.state='pending' AND NOT m.deleted`)
+    .get<AttachmentRow>(job.subject_id, job.office_id, job.connection_id, initial.account_id, job.generation);
+  if (!attachment?.media_id) { await completeWhatsAppJob(job); return; }
+  await reserveWhatsAppApiCall(job.office_id);
+  const result = await zernioMediaBytes(connectedCredential(initial), initial.account_id, attachment.media_id, MAX_WHATSAPP_MEDIA_BYTES);
+  const file = validateWhatsAppFile(result.bytes, attachment.filename, result.mimeType === 'application/octet-stream' ? attachment.mime_type : result.mimeType);
+  const key = storageKey(job.office_id, attachment.id, file.extension), storage = await objectStorage();
+  await storage.put(key, result.bytes);
+  let saved = false;
+  try {
+    if (!await isWhatsAppEnabled(job.office_id)) throw new CapabilityError('NOT_READY', 'O WhatsApp não está disponível.');
+    saved = await withTransaction(async tx => {
+      const connection = await connectionForJob(job, tx, true);
+      if (!await ownsWhatsAppJob(tx, job)) return false;
+      let stored = false;
+      if (canSync(connection, job) && connection.account_id === attachment.account_id) {
+        const row = await tx.prepare(`UPDATE whatsapp_attachment SET state='ready',storage_key=?,sha256=?,byte_length=?,
+          mime_type=?,filename=?,kind=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND state='pending'
+          AND EXISTS(SELECT 1 FROM whatsapp_message WHERE id=whatsapp_attachment.message_id AND NOT deleted) RETURNING id`)
+          .get(key, createHash('sha256').update(result.bytes).digest('hex'), result.bytes.length, file.mime, file.filename, file.kind, attachment.id, job.office_id);
+        stored = Boolean(row);
+      }
+      await completeWhatsAppJob(job, tx);
+      return stored;
+    });
+  } finally { if (!saved) await storage.delete(key).catch(() => undefined); }
+}
+
 async function recordFailure(job: WhatsAppJob, error: unknown) {
   const authorizationFailed = error instanceof ZernioError && (error.status === 401 || error.status === 403);
-  const invalid = error instanceof CapabilityError && error.code === 'INVALID';
+  const invalid = error instanceof CapabilityError && error.code === 'INVALID'
+    || job.kind === 'media' && error instanceof ZernioError && ([400, 404].includes(error.status ?? 0)
+      || ['redirect', 'response_too_large', 'invalid_request'].includes(error.code));
   const code = error instanceof ZernioError ? `provider_${error.code}`
     : error instanceof CapabilityError && error.code === 'RATE_LIMITED' ? 'local_rate_limit'
       : invalid ? 'invalid_page' : 'processing_failed';
   const result = await failWhatsAppJob(job, code, !authorizationFailed && !invalid);
   if (!result.changed) return;
-  if (authorizationFailed && ['history', 'history_refresh', 'conversations'].includes(job.kind)) {
+  if (job.kind === 'media' && result.dead) await database.prepare(`UPDATE whatsapp_attachment SET state='unavailable',updated_at=CURRENT_TIMESTAMP
+    WHERE id=? AND office_id=? AND state='pending'`).run(job.subject_id, job.office_id);
+  if (authorizationFailed && ['history', 'history_refresh', 'conversations', 'media'].includes(job.kind)) {
     await withTransaction(async tx => {
       const connection = await connectionForJob(job, tx, true);
       if (!canSync(connection, job)) return;
@@ -162,6 +210,9 @@ async function recordFailure(job: WhatsAppJob, error: unknown) {
 }
 
 export async function runWhatsAppPass({ max = 10 }: { max?: number } = {}): Promise<number> {
+  await purgeExpiredWhatsAppUploads();
+  await database.prepare(`UPDATE whatsapp_attachment a SET state='unavailable',updated_at=CURRENT_TIMESTAMP WHERE a.state='pending'
+    AND EXISTS(SELECT 1 FROM whatsapp_job j WHERE j.subject_id=a.id AND j.kind='media' AND j.status IN ('done','failed'))`).run();
   await database.prepare(`UPDATE whatsapp_send SET status='unknown',
     error='O resultado do envio ainda não foi confirmado. Confira a conversa antes de tentar novamente.',updated_at=CURRENT_TIMESTAMP
     WHERE status='dispatching' AND updated_at<CURRENT_TIMESTAMP-INTERVAL '5 minutes'`).run();

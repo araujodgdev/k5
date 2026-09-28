@@ -8,6 +8,9 @@ const targets = [
   { table: 'ai_connection', pk: 'id', fields: ['encrypted_api_key'] },
   { table: 'whatsapp_connection', pk: 'id', fields: ['encrypted_api_key'] },
   { table: 'whatsapp_event', pk: 'id', fields: ['encrypted_payload'] },
+  { table: 'personal_thread_invitation', pk: 'id', fields: ['encrypted_token'] },
+  { table: 'personal_email_outbox', pk: 'id', fields: ['encrypted_action_token'] },
+  { table: 'vault_document_share', pk: 'id', fields: ['encrypted_token'] },
   { table: 'google_connection', pk: 'id', fields: ['encrypted_refresh_token', 'encrypted_access_token'] },
   { table: 'google_oauth_state', pk: 'id', fields: ['encrypted_verifier'] },
   { table: 'google_operation', pk: 'id', fields: ['encrypted_args', 'encrypted_result', 'checkpoint_json'] },
@@ -30,7 +33,7 @@ export class CredentialRotationError extends Error {
 
 function absent(table: string, value: unknown) {
   // Consuming a one-use reference deliberately erases its ciphertext with an empty string.
-  return value === null || (table === 'platform_secret_ref' && value === '');
+  return value === null || (['platform_secret_ref', 'personal_thread_invitation', 'personal_email_outbox', 'vault_document_share'].includes(table) && value === '');
 }
 
 /** Read-only preflight; authenticated decryption also detects a damaged current-key envelope. */

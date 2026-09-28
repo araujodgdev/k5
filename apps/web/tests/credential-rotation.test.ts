@@ -28,6 +28,14 @@ async function fixture() {
   await insert('office', { id: office, name: 'Rotation test' });
   await insert('office_member', { id: randomUUID(), office_id: office, user_id: actor, role: 'administrator' });
   await insert('platform_admin', { user_id: actor });
+  const personalThread = randomUUID(), invitation = randomUUID(), message = randomUUID(), document = randomUUID(), version = randomUUID();
+  await insert('personal_thread', { id: personalThread, created_by: actor });
+  await insert('personal_thread_invitation', { id: invitation, thread_id: personalThread, normalized_email: 'external@example.test', token_hash: randomUUID(), encrypted_token: encrypted('personal_thread_invitation', 'encrypted_token'), invited_by: actor, expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await insert('personal_message', { id: message, thread_id: personalThread, sequence: 1, sender_user_id: actor, client_message_id: randomUUID(), input_hash: 'test', body_kind: 'text', body_json: JSON.stringify({ kind: 'text', text: 'Test' }) });
+  await insert('personal_email_outbox', { id: randomUUID(), message_id: message, thread_id: personalThread, invitation_id: invitation, recipient_email: 'external@example.test', encrypted_action_token: encrypted('personal_email_outbox', 'encrypted_action_token') });
+  await insert('vault_document', { id: document, office_id: office, scope: 'library', original_name: 'test.txt', stored_name: `test-${document}`, mime_type: 'text/plain', byte_size: 4, sha256: 'test', created_by: actor });
+  await insert('vault_document_version', { id: version, office_id: office, document_id: document, version: 1, original_name: 'test.txt', stored_name: `test-${document}`, mime_type: 'text/plain', byte_size: 4, sha256: 'test', created_by: actor });
+  await insert('vault_document_share', { id: randomUUID(), office_id: office, document_id: document, document_version_id: version, version: 1, invitation_id: invitation, conversation_id: personalThread, granted_by: actor, state: 'pending', token_hash: randomUUID(), encrypted_token: encrypted('vault_document_share', 'encrypted_token'), expires_at: new Date(Date.now() + 60_000).toISOString() });
   await insert('ai_connection', { id: randomUUID(), office_id: office, name: 'Test AI', provider: 'openai', api_key_hint: 'hidden', encrypted_api_key: cipher });
   await insert('typesafe_connection', { office_id: office, encrypted_api_key: encrypted('typesafe_connection', 'encrypted_api_key') });
   await f.db.prepare('INSERT INTO typesafe_platform_connection(id,encrypted_api_key) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET encrypted_api_key=EXCLUDED.encrypted_api_key').run(encrypted('typesafe_platform_connection', 'encrypted_api_key'));
@@ -58,11 +66,11 @@ test('two-phase keyring reads old data, writes the staged key and supports promo
 test('rotation covers every encrypted column atomically, preserves empty references and is idempotent', async () => {
   const { db, pool, ring, actor, next, secret, cipher, expected } = await fixture();
   await db.prepare("INSERT INTO ai_connection(id,name,provider,encrypted_api_key,api_key_hint,deleted_at) VALUES(?,'Removed','openai',NULL,'hidden',CURRENT_TIMESTAMP)").run(randomUUID());
-  assert.deepEqual(await credentialRotationStatus(db, ring), { keyId: ring.current.id, total: 11, pending: 11, unreadable: 0 });
+  assert.deepEqual(await credentialRotationStatus(db, ring), { keyId: ring.current.id, total: 14, pending: 14, unreadable: 0 });
   assert.equal(await countSecretsNeedingReencryption(db, ring), 3);
   assert.equal((await db.prepare('SELECT encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL').get<{ encrypted_api_key: string }>())?.encrypted_api_key, cipher);
   const result = await postgresTransaction(pool, tx => rotateCredentials(tx, ring, actor, ring.current.id));
-  assert.equal(result.reencrypted, 11);
+  assert.equal(result.reencrypted, 14);
   const current = createCredentialKeyring(next);
   for (const { table, field, plaintext } of expected) {
     // Fixture-owned identifiers and distinct sentinels catch swaps between encrypted columns.
@@ -71,7 +79,7 @@ test('rotation covers every encrypted column atomically, preserves empty referen
     assert.equal(rows.length, 1, `${table}.${field} remains present`);
     assert.equal(decryptCredential(rows[0].cipher, current), plaintext, `${table}.${field} preserves its own plaintext`);
   }
-  assert.deepEqual(await credentialRotationStatus(db, current), { keyId: ring.current.id, total: 11, pending: 0, unreadable: 0 });
+  assert.deepEqual(await credentialRotationStatus(db, current), { keyId: ring.current.id, total: 14, pending: 0, unreadable: 0 });
   assert.equal(await countSecretsNeedingReencryption(db, current), 0);
   const updated = await db.prepare('SELECT encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL').get<{ encrypted_api_key: string }>();
   assert.equal(decryptCredential(updated!.encrypted_api_key, current), secret);
