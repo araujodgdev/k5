@@ -6,6 +6,8 @@ import { PlatformRequestError } from './platform-core';
 // Identifiers are a fixed allowlist, never request input. Keep all encrypted columns together.
 const targets = [
   { table: 'ai_connection', pk: 'id', fields: ['encrypted_api_key'] },
+  { table: 'whatsapp_connection', pk: 'id', fields: ['encrypted_api_key'] },
+  { table: 'whatsapp_event', pk: 'id', fields: ['encrypted_payload'] },
   { table: 'google_connection', pk: 'id', fields: ['encrypted_refresh_token', 'encrypted_access_token'] },
   { table: 'google_oauth_state', pk: 'id', fields: ['encrypted_verifier'] },
   { table: 'google_operation', pk: 'id', fields: ['encrypted_args', 'encrypted_result', 'checkpoint_json'] },

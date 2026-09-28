@@ -11,12 +11,14 @@ async function main() {
   const { database } = await import('../src/lib/database');
   const { googleOAuthConfig } = await import('../src/lib/google/config');
   const { runGoogleNodePass } = await import('../src/lib/google/worker-node');
+  const { runWhatsAppPass } = await import('../src/lib/whatsapp/worker');
   if (!googleOAuthConfig()) console.log('[integrations] Google OAuth não configurado; o worker só executa manutenção.');
   do {
     try {
       const counts = await observeWorkerTask('google.pass', () => runGoogleNodePass({ db: database, includeEdge: !nodeOnly, max: once ? 100 : 25 }));
-      if (once) console.log(JSON.stringify({ worker: 'integrations', ...counts }));
-      if (!once && !counts.node && !counts.edge) await sleep(2_000);
+      const whatsapp = nodeOnly ? 0 : await observeWorkerTask('whatsapp.pass', () => runWhatsAppPass({ max: once ? 100 : 5 }));
+      if (once) console.log(JSON.stringify({ worker: 'integrations', ...counts, whatsapp }));
+      if (!once && !counts.node && !counts.edge && !whatsapp) await sleep(2_000);
     } catch (error) {
       captureOperationalError(error, 'integrations.worker');
       console.error('[integrations] passagem falhou', error instanceof Error ? { name: error.name } : { type: typeof error });

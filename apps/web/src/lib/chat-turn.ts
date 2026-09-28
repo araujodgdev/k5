@@ -1,4 +1,5 @@
 import 'server-only';
+import { isWhatsAppEnabled } from '@/lib/whatsapp/rollout';
 import { randomUUID } from 'node:crypto';
 import type { UIMessage, UIMessageStreamWriter } from 'ai';
 import type { z } from 'zod';
@@ -136,7 +137,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
 
     // Gated calls land here during the stream and become Confirmar buttons after their tool result.
     const approvals: ApprovalRequest[] = [];
-    const officeTools = agentTools(context, request => approvals.push(request));
+    const officeTools = agentTools(context, request => approvals.push(request), { whatsappEnabled: await isWhatsAppEnabled(context.officeId) });
     // Grounding on the open web: the provider's own search for OpenAI and Anthropic, Exa for the rest
     // (Gemini does not mix Google Search with function calling). See agent-web-search.ts.
     const chatModel = await resolveTaskModel('agent.chat');

@@ -229,7 +229,7 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
   }
   return (
     <div className="mt-3 grid gap-3 border-l-2 border-brand py-1 pl-4" role="group" aria-label="Confirmação">
-      <p className="text-sm text-foreground">{data.summary}</p>
+      <p className={cn("text-sm text-foreground", data.capability === 'k5_whatsapp_send' && "whitespace-pre-wrap break-words")}>{data.summary}</p>
       {googleApproval && current.state === 'pending' && <GoogleApprovalReview approvalId={data.approvalId} onReady={setReviewReady} />}
       {current.state === "pending" ? <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" className="h-11 md:h-9" disabled={Boolean(busy) || (googleApproval && !reviewReady)} onClick={() => void decide("confirm")}>

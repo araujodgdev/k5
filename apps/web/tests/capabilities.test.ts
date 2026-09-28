@@ -412,14 +412,24 @@ test("conversations service: lifecycle and processing locking", async () => {
 });
 
 test("agent tools: mastra tools creation and summary formatting", async () => {
-  const { userLawyer, officeA } = (await seedFixture());
+  const { userLawyer, userReviewer, officeA } = (await seedFixture());
   const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
 
-  const tools = agentTools(context);
+  const tools = agentTools(context, undefined, { whatsappEnabled: true });
   // The catalog is the published set for this role, not every capability the role may exercise:
   // global logout stays out of it even though a lawyer is allowed to log themselves out.
   assert.deepEqual(Object.keys(tools).sort(), publishedCapabilitiesForRole("lawyer", "agent").sort());
   assert.ok(!Object.keys(tools).includes("k5_session_end_global"));
+  assert.deepEqual(Object.keys(tools).filter(name => name.startsWith('k5_whatsapp_')).sort(), [
+    'k5_whatsapp_list_threads', 'k5_whatsapp_read_thread', 'k5_whatsapp_send',
+  ]);
+  const withoutWhatsApp = publishedCapabilitiesForRole("lawyer", "agent").filter(name => capabilities[name].module !== 'whatsapp').sort();
+  assert.deepEqual(Object.keys(agentTools(context, undefined, { whatsappEnabled: false })).sort(), withoutWhatsApp);
+  assert.deepEqual(Object.keys(agentTools(context)).sort(), withoutWhatsApp);
+  const reviewerContext: WorkspaceContext = { officeId: officeA, userId: userReviewer, role: 'reviewer' };
+  const reviewerTools = Object.keys(agentTools(reviewerContext, undefined, { whatsappEnabled: true })).sort();
+  assert.deepEqual(reviewerTools, publishedCapabilitiesForRole('reviewer', 'agent').sort());
+  assert.deepEqual(reviewerTools.filter(name => name.startsWith('k5_whatsapp_')), ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread']);
 
   // Formatting summaries
   const s1 = toolSummary("k5_vault_list_cases", { cases: [{}, {}] }, false);
@@ -446,18 +456,37 @@ test("webmcp: registration adapter handles mock browser modelContext", () => {
     modelContext: mockContext,
   };
 
-  const cleanup = registerWebMCPCapabilities("reviewer");
-  // A reviewer registers exactly the read capabilities published to the browser.
-  assert.deepEqual(registered.map((definition) => definition.name).sort(), publishedCapabilitiesForRole("reviewer", "webmcp").sort());
-  assert.ok(registered.some((definition) => definition.name === "k5_vault_list_cases"));
-  assert.ok(!registered.some((definition) => definition.name === "k5_vault_create_case"));
-  assert.equal(registered.find((definition) => definition.name === "k5_judicial_list_publications")?.hints?.untrustedContentHint, true);
-  assert.equal(registered.find((definition) => definition.name === "k5_judicial_get_publication")?.hints?.untrustedContentHint, true);
-
-  assert.doesNotThrow(() => cleanup());
-
-  delete (globalThis as unknown as { window?: unknown }).window;
-  delete (globalThis as unknown as { document?: unknown }).document;
+  try {
+    const roles: WorkspaceContext['role'][] = ['administrator', 'lawyer', 'reviewer'];
+    for (const role of roles) {
+      for (const whatsappEnabled of [false, true]) {
+        registered.length = 0;
+        const cleanup = registerWebMCPCapabilities(role, { whatsappEnabled });
+        try {
+          const published = publishedCapabilitiesForRole(role, 'webmcp');
+          const expected = whatsappEnabled ? published : published.filter(name => capabilities[name].module !== 'whatsapp');
+          const names = registered.map(definition => definition.name).sort();
+          assert.deepEqual(names, expected.sort(), `${role} receives the complete catalog with WhatsApp ${whatsappEnabled ? 'enabled' : 'disabled'}`);
+          assert.deepEqual(names.filter(name => name.startsWith('k5_whatsapp_')), !whatsappEnabled ? [] : role === 'reviewer'
+            ? ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread']
+            : ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread', 'k5_whatsapp_send']);
+          assert.ok(names.includes('k5_vault_list_cases'));
+          assert.equal(names.includes('k5_vault_create_case'), role !== 'reviewer');
+          for (const name of ['k5_judicial_list_publications', 'k5_judicial_get_publication', ...(whatsappEnabled ? ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread'] : [])]) {
+            assert.equal(registered.find(definition => definition.name === name)?.hints?.untrustedContentHint, true);
+          }
+        } finally { assert.doesNotThrow(() => cleanup()); }
+      }
+    }
+    registered.length = 0;
+    const cleanup = registerWebMCPCapabilities('reviewer');
+    assert.deepEqual(registered.map(definition => definition.name).sort(), publishedCapabilitiesForRole('reviewer', 'webmcp')
+      .filter(name => capabilities[name].module !== 'whatsapp').sort());
+    cleanup();
+  } finally {
+    delete (globalThis as unknown as { window?: unknown }).window;
+    delete (globalThis as unknown as { document?: unknown }).document;
+  }
 });
 
 test("capability routes: boolean query parameters accept only one exact true or false", () => {
@@ -615,6 +644,9 @@ test("webmcp: every published capability has a route, a schema and typed failure
         clientId: randomUUID(), activityId: randomUUID(), kind: 'task', message: 'Criar tarefa de revisão', proposalId: randomUUID(),
         theme: 'guarda da avó', judgmentId: randomUUID(),
         scanDocumentId: randomUUID(), items: [{ label: 'Procuração', startPage: 1, endPage: 1 }],
+        ...(capabilities[name].module === 'whatsapp' ? {
+          threadId: randomUUID(), text: 'Recebemos seu documento.', idempotencyKey: randomUUID(),
+        } : {}),
         ...(capabilities[name].module === 'google' ? {
           scope: name === 'k5_drive_import_file' || name === 'k5_drive_list_imports' ? 'case' : 'series', from: '2026-09-01T00:00:00-03:00', to: '2026-09-30T00:00:00-03:00',
           calendarId: randomUUID(), eventId: randomUUID(), threadId: randomUUID(), draftId: randomUUID(),

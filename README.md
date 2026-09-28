@@ -89,6 +89,7 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/app/agenda/clients/[id]` | Detalhes do cliente, contato, casos e atividades |
 | `/app/notifications` | Abre o painel de notificações (sino no rodapé do menu) |
 | `/app/research` | Pesquisa na web pela Exa, com histórico pessoal |
+| `/app/whatsapp` | Conversas do WhatsApp Business, para escritórios habilitados no piloto |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/app/admin` | Administração da plataforma: feedback, conexões de IA por escritório e TypeSafe |
 
@@ -108,6 +109,11 @@ com operações também disponíveis ao agente e ao WebMCP. Veja o
 pessoal sincronizada e convites, Gmail, Drive e Docs; veja [configuração e homologação](docs/integracao-google.md).
 Os lembretes das atividades do escritório exigem o worker de notificações
 (`pnpm notifications:worker`) em execução.
+
+A integração WhatsApp Business usa Zernio e liberação por escritório via Flagship.
+Ela oferece caixa compartilhada e ferramentas do agente com confirmação de envio.
+Veja [configuração e homologação](apps/web/docs/integracao-whatsapp.md) e
+[verificação local](apps/web/docs/whatsapp-verificacao.md).
 
 ## Configuração e dados
 

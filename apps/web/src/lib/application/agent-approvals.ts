@@ -47,6 +47,12 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
       if (capability === 'k5_judicial_request_refresh') return `Consultar o tribunal para atualizar o processo${process}`;
       return input.decision === 'rejected' ? `Rejeitar o vínculo do processo${process}` : `Confirmar o vínculo do processo${process} e autorizar consultas recorrentes`;
     }
+    case 'k5_whatsapp_send': {
+      const thread = await database.prepare('SELECT participant_id,participant_name FROM whatsapp_thread WHERE id=? AND office_id=?')
+        .get<{ participant_id: string; participant_name: string }>(text(input.threadId), context.officeId);
+      if (!thread) return 'Conversa WhatsApp indisponível';
+      return `Enviar pelo WhatsApp para ${thread.participant_name || thread.participant_id} (${thread.participant_id})\n\n${text(input.text)}`;
+    }
     case 'k5_gmail_send':
     case 'k5_gmail_save_draft': {
       const list = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -84,6 +90,7 @@ export function resourceHref(name: string, result: unknown): string | undefined 
   if (name.startsWith('k5_vault_') && document && typeof document === 'object' && document.caseId) return `/app/vault/cases/${encodeURIComponent(document.caseId)}`;
   if (name.startsWith('k5_artifacts_') && id('artifact')) return `/app/documents/${encodeURIComponent(id('artifact')!)}`;
   if (name.startsWith('k5_calendar_') && id('event')) return `/app/agenda?view=calendar&personalEventId=${encodeURIComponent(id('event')!)}`;
+  if (name.startsWith('k5_whatsapp_') && typeof value.threadId === 'string') return `/app/whatsapp?thread=${encodeURIComponent(value.threadId)}`;
   if (name.startsWith('k5_gmail_') && typeof value.threadId === 'string') return `/app/email?thread=${encodeURIComponent(value.threadId)}`;
   if (name.startsWith('k5_gmail_') && id('draft')) return `/app/email?draft=${encodeURIComponent(id('draft')!)}`;
   const imported = value.import;

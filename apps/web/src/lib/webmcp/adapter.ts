@@ -26,7 +26,7 @@ export async function executeViaHttp(
  * an async `registerTool` settles - React's double mount does exactly that, and a registration
  * that lands after unmount would otherwise leak a live tool into the next mount.
  */
-export function registerWebMCPCapabilities(role: OfficeRole): () => void {
+export function registerWebMCPCapabilities(role: OfficeRole, options: { whatsappEnabled?: boolean } = {}): () => void {
   const context = getModelContext();
   if (!context) return () => {};
 
@@ -36,6 +36,7 @@ export function registerWebMCPCapabilities(role: OfficeRole): () => void {
 
   for (const name of publishedCapabilitiesForRole(role, 'webmcp')) {
     const capability = capabilities[name];
+    if (capability.module === 'whatsapp' && !options.whatsappEnabled) continue;
     const definition: WebMCPToolDefinition = {
       name,
       description: capability.description,
@@ -44,7 +45,7 @@ export function registerWebMCPCapabilities(role: OfficeRole): () => void {
         readOnlyHint: capability.effect === 'read',
         consequentialHint: capability.effect === 'write',
         // Vault text is someone else's document; it is data, never instructions for the agent.
-        untrustedContentHint: capability.module === 'knowledge'
+        untrustedContentHint: capability.module === 'whatsapp' || capability.module === 'knowledge'
           || capability.module === 'citations'
           || name === 'k5_judicial_list_publications'
           || name === 'k5_judicial_get_publication'

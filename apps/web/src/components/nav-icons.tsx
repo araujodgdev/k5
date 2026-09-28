@@ -1,4 +1,4 @@
-import { CalendarDays, CreditCard, FolderLock, House, Mail, Plug, Search } from "lucide-react";
+import { CalendarDays, CreditCard, FolderLock, House, Mail, MessageCircle, Plug, Search } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { AgentMark } from "./agent-mark";
 import type { NavSlug } from "@/lib/navigation";
@@ -6,7 +6,7 @@ import type { NavSlug } from "@/lib/navigation";
 /** Module colour for the icon; neutral sections stay ink. See DESIGN.md, "Cor e módulos". */
 export const navTone: Record<NavSlug, string> = {
   "command-center": "", agents: "text-module-agent", vault: "text-module-vault", research: "text-module-research",
-  agenda: "text-module-agenda", email: "", integrations: "", billing: "",
+  agenda: "text-module-agenda", email: "", whatsapp: "", integrations: "", billing: "",
 };
 
 export const navIcons: Record<NavSlug, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -16,6 +16,7 @@ export const navIcons: Record<NavSlug, ComponentType<SVGProps<SVGSVGElement>>> =
   research: Search,
   agenda: CalendarDays,
   email: Mail,
+  whatsapp: MessageCircle,
   integrations: Plug,
   billing: CreditCard,
 };

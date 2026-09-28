@@ -36,6 +36,7 @@
     { "tag": "v2-chat-runs", "new_sqlite_classes": ["LumeChatRun"] }
   ],
   "triggers": { "crons": ["* * * * *"] },
+  "queues": { "producers": [{ "binding": "INTEGRATIONS_QUEUE", "queue": "k5-integrations-staging" }] },
   "r2_buckets": [
     {
       // Vault originals. Keys are minted by storageKey() and never accepted from a request.

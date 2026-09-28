@@ -18,6 +18,9 @@ const googleRoutes = Object.fromEntries<Route>(Object.entries(googleOperations).
   [name, { method: 'POST', path: () => googleOperationPath(operation as GoogleOperation), body: (i: Record<string, unknown>) => i } satisfies Route])) as Record<GoogleCapabilityName, Route>;
 
 const routes: Record<CapabilityName, Route> = {
+  k5_whatsapp_list_threads: { method: 'GET', path: i => `/api/whatsapp/threads?${new URLSearchParams({ limit: String(i.limit ?? 30), ...(i.cursor ? { cursor: String(i.cursor) } : {}) })}` },
+  k5_whatsapp_read_thread: { method: 'GET', path: i => `/api/whatsapp/threads/${id(i.threadId)}/messages?${new URLSearchParams({ limit: String(i.limit ?? 30), ...(i.cursor ? { cursor: String(i.cursor) } : {}) })}` },
+  k5_whatsapp_send: { method: 'POST', path: () => '/api/whatsapp/send', body: i => i },
   ...googleRoutes,
   k5_research_web_search: { method: 'POST', path: () => '/api/research/web-searches', body: i => i },
   k5_research_list_web_searches: { method: 'GET', path: () => '/api/research/web-searches' },

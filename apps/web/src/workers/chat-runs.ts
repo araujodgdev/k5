@@ -6,8 +6,9 @@ import { createPostgresPool } from '../lib/db/postgres';
 import { captureOperationalError } from '../lib/observability/report';
 import { ChatRun, executeChatRun, followable } from '../lib/chat-run';
 import type { ChatTurn } from '../lib/chat-turn';
+import { withWhatsAppEnvironment, type WhatsAppEnvironment } from '../lib/whatsapp/environment';
 
-type ChatRunEnv = CloudflareEnv & { HYPERDRIVE: { connectionString: string } };
+type ChatRunEnv = CloudflareEnv & WhatsAppEnvironment & { HYPERDRIVE: { connectionString: string } };
 
 /**
  * One Durable Object per conversation holds its turn in flight. A Worker request is cancelled when
@@ -24,7 +25,7 @@ class ChatRunObject extends DurableObject<ChatRunEnv> {
     const run = new ChatRun();
     this.run = run;
     const pool = createPostgresPool(this.env.HYPERDRIVE.connectionString, { max: 3, idleTimeoutMillis: 0 });
-    void withPostgres(pool, () => executeChatRun(run, turn))
+    void withPostgres(pool, () => withWhatsAppEnvironment(this.env, () => executeChatRun(run, turn)))
       .catch(error => captureOperationalError(error, 'chat.run'))
       .finally(() => pool.end().catch(() => undefined));
   }

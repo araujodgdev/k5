@@ -5,6 +5,7 @@ import { researchCapabilities } from './research';
 import { researchCaseCapabilities } from './research-case';
 import { verificationCapabilities } from './verification';
 import { googleCapabilities } from './google';
+import { whatsappCapabilities } from './whatsapp';
 import type { OfficeRole } from '@/lib/offices';
 
 /**
@@ -16,7 +17,7 @@ import type { OfficeRole } from '@/lib/offices';
 export type CapabilitySurface = 'agent' | 'webmcp';
 
 export type Capability = {
-  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'memory' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google';
+  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'memory' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google' | 'whatsapp';
   description: string;
   effect: 'read' | 'write';
   roles: readonly OfficeRole[];
@@ -161,6 +162,7 @@ export const capabilities = {
   ...researchCaseCapabilities,
   ...verificationCapabilities,
   ...googleCapabilities,
+  ...whatsappCapabilities,
   k5_vault_list_cases: {
     module: 'vault', effect: 'read', roles: readers,
     description: 'Lista os casos do Cofre do escritório, do mais recente ao mais antigo.',

@@ -55,7 +55,7 @@ function NavToggle({ collapsed, className }: { collapsed: boolean; className?: s
   );
 }
 
-export function AppSidebar({ officeName, platformAdmin = false }: { officeName: string; platformAdmin?: boolean }) {
+export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled = false }: { officeName: string; platformAdmin?: boolean; whatsappEnabled?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -174,7 +174,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
     if (!placed.current || reduced) gsap.set(indicator, target);
     else gsap.to(indicator, { ...target, duration: .45, ease: "power3.out" });
     placed.current = true;
-  }, { dependencies: [pathname], scope: navRef });
+  }, { dependencies: [pathname, whatsappEnabled], scope: navRef });
 
   // Tab bar: small settle on the newly active icon.
   useGSAP(() => {
@@ -220,11 +220,12 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
   }
 
   const adminActive = pathname === adminNavigation.href || pathname.startsWith(`${adminNavigation.href}/`);
-  const overflow = appNavigation.filter((item) => !mobileTabs.includes(item.slug));
+  const visibleNavigation = appNavigation.filter((item) => item.slug !== "whatsapp" || whatsappEnabled);
+  const overflow = visibleNavigation.filter((item) => !mobileTabs.includes(item.slug));
   const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`) || adminActive;
   const currentModule = pathname.startsWith("/app/documents/")
     ? "Cofre"
-    : adminActive ? adminNavigation.label : appNavigation.find((item) => {
+    : adminActive ? adminNavigation.label : visibleNavigation.find((item) => {
         const href = `/app/${item.slug}`;
         return pathname === href || pathname.startsWith(`${href}/`);
       })?.label ?? "Início";
@@ -245,7 +246,7 @@ export function AppSidebar({ officeName, platformAdmin = false }: { officeName: 
           <SidebarContent className="px-0 pt-3">
             <SidebarMenu ref={navRef} className="relative gap-0 px-0">
               <span ref={indicatorRef} aria-hidden="true" className="pointer-events-none invisible absolute inset-x-0 top-0 bg-foreground" />
-              {appNavigation.map((item) => {
+              {visibleNavigation.map((item) => {
                 const href = `/app/${item.slug}`;
                 const Icon = navIcons[item.slug];
                 const active = pathname === href || pathname.startsWith(`${href}/`);

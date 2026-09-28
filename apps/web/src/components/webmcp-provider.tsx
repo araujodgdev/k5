@@ -12,9 +12,11 @@ import { isWebMCPSupported } from '@/lib/webmcp/browser';
  */
 export function WebMCPProvider({
   role,
+  whatsappEnabled = false,
   children,
 }: {
   role: OfficeRole;
+  whatsappEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -24,10 +26,10 @@ export function WebMCPProvider({
     let disposed = false;
     let unregister: (() => void) | undefined;
     void import('@/lib/webmcp/adapter').then(({ registerWebMCPCapabilities }) => {
-      if (!disposed) unregister = registerWebMCPCapabilities(role);
+      if (!disposed) unregister = registerWebMCPCapabilities(role, { whatsappEnabled });
     }).catch(() => { /* The interface remains available if the optional catalog cannot load. */ });
     return () => { disposed = true; unregister?.(); };
-  }, [role, pathname]);
+  }, [role, pathname, whatsappEnabled]);
 
   return <>{children}</>;
 }

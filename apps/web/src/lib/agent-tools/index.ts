@@ -23,6 +23,8 @@ import * as agenda from '@/lib/application/agenda-service';
 import * as research from '@/lib/application/research-capability-service';
 import * as annexes from '@/lib/application/annexes-service';
 import * as google from '@/lib/application/google-service';
+import { listThreads as listWhatsAppThreads, readThread as readWhatsAppThread } from '@/lib/whatsapp/history';
+import { sendWhatsAppText } from '@/lib/whatsapp/send';
 import * as calendar from '@/lib/google/calendar/service';
 import * as gmail from '@/lib/google/gmail/service';
 import * as drive from '@/lib/google/drive/service';
@@ -36,6 +38,9 @@ type Executor = (context: WorkspaceContext, input: never) => unknown;
 
 /** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_whatsapp_list_threads: listWhatsAppThreads,
+  k5_whatsapp_read_thread: readWhatsAppThread,
+  k5_whatsapp_send: sendWhatsAppText,
   k5_research_web_search: research.webSearch,
   k5_research_list_web_searches: research.listWebSearches,
   k5_research_get_web_search: research.getWebSearch,
@@ -215,7 +220,7 @@ export async function runCapability<N extends CapabilityName>(
   const key = typeof input.idempotencyKey === 'string' ? input.idempotencyKey : undefined;
   // Google owns durable pending/unknown states and reconciliation; caching an unknown response
   // in the generic idempotency store would prevent later reads from observing its outcome.
-  if (capability.effect === 'write' && key && capability.module !== 'google') return withIdempotency(authorized, name, key, input, execute);
+  if (capability.effect === 'write' && key && capability.module !== 'google' && capability.module !== 'whatsapp') return withIdempotency(authorized, name, key, input, execute);
   return execute();
 }
 
@@ -226,8 +231,10 @@ export async function runCapability<N extends CapabilityName>(
  */
 export type ApprovalRequest = { toolCallId?: string; capability: CapabilityName; approvalId: string; input: Record<string, unknown> };
 
-export function agentTools(context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void) {
-  return Object.fromEntries(publishedCapabilitiesForRole(context.role, 'agent').map((name) => [name, toolFor(name, context, onApproval)]));
+export function agentTools(context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void, options: { whatsappEnabled?: boolean } = {}) {
+  return Object.fromEntries(publishedCapabilitiesForRole(context.role, 'agent')
+    .filter(name => capabilities[name].module !== 'whatsapp' || options.whatsappEnabled)
+    .map((name) => [name, toolFor(name, context, onApproval)]));
 }
 
 function toolFor(name: CapabilityName, context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void) {
@@ -419,6 +426,9 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_drive_list_permissions: 'Consultou acessos de um arquivo',
     k5_drive_share_file: 'Compartilhou um arquivo do Drive',
     k5_drive_revoke_permission: 'Removeu um acesso no Drive',
+    k5_whatsapp_list_threads: 'Consultou as conversas do WhatsApp',
+    k5_whatsapp_read_thread: 'Leu uma conversa do WhatsApp',
+    k5_whatsapp_send: 'Processou a resposta do WhatsApp',
     k5_docs_read: 'Leu um Google Docs',
     k5_docs_edit: 'Alterou um Google Docs',
   };
@@ -431,6 +441,16 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
 function describe(name: string, result: unknown): string {
   if (!result || typeof result !== 'object') return '';
   const value = result as Record<string, unknown>;
+  if (name === 'k5_whatsapp_send') {
+    if (value.status === 'unknown') return 'envio não confirmado; confira a conversa';
+    if (value.status === 'failed') return 'mensagem não enviada';
+    if (value.status === 'accepted') return 'aceita pelo provedor; aguardando confirmação de entrega';
+    if (value.status === 'sent') return 'enviada';
+    if (value.status === 'delivered') return 'entregue';
+    if (value.status === 'read') return 'lida';
+    return 'em andamento';
+  }
+  if (name.startsWith('k5_whatsapp_') && Array.isArray(value.items)) return `${value.items.length} registro(s)`;
   const operation = value.operation as { status?: string } | undefined;
   if (operation?.status && operation.status !== 'succeeded') {
     return operation.status === 'unknown' ? 'resultado em verificação no Google' : operation.status === 'failed' ? 'não concluída' : 'em andamento';

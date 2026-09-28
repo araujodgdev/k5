@@ -167,6 +167,7 @@ export async function requireAndConsumeApproval(
  * are gated here; the proposal stores the exact input, and the chat executes that input.
  */
 export const agentConfirmedCapabilities = [
+  'k5_whatsapp_send',
   'k5_vault_delete_case', 'k5_vault_delete_document', 'k5_vault_delete_folder', 'k5_conversations_delete',
   'k5_judicial_confirm_link', 'k5_judicial_unlink_case', 'k5_judicial_request_refresh', 'k5_artifacts_update',
   'k5_artifacts_edit',
