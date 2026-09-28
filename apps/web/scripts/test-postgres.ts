@@ -19,7 +19,7 @@ if (!url) {
   testDirectory = mkdtempSync(join(tmpdir(),'k5-pg-tests-'));
   postgres = new EmbeddedPostgres({databaseDir:join(testDirectory,'data'),
     user:'postgres',password,port,persistent:true,authMethod:'scram-sha-256',
-    initdbFlags:['--encoding=UTF8','--locale=C'],postgresFlags:['-h','127.0.0.1'],onLog:()=>{},onError:()=>{}});
+    initdbFlags:['--encoding=UTF8','--locale=C'],postgresFlags:['-h','127.0.0.1','-c','max_locks_per_transaction=256'],onLog:()=>{},onError:()=>{}});
   await postgres.initialise();
   await postgres.start();
   url = `postgresql://postgres:${password}@127.0.0.1:${port}/postgres`;

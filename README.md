@@ -67,6 +67,7 @@ pnpm --filter @k5/web exec tsx scripts/verify-staging.ts         # valida worker
 `build` e `start` pressupõem ambiente configurado e `pnpm db:setup` executado.
 `start` exige um build anterior. Em CI, use `pnpm install --frozen-lockfile`.
 Os testes usam esquemas isolados em PostgreSQL real. `pnpm test` inicia uma instância temporária automaticamente; `TEST_DATABASE_URL` permite usar um servidor de testes existente.
+O servidor de testes precisa de `max_locks_per_transaction=256` para criar e remover os esquemas em paralelo. A instância temporária já usa esse valor.
 Em containers executados como root, configure `TEST_DATABASE_URL`: o servidor PostgreSQL não inicia como root.
 
 O staging hospedado usa bindings privados nos Containers, sem credenciais S3 locais. Sua validação e operação estão em [docs/processadores-cloudflare.md](docs/processadores-cloudflare.md).
