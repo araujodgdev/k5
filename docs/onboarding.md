@@ -29,3 +29,10 @@ pnpm --filter @k5/web exec tsx scripts/verify-onboarding.ts --video
 O script usa desktop e celular, percorre as etapas, volta, pausa, recarrega, retoma, confere
 o foco por teclado e conclui. Capturas ficam em `apps/web/.data/tutorial/verification/`.
 Também execute lint, typecheck, testes e build a partir da raiz.
+
+## Reprodução na Cloudflare
+
+O Worker atende somente o MP4 do tutorial antes da camada de assets para responder a
+pedidos HTTP Range. Isso permite avançar e voltar no vídeo. As demais URLs mantêm o
+roteamento habitual. `tests/tutorial-video.test.ts` cobre trechos, sufixos, limites,
+validador de versão e cancelamento do fluxo após os bytes solicitados.

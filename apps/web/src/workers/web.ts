@@ -9,6 +9,7 @@ import { createPostgresPool } from '../lib/db/postgres';
 import { closePoolWithResponse } from '../lib/db/request';
 import { dueProcessors } from '../lib/processor-schedule';
 import { captureOperationalError } from '../lib/observability/report';
+import { tutorialVideoResponse } from '../lib/tutorial-video-response';
 
 export { LumeProcessor, ContainerProxy } from './processors';
 export { LumeChatRun } from './chat-runs';
@@ -32,6 +33,7 @@ export default withSentry<WebEnv>(env => serverOptions('web', env), {
     } finally { await pool.end(); }
   },
   async fetch(request: Request, env: CloudflareEnv & WhatsAppEnvironment & PersonalChatEnvironment & { HYPERDRIVE: { connectionString:string } }, ctx: { waitUntil(promise:Promise<unknown>):void }) {
+    if (new URL(request.url).pathname === '/tutorial/tutorial-lume.mp4') return tutorialVideoResponse(request, env.ASSETS);
     const pool = createPostgresPool(env.HYPERDRIVE.connectionString, { max:5, idleTimeoutMillis:0 });
     return withPostgres(pool, () => withAdsEnvironment(env, () => withWhatsAppEnvironment(env, () => withPersonalChatEnvironment(env, async () => {
       try {
