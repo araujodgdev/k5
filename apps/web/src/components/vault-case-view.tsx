@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { CalendarDays, ChevronDown, ChevronRight, CircleAlert, Ellipsis, FolderClosed, FolderPlus, Import, LayoutGrid, List, LoaderCircle, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -75,6 +75,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
   const [driveOpen, setDriveOpen] = useState(false);
 
   const [deleting, setDeleting] = useState(false);
+  const moreActions = useRef<HTMLButtonElement>(null);
 
   const base = `/app/vault/cases/${vaultCase.id}`;
   const href = (target: string | null) => (target ? `${base}?folder=${encodeURIComponent(target)}` : base);
@@ -82,6 +83,12 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
   const chatHref = `/app/agents?caseId=${encodeURIComponent(vaultCase.id)}`;
   const driveLabel = driveOpen ? "Fechar Google Drive" : canWrite ? "Importar do Google Drive" : "Ver Google Drive";
   const deleteProps = { caseId: vaultCase.id, name: vaultCase.name, documentCount: vaultCase.documentCount, onError: setFailure, onDeleted: () => { router.push("/app/vault"); router.refresh(); } };
+
+  // Leaving Arquivos closes what belongs to it, so no button stays marked open over a hidden panel.
+  function changeSection(next: Section) {
+    setSection(next);
+    if (next !== "files") { setCreatingFolder(false); setDriveOpen(false); }
+  }
 
   // On a phone these two stay in the header whatever section is open, so they bring the files back.
   function toggleFolderForm() {
@@ -172,13 +179,14 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
         {!external && <div className="flex flex-wrap gap-2 [&>[data-slot=button]]:px-2">
           <Button type="button" variant="outline" aria-expanded={driveOpen} onClick={toggleDrive}><Import aria-hidden="true" />{driveLabel}</Button>
           {canWrite && <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild><Button type="button" variant="outline" size="icon" className="size-11" aria-label="Mais ações do caso"><Ellipsis aria-hidden="true" /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuTrigger asChild><Button ref={moreActions} type="button" variant="outline" size="icon" className="size-11" aria-label="Mais ações do caso"><Ellipsis aria-hidden="true" /></Button></DropdownMenuTrigger>
+            {/* The confirmation takes the focus as the menu closes; the menu must not pull it back. */}
+            <DropdownMenuContent align="end" onCloseAutoFocus={(event) => { if (deleting) event.preventDefault(); }}>
               <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}><Trash2 aria-hidden="true" />Excluir caso</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>}
         </div>}
-        {!folderId && <CaseSections section={section} external={external} onChange={setSection} layout="grid" />}
+        {!folderId && <CaseSections section={section} external={external} onChange={changeSection} layout="grid" />}
         {section === "files" && <div className="flex items-center gap-3">
           <ViewToggle view={view} onChange={setView} />
           <span aria-hidden="true" className="h-6 w-px bg-border" />
@@ -188,7 +196,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
       {/* From md, one row that wraps. min-w-0 lets it shrink instead of widening the page. */}
       <div className="hidden min-w-0 flex-wrap items-center gap-2 md:flex">
         {!external && <Button variant="outline" asChild><Link href={agendaHref}>Tarefas e Agenda</Link></Button>}
-        {!folderId && <CaseSections section={section} external={external} onChange={setSection} layout="row" />}
+        {!folderId && <CaseSections section={section} external={external} onChange={changeSection} layout="row" />}
         {section === "files" && (
           <>
             <ViewToggle view={view} onChange={setView} />
@@ -203,7 +211,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
       </div>
     </div>
     {/* The phone's "•••" menu opens the same confirmation. */}
-    {canWrite && !external && <CaseDelete open={deleting} onOpenChange={setDeleting} {...deleteProps} />}
+    {canWrite && !external && <CaseDelete open={deleting} onOpenChange={setDeleting} returnFocusTo={moreActions} {...deleteProps} />}
 
     {section === "files" && creatingFolder && canWrite && <form onSubmit={submitFolder} className="flex flex-wrap items-end gap-3 border-b py-4">
       <div className="grid gap-1.5"><Label htmlFor="folder-name">Nome da pasta</Label><Input id="folder-name" value={folderName} onChange={(event) => setFolderName(event.target.value)} maxLength={120} className="min-w-56" required /></div>

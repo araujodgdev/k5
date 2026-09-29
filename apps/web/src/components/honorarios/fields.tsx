@@ -62,7 +62,8 @@ export function ReferenceSelect({ kind, value, onChange, optional = false, purpo
   }
   const current = value ? selected?.id === value ? selected.name : 'Seleção atual' : emptyLabel;
   return <div className="grid min-w-0 gap-1.5">
-    <Label htmlFor={id}>{label}</Label>
+    {/* The trigger is a button, which cannot be required; the label says it instead. */}
+    <Label htmlFor={id}>{label}{!optional && <span className="sr-only"> (obrigatório)</span>}</Label>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild><PickerTrigger id={id} className="h-11 md:h-11" aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined}>{current}</PickerTrigger></PopoverTrigger>
       <PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-64 max-w-[calc(100vw-2rem)] p-3" aria-label={label}>
