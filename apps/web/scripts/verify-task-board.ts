@@ -47,6 +47,7 @@ try {
   await kanban.focus(); await page.keyboard.press('Enter');
   const board = page.getByLabel('Quadro de tarefas', { exact: true });
   await expect(board.locator('article')).toHaveCount(53);
+  await kanban.click(); await expect(board.locator('article')).toHaveCount(53);
   await expect(page.getByRole('region', { name: 'Em andamento', exact: true })).toContainText('Revisar contrato 52');
   await page.screenshot({ path: `${directory}/desktop.png` });
   const move = page.getByRole('combobox', { name: 'Mover Revisar contrato 1', exact: true });

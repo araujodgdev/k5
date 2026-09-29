@@ -198,6 +198,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     finally { setBusy(false); }
   }
   function changeTaskLayout(layout: 'list' | 'kanban') {
+    if (layout === taskLayout) return;
     setTaskLayout(layout); setOffset(0); setStatus(''); setLoading(true);
     const url = new URL(window.location.href);
     url.searchParams.set('layout', layout);
