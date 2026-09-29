@@ -13,6 +13,6 @@ export async function POST(request: Request, context: Context) {
     const workspace = await apiWorkspace(request, true);
     const { id } = await context.params;
     const body = z.object({ decision: z.enum(['confirm', 'cancel']), conversationId: z.string().max(64).optional() }).parse(await limitedJson(request));
-    return Response.json(await decideAgentApproval(workspaceContext(workspace), id, body.decision, body.conversationId));
+    return Response.json(await decideAgentApproval(workspaceContext(workspace), id, body.decision));
   } catch (error) { return apiError(error); }
 }

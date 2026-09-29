@@ -1,11 +1,10 @@
 import 'server-only';
-import type { UIMessage } from 'ai';
 import { database } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityName } from '@/lib/capabilities/contracts';
 import { findVaultCase, findVaultDocument, findVaultFolder } from '@/lib/vault';
 import { findCaseLink } from '@/lib/judicial/repositories/links';
-import { conversation, ownedArtifact, saveMessages } from '@/lib/ai-store';
+import { ownedArtifact } from '@/lib/ai-store';
 import { runCapability, toolSummary } from '@/lib/agent-tools';
 import type { WorkspaceContext } from './context';
 import { agentConfirmedCapabilities, approveProposal, getApprovalProposal, rejectProposal } from './approvals-service';
@@ -15,6 +14,7 @@ import { createShareInput } from '@/lib/personal-chat/domain';
 import { agentSettingsCapabilities } from '@/lib/capabilities/agent-settings';
 import { getAgentSettings } from './agent-settings-service';
 import { getThread } from '@/lib/personal-chat/service';
+import type { ApprovalDecision } from '@/lib/chat-approval-state';
 
 export type AgentApprovalState = 'pending' | 'confirmed' | 'cancelled' | 'failed';
 export type AgentApprovalPart = { approvalId: string; capability: string; summary: string; state: AgentApprovalState; result?: string; href?: string };
@@ -185,10 +185,10 @@ export function resourceHref(name: string, result: unknown): string | undefined 
  * recorded, through the same capability path the agent uses. The model is not asked to repeat
  * the call: a large input (a whole draft) would not survive being retyped.
  */
-export async function decideAgentApproval(context: WorkspaceContext, approvalId: string, decision: 'confirm' | 'cancel', conversationId?: string) {
+export async function decideAgentApproval(context: WorkspaceContext, approvalId: string, decision: 'confirm' | 'cancel') {
   const row = await getApprovalProposal(context, approvalId);
   if (!isConfirmed(row.capability_name)) throw new CapabilityError('FORBIDDEN', 'Esta confirmação não pode ser feita pelo chat.');
-  let part: Pick<AgentApprovalPart, 'state' | 'result' | 'href'>;
+  let part: ApprovalDecision;
   if (decision === 'cancel') {
     await rejectProposal(context, approvalId);
     part = { state: 'cancelled', result: 'Cancelado. Nada foi alterado.' };
@@ -202,23 +202,7 @@ export async function decideAgentApproval(context: WorkspaceContext, approvalId:
       part = { state: 'failed', result: error instanceof CapabilityError ? error.message : 'Não foi possível concluir a ação.' };
     }
   }
-  if (conversationId) await recordDecision(context, conversationId, approvalId, part);
+  await database.prepare('UPDATE capability_approval SET chat_result=? WHERE id=? AND office_id=? AND user_id=?')
+    .run(JSON.stringify(part), approvalId, context.caseScope?.homeOfficeId ?? context.officeId, context.userId);
   return part;
-}
-
-/** The decision is written into the stored message, so the button does not come back on reload. */
-async function recordDecision(context: WorkspaceContext, conversationId: string, approvalId: string, update: Pick<AgentApprovalPart, 'state' | 'result' | 'href'>) {
-  const owner = { officeId: context.officeId, userId: context.userId };
-  const stored = await conversation(database, owner, conversationId);
-  if (!stored) return; // the confirmed action may have been deleting this very conversation
-  let changed = false;
-  const messages: UIMessage[] = stored.messages.map(message => ({
-    ...message,
-    parts: message.parts.map(part => {
-      if (part.type !== 'data-approval' || (part.data as AgentApprovalPart | undefined)?.approvalId !== approvalId) return part;
-      changed = true;
-      return { ...part, data: { ...(part.data as AgentApprovalPart), ...update } };
-    }),
-  }));
-  if (changed) await saveMessages(database, owner, conversationId, messages);
 }

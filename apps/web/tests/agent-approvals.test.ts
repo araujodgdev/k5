@@ -14,6 +14,7 @@ import { approvalIdFromMessage } from '../src/lib/application/approvals-service'
 import { decideAgentApproval, describeAgentApproval, resourceHref } from '../src/lib/application/agent-approvals';
 import { takeApproval, toolOutcome, type ToolOutcome } from '../src/lib/chat-tool-outcome';
 import type { WorkspaceContext } from '../src/lib/application/context';
+import { conversation, saveMessages } from '../src/lib/ai-store';
 
 async function office(role: WorkspaceContext['role'] = 'lawyer') {
   const officeId = randomUUID(); const userId = randomUUID(); const caseId = randomUUID();
@@ -59,12 +60,13 @@ test('agent approvals: deleting waits for Confirmar in the chat, then runs exact
   assert.equal(await describeAgentApproval(context, 'k5_vault_delete_folder', { folderId: folder.id }), 'Remover a pasta “Rascunhos” (o conteúdo sobe um nível)');
 
   const conversationId = await chatWithApproval(context, approvalId);
-  const decided = await decideAgentApproval(context, approvalId, 'confirm', conversationId);
+  const decided = await decideAgentApproval(context, approvalId, 'confirm');
   assert.equal(decided.state, 'confirmed');
   assert.equal(await findVaultFolder(context.officeId, folder.id), undefined);
-  const stored = await testDb.prepare('SELECT messages FROM ai_conversation WHERE id=?').get<{ messages: string }>(conversationId);
-  const part = JSON.parse(stored!.messages)[0].parts[1];
-  assert.equal(part.data.state, 'confirmed', 'the button does not come back after a reload');
+  const stored = await conversation(testDb, context, conversationId);
+  const part = stored!.messages[0].parts[1];
+  assert.ok(part.type === 'data-approval');
+  assert.equal((part.data as { state: string }).state, 'confirmed', 'the button does not come back after a reload');
   await assert.rejects(decideAgentApproval(context, approvalId, 'confirm'), { code: 'CONFLICT' });
 });
 
@@ -122,6 +124,35 @@ test('agent approvals: cancel changes nothing, and a proposal cannot be reused f
   await testDb.prepare("UPDATE capability_approval SET status='approved' WHERE id=?").run(approvalId);
   await assert.rejects(runCapability(agent, 'k5_vault_delete_folder', { folderId: other.id, approvalId }), { code: 'FORBIDDEN' });
   assert.ok(await findVaultFolder(context.officeId, other.id));
+});
+
+test('approval decisions survive a chat turn saving its older pending messages', async () => {
+  const { context, agent, caseId } = await office();
+  for (const decision of ['confirm', 'cancel'] as const) {
+    const folder = await createVaultFolder(context.officeId, context.userId, caseId, decision);
+    const id = await proposal(runCapability(agent, 'k5_vault_delete_folder', { folderId: folder.id }));
+    const conversationId = await chatWithApproval(context, id);
+    const before = await conversation(testDb, context, conversationId);
+    assert.ok(before);
+    const result = await decideAgentApproval(context, id, decision);
+    await saveMessages(testDb, context, conversationId, before.messages);
+    const after = await conversation(testDb, context, conversationId);
+    const part = after?.messages[0].parts.find(part => part.type === 'data-approval');
+    assert.ok(part && part.type === 'data-approval');
+    assert.equal((part.data as { state: string }).state, result.state);
+  }
+});
+
+test('approval decided during streaming survives the first save of its message', async () => {
+  const { context, agent, caseId } = await office();
+  const folder = await createVaultFolder(context.officeId, context.userId, caseId, 'Manter');
+  const id = await proposal(runCapability(agent, 'k5_vault_delete_folder', { folderId: folder.id }));
+  await decideAgentApproval(context, id, 'cancel');
+  const conversationId = await chatWithApproval(context, id);
+  const stored = await conversation(testDb, context, conversationId);
+  const part = stored?.messages[0].parts.find(part => part.type === 'data-approval');
+  assert.ok(part && part.type === 'data-approval');
+  assert.equal((part.data as { state: string }).state, 'cancelled');
 });
 
 test('agent approvals: the interface is not gated, and other people cannot decide', async () => {

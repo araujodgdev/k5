@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Database } from './database';
 import type { UIMessage } from 'ai';
+import { restoreApprovalDecisions } from './chat-approval-store';
 
 export type Owner = { officeId: string; userId: string };
 export type RunRow = { id: string; office_id: string; user_id: string; kind: 'chronology' | 'draft'; input: string; status: string; progress: number; error: string | null; artifact_id: string | null; lease_token: string; attempts: number; model_provider: string | null; model_id: string | null; model_plan: unknown; created_at: string };
@@ -14,7 +15,7 @@ export async function createConversation(db: Database, owner: Owner) {
 }
 export async function conversation(db: Database, owner: Owner, id: string) {
   const row = await db.prepare('SELECT id,title,updated_at AS updatedAt,messages FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?').get(id, owner.officeId, owner.userId) as { id: string; title: string; updatedAt: string; messages: string } | undefined;
-  return row ? { conversation: { id: row.id, title: row.title, updatedAt: row.updatedAt }, messages: JSON.parse(row.messages) as UIMessage[] } : null;
+  return row ? { conversation: { id: row.id, title: row.title, updatedAt: row.updatedAt }, messages: await restoreApprovalDecisions(db, owner, JSON.parse(row.messages) as UIMessage[]) } : null;
 }
 
 /** Read-only initial chat state. Both the list and a deep link are scoped to the session owner. */

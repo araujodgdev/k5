@@ -3,6 +3,7 @@
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { DocumentVerification } from "@/components/document-verification";
 import { Button } from "@/components/ui/button";
+import { Markdown } from "@/components/markdown";
 import { citationKindLabel, citationStatusLabel, sourceHref, toReview } from "@/lib/citations/labels";
 import type { CitationItem, CitationReview } from "@/lib/citations/verdict";
 
@@ -94,7 +95,7 @@ function CitationRow({ item }: { item: CitationItem }) {
           ? <a href={sourceHref(item.source.url)!} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline-offset-4 hover:underline">{item.source.title || "fonte"}<span className="sr-only"> (abre em nova aba)</span></a>
           : item.source.title}</>}
       </p>
-      {!ok && <p className="line-clamp-2 text-[13px] leading-5 text-subtle-foreground">{item.paragraph}</p>}
+      {!ok && <div className="line-clamp-2 text-[13px] leading-5 text-subtle-foreground"><Markdown text={item.paragraph} /></div>}
     </div>
   );
 }

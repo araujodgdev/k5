@@ -10,6 +10,8 @@ import { saveConnection, connectionView } from '../src/lib/typesafe/config';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
 import type { DecisionRequest } from '../src/lib/typesafe/client';
 import { createConversation } from '../src/lib/ai-store';
+import { recordedWebSources } from '../src/lib/citations/web-step';
+import { runCapability } from '../src/lib/agent-tools';
 
 const text = [
   'Dos fatos. O réu, no processo 1234567-89.2024.8.26.0100, não pagou.',
@@ -18,6 +20,23 @@ const text = [
   '',
   'O STJ decidiu no REsp 1.234.567/SP que o dano é presumido. Aplica-se a Lei 8.078/1990.',
 ].join('\n');
+
+test('web sources saved at the end of a search step are available to the next document tool', async () => {
+  const userId = randomUUID(), officeId = randomUUID();
+  await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Revisora');
+  await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Fontes');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, 'lawyer');
+  const owner = { officeId, userId };
+  const chat = await createConversation(testDb, owner);
+  await recordSources(owner, chat.id, recordedWebSources({ toolResults: [{ toolName: 'web_search', result: { results: [
+    { url: 'https://example.test/cc', title: 'Código Civil', text: 'Art. 113 do Código Civil. Os negócios jurídicos devem ser interpretados conforme a boa-fé.' },
+  ] } }] }));
+  const created = await runCapability({ ...owner, role: 'lawyer', invocation: 'agent', conversationId: chat.id }, 'k5_artifacts_create', {
+    title: 'Fundamento pesquisado', content: 'Aplica-se o art. 113 do Código Civil.',
+  });
+  assert.ok(created && typeof created === 'object' && 'citations' in created);
+  assert.equal((created.citations as { noSource: number }).noSource, 0);
+});
 
 test('citations: a source matches on the main number and the named code or court', () => {
   const sources: CitationSource[] = [

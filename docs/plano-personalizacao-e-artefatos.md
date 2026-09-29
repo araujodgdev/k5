@@ -315,6 +315,8 @@ Seguindo `AGENTS.md`:
 
 ## Citações: revisão no lugar do bloqueio (23/09)
 
+Atualização de 28/09: o chat deve pesquisar antes de citar fundamentos jurídicos e corrigir citações sem fonte antes de encerrar. As fontes da web são registradas ao concluir cada etapa de busca, antes de uma ferramenta de documento executar na etapa seguinte. Marcadores internos são convertidos em links somente quando o identificador corresponde a uma fonte recebida; sem correspondência, a interface indica "fonte não vinculada". A lista de fontes pesquisadas permanece disponível. Resultados de autorizações ficam na própria proposta, separados do histórico, para uma resposta em andamento não restaurar botões pendentes.
+
 Decisão: o Lume age e cita livremente; o advogado revisa o que ele entrega e pede ajustes. A trava que trocava linhas por `[Fundamentação jurídica pendente…]` saiu do chat e dos documentos do chat. As minutas da Pesquisa mantêm a seleção explícita de citações, que é o propósito daquele fluxo.
 
 Como funciona agora:

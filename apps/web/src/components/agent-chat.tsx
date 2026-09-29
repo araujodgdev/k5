@@ -16,6 +16,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAui,
+  useAuiState,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
 import {
@@ -69,6 +70,8 @@ import type { CitationItem } from "@/lib/citations/verdict";
 import { citationStatusLabel, sourceHref, toReview } from "@/lib/citations/labels";
 import { SmartWorking } from "@/components/smart-options";
 import { THINKING, type ChatStatus } from "@/lib/chat-status";
+import { applyApprovalDecisions, approvalDecision, type ApprovalDecision } from "@/lib/chat-approval-state";
+import { citationMarkdown, webReference } from "@/lib/citations/web-references";
 
 type Selection = { artifactId: string; excerpt: string };
 /** Read when a message is sent: the document open beside the chat, and a selection spent by that one request. */
@@ -159,7 +162,13 @@ function UserMessage() {
 
 /** The model writes Markdown; this is what turns it into headings, lists and tables. */
 function AssistantText({ text }: { text: string }) {
-  return <Markdown text={text} />;
+  const content = useAuiState(state => state.message.content);
+  const sources = content.flatMap(part => {
+    if (part.type !== 'data' || part.name !== 'web-sources') return [];
+    const parsed = webReference.array().safeParse(part.data && typeof part.data === 'object' && 'sources' in part.data ? part.data.sources : []);
+    return parsed.success ? parsed.data : [];
+  });
+  return <Markdown text={citationMarkdown(text, sources)} />;
 }
 
 type StepData = { callId?: string; name?: string; summary?: string; state?: string; href?: string };
@@ -197,6 +206,10 @@ function ToolStep({ data }: { data: StepData }) {
 }
 
 const ConversationIdContext = createContext("");
+const ApprovalDecisionsContext = createContext<{
+  decisions: ReadonlyMap<string, ApprovalDecision>;
+  record: (id: string, decision: ApprovalDecision) => void;
+} | null>(null);
 type ApprovalData = { approvalId: string; capability?: string; summary: string; state: "pending" | "confirmed" | "cancelled" | "failed"; result?: string; href?: string };
 
 /**
@@ -206,14 +219,14 @@ type ApprovalData = { approvalId: string; capability?: string; summary: string; 
 function ApprovalStep({ data }: { data: ApprovalData }) {
   const conversationId = useContext(ConversationIdContext);
   const documents = useContext(DocumentLinksContext);
-  const [decided, setDecided] = useState<Pick<ApprovalData, "state" | "result" | "href"> | null>(null);
+  const decisions = useContext(ApprovalDecisionsContext);
   const googleApproval = /^k5_(gmail|calendar|drive|docs)_/.test(data?.capability ?? '') &&
     !['k5_calendar_discard_pending', 'k5_calendar_share_event', 'k5_calendar_unshare_event'].includes(data.capability ?? '');
   const [reviewReady, setReviewReady] = useState(false);
   const [busy, setBusy] = useState<"" | "confirm" | "cancel">("");
   const [error, setError] = useState("");
   if (!data?.approvalId) return null;
-  const current = decided ?? data;
+  const current = decisions?.decisions.get(data.approvalId) ?? data;
   async function decide(decision: "confirm" | "cancel") {
     setBusy(decision); setError("");
     try {
@@ -222,7 +235,7 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
       });
       const body = await response.json().catch(() => ({})) as ApprovalData & { error?: string };
       if (!response.ok) throw new Error(body.error || "Não foi possível concluir. Peça de novo ao Lume.");
-      setDecided({ state: body.state, result: body.result, href: body.href });
+      decisions?.record(data.approvalId, approvalDecision.parse(body));
       const changedDocument = body.state === "confirmed" ? documentIdFrom(body.href) : null;
       if (changedDocument) documents?.changed(changedDocument);
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível concluir."); }
@@ -311,7 +324,17 @@ function CitationsList({ data }: { data: { items?: CitationItem[] } }) {
   );
 }
 
-const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep, jurisprudence: JurisprudenceList, citations: CitationsList } } };
+function WebSources({ data }: { data: unknown }) {
+  const parsed = webReference.array().safeParse(data && typeof data === 'object' && 'sources' in data ? data.sources : []);
+  if (!parsed.success || !parsed.data.length) return null;
+  const sources = [...new Map(parsed.data.map(source => [source.url, source])).values()];
+  return <details className="mt-3 text-[13px] text-subtle-foreground">
+    <summary className="cursor-pointer focus-visible:outline focus-visible:outline-ring">Fontes da pesquisa ({sources.length})</summary>
+    <div className="mt-2 grid gap-2">{sources.map(source => <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" className="break-words underline underline-offset-4">{source.title || source.url}</a>)}</div>
+  </details>;
+}
+
+const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep, jurisprudence: JurisprudenceList, citations: CitationsList, 'web-sources': WebSources } } };
 
 /** What Lume is doing in the running turn ("Consultando o Cofre…"), sent by the server as it goes. */
 const WorkingContext = createContext("");
@@ -569,6 +592,19 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
     onError: (error) => onError(chatErrorMessage(error)),
     onData: (part) => { if (part.type === "data-status") setWorking((part.data as ChatStatus).label); },
   });
+  const [decisions, setDecisions] = useState<ReadonlyMap<string, ApprovalDecision>>(new Map());
+  const { setMessages: setChatMessages } = chat;
+  const approvalDecisions = useMemo(() => ({
+    decisions,
+    record: (id: string, decision: ApprovalDecision) => {
+      setDecisions(current => new Map(current).set(id, decision));
+      setChatMessages(current => {
+        const updated = applyApprovalDecisions(current, new Map([[id, decision]]));
+        storeMessages(conversationId, updated);
+        return updated;
+      });
+    },
+  }), [decisions, setChatMessages, conversationId]);
   const sendMessage:typeof chat.sendMessage=async(message,options)=>{
     if(message&&tools.pendingFiles.length) {
       const parts='parts' in message&&message.parts ? message.parts : 'text' in message?[{type:'text' as const,text:message.text??''}]:[];
@@ -595,7 +631,9 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
   }, [sendRef, status, send]);
   // Until the new turn says anything, the line from the previous one does not apply.
   return <ConversationIdContext.Provider value={conversationId}><WorkingContext.Provider value={status === "submitted" ? "" : working}>
-    <AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider>
+    <ApprovalDecisionsContext.Provider value={approvalDecisions}>
+      <AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider>
+    </ApprovalDecisionsContext.Provider>
   </WorkingContext.Provider></ConversationIdContext.Provider>;
 }
 
