@@ -124,10 +124,8 @@
 .marquee-track { animation: marquee 38s linear infinite; }
 .marquee:hover .marquee-track { animation-play-state: paused; }
 
-/* Landing entrance, in CSS so it runs from the first paint: words rise out of their line box. */
-@keyframes rise-in { from { transform: translateY(105%); } }
+/* Decorative landing fields fade in without delaying the hero text. */
 @keyframes fade-in { from { opacity: 0; transform: translateY(16px); } }
-.rise-in { animation: rise-in 1.2s var(--ease) both; animation-delay: var(--delay, 0s); }
 .fade-in { animation: fade-in 1s var(--ease) both; animation-delay: var(--delay, 0s); }
 
 /* "Traço": the mark's outline draws in a fine line, piece by piece, then each piece fills, the

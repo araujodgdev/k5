@@ -9,10 +9,28 @@ import { LandingMotion } from "@/components/landing/landing-motion";
 import { GlyphAgenda, GlyphFees, GlyphLume, GlyphResearch, GlyphVault } from "@/components/landing/landing-glyphs";
 import { cn } from "@/lib/utils";
 
+const title = "Lume | Software jurídico para advogados e escritórios";
+const description = "Organize documentos por caso, prepare minutas com IA e acompanhe clientes, tarefas, prazos e honorários. Para advogados autônomos e pequenos escritórios.";
+const siteUrl = "https://lume.software/";
+
 export const metadata: Metadata = {
-  title: { absolute: "Lume, espaço de trabalho para a advocacia" },
-  description: "Documentos por caso, assistente com IA, tarefas, prazos e honorários. Para advogados e pequenos escritórios.",
+  title: { absolute: title },
+  description,
+  alternates: { canonical: siteUrl },
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    url: siteUrl,
+    siteName: "Lume",
+    title,
+    description,
+    images: [{ url: `${siteUrl}icons/icon-512.png`, width: 512, height: 512, alt: "Lume" }],
+  },
+  twitter: { card: "summary", title, description, images: [`${siteUrl}icons/icon-512.png`] },
 };
+
+const website = { "@context": "https://schema.org", "@type": "WebSite", name: "Lume", url: siteUrl, inLanguage: "pt-BR" };
 
 const modules = [
   {
@@ -47,7 +65,7 @@ const marquee = ["Lume", "Cofre", "Pesquisa", "Escritório", "Honorários", "E-m
 /** An action in mono caps with an arrow; the brand sweeps in from the left on hover. */
 function ArrowLink({ href, children, tone = "ink", className }: { href: string; children: React.ReactNode; tone?: "ink" | "clear"; className?: string }) {
   return (
-    <Link href={href} className={cn(
+    <Link href={href} prefetch={false} className={cn(
       "hover-sweep group/arrow label-mono inline-flex h-12 items-center justify-between gap-10 px-4 transition-colors duration-700 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none",
       tone === "ink" ? "bg-foreground text-background" : "text-current",
       className)}>
@@ -70,11 +88,12 @@ function Rise({ children, delay, className }: { children: React.ReactNode; delay
 export default function Landing() {
   return (
     <LandingMotion className="min-h-dvh bg-background text-foreground">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(website).replace(/</g, "\\u003c") }} />
       <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:border focus:border-line focus:bg-background focus:px-3 focus:py-2">Ir para o conteúdo</a>
 
       <header className="sticky top-0 z-30 grid h-[calc(3.75rem+env(safe-area-inset-top))] grid-cols-[1fr_auto] border-b border-line bg-background pt-[env(safe-area-inset-top)] md:grid-cols-2">
         <div className="flex min-w-0 items-stretch">
-          <Link href="/" aria-label="Lume, início" className="hover-sweep grid w-15 shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none">
+          <Link prefetch={false} href="/" aria-label="Lume, início" className="hover-sweep grid w-15 shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none">
             <LumeMark width={22} height={22} aria-hidden="true" focusable="false" />
           </Link>
           <p className="self-center px-5 text-lg font-medium tracking-[-0.04em] md:hidden">Lume</p>
@@ -87,7 +106,7 @@ export default function Landing() {
             ))}
           </nav>
           <div className="ml-auto flex items-center px-2"><ThemeSwitch /></div>
-          <Link href="/sign-in" className="hover-sweep group/cta flex items-center justify-between gap-6 bg-foreground px-5 text-[15px] font-medium text-background transition-colors duration-700 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:text-brand-foreground md:w-60">
+          <Link prefetch={false} href="/sign-in" className="hover-sweep group/cta flex items-center justify-between gap-6 bg-foreground px-5 text-[15px] font-medium text-background transition-colors duration-700 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:text-brand-foreground md:w-60">
             Entrar<ArrowRight className="size-4 transition-transform duration-500 ease-(--ease) group-hover/cta:translate-x-1" aria-hidden="true" />
           </Link>
         </div>
@@ -98,18 +117,18 @@ export default function Landing() {
         <section aria-labelledby="hero-title" className="grid border-b border-line md:grid-cols-2">
           <div className="flex min-h-[38svh] items-end px-5 pb-4 md:min-h-[54svh] md:px-6">
             <h1 id="hero-title" className="display overflow-hidden pb-[.12em] text-[clamp(104px,19vw,280px)] leading-[.85]">
-              <span className="rise-in block">Lume</span>
+              <span className="block">Lume</span>
             </h1>
           </div>
           <Halftone seed={3} density={-.08} className="fade-in h-44 border-t border-line [--delay:.2s] md:h-auto md:border-t-0 md:border-l" />
           <Halftone seed={7} mark={{ x: .56, y: .58, size: .95 }} className="fade-in hidden border-t border-line [--delay:.35s] md:block md:min-h-[46svh]" />
           <div className="grid border-t border-line sm:grid-cols-2 md:border-l">
             <div className="flex min-h-72 flex-col justify-between gap-10 bg-foreground p-5 text-background md:p-6">
-              <p className="fade-in text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">O Lume guarda os documentos de cada caso, prepara rascunhos a partir deles e acompanha tarefas, prazos e honorários.</p>
+              <p className="text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">O Lume guarda os documentos de cada caso, prepara rascunhos a partir deles e acompanha tarefas, prazos e honorários.</p>
               <ArrowLink href="/sign-up" tone="clear" className="-mx-4 -mb-3">Criar conta</ArrowLink>
             </div>
             <div className="flex min-h-72 flex-col justify-between gap-10 overflow-hidden bg-brand text-brand-foreground">
-              <p className="fade-in p-5 text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.55s] md:p-6">Para quem advoga sozinho e para escritórios de 2 a 5 advogados.</p>
+              <p className="p-5 text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.55s] md:p-6">Para quem advoga sozinho e para escritórios de 2 a 5 advogados.</p>
               <div className="marquee overflow-hidden border-t border-brand-foreground/25 py-4" aria-label="Módulos do Lume">
                 <ul className="marquee-track flex w-max gap-10 pr-10 text-xl font-medium tracking-[-0.04em]">
                   {[...marquee, ...marquee].map((name, index) => (
@@ -156,7 +175,7 @@ export default function Landing() {
               <li key={name} className="group grid gap-8 border-b border-background/15 px-5 py-10 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:px-6 lg:py-12">
                 <div className="flex flex-col justify-between gap-10">
                   <h3 className="flex items-baseline gap-5 text-[clamp(36px,3.6vw,56px)] leading-none font-[450] tracking-[-0.045em]">
-                    <span className="label-mono text-background/50">{String(index + 1).padStart(2, "0")}</span>{name}
+                    <span className="label-mono text-background/80">{String(index + 1).padStart(2, "0")}</span>{name}
                   </h3>
                   <div className="aspect-square w-36 text-background/80 lg:w-44" data-fade><Glyph /></div>
                 </div>
@@ -198,7 +217,7 @@ export default function Landing() {
         <section id="comecar" aria-labelledby="comecar-title" className="relative isolate grid min-h-[80svh] scroll-mt-15 place-items-center overflow-hidden border-b border-line">
           <Halftone seed={11} mark={{ x: .5, y: .5, size: 1.05 }} className="absolute inset-0 -z-10" />
           <h2 id="comecar-title" className="w-full">
-            <Link href="/sign-up" className="group/start display block text-[clamp(52px,11.5vw,210px)] leading-[.9] uppercase focus-visible:outline-none">
+            <Link prefetch={false} href="/sign-up" className="group/start display block text-[clamp(52px,11.5vw,210px)] leading-[.9] uppercase focus-visible:outline-none">
               <span className="flex flex-wrap justify-between gap-y-2">
                 <span className="bg-foreground px-3 pt-2 pb-1 text-background" data-fade>Abra</span>
                 <span className="bg-foreground px-3 pt-2 pb-1 text-background" data-fade=".1">o seu</span>
@@ -223,10 +242,10 @@ export default function Landing() {
         </div>
         <div className="grid grid-cols-2 border-b border-line md:border-l">
           <nav aria-label="Rodapé" className="flex flex-col gap-3 p-5 text-[17px] md:p-6">
-            <Link href="/termos-de-uso" className="w-fit underline underline-offset-4">Termos de uso</Link>
-            <Link href="/politica-privacidade" className="w-fit underline underline-offset-4">Privacidade</Link>
-            <Link href="/sign-in" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Entrar</Link>
-            <Link href="/sign-up" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Criar conta</Link>
+            <Link prefetch={false} href="/termos-de-uso" className="w-fit underline underline-offset-4">Termos de uso</Link>
+            <Link prefetch={false} href="/politica-privacidade" className="w-fit underline underline-offset-4">Privacidade</Link>
+            <Link prefetch={false} href="/sign-in" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Entrar</Link>
+            <Link prefetch={false} href="/sign-up" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Criar conta</Link>
             <a href="#modulos" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Módulos</a>
           </nav>
           <div className="flex items-start gap-4 border-l border-line p-5 md:p-6">
@@ -241,9 +260,9 @@ export default function Landing() {
           <div className="flex flex-1 items-center justify-center gap-[.18em] text-[clamp(72px,10vw,168px)] font-medium tracking-[-0.05em]">
             <LumeMark className="size-[.82em]" aria-hidden="true" focusable="false" />Lume
           </div>
-          <p className="label-mono text-background/60">© 2026 Lume</p>
+          <p className="label-mono text-background/80">© 2026 Lume</p>
         </div>
-        <Link href="/sign-up" className="group/foot relative flex min-h-64 flex-col justify-between gap-10 border-t border-background/15 bg-foreground p-5 text-background focus-visible:outline-none md:min-h-[56svh] md:border-t-0 md:border-l md:p-6">
+        <Link prefetch={false} href="/sign-up" className="group/foot relative flex min-h-64 flex-col justify-between gap-10 border-t border-background/15 bg-foreground p-5 text-background focus-visible:outline-none md:min-h-[56svh] md:border-t-0 md:border-l md:p-6">
           <span className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Comece com um caso<br />do seu escritório</span>
           <span className="flex items-end justify-between">
             <span className="text-[17px] font-medium underline decoration-transparent underline-offset-4 transition-colors duration-300 group-hover/foot:decoration-brand">Criar conta</span>

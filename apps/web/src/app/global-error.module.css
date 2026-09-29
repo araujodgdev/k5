@@ -1,0 +1,38 @@
+.error {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  color-scheme: light dark;
+  background: var(--background, Canvas);
+  color: var(--foreground, CanvasText);
+  font-family: var(--font-geist, system-ui), sans-serif;
+  text-align: center;
+}
+
+.error h1 {
+  margin: 0;
+  font-size: clamp(1.875rem, 4vw, 2.375rem);
+  font-weight: 500;
+  letter-spacing: -.04em;
+}
+
+.error p { margin: 0; }
+
+.error button {
+  min-height: 44px;
+  border: 1px solid currentColor;
+  border-radius: 0;
+  padding: .5rem 1rem;
+  background: var(--foreground, CanvasText);
+  color: var(--background, Canvas);
+  font: inherit;
+  cursor: pointer;
+}
+
+.error button:focus-visible { outline: 2px solid var(--foreground, CanvasText); outline-offset: 4px; }

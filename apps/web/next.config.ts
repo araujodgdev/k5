@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   // Keep isolated QA and verification servers from sharing Next's output and dev lock with the main app.
   distDir: ['.next-research-qa', '.next-verify'].find(dir => dir === process.env.K5_NEXT_DIST_DIR) ?? '.next',
   devIndicators: false,
+  // Keep SEO metadata in <head> for all user agents in both runtimes.
+  htmlLimitedBots: /.*/,
   // Administration moved into the app shell; keep bookmarks to the old area working.
   redirects() {
     return Promise.resolve([

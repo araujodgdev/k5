@@ -122,7 +122,7 @@ Motion is smooth and slow to settle: everything eases with `--ease` (expo out), 
 - **Selection**: the sidebar's ink block slides to the active row (0.45s `power3.out`), and the active tab icon settles from 0.82 scale (`back.out`).
 - **Chrome that gets out of the way**: the tab bar moves off screen in 0.3s (`power2.out`) after 6px of downward scroll past 48px, and returns the moment scrolling reverses.
 - **Micro**: other hover and press states are Tailwind transitions of 150–300ms with `ease-(--ease)`. Don't use GSAP for these.
-- **Landing only** (`src/components/landing/`): words rise out of their line box (`rise-in` in CSS on load, `data-rise` with ScrollTrigger on scroll), blocks fade and lift (`data-fade`), color tiles uncover from the bottom (`data-wipe`), a strip of module names scrolls slowly and pauses on hover, and line figures turn a quarter while their row is hovered. Each scroll effect plays once.
+- **Landing only** (`src/components/landing/`): the hero title and copy are visible at first paint. Below the viewport, words rise out of their line box (`data-rise`), blocks fade and lift (`data-fade`), and color tiles uncover from the bottom (`data-wipe`). IntersectionObserver starts native Web Animations once per element, using `--ease`; reduced motion and keyboard focus cancel active effects. A strip of module names scrolls slowly and pauses on hover, and line figures turn a quarter while their row is hovered.
 - The `Halftone` is the only continuous motion outside the landing strip. It is decorative, paused when hidden or off screen, and still under reduced motion.
 
 ## Mobile

@@ -1,39 +1,58 @@
 "use client";
 
-import { useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useGSAP } from "@gsap/react";
-
-// Registration wakes GSAP's ticker; Workers forbid timers during SSR imports.
-if (typeof window !== "undefined") gsap.registerPlugin(useGSAP, ScrollTrigger);
-
-/**
- * Scroll motion for the landing. Children opt in with data attributes:
- * - `data-rise`: the element slides up out of its line box (wrap it in `overflow-hidden`).
- * - `data-fade`: fades and lifts 24px.
- * - `data-wipe`: a color block uncovers itself from the bottom.
- * Each plays once as it enters. Reduced motion shows everything as is.
- */
+import { useEffect, useRef } from "react";
 export function LandingMotion({ children, className }: { children: React.ReactNode; className?: string }) {
   const scope = useRef<HTMLDivElement>(null);
 
-  useGSAP(() => {
-    const mm = gsap.matchMedia();
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      const ease = "expo.out";
-      gsap.utils.toArray<HTMLElement>("[data-rise]").forEach((element) => {
-        gsap.from(element, { yPercent: 105, duration: 1.2, ease, delay: Number(element.dataset.rise) || 0, scrollTrigger: { trigger: element.parentElement ?? element, start: "top 88%" } });
-      });
-      gsap.utils.toArray<HTMLElement>("[data-fade]").forEach((element) => {
-        gsap.from(element, { autoAlpha: 0, y: 24, duration: 1, ease, delay: Number(element.dataset.fade) || 0, scrollTrigger: { trigger: element, start: "top 90%" } });
-      });
-      gsap.utils.toArray<HTMLElement>("[data-wipe]").forEach((element) => {
-        gsap.from(element, { clipPath: "inset(100% 0 0 0)", duration: 1.1, ease, scrollTrigger: { trigger: element, start: "top 85%" } });
-      });
+  useEffect(() => {
+    const root = scope.current;
+    if (!root) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reduced.matches) return;
+    const animations = new Set<Animation>();
+    const easing = getComputedStyle(root).getPropertyValue("--ease").trim();
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting || !(entry.target instanceof HTMLElement)) continue;
+        const element = entry.target;
+        observer.unobserve(element);
+        if (reduced.matches || element.contains(document.activeElement)) continue;
+        const rise = element.hasAttribute("data-rise");
+        const wipe = element.hasAttribute("data-wipe");
+        const frames = rise
+          ? [{ transform: "translateY(105%)" }, { transform: "translateY(0)" }]
+          : wipe
+            ? [{ clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0)" }]
+            : [{ opacity: 0, transform: "translateY(24px)" }, { opacity: 1, transform: "translateY(0)" }];
+        const animation = element.animate(frames, {
+          duration: rise ? 1200 : wipe ? 1100 : 1000,
+          delay: (Number(element.dataset.rise ?? element.dataset.fade) || 0) * 1000,
+          easing,
+          fill: "backwards",
+        });
+        animations.add(animation);
+        animation.onfinish = () => animations.delete(animation);
+      }
+    }, { rootMargin: "0px 0px -10% 0px" });
+
+    // Content already on screen stays visible during hydration.
+    root.querySelectorAll<HTMLElement>("[data-rise], [data-fade], [data-wipe]").forEach(element => {
+      if (element.getBoundingClientRect().top >= window.innerHeight) observer.observe(element);
     });
-    return () => mm.revert();
-  }, { scope });
+    const cancel = () => {
+      animations.forEach(animation => animation.cancel());
+      animations.clear();
+    };
+    const onMotion = () => { if (reduced.matches) { observer.disconnect(); cancel(); } };
+    reduced.addEventListener("change", onMotion);
+    root.addEventListener("focusin", cancel);
+    return () => {
+      observer.disconnect();
+      cancel();
+      reduced.removeEventListener("change", onMotion);
+      root.removeEventListener("focusin", cancel);
+    };
+  }, []);
 
   return <div ref={scope} className={className}>{children}</div>;
 }

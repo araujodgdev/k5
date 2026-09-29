@@ -1,8 +1,7 @@
 'use client';
 
 import { useReportError } from '@/lib/observability/use-report-error';
-import { Button } from '@/components/ui/button';
-import './globals.css';
+import styles from './global-error.module.css';
 
 export default function GlobalError({ error, retry, reset }: {
   error: Error & { digest?: string };
@@ -11,10 +10,10 @@ export default function GlobalError({ error, retry, reset }: {
 }) {
   useReportError(error);
   return <html lang="pt-BR"><body>
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background p-6 text-center text-foreground">
-      <h1 className="page-title">Não foi possível carregar esta página</h1>
-      <p className="text-muted-foreground" role="alert">Tente novamente em instantes.</p>
-      <Button className="min-h-11" onClick={() => (retry ?? reset ?? (() => window.location.reload()))()}>Tentar novamente</Button>
+    <main className={styles.error}>
+      <h1>Não foi possível carregar esta página</h1>
+      <p role="alert">Tente novamente em instantes.</p>
+      <button onClick={() => (retry ?? reset ?? (() => window.location.reload()))()}>Tentar novamente</button>
     </main>
   </body></html>;
 }
