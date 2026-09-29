@@ -28,6 +28,7 @@ export const adminNavigation = { href: "/app/admin", label: "Administração", s
 
 /** The person's own page: reached from their name in the sidebar footer and from "Mais" on mobile. */
 export const profileNavigation = { href: "/app/profile", label: "Perfil" } as const;
+export const tutorialNavigation = { href: '/app/tutorial', label: 'Tutorial' } as const;
 
 /** Tabs inside the Administração module. */
 export const adminSections = [

@@ -19,9 +19,10 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { Avatar } from "@/components/profile/avatar";
-import { adminNavigation, appNavigation, mobileTabs, profileNavigation } from "@/lib/navigation";
+import { adminNavigation, appNavigation, mobileTabs, profileNavigation, tutorialNavigation } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { BetaLabel } from '@/components/ads/beta-label';
+import { TutorialTrigger } from '@/components/onboarding-tour';
 
 // Registration wakes GSAP's ticker; Workers forbid timers during SSR imports.
 if (typeof window !== "undefined") gsap.registerPlugin(useGSAP);
@@ -230,7 +231,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
   const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`) || adminActive || profileActive;
   const currentModule = pathname.startsWith("/app/documents/")
     ? "Cofre"
-    : profileActive ? profileNavigation.label : adminActive ? adminNavigation.label : visibleNavigation.find((item) => {
+    : pathname === tutorialNavigation.href ? tutorialNavigation.label : profileActive ? profileNavigation.label : adminActive ? adminNavigation.label : visibleNavigation.find((item) => {
         const href = `/app/${item.slug}`;
         return pathname === href || pathname.startsWith(`${href}/`);
       })?.label ?? "Início";
@@ -249,7 +250,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
             <NavToggle collapsed={collapsed} className="nav-label mr-2 ml-auto self-center" />
           </SidebarHeader>
           <SidebarContent className="px-0 pt-3">
-            <SidebarMenu ref={navRef} className="relative gap-0 px-0">
+            <SidebarMenu ref={navRef} data-tutorial="navigation" className="relative gap-0 px-0">
               <span ref={indicatorRef} aria-hidden="true" className="pointer-events-none invisible absolute inset-x-0 top-0 bg-foreground" />
               {visibleNavigation.map((item) => {
                 const href = `/app/${item.slug}`;
@@ -276,6 +277,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="border-t border-line p-2">
+            <TutorialTrigger />
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={profileActive} tooltip={`${profileNavigation.label} · ${person.name}`} className="h-10 data-[active=true]:bg-accent">
@@ -314,7 +316,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
         <p className="min-w-0 self-center truncate text-sm text-muted-foreground" title={officeName}>{officeName}</p>
       </header>
 
-      <nav ref={tabbarRef} aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-20 grid h-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] grid-cols-5 border-t border-line bg-background px-2 pt-1.5 pb-[env(safe-area-inset-bottom)] md:hidden">
+      <nav ref={tabbarRef} data-tutorial="navigation" aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-20 grid h-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] grid-cols-5 border-t border-line bg-background px-2 pt-1.5 pb-[env(safe-area-inset-bottom)] md:hidden">
         {mobileTabs.map((slug) => {
           const item = appNavigation.find((entry) => entry.slug === slug)!;
           const href = `/app/${slug}`;
@@ -328,6 +330,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="bottom" className="gap-1 p-2" onOpenAutoFocus={(event) => { event.preventDefault(); moreTitleRef.current?.focus(); }} onCloseAutoFocus={(event) => { event.preventDefault(); moreButtonRef.current?.focus(); }}>
           <SheetTitle ref={moreTitleRef} tabIndex={-1} className="label-mono px-3 py-2 pr-12 text-muted-foreground outline-none">Mais opções</SheetTitle>
+          <TutorialTrigger onOpen={() => setSheetOpen(false)} />
           <Link href={profileNavigation.href} aria-current={profileActive ? "page" : undefined} onClick={() => setSheetOpen(false)}
             className={cn("flex min-h-12 items-center gap-3 px-3 text-base transition-colors", profileActive ? "bg-foreground font-medium text-background" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
             <Avatar name={person.name} src={person.avatarUrl} className="size-7 text-[10px]" />
