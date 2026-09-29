@@ -1,0 +1,15 @@
+﻿- 00:00 — Início e navegação
+- 00:19 — Escritório · Clientes
+- 00:38 — Cofre · Casos e documentos
+- 01:04 — Escritório · Tarefas e agenda
+- 01:29 — Honorários · Parcelas e recebimentos
+- 01:55 — Lume · Assistente e documentos
+- 02:15 — Documentos · Revisão e exportação
+- 02:28 — Pesquisa · Busca e histórico
+- 02:49 — E-mails · Gmail conectado
+- 03:10 — Mensagens · Conversas e compartilhamentos
+- 03:30 — Escritório · Equipe e convites
+- 03:44 — Integrações · Google e WhatsApp
+- 04:04 — Plano e preferências
+- 04:18 — Administração da plataforma
+- 04:41 — Continue no seu ritmo

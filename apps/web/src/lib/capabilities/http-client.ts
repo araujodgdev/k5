@@ -1,4 +1,5 @@
 import type { CapabilityName } from './contracts';
+import { captureOperationalError } from '@/lib/observability/report';
 import { googleOperationPath, googleOperations, type GoogleCapabilityName, type GoogleOperation } from '@/lib/google/routes';
 
 type Route = {
@@ -262,7 +263,7 @@ export async function requestCapability(
     return { ok: true, data: payload };
   } catch (error) {
     if (signal?.aborted) return { ok: false, code: 'CANCELLED', error: 'Operação cancelada.' };
-    void error;
+    captureOperationalError(error, 'client.capability.network', { capability: name });
     return { ok: false, code: 'NETWORK', error: 'Não foi possível falar com o Lume.' };
   }
 }

@@ -13,7 +13,7 @@
   "flagship": [{ "binding": "FLAGS", "app_id": "2563a30d-9bc9-45e2-a06b-fafec09b879a" }],
   // Server-only guards are for Next bundles; the Worker imports the same server modules directly.
   "alias": { "server-only": "./empty-stub.js" },
-  "vars": { "SENTRY_ENVIRONMENT": "staging", "SENTRY_TRACES_SAMPLE_RATE": "0.1", "VAULT_STORAGE_BACKEND": "r2" },
+  "vars": { "SENTRY_ENVIRONMENT": "production", "SENTRY_TRACES_SAMPLE_RATE": "0.1", "VAULT_STORAGE_BACKEND": "r2" },
   "r2_buckets": [{ "binding": "VAULT", "bucket_name": "k5-vault-staging" }],
   // Same PostgreSQL as the web, with query caching disabled.
   "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "cb3229db2c05407aa00420f68bcb6f8f" }],
@@ -24,6 +24,7 @@
   },
   "observability": {
     "enabled": true,
+    "redact_query_string": true,
     "logs": { "enabled": true, "persist": true },
     "traces": { "enabled": true, "persist": true }
   }

@@ -8,7 +8,7 @@ import { withPersonalChatEnvironment, type PersonalChatEnvironment } from '../li
 import { createPostgresPool } from '../lib/db/postgres';
 import { closePoolWithResponse } from '../lib/db/request';
 import { dueProcessors } from '../lib/processor-schedule';
-import { captureOperationalError } from '../lib/observability/report';
+import { captureOperationalError, observeSchedule } from '../lib/observability/report';
 import { tutorialVideoResponse } from '../lib/tutorial-video-response';
 
 export { LumeProcessor, ContainerProxy } from './processors';
@@ -23,14 +23,19 @@ type WebEnv = CloudflareEnv & {
 export * from 'vinext/server/fetch-handler';
 export default withSentry<WebEnv>(env => serverOptions('web', env), {
   async scheduled(event: { scheduledTime: number }, env: WebEnv) {
+    return observeSchedule('lume-processors-dispatch', async () => {
     if (env.PROCESSORS_ENABLED !== 'true') return;
     const pool = createPostgresPool(env.HYPERDRIVE.connectionString, { max: 1, idleTimeoutMillis: 0 });
     try {
       const due = await withPostgres(pool, () => dueProcessors(database, event.scheduledTime, Math.floor(event.scheduledTime / 60_000) % 5 === 0));
-      const results = await Promise.allSettled((['documents', 'judicial'] as const)
-        .filter(role => due[role]).map(role => env.PROCESSORS.getByName(role).run(role)));
-      for (const result of results) if (result.status === 'rejected') captureOperationalError(result.reason, 'processors.dispatch');
+      const roles = (['documents', 'judicial'] as const).filter(role => due[role]);
+      const results = await Promise.allSettled(roles.map(async role => {
+        try { await env.PROCESSORS.getByName(role).run(role); }
+        catch (error) { captureOperationalError(error, 'processors.dispatch', { processor: role }); throw error; }
+      }));
+      if (results.some(result => result.status === 'rejected')) throw new Error('Lume processor dispatch did not complete.');
     } finally { await pool.end(); }
+    });
   },
   async fetch(request: Request, env: CloudflareEnv & WhatsAppEnvironment & PersonalChatEnvironment & { HYPERDRIVE: { connectionString:string } }, ctx: { waitUntil(promise:Promise<unknown>):void }) {
     if (new URL(request.url).pathname === '/tutorial/tutorial-lume.mp4') return tutorialVideoResponse(request, env.ASSETS);

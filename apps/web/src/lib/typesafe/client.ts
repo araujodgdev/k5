@@ -5,6 +5,7 @@ import { database, withTransaction } from '@/lib/database';
 import { decryptCredential, parseCredentialKeyring } from '@/lib/platform-crypto';
 import { decisionResponse, type DecisionPurpose, type Evaluation } from './contracts';
 import { getConnection } from './config';
+import { captureOperationalError } from '@/lib/observability/report';
 
 export type DecisionRequest = { state: EntryType; questions: Questions; model: string };
 export type DecisionTransport = (key: string, request: DecisionRequest, signal: AbortSignal) => Promise<unknown>;
@@ -80,6 +81,7 @@ export async function evaluate(
   } catch (error) {
     const httpStatus = typeof error === 'object' && error !== null && 'status' in error ? Number(error.status) : 0;
     reason = signal.aborted ? 'cancelled_or_timeout' : httpStatus === 401 || httpStatus === 403 ? 'credential' : 'invalid_or_unavailable';
+    if (!options.signal?.aborted) captureOperationalError(error, 'typesafe.evaluate', { purpose, reason });
     response = undefined;
     await database.prepare(`UPDATE typesafe_platform_connection SET failures=failures+1,circuit_until=CASE WHEN failures>=2 THEN ? ELSE circuit_until END,
       enabled=CASE WHEN ? THEN 0 ELSE enabled END WHERE id=1 AND version=?`).run(Date.now() + 30000, Number(reason === 'credential'), config.version);

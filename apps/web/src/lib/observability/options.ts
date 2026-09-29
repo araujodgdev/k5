@@ -11,14 +11,16 @@ export function serverOptions(service: string, env: {
   SENTRY_ENABLED?: string;
   SENTRY_TRACES_SAMPLE_RATE?: string;
   NODE_ENV?: string;
+  CF_VERSION_METADATA?: { id: string };
 }) {
   const environment = env.SENTRY_ENVIRONMENT || env.NODE_ENV || 'development';
   const dsn = env.SENTRY_DSN ?? SENTRY_DSN;
+  const release = env.SENTRY_RELEASE || env.CF_VERSION_METADATA?.id;
   return {
     ...privacyOptions,
     dsn,
     environment,
-    ...(env.SENTRY_RELEASE ? { release: env.SENTRY_RELEASE } : {}),
+    ...(release ? { release } : {}),
     enabled: Boolean(dsn) && (env.SENTRY_ENABLED === 'true' ||
       (env.SENTRY_ENABLED !== 'false' && !['development', 'test'].includes(environment))),
     // Chat turns are what we debug, so every one is kept; everything else follows the rate.

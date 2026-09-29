@@ -1,0 +1,7 @@
+{
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "response_format": "wav",
+  "speed": 1,
+  "instructions": "Narre um tutorial de software em português brasileiro, com sotaque brasileiro neutro. Use voz natural, acolhedora e profissional, como uma pessoa ensinando um colega. Mantenha dicção clara, volume constante e ritmo ágil de aproximadamente 180 palavras por minuto, sem correr nem arrastar sílabas. Faça pausas curtas nas vírgulas e entre frases. Dê ênfase discreta aos nomes de botões e módulos. Evite tom publicitário, teatral ou excessivamente animado. Pronuncie Lume como lú-mi; IA como i-á; DOCX como dóc xis; Gmail como djí-meil; WhatsApp como uóts-ép; Kanban como cân-ban. Leia somente o texto fornecido, sem acrescentar saudações, explicações ou comentários. Mantenha o mesmo estilo de voz ao longo de todos os trechos."
+}

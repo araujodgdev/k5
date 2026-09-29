@@ -10,7 +10,7 @@ if (localDatabase) process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYP
 export default defineConfig(({ mode }) => ({
   define: {
     'process.env.K5_RUNTIME': JSON.stringify('cloudflare'),
-    'process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT': JSON.stringify(loadEnv(mode, process.cwd(), 'NEXT_PUBLIC_').NEXT_PUBLIC_SENTRY_ENVIRONMENT || (mode === 'production' ? 'staging' : 'development')),
+    'process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT': JSON.stringify(loadEnv(mode, process.cwd(), 'NEXT_PUBLIC_').NEXT_PUBLIC_SENTRY_ENVIRONMENT || (mode === 'production' ? 'production' : 'development')),
   },
   build: { sourcemap: sentryBuildOptions.authToken ? 'hidden' : false },
   plugins: [

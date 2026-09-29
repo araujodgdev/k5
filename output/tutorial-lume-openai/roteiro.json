@@ -1,0 +1,444 @@
+{
+  "clips": [
+    {
+      "file": "recordings/01-inicio.mp4",
+      "title": "Início e navegação",
+      "text": "Bem-vindo ao Lume. Este tutorial usa um escritório demonstrativo e dados fictícios.",
+      "start": 26.534,
+      "sourceDuration": 6.005000000000003,
+      "frames": 182,
+      "audio": "narration-openai/0.wav",
+      "audioDuration": 6.6
+    },
+    {
+      "file": "recordings/01-inicio.mp4",
+      "title": "Início e navegação",
+      "text": "No Início, acompanhe tarefas, reuniões, casos e clientes. O menu abre cada módulo.",
+      "start": 32.717,
+      "sourceDuration": 6.023000000000003,
+      "frames": 182,
+      "audio": "narration-openai/1.wav",
+      "audioDuration": 6.6
+    },
+    {
+      "file": "recordings/01-inicio.mp4",
+      "title": "Início e navegação",
+      "text": "O Tutorial acompanha você pelas telas. Use Próximo, Voltar ou saia para continuar depois.",
+      "start": 38.867,
+      "sourceDuration": 8.013000000000005,
+      "frames": 219,
+      "audio": "narration-openai/2.wav",
+      "audioDuration": 8
+    },
+    {
+      "file": "recordings/02-clientes.mp4",
+      "title": "Escritório · Clientes",
+      "text": "Em Escritório, abra Clientes para cadastrar um contato ou editar sua ficha.",
+      "start": 3.845,
+      "sourceDuration": 6.006,
+      "frames": 172,
+      "audio": "narration-openai/3.wav",
+      "audioDuration": 6.2
+    },
+    {
+      "file": "recordings/02-clientes.mp4",
+      "title": "Escritório · Clientes",
+      "text": "Preencha nome, contato e relacionamento. As áreas jurídicas ajudam a filtrar a lista.",
+      "start": 9.951,
+      "sourceDuration": 8.009999999999998,
+      "frames": 193,
+      "audio": "narration-openai/4.wav",
+      "audioDuration": 7
+    },
+    {
+      "file": "recordings/02-clientes.mp4",
+      "title": "Escritório · Clientes",
+      "text": "Salve o cadastro. Abra a ficha para consultar os dados, casos e atividades do cliente.",
+      "start": 18.062,
+      "sourceDuration": 8.004999999999999,
+      "frames": 192,
+      "audio": "narration-openai/5.wav",
+      "audioDuration": 6.95
+    },
+    {
+      "file": "recordings/03-cofre.mp4",
+      "title": "Cofre · Casos e documentos",
+      "text": "No Cofre, a Biblioteca guarda materiais gerais. Crie um caso para reunir os arquivos de um atendimento.",
+      "start": 4.029,
+      "sourceDuration": 8.002,
+      "frames": 181,
+      "audio": "narration-openai/6.wav",
+      "audioDuration": 6.55
+    },
+    {
+      "file": "recordings/03-cofre.mp4",
+      "title": "Cofre · Casos e documentos",
+      "text": "Abra o caso criado. As abas separam arquivos, referências e participantes.",
+      "start": 12.131,
+      "sourceDuration": 7.666,
+      "frames": 192,
+      "audio": "narration-openai/7.wav",
+      "audioDuration": 6.95
+    },
+    {
+      "file": "recordings/03-cofre.mp4",
+      "title": "Cofre · Casos e documentos",
+      "text": "Envie um documento e acompanhe seu processamento. Use pastas para organizar o material.",
+      "start": 19.925,
+      "sourceDuration": 12.426999999999996,
+      "frames": 193,
+      "audio": "narration-openai/8.wav",
+      "audioDuration": 7
+    },
+    {
+      "file": "recordings/03-cofre.mp4",
+      "title": "Cofre · Casos e documentos",
+      "text": "Em Participantes, compartilhe somente este caso. Confira o papel antes de conceder acesso.",
+      "start": 32.507,
+      "sourceDuration": 6.004000000000005,
+      "frames": 197,
+      "audio": "narration-openai/9.wav",
+      "audioDuration": 7.15
+    },
+    {
+      "file": "recordings/04-tarefas.mp4",
+      "title": "Escritório · Tarefas e agenda",
+      "text": "Em Tarefas, crie uma atividade com título, situação, responsável e data.",
+      "start": 8.193,
+      "sourceDuration": 9.009000000000002,
+      "frames": 182,
+      "audio": "narration-openai/10.wav",
+      "audioDuration": 6.6
+    },
+    {
+      "file": "recordings/04-tarefas.mp4",
+      "title": "Escritório · Tarefas e agenda",
+      "text": "O Kanban organiza as tarefas por situação. Concluídas ficam disponíveis em Arquivadas.",
+      "start": 17.303,
+      "sourceDuration": 6.006,
+      "frames": 195,
+      "audio": "narration-openai/11.wav",
+      "audioDuration": 7.1
+    },
+    {
+      "file": "recordings/04-tarefas.mp4",
+      "title": "Escritório · Tarefas e agenda",
+      "text": "Na Agenda, crie uma reunião e informe o horário de início e de fim.",
+      "start": 23.434,
+      "sourceDuration": 9.007000000000001,
+      "frames": 156,
+      "audio": "narration-openai/12.wav",
+      "audioDuration": 5.45
+    },
+    {
+      "file": "recordings/04-tarefas.mp4",
+      "title": "Escritório · Tarefas e agenda",
+      "text": "Selecione um dia para consultar os compromissos. A agenda Google pessoal é uma conexão separada.",
+      "start": 32.547,
+      "sourceDuration": 6.0020000000000024,
+      "frames": 211,
+      "audio": "narration-openai/13.wav",
+      "audioDuration": 7.7
+    },
+    {
+      "file": "recordings/05-honorarios.mp4",
+      "title": "Honorários · Parcelas e recebimentos",
+      "text": "Em Honorários, clique em Novo honorário e escolha o cliente do acordo.",
+      "start": 6.958,
+      "sourceDuration": 7.003,
+      "frames": 156,
+      "audio": "narration-openai/14.wav",
+      "audioDuration": 5.05
+    },
+    {
+      "file": "recordings/05-honorarios.mp4",
+      "title": "Honorários · Parcelas e recebimentos",
+      "text": "Informe valor, número de parcelas e primeiro vencimento. Confira a divisão antes de cadastrar.",
+      "start": 14.225,
+      "sourceDuration": 9.007,
+      "frames": 216,
+      "audio": "narration-openai/15.wav",
+      "audioDuration": 7.9
+    },
+    {
+      "file": "recordings/05-honorarios.mp4",
+      "title": "Honorários · Parcelas e recebimentos",
+      "text": "Registre um recebimento na parcela correspondente. O lançamento é interno e não cobra o cliente.",
+      "start": 23.337,
+      "sourceDuration": 8.004000000000001,
+      "frames": 222,
+      "audio": "narration-openai/16.wav",
+      "audioDuration": 8.1
+    },
+    {
+      "file": "recordings/05-honorarios.mp4",
+      "title": "Honorários · Parcelas e recebimentos",
+      "text": "Os totais mostram o valor recebido e o saldo. O histórico preserva os registros e as correções.",
+      "start": 31.426,
+      "sourceDuration": 6.006000000000004,
+      "frames": 226,
+      "audio": "narration-openai/17.wav",
+      "audioDuration": 8.25
+    },
+    {
+      "file": "recordings/06-lume.mp4",
+      "title": "Lume · Assistente e documentos",
+      "text": "No Lume, descreva o que precisa. Você pode anexar arquivos ou selecionar fontes do Cofre.",
+      "start": 6.765,
+      "sourceDuration": 8.001999999999999,
+      "frames": 192,
+      "audio": "narration-openai/18.wav",
+      "audioDuration": 6.95
+    },
+    {
+      "file": "recordings/06-lume.mp4",
+      "title": "Lume · Assistente e documentos",
+      "text": "A resposta chega na conversa. Confira o resultado e revise o documento antes de utilizá-lo.",
+      "start": 14.881,
+      "sourceDuration": 8,
+      "frames": 203,
+      "audio": "narration-openai/19.wav",
+      "audioDuration": 7.4
+    },
+    {
+      "file": "recordings/06-lume.mp4",
+      "title": "Lume · Assistente e documentos",
+      "text": "Você pode continuar a conversa para ajustar o texto. Confira fontes e citações antes de finalizar.",
+      "start": 23.145,
+      "sourceDuration": 7.0120000000000005,
+      "frames": 206,
+      "audio": "narration-openai/20.wav",
+      "audioDuration": 7.5
+    },
+    {
+      "file": "recordings/06b-documento.mp4",
+      "title": "Documentos · Revisão e exportação",
+      "text": "O editor salva as alterações. A aba Revisão ajuda a conferir o texto e suas referências.",
+      "start": 3.649,
+      "sourceDuration": 6.0040000000000004,
+      "frames": 190,
+      "audio": "narration-openai/21.wav",
+      "audioDuration": 6.9
+    },
+    {
+      "file": "recordings/06b-documento.mp4",
+      "title": "Documentos · Revisão e exportação",
+      "text": "Consulte as versões e use Exportar DOCX para baixar o documento e continuar seu trabalho.",
+      "start": 9.718,
+      "sourceDuration": 7.0070000000000014,
+      "frames": 195,
+      "audio": "narration-openai/22.wav",
+      "audioDuration": 7.1
+    },
+    {
+      "file": "recordings/07-pesquisa.mp4",
+      "title": "Pesquisa · Busca e histórico",
+      "text": "Na Pesquisa, escreva uma questão e escolha o tipo de busca: instantânea, rápida, automática ou profunda.",
+      "start": 4.971,
+      "sourceDuration": 7.003,
+      "frames": 262,
+      "audio": "narration-openai/23.wav",
+      "audioDuration": 9.65
+    },
+    {
+      "file": "recordings/07-pesquisa.mp4",
+      "title": "Pesquisa · Busca e histórico",
+      "text": "Os resultados trazem links e trechos. Abra a fonte e confira o conteúdo antes de citar.",
+      "start": 12.096,
+      "sourceDuration": 7.010999999999999,
+      "frames": 210,
+      "audio": "narration-openai/24.wav",
+      "audioDuration": 7.65
+    },
+    {
+      "file": "recordings/07-pesquisa.mp4",
+      "title": "Pesquisa · Busca e histórico",
+      "text": "O Histórico guarda suas consultas. Reabra uma pesquisa para consultar os resultados sem pesquisar novamente.",
+      "start": 19.227,
+      "sourceDuration": 6.013999999999999,
+      "frames": 213,
+      "audio": "narration-openai/25.wav",
+      "audioDuration": 7.75
+    },
+    {
+      "file": "recordings/08-email.mp4",
+      "title": "E-mails · Gmail conectado",
+      "text": "Com o Google conectado, use as pastas e a busca do Gmail. Mensagens pessoais estão desfocadas nesta gravação.",
+      "start": 3.681,
+      "sourceDuration": 7.005999999999999,
+      "frames": 234,
+      "audio": "narration-openai/26.wav",
+      "audioDuration": 8.55
+    },
+    {
+      "file": "recordings/08-email.mp4",
+      "title": "E-mails · Gmail conectado",
+      "text": "Clique em Escrever. Preencha destinatário, assunto e mensagem; revise tudo antes de enviar.",
+      "start": 10.786,
+      "sourceDuration": 9.014000000000001,
+      "frames": 198,
+      "audio": "narration-openai/27.wav",
+      "audioDuration": 7.2
+    },
+    {
+      "file": "recordings/08-email.mp4",
+      "title": "E-mails · Gmail conectado",
+      "text": "Você pode anexar arquivos ou salvar um rascunho. Este exemplo será fechado sem enviar.",
+      "start": 19.915,
+      "sourceDuration": 7.013000000000002,
+      "frames": 197,
+      "audio": "narration-openai/28.wav",
+      "audioDuration": 7.15
+    },
+    {
+      "file": "recordings/09-mensagens.mp4",
+      "title": "Mensagens · Conversas e compartilhamentos",
+      "text": "Mensagens reúne conversas e compartilhamentos do Cofre. Comece em Nova conversa.",
+      "start": 6.008,
+      "sourceDuration": 6.011,
+      "frames": 156,
+      "audio": "narration-openai/29.wav",
+      "audioDuration": 4.35
+    },
+    {
+      "file": "recordings/09-mensagens.mp4",
+      "title": "Mensagens · Conversas e compartilhamentos",
+      "text": "Busque uma pessoa ou informe o e-mail completo. Confira o destinatário antes de continuar.",
+      "start": 12.167,
+      "sourceDuration": 6.003000000000002,
+      "frames": 171,
+      "audio": "narration-openai/30.wav",
+      "audioDuration": 6.15
+    },
+    {
+      "file": "recordings/09-mensagens.mp4",
+      "title": "Mensagens · Conversas e compartilhamentos",
+      "text": "Escreva e envie a mensagem. Compartilhar do Cofre permite enviar documentos com controle de acesso.",
+      "start": 18.267,
+      "sourceDuration": 7.004999999999999,
+      "frames": 198,
+      "audio": "narration-openai/31.wav",
+      "audioDuration": 7.2
+    },
+    {
+      "file": "recordings/10-equipe.mp4",
+      "title": "Escritório · Equipe e convites",
+      "text": "Administradores gerenciam a Equipe. Cada membro recebe um papel: administrador, advogado ou revisor.",
+      "start": 7.713,
+      "sourceDuration": 6.010000000000001,
+      "frames": 240,
+      "audio": "narration-openai/32.wav",
+      "audioDuration": 8.8
+    },
+    {
+      "file": "recordings/10-equipe.mp4",
+      "title": "Escritório · Equipe e convites",
+      "text": "Use Associados para parceiros e Convites para acompanhar os acessos. Compartilhe apenas o necessário.",
+      "start": 13.803,
+      "sourceDuration": 6.0120000000000005,
+      "frames": 213,
+      "audio": "narration-openai/33.wav",
+      "audioDuration": 7.75
+    },
+    {
+      "file": "recordings/11-integracoes.mp4",
+      "title": "Integrações · Google e WhatsApp",
+      "text": "Em Integrações, autorize Gmail, Agenda, Drive e Docs. As conexões Google são pessoais.",
+      "start": 3.262,
+      "sourceDuration": 7.011999999999999,
+      "frames": 210,
+      "audio": "narration-openai/34.wav",
+      "audioDuration": 7.65
+    },
+    {
+      "file": "recordings/11-integracoes.mp4",
+      "title": "Integrações · Google e WhatsApp",
+      "text": "Em Regras do escritório, o administrador define os limites das integrações.",
+      "start": 10.333,
+      "sourceDuration": 6.004,
+      "frames": 156,
+      "audio": "narration-openai/35.wav",
+      "audioDuration": 5.55
+    },
+    {
+      "file": "recordings/11-integracoes.mp4",
+      "title": "Integrações · Google e WhatsApp",
+      "text": "O WhatsApp usa uma conta Business compartilhada. Nesta conta, a conexão ainda precisa ser concluída.",
+      "start": 17.058,
+      "sourceDuration": 7.004000000000001,
+      "frames": 197,
+      "audio": "narration-openai/36.wav",
+      "audioDuration": 7.15
+    },
+    {
+      "file": "recordings/12-plano.mp4",
+      "title": "Plano e preferências",
+      "text": "Em Plano, consulte a assinatura e os pagamentos. O checkout abre quando você escolhe pagar.",
+      "start": 4.886,
+      "sourceDuration": 6.010000000000001,
+      "frames": 177,
+      "audio": "narration-openai/37.wav",
+      "audioDuration": 6.4
+    },
+    {
+      "file": "recordings/12-plano.mp4",
+      "title": "Plano e preferências",
+      "text": "No Perfil, atualize seus dados. O rodapé reúne tema, notificações e instalação do aplicativo.",
+      "start": 10.969,
+      "sourceDuration": 7.004,
+      "frames": 244,
+      "audio": "narration-openai/38.wav",
+      "audioDuration": 8.95
+    },
+    {
+      "file": "recordings/13-administracao.mp4",
+      "title": "Administração da plataforma",
+      "text": "Administração é exclusiva dos administradores da plataforma. Aqui ficam os modelos e conexões de IA.",
+      "start": 3.634,
+      "sourceDuration": 7.013,
+      "frames": 208,
+      "audio": "narration-openai/39.wav",
+      "audioDuration": 7.6
+    },
+    {
+      "file": "recordings/13-administracao.mp4",
+      "title": "Administração da plataforma",
+      "text": "As abas também reúnem clientes, feedback, financeiro e execuções. Configure os modelos por tarefa.",
+      "start": 10.756,
+      "sourceDuration": 6.015000000000001,
+      "frames": 234,
+      "audio": "narration-openai/40.wav",
+      "audioDuration": 8.55
+    },
+    {
+      "file": "recordings/13-administracao.mp4",
+      "title": "Administração da plataforma",
+      "text": "Anúncios BETA aparece apenas para contas habilitadas. A etapa atual conecta e valida a conta ChatGPT Ads.",
+      "start": 16.88,
+      "sourceDuration": 7.001000000000001,
+      "frames": 234,
+      "audio": "narration-openai/41.wav",
+      "audioDuration": 8.55
+    },
+    {
+      "file": "recordings/14-final.mp4",
+      "title": "Continue no seu ritmo",
+      "text": "Comece por um cliente, organize os documentos no Cofre e acompanhe o trabalho na Agenda.",
+      "start": 6.997,
+      "sourceDuration": 6.007,
+      "frames": 184,
+      "audio": "narration-openai/42.wav",
+      "audioDuration": 6.65
+    },
+    {
+      "file": "recordings/14-final.mp4",
+      "title": "Continue no seu ritmo",
+      "text": "Quando precisar, abra Tutorial para rever os passos. Você pode pausar e retomar pelo menu.",
+      "start": 13.094,
+      "sourceDuration": 6.005000000000001,
+      "frames": 205,
+      "audio": "narration-openai/43.wav",
+      "audioDuration": 7.45
+    }
+  ]
+}

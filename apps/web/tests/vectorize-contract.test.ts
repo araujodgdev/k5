@@ -285,7 +285,7 @@ test("vectorize: a rejected upsert is reported with its stage and code, never th
     await processNextIndexJob();
 
     assert.equal(captured.length, 1);
-    assert.deepEqual(captured[0].tags, { "knowledge.stage": "vector_upsert", "knowledge.error_code": "vectorize_40008", operation: "knowledge.index" });
+    assert.deepEqual(captured[0].tags, { "knowledge.stage": "vector_upsert", "knowledge.error_code": "vectorize_40008", operation: "knowledge.index", http_status: '502', failure_kind: 'http' });
     assert.equal(captured[0].error.message, "Lume: knowledge.index failed");
     const job = await testDb.prepare("SELECT status, error FROM knowledge_index_job WHERE id = ?").get<{ status: string; error: string }>(queued.jobId);
     assert.equal(job?.status, "queued", "a remote rejection is still retried, within the attempt limit");

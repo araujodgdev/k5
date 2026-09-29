@@ -3,7 +3,7 @@ import { cleanNotificationRetention, deliverNextNotification, emitNextReminder, 
 import { WebCryptoPushSender } from '@/lib/notifications/push-webcrypto';
 import { withSentry } from '@sentry/cloudflare';
 import { serverOptions } from '@/lib/observability/options';
-import { captureOperationalError } from '@/lib/observability/report';
+import { captureOperationalError, observeSchedule } from '@/lib/observability/report';
 
 type QueueMessage = { body: { kind?: string }; ack(): void; retry(): void };
 type QueueBatch = { messages: QueueMessage[] };
@@ -18,6 +18,7 @@ type Env = {
 
 const notificationWorker = {
   async scheduled(_controller: unknown, env: Env) {
+    return observeSchedule('lume-notifications-schedule', async () => {
     const pool = createPostgresPool(env.HYPERDRIVE.connectionString,{max:2,idleTimeoutMillis:0});
     const db = postgresDatabase(pool);
     try {
@@ -29,6 +30,7 @@ const notificationWorker = {
     // Queue messages are acceleration hints. A later Cron always sweeps PostgreSQL again if this send fails.
     await env.NOTIFICATION_QUEUE.send({ kind: 'delivery-sweep' });
     } finally { await pool.end(); }
+    });
   },
 
   async queue(batch: QueueBatch, env: Env) {

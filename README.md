@@ -72,6 +72,8 @@ Em containers executados como root, configure `TEST_DATABASE_URL`: o servidor Po
 
 O staging hospedado usa bindings privados nos Containers, sem credenciais S3 locais. Sua validação e operação estão em [docs/processadores-cloudflare.md](docs/processadores-cloudflare.md).
 
+Alertas, monitores de filas, jornadas sintéticas e encerramento de incidentes estão no [runbook de observabilidade](docs/observability-runbook.md). A [avaliação de prontidão](docs/observability-readiness-2026-09-29.md) registra cobertura, evidências e limites conhecidos.
+
 O preview HTTP isolado para o refactor é publicado com `pnpm preview:deploy --name refactor`.
 Recursos, configuração privada e escopo estão em [docs/previews.md](docs/previews.md).
 

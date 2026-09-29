@@ -1,0 +1,444 @@
+{
+  "clips": [
+    {
+      "file": "recordings/01-inicio.mp4",
+      "title": "Início e navegação",
+      "text": "Bem-vindo ao Lume. Este tutorial usa um escritório demonstrativo e dados fictícios.",
+      "start": 26.534,
+      "sourceDuration": 6.005000000000003,
+      "frames": 180,
+      "audio": "narration/0.wav",
+      "audioDuration": 5.887937
+    },
+    {
+      "file": "recordings/01-inicio.mp4",
+      "title": "Início e navegação",
+      "text": "No Início, acompanhe tarefas, reuniões, casos e clientes. O menu abre cada módulo.",
+      "start": 32.717,
+      "sourceDuration": 6.023000000000003,
+      "frames": 206,
+      "audio": "narration/1.wav",
+      "audioDuration": 6.805624
+    },
+    {
+      "file": "recordings/01-inicio.mp4",
+      "title": "Início e navegação",
+      "text": "O Tutorial acompanha você pelas telas. Use Próximo, Voltar ou saia para continuar depois.",
+      "start": 38.867,
+      "sourceDuration": 8.013000000000005,
+      "frames": 204,
+      "audio": "narration/2.wav",
+      "audioDuration": 6.725306
+    },
+    {
+      "file": "recordings/02-clientes.mp4",
+      "title": "Escritório · Clientes",
+      "text": "Em Escritório, abra Clientes para cadastrar um contato ou editar sua ficha.",
+      "start": 3.845,
+      "sourceDuration": 6.006,
+      "frames": 172,
+      "audio": "narration/3.wav",
+      "audioDuration": 5.10585
+    },
+    {
+      "file": "recordings/02-clientes.mp4",
+      "title": "Escritório · Clientes",
+      "text": "Preencha nome, contato e relacionamento. As áreas jurídicas ajudam a filtrar a lista.",
+      "start": 9.951,
+      "sourceDuration": 8.009999999999998,
+      "frames": 190,
+      "audio": "narration/4.wav",
+      "audioDuration": 6.248118
+    },
+    {
+      "file": "recordings/02-clientes.mp4",
+      "title": "Escritório · Clientes",
+      "text": "Salve o cadastro. Abra a ficha para consultar os dados, casos e atividades do cliente.",
+      "start": 18.062,
+      "sourceDuration": 8.004999999999999,
+      "frames": 199,
+      "audio": "narration/5.wav",
+      "audioDuration": 6.555692
+    },
+    {
+      "file": "recordings/03-cofre.mp4",
+      "title": "Cofre · Casos e documentos",
+      "text": "No Cofre, a Biblioteca guarda materiais gerais. Crie um caso para reunir os arquivos de um atendimento.",
+      "start": 4.029,
+      "sourceDuration": 8.002,
+      "frames": 217,
+      "audio": "narration/6.wav",
+      "audioDuration": 7.169977
+    },
+    {
+      "file": "recordings/03-cofre.mp4",
+      "title": "Cofre · Casos e documentos",
+      "text": "Abra o caso criado. As abas separam arquivos, referências e participantes.",
+      "start": 12.131,
+      "sourceDuration": 7.666,
+      "frames": 182,
+      "audio": "narration/7.wav",
+      "audioDuration": 5.973061
+    },
+    {
+      "file": "recordings/03-cofre.mp4",
+      "title": "Cofre · Casos e documentos",
+      "text": "Envie um documento e acompanhe seu processamento. Use pastas para organizar o material.",
+      "start": 19.925,
+      "sourceDuration": 12.426999999999996,
+      "frames": 186,
+      "audio": "narration/8.wav",
+      "audioDuration": 6.11288
+    },
+    {
+      "file": "recordings/03-cofre.mp4",
+      "title": "Cofre · Casos e documentos",
+      "text": "Em Participantes, compartilhe somente este caso. Confira o papel antes de conceder acesso.",
+      "start": 32.507,
+      "sourceDuration": 6.004000000000005,
+      "frames": 207,
+      "audio": "narration/9.wav",
+      "audioDuration": 6.830431
+    },
+    {
+      "file": "recordings/04-tarefas.mp4",
+      "title": "Escritório · Tarefas e agenda",
+      "text": "Em Tarefas, crie uma atividade com título, situação, responsável e data.",
+      "start": 8.193,
+      "sourceDuration": 9.009000000000002,
+      "frames": 172,
+      "audio": "narration/10.wav",
+      "audioDuration": 5.490612
+    },
+    {
+      "file": "recordings/04-tarefas.mp4",
+      "title": "Escritório · Tarefas e agenda",
+      "text": "O Kanban organiza as tarefas por situação. Concluídas ficam disponíveis em Arquivadas.",
+      "start": 17.303,
+      "sourceDuration": 6.006,
+      "frames": 189,
+      "audio": "narration/11.wav",
+      "audioDuration": 6.192834
+    },
+    {
+      "file": "recordings/04-tarefas.mp4",
+      "title": "Escritório · Tarefas e agenda",
+      "text": "Na Agenda, crie uma reunião e informe o horário de início e de fim.",
+      "start": 23.434,
+      "sourceDuration": 9.007000000000001,
+      "frames": 172,
+      "audio": "narration/12.wav",
+      "audioDuration": 4.343401
+    },
+    {
+      "file": "recordings/04-tarefas.mp4",
+      "title": "Escritório · Tarefas e agenda",
+      "text": "Selecione um dia para consultar os compromissos. A agenda Google pessoal é uma conexão separada.",
+      "start": 32.547,
+      "sourceDuration": 6.0020000000000024,
+      "frames": 202,
+      "audio": "narration/13.wav",
+      "audioDuration": 6.670159
+    },
+    {
+      "file": "recordings/05-honorarios.mp4",
+      "title": "Honorários · Parcelas e recebimentos",
+      "text": "Em Honorários, clique em Novo honorário e escolha o cliente do acordo.",
+      "start": 6.958,
+      "sourceDuration": 7.003,
+      "frames": 172,
+      "audio": "narration/14.wav",
+      "audioDuration": 4.458322
+    },
+    {
+      "file": "recordings/05-honorarios.mp4",
+      "title": "Honorários · Parcelas e recebimentos",
+      "text": "Informe valor, número de parcelas e primeiro vencimento. Confira a divisão antes de cadastrar.",
+      "start": 14.225,
+      "sourceDuration": 9.007,
+      "frames": 205,
+      "audio": "narration/15.wav",
+      "audioDuration": 6.752971
+    },
+    {
+      "file": "recordings/05-honorarios.mp4",
+      "title": "Honorários · Parcelas e recebimentos",
+      "text": "Registre um recebimento na parcela correspondente. O lançamento é interno e não cobra o cliente.",
+      "start": 23.337,
+      "sourceDuration": 8.004000000000001,
+      "frames": 202,
+      "audio": "narration/16.wav",
+      "audioDuration": 6.65034
+    },
+    {
+      "file": "recordings/05-honorarios.mp4",
+      "title": "Honorários · Parcelas e recebimentos",
+      "text": "Os totais mostram o valor recebido e o saldo. O histórico preserva os registros e as correções.",
+      "start": 31.426,
+      "sourceDuration": 6.006000000000004,
+      "frames": 203,
+      "audio": "narration/17.wav",
+      "audioDuration": 6.68517
+    },
+    {
+      "file": "recordings/06-lume.mp4",
+      "title": "Lume · Assistente e documentos",
+      "text": "No Lume, descreva o que precisa. Você pode anexar arquivos ou selecionar fontes do Cofre.",
+      "start": 6.765,
+      "sourceDuration": 8.001999999999999,
+      "frames": 197,
+      "audio": "narration/18.wav",
+      "audioDuration": 6.478095
+    },
+    {
+      "file": "recordings/06-lume.mp4",
+      "title": "Lume · Assistente e documentos",
+      "text": "A resposta chega na conversa. Confira o resultado e revise o documento antes de utilizá-lo.",
+      "start": 14.881,
+      "sourceDuration": 8,
+      "frames": 197,
+      "audio": "narration/19.wav",
+      "audioDuration": 6.478005
+    },
+    {
+      "file": "recordings/06-lume.mp4",
+      "title": "Lume · Assistente e documentos",
+      "text": "Você pode continuar a conversa para ajustar o texto. Confira fontes e citações antes de finalizar.",
+      "start": 23.145,
+      "sourceDuration": 7.0120000000000005,
+      "frames": 211,
+      "audio": "narration/20.wav",
+      "audioDuration": 6.950567
+    },
+    {
+      "file": "recordings/06b-documento.mp4",
+      "title": "Documentos · Revisão e exportação",
+      "text": "O editor salva as alterações. A aba Revisão ajuda a conferir o texto e suas referências.",
+      "start": 3.649,
+      "sourceDuration": 6.0040000000000004,
+      "frames": 197,
+      "audio": "narration/21.wav",
+      "audioDuration": 6.475692
+    },
+    {
+      "file": "recordings/06b-documento.mp4",
+      "title": "Documentos · Revisão e exportação",
+      "text": "Consulte as versões e use Exportar DOCX para baixar o documento e continuar seu trabalho.",
+      "start": 9.718,
+      "sourceDuration": 7.0070000000000014,
+      "frames": 178,
+      "audio": "narration/22.wav",
+      "audioDuration": 5.843084
+    },
+    {
+      "file": "recordings/07-pesquisa.mp4",
+      "title": "Pesquisa · Busca e histórico",
+      "text": "Na Pesquisa, escreva uma questão e escolha o tipo de busca: instantânea, rápida, automática ou profunda.",
+      "start": 4.971,
+      "sourceDuration": 7.003,
+      "frames": 219,
+      "audio": "narration/23.wav",
+      "audioDuration": 7.250295
+    },
+    {
+      "file": "recordings/07-pesquisa.mp4",
+      "title": "Pesquisa · Busca e histórico",
+      "text": "Os resultados trazem links e trechos. Abra a fonte e confira o conteúdo antes de citar.",
+      "start": 12.096,
+      "sourceDuration": 7.010999999999999,
+      "frames": 196,
+      "audio": "narration/24.wav",
+      "audioDuration": 6.43805
+    },
+    {
+      "file": "recordings/07-pesquisa.mp4",
+      "title": "Pesquisa · Busca e histórico",
+      "text": "O Histórico guarda suas consultas. Reabra uma pesquisa para consultar os resultados sem pesquisar novamente.",
+      "start": 19.227,
+      "sourceDuration": 6.013999999999999,
+      "frames": 224,
+      "audio": "narration/25.wav",
+      "audioDuration": 7.445079
+    },
+    {
+      "file": "recordings/08-email.mp4",
+      "title": "E-mails · Gmail conectado",
+      "text": "Com o Google conectado, use as pastas e a busca do Gmail. Mensagens pessoais estão desfocadas nesta gravação.",
+      "start": 3.681,
+      "sourceDuration": 7.005999999999999,
+      "frames": 236,
+      "audio": "narration/26.wav",
+      "audioDuration": 7.817642
+    },
+    {
+      "file": "recordings/08-email.mp4",
+      "title": "E-mails · Gmail conectado",
+      "text": "Clique em Escrever. Preencha destinatário, assunto e mensagem; revise tudo antes de enviar.",
+      "start": 10.786,
+      "sourceDuration": 9.014000000000001,
+      "frames": 208,
+      "audio": "narration/27.wav",
+      "audioDuration": 6.853288
+    },
+    {
+      "file": "recordings/08-email.mp4",
+      "title": "E-mails · Gmail conectado",
+      "text": "Você pode anexar arquivos ou salvar um rascunho. Este exemplo será fechado sem enviar.",
+      "start": 19.915,
+      "sourceDuration": 7.013000000000002,
+      "frames": 192,
+      "audio": "narration/28.wav",
+      "audioDuration": 6.285488
+    },
+    {
+      "file": "recordings/09-mensagens.mp4",
+      "title": "Mensagens · Conversas e compartilhamentos",
+      "text": "Mensagens reúne conversas e compartilhamentos do Cofre. Comece em Nova conversa.",
+      "start": 6.008,
+      "sourceDuration": 6.011,
+      "frames": 183,
+      "audio": "narration/29.wav",
+      "audioDuration": 6.005488
+    },
+    {
+      "file": "recordings/09-mensagens.mp4",
+      "title": "Mensagens · Conversas e compartilhamentos",
+      "text": "Busque uma pessoa ou informe o e-mail completo. Confira o destinatário antes de continuar.",
+      "start": 12.167,
+      "sourceDuration": 6.003000000000002,
+      "frames": 192,
+      "audio": "narration/30.wav",
+      "audioDuration": 6.313016
+    },
+    {
+      "file": "recordings/09-mensagens.mp4",
+      "title": "Mensagens · Conversas e compartilhamentos",
+      "text": "Escreva e envie a mensagem. Compartilhar do Cofre permite enviar documentos com controle de acesso.",
+      "start": 18.267,
+      "sourceDuration": 7.004999999999999,
+      "frames": 211,
+      "audio": "narration/31.wav",
+      "audioDuration": 6.955556
+    },
+    {
+      "file": "recordings/10-equipe.mp4",
+      "title": "Escritório · Equipe e convites",
+      "text": "Administradores gerenciam a Equipe. Cada membro recebe um papel: administrador, advogado ou revisor.",
+      "start": 7.713,
+      "sourceDuration": 6.010000000000001,
+      "frames": 223,
+      "audio": "narration/32.wav",
+      "audioDuration": 7.390249
+    },
+    {
+      "file": "recordings/10-equipe.mp4",
+      "title": "Escritório · Equipe e convites",
+      "text": "Use Associados para parceiros e Convites para acompanhar os acessos. Compartilhe apenas o necessário.",
+      "start": 13.803,
+      "sourceDuration": 6.0120000000000005,
+      "frames": 214,
+      "audio": "narration/33.wav",
+      "audioDuration": 7.075374
+    },
+    {
+      "file": "recordings/11-integracoes.mp4",
+      "title": "Integrações · Google e WhatsApp",
+      "text": "Em Integrações, autorize Gmail, Agenda, Drive e Docs. As conexões Google são pessoais.",
+      "start": 3.262,
+      "sourceDuration": 7.011999999999999,
+      "frames": 213,
+      "audio": "narration/34.wav",
+      "audioDuration": 7.045351
+    },
+    {
+      "file": "recordings/11-integracoes.mp4",
+      "title": "Integrações · Google e WhatsApp",
+      "text": "Em Regras do escritório, o administrador define os limites das integrações.",
+      "start": 10.333,
+      "sourceDuration": 6.004,
+      "frames": 172,
+      "audio": "narration/35.wav",
+      "audioDuration": 4.890567
+    },
+    {
+      "file": "recordings/11-integracoes.mp4",
+      "title": "Integrações · Google e WhatsApp",
+      "text": "O WhatsApp usa uma conta Business compartilhada. Nesta conta, a conexão ainda precisa ser concluída.",
+      "start": 17.058,
+      "sourceDuration": 7.004000000000001,
+      "frames": 213,
+      "audio": "narration/36.wav",
+      "audioDuration": 7.022721
+    },
+    {
+      "file": "recordings/12-plano.mp4",
+      "title": "Plano e preferências",
+      "text": "Em Plano, consulte a assinatura e os pagamentos. O checkout abre quando você escolhe pagar.",
+      "start": 4.886,
+      "sourceDuration": 6.010000000000001,
+      "frames": 197,
+      "audio": "narration/37.wav",
+      "audioDuration": 6.500499
+    },
+    {
+      "file": "recordings/12-plano.mp4",
+      "title": "Plano e preferências",
+      "text": "No Perfil, atualize seus dados. O rodapé reúne tema, notificações e instalação do aplicativo.",
+      "start": 10.969,
+      "sourceDuration": 7.004,
+      "frames": 218,
+      "audio": "narration/38.wav",
+      "audioDuration": 7.21288
+    },
+    {
+      "file": "recordings/13-administracao.mp4",
+      "title": "Administração da plataforma",
+      "text": "Administração é exclusiva dos administradores da plataforma. Aqui ficam os modelos e conexões de IA.",
+      "start": 3.634,
+      "sourceDuration": 7.013,
+      "frames": 213,
+      "audio": "narration/39.wav",
+      "audioDuration": 7.035193
+    },
+    {
+      "file": "recordings/13-administracao.mp4",
+      "title": "Administração da plataforma",
+      "text": "As abas também reúnem clientes, feedback, financeiro e execuções. Configure os modelos por tarefa.",
+      "start": 10.756,
+      "sourceDuration": 6.015000000000001,
+      "frames": 226,
+      "audio": "narration/40.wav",
+      "audioDuration": 7.505215
+    },
+    {
+      "file": "recordings/13-administracao.mp4",
+      "title": "Administração da plataforma",
+      "text": "Anúncios BETA aparece apenas para contas habilitadas. A etapa atual conecta e valida a conta ChatGPT Ads.",
+      "start": 16.88,
+      "sourceDuration": 7.001000000000001,
+      "frames": 241,
+      "audio": "narration/41.wav",
+      "audioDuration": 8.010023
+    },
+    {
+      "file": "recordings/14-final.mp4",
+      "title": "Continue no seu ritmo",
+      "text": "Comece por um cliente, organize os documentos no Cofre e acompanhe o trabalho na Agenda.",
+      "start": 6.997,
+      "sourceDuration": 6.007,
+      "frames": 174,
+      "audio": "narration/42.wav",
+      "audioDuration": 5.673152
+    },
+    {
+      "file": "recordings/14-final.mp4",
+      "title": "Continue no seu ritmo",
+      "text": "Quando precisar, abra Tutorial para rever os passos. Você pode pausar e retomar pelo menu.",
+      "start": 13.094,
+      "sourceDuration": 6.005000000000001,
+      "frames": 196,
+      "audio": "narration/43.wav",
+      "audioDuration": 6.437914
+    }
+  ]
+}

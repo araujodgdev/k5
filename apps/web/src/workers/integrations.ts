@@ -2,7 +2,7 @@ import { withSentry } from '@sentry/cloudflare';
 import { createPostgresPool, postgresDatabase } from '@/lib/db/postgres';
 import { withPostgres } from '@/lib/database';
 import { serverOptions } from '@/lib/observability/options';
-import { captureOperationalError } from '@/lib/observability/report';
+import { captureOperationalError, observeSchedule } from '@/lib/observability/report';
 import { drainEdgeJobs, runEdgeMaintenance } from '@/lib/google/worker-edge';
 import { withGoogleEnvironment } from '@/lib/google/environment';
 import { withWhatsAppEnvironment, type WhatsAppEnvironment } from '@/lib/whatsapp/environment';
@@ -31,6 +31,7 @@ async function withDatabase<T>(env: Env, action: (db: ReturnType<typeof postgres
 
 const integrationsWorker = {
   async scheduled(_controller: unknown, env: Env) {
+    return observeSchedule('lume-integrations-schedule', async () => {
     await withDatabase(env, async db => {
       await runWhatsAppPass({ max: 5 });
       await runPersonalEmailPass({ max: 5 });
@@ -39,6 +40,7 @@ const integrationsWorker = {
       await drainEdgeJobs(db, 20, Date.now() + 20_000);
     });
     await env.INTEGRATIONS_QUEUE.send({ kind: 'sweep' });
+    });
   },
 
   async queue(batch: QueueBatch, env: Env) {

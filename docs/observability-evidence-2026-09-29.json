@@ -1,0 +1,500 @@
+{
+  "observedAtUtc": "2026-09-29T16:46:14.807Z",
+  "baseCommit": "c5ef260",
+  "changesCommitted": false,
+  "detectors": [
+    {
+      "id": "10418082",
+      "name": "Lume production availability",
+      "type": "uptime_domain_failure",
+      "ownerId": "5003334",
+      "workflowIds": [
+        "6046507"
+      ]
+    },
+    {
+      "id": "10482484",
+      "name": "lume-monitor-queues",
+      "type": "monitor_check_in_failure",
+      "ownerId": "5003334",
+      "workflowIds": [
+        "6046507"
+      ]
+    },
+    {
+      "id": "10482487",
+      "name": "lume-monitor-journeys",
+      "type": "monitor_check_in_failure",
+      "ownerId": "5003334",
+      "workflowIds": [
+        "6046507"
+      ]
+    },
+    {
+      "id": "10482521",
+      "name": "lume-notifications-schedule",
+      "type": "monitor_check_in_failure",
+      "ownerId": "5003334",
+      "workflowIds": [
+        "6046507"
+      ]
+    },
+    {
+      "id": "10482542",
+      "name": "lume-integrations-schedule",
+      "type": "monitor_check_in_failure",
+      "ownerId": "5003334",
+      "workflowIds": [
+        "6046507"
+      ]
+    },
+    {
+      "id": "10482616",
+      "name": "lume-processors-dispatch",
+      "type": "monitor_check_in_failure",
+      "ownerId": "5003334",
+      "workflowIds": [
+        "6046507"
+      ]
+    }
+  ],
+  "alert": {
+    "emailRoutingUserConfirmed": "info@lume.software",
+    "inboxReceiptConfirmed": true,
+    "drillIssue": "LUME-16",
+    "id": "6046507",
+    "frequencyMinutes": 15,
+    "drillEvent": "c90e4c9f1bf2431ebea572a97577211f",
+    "recipient": "user:5003334",
+    "triggeredAtUtc": "2026-09-29T15:29:39Z",
+    "receiptEvidence": "The user confirmed in this conversation that the controlled drill reached info@lume.software.",
+    "receiptTimestampMeasured": false,
+    "drillStatus": "resolved",
+    "drillIssueUrl": "https://lume-wr.sentry.io/issues/7761552911/"
+  },
+  "uptime": {
+    "intervalSeconds": 60,
+    "consecutiveSuccessfulChecks": 10,
+    "firstCheckUtc": "2026-09-29T15:52:57Z",
+    "lastCheckUtc": "2026-09-29T16:01:57Z",
+    "monitor": "10418082",
+    "httpStatus": 200,
+    "url": "https://lume.software/sign-in"
+  },
+  "r2Lifecycle": {
+    "rules": [
+      {
+        "id": "Expire synthetic evidence after seven days",
+        "enabled": true,
+        "conditions": {
+          "prefix": ""
+        },
+        "deleteObjectsTransition": {
+          "condition": {
+            "type": "Age",
+            "maxAge": 604800
+          }
+        }
+      }
+    ]
+  },
+  "containerRollout": {
+    "observedAt": "2026-09-29T16:31:26.949Z",
+    "status": 200,
+    "versions": [
+      {
+        "version": 39,
+        "percentage": 100,
+        "image": "registry.cloudflare.com/bf552f67bcf46921dbe4137ee0ff8980/k5-staging-lumeprocessor@sha256:44a64b0beb18a37685bb259fe9ca11f91b36b0bebcf5c890b3cd347ee4f27708"
+      }
+    ]
+  },
+  "releases": {
+    "monitoring": "9ae080ec-faa3-4beb-b5f5-b885dbf0ee3a",
+    "notifications": "d6180729-2937-4f30-94c1-80dc8e378888",
+    "web": "46a04e1e-dc4b-4409-8033-f36488ea2fa6",
+    "integrations": "cd36d3de-3759-4556-863b-59c46d80219e"
+  },
+  "finalMonitoringChange": {
+    "previousRelease": "b26edb0d-5cc9-4ee9-9b93-fba6bdb1ab17",
+    "change": "Only total journey budget increased from 270000 to 330000 ms; action checks and limits unchanged.",
+    "buildAndDeploy": "passed",
+    "functionalRunsBelowPrecedeThisConstantChange": true,
+    "journeyBudgetMs": 330000,
+    "contextCloseReserveMs": 5000,
+    "sentryMaxRuntimeMinutes": 6,
+    "leaseMinutes": 7
+  },
+  "manualJourney": {
+    "status": "ok",
+    "stages": [
+      {
+        "stage": "configuration",
+        "status": "ok",
+        "durationMs": 0
+      },
+      {
+        "stage": "browser_start",
+        "status": "ok",
+        "durationMs": 1119
+      },
+      {
+        "stage": "sign_in",
+        "status": "ok",
+        "durationMs": 31356
+      },
+      {
+        "stage": "office_guard",
+        "status": "ok",
+        "durationMs": 4043
+      },
+      {
+        "stage": "command_center",
+        "status": "ok",
+        "durationMs": 11464
+      },
+      {
+        "stage": "agenda_load",
+        "status": "ok",
+        "durationMs": 9055
+      },
+      {
+        "stage": "agenda_save",
+        "status": "ok",
+        "durationMs": 22851
+      },
+      {
+        "stage": "agenda_read",
+        "status": "ok",
+        "durationMs": 5253
+      },
+      {
+        "stage": "vault_load",
+        "status": "ok",
+        "durationMs": 15645
+      },
+      {
+        "stage": "vault_upload",
+        "status": "ok",
+        "durationMs": 6786
+      },
+      {
+        "stage": "vault_ready",
+        "status": "ok",
+        "durationMs": 12786
+      },
+      {
+        "stage": "vault_cleanup",
+        "status": "ok",
+        "durationMs": 22694
+      }
+    ],
+    "durationMs": 143206,
+    "runId": "f997adee-d0df-4106-9a56-0780f3716618",
+    "release": "b26edb0d-5cc9-4ee9-9b93-fba6bdb1ab17"
+  },
+  "scheduledJourneys": [
+    {
+      "name": "journeys",
+      "status": "ok",
+      "started_at": "2026-09-29T16:02:26.528Z",
+      "finished_at": "2026-09-29T16:05:50.826Z",
+      "last_success_at": "2026-09-29T16:05:50.826Z",
+      "result_json": {
+        "runId": "1bda9b7e-23d9-484a-bb1d-c672ce8366fe",
+        "stages": [
+          {
+            "stage": "configuration",
+            "status": "ok",
+            "durationMs": 0
+          },
+          {
+            "stage": "browser_start",
+            "status": "ok",
+            "durationMs": 141
+          },
+          {
+            "stage": "sign_in",
+            "status": "ok",
+            "durationMs": 24725
+          },
+          {
+            "stage": "office_guard",
+            "status": "ok",
+            "durationMs": 7530
+          },
+          {
+            "stage": "command_center",
+            "status": "ok",
+            "durationMs": 16032
+          },
+          {
+            "stage": "agenda_load",
+            "status": "ok",
+            "durationMs": 20675
+          },
+          {
+            "stage": "agenda_save",
+            "status": "ok",
+            "durationMs": 26962
+          },
+          {
+            "stage": "agenda_read",
+            "status": "ok",
+            "durationMs": 13565
+          },
+          {
+            "stage": "vault_load",
+            "status": "ok",
+            "durationMs": 26660
+          },
+          {
+            "stage": "vault_upload",
+            "status": "ok",
+            "durationMs": 11529
+          },
+          {
+            "stage": "vault_ready",
+            "status": "ok",
+            "durationMs": 14061
+          },
+          {
+            "stage": "vault_cleanup",
+            "status": "ok",
+            "durationMs": 38789
+          }
+        ],
+        "status": "ok",
+        "release": "8e9b4fa6-b255-44d5-bc96-6731745132be",
+        "durationMs": 200691
+      }
+    },
+    {
+      "name": "journeys",
+      "status": "ok",
+      "started_at": "2026-09-29T16:17:26.524Z",
+      "finished_at": "2026-09-29T16:21:20.007Z",
+      "last_success_at": "2026-09-29T16:21:20.007Z",
+      "result_json": {
+        "runId": "ef0751fb-8581-4b4f-916a-b2688f474e90",
+        "stages": [
+          {
+            "stage": "configuration",
+            "status": "ok",
+            "durationMs": 0
+          },
+          {
+            "stage": "browser_start",
+            "status": "ok",
+            "durationMs": 976
+          },
+          {
+            "stage": "sign_in",
+            "status": "ok",
+            "durationMs": 32845
+          },
+          {
+            "stage": "office_guard",
+            "status": "ok",
+            "durationMs": 10137
+          },
+          {
+            "stage": "command_center",
+            "status": "ok",
+            "durationMs": 17863
+          },
+          {
+            "stage": "agenda_load",
+            "status": "ok",
+            "durationMs": 18812
+          },
+          {
+            "stage": "agenda_save",
+            "status": "ok",
+            "durationMs": 39144
+          },
+          {
+            "stage": "agenda_read",
+            "status": "ok",
+            "durationMs": 12320
+          },
+          {
+            "stage": "vault_load",
+            "status": "ok",
+            "durationMs": 30219
+          },
+          {
+            "stage": "vault_upload",
+            "status": "ok",
+            "durationMs": 13077
+          },
+          {
+            "stage": "vault_ready",
+            "status": "ok",
+            "durationMs": 8806
+          },
+          {
+            "stage": "vault_cleanup",
+            "status": "ok",
+            "durationMs": 44863
+          }
+        ],
+        "status": "ok",
+        "release": "e56241c8-2685-485f-8e92-664108f876a7",
+        "durationMs": 229190
+      }
+    },
+    {
+      "name": "journeys",
+      "status": "ok",
+      "started_at": "2026-09-29T16:32:26.526Z",
+      "finished_at": "2026-09-29T16:36:50.597Z",
+      "last_success_at": "2026-09-29T16:36:50.597Z",
+      "result_json": {
+        "runId": "70b437c0-b3bd-410b-a63d-76d3617979d2",
+        "stages": [
+          {
+            "stage": "configuration",
+            "status": "ok",
+            "durationMs": 0
+          },
+          {
+            "stage": "browser_start",
+            "status": "ok",
+            "durationMs": 1234
+          },
+          {
+            "stage": "sign_in",
+            "status": "ok",
+            "durationMs": 36304
+          },
+          {
+            "stage": "office_guard",
+            "status": "ok",
+            "durationMs": 12413
+          },
+          {
+            "stage": "command_center",
+            "status": "ok",
+            "durationMs": 21085
+          },
+          {
+            "stage": "agenda_load",
+            "status": "ok",
+            "durationMs": 23928
+          },
+          {
+            "stage": "agenda_save",
+            "status": "ok",
+            "durationMs": 41957
+          },
+          {
+            "stage": "agenda_read",
+            "status": "ok",
+            "durationMs": 13093
+          },
+          {
+            "stage": "vault_load",
+            "status": "ok",
+            "durationMs": 31652
+          },
+          {
+            "stage": "vault_upload",
+            "status": "ok",
+            "durationMs": 13752
+          },
+          {
+            "stage": "vault_ready",
+            "status": "ok",
+            "durationMs": 17262
+          },
+          {
+            "stage": "vault_cleanup",
+            "status": "ok",
+            "durationMs": 47328
+          }
+        ],
+        "status": "ok",
+        "release": "b26edb0d-5cc9-4ee9-9b93-fba6bdb1ab17",
+        "durationMs": 260190
+      }
+    }
+  ],
+  "queueObservation": {
+    "name": "queues",
+    "status": "error",
+    "started_at": "2026-09-29T16:35:26.526Z",
+    "finished_at": "2026-09-29T16:35:27.366Z",
+    "last_success_at": null,
+    "result_json": {
+      "runId": "e551cd56-e12c-4b79-83ab-d9cae49b2b3e",
+      "alerts": [
+        {
+          "count": 2,
+          "queue": "vault.ingestion",
+          "reason": "failed",
+          "oldestAgeMinutes": 114
+        }
+      ],
+      "release": "b26edb0d-5cc9-4ee9-9b93-fba6bdb1ab17"
+    }
+  },
+  "pdfProbe": {
+    "startedAt": "2026-09-29T16:30:21.287Z",
+    "filename": "lume-pdf-probe-2b108a74-1b88-4a35-839d-bafa3958fe0d.pdf",
+    "status": "ok",
+    "extractedCharacters": 60,
+    "cleanup": "ok",
+    "finishedAt": "2026-09-29T16:30:40.587Z"
+  },
+  "cleanupServerEvidence": {
+    "eventId": "01M3PZ5MH50000000000000004",
+    "wallTimeMs": 2838,
+    "outcome": "ok",
+    "method": "DELETE",
+    "httpStatus": 200,
+    "timestampUtc": "2026-09-29T16:15:08.837Z"
+  },
+  "validation": {
+    "fullTestCount": 659,
+    "finalTypecheck": "passed",
+    "fullTestFailures": 0,
+    "vinextBuild": "passed final deployment",
+    "browserAfterFinalSelector": "All 12 stages passed manually and once on the production schedule, on b26edb0d-5cc9-4ee9-9b93-fba6bdb1ab17.",
+    "ciExpansion": "deferred by user",
+    "dbSetup": "passed",
+    "finalLint": "passed, one existing warning",
+    "nextBuild": "passed before final monitor-only changes",
+    "fullTestScope": "659 tests passed after the check-in transport correction, before the final cleanup selector, explicit container name and total budget changes.",
+    "finalBudgetChange": "Monitor build and deployment passed; no new functional run claimed for the constant-only change."
+  },
+  "readiness": {
+    "scoresAreEngineeringAssessmentsNotDetectionProbabilities": true,
+    "alerting": {
+      "readinessOutOf10": 8,
+      "confidencePercent": 90
+    },
+    "diagnosis": {
+      "readinessOutOf10": 7,
+      "confidencePercent": 85
+    },
+    "downtimeAndStalledJobs": {
+      "readinessOutOf10": 8,
+      "confidencePercent": 90
+    },
+    "userWorkflows": {
+      "readinessOutOf10": 7,
+      "confidencePercent": 85
+    },
+    "verifiedIncidentClosure": {
+      "readinessOutOf10": 8,
+      "confidencePercent": 88
+    }
+  },
+  "openLimits": [
+    "Two historical PDF ingestion failures remain open as LUME-1E; their original cause was not preserved.",
+    "General synthetic cleanup incident remains under observation, with one scheduled pass after the selector fix.",
+    "A single primary owner and email delivery do not provide escalation or out-of-hours acknowledgment.",
+    "Payments, full external integrations, password recovery and semantic AI quality lack dedicated synthetic journeys."
+  ]
+}

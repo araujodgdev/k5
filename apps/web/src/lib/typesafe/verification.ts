@@ -90,7 +90,7 @@ export async function getVerification(context: WorkspaceContext, input: { artifa
 }
 export async function processNextVerification(options: { send?: DecisionTransport } = {}): Promise<boolean> {
   const now = Date.now(); const token = randomUUID();
-  await database.prepare("UPDATE artifact_verification SET status='incomplete' WHERE status='running' AND lease_until<? AND attempts>=5").run(now);
+  await database.prepare("UPDATE artifact_verification SET status='incomplete',updated_at=? WHERE status='running' AND lease_until<? AND attempts>=5").run(new Date(now).toISOString(), now);
   const job = await database.prepare(`UPDATE artifact_verification SET status='running',lease_token=?,lease_until=?,attempts=attempts+1
     WHERE id=(SELECT id FROM artifact_verification WHERE status='queued' OR (status='running' AND lease_until<? AND attempts<5) ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING *`).get<Job>(token, now + 30000, now);
   if (!job) return false;

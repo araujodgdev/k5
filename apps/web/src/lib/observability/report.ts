@@ -1,4 +1,5 @@
-import { captureException, startNewTrace, startSpan, withIsolationScope, type Span } from '@sentry/core';
+import { captureException, getActiveSpan, getClient, startNewTrace, startSpan, withIsolationScope, withMonitor, type Span } from '@sentry/core';
+import { diagnosticTags } from './diagnostics';
 
 /**
  * `tags` must be application-owned identifiers (a pipeline stage, an error code the code itself
@@ -6,13 +7,27 @@ import { captureException, startNewTrace, startSpan, withIsolationScope, type Sp
  */
 export function captureOperationalError(error: unknown, operation: string, tags: Record<string, string> = {}) {
   // Provider/transport errors may embed complete prompts, response bodies or credentials.
-  // Preserve the call site and error class, but send only an application-owned message.
+  // Keep the native reporting call site; a provider can forge even apparently valid stack frames.
   const safe = new Error(`Lume: ${operation} failed`);
-  if (error instanceof Error) {
-    safe.name = error.name;
-    if (error.stack) safe.stack = `${safe.name}: ${safe.message}\n${error.stack.split('\n').slice(1).join('\n')}`;
+  const context = { ...diagnosticTags(error), ...tags, operation };
+  const eventId = captureException(safe, { tags: context, fingerprint: ['lume', operation, tags.stage ?? 'default'] });
+  if (getClient()?.getOptions().enabled !== false && getClient()) {
+    console.error(JSON.stringify({ event: 'operational_error', event_id: eventId,
+      trace_id: getActiveSpan()?.spanContext().traceId, ...context }));
   }
-  return captureException(safe, { tags: { ...tags, operation } });
+  return eventId;
+}
+
+export function observeSchedule<T>(slug: string, task: () => Promise<T>, schedule = '* * * * *', maxRuntime = 5): Promise<T> {
+  return withMonitor(slug, async () => {
+    // Cloudflare buffers transport until the handler finishes; send the start before long jobs.
+    try { await getClient()?.getTransport()?.flush(2_000); }
+    catch { /* Reporting failure must not prevent the scheduled work. */ }
+    return task();
+  }, {
+    schedule: { type: 'crontab', value: schedule }, timezone: 'UTC',
+    checkinMargin: 2, maxRuntime, failureIssueThreshold: 2, recoveryThreshold: 1,
+  });
 }
 
 export function observeWorkerTask<T>(operation: string, task: () => Promise<T>): Promise<T> {
