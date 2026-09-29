@@ -15,6 +15,7 @@ The UI is built on [shadcn/ui](https://ui.shadcn.com) (Radix, `radix-nova` prese
 ## Banned patterns
 
 - Badges, pills, and chips used to decorate or show status. Show status as plain text.
+  Exception: the requested `BETA` label for Anúncios uses small mono type, a square outline in current text color, and no fill. Show it beside the module name in navigation and the page header, including mobile.
 - Pastel or tinted background fills. Exceptions: `brand-soft` on the selected conversation; flat `panel` grey and solid `brand` blocks on the landing.
 - Bullet-point lists in the app UI. Use a table, rows, or a sentence. The landing may list features as mono lines led by a brand square.
 - Containers inside containers, meaning a bordered card inside a bordered panel.

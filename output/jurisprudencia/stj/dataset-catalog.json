@@ -1,0 +1,86 @@
+[
+  {
+    "slug": "espelhos-de-acordaos-corte-especial",
+    "title": "Espelhos de acórdãos - Corte Especial",
+    "licenseId": "cc-by",
+    "resourceCount": 54,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-corte-especial"
+  },
+  {
+    "slug": "espelhos-de-acordaos-primeira-secao",
+    "title": "Espelhos de acórdãos - Primeira Seção",
+    "licenseId": "cc-by",
+    "resourceCount": 54,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-primeira-secao"
+  },
+  {
+    "slug": "espelhos-de-acordaos-primeira-turma",
+    "title": "Espelhos de acórdãos - Primeira Turma",
+    "licenseId": "cc-by",
+    "resourceCount": 55,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-primeira-turma"
+  },
+  {
+    "slug": "espelhos-de-acordaos-quarta-turma",
+    "title": "Espelhos de acórdãos - Quarta Turma",
+    "licenseId": "cc-by",
+    "resourceCount": 54,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-quarta-turma"
+  },
+  {
+    "slug": "espelhos-de-acordaos-quinta-turma",
+    "title": "Espelhos de acórdãos - Quinta Turma",
+    "licenseId": "cc-by",
+    "resourceCount": 55,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-quinta-turma"
+  },
+  {
+    "slug": "espelhos-de-acordaos-segunda-secao",
+    "title": "Espelhos de acórdãos - Segunda Seção",
+    "licenseId": "cc-by",
+    "resourceCount": 54,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-segunda-secao"
+  },
+  {
+    "slug": "espelhos-de-acordaos-segunda-turma",
+    "title": "Espelhos de acórdãos - Segunda Turma",
+    "licenseId": "cc-by",
+    "resourceCount": 54,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-segunda-turma"
+  },
+  {
+    "slug": "espelhos-de-acordaos-sexta-turma",
+    "title": "Espelhos de acórdãos - Sexta Turma",
+    "licenseId": "cc-by",
+    "resourceCount": 54,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-sexta-turma"
+  },
+  {
+    "slug": "espelhos-de-acordaos-terceira-secao",
+    "title": "Espelhos de acórdãos - Terceira Seção",
+    "licenseId": "cc-by",
+    "resourceCount": 54,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-terceira-secao"
+  },
+  {
+    "slug": "espelhos-de-acordaos-terceira-turma",
+    "title": "Espelhos de acórdãos - Terceira Turma",
+    "licenseId": "cc-by",
+    "resourceCount": 54,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=espelhos-de-acordaos-terceira-turma"
+  },
+  {
+    "slug": "integras-de-decisoes-terminativas-e-acordaos-do-diario-da-justica",
+    "title": "Íntegras de Decisões Terminativas e Acórdãos do Diário da Justiça",
+    "licenseId": "cc-by",
+    "resourceCount": 2619,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=integras-de-decisoes-terminativas-e-acordaos-do-diario-da-justica"
+  },
+  {
+    "slug": "precedentes-qualificados",
+    "title": "Precedentes qualificados",
+    "licenseId": "cc-by",
+    "resourceCount": 4,
+    "sourceUrl": "https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=precedentes-qualificados"
+  }
+]

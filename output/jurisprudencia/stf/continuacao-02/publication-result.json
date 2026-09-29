@@ -1,0 +1,99 @@
+{
+  "runId": "21ff9f8b-0740-4b9c-ae53-abf30b31dd74",
+  "tribunal": "STF",
+  "installationId": "4c4c69f2-063b-4456-a41b-62340e414e36",
+  "records": [
+    {
+      "sourceJudgmentId": "sjur193784",
+      "judgmentId": "8c9d065d-1700-4cb5-9661-53b683fca9f9"
+    },
+    {
+      "sourceJudgmentId": "sjur199933",
+      "judgmentId": "2722906d-7fb2-4a6b-bd40-0767bdba9eea"
+    },
+    {
+      "sourceJudgmentId": "sjur217158",
+      "judgmentId": "5f5a7663-581e-4c40-ac5b-6130b20cf224"
+    },
+    {
+      "sourceJudgmentId": "sjur217867",
+      "judgmentId": "ce2fb5d2-ca21-450f-a186-e1b090bc798e"
+    },
+    {
+      "sourceJudgmentId": "sjur217440",
+      "judgmentId": "faf98283-bc28-4719-8385-42b84e6ef250"
+    }
+  ],
+  "topics": 1,
+  "relations": 5,
+  "originals": [
+    {
+      "sourceJudgmentId": "sjur193784",
+      "key": "research/sha256/f9/f965fbd676ef6bac8d56bf5f664c14af88fbf8e021aacfb8e35837051f39dab1.json",
+      "sha256": "f965fbd676ef6bac8d56bf5f664c14af88fbf8e021aacfb8e35837051f39dab1",
+      "bytes": 4805,
+      "captureMethod": "official_download"
+    },
+    {
+      "sourceJudgmentId": "sjur199933",
+      "key": "research/sha256/e5/e51beae83c89e5d44568ac547303fad5ae9d1e86b6a6b3767358770f3c91f3d1.json",
+      "sha256": "e51beae83c89e5d44568ac547303fad5ae9d1e86b6a6b3767358770f3c91f3d1",
+      "bytes": 3989,
+      "captureMethod": "official_download"
+    },
+    {
+      "sourceJudgmentId": "sjur217158",
+      "key": "research/sha256/23/237e5d32727ce9301625baea608a30597b7f0baab66bd83cf20a4981ffcdc1f9.json",
+      "sha256": "237e5d32727ce9301625baea608a30597b7f0baab66bd83cf20a4981ffcdc1f9",
+      "bytes": 4813,
+      "captureMethod": "official_download"
+    },
+    {
+      "sourceJudgmentId": "sjur217867",
+      "key": "research/sha256/12/129eb97054cdd746270a1a1e1996d7bb734e48beed42422f2891dd3e8586a251.json",
+      "sha256": "129eb97054cdd746270a1a1e1996d7bb734e48beed42422f2891dd3e8586a251",
+      "bytes": 5000,
+      "captureMethod": "official_download"
+    },
+    {
+      "sourceJudgmentId": "sjur217440",
+      "key": "research/sha256/5d/5dd39f2c0ca16b0e0629a6e02b46d9dd57e97a1361f64f43330d677a654ed3fc.json",
+      "sha256": "5dd39f2c0ca16b0e0629a6e02b46d9dd57e97a1361f64f43330d677a654ed3fc",
+      "bytes": 4778,
+      "captureMethod": "official_download"
+    },
+    {
+      "sourceJudgmentId": "sjur185881",
+      "key": "research/sha256/3f/3fbd4ba7922bc5f4a41f4e2500696a3a130ca85a3304346d7671bf118b31dc1a.txt",
+      "sha256": "3fbd4ba7922bc5f4a41f4e2500696a3a130ca85a3304346d7671bf118b31dc1a",
+      "bytes": 243,
+      "captureMethod": "rtf_text_extraction"
+    }
+  ],
+  "verifiedR2Objects": 12,
+  "manifestKey": "research/sha256/71/71a9f3d57727252e6455d115373e56d67a3075572864f139f92b8f88e4975165.json",
+  "coverage": "partial",
+  "checkpoint": {
+    "page": 1,
+    "nextResultIndex": 7,
+    "lastSourceJudgmentId": "sjur217440",
+    "totalReported": 20,
+    "catalogLetter": "a",
+    "nextCatalogLetter": "b",
+    "catalogComplete": false,
+    "pendingFullText": [
+      "sjur185881",
+      "sjur187947",
+      "sjur193784",
+      "sjur199933",
+      "sjur217158",
+      "sjur217867",
+      "sjur217440"
+    ],
+    "publicationConfirmed": true,
+    "previousPublicationRunId": "73e15cce-7694-4706-b683-40aa76cd84a9",
+    "status": "partial",
+    "remotePersistence": "confirmed",
+    "publicationRunId": "21ff9f8b-0740-4b9c-ae53-abf30b31dd74"
+  }
+}

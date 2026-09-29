@@ -1,0 +1,4386 @@
+{
+  "sourceUrl": "https://pje.trt6.jus.br/jurisprudencia/",
+  "observedAt": "2026-09-29T00:56:18.816Z",
+  "topics": [
+    {
+      "code": "10294",
+      "name": "Abono Pecuniário (Art. 78 Lei 8.112/1990)"
+    },
+    {
+      "code": "13810",
+      "name": "Abono Pecuniário"
+    },
+    {
+      "code": "13628",
+      "name": "Abono Previsto em Norma Coletiva/Extensão aos Inativos"
+    },
+    {
+      "code": "13832",
+      "name": "Abono"
+    },
+    {
+      "code": "10662",
+      "name": "Abono de Permanência"
+    },
+    {
+      "code": "12868",
+      "name": "Absenteísmo Docente"
+    },
+    {
+      "code": "13044",
+      "name": "Abusividade / Ilegalidade"
+    },
+    {
+      "code": "10894",
+      "name": "Abuso de Poder"
+    },
+    {
+      "code": "14012",
+      "name": "Acidente de Trabalho"
+    },
+    {
+      "code": "14016",
+      "name": "Acidente de Trabalho"
+    },
+    {
+      "code": "14048",
+      "name": "Acidente de trabalho"
+    },
+    {
+      "code": "10273",
+      "name": "Acompanhamento de Cônjuge ou Companheiro"
+    },
+    {
+      "code": "13976",
+      "name": "Acordo - Comissão de Conciliação Prévia"
+    },
+    {
+      "code": "13950",
+      "name": "Acordo Entre as Partes"
+    },
+    {
+      "code": "12934",
+      "name": "Acordo Extrajudicial"
+    },
+    {
+      "code": "13050",
+      "name": "Acordo Homologado/Efeitos"
+    },
+    {
+      "code": "13778",
+      "name": "Acordo Individual e/ou Coletivo de Trabalho"
+    },
+    {
+      "code": "13329",
+      "name": "Acordo Prévio / Quitação Geral"
+    },
+    {
+      "code": "13780",
+      "name": "Acordo Tácito/Expresso"
+    },
+    {
+      "code": "13048",
+      "name": "Acordo e Convenção Coletivos de Trabalho"
+    },
+    {
+      "code": "13732",
+      "name": "Acúmulo de Função"
+    },
+    {
+      "code": "13051",
+      "name": "Adequação da Ação / Procedimento"
+    },
+    {
+      "code": "13765",
+      "name": "Adicional Noturno"
+    },
+    {
+      "code": "13833",
+      "name": "Adicional"
+    },
+    {
+      "code": "13871",
+      "name": "Adicional de Antiguidade"
+    },
+    {
+      "code": "13872",
+      "name": "Adicional de Caráter Pessoal"
+    },
+    {
+      "code": "13873",
+      "name": "Adicional de Confinamento"
+    },
+    {
+      "code": "13874",
+      "name": "Adicional de Dedicação Integral"
+    },
+    {
+      "code": "13799",
+      "name": "Adicional de Hora Extra"
+    },
+    {
+      "code": "10303",
+      "name": "Adicional de Horas Extras"
+    },
+    {
+      "code": "13787",
+      "name": "Adicional de Horas Extras"
+    },
+    {
+      "code": "10291",
+      "name": "Adicional de Insalubridade"
+    },
+    {
+      "code": "13875",
+      "name": "Adicional de Insalubridade"
+    },
+    {
+      "code": "13876",
+      "name": "Adicional de Penosidade"
+    },
+    {
+      "code": "13877",
+      "name": "Adicional de Periculosidade"
+    },
+    {
+      "code": "13878",
+      "name": "Adicional de Produtividade"
+    },
+    {
+      "code": "13052",
+      "name": "Adicional de Qualificação"
+    },
+    {
+      "code": "13694",
+      "name": "Adicional de Risco"
+    },
+    {
+      "code": "13879",
+      "name": "Adicional de Risco"
+    },
+    {
+      "code": "10308",
+      "name": "Adicional de Serviço Noturno"
+    },
+    {
+      "code": "13880",
+      "name": "Adicional de Transferência"
+    },
+    {
+      "code": "10302",
+      "name": "Adicional por Tempo de Serviço"
+    },
+    {
+      "code": "7690",
+      "name": "Adimplemento e Extinção"
+    },
+    {
+      "code": "13342",
+      "name": "Adjudicação / Arrematação / Cálculos"
+    },
+    {
+      "code": "10393",
+      "name": "Adjudicação"
+    },
+    {
+      "code": "13053",
+      "name": "Adjudicação"
+    },
+    {
+      "code": "13642",
+      "name": "Administradores"
+    },
+    {
+      "code": "13708",
+      "name": "Administração Pública"
+    },
+    {
+      "code": "10411",
+      "name": "Admissão / Permanência / Despedida"
+    },
+    {
+      "code": "13709",
+      "name": "Advertência/Suspensão"
+    },
+    {
+      "code": "13643",
+      "name": "Advogados"
+    },
+    {
+      "code": "13644",
+      "name": "Aeronautas"
+    },
+    {
+      "code": "13645",
+      "name": "Aeroviários"
+    },
+    {
+      "code": "13761",
+      "name": "Afastamento Mulher - Lei Maria da Penha"
+    },
+    {
+      "code": "10189",
+      "name": "Afastamento"
+    },
+    {
+      "code": "13343",
+      "name": "Agente / Viajante Comercial"
+    },
+    {
+      "code": "10186",
+      "name": "Agentes Políticos"
+    },
+    {
+      "code": "13835",
+      "name": "Ajuda Combustível"
+    },
+    {
+      "code": "13836",
+      "name": "Ajuda Quilometragem"
+    },
+    {
+      "code": "13834",
+      "name": "Ajuda de Custo"
+    },
+    {
+      "code": "10861",
+      "name": "Alienação Fiduciária"
+    },
+    {
+      "code": "10098",
+      "name": "Alienação"
+    },
+    {
+      "code": "11848",
+      "name": "Alimentação"
+    },
+    {
+      "code": "14049",
+      "name": "Alteração Contratual"
+    },
+    {
+      "code": "13710",
+      "name": "Alteração Contratual ou das Condições de Trabalho"
+    },
+    {
+      "code": "13766",
+      "name": "Alteração da Jornada"
+    },
+    {
+      "code": "13614",
+      "name": "Alteração da Ordem de Produção"
+    },
+    {
+      "code": "13735",
+      "name": "Alteração/Revogação de Regulamento da Empresa"
+    },
+    {
+      "code": "10270",
+      "name": "Amamentação"
+    },
+    {
+      "code": "10396",
+      "name": "Ambiental"
+    },
+    {
+      "code": "9988",
+      "name": "Anistia Política"
+    },
+    {
+      "code": "13979",
+      "name": "Anistia"
+    },
+    {
+      "code": "13062",
+      "name": "Anotação na CTPS"
+    },
+    {
+      "code": "13745",
+      "name": "Anotação/Baixa/Retificação"
+    },
+    {
+      "code": "14017",
+      "name": "Anotação/Retenção da CTPS"
+    },
+    {
+      "code": "12947",
+      "name": "Antecipação de Tutela / Recebimento como Cautelar"
+    },
+    {
+      "code": "8961",
+      "name": "Antecipação de Tutela / Tutela Específica"
+    },
+    {
+      "code": "12948",
+      "name": "Anulação / Nulidade de Ato ou Negócio Jurídico"
+    },
+    {
+      "code": "10382",
+      "name": "Anulação"
+    },
+    {
+      "code": "10423",
+      "name": "Anulação"
+    },
+    {
+      "code": "4438",
+      "name": "Anulação"
+    },
+    {
+      "code": "13063",
+      "name": "Anulação de Constituição de Sindicato"
+    },
+    {
+      "code": "10379",
+      "name": "Anulação e Correção de Provas / Questões"
+    },
+    {
+      "code": "13345",
+      "name": "Anulação/Nulidade"
+    },
+    {
+      "code": "13346",
+      "name": "Aplicabilidade"
+    },
+    {
+      "code": "4435",
+      "name": "Aplicabilidade"
+    },
+    {
+      "code": "13347",
+      "name": "Aplicabilidade/Cumprimento"
+    },
+    {
+      "code": "10191",
+      "name": "Aposentadoria"
+    },
+    {
+      "code": "13952",
+      "name": "Aposentadoria"
+    },
+    {
+      "code": "13626",
+      "name": "Aposentadoria e Pensão"
+    },
+    {
+      "code": "10025",
+      "name": "Apreensão"
+    },
+    {
+      "code": "13816",
+      "name": "Aprendizagem"
+    },
+    {
+      "code": "13065",
+      "name": "Arbitragem"
+    },
+    {
+      "code": "12949",
+      "name": "Arbitragem e Mediação no Direito Coletivo"
+    },
+    {
+      "code": "12950",
+      "name": "Arbitragem e Mediação no Direito Individual do Trabalho"
+    },
+    {
+      "code": "13066",
+      "name": "Arbitramento / Majoração"
+    },
+    {
+      "code": "13887",
+      "name": "Armazenamento de Líquido Inflamável"
+    },
+    {
+      "code": "12951",
+      "name": "Arquivamento"
+    },
+    {
+      "code": "13067",
+      "name": "Arrematação"
+    },
+    {
+      "code": "13348",
+      "name": "Artigo 896, § 1° - A, CLT"
+    },
+    {
+      "code": "13646",
+      "name": "Artistas"
+    },
+    {
+      "code": "13865",
+      "name": "Assiduidade"
+    },
+    {
+      "code": "13068",
+      "name": "Assinatura Eletrônica / Digital"
+    },
+    {
+      "code": "13350",
+      "name": "Assistenciais"
+    },
+    {
+      "code": "13647",
+      "name": "Assistentes Sociais"
+    },
+    {
+      "code": "8843",
+      "name": "Assistência Judiciária Gratuita"
+    },
+    {
+      "code": "11847",
+      "name": "Assistência Social"
+    },
+    {
+      "code": "10244",
+      "name": "Assistência à Saúde"
+    },
+    {
+      "code": "15236",
+      "name": "Assédio Eleitoral"
+    },
+    {
+      "code": "14018",
+      "name": "Assédio Moral"
+    },
+    {
+      "code": "14019",
+      "name": "Assédio Sexual"
+    },
+    {
+      "code": "13070",
+      "name": "Astreintes"
+    },
+    {
+      "code": "13751",
+      "name": "Atividades Ilícitas"
+    },
+    {
+      "code": "14117",
+      "name": "Atleta Profissional"
+    },
+    {
+      "code": "4701",
+      "name": "Ato / Negócio Jurídico"
+    },
+    {
+      "code": "12952",
+      "name": "Ato Atentatório à Dignidade da Justiça"
+    },
+    {
+      "code": "9520",
+      "name": "Ato Atentatório à Dignidade da Justiça"
+    },
+    {
+      "code": "13071",
+      "name": "Ato Contrário à Boa Ordem Processual"
+    },
+    {
+      "code": "14062",
+      "name": "Ato Inequívoco que Importe no Reconhecimento do Direito"
+    },
+    {
+      "code": "14063",
+      "name": "Ato Judicial que Constitua em Mora o Devedor"
+    },
+    {
+      "code": "13072",
+      "name": "Ato que Importe em Atentado a Fórmulas Legais de Processo"
+    },
+    {
+      "code": "9997",
+      "name": "Atos Administrativos"
+    },
+    {
+      "code": "14020",
+      "name": "Atos Discriminatórios"
+    },
+    {
+      "code": "8893",
+      "name": "Atos Processuais"
+    },
+    {
+      "code": "7694",
+      "name": "Atos Unilaterais"
+    },
+    {
+      "code": "11786",
+      "name": "Atos executórios"
+    },
+    {
+      "code": "13251",
+      "name": "Atraso na Audiência"
+    },
+    {
+      "code": "13074",
+      "name": "Atribuições e Competências"
+    },
+    {
+      "code": "13920",
+      "name": "Aumento Compensatório Especial"
+    },
+    {
+      "code": "12954",
+      "name": "Ausência Injustificada de Testemunha"
+    },
+    {
+      "code": "14069",
+      "name": "Ausência de Impugnação da Conta de Liquidação/Preclusão"
+    },
+    {
+      "code": "10735",
+      "name": "Ausência de Interesse Processual"
+    },
+    {
+      "code": "13357",
+      "name": "Ausência de Justificativa"
+    },
+    {
+      "code": "12414",
+      "name": "Ausência de Legitimidade para a Causa"
+    },
+    {
+      "code": "10737",
+      "name": "Ausência de Pressupostos de Constituição e Desenvolvimento"
+    },
+    {
+      "code": "12955",
+      "name": "Autenticação"
+    },
+    {
+      "code": "13077",
+      "name": "Autoridade Coatora"
+    },
+    {
+      "code": "13837",
+      "name": "Auxílio Creche"
+    },
+    {
+      "code": "12754",
+      "name": "Auxílio Emergencial (Lei 13.982/2020)"
+    },
+    {
+      "code": "13079",
+      "name": "Auxílio Moradia"
+    },
+    {
+      "code": "13359",
+      "name": "Auxílio-Alimentação Após a Aposentadoria - Benefício Assegurado em Regulamento da Empresa"
+    },
+    {
+      "code": "10304",
+      "name": "Auxílio-Alimentação"
+    },
+    {
+      "code": "13629",
+      "name": "Auxílio/Cesta Alimentação"
+    },
+    {
+      "code": "13863",
+      "name": "Auxílio/Tíquete Alimentação"
+    },
+    {
+      "code": "13080",
+      "name": "Avaliação / Reavaliação"
+    },
+    {
+      "code": "10277",
+      "name": "Averbação / Contagem de Tempo Especial"
+    },
+    {
+      "code": "13994",
+      "name": "Aviso Prévio"
+    },
+    {
+      "code": "14060",
+      "name": "Ação Ajuizada pelo Sindicato como Substituto Processual"
+    },
+    {
+      "code": "13045",
+      "name": "Ação Anulatória"
+    },
+    {
+      "code": "12946",
+      "name": "Ação Civil Pública"
+    },
+    {
+      "code": "14047",
+      "name": "Ação Meramente Declaratória"
+    },
+    {
+      "code": "12933",
+      "name": "Ação Rescisória"
+    },
+    {
+      "code": "13047",
+      "name": "Ação Rescisória"
+    },
+    {
+      "code": "14061",
+      "name": "Ação Trabalhista Arquivada"
+    },
+    {
+      "code": "13081",
+      "name": "BACEN JUD / Frustração da Ordem Judicial de Bloqueio"
+    },
+    {
+      "code": "13781",
+      "name": "Banco de Horas"
+    },
+    {
+      "code": "14041",
+      "name": "Bancos"
+    },
+    {
+      "code": "13648",
+      "name": "Bancários"
+    },
+    {
+      "code": "10875",
+      "name": "Base de Cálculo"
+    },
+    {
+      "code": "10893",
+      "name": "Base de Cálculo"
+    },
+    {
+      "code": "13788",
+      "name": "Base de Cálculo"
+    },
+    {
+      "code": "13811",
+      "name": "Base de Cálculo"
+    },
+    {
+      "code": "13882",
+      "name": "Base de Cálculo"
+    },
+    {
+      "code": "13888",
+      "name": "Base de Cálculo"
+    },
+    {
+      "code": "13364",
+      "name": "Bem Público"
+    },
+    {
+      "code": "13363",
+      "name": "Bem de Família"
+    },
+    {
+      "code": "9519",
+      "name": "Benefício de Ordem"
+    },
+    {
+      "code": "10089",
+      "name": "Bens Públicos"
+    },
+    {
+      "code": "13649",
+      "name": "Bibliotecários"
+    },
+    {
+      "code": "13650",
+      "name": "Biólogos"
+    },
+    {
+      "code": "13085",
+      "name": "Bloqueio / Desbloqueio de Valores"
+    },
+    {
+      "code": "10096",
+      "name": "Bloqueio de Valores de Contas Públicas"
+    },
+    {
+      "code": "10677",
+      "name": "Busca e Apreensão"
+    },
+    {
+      "code": "12612",
+      "name": "COVID-19"
+    },
+    {
+      "code": "13716",
+      "name": "CTPS"
+    },
+    {
+      "code": "13088",
+      "name": "Cabimento / Interesse Processual"
+    },
+    {
+      "code": "12957",
+      "name": "Cabimento"
+    },
+    {
+      "code": "12958",
+      "name": "Cabimento"
+    },
+    {
+      "code": "13087",
+      "name": "Cabimento"
+    },
+    {
+      "code": "9098",
+      "name": "Cabimento"
+    },
+    {
+      "code": "13651",
+      "name": "Cabineiros de Elevador"
+    },
+    {
+      "code": "12959",
+      "name": "Cadastro Reserva"
+    },
+    {
+      "code": "13630",
+      "name": "Caixa de Previdência"
+    },
+    {
+      "code": "12960",
+      "name": "Capacidade Civil"
+    },
+    {
+      "code": "9493",
+      "name": "Capacidade Processual"
+    },
+    {
+      "code": "13682",
+      "name": "Cargo de Confiança"
+    },
+    {
+      "code": "13789",
+      "name": "Cargo de Confiança"
+    },
+    {
+      "code": "13786",
+      "name": "Cartão de Ponto"
+    },
+    {
+      "code": "13689",
+      "name": "Categoria Diferenciada"
+    },
+    {
+      "code": "13370",
+      "name": "Categoria Econômica"
+    },
+    {
+      "code": "13372",
+      "name": "Categoria Profissional Diferenciada"
+    },
+    {
+      "code": "13641",
+      "name": "Categoria Profissional Especial"
+    },
+    {
+      "code": "13371",
+      "name": "Categoria Profissional"
+    },
+    {
+      "code": "10695",
+      "name": "Categorias Especiais de Servidor Público"
+    },
+    {
+      "code": "9517",
+      "name": "Causas Supervenientes à Sentença"
+    },
+    {
+      "code": "9532",
+      "name": "Caução"
+    },
+    {
+      "code": "13089",
+      "name": "Cerceamento de Defesa"
+    },
+    {
+      "code": "10402",
+      "name": "Cessão de créditos não-tributários"
+    },
+    {
+      "code": "13726",
+      "name": "Cessão entre Órgão/Empresa"
+    },
+    {
+      "code": "13838",
+      "name": "Cesta Básica"
+    },
+    {
+      "code": "13091",
+      "name": "Chamamento ao Processo"
+    },
+    {
+      "code": "13631",
+      "name": "Cheque Rancho - Integração"
+    },
+    {
+      "code": "10938",
+      "name": "Citação"
+    },
+    {
+      "code": "11783",
+      "name": "Citação"
+    },
+    {
+      "code": "13132",
+      "name": "Classificação e Organização de Documentos no Sistema"
+    },
+    {
+      "code": "10381",
+      "name": "Classificação e/ou Preterição"
+    },
+    {
+      "code": "13093",
+      "name": "Cláusula Penal"
+    },
+    {
+      "code": "13094",
+      "name": "Coisa Julgada"
+    },
+    {
+      "code": "13790",
+      "name": "Comissionista"
+    },
+    {
+      "code": "12961",
+      "name": "Comissão de Representantes dos Empregados"
+    },
+    {
+      "code": "14051",
+      "name": "Comissões - Alteração ou Supressão"
+    },
+    {
+      "code": "13839",
+      "name": "Comissões e Percentuais"
+    },
+    {
+      "code": "7709",
+      "name": "Compensação"
+    },
+    {
+      "code": "13767",
+      "name": "Compensação de Jornada"
+    },
+    {
+      "code": "13097",
+      "name": "Compensação de Reajustes Concedidos"
+    },
+    {
+      "code": "13782",
+      "name": "Compensação em Atividade Insalubre"
+    },
+    {
+      "code": "13099",
+      "name": "Competência Funcional"
+    },
+    {
+      "code": "13100",
+      "name": "Competência Territorial"
+    },
+    {
+      "code": "13101",
+      "name": "Competência Territorial"
+    },
+    {
+      "code": "12962",
+      "name": "Competência"
+    },
+    {
+      "code": "13098",
+      "name": "Competência"
+    },
+    {
+      "code": "8829",
+      "name": "Competência"
+    },
+    {
+      "code": "10654",
+      "name": "Competência da Justiça Estadual"
+    },
+    {
+      "code": "10653",
+      "name": "Competência da Justiça Federal"
+    },
+    {
+      "code": "10652",
+      "name": "Competência da Justiça do Trabalho"
+    },
+    {
+      "code": "10928",
+      "name": "Competência do Órgão Fiscalizador"
+    },
+    {
+      "code": "10901",
+      "name": "Competência por Prerrogativa de Função"
+    },
+    {
+      "code": "13378",
+      "name": "Complementação de Aposentadoria / Pensão"
+    },
+    {
+      "code": "13627",
+      "name": "Complementação de Aposentadoria/Pensão"
+    },
+    {
+      "code": "14050",
+      "name": "Complementação de Aposentadoria/Pensão"
+    },
+    {
+      "code": "13840",
+      "name": "Complementação de Benefício Previdenciário"
+    },
+    {
+      "code": "13841",
+      "name": "Complemento Temporário Variável de Ajuste ao Piso de Mercado"
+    },
+    {
+      "code": "13105",
+      "name": "Comprovação de Repasse de Contribuição"
+    },
+    {
+      "code": "13379",
+      "name": "Comprovação de Saldo Bancário"
+    },
+    {
+      "code": "14084",
+      "name": "Comum Acordo para Ajuizamento"
+    },
+    {
+      "code": "11845",
+      "name": "Comunicação Social"
+    },
+    {
+      "code": "13951",
+      "name": "Comunicação de Dispensa aos Órgãos Competentes - Ausência"
+    },
+    {
+      "code": "14035",
+      "name": "Concessão de Serviço Público"
+    },
+    {
+      "code": "10370",
+      "name": "Concurso Público / Edital"
+    },
+    {
+      "code": "9418",
+      "name": "Concurso de Credores"
+    },
+    {
+      "code": "14021",
+      "name": "Condições Degradantes"
+    },
+    {
+      "code": "14654",
+      "name": "Condições Degradantes"
+    },
+    {
+      "code": "12963",
+      "name": "Condições da Ação"
+    },
+    {
+      "code": "12964",
+      "name": "Condutas Antissindicais"
+    },
+    {
+      "code": "13109",
+      "name": "Conexão"
+    },
+    {
+      "code": "13256",
+      "name": "Confissão"
+    },
+    {
+      "code": "12965",
+      "name": "Conflito de Competência"
+    },
+    {
+      "code": "13111",
+      "name": "Conselhos Regionais de Fiscalização Profissional e Afins"
+    },
+    {
+      "code": "14013",
+      "name": "Constituição de Capital"
+    },
+    {
+      "code": "13112",
+      "name": "Constituição e Composição"
+    },
+    {
+      "code": "12966",
+      "name": "Consulta"
+    },
+    {
+      "code": "13652",
+      "name": "Contabilistas"
+    },
+    {
+      "code": "13114",
+      "name": "Contagem - Dias Úteis"
+    },
+    {
+      "code": "13791",
+      "name": "Contagem de Minutos Residuais"
+    },
+    {
+      "code": "14052",
+      "name": "Contagem do Prazo"
+    },
+    {
+      "code": "12967",
+      "name": "Contestação"
+    },
+    {
+      "code": "13116",
+      "name": "Contradição entre Fundamentação e Dispositivo"
+    },
+    {
+      "code": "13320",
+      "name": "Contrariedade a Súmula"
+    },
+    {
+      "code": "13711",
+      "name": "Contratação de Reabilitados e Pessoas com Deficiência Habilitadas"
+    },
+    {
+      "code": "13727",
+      "name": "Contratação em Período Eleitoral"
+    },
+    {
+      "code": "13707",
+      "name": "Contrato Individual de Trabalho"
+    },
+    {
+      "code": "13713",
+      "name": "Contrato Intermitente"
+    },
+    {
+      "code": "13728",
+      "name": "Contrato Nulo - Efeitos"
+    },
+    {
+      "code": "13980",
+      "name": "Contrato Suspenso"
+    },
+    {
+      "code": "12877",
+      "name": "Contrato Temporário"
+    },
+    {
+      "code": "13729",
+      "name": "Contrato Temporário"
+    },
+    {
+      "code": "13741",
+      "name": "Contrato de Experiência - Nulidade"
+    },
+    {
+      "code": "14002",
+      "name": "Contrato de Experiência"
+    },
+    {
+      "code": "13742",
+      "name": "Contrato de Safra"
+    },
+    {
+      "code": "13743",
+      "name": "Contrato de Trabalho Temporário/Provisório"
+    },
+    {
+      "code": "13712",
+      "name": "Contrato em Regime de Tempo Parcial"
+    },
+    {
+      "code": "13715",
+      "name": "Contrato por Prazo Determinado"
+    },
+    {
+      "code": "10421",
+      "name": "Contratos Administrativos"
+    },
+    {
+      "code": "13385",
+      "name": "Contratuais"
+    },
+    {
+      "code": "13620",
+      "name": "Contribuição Assistencial"
+    },
+    {
+      "code": "14116",
+      "name": "Contribuição Confederativa"
+    },
+    {
+      "code": "13622",
+      "name": "Contribuição Sindical Rural"
+    },
+    {
+      "code": "13621",
+      "name": "Contribuição Sindical"
+    },
+    {
+      "code": "13842",
+      "name": "Contribuição de Previdência Privada - Resgate"
+    },
+    {
+      "code": "13121",
+      "name": "Contribuições Previdenciárias"
+    },
+    {
+      "code": "13386",
+      "name": "Contribuições Previdenciárias"
+    },
+    {
+      "code": "14053",
+      "name": "Contribuições Previdenciárias"
+    },
+    {
+      "code": "10645",
+      "name": "Controle de Constitucionalidade"
+    },
+    {
+      "code": "14022",
+      "name": "Controle de Correspondência Eletrônica"
+    },
+    {
+      "code": "13768",
+      "name": "Controle de Jornada"
+    },
+    {
+      "code": "13730",
+      "name": "Conversão de Regime Jurídico"
+    },
+    {
+      "code": "13318",
+      "name": "Conversão dos Autos Físicos em Eletrônicos - Responsabilidade"
+    },
+    {
+      "code": "13819",
+      "name": "Cooperado"
+    },
+    {
+      "code": "13752",
+      "name": "Cooperativa de Trabalho"
+    },
+    {
+      "code": "12968",
+      "name": "Correição Parcial"
+    },
+    {
+      "code": "13820",
+      "name": "Corretagem"
+    },
+    {
+      "code": "13653",
+      "name": "Corretores de Imóveis"
+    },
+    {
+      "code": "13654",
+      "name": "Corretores de Seguros"
+    },
+    {
+      "code": "10685",
+      "name": "Correção Monetária"
+    },
+    {
+      "code": "13748",
+      "name": "Correção Monetária"
+    },
+    {
+      "code": "10946",
+      "name": "Correção Monetária de Diferenças Pagas em Atraso"
+    },
+    {
+      "code": "13128",
+      "name": "Criação de Sindicato - Desmembramento"
+    },
+    {
+      "code": "10680",
+      "name": "Crédito Complementar"
+    },
+    {
+      "code": "13953",
+      "name": "Culpa Recíproca"
+    },
+    {
+      "code": "14003",
+      "name": "Culpa Recíproca"
+    },
+    {
+      "code": "10880",
+      "name": "Cumprimento Provisório de Sentença"
+    },
+    {
+      "code": "13889",
+      "name": "Cumulação com Adicional de Insalubridade"
+    },
+    {
+      "code": "13129",
+      "name": "Custas / Emolumentos"
+    },
+    {
+      "code": "10658",
+      "name": "Custas"
+    },
+    {
+      "code": "14076",
+      "name": "Custas"
+    },
+    {
+      "code": "13804",
+      "name": "Cálculo/Repercussão"
+    },
+    {
+      "code": "9985",
+      "name": "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO"
+    },
+    {
+      "code": "12734",
+      "name": "DIREITO ASSISTENCIAL"
+    },
+    {
+      "code": "899",
+      "name": "DIREITO CIVIL"
+    },
+    {
+      "code": "9633",
+      "name": "DIREITO DA CRIANÇA E DO ADOLESCENTE"
+    },
+    {
+      "code": "1156",
+      "name": "DIREITO DO CONSUMIDOR"
+    },
+    {
+      "code": "864",
+      "name": "DIREITO DO TRABALHO"
+    },
+    {
+      "code": "11428",
+      "name": "DIREITO ELEITORAL"
+    },
+    {
+      "code": "6191",
+      "name": "DIREITO INTERNACIONAL"
+    },
+    {
+      "code": "8826",
+      "name": "DIREITO PROCESSUAL CIVIL E DO TRABALHO"
+    },
+    {
+      "code": "12775",
+      "name": "DIREITO À EDUCAÇÃO"
+    },
+    {
+      "code": "13390",
+      "name": "Dano Moral / Material"
+    },
+    {
+      "code": "10012",
+      "name": "Dano ao Erário"
+    },
+    {
+      "code": "10300",
+      "name": "Data Base"
+    },
+    {
+      "code": "12969",
+      "name": "Decadência"
+    },
+    {
+      "code": "12970",
+      "name": "Decadência"
+    },
+    {
+      "code": "13148",
+      "name": "Decisão Homologatória"
+    },
+    {
+      "code": "14081",
+      "name": "Decisão Interlocutória"
+    },
+    {
+      "code": "13133",
+      "name": "Decisão Judicial"
+    },
+    {
+      "code": "12971",
+      "name": "Decisão Rescindenda"
+    },
+    {
+      "code": "13866",
+      "name": "Dedicação Integral"
+    },
+    {
+      "code": "13792",
+      "name": "Dedução/Abatimento de Horas Extras"
+    },
+    {
+      "code": "4703",
+      "name": "Defeito, nulidade ou anulação"
+    },
+    {
+      "code": "13738",
+      "name": "Definitiva/Provisória"
+    },
+    {
+      "code": "10280",
+      "name": "Demissão ou Exoneração"
+    },
+    {
+      "code": "13135",
+      "name": "Denunciação da Lide"
+    },
+    {
+      "code": "10940",
+      "name": "Depoimento"
+    },
+    {
+      "code": "10860",
+      "name": "Depositário Infiel"
+    },
+    {
+      "code": "13625",
+      "name": "Depósito Prévio - Recurso Administrativo"
+    },
+    {
+      "code": "12972",
+      "name": "Depósito Prévio"
+    },
+    {
+      "code": "12973",
+      "name": "Depósito Prévio de Multa Administrativa"
+    },
+    {
+      "code": "14077",
+      "name": "Depósito"
+    },
+    {
+      "code": "13749",
+      "name": "Depósito/Diferenças"
+    },
+    {
+      "code": "14023",
+      "name": "Desconfiguração de Justa Causa"
+    },
+    {
+      "code": "12974",
+      "name": "Desconsideração da Personalidade Jurídica"
+    },
+    {
+      "code": "13895",
+      "name": "Desconto Assistencial"
+    },
+    {
+      "code": "13897",
+      "name": "Desconto Sindical"
+    },
+    {
+      "code": "13896",
+      "name": "Desconto por Dano - Norma Coletiva"
+    },
+    {
+      "code": "12975",
+      "name": "Descontos Fiscais"
+    },
+    {
+      "code": "13398",
+      "name": "Descontos Fiscais"
+    },
+    {
+      "code": "10296",
+      "name": "Descontos Indevidos"
+    },
+    {
+      "code": "14141",
+      "name": "Descontos Indevidos"
+    },
+    {
+      "code": "12976",
+      "name": "Descontos Previdenciários"
+    },
+    {
+      "code": "13844",
+      "name": "Descontos Salariais - Devolução"
+    },
+    {
+      "code": "12977",
+      "name": "Descumprimento de Obrigações de Auxiliares da Justiça"
+    },
+    {
+      "code": "13399",
+      "name": "Desfundamentação"
+    },
+    {
+      "code": "13954",
+      "name": "Despedida/Dispensa Imotivada"
+    },
+    {
+      "code": "13916",
+      "name": "Despesa com Chapa"
+    },
+    {
+      "code": "13917",
+      "name": "Despesa com Deslocamento"
+    },
+    {
+      "code": "13733",
+      "name": "Desvio de Função"
+    },
+    {
+      "code": "14054",
+      "name": "Desvio de Função e Reenquadramento"
+    },
+    {
+      "code": "12979",
+      "name": "Devolução / Entrega de Objetos / Documentos"
+    },
+    {
+      "code": "13746",
+      "name": "Devolução/Retenção"
+    },
+    {
+      "code": "13821",
+      "name": "Diarista"
+    },
+    {
+      "code": "13921",
+      "name": "Diferença de Caixa"
+    },
+    {
+      "code": "13922",
+      "name": "Diferenças por Desvio de Função"
+    },
+    {
+      "code": "13655",
+      "name": "Digitadores/Mecanógrafos/Datilógrafos"
+    },
+    {
+      "code": "11785",
+      "name": "Diligências"
+    },
+    {
+      "code": "12755",
+      "name": "Direito Coletivo"
+    },
+    {
+      "code": "1695",
+      "name": "Direito Coletivo do Trabalho"
+    },
+    {
+      "code": "12936",
+      "name": "Direito Individual do Trabalho"
+    },
+    {
+      "code": "12980",
+      "name": "Direito de Empresa"
+    },
+    {
+      "code": "10227",
+      "name": "Direito de Greve"
+    },
+    {
+      "code": "12981",
+      "name": "Direito de Greve"
+    },
+    {
+      "code": "13981",
+      "name": "Dirigente Sindical"
+    },
+    {
+      "code": "13406",
+      "name": "Dispensa / Rescisão do Contrato de Trabalho"
+    },
+    {
+      "code": "13990",
+      "name": "Dispensa Discriminatória"
+    },
+    {
+      "code": "13140",
+      "name": "Dispensa de Penhora - Entidades Filantrópicas e Seus Diretores"
+    },
+    {
+      "code": "13955",
+      "name": "Dispensas Plúrimas"
+    },
+    {
+      "code": "14083",
+      "name": "Dissídio Coletivo (1.160)"
+    },
+    {
+      "code": "13407",
+      "name": "Distribuição Dinâmica - Inversão"
+    },
+    {
+      "code": "13142",
+      "name": "Diversos"
+    },
+    {
+      "code": "13793",
+      "name": "Divisor"
+    },
+    {
+      "code": "13683",
+      "name": "Divisor de Horas Extras"
+    },
+    {
+      "code": "13845",
+      "name": "Diárias"
+    },
+    {
+      "code": "8884",
+      "name": "Do Juiz"
+    },
+    {
+      "code": "13613",
+      "name": "Documental"
+    },
+    {
+      "code": "12982",
+      "name": "Documento Novo"
+    },
+    {
+      "code": "14014",
+      "name": "Doença Ocupacional"
+    },
+    {
+      "code": "14024",
+      "name": "Doença Ocupacional"
+    },
+    {
+      "code": "10262",
+      "name": "Doença em Pessoa da Família"
+    },
+    {
+      "code": "12983",
+      "name": "Dolo ou Colusão entre as Partes"
+    },
+    {
+      "code": "13656",
+      "name": "Domésticos"
+    },
+    {
+      "code": "10088",
+      "name": "Domínio Público"
+    },
+    {
+      "code": "8888",
+      "name": "Dos Auxiliares da Justiça"
+    },
+    {
+      "code": "13145",
+      "name": "Dupla Fundamentação da Decisão Rescindenda"
+    },
+    {
+      "code": "13764",
+      "name": "Duração do Trabalho"
+    },
+    {
+      "code": "13995",
+      "name": "Décimo Terceiro Salário Proporcional"
+    },
+    {
+      "code": "13843",
+      "name": "Décimo Terceiro Salário"
+    },
+    {
+      "code": "10394",
+      "name": "Dívida Ativa não-tributária"
+    },
+    {
+      "code": "13600",
+      "name": "E-Doc"
+    },
+    {
+      "code": "13657",
+      "name": "Economistas"
+    },
+    {
+      "code": "10388",
+      "name": "Edital"
+    },
+    {
+      "code": "9518",
+      "name": "Efeito Suspensivo / Impugnação / Embargos à Execução"
+    },
+    {
+      "code": "13149",
+      "name": "Efeito Suspensivo a Recurso"
+    },
+    {
+      "code": "9047",
+      "name": "Efeitos"
+    },
+    {
+      "code": "10889",
+      "name": "Efeitos da Declaração de Inconstitucionalidade"
+    },
+    {
+      "code": "13412",
+      "name": "Eleição"
+    },
+    {
+      "code": "13619",
+      "name": "Eleição de Dirigente Sindical"
+    },
+    {
+      "code": "11583",
+      "name": "Eleições"
+    },
+    {
+      "code": "13890",
+      "name": "Eletricitário"
+    },
+    {
+      "code": "12984",
+      "name": "Emenda a Inicial"
+    },
+    {
+      "code": "13151",
+      "name": "Emenda a Inicial"
+    },
+    {
+      "code": "13867",
+      "name": "Emergência"
+    },
+    {
+      "code": "10409",
+      "name": "Empregado Público / Temporário"
+    },
+    {
+      "code": "13982",
+      "name": "Empregado Público"
+    },
+    {
+      "code": "13658",
+      "name": "Empregados Portuários"
+    },
+    {
+      "code": "13681",
+      "name": "Empregados"
+    },
+    {
+      "code": "13415",
+      "name": "Empregados de Cartórios Extrajudiciais"
+    },
+    {
+      "code": "13822",
+      "name": "Empreitada"
+    },
+    {
+      "code": "14042",
+      "name": "Empreitada/Dono da Obra"
+    },
+    {
+      "code": "13691",
+      "name": "Empresa de Processamento de Dados"
+    },
+    {
+      "code": "13659",
+      "name": "Enfermagem/Enfermeiros"
+    },
+    {
+      "code": "13660",
+      "name": "Engenheiro, Arquiteto e Engenheiro Agrônomo"
+    },
+    {
+      "code": "13155",
+      "name": "Enquadramento Sindical"
+    },
+    {
+      "code": "10223",
+      "name": "Enquadramento"
+    },
+    {
+      "code": "13684",
+      "name": "Enquadramento"
+    },
+    {
+      "code": "13717",
+      "name": "Enquadramento/Classificação"
+    },
+    {
+      "code": "10013",
+      "name": "Enriquecimento ilícito"
+    },
+    {
+      "code": "14043",
+      "name": "Ente Público"
+    },
+    {
+      "code": "13157",
+      "name": "Entes Públicos"
+    },
+    {
+      "code": "14118",
+      "name": "Equipamento de Proteção Individual - EPI"
+    },
+    {
+      "code": "13420",
+      "name": "Equiparação Salarial"
+    },
+    {
+      "code": "13693",
+      "name": "Equiparação Salarial"
+    },
+    {
+      "code": "13818",
+      "name": "Equipe"
+    },
+    {
+      "code": "12985",
+      "name": "Erro de Fato"
+    },
+    {
+      "code": "8986",
+      "name": "Erro de Procedimento"
+    },
+    {
+      "code": "13159",
+      "name": "Erros / Abusos"
+    },
+    {
+      "code": "10380",
+      "name": "Escolaridade"
+    },
+    {
+      "code": "13632",
+      "name": "Especial"
+    },
+    {
+      "code": "13640",
+      "name": "Espontânea"
+    },
+    {
+      "code": "12876",
+      "name": "Espécies de Vínculo de Trabalho"
+    },
+    {
+      "code": "13983",
+      "name": "Estabilidade Acidentária"
+    },
+    {
+      "code": "13984",
+      "name": "Estabilidade Decorrente de Norma Coletiva"
+    },
+    {
+      "code": "13426",
+      "name": "Estabilidade Provisória"
+    },
+    {
+      "code": "10222",
+      "name": "Estabilidade"
+    },
+    {
+      "code": "13985",
+      "name": "Estabilidade do Dirigente de Cooperativa"
+    },
+    {
+      "code": "13986",
+      "name": "Estabilidade do Integrante de CCP"
+    },
+    {
+      "code": "13425",
+      "name": "Estabilidade do Representante Eleito"
+    },
+    {
+      "code": "13987",
+      "name": "Estabilidade do Representante da Empresa"
+    },
+    {
+      "code": "13161",
+      "name": "Estado Estrangeiro"
+    },
+    {
+      "code": "13162",
+      "name": "Estatuto Social da Empresa"
+    },
+    {
+      "code": "6197",
+      "name": "Estrangeiro"
+    },
+    {
+      "code": "13817",
+      "name": "Estágio"
+    },
+    {
+      "code": "13718",
+      "name": "Exame Médico Adminissional/Demissional"
+    },
+    {
+      "code": "13164",
+      "name": "Excesso de Penhora"
+    },
+    {
+      "code": "14068",
+      "name": "Exceção de Incompetência Territorial"
+    },
+    {
+      "code": "10429",
+      "name": "Execução Contratual"
+    },
+    {
+      "code": "12989",
+      "name": "Execução Fiscal"
+    },
+    {
+      "code": "9419",
+      "name": "Execução Previdenciária"
+    },
+    {
+      "code": "12991",
+      "name": "Execução Provisória"
+    },
+    {
+      "code": "12987",
+      "name": "Execução de Ofício"
+    },
+    {
+      "code": "12988",
+      "name": "Execução de Título Extrajudicial"
+    },
+    {
+      "code": "13427",
+      "name": "Exercício das Atividades Fora do Lugar da Celebração do Contrato"
+    },
+    {
+      "code": "9969",
+      "name": "Exploração do Trabalho Infantil"
+    },
+    {
+      "code": "9180",
+      "name": "Expropriação de Bens"
+    },
+    {
+      "code": "14006",
+      "name": "Expurgos Inflacionários"
+    },
+    {
+      "code": "14055",
+      "name": "Expurgos Inflacionários"
+    },
+    {
+      "code": "13428",
+      "name": "Extensão / Prorrogação"
+    },
+    {
+      "code": "13957",
+      "name": "Extinção Normal do Contrato a Termo"
+    },
+    {
+      "code": "9414",
+      "name": "Extinção da Execução"
+    },
+    {
+      "code": "13956",
+      "name": "Extinção do Estabelecimento/Empresa"
+    },
+    {
+      "code": "8942",
+      "name": "Extinção do Processo Sem Resolução de Mérito"
+    },
+    {
+      "code": "13168",
+      "name": "Extrajudicial"
+    },
+    {
+      "code": "13971",
+      "name": "FGTS - Levantamento Parcial e Multa de 20%"
+    },
+    {
+      "code": "13434",
+      "name": "FGTS"
+    },
+    {
+      "code": "13719",
+      "name": "FGTS"
+    },
+    {
+      "code": "14056",
+      "name": "FGTS"
+    },
+    {
+      "code": "12992",
+      "name": "Falsidade de Prova"
+    },
+    {
+      "code": "12873",
+      "name": "Faltas Justificadas"
+    },
+    {
+      "code": "12870",
+      "name": "Faltas"
+    },
+    {
+      "code": "13868",
+      "name": "Faltas"
+    },
+    {
+      "code": "12874",
+      "name": "Faltas não Justificadas"
+    },
+    {
+      "code": "13170",
+      "name": "Falência"
+    },
+    {
+      "code": "13601",
+      "name": "Fase de Execução"
+    },
+    {
+      "code": "10683",
+      "name": "Fato Superveniente ao Término do Prazo para Impugnação"
+    },
+    {
+      "code": "7947",
+      "name": "Fatos Jurídicos"
+    },
+    {
+      "code": "14070",
+      "name": "Fazenda Pública"
+    },
+    {
+      "code": "13805",
+      "name": "Feriado em Dobro"
+    },
+    {
+      "code": "13918",
+      "name": "Ferramentas Próprias"
+    },
+    {
+      "code": "13706",
+      "name": "Ferroviários"
+    },
+    {
+      "code": "13690",
+      "name": "Financeiras/Equiparação Bancário"
+    },
+    {
+      "code": "10015",
+      "name": "Fiscalização"
+    },
+    {
+      "code": "13661",
+      "name": "Fisioterapeutas/Terapeutas Ocupacionais"
+    },
+    {
+      "code": "14025",
+      "name": "Fixação do Quantum"
+    },
+    {
+      "code": "13633",
+      "name": "Fonte de Custeio"
+    },
+    {
+      "code": "13176",
+      "name": "Forma de Cálculo"
+    },
+    {
+      "code": "13177",
+      "name": "Forma de Cálculo"
+    },
+    {
+      "code": "8938",
+      "name": "Formação, Suspensão e Extinção do Processo"
+    },
+    {
+      "code": "13958",
+      "name": "Força Maior/Factum Principis"
+    },
+    {
+      "code": "10679",
+      "name": "Fracionamento"
+    },
+    {
+      "code": "11923",
+      "name": "Fraude / Quebra de ordem cronológica"
+    },
+    {
+      "code": "13959",
+      "name": "Fraude"
+    },
+    {
+      "code": "9450",
+      "name": "Fraude à Execução"
+    },
+    {
+      "code": "13898",
+      "name": "Frentista - Devolução de Cheque"
+    },
+    {
+      "code": "13813",
+      "name": "Fruição/Gozo"
+    },
+    {
+      "code": "10006",
+      "name": "Funcionamento de Estabelecimentos Empresariais"
+    },
+    {
+      "code": "13923",
+      "name": "Função de Confiança - Incorporação"
+    },
+    {
+      "code": "13432",
+      "name": "Férias / Gozo / Fruição"
+    },
+    {
+      "code": "13812",
+      "name": "Férias Coletivas"
+    },
+    {
+      "code": "13996",
+      "name": "Férias Proporcionais"
+    },
+    {
+      "code": "10301",
+      "name": "Férias"
+    },
+    {
+      "code": "13809",
+      "name": "Férias"
+    },
+    {
+      "code": "9986",
+      "name": "Garantias Constitucionais"
+    },
+    {
+      "code": "13179",
+      "name": "Garantias Sindicais"
+    },
+    {
+      "code": "13685",
+      "name": "Gerentes/Chefia"
+    },
+    {
+      "code": "10264",
+      "name": "Gestante / Adotante / Paternidade"
+    },
+    {
+      "code": "13988",
+      "name": "Gestante"
+    },
+    {
+      "code": "13758",
+      "name": "Gestante/Adotante"
+    },
+    {
+      "code": "13794",
+      "name": "Gorjeta"
+    },
+    {
+      "code": "13846",
+      "name": "Gorjeta"
+    },
+    {
+      "code": "13904",
+      "name": "Gratificação Ajustada"
+    },
+    {
+      "code": "13905",
+      "name": "Gratificação Anual"
+    },
+    {
+      "code": "10310",
+      "name": "Gratificação Natalina/13º salário"
+    },
+    {
+      "code": "13912",
+      "name": "Gratificação Semestral"
+    },
+    {
+      "code": "13686",
+      "name": "Gratificação"
+    },
+    {
+      "code": "13847",
+      "name": "Gratificação"
+    },
+    {
+      "code": "13906",
+      "name": "Gratificação de Aposentadoria"
+    },
+    {
+      "code": "13907",
+      "name": "Gratificação de Caixa"
+    },
+    {
+      "code": "13634",
+      "name": "Gratificação de Contingente e/ou Participação nos Resultados - Avanço de Nível"
+    },
+    {
+      "code": "13908",
+      "name": "Gratificação de Farmácia"
+    },
+    {
+      "code": "13910",
+      "name": "Gratificação de Função"
+    },
+    {
+      "code": "13909",
+      "name": "Gratificação de Férias"
+    },
+    {
+      "code": "13911",
+      "name": "Gratificação por Tempo de Serviço"
+    },
+    {
+      "code": "12888",
+      "name": "Greve"
+    },
+    {
+      "code": "13180",
+      "name": "Greve"
+    },
+    {
+      "code": "14085",
+      "name": "Greve"
+    },
+    {
+      "code": "14036",
+      "name": "Grupo Econômico"
+    },
+    {
+      "code": "13848",
+      "name": "Gueltas"
+    },
+    {
+      "code": "13451",
+      "name": "Guias do Seguro Desemprego"
+    },
+    {
+      "code": "10387",
+      "name": "Habilitação / Registro Cadastral / Julgamento / Homologação"
+    },
+    {
+      "code": "12993",
+      "name": "Hipoteca Judiciária"
+    },
+    {
+      "code": "12994",
+      "name": "Homologação Judicial - Requisitos"
+    },
+    {
+      "code": "10655",
+      "name": "Honorários Advocatícios"
+    },
+    {
+      "code": "12995",
+      "name": "Honorários Advocatícios"
+    },
+    {
+      "code": "13452",
+      "name": "Honorários Advocatícios"
+    },
+    {
+      "code": "14088",
+      "name": "Honorários Advocatícios"
+    },
+    {
+      "code": "10656",
+      "name": "Honorários Advocatícios em Execução Contra a Fazenda Pública"
+    },
+    {
+      "code": "13185",
+      "name": "Honorários Periciais"
+    },
+    {
+      "code": "9258",
+      "name": "Honorários Periciais"
+    },
+    {
+      "code": "13184",
+      "name": "Honorários na Justiça do Trabalho"
+    },
+    {
+      "code": "13891",
+      "name": "Hora Extra - Integração"
+    },
+    {
+      "code": "13702",
+      "name": "Hora Extra/Adicional"
+    },
+    {
+      "code": "14074",
+      "name": "Hora Extra/Intervalo"
+    },
+    {
+      "code": "13807",
+      "name": "Hora Noturna Reduzida"
+    },
+    {
+      "code": "13695",
+      "name": "Hora Noturna/Hora Extra"
+    },
+    {
+      "code": "13186",
+      "name": "Horas Extras"
+    },
+    {
+      "code": "13769",
+      "name": "Horas Extras"
+    },
+    {
+      "code": "13770",
+      "name": "Horas in Itinere"
+    },
+    {
+      "code": "10676",
+      "name": "Imissão na Posse"
+    },
+    {
+      "code": "10660",
+      "name": "Impedimento"
+    },
+    {
+      "code": "13188",
+      "name": "Impedimento"
+    },
+    {
+      "code": "13189",
+      "name": "Impenhorabilidade"
+    },
+    {
+      "code": "12996",
+      "name": "Impossibilidade Jurídica do Pedido"
+    },
+    {
+      "code": "13190",
+      "name": "Imposto de Renda"
+    },
+    {
+      "code": "10011",
+      "name": "Improbidade Administrativa"
+    },
+    {
+      "code": "9453",
+      "name": "Imunidade de Execução"
+    },
+    {
+      "code": "8838",
+      "name": "Imunidade de Jurisdição"
+    },
+    {
+      "code": "10097",
+      "name": "Imóvel Funcional"
+    },
+    {
+      "code": "7691",
+      "name": "Inadimplemento"
+    },
+    {
+      "code": "13456",
+      "name": "Inamovibilidade de Dirigente Sindical"
+    },
+    {
+      "code": "12998",
+      "name": "Incidente de Desconsideração da Personalidade Jurídica"
+    },
+    {
+      "code": "13191",
+      "name": "Incidência em Indenização PDV / PDI"
+    },
+    {
+      "code": "13913",
+      "name": "Incorporação"
+    },
+    {
+      "code": "14004",
+      "name": "Indenizado - Efeitos"
+    },
+    {
+      "code": "13617",
+      "name": "Indenização Relacionada ao Exercício do Direito de Greve"
+    },
+    {
+      "code": "13992",
+      "name": "Indenização"
+    },
+    {
+      "code": "9524",
+      "name": "Indenização do Prejuízo"
+    },
+    {
+      "code": "14008",
+      "name": "Indenização por Dano Estético"
+    },
+    {
+      "code": "14009",
+      "name": "Indenização por Dano Material"
+    },
+    {
+      "code": "14032",
+      "name": "Indenização por Dano Material"
+    },
+    {
+      "code": "14011",
+      "name": "Indenização por Dano Moral Coletivo"
+    },
+    {
+      "code": "14010",
+      "name": "Indenização por Dano Moral"
+    },
+    {
+      "code": "14033",
+      "name": "Indenização por Dano Moral"
+    },
+    {
+      "code": "13961",
+      "name": "Indenização por Rescisão Antecipada do Contrato a Termo"
+    },
+    {
+      "code": "13814",
+      "name": "Indenização/Dobra/Terço Constitucional"
+    },
+    {
+      "code": "13607",
+      "name": "Indisponibilidade do Sistema - Devolução de Prazo"
+    },
+    {
+      "code": "13199",
+      "name": "Indígena"
+    },
+    {
+      "code": "9178",
+      "name": "Inexequibilidade do Título / Inexigibilidade da Obrigação"
+    },
+    {
+      "code": "13602",
+      "name": "Inexigibilidade / Isenção"
+    },
+    {
+      "code": "10022",
+      "name": "Infração Administrativa"
+    },
+    {
+      "code": "10009",
+      "name": "Inquérito / Processo / Recurso Administrativo"
+    },
+    {
+      "code": "10372",
+      "name": "Inscrição / Documentação"
+    },
+    {
+      "code": "12999",
+      "name": "Inscrição no Banco Nacional de Devedores Trabalhistas - BNDT"
+    },
+    {
+      "code": "13458",
+      "name": "Instrumentos de Trabalho"
+    },
+    {
+      "code": "13270",
+      "name": "Insuficiência do Depósito"
+    },
+    {
+      "code": "13902",
+      "name": "Integração ao Salário"
+    },
+    {
+      "code": "13924",
+      "name": "Integração em Verbas Rescisórias"
+    },
+    {
+      "code": "14057",
+      "name": "Intercorrente"
+    },
+    {
+      "code": "13461",
+      "name": "Interdito Proibitório"
+    },
+    {
+      "code": "13462",
+      "name": "Interdito Proibitório"
+    },
+    {
+      "code": "13618",
+      "name": "Interdito Proibitório"
+    },
+    {
+      "code": "10024",
+      "name": "Interdição"
+    },
+    {
+      "code": "10265",
+      "name": "Interesse Particular"
+    },
+    {
+      "code": "13206",
+      "name": "Interesse Processual"
+    },
+    {
+      "code": "12757",
+      "name": "Interesses ou Direitos Coletivos em Sentido Estrito"
+    },
+    {
+      "code": "12756",
+      "name": "Interesses ou Direitos Difusos"
+    },
+    {
+      "code": "12758",
+      "name": "Interesses ou Direitos Individuais Homogêneos"
+    },
+    {
+      "code": "13207",
+      "name": "Interpretação e Alcance do Título Executivo"
+    },
+    {
+      "code": "14058",
+      "name": "Interrupção"
+    },
+    {
+      "code": "13800",
+      "name": "Intervalo  15 Minutos Mulher"
+    },
+    {
+      "code": "13771",
+      "name": "Intervalo Interjornadas"
+    },
+    {
+      "code": "13687",
+      "name": "Intervalo Intrajornada"
+    },
+    {
+      "code": "13772",
+      "name": "Intervalo Intrajornada"
+    },
+    {
+      "code": "13209",
+      "name": "Intervalo"
+    },
+    {
+      "code": "8859",
+      "name": "Intervenção de Terceiros"
+    },
+    {
+      "code": "10939",
+      "name": "Intimação / Notificação"
+    },
+    {
+      "code": "11782",
+      "name": "Intimação"
+    },
+    {
+      "code": "13000",
+      "name": "Intimação"
+    },
+    {
+      "code": "13001",
+      "name": "Invalidação de Confissão, Desistência ou Transação"
+    },
+    {
+      "code": "13201",
+      "name": "Inépcia da Inicial"
+    },
+    {
+      "code": "10311",
+      "name": "Irredutibilidade de Vencimentos"
+    },
+    {
+      "code": "14044",
+      "name": "Isonomia Salarial"
+    },
+    {
+      "code": "13801",
+      "name": "Jornada Contratual de 6 Horas - Prorrogação"
+    },
+    {
+      "code": "14655",
+      "name": "Jornada Exaustiva"
+    },
+    {
+      "code": "13705",
+      "name": "Jornada"
+    },
+    {
+      "code": "10287",
+      "name": "Jornada de Trabalho"
+    },
+    {
+      "code": "12866",
+      "name": "Jornada de Trabalho"
+    },
+    {
+      "code": "13662",
+      "name": "Jornalistas"
+    },
+    {
+      "code": "13211",
+      "name": "Judicial"
+    },
+    {
+      "code": "13002",
+      "name": "Juiz Impedido / Absolutamente Incompetente"
+    },
+    {
+      "code": "13212",
+      "name": "Julgamento Extra / Ultra / Citra Petita"
+    },
+    {
+      "code": "13606",
+      "name": "Juntada na Fase Recursal (Fato Novo)"
+    },
+    {
+      "code": "8828",
+      "name": "Jurisdição e Competência"
+    },
+    {
+      "code": "10684",
+      "name": "Juros"
+    },
+    {
+      "code": "13215",
+      "name": "Juros de Mora"
+    },
+    {
+      "code": "13216",
+      "name": "Juros de Mora"
+    },
+    {
+      "code": "13468",
+      "name": "Jus Postulandi"
+    },
+    {
+      "code": "13962",
+      "name": "Justa Causa/Falta Grave"
+    },
+    {
+      "code": "13469",
+      "name": "Justificada Ausência de Numerário"
+    },
+    {
+      "code": "13217",
+      "name": "Justificado Receio de Dano Irreparável ou de Difícil Reparação"
+    },
+    {
+      "code": "13004",
+      "name": "Legitimidade - Autoridade Coatora"
+    },
+    {
+      "code": "13005",
+      "name": "Legitimidade Ativa"
+    },
+    {
+      "code": "14067",
+      "name": "Legitimidade Ativa e Passiva"
+    },
+    {
+      "code": "13003",
+      "name": "Legitimidade"
+    },
+    {
+      "code": "13218",
+      "name": "Legitimidade"
+    },
+    {
+      "code": "10736",
+      "name": "Legitimidade para a Causa"
+    },
+    {
+      "code": "14202",
+      "name": "Lei Geral de Proteção de Dados (LGPD)"
+    },
+    {
+      "code": "14205",
+      "name": "Lei Geral de Proteção de Dados (LGPD)"
+    },
+    {
+      "code": "9160",
+      "name": "Levantamento de Valor"
+    },
+    {
+      "code": "13470",
+      "name": "Levantamento do Depósito Recursal"
+    },
+    {
+      "code": "13471",
+      "name": "Levantamento do FGTS"
+    },
+    {
+      "code": "13750",
+      "name": "Levantamento/Liberação"
+    },
+    {
+      "code": "13993",
+      "name": "Liberação/Entrega das Guias"
+    },
+    {
+      "code": "13759",
+      "name": "Licença Previdenciária"
+    },
+    {
+      "code": "13925",
+      "name": "Licença Prêmio"
+    },
+    {
+      "code": "12871",
+      "name": "Licença Saúde"
+    },
+    {
+      "code": "13760",
+      "name": "Licença sem Remuneração"
+    },
+    {
+      "code": "10258",
+      "name": "Licenças / Afastamentos"
+    },
+    {
+      "code": "12869",
+      "name": "Licenças"
+    },
+    {
+      "code": "9998",
+      "name": "Licenças"
+    },
+    {
+      "code": "13849",
+      "name": "Licenças e Folgas - Conversão em Pecúnia"
+    },
+    {
+      "code": "13757",
+      "name": "Licenças/Afastamentos"
+    },
+    {
+      "code": "10385",
+      "name": "Licitações"
+    },
+    {
+      "code": "14045",
+      "name": "Licitude/Ilicitude"
+    },
+    {
+      "code": "13220",
+      "name": "Lide Simulada"
+    },
+    {
+      "code": "9196",
+      "name": "Liminar"
+    },
+    {
+      "code": "14026",
+      "name": "Limitação de Uso do Banheiro"
+    },
+    {
+      "code": "9148",
+      "name": "Liquidação / Cumprimento / Execução"
+    },
+    {
+      "code": "10885",
+      "name": "Liquidação Parcelada"
+    },
+    {
+      "code": "14027",
+      "name": "Lista Suja"
+    },
+    {
+      "code": "14072",
+      "name": "Litigância de Má Fé"
+    },
+    {
+      "code": "8866",
+      "name": "Litisconsórcio"
+    },
+    {
+      "code": "13221",
+      "name": "Litispendência"
+    },
+    {
+      "code": "13883",
+      "name": "Lixo Urbano"
+    },
+    {
+      "code": "13224",
+      "name": "Magistrado Vitalício"
+    },
+    {
+      "code": "13223",
+      "name": "Magistrado não Vitalício"
+    },
+    {
+      "code": "10187",
+      "name": "Magistratura"
+    },
+    {
+      "code": "13007",
+      "name": "Mandado de Segurança Coletivo"
+    },
+    {
+      "code": "12940",
+      "name": "Mandado de Segurança"
+    },
+    {
+      "code": "13824",
+      "name": "Mandato"
+    },
+    {
+      "code": "13663",
+      "name": "Marítimos"
+    },
+    {
+      "code": "13989",
+      "name": "Membro de Cipa"
+    },
+    {
+      "code": "13226",
+      "name": "Menor"
+    },
+    {
+      "code": "13477",
+      "name": "Mensalidade Sindical"
+    },
+    {
+      "code": "10324",
+      "name": "Militar"
+    },
+    {
+      "code": "13478",
+      "name": "Ministério Público"
+    },
+    {
+      "code": "8875",
+      "name": "Ministério Público"
+    },
+    {
+      "code": "8941",
+      "name": "Modificação ou Alteração do Pedido"
+    },
+    {
+      "code": "14066",
+      "name": "Mora"
+    },
+    {
+      "code": "11846",
+      "name": "Moradia"
+    },
+    {
+      "code": "13963",
+      "name": "Morte"
+    },
+    {
+      "code": "13737",
+      "name": "Mudança de Turno"
+    },
+    {
+      "code": "13229",
+      "name": "Mulher"
+    },
+    {
+      "code": "13747",
+      "name": "Multa Administrativa por Ausência de Registro"
+    },
+    {
+      "code": "10686",
+      "name": "Multa Cominatória / Astreintes"
+    },
+    {
+      "code": "13481",
+      "name": "Multa Convencional"
+    },
+    {
+      "code": "13850",
+      "name": "Multa Prevista em Norma Coletiva"
+    },
+    {
+      "code": "9166",
+      "name": "Multa de 10%"
+    },
+    {
+      "code": "13998",
+      "name": "Multa de 40% do FGTS"
+    },
+    {
+      "code": "13008",
+      "name": "Multa do Art. 475-J do CPC"
+    },
+    {
+      "code": "14000",
+      "name": "Multa do Artigo  477 da CLT"
+    },
+    {
+      "code": "13999",
+      "name": "Multa do Artigo 467 da CLT"
+    },
+    {
+      "code": "13947",
+      "name": "Multa pela Ilicitude da Discriminação Salarial"
+    },
+    {
+      "code": "13009",
+      "name": "Multa por Agravo Inadmissível ou Infundado"
+    },
+    {
+      "code": "13557",
+      "name": "Multa por Atraso de Repasse de Contribuição"
+    },
+    {
+      "code": "13010",
+      "name": "Multa por Descumprimento de Ordem Judicial"
+    },
+    {
+      "code": "13483",
+      "name": "Multa por Descumprimento de Ordem Judicial"
+    },
+    {
+      "code": "13011",
+      "name": "Multa por ED Protelatórios"
+    },
+    {
+      "code": "13012",
+      "name": "Multa por Improbidade Testemunhal"
+    },
+    {
+      "code": "10023",
+      "name": "Multas e demais Sanções"
+    },
+    {
+      "code": "10395",
+      "name": "Multas e demais Sanções"
+    },
+    {
+      "code": "13823",
+      "name": "Mãe Social"
+    },
+    {
+      "code": "13664",
+      "name": "Médicos"
+    },
+    {
+      "code": "13926",
+      "name": "Mínimo"
+    },
+    {
+      "code": "13666",
+      "name": "Músicos Profissionais"
+    },
+    {
+      "code": "14086",
+      "name": "Natureza Econômica"
+    },
+    {
+      "code": "14087",
+      "name": "Natureza Jurídica"
+    },
+    {
+      "code": "13903",
+      "name": "Natureza Jurídica da Parcela - Repercussão"
+    },
+    {
+      "code": "13802",
+      "name": "Natureza Jurídica da Parcela/Repercussão"
+    },
+    {
+      "code": "13233",
+      "name": "Negativa de Prestação Jurisdicional"
+    },
+    {
+      "code": "13013",
+      "name": "Negociação Coletiva Trabalhista"
+    },
+    {
+      "code": "15306",
+      "name": "Nome Social"
+    },
+    {
+      "code": "13234",
+      "name": "Nomeação à Autoria"
+    },
+    {
+      "code": "13235",
+      "name": "Norma Coletiva"
+    },
+    {
+      "code": "12412",
+      "name": "Nulidade - Ausência de Citação do Executado"
+    },
+    {
+      "code": "12401",
+      "name": "Nulidade - Ausência de Fundamentação de Decisão"
+    },
+    {
+      "code": "12405",
+      "name": "Nulidade - Ausência de Identificação de Advogado ou de Sociedade de Advogados"
+    },
+    {
+      "code": "12406",
+      "name": "Nulidade - Ausência de Intimação do Ministério Público"
+    },
+    {
+      "code": "12404",
+      "name": "Nulidade - Ausência de Nome das Partes"
+    },
+    {
+      "code": "12400",
+      "name": "Nulidade - Ausência de publicidade de decisão"
+    },
+    {
+      "code": "12407",
+      "name": "Nulidade - Citação Sem Observância das Prescrições Legais"
+    },
+    {
+      "code": "12413",
+      "name": "Nulidade - Execução Instaurada Antes de Condição ou Termo"
+    },
+    {
+      "code": "12402",
+      "name": "Nulidade - Impedimento"
+    },
+    {
+      "code": "12410",
+      "name": "Nulidade - Intimação Sem Observância das Prescrições Legais"
+    },
+    {
+      "code": "10734",
+      "name": "Nulidade - Não Observância da Reserva de Plenário"
+    },
+    {
+      "code": "12403",
+      "name": "Nulidade - Suspeição"
+    },
+    {
+      "code": "12411",
+      "name": "Nulidade - Título Extrajudicial Não Correspondente a Obrigação Certa, Líquida e Exigível"
+    },
+    {
+      "code": "13744",
+      "name": "Nulidade"
+    },
+    {
+      "code": "13974",
+      "name": "Nulidade"
+    },
+    {
+      "code": "8919",
+      "name": "Nulidade"
+    },
+    {
+      "code": "13697",
+      "name": "Nutricionistas"
+    },
+    {
+      "code": "11849",
+      "name": "Não Discriminação"
+    },
+    {
+      "code": "11781",
+      "name": "Objetos de cartas precatórias cíveis/de ordem"
+    },
+    {
+      "code": "13014",
+      "name": "Obrigação de Dar"
+    },
+    {
+      "code": "10670",
+      "name": "Obrigação de Entregar"
+    },
+    {
+      "code": "10671",
+      "name": "Obrigação de Fazer / Não Fazer"
+    },
+    {
+      "code": "7681",
+      "name": "Obrigações"
+    },
+    {
+      "code": "13975",
+      "name": "Obstativa"
+    },
+    {
+      "code": "13015",
+      "name": "Ofensa à Coisa Julgada"
+    },
+    {
+      "code": "11784",
+      "name": "Oitiva"
+    },
+    {
+      "code": "13676",
+      "name": "Operador de Telemarketing"
+    },
+    {
+      "code": "13698",
+      "name": "Operadores Cinematográficos"
+    },
+    {
+      "code": "13699",
+      "name": "Operadores de Carga e Descarga (Estiva e Capatazia)"
+    },
+    {
+      "code": "13239",
+      "name": "Oposição"
+    },
+    {
+      "code": "13240",
+      "name": "Ordem de Preferência"
+    },
+    {
+      "code": "13241",
+      "name": "Organismo Internacional"
+    },
+    {
+      "code": "13016",
+      "name": "Organização Sindical"
+    },
+    {
+      "code": "10954",
+      "name": "Orçamento"
+    },
+    {
+      "code": "13700",
+      "name": "Outras Categorias Profissionais"
+    },
+    {
+      "code": "13489",
+      "name": "Outras Garantias Oriundas de Normas da OIT"
+    },
+    {
+      "code": "13914",
+      "name": "Outras Gratificações"
+    },
+    {
+      "code": "13991",
+      "name": "Outras Hipóteses de Estabilidade"
+    },
+    {
+      "code": "12872",
+      "name": "Outras Licenças"
+    },
+    {
+      "code": "13762",
+      "name": "Outras Licenças"
+    },
+    {
+      "code": "13756",
+      "name": "Outras Relações de Emprego"
+    },
+    {
+      "code": "13815",
+      "name": "Outras Relações de Trabalho"
+    },
+    {
+      "code": "13869",
+      "name": "Outros Abonos"
+    },
+    {
+      "code": "13881",
+      "name": "Outros Adicionais"
+    },
+    {
+      "code": "13885",
+      "name": "Outros Agentes Insalubres"
+    },
+    {
+      "code": "13899",
+      "name": "Outros Descontos Salariais"
+    },
+    {
+      "code": "13783",
+      "name": "Outros Sistemas de Compensação"
+    },
+    {
+      "code": "12890",
+      "name": "Outros"
+    },
+    {
+      "code": "13852",
+      "name": "PIS - Indenização"
+    },
+    {
+      "code": "13721",
+      "name": "PIS/RAIS - Cadastramento"
+    },
+    {
+      "code": "10869",
+      "name": "Parcela Incontroversa"
+    },
+    {
+      "code": "13635",
+      "name": "Parcelas Que Integram a Aposentadoria"
+    },
+    {
+      "code": "13825",
+      "name": "Parceria"
+    },
+    {
+      "code": "13244",
+      "name": "Parte ou Sucessor no Processo da Decisão Rescindenda"
+    },
+    {
+      "code": "13245",
+      "name": "Partes Sem Advogados"
+    },
+    {
+      "code": "8842",
+      "name": "Partes e Procuradores"
+    },
+    {
+      "code": "13851",
+      "name": "Participação nos Lucros e Resultados - PLR"
+    },
+    {
+      "code": "13965",
+      "name": "Pedido de Demissão"
+    },
+    {
+      "code": "13017",
+      "name": "Pedido de Liminar"
+    },
+    {
+      "code": "13018",
+      "name": "Pedido de Providências"
+    },
+    {
+      "code": "13248",
+      "name": "Pedidos Ilíquidos - Rito Ordinário"
+    },
+    {
+      "code": "12941",
+      "name": "Penalidades Processuais"
+    },
+    {
+      "code": "10428",
+      "name": "Penalidades"
+    },
+    {
+      "code": "9163",
+      "name": "Penhora / Depósito/ Avaliação"
+    },
+    {
+      "code": "13250",
+      "name": "Penhora Online / BACEN JUD"
+    },
+    {
+      "code": "13019",
+      "name": "Penhora de Salário / Proventos"
+    },
+    {
+      "code": "13249",
+      "name": "Penhora no Rosto dos Autos"
+    },
+    {
+      "code": "14015",
+      "name": "Pensão Vitalícia"
+    },
+    {
+      "code": "10250",
+      "name": "Pensão"
+    },
+    {
+      "code": "13892",
+      "name": "Percentual Inferior ao Legal - Norma Coletiva"
+    },
+    {
+      "code": "13603",
+      "name": "Perda de Eficácia"
+    },
+    {
+      "code": "13870",
+      "name": "Permanência"
+    },
+    {
+      "code": "13254",
+      "name": "Permuta"
+    },
+    {
+      "code": "13927",
+      "name": "Período de Afastamento - Reintegração"
+    },
+    {
+      "code": "13253",
+      "name": "Período de Graça"
+    },
+    {
+      "code": "11842",
+      "name": "Pessoa Idosa"
+    },
+    {
+      "code": "13282",
+      "name": "Pessoa Jurídica de Direito Público"
+    },
+    {
+      "code": "13134",
+      "name": "Pessoa com Deficiência"
+    },
+    {
+      "code": "11843",
+      "name": "Pessoas com deficiência"
+    },
+    {
+      "code": "5754",
+      "name": "Pessoas naturais"
+    },
+    {
+      "code": "13020",
+      "name": "Peticionamento Eletrônico"
+    },
+    {
+      "code": "13678",
+      "name": "Petroleiros"
+    },
+    {
+      "code": "12887",
+      "name": "Piso Salarial"
+    },
+    {
+      "code": "13696",
+      "name": "Piso Salarial"
+    },
+    {
+      "code": "13928",
+      "name": "Piso Salarial da Categoria/Salário Mínimo Profissional"
+    },
+    {
+      "code": "13929",
+      "name": "Plano de Cargos e Salários"
+    },
+    {
+      "code": "13636",
+      "name": "Plano de Incentivo"
+    },
+    {
+      "code": "13605",
+      "name": "Plano de Saúde"
+    },
+    {
+      "code": "13853",
+      "name": "Plano de Saúde"
+    },
+    {
+      "code": "13964",
+      "name": "Plano de demissão Voluntária/Incentivada"
+    },
+    {
+      "code": "13021",
+      "name": "Poder Normativo"
+    },
+    {
+      "code": "12415",
+      "name": "Poderes, Deveres e Responsabilidades do Juiz"
+    },
+    {
+      "code": "13753",
+      "name": "Policial Militar e Civil"
+    },
+    {
+      "code": "13022",
+      "name": "Prazo / Contagem do Prazo"
+    },
+    {
+      "code": "13257",
+      "name": "Prazo / Termo Inicial"
+    },
+    {
+      "code": "13023",
+      "name": "Prazo Decadencial"
+    },
+    {
+      "code": "13258",
+      "name": "Prazo Decadencial"
+    },
+    {
+      "code": "8928",
+      "name": "Prazo"
+    },
+    {
+      "code": "9060",
+      "name": "Prazo"
+    },
+    {
+      "code": "10383",
+      "name": "Prazo de Validade"
+    },
+    {
+      "code": "10672",
+      "name": "Precatório"
+    },
+    {
+      "code": "13506",
+      "name": "Precatório"
+    },
+    {
+      "code": "13024",
+      "name": "Preclusão / Coisa Julgada"
+    },
+    {
+      "code": "14075",
+      "name": "Preparo"
+    },
+    {
+      "code": "13259",
+      "name": "Preposto"
+    },
+    {
+      "code": "14046",
+      "name": "Prescrição"
+    },
+    {
+      "code": "5632",
+      "name": "Prescrição e Decadência"
+    },
+    {
+      "code": "12942",
+      "name": "Prescrição e Decadência no Direito do Trabalho"
+    },
+    {
+      "code": "13025",
+      "name": "Pressuposto Processual"
+    },
+    {
+      "code": "13292",
+      "name": "Pressupostos Extrínsecos"
+    },
+    {
+      "code": "14078",
+      "name": "Pressupostos Intrínsecos"
+    },
+    {
+      "code": "13026",
+      "name": "Pressupostos Processuais"
+    },
+    {
+      "code": "13509",
+      "name": "Prevalência do Acordo Coletivo sobre a Convenção Coletiva"
+    },
+    {
+      "code": "13510",
+      "name": "Prevalência do Negociado Sobre o Legislado"
+    },
+    {
+      "code": "13027",
+      "name": "Prevaricação / Concussão / Corrupção do Juiz"
+    },
+    {
+      "code": "13263",
+      "name": "Prevenção"
+    },
+    {
+      "code": "13900",
+      "name": "Previ e Cassi/BB"
+    },
+    {
+      "code": "13808",
+      "name": "Previsão de 8 Horas - Norma Coletiva"
+    },
+    {
+      "code": "10573",
+      "name": "Prisão Civil"
+    },
+    {
+      "code": "14204",
+      "name": "Privacidade"
+    },
+    {
+      "code": "14207",
+      "name": "Privacidade"
+    },
+    {
+      "code": "13264",
+      "name": "Procedimento Sumaríssimo"
+    },
+    {
+      "code": "10279",
+      "name": "Processo Administrativo Disciplinar ou Sindicância"
+    },
+    {
+      "code": "12943",
+      "name": "Processo Coletivo"
+    },
+    {
+      "code": "10190",
+      "name": "Processo Disciplinar / Sindicância"
+    },
+    {
+      "code": "13266",
+      "name": "Processo Fraudulento"
+    },
+    {
+      "code": "13029",
+      "name": "Processo Judicial Eletrônico - PJe"
+    },
+    {
+      "code": "13028",
+      "name": "Processo de Alçada"
+    },
+    {
+      "code": "13265",
+      "name": "Processo do Trabalho"
+    },
+    {
+      "code": "8960",
+      "name": "Processo e Procedimento"
+    },
+    {
+      "code": "12944",
+      "name": "Processo e Procedimento da Corregedoria"
+    },
+    {
+      "code": "13267",
+      "name": "Procurador de Entes Públicos / Autárquicos / Fundacionais"
+    },
+    {
+      "code": "8868",
+      "name": "Procuração"
+    },
+    {
+      "code": "13915",
+      "name": "Produção"
+    },
+    {
+      "code": "13667",
+      "name": "Professores"
+    },
+    {
+      "code": "10399",
+      "name": "Profissional"
+    },
+    {
+      "code": "13739",
+      "name": "Programa de Assistência Médica - Benefícios"
+    },
+    {
+      "code": "13930",
+      "name": "Promoção"
+    },
+    {
+      "code": "13030",
+      "name": "Pronunciamento Explícito (Prequestionamento)"
+    },
+    {
+      "code": "14005",
+      "name": "Proporcional"
+    },
+    {
+      "code": "13268",
+      "name": "Prorrogação"
+    },
+    {
+      "code": "13777",
+      "name": "Prorrogação do Horário Noturno"
+    },
+    {
+      "code": "14064",
+      "name": "Protesto Judicial"
+    },
+    {
+      "code": "13031",
+      "name": "Protesto de Crédito Trabalhista"
+    },
+    {
+      "code": "10587",
+      "name": "Proteção da Intimidade e Sigilo de Dados"
+    },
+    {
+      "code": "14203",
+      "name": "Proteção de Dados Pessoais"
+    },
+    {
+      "code": "14206",
+      "name": "Proteção de Dados Pessoais"
+    },
+    {
+      "code": "10669",
+      "name": "Protocolo Integrado / Descentralizado"
+    },
+    {
+      "code": "13608",
+      "name": "Prova Ilícita"
+    },
+    {
+      "code": "13032",
+      "name": "Prova Pré-constituída"
+    },
+    {
+      "code": "10375",
+      "name": "Prova de Títulos"
+    },
+    {
+      "code": "13269",
+      "name": "Prova do Trânsito em Julgado da Decisão Rescindenda"
+    },
+    {
+      "code": "8990",
+      "name": "Provas"
+    },
+    {
+      "code": "12419",
+      "name": "Provas em geral"
+    },
+    {
+      "code": "13505",
+      "name": "Práticas Procedimentais Contrárias aos Parâmetros Legais"
+    },
+    {
+      "code": "13795",
+      "name": "Pré-contratação"
+    },
+    {
+      "code": "13637",
+      "name": "Prêmio"
+    },
+    {
+      "code": "13854",
+      "name": "Prêmio"
+    },
+    {
+      "code": "13668",
+      "name": "Psicólogos"
+    },
+    {
+      "code": "13669",
+      "name": "Publicitários"
+    },
+    {
+      "code": "12467",
+      "name": "QUESTÕES DE ALTA COMPLEXIDADE, GRANDE IMPACTO E REPERCUSSÃO"
+    },
+    {
+      "code": "13946",
+      "name": "Quadro de Carreira"
+    },
+    {
+      "code": "13855",
+      "name": "Quebra de Caixa"
+    },
+    {
+      "code": "14028",
+      "name": "Quebra de sigilo Bancário"
+    },
+    {
+      "code": "13966",
+      "name": "Quitação"
+    },
+    {
+      "code": "13740",
+      "name": "Quota Preenchimento"
+    },
+    {
+      "code": "13670",
+      "name": "Químicos"
+    },
+    {
+      "code": "13671",
+      "name": "Radialistas"
+    },
+    {
+      "code": "13893",
+      "name": "Radiação Ionizante ou Substância Radioativa"
+    },
+    {
+      "code": "13886",
+      "name": "Raios Solares"
+    },
+    {
+      "code": "13931",
+      "name": "Reajuste Salarial"
+    },
+    {
+      "code": "10313",
+      "name": "Reajustes de Remuneração, Proventos ou Pensão"
+    },
+    {
+      "code": "11858",
+      "name": "Recebimento de bolsa de estudos"
+    },
+    {
+      "code": "13276",
+      "name": "Receitas Sindicais"
+    },
+    {
+      "code": "13033",
+      "name": "Reclamação Disciplinar"
+    },
+    {
+      "code": "13722",
+      "name": "Reconhecimento de Relação de Emprego"
+    },
+    {
+      "code": "13277",
+      "name": "Recuperação Judicial"
+    },
+    {
+      "code": "9045",
+      "name": "Recurso"
+    },
+    {
+      "code": "13703",
+      "name": "Redução Carga Horária"
+    },
+    {
+      "code": "13803",
+      "name": "Redução/Supressão"
+    },
+    {
+      "code": "13638",
+      "name": "Reenquadramento"
+    },
+    {
+      "code": "13034",
+      "name": "Reexame de Fatos e Provas"
+    },
+    {
+      "code": "13796",
+      "name": "Reflexos"
+    },
+    {
+      "code": "13278",
+      "name": "Reforço de Penhora"
+    },
+    {
+      "code": "13784",
+      "name": "Regime  12x36"
+    },
+    {
+      "code": "10220",
+      "name": "Regime Estatutário"
+    },
+    {
+      "code": "14059",
+      "name": "Regime Jurídico - Mudança"
+    },
+    {
+      "code": "13280",
+      "name": "Registro de Entidade Sindical"
+    },
+    {
+      "code": "10666",
+      "name": "Regularidade Formal"
+    },
+    {
+      "code": "13288",
+      "name": "Regularidade de Apresentação de Peças"
+    },
+    {
+      "code": "13524",
+      "name": "Regularidade de Representação"
+    },
+    {
+      "code": "13609",
+      "name": "Reintegração de Empregado"
+    },
+    {
+      "code": "13723",
+      "name": "Reintegração de Posse - Despejo"
+    },
+    {
+      "code": "10100",
+      "name": "Reintegração de Posse"
+    },
+    {
+      "code": "10226",
+      "name": "Reintegração ou Readmissão"
+    },
+    {
+      "code": "13967",
+      "name": "Reintegração/Readmissão ou Indenização Substitutiva"
+    },
+    {
+      "code": "13035",
+      "name": "Reiteração"
+    },
+    {
+      "code": "13525",
+      "name": "Relação de Trabalho"
+    },
+    {
+      "code": "13672",
+      "name": "Relações Públicas"
+    },
+    {
+      "code": "13284",
+      "name": "Remessa Ex-Officio"
+    },
+    {
+      "code": "13036",
+      "name": "Remessa Necessária"
+    },
+    {
+      "code": "7711",
+      "name": "Remissão das Dívidas"
+    },
+    {
+      "code": "10229",
+      "name": "Remoção"
+    },
+    {
+      "code": "13526",
+      "name": "Remuneração / Proventos / Pensões e Outros Rendimentos"
+    },
+    {
+      "code": "12885",
+      "name": "Remuneração"
+    },
+    {
+      "code": "13285",
+      "name": "Renúncia Parcial"
+    },
+    {
+      "code": "10957",
+      "name": "Repasse de Verbas Públicas"
+    },
+    {
+      "code": "13294",
+      "name": "Repetição da Prova"
+    },
+    {
+      "code": "13704",
+      "name": "Repouso Semanal Remunerado"
+    },
+    {
+      "code": "13773",
+      "name": "Repouso Semanal Remunerado e Feriado"
+    },
+    {
+      "code": "13826",
+      "name": "Representante Comercial Autônomo"
+    },
+    {
+      "code": "13287",
+      "name": "Representação Processual"
+    },
+    {
+      "code": "13623",
+      "name": "Representação Sindical"
+    },
+    {
+      "code": "8873",
+      "name": "Representação em Juízo"
+    },
+    {
+      "code": "10673",
+      "name": "Requisição de Pequeno Valor - RPV"
+    },
+    {
+      "code": "10582",
+      "name": "Rescisão / Resolução"
+    },
+    {
+      "code": "13968",
+      "name": "Rescisão Indireta"
+    },
+    {
+      "code": "10425",
+      "name": "Rescisão"
+    },
+    {
+      "code": "13949",
+      "name": "Rescisão do Contrato de Trabalho"
+    },
+    {
+      "code": "13610",
+      "name": "Rescisória de Rescisória"
+    },
+    {
+      "code": "10371",
+      "name": "Reserva de Vagas para Pessoas com Deficiência"
+    },
+    {
+      "code": "14007",
+      "name": "Responsabilidade Civil do Empregador"
+    },
+    {
+      "code": "14031",
+      "name": "Responsabilidade Civil em Outras Relações de Trabalho"
+    },
+    {
+      "code": "14034",
+      "name": "Responsabilidade Solidária/Subsidiária"
+    },
+    {
+      "code": "13290",
+      "name": "Responsabilidade"
+    },
+    {
+      "code": "13291",
+      "name": "Responsabilidade"
+    },
+    {
+      "code": "13611",
+      "name": "Restabelecimento de Pagamento de Vantagem Remuneratória"
+    },
+    {
+      "code": "13856",
+      "name": "Restituição/Indenização de Despesas"
+    },
+    {
+      "code": "13857",
+      "name": "Retribuição por Invenção e Patente"
+    },
+    {
+      "code": "13038",
+      "name": "Revelia / Confissão"
+    },
+    {
+      "code": "9024",
+      "name": "Revelia"
+    },
+    {
+      "code": "13612",
+      "name": "Reversão para a Parte Contrária"
+    },
+    {
+      "code": "13734",
+      "name": "Reversão/Retorno ao Cargo Efetivo"
+    },
+    {
+      "code": "14029",
+      "name": "Revistas Íntimas/Pertences"
+    },
+    {
+      "code": "13295",
+      "name": "Revisão"
+    },
+    {
+      "code": "13528",
+      "name": "Revisão"
+    },
+    {
+      "code": "12418",
+      "name": "Revisão de Tutela Antecipada Antecedente"
+    },
+    {
+      "code": "10389",
+      "name": "Revogação"
+    },
+    {
+      "code": "13039",
+      "name": "Ritos"
+    },
+    {
+      "code": "13673",
+      "name": "Rural"
+    },
+    {
+      "code": "14001",
+      "name": "Saldo de Salário"
+    },
+    {
+      "code": "13531",
+      "name": "Salário / Pagamento"
+    },
+    {
+      "code": "13932",
+      "name": "Salário Base - Obediência ao Salário Mínimo"
+    },
+    {
+      "code": "13933",
+      "name": "Salário Complessivo"
+    },
+    {
+      "code": "13934",
+      "name": "Salário Família"
+    },
+    {
+      "code": "13936",
+      "name": "Salário Maternidade"
+    },
+    {
+      "code": "13937",
+      "name": "Salário Paternidade"
+    },
+    {
+      "code": "13942",
+      "name": "Salário Substituição"
+    },
+    {
+      "code": "13943",
+      "name": "Salário Suplementar"
+    },
+    {
+      "code": "13944",
+      "name": "Salário Vencido/Retido"
+    },
+    {
+      "code": "13935",
+      "name": "Salário in Natura"
+    },
+    {
+      "code": "13938",
+      "name": "Salário por Acúmulo de Cargo/Função"
+    },
+    {
+      "code": "13939",
+      "name": "Salário por Equiparação/Isonomia"
+    },
+    {
+      "code": "13940",
+      "name": "Salário por Fora - Integração"
+    },
+    {
+      "code": "13941",
+      "name": "Salário por Safra"
+    },
+    {
+      "code": "10249",
+      "name": "Salário-Família"
+    },
+    {
+      "code": "13858",
+      "name": "Salário/Diferença Salarial"
+    },
+    {
+      "code": "10390",
+      "name": "Sanções Administrativas"
+    },
+    {
+      "code": "10019",
+      "name": "Segurança e Medicina do Trabalho"
+    },
+    {
+      "code": "13972",
+      "name": "Seguro Desemprego - Impossibilidade de Acesso"
+    },
+    {
+      "code": "13969",
+      "name": "Seguro Desemprego"
+    },
+    {
+      "code": "13859",
+      "name": "Seguro de Vida"
+    },
+    {
+      "code": "13901",
+      "name": "Seguro de Vida"
+    },
+    {
+      "code": "13297",
+      "name": "Seguro-Garantia Judicial"
+    },
+    {
+      "code": "13300",
+      "name": "Sentença Normativa - Modificação"
+    },
+    {
+      "code": "13299",
+      "name": "Sentença Normativa"
+    },
+    {
+      "code": "13298",
+      "name": "Sentença de Liquidação"
+    },
+    {
+      "code": "13040",
+      "name": "Sentença de Recusa da Homologação"
+    },
+    {
+      "code": "10678",
+      "name": "Sequestro de Verbas Públicas"
+    },
+    {
+      "code": "10698",
+      "name": "Serventuários da Justiça"
+    },
+    {
+      "code": "10219",
+      "name": "Servidor Público Civil"
+    },
+    {
+      "code": "13763",
+      "name": "Serviço Militar"
+    },
+    {
+      "code": "13675",
+      "name": "Serviços de Telefonia ou Telegrafia"
+    },
+    {
+      "code": "13860",
+      "name": "Sexta Parte"
+    },
+    {
+      "code": "9964",
+      "name": "Seção Cível"
+    },
+    {
+      "code": "10288",
+      "name": "Sistema Remuneratório e Benefícios"
+    },
+    {
+      "code": "10337",
+      "name": "Sistema Remuneratório e Benefícios"
+    },
+    {
+      "code": "13774",
+      "name": "Sobreaviso/Prontidão/Tempo à Disposição"
+    },
+    {
+      "code": "14120",
+      "name": "Subempreitada"
+    },
+    {
+      "code": "8867",
+      "name": "Substituição Processual"
+    },
+    {
+      "code": "9494",
+      "name": "Substituição da Parte"
+    },
+    {
+      "code": "13303",
+      "name": "Substituição de Penhora"
+    },
+    {
+      "code": "9484",
+      "name": "Sucessão"
+    },
+    {
+      "code": "14039",
+      "name": "Sucessão de Empregadores"
+    },
+    {
+      "code": "13537",
+      "name": "Sucumbenciais"
+    },
+    {
+      "code": "8874",
+      "name": "Sucumbência"
+    },
+    {
+      "code": "13798",
+      "name": "Supressão/Limitação por Norma Coletiva"
+    },
+    {
+      "code": "13861",
+      "name": "Supressão/Redução de Horas Extras Habituais - Indenização"
+    },
+    {
+      "code": "13797",
+      "name": "Supressão/Redução de Horas Extras/Indenização"
+    },
+    {
+      "code": "10659",
+      "name": "Suspeição"
+    },
+    {
+      "code": "13304",
+      "name": "Suspeição"
+    },
+    {
+      "code": "13540",
+      "name": "Suspeição"
+    },
+    {
+      "code": "13305",
+      "name": "Suspensão / Interrupção"
+    },
+    {
+      "code": "10424",
+      "name": "Suspensão"
+    },
+    {
+      "code": "13541",
+      "name": "Suspensão da Cobrança - Devedor Beneficiário de Assistência Judiciária Gratuita"
+    },
+    {
+      "code": "13306",
+      "name": "Suspensão da Execução"
+    },
+    {
+      "code": "8939",
+      "name": "Suspensão do Processo"
+    },
+    {
+      "code": "13724",
+      "name": "Suspensão/Interrupção do Contrato de Trabalho"
+    },
+    {
+      "code": "13688",
+      "name": "Sábado/Dia Útil"
+    },
+    {
+      "code": "14037",
+      "name": "Sócio/Acionista"
+    },
+    {
+      "code": "13862",
+      "name": "Tarefa"
+    },
+    {
+      "code": "13542",
+      "name": "Taxa Referencial - TR x IPCA-E"
+    },
+    {
+      "code": "13543",
+      "name": "Taxa SELIC"
+    },
+    {
+      "code": "13714",
+      "name": "Teletrabalho/Trabalho à Distância/Trabalho em Domicílio"
+    },
+    {
+      "code": "13310",
+      "name": "Temas repetitivos / Repercussão Geral"
+    },
+    {
+      "code": "12420",
+      "name": "Tempestividade"
+    },
+    {
+      "code": "13544",
+      "name": "Tempestividade"
+    },
+    {
+      "code": "13894",
+      "name": "Tempo de Exposição"
+    },
+    {
+      "code": "10276",
+      "name": "Tempo de Serviço"
+    },
+    {
+      "code": "13731",
+      "name": "Terceirização"
+    },
+    {
+      "code": "14040",
+      "name": "Terceirização/Tomador de Serviços"
+    },
+    {
+      "code": "13311",
+      "name": "Terceiro Juridicamente Interessado"
+    },
+    {
+      "code": "13314",
+      "name": "Termo Inicial do Prazo"
+    },
+    {
+      "code": "13312",
+      "name": "Termo de Ajustamento de Conduta - TAC"
+    },
+    {
+      "code": "13313",
+      "name": "Termo de Conciliação Prévia"
+    },
+    {
+      "code": "13977",
+      "name": "Termo de Quitação Anual"
+    },
+    {
+      "code": "13978",
+      "name": "Termo de Rescisão Contratual"
+    },
+    {
+      "code": "13945",
+      "name": "Teto Salarial - Limitação"
+    },
+    {
+      "code": "13827",
+      "name": "Trabalhador Autônomo Não Especificado"
+    },
+    {
+      "code": "13828",
+      "name": "Trabalhador Avulso"
+    },
+    {
+      "code": "13549",
+      "name": "Trabalhador Brasileiro no Exterior"
+    },
+    {
+      "code": "13829",
+      "name": "Trabalhador Eventual"
+    },
+    {
+      "code": "6201",
+      "name": "Trabalhador Migrante ou Fronteiriço do MERCOSUL"
+    },
+    {
+      "code": "13551",
+      "name": "Trabalhador Terceirizado"
+    },
+    {
+      "code": "13830",
+      "name": "Trabalhador Voluntário"
+    },
+    {
+      "code": "13555",
+      "name": "Trabalho Externo"
+    },
+    {
+      "code": "13775",
+      "name": "Trabalho Externo"
+    },
+    {
+      "code": "14657",
+      "name": "Trabalho Forçado"
+    },
+    {
+      "code": "13806",
+      "name": "Trabalho aos Domingos"
+    },
+    {
+      "code": "13041",
+      "name": "Trabalho com Proteção Especial"
+    },
+    {
+      "code": "13754",
+      "name": "Trabalho em Condições Análogas  à de Escravo"
+    },
+    {
+      "code": "13779",
+      "name": "Trabalho em Domicílio/Teletrabalho"
+    },
+    {
+      "code": "13755",
+      "name": "Trabalho sob Aplicativos e/ou  Plataformas Digitais"
+    },
+    {
+      "code": "13639",
+      "name": "Transação"
+    },
+    {
+      "code": "14082",
+      "name": "Transcedência"
+    },
+    {
+      "code": "14082",
+      "name": "Transcendência"
+    },
+    {
+      "code": "13736",
+      "name": "Transferência"
+    },
+    {
+      "code": "13776",
+      "name": "Turno Ininterrupto de Revezamento"
+    },
+    {
+      "code": "13319",
+      "name": "Tutela Inibitória (Obrigação de Fazer e Não Fazer)"
+    },
+    {
+      "code": "9192",
+      "name": "Tutela Provisória"
+    },
+    {
+      "code": "14122",
+      "name": "Tutela Provisória de Urgência"
+    },
+    {
+      "code": "12417",
+      "name": "Tutela de Evidência"
+    },
+    {
+      "code": "12416",
+      "name": "Tutela de Urgência"
+    },
+    {
+      "code": "13307",
+      "name": "Tácito"
+    },
+    {
+      "code": "13677",
+      "name": "Técnico em Radiologia"
+    },
+    {
+      "code": "13725",
+      "name": "Unicidade Contratual"
+    },
+    {
+      "code": "13624",
+      "name": "Unicidade Sindical"
+    },
+    {
+      "code": "13919",
+      "name": "Uniforme"
+    },
+    {
+      "code": "13615",
+      "name": "Uso de Sistema de Peticionamento Diverso - Petição Juridicamente Inexistente"
+    },
+    {
+      "code": "11870",
+      "name": "Utilização de bens públicos"
+    },
+    {
+      "code": "13559",
+      "name": "Vale Transporte"
+    },
+    {
+      "code": "13864",
+      "name": "Vale Transporte"
+    },
+    {
+      "code": "14030",
+      "name": "Valor Arbitrado"
+    },
+    {
+      "code": "8934",
+      "name": "Valor da Causa"
+    },
+    {
+      "code": "9149",
+      "name": "Valor da Execução / Cálculo / Atualização"
+    },
+    {
+      "code": "12800",
+      "name": "Valorização do Magistério e dos Profissionais da Educação"
+    },
+    {
+      "code": "13831",
+      "name": "Verbas Remuneratórias, Indenizatórias e Benefícios"
+    },
+    {
+      "code": "13970",
+      "name": "Verbas Rescisórias"
+    },
+    {
+      "code": "13973",
+      "name": "Verbas Rescisórias"
+    },
+    {
+      "code": "13679",
+      "name": "Vigia e Vigilantes"
+    },
+    {
+      "code": "13563",
+      "name": "Vigência/Ultratividade"
+    },
+    {
+      "code": "13043",
+      "name": "Violação Literal à Disposição de Lei"
+    },
+    {
+      "code": "10014",
+      "name": "Violação dos Princípios Administrativos"
+    },
+    {
+      "code": "13323",
+      "name": "Vitaliciamento"
+    },
+    {
+      "code": "13785",
+      "name": "Vício Formal - Pagamento do Adicional de Horas Extras"
+    },
+    {
+      "code": "13322",
+      "name": "Vício de Consentimento"
+    },
+    {
+      "code": "9026",
+      "name": "Vícios Formais da Sentença"
+    },
+    {
+      "code": "13997",
+      "name": "indenização Adicional"
+    },
+    {
+      "code": "13960",
+      "name": "indenização por Tempo de Serviço"
+    },
+    {
+      "code": "13720",
+      "name": "inquérito Administrativo - Validade"
+    },
+    {
+      "code": "13771",
+      "name": "intervalo Interjonadas"
+    },
+    {
+      "code": "13692",
+      "name": "isonomia/Diferença Salarial"
+    },
+    {
+      "code": "13884",
+      "name": "Óleos Minerais"
+    },
+    {
+      "code": "8883",
+      "name": "Órgãos Judiciários e Auxiliares da Justiça"
+    },
+    {
+      "code": "13237",
+      "name": "Ônus da Prova"
+    }
+  ]
+}

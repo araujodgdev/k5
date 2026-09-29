@@ -1,0 +1,25 @@
+{
+  "runId": "5f29d966-bef5-4747-a220-5639514f552f",
+  "installationId": "44140216-3972-4919-8554-9e9961eb90b7",
+  "previousCheckpoint": {
+    "phase": "preparation",
+    "pending": [
+      "Verify source permissions",
+      "Adapt existing publisher for TJPE",
+      "Resolve native decision identity and preserve official HTML",
+      "Enumerate remaining catalog and hierarchy",
+      "Partition by date and schedule recent revisits"
+    ],
+    "lastRunId": "1d8d15ba-8a4f-403a-84d2-953d9abdab2a",
+    "reportedTotal": 1480,
+    "catalogComplete": false,
+    "coverageComplete": false,
+    "nextDecisionPage": 1,
+    "nextCatalogAction": "Continue official dropdown enumeration after code 14106; re-read overlap and deduplicate by CNJ code.",
+    "nextDecisionIndex": 0,
+    "observedTopicCount": 16,
+    "resultLimitVerified": false,
+    "sortTieBreakVerified": false
+  },
+  "startedAt": "2026-09-29T00:56:04.037Z"
+}

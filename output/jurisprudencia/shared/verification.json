@@ -1,0 +1,65 @@
+{
+  "checkedAt": "2026-09-28T21:42:56.589Z",
+  "judgments": [
+    {
+      "tribunal": "STF",
+      "judgments": 2,
+      "ementas": 2,
+      "full_text": 0,
+      "full_text_pending": 2
+    },
+    {
+      "tribunal": "STJ",
+      "judgments": 8,
+      "ementas": 3,
+      "full_text": 5,
+      "full_text_pending": 3
+    },
+    {
+      "tribunal": "TST",
+      "judgments": 2,
+      "ementas": 2,
+      "full_text": 2,
+      "full_text_pending": 0
+    }
+  ],
+  "topics": [
+    {
+      "court_code": "STF",
+      "topics": 1631
+    },
+    {
+      "court_code": "STJ",
+      "topics": 907
+    },
+    {
+      "court_code": "TST",
+      "topics": 13
+    }
+  ],
+  "runs": [
+    {
+      "id": "73e15cce-7694-4706-b683-40aa76cd84a9",
+      "court_code": "STF",
+      "status": "partial",
+      "evidence_storage_key": "research/sha256/b9/b9a22816ca47f771bbaf0cc0e62a9381ae589722336f12a8d3c8b2cbfd0dc159.json",
+      "verified_objects": "5"
+    },
+    {
+      "id": "2e0cc266-618c-4b18-a4b4-7ef99a44206f",
+      "court_code": "STJ",
+      "status": "partial",
+      "evidence_storage_key": "research/sha256/81/81863b9f5d39fd7a2a1c691dd2e75f935528584efbae49c2f7cb72dd65741c31.json",
+      "verified_objects": "14"
+    },
+    {
+      "id": "f31565d0-f5a4-4ae5-87ca-1a95fa7a587c",
+      "court_code": "TST",
+      "status": "partial",
+      "evidence_storage_key": "research/sha256/36/364c8de8d7666b9fe4c3ba1aa7b7bfb8c9a73a734371bdab5a772f6e93b3b190.json",
+      "verified_objects": "8"
+    }
+  ],
+  "invalidCrossSourceRelations": 0,
+  "danglingReadyVersions": 0
+}

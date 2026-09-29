@@ -1,0 +1,72 @@
+{
+  "sourceUrl": "https://jurisprudencia.tst.jus.br/",
+  "discoveredAt": "2026-09-28T21:35:08.985846+00:00",
+  "complete": false,
+  "topics": [
+    {
+      "id": "6191",
+      "label": "DIREITO INTERNACIONAL",
+      "parentId": null
+    },
+    {
+      "id": "6197",
+      "label": "Estrangeiro",
+      "parentId": "6191"
+    },
+    {
+      "id": "6202",
+      "label": "Proteção Internacional a Direitos Humanos",
+      "parentId": "6191"
+    },
+    {
+      "id": "6215",
+      "label": "Sucessão de Bens Estrangeiro",
+      "parentId": "6191"
+    },
+    {
+      "id": "6213",
+      "label": "Normas do Mercosul",
+      "parentId": "6191"
+    },
+    {
+      "id": "6212",
+      "label": "Tratado Internacional",
+      "parentId": "6191"
+    },
+    {
+      "id": "9565",
+      "label": "Laudo Arbitral Internacional",
+      "parentId": "6191"
+    },
+    {
+      "id": "6218",
+      "label": "Pessoa Jurídica Estrangeira",
+      "parentId": "6191"
+    },
+    {
+      "id": "55643",
+      "label": "QUESTÕES DE ALTA COMPLEXIDADE, GRANDE IMPACTO E REPERCUSSÃO",
+      "parentId": null
+    },
+    {
+      "id": "8826",
+      "label": "DIREITO PROCESSUAL CIVIL E DO TRABALHO",
+      "parentId": null
+    },
+    {
+      "id": "864",
+      "label": "DIREITO DO TRABALHO",
+      "parentId": null
+    },
+    {
+      "id": "899",
+      "label": "DIREITO CIVIL",
+      "parentId": null
+    },
+    {
+      "id": "9985",
+      "label": "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO",
+      "parentId": null
+    }
+  ]
+}

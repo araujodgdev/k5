@@ -1,0 +1,13 @@
+{
+  "fullTextsPrepared": 10,
+  "ementasPrepared": 5,
+  "topicsInBatch": 44,
+  "relations": 52,
+  "topicQueues": 129,
+  "nextZipIndex": 15,
+  "zipTotal": 65,
+  "nextMirrorIndex": 8,
+  "mirrorTotal": 1100,
+  "fulltextMetadataWithoutFileInThisZip": 2687,
+  "status": "prepared_not_published"
+}

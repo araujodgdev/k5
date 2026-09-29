@@ -8,6 +8,7 @@ export const appNavigation = [
   { slug: "email", label: "E-mails", short: "E-mails" },
   { slug: "messages", label: "Mensagens", short: "Mensagens" },
   { slug: "whatsapp", label: "WhatsApp", short: "WhatsApp" },
+  { slug: "ads", label: "Anúncios", short: "Anúncios" },
   { slug: "integrations", label: "Integrações", short: "Integrações" },
   { slug: "billing", label: "Plano", short: "Plano" },
 ] as const;

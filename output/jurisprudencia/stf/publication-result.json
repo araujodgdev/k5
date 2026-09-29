@@ -1,0 +1,51 @@
+{
+  "runId": "73e15cce-7694-4706-b683-40aa76cd84a9",
+  "tribunal": "STF",
+  "installationId": "4c4c69f2-063b-4456-a41b-62340e414e36",
+  "records": [
+    {
+      "sourceJudgmentId": "sjur185881",
+      "judgmentId": "1f148dfc-4424-4d19-9144-c69f95ffd81e"
+    },
+    {
+      "sourceJudgmentId": "sjur187947",
+      "judgmentId": "58baaf05-38ca-4851-80d9-74d3014348e6"
+    }
+  ],
+  "topics": 1631,
+  "relations": 2,
+  "originals": [
+    {
+      "sourceJudgmentId": "sjur185881",
+      "key": "research/sha256/dc/dcbaa2a4d6591252419a05f7de0dc29f03b6e88cca9b0df9f7937c2a3fbbbad1.json",
+      "sha256": "dcbaa2a4d6591252419a05f7de0dc29f03b6e88cca9b0df9f7937c2a3fbbbad1",
+      "bytes": 5813
+    },
+    {
+      "sourceJudgmentId": "sjur187947",
+      "key": "research/sha256/82/82734050940cdbac73330492d5367aa7e863fb1739172d8367796cd98411a89c.json",
+      "sha256": "82734050940cdbac73330492d5367aa7e863fb1739172d8367796cd98411a89c",
+      "bytes": 4178
+    }
+  ],
+  "verifiedR2Objects": 5,
+  "manifestKey": "research/sha256/b9/b9a22816ca47f771bbaf0cc0e62a9381ae589722336f12a8d3c8b2cbfd0dc159.json",
+  "coverage": "partial",
+  "checkpoint": {
+    "nextResultIndex": 2,
+    "lastSourceJudgmentId": "sjur187947",
+    "totalReported": 20,
+    "publicationConfirmed": true,
+    "catalogLetter": "a",
+    "nextCatalogLetter": "b",
+    "page": 1,
+    "catalogComplete": false,
+    "pendingFullText": [
+      "sjur185881",
+      "sjur187947"
+    ],
+    "status": "partial",
+    "remotePersistence": "confirmed",
+    "publicationRunId": "73e15cce-7694-4706-b683-40aa76cd84a9"
+  }
+}

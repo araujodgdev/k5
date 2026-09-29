@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark" data-accent="gelo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zima · Monolinha · Exploração 02</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ease: cubic-bezier(.16, 1, .3, 1);
+    --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+    --bg: #ffffff; --fg: #232323; --line: #232323; --border: #d4d4d4;
+    --muted: #5c5c5c; --subtle: #696969; --panel: #d9d9d9;
+  }
+  [data-theme="dark"] {
+    --bg: #232323; --fg: #f5f5f5; --line: #5a5a5a; --border: #3d3d3d;
+    --muted: #b8b8b8; --subtle: #a3a3a3; --panel: #3a3a3a;
+  }
+  [data-accent="gelo"]       { --accent: #3f8fbb; } [data-theme="dark"][data-accent="gelo"]       { --accent: #93d2ec; }
+  [data-accent="glaciar"]    { --accent: #1d6a96; } [data-theme="dark"][data-accent="glaciar"]    { --accent: #5fb2dc; }
+  [data-accent="aurora"]     { --accent: #23947a; } [data-theme="dark"][data-accent="aurora"]     { --accent: #72dab9; }
+  [data-accent="crepusculo"] { --accent: #6a5fc6; } [data-theme="dark"][data-accent="crepusculo"] { --accent: #aca0f6; }
+
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color: var(--fg); transition: background .5s var(--ease), color .5s var(--ease); }
+  body { margin: 0; font: 14px/1.5 Geist, system-ui, sans-serif; letter-spacing: -0.011em; }
+  button { font: inherit; color: inherit; }
+  .mono { font-family: "Geist Mono", ui-monospace, monospace; font-size: 12px; text-transform: uppercase; letter-spacing: .02em; color: var(--subtle); }
+  .sq { display: inline-block; width: 7px; height: 7px; background: var(--accent); margin-right: 8px; vertical-align: 1px; }
+
+  header { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); background: var(--bg); }
+  header .title { padding: 14px 20px; border-right: 1px solid var(--line); display: flex; align-items: center; }
+  header .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 10px 20px; flex: 1; }
+  .group { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 28px; height: 28px; border: 1px solid var(--line); cursor: pointer; padding: 0; position: relative; }
+  .swatch[aria-pressed="true"]::after { content: ""; position: absolute; inset: 4px; border: 2px solid var(--bg); }
+  .btn { height: 36px; padding: 0 14px; border: 1px solid var(--line); background: transparent; cursor: pointer; display: inline-flex; align-items: center; gap: 10px;
+         background-image: linear-gradient(var(--accent), var(--accent)); background-size: 100% 0; background-position: bottom; background-repeat: no-repeat;
+         transition: background-size .5s var(--ease), color .3s; }
+  .btn:hover { background-size: 100% 100%; color: #232323; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .cell { position: relative; border-bottom: 1px solid var(--line); }
+  .cell > .label { position: absolute; left: 20px; top: 16px; }
+  .cell > .foot { position: absolute; left: 20px; bottom: 16px; right: 20px; display: flex; justify-content: space-between; gap: 16px; }
+  .hero { height: calc(100vh - 57px); min-height: 460px; display: grid; place-items: center; cursor: pointer; }
+  .hero svg { width: min(72vw, 860px); height: auto; overflow: visible; }
+
+  .row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+  .row > .cell { border-bottom: 0; border-right: 1px solid var(--line); aspect-ratio: 1 / 1; display: grid; place-items: center; overflow: hidden; }
+  .row > .cell:last-child { border-right: 0; }
+  @media (max-width: 900px) { .row { grid-template-columns: 1fr; } .row > .cell { border-right: 0; border-bottom: 1px solid var(--line); } }
+
+  .lockup { display: flex; align-items: center; gap: 18px; color: var(--fg); padding: 24px; cursor: default; }
+  .lockup .m { width: 72px; height: 72px; }
+  .lockup .w { height: 96px; width: auto; }
+  .working { display: grid; justify-items: center; gap: 22px; }
+  .working .m { width: 120px; height: 120px; }
+  .working .status { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+  .working .status svg { width: 18px; height: 18px; }
+  .icon { overflow: hidden; width: 42%; aspect-ratio: 1; background: var(--fg); color: var(--bg); display: grid; place-items: center; cursor: pointer; border: 0; padding: 0; }
+  .icon svg { width: 64%; height: auto; overflow: visible; }
+
+  .construct { padding: 72px 20px 64px; display: grid; place-items: center; }
+  .construct svg { width: min(92vw, 1040px); height: auto; overflow: visible; }
+  .construct .grid line { stroke: var(--border); stroke-width: .05; }
+  .construct .guide { stroke: var(--accent); stroke-width: .06; stroke-dasharray: .3 .3; }
+  .construct .ghost { opacity: .9; }
+  .construct text { font: .9px "Geist Mono", monospace; fill: var(--subtle); text-transform: uppercase; letter-spacing: .02em; }
+
+  .sizes { padding: 64px 20px 48px; display: flex; flex-wrap: wrap; align-items: end; gap: 28px; }
+  .tile { display: grid; place-items: center; background: var(--fg); color: var(--bg); }
+  .plain { display: grid; place-items: center; color: var(--fg); }
+  .notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .notes > div { padding: 24px 20px 32px; border-right: 1px solid var(--border); }
+  .notes > div:last-child { border-right: 0; }
+  .notes p { margin: 10px 0 0; color: var(--muted); max-width: 44ch; }
+  @media (max-width: 900px) { .notes { grid-template-columns: 1fr; } .notes > div { border-right: 0; border-bottom: 1px solid var(--border); } }
+
+  svg .ink { fill: currentColor; }
+  svg .acc { fill: var(--accent); }
+  svg .s-ink { stroke: currentColor; fill: none; }
+  svg { overflow: visible; }
+  svg * { transform-box: fill-box; }
+
+  /* ---------- Entrada ---------- */
+
+
+  .flake { transform-origin: center; }
+  .istem { transform-origin: center bottom; }
+  .play .zrev { animation: draw .75s var(--ease-in-out) backwards; animation-delay: var(--d, 0s); }
+  .play .st { animation: draw .8s var(--ease-in-out) backwards; animation-delay: calc(var(--d, 0s) + .3s + var(--i) * .1s); }
+  .play .flake { animation: fall 1.7s var(--ease-in-out) backwards; animation-delay: calc(var(--d, 0s) + .85s); }
+  .play .istem { animation: draw .8s var(--ease-in-out) backwards, impact .7s var(--ease) backwards; animation-delay: calc(var(--d, 0s) + .3s), calc(var(--d, 0s) + 2.28s); }
+  .play .m .flake { animation-delay: calc(var(--d, 0s) + .45s); }
+  @keyframes draw { from { stroke-dasharray: 1 2; stroke-dashoffset: 1; } to { stroke-dasharray: 1 2; stroke-dashoffset: 0; } }
+  @keyframes fall {
+    0%   { transform: translate(6px, -22px) rotate(-150deg); opacity: 0; }
+    14%  { opacity: 1; }
+    38%  { transform: translate(-3px, -13px) rotate(-95deg); }
+    64%  { transform: translate(2px, -5px) rotate(-35deg); }
+    84%  { transform: translate(0, .5px) rotate(0) scale(1.14, .82); }
+    100% { transform: none; }
+  }
+  @keyframes impact { 0% { transform: none; } 30% { transform: scaleY(.94); } 100% { transform: none; } }
+
+  /* ---------- Hover: the flake lifts off, turns a quarter and settles. ---------- */
+  .hov .flake { transition: transform .9s var(--ease); }
+  .hov:hover .flake { transform: translateY(-2.6px) rotate(90deg); }
+
+  /* ---------- Trabalhando: the flake rises and lands again, a quarter turn each time. ---------- */
+  .work .flake { animation: bob 2.4s var(--ease-in-out) infinite; }
+  .work .istem { animation: bob-impact 2.4s var(--ease) infinite; }
+  @keyframes bob {
+    0%, 8%   { transform: none; }
+    46%, 54% { transform: translateY(-3.2px) rotate(90deg); }
+    92%      { transform: translateY(.3px) rotate(180deg) scale(1.1, .86); }
+    100%     { transform: rotate(180deg); }
+  }
+  @keyframes bob-impact { 0%, 91% { transform: none; } 94% { transform: scaleY(.95); } 100% { transform: none; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="title"><span class="sq"></span><span class="mono" style="color:var(--fg)">Zima · Monolinha · Exploração 02</span></div>
+  <div class="controls">
+    <div class="group"><span class="mono">Cor</span><span id="swatches" class="group"></span><span id="accent-name" class="mono" style="color:var(--fg)"></span></div>
+    <button class="btn" id="theme" type="button"></button>
+    <button class="btn" id="replay" type="button">Repetir animações <span aria-hidden="true">→</span></button>
+  </div>
+</header>
+
+<main>
+  <section class="cell hero" id="hero" role="button" tabindex="0" aria-label="Repetir a entrada do logotipo">
+    <span class="label mono"><span class="sq"></span>Entrada</span>
+    <span id="hero-word"></span>
+    <div class="foot mono"><span>O nome se escreve; o floco cai e pousa no i</span><span>Clique para repetir</span></div>
+  </section>
+
+  <div class="row">
+    <section class="cell" id="hover">
+      <span class="label mono"><span class="sq"></span>Hover</span>
+      <div class="lockup hov" id="hover-lockup"></div>
+      <div class="foot mono"><span>Passe o cursor</span></div>
+    </section>
+    <section class="cell" id="working">
+      <span class="label mono"><span class="sq"></span>Trabalhando</span>
+      <div class="working work">
+        <span id="work-mark"></span>
+        <span class="status work"><span id="work-mini"></span><span id="work-text">Pensando…</span></span>
+      </div>
+      <div class="foot mono"><span>Enquanto o Zima trabalha</span></div>
+    </section>
+    <section class="cell" id="icon-cell">
+      <span class="label mono"><span class="sq"></span>Ícone</span>
+      <button class="icon hov" id="icon" type="button" aria-label="Repetir a entrada do ícone"></button>
+      <div class="foot mono"><span>App, favicon e barra lateral</span></div>
+    </section>
+  </div>
+
+  <section class="cell construct" id="construct">
+    <span class="label mono"><span class="sq"></span>Construção</span>
+    <span id="construct-svg"></span>
+  </section>
+
+  <section class="cell">
+    <span class="label mono"><span class="sq"></span>Tamanhos</span>
+    <div class="sizes" id="sizes"></div>
+  </section>
+
+  <section class="cell notes">
+    <div><span class="mono">O que mudou · Forma</span><p>O z deixou de ser um traço com cantos chanfrados. Agora é desenhado como forma: a diagonal tem a mesma espessura das barras (3 unidades medidas na perpendicular) e os cantos de fora são retos, como os do resto do nome.</p></div>
+    <div><span class="mono">O que mudou · Ritmo</span><p>O espaço entre as letras foi acertado: 3 unidades depois do z, 2,5 entre as hastes. O floco do ícone vem da mesma medida do pingo do i, então nome e ícone falam a mesma língua.</p></div>
+    <div><span class="mono">O que mudou · Movimento</span><p>O floco agora pousa: achata um pouco ao tocar e o i cede junto. Surge o estado Trabalhando, que substitui o "Abre e fecha" do Tises: o floco sobe, dá um quarto de volta e pousa de novo.</p></div>
+  </section>
+</main>
+
+<script>
+const ACCENTS = [["gelo", "Gelo", "#93d2ec"], ["glaciar", "Glaciar", "#5fb2dc"], ["aurora", "Aurora", "#72dab9"], ["crepusculo", "Crepúsculo", "#aca0f6"]];
+
+/* A constructed z: two bars and a diagonal whose thickness, measured across it, equals the bars'. */
+function zPoints(x, y, W, H, t) {
+  const inner = H - 2 * t;
+  let lo = 0, hi = W;
+  for (let k = 0; k < 40; k++) {
+    const h = (lo + hi) / 2;
+    (h * inner / Math.hypot(inner, W - h) < t) ? lo = h : hi = h;
+  }
+  const run = W - (lo + hi) / 2;
+  const p = [[0, 0], [W, 0], [W, t], [W - run, H - t], [W, H - t], [W, H], [0, H], [0, H - t], [run, t], [0, t]];
+  return p.map(([a, b]) => `${+(x + a).toFixed(3)},${+(y + b).toFixed(3)}`).join(" ");
+}
+/* The path a pen takes through the z, used as a mask to write it. */
+const zPen = (x, y, W, H, t) => `M${x - t} ${y + t / 2}H${x + W - t * .3}L${x + t * .3} ${y + H - t / 2}H${x + W + t}`;
+
+const diamond = (cx, cy, r) => `M${cx - r} ${cy} ${cx} ${cy - r} ${cx + r} ${cy} ${cx} ${cy + r}Z`;
+
+let uid = 0;
+function zShape(x, y, W, H, t, d = "0s") {
+  const id = `zm${uid++}`;
+  return `<mask id="${id}" maskUnits="userSpaceOnUse"><path class="zrev" style="--d:${d}" d="${zPen(x, y, W, H, t)}" stroke="#fff" stroke-width="${t * 2.4}" fill="none" pathLength="1" stroke-linejoin="miter" stroke-miterlimit="10"/></mask>
+    <polygon class="ink" mask="url(#${id})" points="${zPoints(x, y, W, H, t)}"/>`;
+}
+
+/* Wordmark "zima": x-height 8–21, stroke 3, 2.5-unit turns. */
+const WORD = {
+  i: "M14.5 8V21",
+  m1: "M20 21V12a2.5 2.5 0 0 1 2.5-2.5H24a2.5 2.5 0 0 1 2.5 2.5v9",
+  m2: "M26.5 12a2.5 2.5 0 0 1 2.5-2.5h1.5a2.5 2.5 0 0 1 2.5 2.5v9",
+  a1: "M38.5 9.5h5a2.5 2.5 0 0 1 2.5 2.5V21",
+  a2: "M46 14.5h-5a2.5 2.5 0 0 0 0 5h5",
+};
+function wordmark(cls = "", d = "0s") {
+  return `<svg class="w ${cls}" viewBox="0 0 48 22" aria-hidden="true">
+    ${zShape(0, 8, 10, 13, 3, d)}
+    <path class="st s-ink istem" style="--i:0;--d:${d}" d="${WORD.i}" pathLength="1" stroke-width="3"/>
+    <path class="st s-ink" style="--i:1;--d:${d}" d="${WORD.m1}" pathLength="1" stroke-width="3"/>
+    <path class="st s-ink" style="--i:1.7;--d:${d}" d="${WORD.m2}" pathLength="1" stroke-width="3"/>
+    <path class="st s-ink" style="--i:2.6;--d:${d}" d="${WORD.a1}" pathLength="1" stroke-width="3"/>
+    <path class="st s-ink" style="--i:3.3;--d:${d}" d="${WORD.a2}" pathLength="1" stroke-width="3"/>
+    <path class="flake acc" style="--d:${d}" d="${diamond(14.5, 4, 1.9)}"/>
+  </svg>`;
+}
+/* The icon: the wordmark's z at 1.2×, and the tittle's flake at the same scale above its corner. */
+function mark(cls = "", d = "0s") {
+  return `<svg class="m ${cls}" viewBox="0 0 24 24" aria-hidden="true">
+    ${zShape(3.4, 6.9, 12, 15.6, 3.6, d)}
+    <path class="flake acc" style="--d:${d}" d="${diamond(18.3, 4.2, 2.3)}"/>
+  </svg>`;
+}
+
+function construction() {
+  let grid = "";
+  for (let x = 0; x <= 48; x++) grid += `<line x1="${x}" y1="-1" x2="${x}" y2="23"/>`;
+  for (let y = -1; y <= 23; y++) grid += `<line x1="0" y1="${y}" x2="48" y2="${y}"/>`;
+  const guides = [[2.1, "Topo do floco"], [8, "Altura de x"], [21, "Linha de base"]]
+    .map(([y, t]) => `<line class="guide" x1="-1" y1="${y}" x2="49" y2="${y}"/><text x="49.6" y="${y + .3}">${t}</text>`).join("");
+  return `<svg viewBox="-1 -3 58 28" aria-hidden="true">
+    <g class="grid">${grid}</g>${guides}
+    <g class="ghost">${wordmark("", "0s").replace(/<svg[^>]*>|<\/svg>/g, "")}</g>
+    <text x="0" y="-1.4">Traço 3</text><text x="10.6" y="-1.4">Curvas 2,5</text><text x="33" y="-1.4">Grade de 1 unidade</text>
+  </svg>`;
+}
+
+function sizes() {
+  const tiles = [64, 32, 24, 16].map(s => `<div style="display:grid;gap:8px;justify-items:start">
+      <div class="tile" style="width:${s * 1.5}px;height:${s * 1.5}px">${mark().replace('<svg class="m ', `<svg width="${s}" height="${s}" class="m `)}</div>
+      <div class="plain" style="width:${s * 1.5}px;height:${s * 1.5}px;border:1px solid var(--border)">${mark().replace('<svg class="m ', `<svg width="${s}" height="${s}" class="m `)}</div>
+      <span class="mono">${s}px</span></div>`).join("");
+  const words = [40, 24, 16].map(h => `<div style="display:grid;gap:8px;justify-items:start;margin-left:24px">
+      <div class="plain" style="height:${h * 1.6}px">${wordmark().replace('<svg class="w ', `<svg height="${h}" class="w `)}</div>
+      <span class="mono">Nome ${h}px</span></div>`).join("");
+  return tiles + words;
+}
+
+document.getElementById("hero-word").innerHTML = wordmark("", ".2s");
+document.getElementById("hover-lockup").innerHTML = wordmark();
+document.getElementById("work-mark").innerHTML = mark("work");
+document.getElementById("work-mini").innerHTML = mark("work");
+document.getElementById("icon").innerHTML = mark("", ".1s");
+document.getElementById("construct-svg").innerHTML = construction();
+document.getElementById("sizes").innerHTML = sizes();
+
+const phrases = ["Pensando…", "Consultando o Cofre…", "Escrevendo…", "Conferindo as citações…"];
+let ph = 0;
+setInterval(() => { document.getElementById("work-text").textContent = phrases[++ph % phrases.length]; }, 2400);
+
+function replay(el) { el.classList.remove("play"); void el.getBoundingClientRect(); el.classList.add("play"); }
+const players = [document.getElementById("hero"), document.getElementById("icon")];
+players.forEach(el => { el.addEventListener("click", () => replay(el)); replay(el); });
+document.getElementById("hero").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); replay(e.currentTarget); } });
+document.getElementById("replay").addEventListener("click", () => players.forEach(replay));
+
+const root = document.documentElement;
+const themeBtn = document.getElementById("theme");
+const syncTheme = () => { themeBtn.textContent = root.dataset.theme === "dark" ? "Tema claro" : "Tema escuro"; };
+themeBtn.addEventListener("click", () => { root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark"; syncTheme(); });
+syncTheme();
+
+const sw = document.getElementById("swatches"), nm = document.getElementById("accent-name");
+ACCENTS.forEach(([id, label, hex]) => {
+  const b = document.createElement("button");
+  b.className = "swatch"; b.type = "button"; b.style.background = hex; b.title = label; b.setAttribute("aria-label", `Cor ${label}`);
+  b.addEventListener("click", () => { root.dataset.accent = id; nm.textContent = label; sw.querySelectorAll(".swatch").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+  b.setAttribute("aria-pressed", String(id === root.dataset.accent));
+  if (id === root.dataset.accent) nm.textContent = label;
+  sw.appendChild(b);
+});
+</script>
+</body>
+</html>

@@ -82,7 +82,7 @@ export default function Landing() {
         </div>
         <div className="flex items-stretch md:border-l md:border-line">
           <nav aria-label="Seções" className="hidden items-stretch lg:flex">
-            {[["#modulos", "Módulos"], ["#escritorio", "Padrões"], ["#comecar", "Começar"]].map(([href, label]) => (
+            {[["#modulos", "Módulos"], ["#escritorio", "Formatos"], ["#comecar", "Começar"]].map(([href, label]) => (
               <a key={href} href={href} className="hover-rise flex items-center px-4 text-[15px] transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:text-brand-foreground">{label}</a>
             ))}
           </nav>
@@ -122,15 +122,15 @@ export default function Landing() {
         </section>
 
         {/* Statement band. */}
-        <section aria-label="O caso inteiro" className="grid border-b border-line md:grid-cols-2">
+        <section aria-label="Organização por caso" className="grid border-b border-line md:grid-cols-2">
           <div className="flex min-h-[44svh] flex-col justify-end bg-foreground px-5 py-6 text-background md:px-6">
             <p className="display text-[clamp(64px,10.5vw,176px)] leading-[.86] uppercase">
-              <Rise>O caso</Rise>
-              <Rise delay={.08}>inteiro.</Rise>
+              <Rise>Um caso,</Rise>
+              <Rise delay={.08}>uma pasta.</Rise>
             </p>
           </div>
           <div className="grid min-h-[44svh] grid-rows-[1fr_auto] border-t border-line bg-panel text-panel-foreground md:border-t-0 md:border-l">
-            <p className="display self-end px-5 pb-6 text-[clamp(56px,8vw,140px)] md:px-6"><Rise>Num lugar só.</Rise></p>
+            <p className="display self-end px-5 pb-6 text-[clamp(56px,8vw,140px)] md:px-6"><Rise>Com tarefas e prazos.</Rise></p>
             <div className="border-t border-line px-5 py-5 md:px-6"><p className="max-w-md text-base leading-snug" data-fade>Documentos, clientes, tarefas, prazos e honorários ficam ligados ao caso. Quando outro advogado assume, ele encontra os arquivos e vê o que falta fazer.</p></div>
           </div>
         </section>
@@ -141,9 +141,9 @@ export default function Landing() {
             <div className="flex flex-col gap-10 px-5 py-8 md:sticky md:top-15 md:min-h-[calc(100svh-3.75rem)] md:justify-between md:px-6 md:py-6">
               <Label>Módulos</Label>
               <h2 id="modulos-title" className="display text-[clamp(56px,7.4vw,128px)] leading-[.88] uppercase">
-                <Rise>Feito</Rise>
-                <Rise delay={.06} className="md:text-right">para a</Rise>
-                <Rise delay={.12}>advocacia</Rise>
+                <Rise>Cinco</Rise>
+                <Rise delay={.06} className="md:text-right">módulos,</Rise>
+                <Rise delay={.12}>um caso.</Rise>
               </h2>
               <div className="flex max-w-md flex-col gap-8 self-end" data-fade>
                 <p className="text-base leading-snug">Os cinco módulos usam os mesmos casos. O Lume lê os documentos do Cofre, o Escritório mostra os prazos de cada caso e Honorários mostra quanto falta receber.</p>
@@ -176,13 +176,12 @@ export default function Landing() {
         {/* The office: plain facts as large figures, on the grid's colors. */}
         <section id="escritorio" aria-labelledby="escritorio-title" className="scroll-mt-15 border-b border-line">
           <div className="flex items-end justify-between gap-6 border-b border-line px-5 py-8 md:px-6">
-            <h2 id="escritorio-title" className="display text-[clamp(56px,9vw,150px)]"><Rise>Nos seus padrões</Rise></h2>
-            <Label className="mb-3 hidden text-muted-foreground sm:flex">Formatos e isolamento de dados</Label>
+            <h2 id="escritorio-title" className="display text-[clamp(56px,9vw,150px)]"><Rise>Formatos e dados</Rise></h2>
           </div>
           <div className="grid md:grid-cols-4">
             <div className="flex min-h-[46svh] flex-col justify-between gap-10 bg-brand p-5 text-brand-foreground md:col-span-2 md:p-6" data-wipe>
               <p className="display text-[clamp(88px,11vw,190px)]">DOCX</p>
-              <p className="max-w-xs self-end text-right text-[17px] leading-snug">Exporte peças no modelo do seu escritório, com fonte, margens e espaçamento preservados.</p>
+              <p className="max-w-xs self-end text-right text-[17px] leading-snug">Exporte a peça no modelo do escritório. Fonte, margens e espaçamento continuam iguais.</p>
             </div>
             <div className="flex min-h-72 flex-col justify-between gap-10 border-t border-line bg-foreground p-5 text-background md:border-t-0 md:border-l md:p-6" data-wipe>
               <p className="display text-[clamp(72px,7vw,120px)]">PJe</p>
@@ -220,7 +219,7 @@ export default function Landing() {
 
       <footer className="grid md:grid-cols-2">
         <div className="flex min-h-72 flex-col justify-between gap-10 border-b border-line p-5 md:p-6">
-          <p className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Os documentos do caso.<br />A rotina do escritório.</p>
+          <p className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Documentos, IA e gestão<br />para quem advoga.</p>
         </div>
         <div className="grid grid-cols-2 border-b border-line md:border-l">
           <nav aria-label="Rodapé" className="flex flex-col gap-3 p-5 text-[17px] md:p-6">
@@ -243,7 +242,7 @@ export default function Landing() {
           <p className="label-mono text-background/60">© 2026 Lume</p>
         </div>
         <Link href="/sign-up" className="group/foot relative flex min-h-64 flex-col justify-between gap-10 border-t border-background/15 bg-foreground p-5 text-background focus-visible:outline-none md:min-h-[56svh] md:border-t-0 md:border-l md:p-6">
-          <span className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Leve o Lume para<br />o seu escritório</span>
+          <span className="display text-[clamp(36px,3.4vw,52px)] leading-[1]">Comece com um caso<br />do seu escritório</span>
           <span className="flex items-end justify-between">
             <span className="text-[17px] font-medium underline decoration-transparent underline-offset-4 transition-colors duration-300 group-hover/foot:decoration-brand">Criar conta</span>
             <ArrowUpRight className="size-28 stroke-[.5] transition-[transform,color] duration-700 ease-(--ease) group-hover/foot:translate-x-1 group-hover/foot:-translate-y-1 group-hover/foot:text-brand md:size-36" aria-hidden="true" />

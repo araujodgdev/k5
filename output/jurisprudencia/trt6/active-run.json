@@ -1,0 +1,13 @@
+{
+  "runId": "f21adf51-3919-461f-8d8c-819d8d52fb0b",
+  "installationId": "3b01e121-899f-4404-bb08-14ab806b81dd",
+  "previous": {
+    "lastRunId": "5a0da3aa-871b-42af-9291-29ee30750196",
+    "nextAction": "verify permissions, finish official catalog and partition by signature date",
+    "searchPage": 1,
+    "catalogOffset": 20,
+    "catalogComplete": false,
+    "coverageComplete": false,
+    "catalogObservedCount": 1095
+  }
+}

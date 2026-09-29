@@ -1,0 +1,29 @@
+{
+  "kind": "court_portal",
+  "courtCode": "STF",
+  "courtName": "Supremo Tribunal Federal",
+  "degree": "superior",
+  "system": "proprietary",
+  "purpose": "jurisprudence",
+  "baseUrl": "https://jurisprudencia.stf.jus.br/",
+  "authKind": "none",
+  "discoveryStatus": "pilot",
+  "permissions": {
+    "query": "permitido",
+    "cache": "permitido",
+    "documents": "permitido",
+    "redistribution": "permitido",
+    "ai": "nao_esclarecido"
+  },
+  "permissionEvidence": "Coleta de decisões judiciais públicas autorizada pelo operador em 2026-09-28. Reprodução dos textos de decisões e atos oficiais: Lei 9.610/1998 art. 8 IV, https://www.planalto.gov.br/ccivil_03/leis/l9610.htm. Escopo restrito aos textos e metadados públicos da decisão; não licencia conteúdo editorial, identidade visual ou todo o portal. Coleta assistida pelos controles públicos, sem contornar bloqueios.",
+  "allowedHosts": [
+    "jurisprudencia.stf.jus.br",
+    "portal.stf.jus.br",
+    "www.stf.jus.br",
+    "stf.jus.br"
+  ],
+  "rateLimitPerMinute": 5,
+  "dailyRequestBudget": 100,
+  "documentationUrl": "https://jurisprudencia.stf.jus.br/",
+  "notes": "Piloto assistido; instalação admitida para armazenamento. Live transport desabilitado: não há conector de busca autônomo registrado. Catálogo e checkpoint persistidos separadamente. Sem agendamento."
+}

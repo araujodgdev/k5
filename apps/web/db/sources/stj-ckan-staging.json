@@ -1,0 +1,29 @@
+{
+  "kind": "ckan",
+  "courtCode": "STJ",
+  "courtName": "Superior Tribunal de Justiça",
+  "degree": "superior",
+  "system": "not_applicable",
+  "purpose": "jurisprudence",
+  "baseUrl": "https://dadosabertos.web.stj.jus.br/",
+  "contractVersion": "CKAN package_show; parser stj-ckan-v2",
+  "authKind": "none",
+  "discoveryStatus": "pilot",
+  "permissions": {
+    "query": "permitido",
+    "cache": "permitido",
+    "documents": "permitido",
+    "redistribution": "permitido",
+    "ai": "nao_esclarecido"
+  },
+  "permissionEvidence": "Licença Creative Commons Atribuição (cc-by) conferida no package_show oficial do conjunto de íntegras em 2026-09-28 e já documentada para espelhos da Segunda Turma. Dicionário e canário conferidos: 65 textos HTML do ZIP possuem SeqDocumento correspondente nos metadados. Fonte: https://dadosabertos.web.stj.jus.br/api/3/action/package_show?id=integras-de-decisoes-terminativas-e-acordaos-do-diario-da-justica. Preservar origem, autoria e bytes originais.",
+  "allowedHosts": [
+    "dadosabertos.web.stj.jus.br"
+  ],
+  "rateLimitPerMinute": 10,
+  "dailyRequestBudget": 500,
+  "coverageFrom": "2022-05-08",
+  "coverageTo": null,
+  "documentationUrl": "https://dadosabertos.web.stj.jus.br/dataset/espelhos-de-acordaos-segunda-turma",
+  "notes": "Permissão documents admitida para conjunto de íntegras após revisão de licença/dicionário/canário. Não unir espelho e íntegra apenas por número do processo; namespace stj-dje:SeqDocumento para importação autônoma do DJE. AI permanece não esclarecido."
+}

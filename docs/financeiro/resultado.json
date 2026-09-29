@@ -1,0 +1,430 @@
+{
+  "premissas": {
+    "meta": {
+      "nome": "Meta",
+      "novas": [
+        10,
+        12,
+        14,
+        10,
+        12,
+        14,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16
+      ],
+      "mix_solo": 0.6666666666666666,
+      "churn": 0.03,
+      "custo_variavel": 0.25,
+      "cac_caixa": 300,
+      "custo_fixo": 4000
+    },
+    "central": {
+      "nome": "Central",
+      "novas": [
+        4,
+        5,
+        6,
+        6,
+        7,
+        8,
+        8,
+        9,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10
+      ],
+      "mix_solo": 0.75,
+      "churn": 0.05,
+      "custo_variavel": 0.3,
+      "cac_caixa": 500,
+      "custo_fixo": 4000
+    }
+  },
+  "precos": {
+    "solo": 199,
+    "equipe": 349
+  },
+  "resultados": {
+    "meta": {
+      "arpa": 249.0,
+      "linhas": [
+        {
+          "mes": "out/26",
+          "novas": 10,
+          "ativas": 10.0,
+          "mrr_cheio": 2490,
+          "receita": 1245,
+          "custo_variavel": 311,
+          "aquisicao": 3000,
+          "custo_fixo": 4000,
+          "resultado": -6066,
+          "caixa_acumulado": -6066
+        },
+        {
+          "mes": "nov/26",
+          "novas": 12,
+          "ativas": 21.7,
+          "mrr_cheio": 5403,
+          "receita": 3909,
+          "custo_variavel": 977,
+          "aquisicao": 3600,
+          "custo_fixo": 4000,
+          "resultado": -4668,
+          "caixa_acumulado": -10734
+        },
+        {
+          "mes": "dez/26",
+          "novas": 14,
+          "ativas": 35.0,
+          "mrr_cheio": 8727,
+          "receita": 6984,
+          "custo_variavel": 1746,
+          "aquisicao": 4200,
+          "custo_fixo": 4000,
+          "resultado": -2962,
+          "caixa_acumulado": -13696
+        },
+        {
+          "mes": "jan/27",
+          "novas": 10,
+          "ativas": 44.0,
+          "mrr_cheio": 10955,
+          "receita": 9710,
+          "custo_variavel": 2428,
+          "aquisicao": 3000,
+          "custo_fixo": 4000,
+          "resultado": 283,
+          "caixa_acumulado": -13413
+        },
+        {
+          "mes": "fev/27",
+          "novas": 12,
+          "ativas": 54.7,
+          "mrr_cheio": 13615,
+          "receita": 12121,
+          "custo_variavel": 3030,
+          "aquisicao": 3600,
+          "custo_fixo": 4000,
+          "resultado": 1491,
+          "caixa_acumulado": -11923
+        },
+        {
+          "mes": "mar/27",
+          "novas": 14,
+          "ativas": 67.0,
+          "mrr_cheio": 16692,
+          "receita": 14949,
+          "custo_variavel": 3737,
+          "aquisicao": 4200,
+          "custo_fixo": 4000,
+          "resultado": 3012,
+          "caixa_acumulado": -8911
+        },
+        {
+          "mes": "abr/27",
+          "novas": 16,
+          "ativas": 81.0,
+          "mrr_cheio": 20176,
+          "receita": 18184,
+          "custo_variavel": 4546,
+          "aquisicao": 4800,
+          "custo_fixo": 4000,
+          "resultado": 4838,
+          "caixa_acumulado": -4073
+        },
+        {
+          "mes": "mai/27",
+          "novas": 16,
+          "ativas": 94.6,
+          "mrr_cheio": 23554,
+          "receita": 21562,
+          "custo_variavel": 5391,
+          "aquisicao": 4800,
+          "custo_fixo": 4000,
+          "resultado": 7372,
+          "caixa_acumulado": 3298
+        },
+        {
+          "mes": "jun/27",
+          "novas": 16,
+          "ativas": 107.8,
+          "mrr_cheio": 26832,
+          "receita": 24840,
+          "custo_variavel": 6210,
+          "aquisicao": 4800,
+          "custo_fixo": 4000,
+          "resultado": 9830,
+          "caixa_acumulado": 13128
+        },
+        {
+          "mes": "jul/27",
+          "novas": 16,
+          "ativas": 120.5,
+          "mrr_cheio": 30011,
+          "receita": 28019,
+          "custo_variavel": 7005,
+          "aquisicao": 4800,
+          "custo_fixo": 4000,
+          "resultado": 12214,
+          "caixa_acumulado": 25342
+        },
+        {
+          "mes": "ago/27",
+          "novas": 16,
+          "ativas": 132.9,
+          "mrr_cheio": 33094,
+          "receita": 31102,
+          "custo_variavel": 7776,
+          "aquisicao": 4800,
+          "custo_fixo": 4000,
+          "resultado": 14527,
+          "caixa_acumulado": 39869
+        },
+        {
+          "mes": "set/27",
+          "novas": 16,
+          "ativas": 144.9,
+          "mrr_cheio": 36086,
+          "receita": 34094,
+          "custo_variavel": 8523,
+          "aquisicao": 4800,
+          "custo_fixo": 4000,
+          "resultado": 16770,
+          "caixa_acumulado": 56639
+        },
+        {
+          "mes": "out/27",
+          "novas": 16,
+          "ativas": 156.6,
+          "mrr_cheio": 38987,
+          "receita": 36995,
+          "custo_variavel": 9249,
+          "aquisicao": 4800,
+          "custo_fixo": 4000,
+          "resultado": 18946,
+          "caixa_acumulado": 75585
+        },
+        {
+          "mes": "nov/27",
+          "novas": 16,
+          "ativas": 167.9,
+          "mrr_cheio": 41801,
+          "receita": 39809,
+          "custo_variavel": 9952,
+          "aquisicao": 4800,
+          "custo_fixo": 4000,
+          "resultado": 21057,
+          "caixa_acumulado": 96642
+        },
+        {
+          "mes": "dez/27",
+          "novas": 16,
+          "ativas": 178.8,
+          "mrr_cheio": 44531,
+          "receita": 42539,
+          "custo_variavel": 10635,
+          "aquisicao": 4800,
+          "custo_fixo": 4000,
+          "resultado": 23104,
+          "caixa_acumulado": 119747
+        }
+      ]
+    },
+    "central": {
+      "arpa": 236.5,
+      "linhas": [
+        {
+          "mes": "out/26",
+          "novas": 4,
+          "ativas": 4.0,
+          "mrr_cheio": 946,
+          "receita": 473,
+          "custo_variavel": 142,
+          "aquisicao": 2000,
+          "custo_fixo": 4000,
+          "resultado": -5669,
+          "caixa_acumulado": -5669
+        },
+        {
+          "mes": "nov/26",
+          "novas": 5,
+          "ativas": 8.8,
+          "mrr_cheio": 2081,
+          "receita": 1490,
+          "custo_variavel": 447,
+          "aquisicao": 2500,
+          "custo_fixo": 4000,
+          "resultado": -5457,
+          "caixa_acumulado": -11126
+        },
+        {
+          "mes": "dez/26",
+          "novas": 6,
+          "ativas": 14.4,
+          "mrr_cheio": 3396,
+          "receita": 2687,
+          "custo_variavel": 806,
+          "aquisicao": 3000,
+          "custo_fixo": 4000,
+          "resultado": -5119,
+          "caixa_acumulado": -16245
+        },
+        {
+          "mes": "jan/27",
+          "novas": 6,
+          "ativas": 19.6,
+          "mrr_cheio": 4645,
+          "receita": 3936,
+          "custo_variavel": 1181,
+          "aquisicao": 3000,
+          "custo_fixo": 4000,
+          "resultado": -4245,
+          "caixa_acumulado": -20490
+        },
+        {
+          "mes": "fev/27",
+          "novas": 7,
+          "ativas": 25.7,
+          "mrr_cheio": 6069,
+          "receita": 5241,
+          "custo_variavel": 1572,
+          "aquisicao": 3500,
+          "custo_fixo": 4000,
+          "resultado": -3831,
+          "caixa_acumulado": -24322
+        },
+        {
+          "mes": "mar/27",
+          "novas": 8,
+          "ativas": 32.4,
+          "mrr_cheio": 7657,
+          "receita": 6711,
+          "custo_variavel": 2013,
+          "aquisicao": 4000,
+          "custo_fixo": 4000,
+          "resultado": -3302,
+          "caixa_acumulado": -27624
+        },
+        {
+          "mes": "abr/27",
+          "novas": 8,
+          "ativas": 38.8,
+          "mrr_cheio": 9166,
+          "receita": 8220,
+          "custo_variavel": 2466,
+          "aquisicao": 4000,
+          "custo_fixo": 4000,
+          "resultado": -2246,
+          "caixa_acumulado": -29870
+        },
+        {
+          "mes": "mai/27",
+          "novas": 9,
+          "ativas": 45.8,
+          "mrr_cheio": 10836,
+          "receita": 9772,
+          "custo_variavel": 2932,
+          "aquisicao": 4500,
+          "custo_fixo": 4000,
+          "resultado": -1659,
+          "caixa_acumulado": -31529
+        },
+        {
+          "mes": "jun/27",
+          "novas": 10,
+          "ativas": 53.5,
+          "mrr_cheio": 12660,
+          "receita": 11477,
+          "custo_variavel": 3443,
+          "aquisicao": 5000,
+          "custo_fixo": 4000,
+          "resultado": -966,
+          "caixa_acumulado": -32495
+        },
+        {
+          "mes": "jul/27",
+          "novas": 10,
+          "ativas": 60.9,
+          "mrr_cheio": 14392,
+          "receita": 13209,
+          "custo_variavel": 3963,
+          "aquisicao": 5000,
+          "custo_fixo": 4000,
+          "resultado": 246,
+          "caixa_acumulado": -32249
+        },
+        {
+          "mes": "ago/27",
+          "novas": 10,
+          "ativas": 67.8,
+          "mrr_cheio": 16037,
+          "receita": 14855,
+          "custo_variavel": 4456,
+          "aquisicao": 5000,
+          "custo_fixo": 4000,
+          "resultado": 1398,
+          "caixa_acumulado": -30850
+        },
+        {
+          "mes": "set/27",
+          "novas": 10,
+          "ativas": 74.4,
+          "mrr_cheio": 17600,
+          "receita": 16418,
+          "custo_variavel": 4925,
+          "aquisicao": 5000,
+          "custo_fixo": 4000,
+          "resultado": 2492,
+          "caixa_acumulado": -28358
+        },
+        {
+          "mes": "out/27",
+          "novas": 10,
+          "ativas": 80.7,
+          "mrr_cheio": 19085,
+          "receita": 17903,
+          "custo_variavel": 5371,
+          "aquisicao": 5000,
+          "custo_fixo": 4000,
+          "resultado": 3532,
+          "caixa_acumulado": -24826
+        },
+        {
+          "mes": "nov/27",
+          "novas": 10,
+          "ativas": 86.7,
+          "mrr_cheio": 20496,
+          "receita": 19313,
+          "custo_variavel": 5794,
+          "aquisicao": 5000,
+          "custo_fixo": 4000,
+          "resultado": 4519,
+          "caixa_acumulado": -20307
+        },
+        {
+          "mes": "dez/27",
+          "novas": 10,
+          "ativas": 92.3,
+          "mrr_cheio": 21836,
+          "receita": 20654,
+          "custo_variavel": 6196,
+          "aquisicao": 5000,
+          "custo_fixo": 4000,
+          "resultado": 5458,
+          "caixa_acumulado": -14849
+        }
+      ]
+    }
+  }
+}

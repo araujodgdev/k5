@@ -1,0 +1,29 @@
+{
+  "runId": "ee3d032b-3274-4f0f-b3ab-21229f43ad1b",
+  "evidenceStorageKey": "research/sha256/44/44ff048b8d30c433efbc763a5293f4efd2d66fa0587fae8a211bae1b019daa9b.json",
+  "partitionsVisited": [
+    "discovery:pe",
+    "G2:2026-09-01:2026-09-28"
+  ],
+  "recordsInspected": 10,
+  "sourceReportedTotal": 6230,
+  "newJudgments": 0,
+  "updatedJudgments": 0,
+  "repeatedJudgments": 0,
+  "documentsPending": 10,
+  "originClassificationPending": 10,
+  "topicsDiscovered": 0,
+  "failures": [
+    {
+      "kind": "captcha",
+      "stage": "full_text",
+      "url": "https://pjett.trf5.jus.br/pjeconsulta/ConsultaPublica/listView.seam"
+    }
+  ],
+  "sha256": "44ff048b8d30c433efbc763a5293f4efd2d66fa0587fae8a211bae1b019daa9b",
+  "size": 87306,
+  "format": "application/json",
+  "nextAttemptAt": "2026-09-29T01:04:19.588Z",
+  "coverage": "incomplete",
+  "publication": "not_attempted_pending_origin_and_permissions"
+}

@@ -18,3 +18,4 @@ playwright-report/
 apps/web/public/sw.js
 .agents/*
 !.agents/skills/
+/tmp/

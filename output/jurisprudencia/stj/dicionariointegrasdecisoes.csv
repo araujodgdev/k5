@@ -1,0 +1,13 @@
+Campo;Tipo;Descrição
+SeqDocumento;Numérico ; Identificador da decisão ou acórdão. Corresponde ao nome do arquivo TXT encontrado no ZIP, no qual consta o texto completo da decisão ou acórdão.  
+dataPublicacao ;Data ; Data da publicação do documento no Diário da Justiça Eletrônico.  
+tipoDocumento ;Texto ; Informa se o documento é um acórdão ou uma decisão terminativa.  
+numeroRegistro ;Texto; Numero de registro do processo no qual foi proferido o Acórdão ou Decisão no Sistema do STJ  
+processo ;Texto ; Sigla da classe processual seguida do número do processo naquela classe.
+dataRecebimento ;Data; Data que o processo foi recebido no STJ.
+dataDistribuição ;Data; Data que o processo foi distribuído.
+ministro ;Texto ; Nome do ministro relator do acórdão ou proferidor da decisão.
+recurso;Texto;Indica o recurso interno sobre o qual foi proferida a decisão ou acórdão se houver. Quando nulo, indica que se refere ao processo principal. 
+teor;Texto;Pequeno texto que corresponde ao desfecho do julgamento. Ex. Concedendo, Denegando, Não Conhecendo etc. Disponível para acórdãos e decisões monocráticas. 
+descricaoMonocratica;Texto;Pequeno texto que corresponde à conclusão do julgado. Disponível apenas para decisões monocráticas. 
+assuntos;Texto;"Lista dos códigos CNJ dos assuntos relacionados ao processo separados por ';'.  O significado desses códigos estão disponíveis para download em https://dpj.cnj.jus.br/sgt/api/v1.0/assuntos.csv e para consulta em https://www.cnj.jus.br/sgt/consulta_publica_assuntos.php. "

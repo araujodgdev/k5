@@ -1,0 +1,352 @@
+- link "Logotipo de TRT da 6ª Região - ir para https://portal.trtXX.jus.br/":
+  - /url: https://portal.trtXX.jus.br/
+  - img "Logotipo de TRT da 6ª Região - ir para https://portal.trtXX.jus.br/"
+- heading "Sistema de Pesquisa de Jurisprudência" [level=1]: SISTEMA DE JURISPRUDÊNCIA
+- button "Informações do acesso autenticado":
+  - generic: 
+- button "Exibir ajuda desta página":
+  - generic: 
+- button "Aumentar tamanho da fonte":
+  - generic: text_increase
+- button "Diminuir tamanho da fonte":
+  - generic: text_decrease
+- button "Ativar ou desativar alto-contraste":
+  - generic: 
+- button "Ativar leitura de tela enbarcada":
+  - generic: 
+- generic: Pesquisa livre
+- textbox "Contendo as palavras (e)":
+  - /placeholder: Digite aqui
+- generic: Contendo as palavras (e)
+- textbox "Qualquer das palavras (ou)":
+  - /placeholder: Digite aqui
+- generic: Qualquer das palavras (ou)
+- textbox "Sem conter as palavras (não)":
+  - /placeholder: Digite aqui
+- generic: Sem conter as palavras (não)
+- textbox "Palavras na ementa (e)":
+  - /placeholder: Digite aqui
+- generic: Palavras na ementa (e)
+- textbox "Palavras no dispositivo (e)":
+  - /placeholder: Digite aqui
+- generic: Palavras no dispositivo (e)
+- button "Fazer pesquisa pelos filtros informados":
+  - generic: 
+  - text: Pesquisar
+- button "Exibir ajuda desta página":
+  - generic: 
+  - text: Dicas de pesquisa
+- button "Limpar todos os filtros de pesquisa e resultados":
+  - generic: 
+  - text: Limpar
+- paragraph: "Use aspas para pesquisas exatas de expressões ou palavras compostas (Exemplo: \"adicional de periculosidade\") em qualquer dos campos."
+- generic: Documentos
+- checkbox "Todos" [checked]
+- generic: Todos
+- separator
+- checkbox "Acórdão" [checked]
+- generic: Acórdão
+- checkbox "Decisão" [checked]
+- generic: Decisão
+- checkbox "Despacho" [checked]
+- generic: Despacho
+- checkbox "Sentença" [checked]
+- generic: Sentença
+- generic: Filtros
+- listbox "Qualquer Órgão Julgador":
+  - generic: Qualquer Órgão Julgador
+- generic: Órgão Julgador
+- button "Limpar seleção de Órgão Julgador":
+  - generic: 
+- listbox "Qualquer Órgão Julgador Colegiado":
+  - generic: Qualquer Órgão Julgador Colegiado
+- generic: Órgão Julgador Colegiado
+- button "Limpar seleção de Órgão Julgador Colegiado":
+  - generic: 
+- listbox "Qualquer Magistrado":
+  - generic: Qualquer Magistrado
+- generic: Magistrado
+- button "Limpar seleção de Magistrado":
+  - generic: 
+- listbox "Qualquer Classe Judicial":
+  - generic: Qualquer Classe Judicial
+- generic: Classe Judicial
+- button "Limpar seleção de Classe Judicial":
+  - generic: 
+- listbox "Qualquer Assunto":
+  - generic: Abono Pecuniário (Art. 78 Lei 8.112/1990) [10294]
+- generic: Assunto [código do CNJ]
+- button "Limpar seleção de Assunto [código do CNJ]":
+  - generic: 
+- textbox "Filtro data inicial de assinatura do documento":
+  - /placeholder: Início
+- generic: Data de Assinatura - Início
+- button "Open calendar":
+- textbox "Filtro data final de assinatura do documento":
+  - /placeholder: Fim
+- button "Open calendar":
+- textbox "Filtro data inicial de distribuição":
+  - /placeholder: Início
+- generic: Data de Distribuição - Início
+- button "Open calendar":
+- textbox "Filtro data final de distribuição":
+  - /placeholder: Fim
+- button "Open calendar":
+- text:  
+- generic [active]: Resultados da pesquisa
+- button "Imprimir resultados da pesquisa":
+  - generic: 
+- button "Limpar todos os filtros de pesquisa e resultados":
+  - generic: 
+- button "Exibir/esconder opções para filtragem nos resultados retornados":
+  - generic: 
+- text: Ordenar por
+- listbox "Ordenar por":
+  - generic: Data de assinatura
+- generic: Resultados por página
+- listbox "Resultados por página":
+  - generic: "20"
+- generic: 1 - 14 de 14
+- button "Página anterior" [disabled]:
+- button "Próxima página" [disabled]:
+- generic:          
+- heading "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000784-57.2018.5.06.0000
+    - text: Processo MSCiv - 0000784-57.2018.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/04932c9a40d806c95655fef7aad4553e
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Despacho - Data de assinatura: 27/03/2019"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000784-57.2018.5.06.0000
+    - text: Processo MSCiv - 0000784-57.2018.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/19097b76d816425b5c5ce5deb4e9466e
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Decisão - Data de assinatura: 21/02/2019"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000784-57.2018.5.06.0000
+    - text: Processo MSCiv - 0000784-57.2018.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/078daab0d81e0297d26fd7ac5ca1d55a
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Despacho - Data de assinatura: 12/02/2019"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000784-57.2018.5.06.0000
+    - text: Processo MSCiv - 0000784-57.2018.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/d2f1137d17e8987a2c49b4a4cdc4daa8
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Decisão - Data de assinatura: 24/01/2019"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000784-57.2018.5.06.0000
+    - text: Processo MSCiv - 0000784-57.2018.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/8fa58ff1395091368726691f2f619e48
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Decisão - Data de assinatura: 20/12/2018"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000784-57.2018.5.06.0000
+    - text: Processo MSCiv - 0000784-57.2018.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/83c37789237bf62a8d72f1adbb11db4e
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Despacho - Data de assinatura: 12/12/2018"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000784-57.2018.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000784-57.2018.5.06.0000
+    - text: Processo MSCiv - 0000784-57.2018.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/e2dcf96f3c7b4580e2605f1eadcd656d
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Decisão - Data de assinatura: 12/12/2018"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000380-74.2016.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000380-74.2016.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000380-74.2016.5.06.0000
+    - text: Processo MSCiv - 0000380-74.2016.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/1f713b46018b370b8d0a7e10b64830d1
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Despacho - Data de assinatura: 25/11/2016"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000380-74.2016.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000380-74.2016.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000380-74.2016.5.06.0000
+    - text: Processo MSCiv - 0000380-74.2016.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/b877129cb36cd13c758f8260846e8710
+  - generic: 
+  - text: Inteiro Teor
+- button "Exibir ementa do documento":
+  - generic: 
+  - text: Ementa
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Acórdão - Data de assinatura: 03/11/2016"
+- paragraph: "Relator(a): Valdir Jose Silva de Carvalho"
+- paragraph: "Órgão julgador: Tribunal Pleno"
+- paragraph:
+  - strong: "Ementa:"
+- paragraph: Os embargos de declaração representam o instrumento processual erigido pelo ordenamento jurídico pátrio para afastar eventuais omissões, obscuridades, contradições ou erro material, que possam eclodir de decisão judicial, na forma do que dispõe o art. 1.022 do Código de Processo Civil. Seu manejo é autorizado, ainda, quando constatado evidente equívoco no exame dos pressupostos extrínsecos do recurso na linha do artigo 897-A da Consolidação das Leis do Trabalho, ou para fins de prequestionamento, na forma prescrita pela Súmula n. 297 do Tribunal Superior do Trabalho. Incabível a apresentação de embargos declaratórios, se, por meio desse mecanismo, a parte objetiva, puramente, alcançar um pronunciamento jurisdicional que se coadune com teses que (ressalte-se) somente agora estão sendo suscitadas pela parte interessada, perante este juízo, eis que a embargante, embora notificada da impetração do mandamus, quedou-se silente, não se podendo tomar como omissão a ausência de pronunciamento acerca de questões que, eventualmente, possam ter sido propostas na reclamação trabalhista que originou o writ, porque a ação mandamental é autônoma em relação a ela. Declaratórios rejeitados.
+- heading "Mostrar movimentos do processo MSCiv - 0000380-74.2016.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000380-74.2016.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000380-74.2016.5.06.0000
+    - text: Processo MSCiv - 0000380-74.2016.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/d6b739a411f1a3f5d4e3c93073d7023e
+  - generic: 
+  - text: Inteiro Teor
+- button "Exibir ementa do documento":
+  - generic: 
+  - text: Ementa
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Acórdão - Data de assinatura: 05/10/2016"
+- paragraph: "Relator(a): Valdir Jose Silva de Carvalho"
+- paragraph: "Órgão julgador: Tribunal Pleno"
+- paragraph:
+  - strong: "Ementa:"
+- paragraph: MANDADO DE SEGURANÇA. TUTELA ANTECIPADA. CONCESSÃO. AUSÊNCIA DOS REQUISITOS LEGAIS. VIOLAÇÃO A DIREITO LÍQUIDO E CERTO. CONFIGURADA. O legislador pátrio, ao erigir o instituto da antecipação de tutela, buscou conferir máxima celeridade à prestação jurisdicional, em situações especialíssimas, dotando o Juiz de poderes avaliatórios da situação de segurança e da situação de evidência, para, desde logo, conceder, em concreto, os efeitos almejados pelo autor da ação. Definiu, contudo, para tanto, requisitos inafastáveis, dentre os quais, de modo absolutamente prioritário, a presença de "prova inequívoca", que autorizasse, ainda que de forma temporária, a inobservância da dialética por meio da qual se desenvolve a relação jurídico-processual, em aparente sacrifício, ao menos naquele momento, do direito de defesa da parte adversa. Daí porque a intitulada "prova inequívoca" deve ser de tal forma robusta, indene de dúvida, que torne próximo ao certo, e não apenas possível, que o provimento jurisdicional futuro confirmará o direito da parte postulante. Considera-se, destarte, violado direito líquido e certo da impetrante de somente ter contra si executada a obrigação de fazer, mediante o cumprimento do devido processo legal. Segurança concedida.
+- heading "Mostrar movimentos do processo MSCiv - 0000380-74.2016.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000380-74.2016.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000380-74.2016.5.06.0000
+    - text: Processo MSCiv - 0000380-74.2016.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/15bf3d32c4e0e781cfabf64ab8a544fd
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Decisão - Data de assinatura: 21/07/2016"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000247-66.2015.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000247-66.2015.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000247-66.2015.5.06.0000
+    - text: Processo MSCiv - 0000247-66.2015.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/ae78c2cc5ad3e8304cc6fc11a43981c4
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Despacho - Data de assinatura: 23/07/2015"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo MSCiv - 0000247-66.2015.5.06.0000" [level=4]:
+  - link "Mostrar movimentos do processo MSCiv - 0000247-66.2015.5.06.0000":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000247-66.2015.5.06.0000
+    - text: Processo MSCiv - 0000247-66.2015.5.06.0000
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/6af8b4c02f1e90d44d7daae35889a3b2
+  - generic: 
+  - text: Inteiro Teor
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Decisão - Data de assinatura: 03/07/2015"
+- paragraph: "Órgão julgador: Desembargador Valdir José Silva de Carvalho"
+- heading "Mostrar movimentos do processo AIRO - 0000554-33.2014.5.06.0007" [level=4]:
+  - link "Mostrar movimentos do processo AIRO - 0000554-33.2014.5.06.0007":
+    - /url: https://pje.trt6.jus.br/consultaprocessual/detalhe-processo/0000554-33.2014.5.06.0007
+    - text: Processo AIRO - 0000554-33.2014.5.06.0007
+- button "Mostrar mais informações do documento":
+  - generic: 
+- link "Exibir Inteiro teor do documento":
+  - /url: /jurisprudencia/0afaf8904f4f5ca0a175f10d6d4adadc
+  - generic: 
+  - text: Inteiro Teor
+- button "Exibir ementa do documento":
+  - generic: 
+  - text: Ementa
+- button "Baixar documento em formato RTF":
+  - generic: 
+  - text: Baixar como RTF
+- paragraph: "Acórdão - Data de assinatura: 18/05/2015"
+- paragraph: "Relator(a): Dione Nunes Furtado da Silva"
+- paragraph: "Órgão julgador: Terceira Turma"
+- paragraph:
+  - strong: "Ementa:"
+- paragraph: "EMENTA: AGRAVO DE INSTRUMENTO. NÃO PROVIMENTO. IRREGULARIDADE DE REPRESENTAÇÃO RELATIVA À OPOSIÇÃO DO RECURSO ORDINÁRIO. ATO INEXISTENTE. INOCORRÊNCIA DE EQUÍVOCO NO EXAME DE ADMISSIBILIDADE RECURSAL."
+- img "Acessível com VLibras"
+- button "Conteúdo acessível em Libras usando o VLibras Widget com opções dos Avatares Ícaro, Hosana ou Guga.":
+- iframe [name="a-eewz2xnu19t9"]:
+  - text: protegido por
+  - strong: reCAPTCHA
+  - text: Este site está excedendo
+  - link "a cota gratuita do reCAPTCHA Enterprise":
+    - /url: https://cloud.google.com/recaptcha/docs/billing-information
+  - text: .

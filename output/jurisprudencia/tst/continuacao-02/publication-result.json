@@ -1,0 +1,101 @@
+{
+  "runId": "6a8e9fd2-2735-4ead-88aa-016040178ab7",
+  "tribunal": "TST",
+  "installationId": "9dbf3409-0fe8-4296-884f-2ddbec9c95b5",
+  "records": [
+    {
+      "sourceJudgmentId": "da57a953452406e93c358b716e125f33",
+      "judgmentId": "b99d71dc-492c-440d-b1e8-671034c22ba8"
+    },
+    {
+      "sourceJudgmentId": "3502afe3039a14ecebdc8d081e4271ec",
+      "judgmentId": "855453ea-8148-4ff9-b097-422c58280109"
+    },
+    {
+      "sourceJudgmentId": "1dc64a55e3564942822e26f90ead0e44",
+      "judgmentId": "b599929c-1553-4e49-ad1a-ec18c89fc162"
+    },
+    {
+      "sourceJudgmentId": "c99aa92e7d12a7c5801d2c921b8595b3",
+      "judgmentId": "aba30afd-ca0c-4cdf-a7f5-ba008540bc58"
+    },
+    {
+      "sourceJudgmentId": "e14c64cc815059699ffb7cc7297e6a4e",
+      "judgmentId": "d9cce516-ccfc-4e8a-9a8f-a593d0b32d25"
+    }
+  ],
+  "topics": 1,
+  "relations": 5,
+  "originals": [
+    {
+      "sourceJudgmentId": "da57a953452406e93c358b716e125f33",
+      "key": "research/sha256/a1/a185d73be71370ad9d85b2acd839a1993dd7dc5fee404e508f788b8f199ea8c8.html",
+      "sha256": "a185d73be71370ad9d85b2acd839a1993dd7dc5fee404e508f788b8f199ea8c8",
+      "bytes": 46491,
+      "captureMethod": "official_download"
+    },
+    {
+      "sourceJudgmentId": "3502afe3039a14ecebdc8d081e4271ec",
+      "key": "research/sha256/63/63a4f39b7ea6b46d0ce018863da86262d675e9451d1458896c7b7c75756f6ab3.html",
+      "sha256": "63a4f39b7ea6b46d0ce018863da86262d675e9451d1458896c7b7c75756f6ab3",
+      "bytes": 49031,
+      "captureMethod": "official_download"
+    },
+    {
+      "sourceJudgmentId": "1dc64a55e3564942822e26f90ead0e44",
+      "key": "research/sha256/11/11ba181f334717f8f991f321591743183a9da111bf6518c14f44d146bad951f2.html",
+      "sha256": "11ba181f334717f8f991f321591743183a9da111bf6518c14f44d146bad951f2",
+      "bytes": 41845,
+      "captureMethod": "official_download"
+    },
+    {
+      "sourceJudgmentId": "c99aa92e7d12a7c5801d2c921b8595b3",
+      "key": "research/sha256/c3/c39818d9fcd7cc33f5d6451e95e21e64ec4c918025d32d7b7167ac964b8fa75e.html",
+      "sha256": "c39818d9fcd7cc33f5d6451e95e21e64ec4c918025d32d7b7167ac964b8fa75e",
+      "bytes": 47233,
+      "captureMethod": "official_download"
+    },
+    {
+      "sourceJudgmentId": "e14c64cc815059699ffb7cc7297e6a4e",
+      "key": "research/sha256/15/154742963a74da134f85eca83c1d5601cef2a1edf61e77669c9876c058ba5d7b.html",
+      "sha256": "154742963a74da134f85eca83c1d5601cef2a1edf61e77669c9876c058ba5d7b",
+      "bytes": 53708,
+      "captureMethod": "official_download"
+    }
+  ],
+  "verifiedR2Objects": 16,
+  "manifestKey": "research/sha256/cc/cc335adef8d6ffbe1995c279e8444cc9c5bb52639e5afd260ef8ca415e171117.json",
+  "coverage": "partial",
+  "checkpoint": {
+    "tribunal": "TST",
+    "source": "https://jurisprudencia.tst.jus.br/",
+    "topicId": "6191",
+    "origin": "TST",
+    "documentType": "Acórdãos",
+    "freeText": "",
+    "dateRange": null,
+    "totalReported": 74,
+    "pageSize": 20,
+    "page": 1,
+    "collectedWithinPage": 7,
+    "resumeAtWithinPage": 8,
+    "nextPendingProcess": "EDCiv-Ag-AIRR - 1180-10.2014.5.02.0445",
+    "localDownloadComplete": true,
+    "remotePersistence": "confirmed",
+    "partitionComplete": false,
+    "taxonomyComplete": false,
+    "collectedAt": "2026-09-28T22:01:12.304503+00:00",
+    "warning": "Replay the first page and deduplicate by sourceJudgmentId on resume; no stable snapshot was guaranteed.",
+    "status": "partial",
+    "publicationConfirmed": true,
+    "nextPendingSourceJudgmentId": "270ea1ec0e8f4614ac19a800a311b93c",
+    "confirmedPreviouslyCollected": 2,
+    "newCollected": 5,
+    "queryReplayed": true,
+    "deduplicatedSourceJudgmentIds": [
+      "5d11866c6c34293fb9c7c76ab5c8cd53",
+      "77d8a9b116896cb142217c0dfefbc36a"
+    ],
+    "publicationRunId": "6a8e9fd2-2735-4ead-88aa-016040178ab7"
+  }
+}

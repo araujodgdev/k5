@@ -1,0 +1,101 @@
+{
+  "at": "2026-09-28T22:00:35.673Z",
+  "partitions": [
+    {
+      "court_code": "STJ",
+      "installation_id": "d8ec6c89-2057-4e4e-a004-d8c9a606e204",
+      "partition_key": "stj:initial-ckan:20260922+mirror20260831",
+      "status": "partial",
+      "checkpoint": {
+        "status": "partial",
+        "mirrorRows": 1100,
+        "topicCodes": 907,
+        "zipEntries": 65,
+        "metadataRows": 2752,
+        "nextZipIndex": 5,
+        "nextMirrorIndex": 3,
+        "publicationRunId": "2e0cc266-618c-4b18-a4b4-7ef99a44206f",
+        "remotePersistence": "confirmed",
+        "topicCodesWithLabel": 905,
+        "publicationConfirmed": true,
+        "metadataWithoutTopics": 4
+      },
+      "lease_owner": null
+    },
+    {
+      "court_code": "TST",
+      "installation_id": "9dbf3409-0fe8-4296-884f-2ddbec9c95b5",
+      "partition_key": "acordaos-assunto-6191",
+      "status": "partial",
+      "checkpoint": {
+        "page": 1,
+        "origin": "TST",
+        "source": "https://jurisprudencia.tst.jus.br/",
+        "status": "partial",
+        "topicId": "6191",
+        "warning": "Replay the first page and deduplicate by sourceJudgmentId on resume; no stable snapshot was guaranteed.",
+        "freeText": "",
+        "pageSize": 20,
+        "tribunal": "TST",
+        "dateRange": null,
+        "collectedAt": "2026-09-28T21:35:08.985846+00:00",
+        "documentType": "Acórdãos",
+        "totalReported": 74,
+        "publicationRunId": "f31565d0-f5a4-4ae5-87ca-1a95fa7a587c",
+        "taxonomyComplete": false,
+        "partitionComplete": false,
+        "remotePersistence": "confirmed",
+        "nextPendingProcess": "RR - 712-41.2017.5.05.0030",
+        "resumeAtWithinPage": 3,
+        "collectedWithinPage": 2,
+        "publicationConfirmed": true,
+        "localDownloadComplete": true
+      },
+      "lease_owner": null
+    },
+    {
+      "court_code": "STF",
+      "installation_id": "4c4c69f2-063b-4456-a41b-62340e414e36",
+      "partition_key": "acordaos:tesauro:A VOZ DO BRASIL:all:date-asc",
+      "status": "partial",
+      "checkpoint": {
+        "page": 1,
+        "status": "partial",
+        "catalogLetter": "a",
+        "totalReported": 20,
+        "catalogComplete": false,
+        "nextResultIndex": 2,
+        "pendingFullText": [
+          "sjur185881",
+          "sjur187947"
+        ],
+        "publicationRunId": "73e15cce-7694-4706-b683-40aa76cd84a9",
+        "nextCatalogLetter": "b",
+        "remotePersistence": "confirmed",
+        "lastSourceJudgmentId": "sjur187947",
+        "publicationConfirmed": true
+      },
+      "lease_owner": null
+    }
+  ],
+  "counts": [
+    {
+      "tribunal": "STF",
+      "judgments": 2,
+      "ementas": 2,
+      "full_text": 0
+    },
+    {
+      "tribunal": "STJ",
+      "judgments": 8,
+      "ementas": 3,
+      "full_text": 5
+    },
+    {
+      "tribunal": "TST",
+      "judgments": 2,
+      "ementas": 2,
+      "full_text": 2
+    }
+  ]
+}

@@ -1,0 +1,2405 @@
+{
+  "source": "https://dadosabertos.web.stj.jus.br/dataset/a2cd85cc-1391-4ebc-aeed-a45dd75a7987/resource/1b83bca2-7655-49cd-ad27-e3b666ce1135/download/metadados20260922.json",
+  "queue": [
+    {
+      "topicKey": "cnj:9985",
+      "label": "DIREITO ADMINISTRATIVO E OUTRAS MATÉRIAS DE DIREITO PÚBLICO",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:390483022",
+          "zipIndex": 0,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:394444867",
+          "zipIndex": 1,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:394444887",
+          "zipIndex": 2,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:398676731",
+          "zipIndex": 6,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399044949",
+          "zipIndex": 11,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399070086",
+          "zipIndex": 12,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399287483",
+          "zipIndex": 18,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399299651",
+          "zipIndex": 19,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399388090",
+          "zipIndex": 21,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399437481",
+          "zipIndex": 23,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399519384",
+          "zipIndex": 26,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399547048",
+          "zipIndex": 29,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399565390",
+          "zipIndex": 30,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399574334",
+          "zipIndex": 31,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399575998",
+          "zipIndex": 32,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399576555",
+          "zipIndex": 33,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399577375",
+          "zipIndex": 34,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399734733",
+          "zipIndex": 41,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399747540",
+          "zipIndex": 42,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399765884",
+          "zipIndex": 43,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399905595",
+          "zipIndex": 45,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945163",
+          "zipIndex": 47,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399958811",
+          "zipIndex": 51,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400215419",
+          "zipIndex": 61,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400252953",
+          "zipIndex": 63,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400256975",
+          "zipIndex": 64,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:9991",
+      "label": "Responsabilidade da Administração",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:390483022",
+          "zipIndex": 0,
+          "status": "published_previous_batch"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10502",
+      "label": "Indenização por Dano Material",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:390483022",
+          "zipIndex": 0,
+          "status": "published_previous_batch"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:9992",
+      "label": "Indenização por Dano Moral",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:390483022",
+          "zipIndex": 0,
+          "status": "published_previous_batch"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:8826",
+      "label": "DIREITO PROCESSUAL CIVIL E DO TRABALHO",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:390483022",
+          "zipIndex": 0,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:394444867",
+          "zipIndex": 1,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:394444887",
+          "zipIndex": 2,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:398694785",
+          "zipIndex": 7,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399440458",
+          "zipIndex": 24,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399519384",
+          "zipIndex": 26,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399547048",
+          "zipIndex": 29,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:8960",
+      "label": "Processo e Procedimento",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:390483022",
+          "zipIndex": 0,
+          "status": "published_previous_batch"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:8990",
+      "label": "Provas",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:390483022",
+          "zipIndex": 0,
+          "status": "published_previous_batch"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10219",
+      "label": "Servidor Público Civil",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:394444867",
+          "zipIndex": 1,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:394444887",
+          "zipIndex": 2,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399044949",
+          "zipIndex": 11,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399070086",
+          "zipIndex": 12,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399287483",
+          "zipIndex": 18,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399299651",
+          "zipIndex": 19,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399388090",
+          "zipIndex": 21,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399437481",
+          "zipIndex": 23,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399519384",
+          "zipIndex": 26,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399547048",
+          "zipIndex": 29,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399765884",
+          "zipIndex": 43,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945163",
+          "zipIndex": 47,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399958811",
+          "zipIndex": 51,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400215419",
+          "zipIndex": 61,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400252953",
+          "zipIndex": 63,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10288",
+      "label": "Sistema Remuneratório e Benefícios",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:394444867",
+          "zipIndex": 1,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399044949",
+          "zipIndex": 11,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399287483",
+          "zipIndex": 18,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399299651",
+          "zipIndex": 19,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399388090",
+          "zipIndex": 21,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399437481",
+          "zipIndex": 23,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399519384",
+          "zipIndex": 26,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945163",
+          "zipIndex": 47,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399958811",
+          "zipIndex": 51,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400215419",
+          "zipIndex": 61,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10298",
+      "label": "Diárias e Outras Indenizações",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:394444867",
+          "zipIndex": 1,
+          "status": "published_previous_batch"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:12943",
+      "label": "Processo Coletivo ",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:394444867",
+          "zipIndex": 1,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:394444887",
+          "zipIndex": 2,
+          "status": "published_previous_batch"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:12755",
+      "label": "Direito Coletivo",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:394444867",
+          "zipIndex": 1,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:394444887",
+          "zipIndex": 2,
+          "status": "published_previous_batch"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10220",
+      "label": "Regime Estatutário",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:394444887",
+          "zipIndex": 2,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399070086",
+          "zipIndex": 12,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10236",
+      "label": "Promoção / Ascensão",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:394444887",
+          "zipIndex": 2,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399070086",
+          "zipIndex": 12,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:14",
+      "label": "DIREITO TRIBUTÁRIO",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:396754881",
+          "zipIndex": 3,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:396758874",
+          "zipIndex": 4,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399124795",
+          "zipIndex": 14,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399437481",
+          "zipIndex": 23,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399448256",
+          "zipIndex": 25,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399534447",
+          "zipIndex": 28,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399691914",
+          "zipIndex": 37,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945407",
+          "zipIndex": 48,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945409",
+          "zipIndex": 49,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945410",
+          "zipIndex": 50,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400090858",
+          "zipIndex": 55,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400134918",
+          "zipIndex": 58,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400192412",
+          "zipIndex": 60,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6031",
+      "label": "Contribuições",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:396754881",
+          "zipIndex": 3,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:396758874",
+          "zipIndex": 4,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399124795",
+          "zipIndex": 14,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399437481",
+          "zipIndex": 23,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400090858",
+          "zipIndex": 55,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6044",
+      "label": "Contribuições Corporativas",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:396754881",
+          "zipIndex": 3,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:396758874",
+          "zipIndex": 4,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399124795",
+          "zipIndex": 14,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6046",
+      "label": "Conselhos Regionais e Afins (Anuidade)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:396754881",
+          "zipIndex": 3,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:396758874",
+          "zipIndex": 4,
+          "status": "published_previous_batch"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399124795",
+          "zipIndex": 14,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:12480",
+      "label": "DIREITO DA SAÚDE",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398514319",
+          "zipIndex": 5,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399204394",
+          "zipIndex": 17,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:12481",
+      "label": "Pública",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398514319",
+          "zipIndex": 5,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399204394",
+          "zipIndex": 17,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:12484",
+      "label": "Fornecimento de medicamentos",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398514319",
+          "zipIndex": 5,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399204394",
+          "zipIndex": 17,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:9997",
+      "label": "Atos Administrativos",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398676731",
+          "zipIndex": 6,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399565390",
+          "zipIndex": 30,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10022",
+      "label": "Infração Administrativa",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398676731",
+          "zipIndex": 6,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399565390",
+          "zipIndex": 30,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10023",
+      "label": "Multas e demais Sanções",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398676731",
+          "zipIndex": 6,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399565390",
+          "zipIndex": 30,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10417",
+      "label": "Sistema Nacional de Trânsito",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398676731",
+          "zipIndex": 6,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10418",
+      "label": "CNH - Carteira Nacional de Habilitação",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398676731",
+          "zipIndex": 6,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:9148",
+      "label": "Liquidação / Cumprimento / Execução",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398694785",
+          "zipIndex": 7,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399547048",
+          "zipIndex": 29,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:9149",
+      "label": "Valor da Execução / Cálculo / Atualização",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398694785",
+          "zipIndex": 7,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10684",
+      "label": "Juros",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398694785",
+          "zipIndex": 7,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:14070",
+      "label": "Fazenda Pública",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398694785",
+          "zipIndex": 7,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:195",
+      "label": "DIREITO PREVIDENCIÁRIO",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398985519",
+          "zipIndex": 8,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399001162",
+          "zipIndex": 9,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399169016",
+          "zipIndex": 15,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399329319",
+          "zipIndex": 20,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399399530",
+          "zipIndex": 22,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399592652",
+          "zipIndex": 35,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399660819",
+          "zipIndex": 36,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399698747",
+          "zipIndex": 38,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399713256",
+          "zipIndex": 40,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399852756",
+          "zipIndex": 44,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400108580",
+          "zipIndex": 56,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400188019",
+          "zipIndex": 59,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400241290",
+          "zipIndex": 62,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6094",
+      "label": "Benefícios em Espécie",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398985519",
+          "zipIndex": 8,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399001162",
+          "zipIndex": 9,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399169016",
+          "zipIndex": 15,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399329319",
+          "zipIndex": 20,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399399530",
+          "zipIndex": 22,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399660819",
+          "zipIndex": 36,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399698747",
+          "zipIndex": 38,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399713256",
+          "zipIndex": 40,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399852756",
+          "zipIndex": 44,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400108580",
+          "zipIndex": 56,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400188019",
+          "zipIndex": 59,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400241290",
+          "zipIndex": 62,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6104",
+      "label": "Pensão por Morte (Art. 74/9)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:398985519",
+          "zipIndex": 8,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6107",
+      "label": "Auxílio-Acidente (Art. 86)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399001162",
+          "zipIndex": 9,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400188019",
+          "zipIndex": 59,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:899",
+      "label": "DIREITO CIVIL",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399440458",
+          "zipIndex": 24,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399905595",
+          "zipIndex": 45,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400088434",
+          "zipIndex": 54,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400113727",
+          "zipIndex": 57,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10432",
+      "label": "Coisas",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399440458",
+          "zipIndex": 24,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400088434",
+          "zipIndex": 54,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10444",
+      "label": "Posse",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399440458",
+          "zipIndex": 24,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10445",
+      "label": "Esbulho / Turbação / Ameaça",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399440458",
+          "zipIndex": 24,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10446",
+      "label": "Imissão",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:8828",
+      "label": "Jurisdição e Competência",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399440458",
+          "zipIndex": 24,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:8829",
+      "label": "Competência ",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399440458",
+          "zipIndex": 24,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:13099",
+      "label": "Competência Funcional ",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399440458",
+          "zipIndex": 24,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:13462",
+      "label": "Interdito Proibitório ",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399038968",
+          "zipIndex": 10,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399440458",
+          "zipIndex": 24,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10294",
+      "label": "Abono Pecuniário (Art. 78 Lei 8.112/1990)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399044949",
+          "zipIndex": 11,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399299651",
+          "zipIndex": 19,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5916",
+      "label": "Impostos",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399534447",
+          "zipIndex": 28,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399691914",
+          "zipIndex": 37,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400090858",
+          "zipIndex": 55,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400134918",
+          "zipIndex": 58,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400192412",
+          "zipIndex": 60,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5933",
+      "label": "IRPJ/Imposto de Renda de Pessoa Jurídica",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400090858",
+          "zipIndex": 55,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:14996",
+      "label": "Redução de Alíquota IR/CSLL - Serviços Hospitalares",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5986",
+      "label": "Crédito Tributário",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6007",
+      "label": "Repetição de indébito",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6008",
+      "label": "Base de Cálculo",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6033",
+      "label": "Contribuições Sociais",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400090858",
+          "zipIndex": 55,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6036",
+      "label": "Contribuição Social sobre o Lucro Líquido",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399112235",
+          "zipIndex": 13,
+          "status": "prepared_pending_publication"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400090858",
+          "zipIndex": 55,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6181",
+      "label": "Tempo de serviço",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399169016",
+          "zipIndex": 15,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400108580",
+          "zipIndex": 56,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6182",
+      "label": "Averbação/Cômputo/Conversão de tempo de serviço especial",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399169016",
+          "zipIndex": 15,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400108580",
+          "zipIndex": 56,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6118",
+      "label": "Aposentadoria por Tempo de Contribuição (Art. 55/6)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399169016",
+          "zipIndex": 15,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399713256",
+          "zipIndex": 40,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399852756",
+          "zipIndex": 44,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400108580",
+          "zipIndex": 56,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6100",
+      "label": "Aposentadoria Especial (Art. 57/8)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399169016",
+          "zipIndex": 15,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399698747",
+          "zipIndex": 38,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400241290",
+          "zipIndex": 62,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5946",
+      "label": "ICMS/ Imposto sobre Circulação de Mercadorias",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399534447",
+          "zipIndex": 28,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400134918",
+          "zipIndex": 58,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5913",
+      "label": "Limitações ao Poder de Tributar",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5915",
+      "label": "Isenção",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6003",
+      "label": "Incentivos fiscais",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10556",
+      "label": "Exclusão - ICMS",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399192776",
+          "zipIndex": 16,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10718",
+      "label": "Gratificações Por Atividades Específicas",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399287483",
+          "zipIndex": 18,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10728",
+      "label": "Gratificação Extraordinária - GE",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399287483",
+          "zipIndex": 18,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6096",
+      "label": "Aposentadoria por Idade (Art. 48/51)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399329319",
+          "zipIndex": 20,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399399530",
+          "zipIndex": 22,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399660819",
+          "zipIndex": 36,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10730",
+      "label": "Adicional de Desempenho",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399388090",
+          "zipIndex": 21,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6098",
+      "label": "Aposentadoria Rural (Art. 48/51)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399399530",
+          "zipIndex": 22,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399660819",
+          "zipIndex": 36,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10291",
+      "label": "Adicional de Insalubridade",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399437481",
+          "zipIndex": 23,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945163",
+          "zipIndex": 47,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6048",
+      "label": "Contribuições Previdenciárias",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399437481",
+          "zipIndex": 23,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6049",
+      "label": "Servidores Ativos",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399437481",
+          "zipIndex": 23,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6017",
+      "label": "Dívida Ativa (Execução Fiscal)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399448256",
+          "zipIndex": 25,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945407",
+          "zipIndex": 48,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945409",
+          "zipIndex": 49,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399945410",
+          "zipIndex": 50,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10221",
+      "label": "Isonomia/Equivalência Salarial",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399519384",
+          "zipIndex": 26,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:9192",
+      "label": "Tutela Provisória",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399519384",
+          "zipIndex": 26,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:12416",
+      "label": "Tutela de Urgência",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399519384",
+          "zipIndex": 26,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6039",
+      "label": "PIS",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6035",
+      "label": "Cofins",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399533971",
+          "zipIndex": 27,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10313",
+      "label": "Reajustes de Remuneração, Proventos ou Pensão",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399547048",
+          "zipIndex": 29,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399765884",
+          "zipIndex": 43,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400252953",
+          "zipIndex": 63,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10317",
+      "label": "Índice de 28,86% Lei 8.622/1993 e 8.627/1993",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399547048",
+          "zipIndex": 29,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400252953",
+          "zipIndex": 63,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:9518",
+      "label": "Efeito Suspensivo / Impugnação / Embargos à Execução",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399547048",
+          "zipIndex": 29,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10324",
+      "label": "Militar",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399574334",
+          "zipIndex": 31,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399575998",
+          "zipIndex": 32,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399576555",
+          "zipIndex": 33,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399577375",
+          "zipIndex": 34,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399747540",
+          "zipIndex": 42,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10325",
+      "label": "Regime",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399574334",
+          "zipIndex": 31,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399575998",
+          "zipIndex": 32,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399576555",
+          "zipIndex": 33,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399577375",
+          "zipIndex": 34,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10334",
+      "label": "Promoção",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399574334",
+          "zipIndex": 31,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399575998",
+          "zipIndex": 32,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399576555",
+          "zipIndex": 33,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399577375",
+          "zipIndex": 34,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10337",
+      "label": "Sistema Remuneratório e Benefícios",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399575998",
+          "zipIndex": 32,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399576555",
+          "zipIndex": 33,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10352",
+      "label": "Reserva Remunerada",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399575998",
+          "zipIndex": 32,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399576555",
+          "zipIndex": 33,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6119",
+      "label": "RMI - Renda Mensal Inicial, Reajustes e Revisões Específicas",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399592652",
+          "zipIndex": 35,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399713256",
+          "zipIndex": 40,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6120",
+      "label": "RMI - Renda Mensal Inicial",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399592652",
+          "zipIndex": 35,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:399713256",
+          "zipIndex": 40,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:11944",
+      "label": "Alteração do teto máximo para o valor do benefício previdenciário do RGPS (EC 20 e 41)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399592652",
+          "zipIndex": 35,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5952",
+      "label": "IPTU/ Imposto Predial e Territorial Urbano",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399691914",
+          "zipIndex": 37,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5956",
+      "label": "Taxas",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399691914",
+          "zipIndex": 37,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5972",
+      "label": "Municipais",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399691914",
+          "zipIndex": 37,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10536",
+      "label": "Taxa de Coleta de Lixo",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399691914",
+          "zipIndex": 37,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:1156",
+      "label": "DIREITO DO CONSUMIDOR",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399707203",
+          "zipIndex": 39,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:7771",
+      "label": "Contratos de Consumo",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399707203",
+          "zipIndex": 39,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:7761",
+      "label": "Fornecimento de Água",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399707203",
+          "zipIndex": 39,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6220",
+      "label": "Responsabilidade do Fornecedor",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399707203",
+          "zipIndex": 39,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:14925",
+      "label": "Repetição do Indébito",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399707203",
+          "zipIndex": 39,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6138",
+      "label": "Reajustes e Revisões Específicos",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399713256",
+          "zipIndex": 40,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10403",
+      "label": "Organização Sindical",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399734733",
+          "zipIndex": 41,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10406",
+      "label": "Registro Sindical",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399734733",
+          "zipIndex": 41,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10359",
+      "label": "Pensão",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399747540",
+          "zipIndex": 42,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10318",
+      "label": "Índice da URV Lei 8.880/1994",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399765884",
+          "zipIndex": 43,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6099",
+      "label": "Aposentadoria por Tempo de Serviço (Art. 52/4)",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399852756",
+          "zipIndex": 44,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10431",
+      "label": "Responsabilidade Civil",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399905595",
+          "zipIndex": 45,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400088434",
+          "zipIndex": 54,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10439",
+      "label": "Indenização por Dano Material",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399905595",
+          "zipIndex": 45,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10157",
+      "label": "Organização Político-administrativa / Administração Pública",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399905595",
+          "zipIndex": 45,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10163",
+      "label": "PIS/PASEP",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399905595",
+          "zipIndex": 45,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:1209",
+      "label": "DIREITO PROCESSUAL PENAL",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399944994",
+          "zipIndex": 46,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10604",
+      "label": "Investigação Penal",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399944994",
+          "zipIndex": 46,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:287",
+      "label": "DIREITO PENAL",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399944994",
+          "zipIndex": 46,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:3415",
+      "label": "Crimes contra o Patrimônio",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399944994",
+          "zipIndex": 46,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:3431",
+      "label": "Estelionato",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399944994",
+          "zipIndex": 46,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10292",
+      "label": "Adicional de Periculosidade",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:399958811",
+          "zipIndex": 51,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10342",
+      "label": "Reajuste de Remuneração, Soldo, Proventos ou Pensão",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10880",
+      "label": "Cumprimento Provisório de Sentença",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:8938",
+      "label": "Formação, Suspensão e Extinção do Processo",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:8942",
+      "label": "Extinção do Processo Sem Resolução de Mérito",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10735",
+      "label": "Ausência de Interesse Processual",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400019543",
+          "zipIndex": 52,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6135",
+      "label": "Alteração do coeficiente de cálculo do benefício",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6173",
+      "label": "Pedidos Genéricos Relativos aos Benefícios em Espécie",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        },
+        {
+          "sourceJudgmentId": "stj-dje:400108580",
+          "zipIndex": 56,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6179",
+      "label": "Conversão",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400029160",
+          "zipIndex": 53,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10496",
+      "label": "Promessa de Compra e Venda",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400088434",
+          "zipIndex": 54,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10433",
+      "label": "Indenização por Dano Moral",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400088434",
+          "zipIndex": 54,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:6177",
+      "label": "Concessão",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400108580",
+          "zipIndex": 56,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:9616",
+      "label": "Empresas",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400113727",
+          "zipIndex": 57,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:4993",
+      "label": "Recuperação judicial e Falência",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400113727",
+          "zipIndex": 57,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10531",
+      "label": "ICMS / Incidência Sobre o Ativo Fixo",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400134918",
+          "zipIndex": 58,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:5951",
+      "label": "ISS/ Imposto sobre Serviços",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400192412",
+          "zipIndex": 60,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10302",
+      "label": "Adicional por Tempo de Serviço",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400215419",
+          "zipIndex": 61,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10409",
+      "label": "Empregado Público / Temporário",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400256975",
+          "zipIndex": 64,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "topicKey": "cnj:10411",
+      "label": "Admissão / Permanência / Despedida",
+      "documents": [
+        {
+          "sourceJudgmentId": "stj-dje:400256975",
+          "zipIndex": 64,
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "mirrorTopicStatus": "unclassified_pending_official_evidence"
+}

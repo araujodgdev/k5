@@ -7,6 +7,7 @@ import { PlatformRequestError } from './platform-core';
 const targets = [
   { table: 'ai_connection', pk: 'id', fields: ['encrypted_api_key'] },
   { table: 'whatsapp_connection', pk: 'id', fields: ['encrypted_api_key'] },
+  { table: 'ads_connection', pk: 'office_id', fields: ['encrypted_api_key'] },
   { table: 'whatsapp_event', pk: 'id', fields: ['encrypted_payload'] },
   { table: 'personal_thread_invitation', pk: 'id', fields: ['encrypted_token'] },
   { table: 'personal_email_outbox', pk: 'id', fields: ['encrypted_action_token'] },

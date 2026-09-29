@@ -1,0 +1,123 @@
+{
+  "verifiedAt": "2026-09-28T22:07:30.564Z",
+  "results": [
+    {
+      "court": "stf",
+      "records": 5,
+      "fullTexts": 0,
+      "ementas": 5,
+      "verifiedR2Objects": 12,
+      "runId": "21ff9f8b-0740-4b9c-ae53-abf30b31dd74",
+      "checkpoint": {
+        "page": 1,
+        "status": "partial",
+        "catalogLetter": "a",
+        "totalReported": 20,
+        "catalogComplete": false,
+        "nextResultIndex": 7,
+        "pendingFullText": [
+          "sjur185881",
+          "sjur187947",
+          "sjur193784",
+          "sjur199933",
+          "sjur217158",
+          "sjur217867",
+          "sjur217440"
+        ],
+        "publicationRunId": "21ff9f8b-0740-4b9c-ae53-abf30b31dd74",
+        "nextCatalogLetter": "b",
+        "remotePersistence": "confirmed",
+        "lastSourceJudgmentId": "sjur217440",
+        "publicationConfirmed": true,
+        "previousPublicationRunId": "73e15cce-7694-4706-b683-40aa76cd84a9"
+      }
+    },
+    {
+      "court": "stj",
+      "records": 15,
+      "fullTexts": 10,
+      "ementas": 5,
+      "verifiedR2Objects": 26,
+      "runId": "45cc71b9-e289-4904-8123-33c63653156c",
+      "checkpoint": {
+        "status": "partial",
+        "mirrorRows": 1100,
+        "topicCodes": 907,
+        "zipEntries": 65,
+        "metadataRows": 2752,
+        "nextZipIndex": 15,
+        "nextMirrorIndex": 8,
+        "publicationRunId": "45cc71b9-e289-4904-8123-33c63653156c",
+        "remotePersistence": "confirmed",
+        "topicCodesWithLabel": 905,
+        "publicationConfirmed": true,
+        "metadataWithoutTopics": 4,
+        "previousPublicationRunId": "2e0cc266-618c-4b18-a4b4-7ef99a44206f"
+      }
+    },
+    {
+      "court": "tst",
+      "records": 5,
+      "fullTexts": 5,
+      "ementas": 5,
+      "verifiedR2Objects": 16,
+      "runId": "6a8e9fd2-2735-4ead-88aa-016040178ab7",
+      "checkpoint": {
+        "page": 1,
+        "origin": "TST",
+        "source": "https://jurisprudencia.tst.jus.br/",
+        "status": "partial",
+        "topicId": "6191",
+        "warning": "Replay the first page and deduplicate by sourceJudgmentId on resume; no stable snapshot was guaranteed.",
+        "freeText": "",
+        "pageSize": 20,
+        "tribunal": "TST",
+        "dateRange": null,
+        "collectedAt": "2026-09-28T22:01:12.304503+00:00",
+        "documentType": "Acórdãos",
+        "newCollected": 5,
+        "queryReplayed": true,
+        "totalReported": 74,
+        "publicationRunId": "6a8e9fd2-2735-4ead-88aa-016040178ab7",
+        "taxonomyComplete": false,
+        "partitionComplete": false,
+        "remotePersistence": "confirmed",
+        "nextPendingProcess": "EDCiv-Ag-AIRR - 1180-10.2014.5.02.0445",
+        "resumeAtWithinPage": 8,
+        "collectedWithinPage": 7,
+        "publicationConfirmed": true,
+        "localDownloadComplete": true,
+        "nextPendingSourceJudgmentId": "270ea1ec0e8f4614ac19a800a311b93c",
+        "confirmedPreviouslyCollected": 2,
+        "deduplicatedSourceJudgmentIds": [
+          "5d11866c6c34293fb9c7c76ab5c8cd53",
+          "77d8a9b116896cb142217c0dfefbc36a"
+        ]
+      }
+    }
+  ],
+  "totals": [
+    {
+      "tribunal": "STF",
+      "judgments": 7,
+      "ementas": 7,
+      "full_text": 0,
+      "full_text_pending": 7
+    },
+    {
+      "tribunal": "STJ",
+      "judgments": 23,
+      "ementas": 8,
+      "full_text": 15,
+      "full_text_pending": 8
+    },
+    {
+      "tribunal": "TST",
+      "judgments": 7,
+      "ementas": 7,
+      "full_text": 7,
+      "full_text_pending": 0
+    }
+  ],
+  "errors": []
+}

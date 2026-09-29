@@ -92,6 +92,7 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/app/notifications` | Abre o painel de notificações (sino no rodapé do menu) |
 | `/app/research` | Pesquisa na web pela Exa, com histórico pessoal |
 | `/app/whatsapp` | Conversas do WhatsApp Business, para escritórios habilitados no piloto |
+| `/app/ads` | Anúncios BETA: conexão e validação da conta ChatGPT Ads, para usuários habilitados pelo Flagship |
 | `/app/messages` | Mensagens entre pessoas, associados e compartilhamentos do Cofre |
 | `/app/documents/[id]` | Editor de cronologias e minutas |
 | `/app/admin` | Administração da plataforma: feedback, conexões de IA por escritório e TypeSafe |
@@ -128,6 +129,10 @@ O módulo [Mensagens](docs/mensagens.md) permite conversar com outras pessoas no
 e compartilhar documentos e casos do Cofre. Destinatários externos recebem e-mail;
 respostas por e-mail não são importadas nesta versão. O envio externo exige a
 configuração do Cloudflare Email Service e o worker de integrações.
+
+O módulo [Anúncios BETA](apps/web/docs/integracao-anuncios.md) valida e conecta a conta
+OpenAI Ads do escritório. O Flagship controla o acesso por usuário e escritório.
+Criação e gestão de campanhas dependem da próxima etapa de implementação e homologação.
 
 ## Configuração e dados
 

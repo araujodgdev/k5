@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "checks": [
+    "real signup and session",
+    "desktop beta navigation",
+    "invalid key error",
+    "keyboard submission",
+    "encrypted credential flow",
+    "mobile beta header and menu",
+    "no horizontal overflow",
+    "disconnect",
+    "reviewer read-only and API 403",
+    "flag off API 404 and hidden navigation",
+    "direct route blocked"
+  ],
+  "directPageStatus": 200
+}

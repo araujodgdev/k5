@@ -1,0 +1,9 @@
+{
+  "events": [
+    "Tarefas, clientes e agenda: interface real, respostas de API locais demonstrativas, sem gravação dos fixtures.",
+    "Cofre: caso fictício criado no ambiente local; listagem de documentos demonstrativa exibida pelo componente real.",
+    "Pesquisa: tela real preenchida, sem enviar consulta ou inventar resultados.",
+    "Assistente: formulário real com uma solicitação demonstrativa e fontes do caso. A resposta não foi gerada. Tentativa de execução anterior retornou 503 por configuração local de IA."
+  ],
+  "caseId": "c86c269c-6947-442a-ba74-e9339c552fc8"
+}

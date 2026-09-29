@@ -1,0 +1,397 @@
+<title>Plano financeiro Lume</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: quadro de linhas finas, um slide por vez, cabeçalho e barra de navegação fixos. Tinta, papel e um laranja que marca o resultado. */
+:root {
+  --bg: #ffffff;
+  --fg: #232323;
+  --muted: #5c5c5c;
+  --panel: #f0f0f0;
+  --line: #232323;
+  --border: #d4d4d4;
+  --brand: #d97757;
+  --brand-ink: #b0502f;
+  --sans: "Geist", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #232323; --fg: #f5f5f5; --muted: #b8b8b8; --panel: #2e2e2e;
+    --line: #5a5a5a; --border: #3d3d3d; --brand: #e08a6b; --brand-ink: #eba184;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #232323; --fg: #f5f5f5; --muted: #b8b8b8; --panel: #2e2e2e;
+  --line: #5a5a5a; --border: #3d3d3d; --brand: #e08a6b; --brand-ink: #eba184;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--sans); font-size: 16px; line-height: 1.5; letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+}
+.deck { min-height: 100dvh; display: flex; flex-direction: column; }
+.label {
+  font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em;
+  color: var(--muted); display: inline-flex; align-items: center; gap: 8px;
+}
+.label::before { content: ""; width: 7px; height: 7px; background: var(--brand); flex: none; }
+.top {
+  display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+}
+.top .name { font-weight: 500; letter-spacing: -0.03em; font-size: 18px; }
+main { flex: 1; display: flex; flex-direction: column; }
+.slide { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 1240px; margin-inline: auto; }
+.head { padding: 40px 16px 28px; display: flex; flex-direction: column; gap: 20px; border-bottom: 1px solid var(--border); }
+h1, h2 { margin: 0; font-weight: 450; letter-spacing: -0.03em; line-height: 1.04; text-wrap: balance; }
+h1 { font-size: clamp(44px, 9vw, 112px); }
+h2 { font-size: clamp(28px, 4.4vw, 54px); max-width: 22ch; }
+.lead { margin: 0; font-size: clamp(17px, 1.7vw, 21px); color: var(--muted); max-width: 62ch; text-wrap: pretty; }
+.body { padding: 28px 16px 40px; display: flex; flex-direction: column; gap: 24px; flex: 1; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-variant-numeric: tabular-nums; }
+th, td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; white-space: normal; padding-right: 24px; }
+th {
+  font-family: var(--mono); font-size: 12px; font-weight: 400; text-transform: uppercase;
+  letter-spacing: 0.02em; color: var(--muted); border-bottom: 1px solid var(--line);
+}
+td { font-size: 17px; }
+tr.key td { font-weight: 500; border-bottom: 1px solid var(--line); }
+tr.key td:first-child::before { content: ""; display: inline-block; width: 7px; height: 7px; background: var(--brand); margin-right: 10px; }
+td.dim, th.dim { color: var(--muted); }
+.note { margin: 0; font-size: 14px; color: var(--muted); max-width: 78ch; text-wrap: pretty; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.cell { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cell .big { font-size: clamp(30px, 4vw, 48px); font-weight: 450; letter-spacing: -0.03em; line-height: 1.05; }
+.cell p { margin: 0; color: var(--muted); font-size: 15px; }
+.legend { display: flex; gap: 20px; flex-wrap: wrap; font-size: 15px; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { width: 14px; height: 3px; display: inline-block; }
+#chart { position: relative; width: 100%; }
+#chart svg { display: block; overflow: visible; }
+#tip {
+  position: absolute; pointer-events: none; background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); padding: 8px 10px; font-size: 13px; line-height: 1.4; white-space: nowrap;
+  font-variant-numeric: tabular-nums; z-index: 2;
+}
+#tip b { font-weight: 500; }
+details { border-top: 1px solid var(--border); padding-top: 12px; }
+summary { cursor: pointer; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--muted); }
+.bar {
+  position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--bg);
+}
+.bar button {
+  font: inherit; font-size: 14px; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--fg); padding: 0 16px; min-height: 44px; cursor: pointer; border-radius: 0;
+  transition: background-color .2s cubic-bezier(.16,1,.3,1);
+}
+.bar button:hover:not(:disabled) { background: var(--brand); color: #232323; border-color: var(--brand); }
+.bar button:disabled { opacity: .35; cursor: default; }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.count { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .two { grid-template-columns: 1fr; }
+  .head { padding-top: 28px; }
+  td { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .bar button { transition: none; } }
+</style>
+
+<div class="deck">
+  <header class="top">
+    <span class="name">Lume</span>
+    <span class="label">Plano financeiro, out/26 a jan/27</span>
+  </header>
+
+  <main>
+    <!-- 1 -->
+    <section class="slide" id="s1" aria-label="Capa">
+      <div class="head" style="border-bottom:0; padding-top:64px; gap:28px">
+        <span class="label">Plano financeiro</span>
+        <h1>Lume até janeiro de 2027.</h1>
+        <p class="lead">A operação começa em 1º de outubro de 2026. A meta é fechar janeiro com lucro. O cenário central mostra o resultado se as vendas vierem abaixo da meta.</p>
+      </div>
+      <div class="body" style="justify-content:flex-end">
+        <p class="note">Projeção a partir de zero contas pagantes, sem contar o cliente cocriador. Todos os números são hipóteses de gestão e não resultados observados. Elaborado em 28 de setembro de 2026.</p>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="slide" id="s2" aria-label="Premissas" hidden>
+      <div class="head">
+        <span class="label">Premissas</span>
+        <h2>Dois ritmos de venda, o mesmo produto e o mesmo preço.</h2>
+        <p class="lead">Solo custa R$199 por mês para 1 usuário. Equipe custa R$349 para até 3 usuários.</p>
+      </div>
+      <div class="body">
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Premissa</th><th>Meta</th><th>Central</th></tr></thead>
+            <tbody>
+              <tr><td>Contas novas em out, nov, dez e jan</td><td>10, 12, 14 e 10</td><td>4, 5, 6 e 6</td></tr>
+              <tr><td>Contas vendidas até janeiro</td><td>46</td><td>21</td></tr>
+              <tr><td>Mix de Solo e Equipe</td><td>67% e 33%</td><td>75% e 25%</td></tr>
+              <tr><td>Mensalidade média por conta</td><td>R$&nbsp;249</td><td>R$&nbsp;236,50</td></tr>
+              <tr><td>Cancelamento mensal</td><td>3%</td><td>5%</td></tr>
+              <tr><td>Custo variável sobre a receita</td><td>25%</td><td>30%</td></tr>
+              <tr><td>Aquisição em caixa por conta nova</td><td>R$&nbsp;300</td><td>R$&nbsp;500</td></tr>
+              <tr><td>Custo fixo mensal</td><td>R$&nbsp;4.000</td><td>R$&nbsp;4.000</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">A conta vendida no mês paga metade da mensalidade nesse mês. O custo variável reúne IA, armazenamento, suporte, meios de pagamento e tributos. O custo fixo é uma estimativa a confirmar e não inclui pró-labore. A aquisição em caixa exclui o tempo dos fundadores.</p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="slide" id="s3" aria-label="Cenário meta" hidden>
+      <div class="head">
+        <span class="label">Cenário meta</span>
+        <h2>Janeiro fecha com lucro de R$283.</h2>
+        <p class="lead">Em janeiro, 44 contas ativas cobrem os custos variáveis, o custo fixo e a aquisição das 10 contas novas. Fevereiro fecha em R$1.491.</p>
+      </div>
+      <div class="body">
+        <div class="scroll"><table id="t-meta"></table></div>
+        <p class="note">Contas ativas com decimal são valor esperado após o cancelamento mensal. Valores em reais.</p>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="slide" id="s4" aria-label="Cenário central" hidden>
+      <div class="head">
+        <span class="label">Cenário central</span>
+        <h2>Janeiro ainda fecha com prejuízo de R$4.245.</h2>
+        <p class="lead">O resultado melhora todo mês e passa a ser positivo em julho de 2027. Antes de gastar com aquisição, a operação cobre seus custos a partir de março.</p>
+      </div>
+      <div class="body">
+        <div class="scroll"><table id="t-central"></table></div>
+        <p class="note">Contas ativas com decimal são valor esperado após o cancelamento mensal. Valores em reais.</p>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="slide" id="s5" aria-label="Comparação" hidden>
+      <div class="head">
+        <span class="label">Comparação</span>
+        <h2>Em janeiro, os cenários diferem em 24 contas e R$4.528.</h2>
+      </div>
+      <div class="body">
+        <div class="scroll">
+          <table id="t-comp"></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section class="slide" id="s6" aria-label="Caixa" hidden>
+      <div class="head">
+        <span class="label">Caixa acumulado</span>
+        <h2>O caixa mínimo é de R$13,7 mil na meta e de R$32,5 mil no central.</h2>
+        <p class="lead">Para cobrir o cenário central com 20% de reserva, o caixa necessário é de R$39 mil, sem pró-labore.</p>
+      </div>
+      <div class="body">
+        <div class="legend" aria-hidden="true">
+          <span><i style="background:var(--fg)"></i>Meta</span>
+          <span><i style="background:var(--brand)"></i>Central</span>
+        </div>
+        <div id="chart" role="img" aria-label="Caixa acumulado de outubro de 2026 a julho de 2027 nos cenários meta e central"></div>
+        <details>
+          <summary>Ver valores</summary>
+          <div class="scroll" style="margin-top:12px"><table id="t-cash"></table></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="slide" id="s7" aria-label="Exigência da meta" hidden>
+      <div class="head">
+        <span class="label">O que a meta exige</span>
+        <h2>Quarenta demonstrações em outubro e cinquenta e seis em dezembro.</h2>
+        <p class="lead">Com 40% das abordagens virando demonstração e 25% das demonstrações virando conta paga. O plano anterior previa 32 demonstrações por mês.</p>
+      </div>
+      <div class="body">
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Mês</th><th>Contas novas</th><th>Demonstrações</th><th>Abordagens</th><th>Contas ativas, meta</th><th>Contas ativas, central</th></tr></thead>
+            <tbody id="t-funil"></tbody>
+          </table>
+        </div>
+        <div class="cell">
+          <span class="label">Ponto de decisão</span>
+          <p style="color:var(--fg); font-size:18px; max-width:60ch">Se em 30 de novembro houver menos de 15 contas ativas, a meta de janeiro não fecha e passamos a operar pelo cenário central.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section class="slide" id="s8" aria-label="Custo fixo" hidden>
+      <div class="head">
+        <span class="label">Sensibilidade</span>
+        <h2>O custo fixo decide o mês do lucro.</h2>
+        <p class="lead">Cada R$1.000 a mais de custo fixo exige de 5 a 6 contas ativas a mais para empatar.</p>
+      </div>
+      <div class="body">
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Custo fixo mensal</th><th>Meta, primeiro lucro</th><th>Meta, menor caixa</th><th>Central, primeiro lucro</th><th>Central, menor caixa</th></tr></thead>
+            <tbody>
+              <tr><td>R$&nbsp;3.000</td><td>jan/27</td><td>−R$&nbsp;10.696</td><td>jun/27</td><td>−R$&nbsp;23.529</td></tr>
+              <tr class="key"><td>R$&nbsp;4.000, base</td><td>jan/27</td><td>−R$&nbsp;13.696</td><td>jul/27</td><td>−R$&nbsp;32.495</td></tr>
+              <tr><td>R$&nbsp;6.000</td><td>mar/27</td><td>−R$&nbsp;21.923</td><td>set/27</td><td>−R$&nbsp;52.850</td></tr>
+              <tr><td>R$&nbsp;8.000</td><td>abr/27</td><td>−R$&nbsp;32.911</td><td>nov/27</td><td>−R$&nbsp;76.826</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">Mesma quantidade de contas novas e mesmas premissas de cada cenário. Só o custo fixo muda.</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bar" aria-label="Navegação dos slides">
+    <button type="button" id="prev">Anterior</button>
+    <span class="count" id="count" aria-live="polite">1 / 8</span>
+    <button type="button" id="next">Próximo</button>
+  </nav>
+</div>
+
+<script>
+const DATA = {"meta": {"arpa": 249.0, "linhas": [{"mes": "out/26", "novas": 10, "ativas": 10.0, "mrr_cheio": 2490, "receita": 1245, "custo_variavel": 311, "aquisicao": 3000, "custo_fixo": 4000, "resultado": -6066, "caixa_acumulado": -6066}, {"mes": "nov/26", "novas": 12, "ativas": 21.7, "mrr_cheio": 5403, "receita": 3909, "custo_variavel": 977, "aquisicao": 3600, "custo_fixo": 4000, "resultado": -4668, "caixa_acumulado": -10734}, {"mes": "dez/26", "novas": 14, "ativas": 35.0, "mrr_cheio": 8727, "receita": 6984, "custo_variavel": 1746, "aquisicao": 4200, "custo_fixo": 4000, "resultado": -2962, "caixa_acumulado": -13696}, {"mes": "jan/27", "novas": 10, "ativas": 44.0, "mrr_cheio": 10955, "receita": 9710, "custo_variavel": 2428, "aquisicao": 3000, "custo_fixo": 4000, "resultado": 283, "caixa_acumulado": -13413}, {"mes": "fev/27", "novas": 12, "ativas": 54.7, "mrr_cheio": 13615, "receita": 12121, "custo_variavel": 3030, "aquisicao": 3600, "custo_fixo": 4000, "resultado": 1491, "caixa_acumulado": -11923}, {"mes": "mar/27", "novas": 14, "ativas": 67.0, "mrr_cheio": 16692, "receita": 14949, "custo_variavel": 3737, "aquisicao": 4200, "custo_fixo": 4000, "resultado": 3012, "caixa_acumulado": -8911}, {"mes": "abr/27", "novas": 16, "ativas": 81.0, "mrr_cheio": 20176, "receita": 18184, "custo_variavel": 4546, "aquisicao": 4800, "custo_fixo": 4000, "resultado": 4838, "caixa_acumulado": -4073}, {"mes": "mai/27", "novas": 16, "ativas": 94.6, "mrr_cheio": 23554, "receita": 21562, "custo_variavel": 5391, "aquisicao": 4800, "custo_fixo": 4000, "resultado": 7372, "caixa_acumulado": 3298}, {"mes": "jun/27", "novas": 16, "ativas": 107.8, "mrr_cheio": 26832, "receita": 24840, "custo_variavel": 6210, "aquisicao": 4800, "custo_fixo": 4000, "resultado": 9830, "caixa_acumulado": 13128}, {"mes": "jul/27", "novas": 16, "ativas": 120.5, "mrr_cheio": 30011, "receita": 28019, "custo_variavel": 7005, "aquisicao": 4800, "custo_fixo": 4000, "resultado": 12214, "caixa_acumulado": 25342}, {"mes": "ago/27", "novas": 16, "ativas": 132.9, "mrr_cheio": 33094, "receita": 31102, "custo_variavel": 7776, "aquisicao": 4800, "custo_fixo": 4000, "resultado": 14527, "caixa_acumulado": 39869}, {"mes": "set/27", "novas": 16, "ativas": 144.9, "mrr_cheio": 36086, "receita": 34094, "custo_variavel": 8523, "aquisicao": 4800, "custo_fixo": 4000, "resultado": 16770, "caixa_acumulado": 56639}, {"mes": "out/27", "novas": 16, "ativas": 156.6, "mrr_cheio": 38987, "receita": 36995, "custo_variavel": 9249, "aquisicao": 4800, "custo_fixo": 4000, "resultado": 18946, "caixa_acumulado": 75585}, {"mes": "nov/27", "novas": 16, "ativas": 167.9, "mrr_cheio": 41801, "receita": 39809, "custo_variavel": 9952, "aquisicao": 4800, "custo_fixo": 4000, "resultado": 21057, "caixa_acumulado": 96642}, {"mes": "dez/27", "novas": 16, "ativas": 178.8, "mrr_cheio": 44531, "receita": 42539, "custo_variavel": 10635, "aquisicao": 4800, "custo_fixo": 4000, "resultado": 23104, "caixa_acumulado": 119747}]}, "central": {"arpa": 236.5, "linhas": [{"mes": "out/26", "novas": 4, "ativas": 4.0, "mrr_cheio": 946, "receita": 473, "custo_variavel": 142, "aquisicao": 2000, "custo_fixo": 4000, "resultado": -5669, "caixa_acumulado": -5669}, {"mes": "nov/26", "novas": 5, "ativas": 8.8, "mrr_cheio": 2081, "receita": 1490, "custo_variavel": 447, "aquisicao": 2500, "custo_fixo": 4000, "resultado": -5457, "caixa_acumulado": -11126}, {"mes": "dez/26", "novas": 6, "ativas": 14.4, "mrr_cheio": 3396, "receita": 2687, "custo_variavel": 806, "aquisicao": 3000, "custo_fixo": 4000, "resultado": -5119, "caixa_acumulado": -16245}, {"mes": "jan/27", "novas": 6, "ativas": 19.6, "mrr_cheio": 4645, "receita": 3936, "custo_variavel": 1181, "aquisicao": 3000, "custo_fixo": 4000, "resultado": -4245, "caixa_acumulado": -20490}, {"mes": "fev/27", "novas": 7, "ativas": 25.7, "mrr_cheio": 6069, "receita": 5241, "custo_variavel": 1572, "aquisicao": 3500, "custo_fixo": 4000, "resultado": -3831, "caixa_acumulado": -24322}, {"mes": "mar/27", "novas": 8, "ativas": 32.4, "mrr_cheio": 7657, "receita": 6711, "custo_variavel": 2013, "aquisicao": 4000, "custo_fixo": 4000, "resultado": -3302, "caixa_acumulado": -27624}, {"mes": "abr/27", "novas": 8, "ativas": 38.8, "mrr_cheio": 9166, "receita": 8220, "custo_variavel": 2466, "aquisicao": 4000, "custo_fixo": 4000, "resultado": -2246, "caixa_acumulado": -29870}, {"mes": "mai/27", "novas": 9, "ativas": 45.8, "mrr_cheio": 10836, "receita": 9772, "custo_variavel": 2932, "aquisicao": 4500, "custo_fixo": 4000, "resultado": -1659, "caixa_acumulado": -31529}, {"mes": "jun/27", "novas": 10, "ativas": 53.5, "mrr_cheio": 12660, "receita": 11477, "custo_variavel": 3443, "aquisicao": 5000, "custo_fixo": 4000, "resultado": -966, "caixa_acumulado": -32495}, {"mes": "jul/27", "novas": 10, "ativas": 60.9, "mrr_cheio": 14392, "receita": 13209, "custo_variavel": 3963, "aquisicao": 5000, "custo_fixo": 4000, "resultado": 246, "caixa_acumulado": -32249}, {"mes": "ago/27", "novas": 10, "ativas": 67.8, "mrr_cheio": 16037, "receita": 14855, "custo_variavel": 4456, "aquisicao": 5000, "custo_fixo": 4000, "resultado": 1398, "caixa_acumulado": -30850}, {"mes": "set/27", "novas": 10, "ativas": 74.4, "mrr_cheio": 17600, "receita": 16418, "custo_variavel": 4925, "aquisicao": 5000, "custo_fixo": 4000, "resultado": 2492, "caixa_acumulado": -28358}, {"mes": "out/27", "novas": 10, "ativas": 80.7, "mrr_cheio": 19085, "receita": 17903, "custo_variavel": 5371, "aquisicao": 5000, "custo_fixo": 4000, "resultado": 3532, "caixa_acumulado": -24826}, {"mes": "nov/27", "novas": 10, "ativas": 86.7, "mrr_cheio": 20496, "receita": 19313, "custo_variavel": 5794, "aquisicao": 5000, "custo_fixo": 4000, "resultado": 4519, "caixa_acumulado": -20307}, {"mes": "dez/27", "novas": 10, "ativas": 92.3, "mrr_cheio": 21836, "receita": 20654, "custo_variavel": 6196, "aquisicao": 5000, "custo_fixo": 4000, "resultado": 5458, "caixa_acumulado": -14849}]}};
+const nf = new Intl.NumberFormat("pt-BR");
+const nf1 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const brl = n => (n < 0 ? "−" : "") + "R$ " + nf.format(Math.abs(Math.round(n)));
+const mil = n => (n < 0 ? "−" : "") + "R$ " + nf1.format(Math.abs(n) / 1000) + " mil";
+const cash = k => DATA[k].linhas;
+
+function scenarioTable(id, k) {
+  const L = cash(k).slice(0, 4);
+  const rows = [
+    ["Contas novas", l => nf.format(l.novas)],
+    ["Contas ativas no fim do mês", l => nf1.format(l.ativas)],
+    ["Receita", l => brl(l.receita)],
+    ["Custo variável", l => brl(-l.custo_variavel)],
+    ["Aquisição", l => brl(-l.aquisicao)],
+    ["Custo fixo", l => brl(-l.custo_fixo)],
+    ["Resultado do mês", l => brl(l.resultado), true],
+    ["Caixa acumulado", l => brl(l.caixa_acumulado)],
+  ];
+  const head = "<thead><tr><th></th>" + L.map(l => "<th>" + l.mes + "</th>").join("") + "</tr></thead>";
+  const body = rows.map(r => "<tr" + (r[2] ? ' class="key"' : "") + "><td>" + r[0] + "</td>" + L.map(l => "<td>" + r[1](l) + "</td>").join("") + "</tr>").join("");
+  document.getElementById(id).innerHTML = head + "<tbody>" + body + "</tbody>";
+}
+
+function comparisonTable() {
+  const m = cash("meta"), c = cash("central");
+  const min = a => a.reduce((p, x) => x.caixa_acumulado < p.caixa_acumulado ? x : p, a[0]);
+  const first = a => (a.find(x => x.resultado > 0) || {}).mes || "depois de dez/27";
+  const rows = [
+    ["Contas ativas em janeiro", nf1.format(m[3].ativas), nf1.format(c[3].ativas)],
+    ["Receita de janeiro", brl(m[3].receita), brl(c[3].receita)],
+    ["Resultado de janeiro", brl(m[3].resultado), brl(c[3].resultado), true],
+    ["Caixa acumulado em janeiro", brl(m[3].caixa_acumulado), brl(c[3].caixa_acumulado)],
+    ["Menor caixa acumulado", brl(min(m).caixa_acumulado) + " em " + min(m).mes, brl(min(c).caixa_acumulado) + " em " + min(c).mes],
+    ["Primeiro mês de lucro", first(m), first(c)],
+  ];
+  document.getElementById("t-comp").innerHTML =
+    "<thead><tr><th></th><th>Meta</th><th>Central</th></tr></thead><tbody>" +
+    rows.map(r => "<tr" + (r[3] ? ' class="key"' : "") + "><td>" + r[0] + "</td><td>" + r[1] + "</td><td>" + r[2] + "</td></tr>").join("") + "</tbody>";
+}
+
+function funnelTable() {
+  const m = cash("meta"), c = cash("central");
+  document.getElementById("t-funil").innerHTML = m.slice(0, 4).map((l, i) =>
+    "<tr><td>" + l.mes + "</td><td>" + l.novas + "</td><td>" + l.novas * 4 + "</td><td>" + l.novas * 10 + "</td><td>" + nf1.format(l.ativas) + "</td><td>" + nf1.format(c[i].ativas) + "</td></tr>").join("");
+}
+
+function cashTable() {
+  const m = cash("meta").slice(0, 10), c = cash("central").slice(0, 10);
+  document.getElementById("t-cash").innerHTML =
+    "<thead><tr><th>Mês</th><th>Meta</th><th>Central</th></tr></thead><tbody>" +
+    m.map((l, i) => "<tr><td>" + l.mes + "</td><td>" + brl(l.caixa_acumulado) + "</td><td>" + brl(c[i].caixa_acumulado) + "</td></tr>").join("") + "</tbody>";
+}
+
+/* Gráfico de linhas do caixa acumulado, out/26 a jul/27. */
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function drawChart() {
+  const host = document.getElementById("chart");
+  const W = host.clientWidth;
+  if (!W) return;
+  const m = cash("meta").slice(0, 10), c = cash("central").slice(0, 10);
+  const H = W < 520 ? 320 : 420;
+  const pad = { l: W < 520 ? 52 : 68, r: W < 520 ? 16 : 76, t: 20, b: 34 };
+  const yMin = -40000, yMax = 30000;
+  const x = i => pad.l + (W - pad.l - pad.r) * i / (m.length - 1);
+  const y = v => pad.t + (H - pad.t - pad.b) * (yMax - v) / (yMax - yMin);
+  const fg = css("--fg"), muted = css("--muted"), border = css("--border"), brand = css("--brand"), bg = css("--bg");
+  const t = (px, py, s, a, col, w) => `<text x="${px}" y="${py}" text-anchor="${a}" fill="${col}" font-size="12" font-family="Geist, system-ui, sans-serif"${w ? ` font-weight="${w}"` : ""}>${s}</text>`;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  [-40000, -20000, 0, 20000].forEach(v => {
+    s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 0 ? fg : border}" stroke-width="1"/>`;
+    s += t(pad.l - 8, y(v) + 4, v === 0 ? "0" : (v < 0 ? "−" : "") + Math.abs(v / 1000) + " mil", "end", muted);
+  });
+  m.forEach((l, i) => { if (W >= 520 || i % 2 === 0) s += t(x(i), H - 10, l.mes, "middle", muted); });
+  const path = (a, col) => `<path d="M${a.map((l, i) => x(i) + " " + y(l.caixa_acumulado)).join("L")}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  s += path(c, brand) + path(m, fg);
+  const low = a => a.reduce((p, l, i) => l.caixa_acumulado < a[p].caixa_acumulado ? i : p, 0);
+  [[m, fg, "Meta"], [c, brand, "Central"]].forEach(([a, col, name]) => {
+    const i = low(a);
+    s += `<circle cx="${x(i)}" cy="${y(a[i].caixa_acumulado)}" r="5" fill="${col}" stroke="${bg}" stroke-width="2"/>`;
+    s += t(x(i), y(a[i].caixa_acumulado) + (a === m ? -12 : 20), mil(a[i].caixa_acumulado), "middle", fg, 500);
+    if (W >= 520) s += t(x(a.length - 1) + 10, y(a[a.length - 1].caixa_acumulado) + 4, name, "start", fg, 500);
+  });
+  s += `<line id="cross" x1="0" x2="0" y1="${pad.t}" y2="${H - pad.b}" stroke="${fg}" stroke-width="1" opacity="0"/>`;
+  s += `<rect id="hit" x="${pad.l}" y="0" width="${W - pad.l - pad.r}" height="${H}" fill="transparent"/></svg><div id="tip" hidden></div>`;
+  host.innerHTML = s;
+  const tip = host.querySelector("#tip"), cross = host.querySelector("#cross"), hit = host.querySelector("#hit");
+  const move = e => {
+    const r = hit.getBoundingClientRect();
+    const i = Math.max(0, Math.min(m.length - 1, Math.round((e.clientX - r.left) / r.width * (m.length - 1))));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("opacity", "0.5");
+    tip.hidden = false;
+    tip.innerHTML = `<b>${m[i].mes}</b><br>Meta ${brl(m[i].caixa_acumulado)}<br>Central ${brl(c[i].caixa_acumulado)}`;
+    const left = Math.min(W - tip.offsetWidth, Math.max(0, x(i) + 12));
+    tip.style.left = left + "px"; tip.style.top = "8px";
+  };
+  const leave = () => { tip.hidden = true; cross.setAttribute("opacity", "0"); };
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerdown", move);
+  hit.addEventListener("pointerleave", leave);
+}
+
+/* Navegação entre slides. */
+const slides = [...document.querySelectorAll(".slide")];
+let cur = 0;
+function show(i, push) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, k) => { s.hidden = k !== cur; });
+  document.getElementById("count").textContent = (cur + 1) + " / " + slides.length;
+  document.getElementById("prev").disabled = cur === 0;
+  document.getElementById("next").disabled = cur === slides.length - 1;
+  if (push) { try { history.replaceState(null, "", "#s" + (cur + 1)); } catch (e) {} }
+  window.scrollTo(0, 0);
+  if (slides[cur].id === "s6") drawChart();
+}
+document.getElementById("prev").addEventListener("click", () => show(cur - 1, true));
+document.getElementById("next").addEventListener("click", () => show(cur + 1, true));
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" || e.key === "PageDown") show(cur + 1, true);
+  if (e.key === "ArrowLeft" || e.key === "PageUp") show(cur - 1, true);
+});
+window.addEventListener("resize", () => { if (slides[cur].id === "s6") drawChart(); });
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (slides[cur].id === "s6") drawChart(); });
+
+scenarioTable("t-meta", "meta");
+scenarioTable("t-central", "central");
+comparisonTable();
+funnelTable();
+cashTable();
+const start = /^#s(\d+)$/.exec(location.hash);
+show(start ? Number(start[1]) - 1 : 0, false);
+</script>

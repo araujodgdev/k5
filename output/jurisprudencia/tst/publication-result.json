@@ -1,0 +1,64 @@
+{
+  "runId": "f31565d0-f5a4-4ae5-87ca-1a95fa7a587c",
+  "tribunal": "TST",
+  "installationId": "9dbf3409-0fe8-4296-884f-2ddbec9c95b5",
+  "records": [
+    {
+      "sourceJudgmentId": "5d11866c6c34293fb9c7c76ab5c8cd53",
+      "judgmentId": "9057cd3d-31ba-4676-ab66-3dab737cd045"
+    },
+    {
+      "sourceJudgmentId": "77d8a9b116896cb142217c0dfefbc36a",
+      "judgmentId": "63f900f0-775d-4c33-94a0-9a3372612663"
+    }
+  ],
+  "topics": 13,
+  "relations": 2,
+  "originals": [
+    {
+      "sourceJudgmentId": "5d11866c6c34293fb9c7c76ab5c8cd53",
+      "key": "research/sha256/61/6167546bda5aebb1922f83ec5a6e623fcfd95ea32a42948e876b05c4f6227adb.html",
+      "sha256": "6167546bda5aebb1922f83ec5a6e623fcfd95ea32a42948e876b05c4f6227adb",
+      "bytes": 20644
+    },
+    {
+      "sourceJudgmentId": "77d8a9b116896cb142217c0dfefbc36a",
+      "key": "research/sha256/73/73c08ea5979098f0493eb69aa1b319db1379f15d3b5810cc3ec1ba29b4dd7ff8.html",
+      "sha256": "73c08ea5979098f0493eb69aa1b319db1379f15d3b5810cc3ec1ba29b4dd7ff8",
+      "bytes": 99624
+    },
+    {
+      "sourceJudgmentId": "5d11866c6c34293fb9c7c76ab5c8cd53",
+      "key": "research/sha256/ae/ae6ce89e34aab09e92beed254f77ca3ce6cb7a53126916bd011a45671f546c86.pdf",
+      "sha256": "ae6ce89e34aab09e92beed254f77ca3ce6cb7a53126916bd011a45671f546c86",
+      "bytes": 53948
+    }
+  ],
+  "verifiedR2Objects": 8,
+  "manifestKey": "research/sha256/36/364c8de8d7666b9fe4c3ba1aa7b7bfb8c9a73a734371bdab5a772f6e93b3b190.json",
+  "coverage": "partial",
+  "checkpoint": {
+    "tribunal": "TST",
+    "source": "https://jurisprudencia.tst.jus.br/",
+    "topicId": "6191",
+    "origin": "TST",
+    "documentType": "Acórdãos",
+    "freeText": "",
+    "dateRange": null,
+    "totalReported": 74,
+    "pageSize": 20,
+    "page": 1,
+    "collectedWithinPage": 2,
+    "resumeAtWithinPage": 3,
+    "nextPendingProcess": "RR - 712-41.2017.5.05.0030",
+    "localDownloadComplete": true,
+    "remotePersistence": "confirmed",
+    "partitionComplete": false,
+    "taxonomyComplete": false,
+    "collectedAt": "2026-09-28T21:35:08.985846+00:00",
+    "warning": "Replay the first page and deduplicate by sourceJudgmentId on resume; no stable snapshot was guaranteed.",
+    "status": "partial",
+    "publicationConfirmed": true,
+    "publicationRunId": "f31565d0-f5a4-4ae5-87ca-1a95fa7a587c"
+  }
+}
