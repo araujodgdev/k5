@@ -155,6 +155,22 @@ test('approval decided during streaming survives the first save of its message',
   assert.equal((part.data as { state: string }).state, 'cancelled');
 });
 
+test('legacy completed messages keep their known outcome when no separate result was stored', async () => {
+  const { context, agent, caseId } = await office();
+  const folder = await createVaultFolder(context.officeId, context.userId, caseId, 'Antiga');
+  const id = await proposal(runCapability(agent, 'k5_vault_delete_folder', { folderId: folder.id }));
+  const conversationId = await chatWithApproval(context, id);
+  const result = await decideAgentApproval(context, id, 'confirm');
+  const stored = await conversation(testDb, context, conversationId);
+  assert.ok(stored);
+  await saveMessages(testDb, context, conversationId, stored.messages);
+  await testDb.prepare('UPDATE capability_approval SET chat_result=NULL WHERE id=?').run(id);
+  const restored = await conversation(testDb, context, conversationId);
+  const part = restored?.messages[0].parts.find(part => part.type === 'data-approval');
+  assert.ok(part && part.type === 'data-approval');
+  assert.equal((part.data as { state: string }).state, result.state);
+});
+
 test('agent approvals: the interface is not gated, and other people cannot decide', async () => {
   const { context, caseId, agent } = await office();
   const folder = await createVaultFolder(context.officeId, context.userId, caseId, 'Temporária');
