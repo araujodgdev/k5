@@ -70,7 +70,8 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
   }
 
   function fieldProps(name: string) {
-    return { id: name, name, "aria-invalid": !!fieldErrors[name], "aria-describedby": fieldErrors[name] ? `${name}-error` : undefined };
+    // 44px on touch, like every other field in the app (DESIGN.md); unchanged from md up.
+    return { id: name, name, className: "h-11 md:h-8", "aria-invalid": !!fieldErrors[name], "aria-describedby": fieldErrors[name] ? `${name}-error` : undefined };
   }
 
   return (
@@ -111,7 +112,7 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
               <div className="grid gap-1.5">
                 <Label htmlFor="password">Senha</Label>
                 <div className="relative">
-                  <Input {...fieldProps("password")} onFocus={() => setPasswordFocus(true)} onBlur={() => setPasswordFocus(false)} type={showPassword ? "text" : "password"} autoComplete={isSignUp ? "new-password" : "current-password"} placeholder={isSignUp ? "Pelo menos 8 caracteres" : "Sua senha"} required maxLength={128} className="pr-11" />
+                  <Input {...fieldProps("password")} onFocus={() => setPasswordFocus(true)} onBlur={() => setPasswordFocus(false)} type={showPassword ? "text" : "password"} autoComplete={isSignUp ? "new-password" : "current-password"} placeholder={isSignUp ? "Pelo menos 8 caracteres" : "Sua senha"} required maxLength={128} className="h-11 pr-11 md:h-8" />
                   <Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} aria-pressed={showPassword}
                     className="absolute inset-y-1 right-1 h-auto text-muted-foreground hover:bg-transparent hover:text-foreground">
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}

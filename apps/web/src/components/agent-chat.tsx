@@ -895,11 +895,11 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
     <TooltipProvider>
       <DocumentLinksContext.Provider value={documentLinks}>
       <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden" data-document-open={openDocumentId ? "" : undefined}>
-        <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b px-4 md:px-10">
+        <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-line px-4 md:h-(--shell-header) md:min-h-0 md:px-10">
           <div className="flex min-w-0 items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="-ml-2 size-11 text-muted-foreground md:size-9" aria-label={listOpen ? "Ocultar conversas" : "Mostrar conversas"} aria-expanded={listOpen} aria-controls="agent-conversations" onClick={toggleList}>
+                <Button variant="ghost" size="icon" className="-ml-2 size-11 text-muted-foreground md:ml-0 md:size-9" aria-label={listOpen ? "Ocultar conversas" : "Mostrar conversas"} aria-expanded={listOpen} aria-controls="agent-conversations" onClick={toggleList}>
                   {listOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
                 </Button>
               </TooltipTrigger>

@@ -16,10 +16,22 @@ type Person = { id: string; name: string; email: string; role?: string; canInvit
 type Invitation = { id: string; kind: string; email: string; role: string; canInvite: boolean; status: string; expiresAt: string; officeName: string; caseName: string | null; inviterName: string };
 type Overview = { members: Person[]; associates: Person[]; participants: Person[]; incoming: Invitation[]; outgoing: Invitation[];
   history: { id: string; action: string; createdAt: string; actorName: string; targetName: string | null }[];
-  canManage: boolean; canAssociate: boolean; canManageParticipants: boolean; external: boolean; caseRole?: string };
+  canManage: boolean; canAssociate: boolean; canManageParticipants: boolean; external: boolean; caseRole?: string; viewerId: string };
 const roleLabels: Record<string, string> = { administrator: 'Administrador', lawyer: 'Advogado', reviewer: 'Revisor', viewer: 'Consulta', editor: 'Colaboração' };
 const kindLabels: Record<string, string> = { team: 'Equipe', associate: 'Associação', case: 'Caso' };
-const actionLabels: Record<string, string> = { 'invitation.created': 'criou um convite', 'invitation.accepted': 'aceitou um convite', 'invitation.declined': 'recusou um convite', 'invitation.revoked': 'cancelou um convite', 'member.updated': 'alterou o papel de', 'member.removed': 'removeu da equipe', 'participant.updated': 'alterou o acesso de', 'participant.removed': 'removeu do caso', 'associate.removed': 'removeu dos associados' };
+// A history line reads as a sentence after the actor's name: "criou um convite para Rafael", "removeu Rafael da equipe".
+const historyActions: Record<string, (target: string | null) => string> = {
+  'invitation.created': target => target ? `criou um convite para ${target}` : 'criou um convite',
+  'invitation.accepted': () => 'aceitou o convite',
+  'invitation.declined': () => 'recusou o convite',
+  'invitation.revoked': target => target ? `cancelou o convite de ${target}` : 'cancelou um convite',
+  'member.updated': target => `alterou o papel de ${target ?? 'uma pessoa'}`,
+  'member.removed': target => `removeu ${target ?? 'uma pessoa'} da equipe`,
+  'participant.updated': target => `alterou o acesso de ${target ?? 'uma pessoa'}`,
+  'participant.removed': target => `removeu ${target ?? 'uma pessoa'} do caso`,
+  'associate.removed': target => `removeu ${target ?? 'uma pessoa'} dos associados`,
+};
+const historyLine = (action: string, target: string | null) => historyActions[action]?.(target) ?? `${action} ${target ?? ''}`;
 const selectClass = 'min-h-11 max-w-full border border-input bg-background px-3 text-sm md:min-h-9';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -118,19 +130,20 @@ export function CollaborationPanel({ view = 'team', caseId }: { view?: 'team' | 
     {data && view !== 'invites' && <>
       {caseId && data.members.length > 0 && <details className="border-b py-4"><summary className="cursor-pointer text-sm">Equipe do escritório ({data.members.length})</summary>{data.members.map(person => <p key={person.id} className="pt-3 text-sm">{person.name} <span className="text-muted-foreground">— {roleLabels[person.role ?? '']}</span></p>)}</details>}
       {people?.length === 0 && <p className="py-8 text-sm text-muted-foreground">{caseId ? 'Nenhum participante externo neste caso.' : view === 'associates' ? 'Nenhum associado ainda. Convide um parceiro pelo e-mail.' : 'Nenhum membro encontrado.'}</p>}
-      {people?.map(person => <div key={person.id} className="flex flex-wrap items-center gap-3 border-b py-4">
-        <div className="flex min-w-0 basis-full items-start gap-3 sm:basis-auto sm:flex-1"><Avatar name={person.name} src={avatarUrl(person.id, person.avatarVersion ?? null)} /><div className="min-w-0"><p className="break-words text-sm font-medium">{person.name}</p><PersonHoverCard email={person.email} className="text-[13px] text-muted-foreground" />{person.role && <p className="mt-1 text-[13px] text-muted-foreground">{roleLabels[person.role]}{person.canInvite ? ' · Pode convidar' : ''}</p>}</div></div>
-        {(caseId ? data.canManageParticipants : view === 'team' ? data.canManage : data.canAssociate) && <div className="flex flex-wrap gap-2">
+      {people?.map(person => { const manageable = (caseId ? data.canManageParticipants : view === 'team' ? data.canManage : data.canAssociate) && person.id !== data.viewerId; return <div key={person.id} className="flex flex-wrap items-center gap-3 border-b py-4">
+        <div className="flex min-w-0 basis-full items-start gap-3 sm:basis-auto sm:flex-1"><Avatar name={person.name} src={avatarUrl(person.id, person.avatarVersion ?? null)} /><div className="min-w-0"><p className="break-words text-sm font-medium">{person.name}{person.id === data.viewerId && <span className="font-normal text-muted-foreground"> · você</span>}</p><PersonHoverCard email={person.email} className="text-[13px] text-muted-foreground" />{/* With the controls on the row, the role shows once: in its select. */}{person.role && !manageable && <p className="mt-1 text-[13px] text-muted-foreground">{roleLabels[person.role]}{person.canInvite ? ' · Pode convidar' : ''}</p>}</div></div>
+        {/* Your own row has no controls: another administrator changes or removes your access. */}
+        {manageable && <div className="flex flex-wrap items-center gap-2">
           {person.role && <select aria-label={`Papel de ${person.name}`} className={selectClass} value={person.role} disabled={busy} onChange={event => void act({ action: caseId ? 'participant' : 'member', userId: person.id, role: event.target.value, ...(caseId ? { caseId, canInvite: person.canInvite } : {}) })}>{(caseId ? ['viewer', 'editor'] : ['administrator', 'lawyer', 'reviewer']).map(value => <option key={value} value={value}>{roleLabels[value]}</option>)}</select>}
           {caseId && <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" aria-label={`Permitir que ${person.name} convide`} checked={Boolean(person.canInvite)} disabled={busy} onChange={event => void act({ action: 'participant', caseId, userId: person.id, role: person.role, canInvite: event.target.checked })} />Pode convidar</label>}
           <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" disabled={busy}>Remover</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remover {person.name}?</AlertDialogTitle><AlertDialogDescription>{view === 'associates' && !caseId ? 'A pessoa sai da lista de associados. A participação nos casos permanece e pode ser removida em cada caso.' : caseId ? 'O acesso a este caso será revogado. Arquivos e alterações já feitos permanecem.' : 'O acesso a este escritório será revogado. Os arquivos e o escritório pessoal da pessoa permanecem.'}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => void act(remove(person))}>Remover acesso</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         </div>}
-      </div>)}
+      </div>; })}
       {outgoing.length > 0 && <section className="mt-8"><h2 className="text-lg">Convites pendentes</h2>{outgoing.map(item => <div key={item.id} className="flex flex-wrap items-center gap-3 border-b py-4"><div className="min-w-0 basis-full sm:basis-auto sm:flex-1"><PersonHoverCard email={item.email} className="text-sm" /><p className="mt-1 text-[13px] text-muted-foreground">{roleLabels[item.role]} · Expira em {new Date(item.expiresAt).toLocaleDateString('pt-BR')}</p></div><Button variant="ghost" disabled={busy} onClick={() => void act({ action: 'cancel', id: item.id })}>Cancelar convite</Button></div>)}</section>}
     </>}
     {data && view === 'invites' && <>{data.incoming.length === 0 && <p className="py-8 text-sm text-muted-foreground">Nenhum convite pendente para sua conta.</p>}{data.incoming.map(item => <div key={item.id} className="flex flex-wrap items-center gap-4 border-b py-5"><div className="min-w-0 basis-full sm:basis-auto sm:flex-1"><p className="text-sm font-medium">{item.caseName ?? item.officeName}</p><p className="mt-1 text-sm text-muted-foreground">{kindLabels[item.kind]} · {item.inviterName} · {item.kind !== 'associate' ? roleLabels[item.role] : 'Sem acesso a arquivos'}</p><p className="mt-1 text-[13px] text-muted-foreground">Expira em {new Date(item.expiresAt).toLocaleDateString('pt-BR')}</p></div><Button variant="ghost" disabled={busy} onClick={() => void act({ action: 'respond', id: item.id, accept: false })}>Recusar</Button><Button disabled={busy} onClick={async () => { const result = await act({ action: 'respond', id: item.id, accept: true }); if (result) { setNotice('Convite aceito.'); if (result.caseId) router.push(`/app/vault/cases/${result.caseId}`); } }}>Aceitar convite</Button></div>)}</>}
     {data && !caseId && view !== 'invites' && data.incoming.length > 0 && <Link href="/app/agenda?view=invites" className="my-5 text-sm underline underline-offset-4">Você tem {data.incoming.length} convite(s) para responder.</Link>}
-    {data && data.history.length > 0 && <details className="mt-8 border-t py-4"><summary className="cursor-pointer text-sm">Histórico de acessos</summary>{data.history.map(item => <p key={item.id} className="border-b py-3 text-sm">{item.actorName} {actionLabels[item.action] ?? item.action} {item.targetName ?? ''}<span className="mt-1 block text-[13px] text-muted-foreground">{new Date(item.createdAt).toLocaleString('pt-BR')}</span></p>)}</details>}
+    {data && data.history.length > 0 && <details className="mt-8"><summary className="cursor-pointer py-3 text-sm">Histórico de acessos</summary>{data.history.map(item => <p key={item.id} className="border-b py-3 text-sm">{item.actorName} {historyLine(item.action, item.targetName)}<span className="mt-1 block text-[13px] text-muted-foreground">{new Date(item.createdAt).toLocaleString('pt-BR')}</span></p>)}</details>}
   </div>;
 }
 

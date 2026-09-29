@@ -37,7 +37,7 @@ export function BillingPanel({ overview, canPay, returned, hasSubscription = fal
   }
 
   return (
-    <Reveal className="mx-auto w-full max-w-5xl space-y-10 px-5 py-6 md:px-10 md:py-10">
+    <Reveal className="w-full max-w-5xl space-y-10 px-5 py-6 md:px-10 md:py-10">
       <h1 className="page-title max-md:sr-only" data-reveal>Plano</h1>
 
       {returned && (
@@ -48,7 +48,9 @@ export function BillingPanel({ overview, canPay, returned, hasSubscription = fal
         </p>
       )}
 
-      <section aria-labelledby="plan-state" className="grid gap-6 border-y border-line py-8 md:grid-cols-[1fr_auto] md:items-end" data-reveal>
+      {/* On a phone the header's line already opens the page, so the cell drops its top rule and
+          padding there instead of drawing a second line under an empty strip. */}
+      <section aria-labelledby="plan-state" className={`grid gap-6 border-y border-line py-8 md:grid-cols-[1fr_auto] md:items-end ${returned ? '' : 'max-md:border-t-0 max-md:pt-0'}`} data-reveal>
         <div className="space-y-3">
           <p className="label-mono flex items-center gap-2.5 text-muted-foreground"><span className="square-dot" aria-hidden="true" />Plano Lume</p>
           <h2 id="plan-state" className="display text-4xl md:text-5xl">

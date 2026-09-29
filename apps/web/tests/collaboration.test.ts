@@ -109,6 +109,17 @@ test('team invitations preserve both offices, cannot be accepted twice concurren
   assert.equal((await listOfficesForUser(db, f.guest.id)).length, 1);
 });
 
+test('nobody changes or removes their own team access, even beside another administrator', async () => {
+  const f = await fixture();
+  const invitation = await invite(f.owner.context, { kind: 'team', email: f.guest.email, role: 'administrator' });
+  await respond(f.guest.context, invitation.id, true);
+  assert.equal((await collaborationOverview(f.owner.context)).viewerId, f.owner.id);
+  await assert.rejects(changeAccess(f.owner.context, { action: 'member', userId: f.owner.id, role: null }), { code: 'CONFLICT' });
+  await assert.rejects(changeAccess(f.owner.context, { action: 'member', userId: f.owner.id, role: 'lawyer' }), { code: 'CONFLICT' });
+  assert.equal((await listOfficesForUser(db, f.owner.id)).length, 1);
+  await changeAccess(f.owner.context, { action: 'member', userId: f.guest.id, role: 'lawyer' });
+});
+
 test('unknown address needs the secret link, and expired/cancelled invitations cannot grant access', async () => {
   const f = await fixture(); const email = `${randomUUID()}@new-user.test`;
   const invitation = await invite(f.owner.context, { kind: 'team', email, role: 'reviewer' });

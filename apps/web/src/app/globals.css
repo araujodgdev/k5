@@ -51,6 +51,8 @@
   --input: #232323;             /* controls are drawn in ink */
   --ring: #d97757;
   --overlay: #232323;
+  /* The chevron every select draws, in muted-foreground (a data URI can't read a variable). */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235c5c5c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 
   --sidebar: #ffffff;
   --sidebar-foreground: #232323;
@@ -65,6 +67,9 @@
 
   --radius: 0rem;
   --tabbar-h: 64px;
+  /* The sidebar's header row (the 60px mark tile and its line); a workspace's top bar takes the
+     same height so its line continues the sidebar's. */
+  --shell-header: calc(3.75rem + 1px);
   --ease: cubic-bezier(.16, 1, .3, 1);   /* expo out: fast start, long settle */
   --ease-in-out: cubic-bezier(.65, 0, .35, 1); /* for travel, such as a line being drawn */
   --shadow-float: 0 16px 40px -20px rgb(35 35 35 / .28);
@@ -105,6 +110,7 @@
   --input: #8a8a8a;
   --ring: #e08a6b;
   --overlay: #000000;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b8b8b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --sidebar: #232323;
   --sidebar-foreground: #f5f5f5;
   --sidebar-primary: #f5f5f5;
@@ -438,6 +444,28 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   border: 1px solid var(--line);
   border-radius: var(--radius-2xl);
 }
+
+/* One select for the whole app (DESIGN.md, "Selects"): a native select is outlined in ink like an
+   input, its text starts 10px in, and it draws the same chevron as the SelectTrigger and the
+   pickers, 10px from the right edge. Plain CSS outside a layer, so a component's own px-* or border
+   color can't move the text or the arrow. A select set inside a sentence (data-inline) keeps its
+   underline and only gains the chevron. */
+select:not([multiple], [size]) {
+  appearance: none;
+  padding-inline: .625rem 2.25rem;
+  border-color: var(--input);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right .625rem center;
+  background-size: 1rem;
+}
+select[data-inline]:not([multiple], [size]) {
+  padding-inline: 0 1.5rem;
+  border-color: color-mix(in oklab, var(--foreground) 40%, transparent);
+  background-position: right 0 center;
+}
+select[data-inline]:not([multiple], [size]):hover { border-color: var(--foreground); }
+select[data-inline]:not([multiple], [size]):focus-visible { border-color: var(--brand); }
 
 /* The feedback and notification panels open beside the menu, near the button that opened them,
    and follow the menu's width. Plain CSS, like the sheet above, so it beats the dialog's centring utilities. */

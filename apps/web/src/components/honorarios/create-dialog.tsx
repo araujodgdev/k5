@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useHonorarioMutation } from './client';
 import { money, monthlySchedule, parseAmount, type InstallmentDraft } from './editor';
-import { dialogClass, Failure, Field, ReferenceSelect } from './fields';
+import { Failure, Field, ReferenceSelect } from './fields';
 
 export function CreateHonorarioDialog({ clientId: initialClientId, caseId: initialCaseId, close, saved }: { clientId: string; caseId: string; close: () => void; saved: (detail: HonorarioDetail) => void }) {
   const [clientId, setClientId] = useState(initialClientId);
@@ -19,13 +19,23 @@ export function CreateHonorarioDialog({ clientId: initialClientId, caseId: initi
   const [count, setCount] = useState('1');
   const [first, setFirst] = useState('');
   const [installments, setInstallments] = useState<InstallmentDraft[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<{ client?: string; title?: string }>({});
   const mutation = useHonorarioMutation(saved);
   const previewTotal = installments.reduce((sum, row) => sum + (parseAmount(row.amount) ?? 0), 0);
   function generate(nextTotal: string, nextCount: string, nextFirst: string) {
     setInstallments(monthlySchedule(parseAmount(nextTotal) ?? 0, Number(nextCount), nextFirst));
   }
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // The form checks itself (noValidate), so a missing field is said under the field, like the rest
+    // of the app, instead of in the browser's bubble.
+    const errors = { client: clientId ? undefined : 'Selecione um cliente.', title: title.trim().length >= 2 ? undefined : 'Informe a descrição.' };
+    setFieldErrors(errors);
+    if (errors.client || errors.title) {
+      const form = event.currentTarget;
+      requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid=true]')?.focus());
+      return;
+    }
     const input = { clientId, caseId: caseId || null, title, notes, installments: installments.map(row => ({ amountCents: parseAmount(row.amount), dueOn: row.dueOn })) };
     const result = createHonorarioInput.safeParse({ ...input, idempotencyKey: 'validation-only' });
     if (!result.success || !parseAmount(total) || previewTotal !== parseAmount(total)) {
@@ -34,13 +44,15 @@ export function CreateHonorarioDialog({ clientId: initialClientId, caseId: initi
     await mutation.submit('create', input);
   }
   return <Dialog open onOpenChange={open => { if (!open && !mutation.pending) close(); }}>
-    <DialogContent className={dialogClass} showCloseButton={!mutation.pending}>
+    {/* Like the Escritório forms: the fields scroll between the title and a fixed row of actions. */}
+    <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-2xl [&>[data-slot=dialog-close]]:size-11" showCloseButton={!mutation.pending}>
       <DialogHeader className="pr-10"><DialogTitle>Novo honorário</DialogTitle><DialogDescription>Cadastre o valor combinado e confira cada parcela antes de salvar.</DialogDescription></DialogHeader>
-      <form onSubmit={submit} className="grid gap-5">
+      <form noValidate onSubmit={submit} className="-mx-4 -mb-4 flex min-h-0 flex-col">
+        <div className="min-h-0 overflow-y-auto px-4 pt-1 pb-4">
         <fieldset disabled={mutation.pending} className="grid min-w-0 gap-5">
-          <div className="grid min-w-0 gap-5 sm:grid-cols-2"><ReferenceSelect kind="clients" value={clientId} onChange={setClientId} /><ReferenceSelect kind="cases" value={caseId} onChange={setCaseId} optional /></div>
+          <div className="grid min-w-0 gap-5 sm:grid-cols-2"><ReferenceSelect kind="clients" value={clientId} error={fieldErrors.client} onChange={value => { setClientId(value); setFieldErrors(current => ({ ...current, client: undefined })); }} /><ReferenceSelect kind="cases" value={caseId} onChange={setCaseId} optional /></div>
           <p className="text-xs text-muted-foreground">Os participantes do caso poderão consultar estes honorários.</p>
-          <Field label="Descrição">{id => <Input id={id} className="min-h-11" required minLength={2} maxLength={180} value={title} onChange={event => setTitle(event.target.value)} />}</Field>
+          <Field label="Descrição">{id => <><Input id={id} className="min-h-11" required minLength={2} maxLength={180} value={title} aria-invalid={fieldErrors.title ? true : undefined} aria-describedby={fieldErrors.title ? `${id}-error` : undefined} onChange={event => { setTitle(event.target.value); setFieldErrors(current => ({ ...current, title: undefined })); }} />{fieldErrors.title && <p id={`${id}-error`} className="text-xs text-destructive">{fieldErrors.title}</p>}</>}</Field>
           <Field label="Observações">{id => <Textarea id={id} maxLength={4000} value={notes} onChange={event => setNotes(event.target.value)} />}</Field>
           <div className="grid min-w-0 gap-4 sm:grid-cols-3">
             <Field label="Valor total (R$)">{id => <Input id={id} className="min-h-11" required inputMode="decimal" placeholder="0,00" value={total} onChange={event => { setTotal(event.target.value); generate(event.target.value, count, first); }} />}</Field>
@@ -56,8 +68,11 @@ export function CreateHonorarioDialog({ clientId: initialClientId, caseId: initi
             </div>)}<p className="pt-3 text-sm" aria-live="polite">Total das parcelas: {money(previewTotal)}</p></div> : <p className="py-5 text-sm text-muted-foreground">Preencha valor, quantidade e primeiro vencimento para conferir as parcelas.</p>}
           </section>
         </fieldset>
-        <Failure message={mutation.error} />
-        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" className="min-h-11" disabled={mutation.pending} onClick={close}>Voltar</Button><Button type="submit" className="min-h-11" disabled={mutation.pending || !installments.length}>{mutation.pending ? 'Cadastrando…' : 'Cadastrar honorário'}</Button></div>
+        </div>
+        <div className="grid gap-3 border-t border-line px-4 py-3">
+          <Failure message={mutation.error} />
+          <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" className="min-h-11" disabled={mutation.pending} onClick={close}>Voltar</Button><Button type="submit" className="min-h-11" disabled={mutation.pending || !installments.length}>{mutation.pending ? 'Cadastrando…' : 'Cadastrar honorário'}</Button></div>
+        </div>
       </form>
     </DialogContent>
   </Dialog>;

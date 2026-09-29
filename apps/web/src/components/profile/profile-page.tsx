@@ -133,7 +133,7 @@ export function ProfilePage({ initial }: { initial: ProfileCard }) {
   const preview: ProfileCard = { ...profile, ...Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value.trim()])) as Fields };
 
   return (
-    <Reveal className="mx-auto w-full max-w-5xl space-y-10 px-5 py-6 md:px-10 md:py-10 [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9 [&_[data-slot=input]]:min-h-11 md:[&_[data-slot=input]]:min-h-9">
+    <Reveal className="w-full max-w-5xl space-y-10 px-5 py-6 md:px-10 md:py-10 [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9 [&_[data-slot=input]]:min-h-11 md:[&_[data-slot=input]]:min-h-9">
       <h1 className="page-title max-md:sr-only" data-reveal>Perfil</h1>
 
       <section aria-labelledby="profile-about" className="grid gap-8 border-y border-line py-8 lg:grid-cols-[16rem_1fr]" data-reveal>

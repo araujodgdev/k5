@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { requestCapability } from '@/lib/capabilities/http-client';
 import type { WebSearchHistoryItem, WebSearchMode, WebSearchView } from '@/lib/research/contracts';
 import { cn } from '@/lib/utils';
+import { sectionTab, sectionTabRow } from '@/components/section-tabs';
 
 const modes: Array<{ value: WebSearchMode; label: string; hint: string }> = [
   { value: 'instant', label: 'Instantânea', hint: 'A resposta mais rápida, para consultas simples.' },
@@ -28,8 +29,6 @@ function updateLocation(id: string | null) {
   else url.searchParams.delete('search');
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
 }
-const tabStyle = (active: boolean) => cn('min-h-12 border-b-2 px-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-  active ? 'border-foreground font-medium' : 'border-transparent text-muted-foreground hover:text-foreground');
 
 export function ResearchWorkspace({ initialSearchId }: { initialSearchId: string | null }) {
   const [tab, setTab] = useState<'search' | 'history'>('search');
@@ -96,9 +95,9 @@ export function ResearchWorkspace({ initialSearchId }: { initialSearchId: string
 
   return <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
     <div className="border-b pb-5"><h1 className="page-title leading-none max-md:sr-only">Pesquisa</h1></div>
-    <nav aria-label="Visões da pesquisa" className="flex gap-5 border-b">
-      <button type="button" aria-current={tab === 'search' ? 'page' : undefined} onClick={() => changeTab('search')} className={tabStyle(tab === 'search')}>Pesquisar</button>
-      <button type="button" aria-current={tab === 'history' ? 'page' : undefined} onClick={() => changeTab('history')} className={tabStyle(tab === 'history')}>Histórico</button>
+    <nav aria-label="Visões da pesquisa" className={sectionTabRow}>
+      <button type="button" aria-current={tab === 'search' ? 'page' : undefined} onClick={() => changeTab('search')} className={sectionTab(tab === 'search')}>Pesquisar</button>
+      <button type="button" aria-current={tab === 'history' ? 'page' : undefined} onClick={() => changeTab('history')} className={sectionTab(tab === 'history')}>Histórico</button>
     </nav>
 
     {tab === 'history' ? <section aria-label="Histórico de pesquisas" className="py-5">

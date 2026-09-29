@@ -13,13 +13,13 @@ const buttonVariants = cva(
         // Ink, and the brand sweeps in from the left on hover (DESIGN.md, "Motion").
         default: "hover-sweep bg-primary text-primary-foreground hover:text-brand-foreground focus-visible:text-brand-foreground",
         outline:
-          "hover-rise border-input bg-background [--fill:var(--foreground)] hover:text-background aria-expanded:bg-foreground aria-expanded:text-background",
+          "hover-rise border-input bg-background [--fill:var(--foreground)] hover:text-background focus-visible:text-background aria-expanded:bg-foreground aria-expanded:text-background",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-accent aria-expanded:bg-accent aria-expanded:text-secondary-foreground",
         ghost:
           "hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground",
         destructive:
-          "hover-rise border-destructive bg-transparent text-destructive [--fill:var(--destructive)] hover:text-background focus-visible:ring-destructive/20",
+          "hover-rise border-destructive bg-transparent text-destructive [--fill:var(--destructive)] hover:text-background focus-visible:text-background focus-visible:ring-destructive/20",
         link: "text-primary underline decoration-input/40 underline-offset-4 hover:decoration-brand",
       },
       size: {

@@ -25,7 +25,9 @@ type Module = 'agenda' | 'vault' | 'lume';
 const moduleRule: Record<Module, string> = { agenda: 'before:bg-module-agenda', vault: 'before:bg-module-vault', lume: 'before:bg-module-lume' };
 
 function OverviewSection({ title, href, module, children, loading, failed }: { title: string; href: string; module: Module; children: ReactNode; loading: boolean; failed: boolean }) {
-  return <section aria-label={title} className={`relative min-h-56 min-w-0 border-t pt-4 before:absolute before:-top-px before:left-0 before:h-0.5 before:w-10 ${moduleRule[module]}`}><header className="mb-2 flex items-center justify-between gap-3"><h2 className="font-medium">{title}</h2><Link href={href} className={linkStyle}>Ver tudo<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only"> em {title}</span></Link></header>{loading ? <p role="status" className="py-5 text-sm text-muted-foreground">Carregando…</p> : failed ? <p role="alert" className="py-5 text-sm text-destructive">Não foi possível carregar. Use Atualizar para tentar novamente.</p> : children}</section>;
+  // On a phone the blocks stack, so an empty one takes only its sentence; the minimum height keeps
+  // the desktop grid even while blocks load.
+  return <section aria-label={title} className={`relative min-w-0 border-t pt-4 md:min-h-56 before:absolute before:-top-px before:left-0 before:h-0.5 before:w-10 ${moduleRule[module]}`}><header className="mb-2 flex items-center justify-between gap-3"><h2 className="font-medium">{title}</h2><Link href={href} className={linkStyle}>Ver tudo<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only"> em {title}</span></Link></header>{loading ? <p role="status" className="py-5 text-sm text-muted-foreground">Carregando…</p> : failed ? <p role="alert" className="py-5 text-sm text-destructive">Não foi possível carregar. Use Atualizar para tentar novamente.</p> : children}</section>;
 }
 
 export function CommandCenter({ role }: { role: OfficeRole }) {
@@ -69,7 +71,7 @@ export function CommandCenter({ role }: { role: OfficeRole }) {
     catch (error) { setFailure(error instanceof Error ? error.message : 'Não foi possível concluir a tarefa.'); }
     finally { setBusy(null); }
   }
-  const empty = (text: string) => <p className="py-5 text-sm text-muted-foreground">{text}</p>;
+  const empty = (text: string) => <p className="py-2 text-sm text-muted-foreground md:py-5">{text}</p>;
   return <div className="min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
     <header className="mb-7 flex flex-wrap items-center justify-between gap-4 max-md:justify-end"><h1 className="page-title max-md:sr-only">Início</h1><div className="flex items-center gap-2"><Button variant="ghost" size="lg" disabled={loading} onClick={() => setRevision(value => value + 1)}>Atualizar</Button>{role !== 'reviewer' && <Button asChild size="lg"><Link href="/app/agenda?action=new"><Plus className="size-4" />Nova atividade</Link></Button>}</div></header>
     {failure && <p role="alert" className="mb-4 text-sm text-destructive">{failure}</p>}

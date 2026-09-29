@@ -16,14 +16,20 @@ function countLabel(count: number) {
  * the drive home and the case's own page. A button that only exists on the page the deletion
  * navigates away from is a button nobody finds.
  */
-export function CaseDelete({ caseId, name, documentCount, onDeleted, onError, className }: {
+export function CaseDelete({ caseId, name, documentCount, onDeleted, onError, className, open, onOpenChange, returnFocusTo }: {
   caseId: string;
   name: string;
   documentCount: number;
   onDeleted: () => void;
   onError: (message: string) => void;
   className?: string;
+  /** Given, the confirmation is opened from elsewhere (a menu item) and draws no button of its own. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Opened from a menu, there is no trigger to go back to: closing returns focus here instead. */
+  returnFocusTo?: React.RefObject<HTMLElement | null>;
 }) {
+  const controlled = open !== undefined;
   async function remove() {
     onError("");
     const failure = await approveAndRun("k5_vault_delete_case", { caseId }, (approvalId) =>
@@ -37,11 +43,11 @@ export function CaseDelete({ caseId, name, documentCount, onDeleted, onError, cl
   }
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
+    <AlertDialog {...(controlled ? { open, onOpenChange } : {})}>
+      {!controlled && <AlertDialogTrigger asChild>
         <Button type="button" variant="ghost" size="icon-sm" className={`size-11 shrink-0 md:size-8 ${className ?? ""}`} aria-label={`Excluir caso ${name}`}><Trash2 aria-hidden="true" /></Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
+      </AlertDialogTrigger>}
+      <AlertDialogContent onCloseAutoFocus={returnFocusTo ? (event) => { event.preventDefault(); returnFocusTo.current?.focus(); } : undefined}>
         <AlertDialogHeader>
           <AlertDialogTitle>Excluir o caso {name}?</AlertDialogTitle>
           <AlertDialogDescription>

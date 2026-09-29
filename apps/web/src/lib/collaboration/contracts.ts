@@ -23,4 +23,5 @@ export const collaborationOverviewDto = z.object({
   associates: z.array(person), outgoing: z.array(invitation), incoming: z.array(invitation),
   history: z.array(z.object({ id: z.string(), action: z.string(), createdAt: z.string(), actorName: z.string(), targetName: z.string().nullable() })),
   canManage: z.boolean(), canAssociate: z.boolean(), canManageParticipants: z.boolean(), external: z.boolean(), caseRole: officeRole.optional(),
+  viewerId: z.string(),
 });

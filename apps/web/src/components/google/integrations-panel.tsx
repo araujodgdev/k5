@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import type { CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { OfficeRole } from '@/lib/offices';
 import { Button } from '@/components/ui/button';
+import { sectionTab, sectionTabRow } from '@/components/section-tabs';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { googleCall, type GoogleStatus } from './client';
@@ -108,14 +109,14 @@ export function IntegrationsPanel({ role }: { role: OfficeRole }) {
     });
   }
 
-  return <div className="mx-auto w-full max-w-5xl space-y-8 px-5 py-6 md:px-10 md:py-10 [&_button]:min-h-11 md:[&_button]:min-h-9">
+  return <div className="w-full max-w-5xl space-y-8 px-5 py-6 md:px-10 md:py-10 [&_button:not([role=tab])]:min-h-11 md:[&_button:not([role=tab])]:min-h-9">
     <h1 className="page-title max-md:sr-only">Integrações</h1>
-    {role === 'administrator' && <div role="tablist" aria-label="Áreas de integrações" className="flex gap-6 border-b">
+    {role === 'administrator' && <div role="tablist" aria-label="Áreas de integrações" className={sectionTabRow}>
       {([['connections', 'Conexões'], ['policy', 'Regras do escritório']] as const).map(([value, label], index) => <button
         key={value} ref={element => { tabButtons.current[index] = element; }} type="button" role="tab"
         id={`integrations-tab-${value}`} aria-controls={`integrations-panel-${value}`}
         aria-selected={tab === value} tabIndex={tab === value ? 0 : -1}
-        className={`border-b-2 pb-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${tab === value ? 'border-brand text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        className={sectionTab(tab === value)}
         onClick={() => setTab(value)}
         onKeyDown={event => {
           const next = event.key === 'ArrowRight' || event.key === 'ArrowLeft' ? (index + 1) % 2 : event.key === 'Home' ? 0 : event.key === 'End' ? 1 : null;

@@ -145,8 +145,8 @@ export function FeedbackDialog({ open, onOpenChange, initialView = 'form', pathn
               <p className="font-medium">
                 Enviado a partir de{' '}
                 <label htmlFor="feedback-module" className="sr-only">Onde aconteceu</label>
-                <select id="feedback-module" value={module} onChange={event => setModule(event.target.value as TicketModule)} disabled={busy}
-                  className="max-w-full cursor-pointer border-b border-foreground/40 bg-transparent font-medium outline-none hover:border-foreground focus-visible:border-brand">
+                <select id="feedback-module" data-inline value={module} onChange={event => setModule(event.target.value as TicketModule)} disabled={busy}
+                  className="max-w-full cursor-pointer border-b bg-transparent font-medium outline-none">
                   {reportModules.map(value => <option key={value} value={value}>{reportModuleLabels[value]}</option>)}
                 </select>
               </p>

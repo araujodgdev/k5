@@ -39,7 +39,7 @@ export default async function SectionPage({ params, searchParams }: Props) {
       modalities={modalities} />;
   }
   return (
-    <Reveal className="mx-auto w-full max-w-5xl px-5 py-6 md:px-10 md:py-10">
+    <Reveal className="w-full max-w-5xl px-5 py-6 md:px-10 md:py-10">
       <h1 className="page-title max-md:sr-only" data-reveal>{item.label}</h1>
       <p className="grid min-h-[50dvh] place-items-center text-subtle-foreground" data-reveal>Em breve</p>
     </Reveal>

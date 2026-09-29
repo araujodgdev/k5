@@ -8,8 +8,9 @@ export function OfficeSwitcher({ offices, activeOfficeId, invitationCount = 0 }:
   const [error, setError] = useState('');
   if (offices.length < 2 && !invitationCount) return null;
   return <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3 md:px-10">
-    {offices.length > 1 && <label className="flex flex-wrap items-center gap-3 text-sm">Escritório ativo
-      <select aria-label="Escritório ativo" value={activeOfficeId} disabled={busy} className="min-h-11 max-w-full border border-input bg-background px-3 md:min-h-9" onChange={async event => {
+    {/* On a phone the select takes the rest of the row and cuts a long name, instead of widening the page. */}
+    {offices.length > 1 && <label className="flex min-w-0 items-center gap-3 text-sm"><span className="shrink-0">Escritório ativo</span>
+      <select aria-label="Escritório ativo" value={activeOfficeId} disabled={busy} className="min-h-11 w-full min-w-0 border border-input bg-background px-3 md:min-h-9 md:w-auto" onChange={async event => {
         setBusy(true); setError('');
         try {
           const response = await fetch('/api/offices/active', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ officeId: event.target.value }) });
