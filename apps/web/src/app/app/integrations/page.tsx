@@ -7,6 +7,6 @@ export default async function IntegrationsPage() {
   const { office } = await requireWorkspace();
   return <>
     <IntegrationsPanel role={office.role} />
-    <div className="mx-auto w-full max-w-5xl px-5 pb-6 md:px-10 md:pb-10"><WhatsAppConnectionPanel /></div>
+    <div className="w-full max-w-5xl px-5 pb-6 md:px-10 md:pb-10"><WhatsAppConnectionPanel /></div>
   </>;
 }

@@ -64,13 +64,15 @@ export function VaultBrowser({ initialCases, libraryCount, role, ownCaseIds }: {
   return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10">
     <div data-reveal className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
       <h1 className="page-title leading-none max-md:sr-only">Cofre</h1>
-      <div className="flex flex-wrap items-center gap-2">
+      {/* On a phone the view toggle and "Novo caso" share the first line (the main action stays at the
+          top, on the right like every page's actions) and the import takes the second line whole. */}
+      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
         <div className="flex gap-1" role="group" aria-label="Modo de exibição">
           <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "cards"} onClick={() => setView("cards")} aria-label="Ver em cartões"><LayoutGrid aria-hidden="true" /></Button>
           <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "list"} onClick={() => setView("list")} aria-label="Ver em lista"><List aria-hidden="true" /></Button>
         </div>
-        <Button variant="outline" asChild><Link href="/app/vault/library?import=drive">{canWrite ? "Importar do Google Drive" : "Ver Google Drive"}</Link></Button>
-        {canWrite && <Button type="button" aria-expanded={creating} variant={creating ? "outline" : "default"} onClick={() => { setCreating((value) => !value); setFailure(""); }}>{creating ? "Cancelar" : <><Plus aria-hidden="true" />Novo caso</>}</Button>}
+        <Button variant="outline" asChild className="max-md:order-last max-md:h-11 max-md:w-full"><Link href="/app/vault/library?import=drive">{canWrite ? "Importar do Google Drive" : "Ver Google Drive"}</Link></Button>
+        {canWrite && <Button type="button" className="max-md:ml-auto max-md:h-11" aria-expanded={creating} variant={creating ? "outline" : "default"} onClick={() => { setCreating((value) => !value); setFailure(""); }}>{creating ? "Cancelar" : <><Plus aria-hidden="true" />Novo caso</>}</Button>}
       </div>
     </div>
 
@@ -96,17 +98,19 @@ export function VaultBrowser({ initialCases, libraryCount, role, ownCaseIds }: {
 
     <div className="mt-5 min-h-0 overflow-auto" data-reveal>
       {view === "cards" ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Link href="/app/vault/library" className="grid min-h-28 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
+        // One column of min-width 0 on phones: a long name or description ends in an ellipsis inside its
+        // card instead of widening the grid (and pushing the delete button off the screen).
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Link href="/app/vault/library" className="grid min-h-28 min-w-0 grid-cols-1 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
             <span className="flex items-center gap-2 font-medium"><Library className="size-4 text-muted-foreground" aria-hidden="true" />Biblioteca</span>
             <span className="text-sm text-muted-foreground">Arquivos fora de um caso</span>
             <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(libraryCount)}</span>
           </Link>
           {cases.map((item) => (
-            <div key={item.id} className="relative">
-              <Link href={`/app/vault/cases/${item.id}`} className="grid min-h-28 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
-                <span className="flex items-center gap-2 font-medium"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate pr-8">{item.name}</span></span>
-                <span className="line-clamp-2 text-sm text-muted-foreground">{item.description || item.client.name || "Sem descrição"}</span>
+            <div key={item.id} className="relative min-w-0">
+              <Link href={`/app/vault/cases/${item.id}`} className="grid min-h-28 min-w-0 grid-cols-1 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
+                <span className="flex min-w-0 items-center gap-2 font-medium"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate pr-8">{item.name}</span></span>
+                <span className="line-clamp-2 text-sm break-words text-muted-foreground">{item.description || item.client.name || "Sem descrição"}</span>
                 <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(item.documentCount)} · {formatDate(item.updatedAt)}{isShared(item.id) ? ' · Compartilhado comigo' : ''}</span>
               </Link>
               {canWrite && !isShared(item.id) && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} className="absolute top-2 right-2" />}

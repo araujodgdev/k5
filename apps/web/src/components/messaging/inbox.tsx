@@ -112,7 +112,7 @@ export function MessagesInbox({ canShareDocuments }: { canShareDocuments: boolea
   }
 
   return <div className="messaging-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-    <header className={cn('flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 md:px-10 md:py-6', selectedId && 'max-md:hidden')}><h1 className="page-title max-md:sr-only">Mensagens</h1><Button id="new-message-conversation" type="button" className="min-h-11 md:min-h-9" onClick={() => setNewOpen(true)}><Plus aria-hidden="true" />Nova conversa</Button></header>
+    <header className={cn('flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 max-md:justify-end md:h-(--shell-header) md:px-10 md:py-0', selectedId && 'max-md:hidden')}><h1 className="page-title max-md:sr-only">Mensagens</h1><Button id="new-message-conversation" type="button" className="min-h-11 md:min-h-9" onClick={() => setNewOpen(true)}><Plus aria-hidden="true" />Nova conversa</Button></header>
     <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden md:grid-cols-[minmax(16rem,21rem)_minmax(0,1fr)]">
       <section aria-label="Conversas pessoais" className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden border-line md:border-r', selectedId && 'hidden md:flex')}>
         <div className="shrink-0 border-b px-5 py-3"><h2 className="label-mono text-muted-foreground">Conversas</h2></div>

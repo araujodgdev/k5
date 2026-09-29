@@ -171,7 +171,7 @@ export function WhatsAppInbox({ canSendRole }: { canSendRole: boolean }) {
   const syncPending = sync === 'requesting' || (threads.kind === 'ready' && threads.data.syncState === 'pending');
 
   return <div className="whatsapp-workspace flex min-h-0 min-w-0 flex-1 flex-col" data-whatsapp-inbox>
-    <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 md:px-10 md:py-6">
+    <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 md:h-(--shell-header) md:px-10 md:py-0">
       <h1 className="page-title max-md:sr-only">WhatsApp</h1>
     </header>
     {(connectionError || syncError) && <p role="alert" className="flex items-center gap-2 border-b px-5 py-3 text-sm text-destructive md:px-10"><CircleAlert className="size-4 shrink-0" aria-hidden="true" />{syncError || connectionError}</p>}

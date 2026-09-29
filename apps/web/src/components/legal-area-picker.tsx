@@ -1,10 +1,9 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PickerTrigger } from '@/components/ui/picker-trigger';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { legalAreas, legalAreaLabels, type CrmClient } from '@/lib/capabilities/agenda';
 
@@ -20,6 +19,7 @@ export function LegalAreaPicker({ defaultValue = [], disabled, onChange }: {
   const id = useId();
   const [selected, setSelected] = useState(defaultValue);
   const [query, setQuery] = useState('');
+  const summary = selected.length ? selected.map(area => legalAreaLabels[area]).join(', ') : 'Selecione as áreas';
   const visible = legalAreas.filter(area => searchable(legalAreaLabels[area]).includes(searchable(query.trim())));
 
   return <div className="grid min-w-0 gap-1.5">
@@ -27,10 +27,8 @@ export function LegalAreaPicker({ defaultValue = [], disabled, onChange }: {
     {selected.map(area => <input key={area} type="hidden" name="legalAreas" value={area} />)}
     <Popover onOpenChange={() => setQuery('')}>
       <PopoverTrigger asChild>
-        <Button id={id} type="button" variant="outline" disabled={disabled} className="h-auto min-h-11 w-full justify-between whitespace-normal text-left font-normal md:min-h-9">
-          <span>{selected.length ? selected.map(area => legalAreaLabels[area]).join(', ') : 'Selecione as áreas'}</span>
-          <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
-        </Button>
+        {/* Drawn like every select (DESIGN.md, "Selects"); a long list of areas ends in an ellipsis, whole in the title. */}
+        <PickerTrigger id={id} disabled={disabled} title={summary}>{summary}</PickerTrigger>
       </PopoverTrigger>
       <PopoverContent align="start" aria-label="Selecionar áreas do direito" className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)]">
         <Input aria-label="Buscar área do direito" placeholder="Buscar área" value={query} onChange={event => setQuery(event.target.value)} className="h-11 md:h-9" />

@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { brazilianStates, type AgendaActivity, type CrmClient } from '@/lib/capabilities/agenda';
 import { localInstant } from '@/lib/typesafe/agenda-time';
 import { localDate } from '@/lib/calendar-days';
+import { timeZoneLabel } from '@/lib/time-zone-label';
 import { agendaCall, selectStyle, type Choice } from '@/lib/agenda-client';
 import { ClientPicker } from './client-picker';
 import { LegalAreaPicker } from './legal-area-picker';
@@ -18,6 +19,10 @@ export function Field({ name, label, children }: { name: string; label: string; 
 }
 function Selection({ name, label, choices, value = '' }: { name: string; label: string; choices: Choice[]; value?: string | null }) {
   return <Field name={name} label={label}><select id={name} name={name} defaultValue={value ?? ''} className={selectStyle}><option value="">Sem vínculo</option>{value && !choices.some(c => c.id === value) && <option value={value}>Vínculo anterior</option>}{choices.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>;
+}
+const plain = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+function matches(name: string, filter: string) {
+  return !filter.trim() || plain(name).includes(plain(filter.trim()));
 }
 function localTime(instant: string | null) {
   if (!instant) return '';
@@ -35,6 +40,7 @@ export function AgendaEditor({ activity, client, mode, cases, clients, members, 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [idempotencyKey, setKey] = useState(() => crypto.randomUUID());
+  const [caseFilter, setCaseFilter] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError('');
     const form = new FormData(event.currentTarget);
@@ -67,9 +73,12 @@ export function AgendaEditor({ activity, client, mode, cases, clients, members, 
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível salvar. Tente novamente.'); }
     finally { setBusy(false); }
   }
-  return <Dialog open onOpenChange={open => { if (!open && !busy) close(); }}><DialogContent showCloseButton={false} overlayClassName="bg-foreground/25 supports-backdrop-filter:backdrop-blur-none" className="max-h-[85dvh] overflow-y-auto sm:max-w-xl [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9">
+  // The fields scroll between the title and a fixed row of actions, so Cancelar and Salvar stay in
+  // view on a phone instead of ending up at the bottom of a long scroll.
+  return <Dialog open onOpenChange={open => { if (!open && !busy) close(); }}><DialogContent showCloseButton={false} className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-xl [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9">
     <DialogHeader><DialogTitle>{onConfirm ? 'Revisar sugestão' : mode === 'client' ? (client ? 'Editar cliente' : 'Novo cliente') : (activity ? 'Editar atividade' : 'Nova atividade')}</DialogTitle><DialogDescription className={onConfirm ? 'text-sm text-muted-foreground' : 'sr-only'}>{onConfirm ? 'Confira todos os campos. A atividade só será salva ao confirmar.' : 'Preencha os dados e salve as alterações.'}</DialogDescription></DialogHeader>
-    <form onSubmit={submit} onChange={() => setKey(crypto.randomUUID())} className="grid gap-4">
+    <form onSubmit={submit} onChange={() => setKey(crypto.randomUUID())} className="-mx-4 -mb-4 flex min-h-0 flex-col">
+      <div className="min-h-0 overflow-y-auto px-4 pt-1 pb-4">
       <fieldset disabled={busy} className="grid min-w-0 gap-4">
         {mode === 'client' ? <>
           <Field name="name" label="Nome"><Input id="name" name="name" required minLength={2} maxLength={180} defaultValue={client?.name} className="h-11 md:h-9" /></Field>
@@ -78,18 +87,24 @@ export function AgendaEditor({ activity, client, mode, cases, clients, members, 
           <LegalAreaPicker defaultValue={client?.legalAreas} disabled={busy} onChange={() => setKey(crypto.randomUUID())} />
           <Field name="addressLine" label="Endereço (opcional)"><Input id="addressLine" name="addressLine" maxLength={240} autoComplete="street-address" placeholder="Rua, número, complemento e bairro" defaultValue={client?.addressLine ?? ''} className="h-11 md:h-9" /></Field>
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem_8rem]"><Field name="city" label="Cidade"><Input id="city" name="city" maxLength={120} autoComplete="address-level2" defaultValue={client?.city ?? ''} className="h-11 md:h-9" /></Field><Field name="state" label="UF"><select id="state" name="state" autoComplete="address-level1" defaultValue={client?.state ?? ''} className={selectStyle}><option value="">—</option>{brazilianStates.map(uf => <option key={uf} value={uf}>{uf}</option>)}</select></Field><Field name="postalCode" label="CEP"><Input id="postalCode" name="postalCode" inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}-?[0-9]{3}" title="CEP com 8 dígitos" maxLength={9} placeholder="00000-000" defaultValue={client?.postalCode ?? ''} className="h-11 md:h-9" /></Field></div>
-          <fieldset className="grid gap-2"><legend className="mb-2 text-sm font-medium">Casos do Cofre</legend>{cases.length ? <div className="max-h-36 space-y-2 overflow-y-auto">{cases.map(c => <label key={c.id} className="flex min-h-11 items-center gap-2 text-sm md:min-h-8"><input type="checkbox" name="caseIds" value={c.id} defaultChecked={client?.caseIds.includes(c.id) ?? c.id === caseId} className="size-4 accent-primary" />{c.name}</label>)}</div> : <p className="text-sm text-muted-foreground">Nenhum caso cadastrado no Cofre.</p>}</fieldset>
+          {/* min-w-0: a fieldset is as wide as its longest word by default, and one unbroken case name would widen the dialog. */}
+          <fieldset className="grid min-w-0 gap-2"><legend className="mb-2 text-sm font-medium">Casos do Cofre</legend>{cases.length ? <>
+            {/* The list grows with the form (one scroll, not a box inside it); a long list gets a filter. */}
+            {cases.length > 8 && <Input aria-label="Filtrar casos pelo nome" placeholder="Filtrar casos" value={caseFilter} onChange={event => setCaseFilter(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault(); }} className="mb-1 h-11 md:h-9" />}
+            <div className="grid">{cases.map(c => <label key={c.id} hidden={!matches(c.name, caseFilter)} className="flex min-h-11 items-center gap-2 py-1.5 text-sm md:min-h-8"><input type="checkbox" name="caseIds" value={c.id} defaultChecked={client?.caseIds.includes(c.id) ?? c.id === caseId} className="size-4 shrink-0 accent-primary" /><span className="min-w-0 [overflow-wrap:anywhere]">{c.name}</span></label>)}</div>
+          </> :<p className="text-sm text-muted-foreground">Nenhum caso cadastrado no Cofre.</p>}</fieldset>
         </> : <>
           <Field name="title" label="Título"><Input id="title" name="title" required minLength={2} maxLength={180} defaultValue={activity?.title} className="h-11 md:h-9" /></Field>
           <div className="grid gap-4 sm:grid-cols-2"><Field name="kind" label="Tipo"><select id="kind" value={kind} onChange={e => setKind(e.target.value as 'task' | 'meeting')} className={selectStyle}><option value="task">Tarefa</option><option value="meeting">Reunião</option></select></Field><Field name="status" label="Situação"><select id="status" name="status" defaultValue={activity?.status ?? 'pending'} className={selectStyle}><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="completed">Concluída</option><option value="cancelled">Cancelada</option></select></Field></div>
-          {kind === 'task' ? <Field name="dueOn" label="Data (opcional)"><Input id="dueOn" name="dueOn" type="date" defaultValue={activity ? activity.dueOn ?? '' : day} className="h-11 md:h-9" /></Field> : <div className="space-y-2"><p className="text-xs text-muted-foreground">Horários em {timeZone}</p><div className="grid gap-4 sm:grid-cols-2"><Field name="startsAt" label="Início"><Input id="startsAt" name="startsAt" type="datetime-local" required defaultValue={localTime(activity?.startsAt ?? null) || (onConfirm ? '' : `${day}T09:00`)} className="h-11 md:h-9" /></Field><Field name="endsAt" label="Fim"><Input id="endsAt" name="endsAt" type="datetime-local" required defaultValue={localTime(activity?.endsAt ?? null) || (onConfirm ? '' : `${day}T10:00`)} className="h-11 md:h-9" /></Field></div></div>}
+          {kind === 'task' ? <Field name="dueOn" label="Data (opcional)"><Input id="dueOn" name="dueOn" type="date" defaultValue={activity ? activity.dueOn ?? '' : day} className="h-11 md:h-9" /></Field> : <div className="space-y-2"><p className="text-xs text-muted-foreground">{timeZoneLabel(timeZone)}</p><div className="grid gap-4 sm:grid-cols-2"><Field name="startsAt" label="Início"><Input id="startsAt" name="startsAt" type="datetime-local" required defaultValue={localTime(activity?.startsAt ?? null) || (onConfirm ? '' : `${day}T09:00`)} className="h-11 md:h-9" /></Field><Field name="endsAt" label="Fim"><Input id="endsAt" name="endsAt" type="datetime-local" required defaultValue={localTime(activity?.endsAt ?? null) || (onConfirm ? '' : `${day}T10:00`)} className="h-11 md:h-9" /></Field></div></div>}
           <Selection name="assigneeId" label="Responsável" choices={members} value={activity?.assigneeId} />
           <div className="grid gap-4 sm:grid-cols-2"><Field name="clientId" label="Cliente"><ClientPicker name="clientId" label="Cliente" value={selectedClientId} onChange={setSelectedClientId} choices={clients} /></Field><Selection name="caseId" label="Caso do Cofre" choices={cases} value={activity ? activity.caseId : caseId} /></div>
         </>}
         <Field name="notes" label="Observações"><Textarea id="notes" name="notes" maxLength={8000} rows={4} defaultValue={mode === 'client' ? client?.notes : activity?.notes} /></Field>
       </fieldset>
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      <div className="flex justify-end gap-2"><Button type="button" variant="outline" disabled={busy} onClick={close}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Salvando…' : onConfirm ? 'Confirmar e salvar' : 'Salvar'}</Button></div>
+      </div>
+      {error && <p role="alert" className="border-t border-line px-4 pt-3 text-sm text-destructive">{error}</p>}
+      <div className={`flex justify-end gap-2 px-4 py-3 ${error ? '' : 'border-t border-line'}`}><Button type="button" variant="outline" disabled={busy} onClick={close}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Salvando…' : onConfirm ? 'Confirmar e salvar' : 'Salvar'}</Button></div>
     </form>
   </DialogContent></Dialog>;
 }

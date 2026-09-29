@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { agendaCall, type Choice } from '@/lib/agenda-client';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import type { CrmClient } from '@/lib/capabilities/agenda';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { PickerTrigger } from './ui/picker-trigger';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 
 /** Only an opened picker fetches a page. Selecting a client never needs the full CRM. */
@@ -54,7 +54,7 @@ export function ClientPicker({ value, onChange, choices, label, emptyLabel = 'Se
   return <>
     {name && <input type="hidden" name={name} value={value} />}
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild><Button id={name} type="button" variant="outline" aria-label={label} className="h-11 w-full min-w-0 justify-between font-normal md:h-9"><span className="truncate">{value ? selectedName : emptyLabel}</span><ChevronDown className="size-4 shrink-0" aria-hidden="true" /></Button></PopoverTrigger>
+      <PopoverTrigger asChild><PickerTrigger id={name} aria-label={label}>{value ? selectedName : emptyLabel}</PickerTrigger></PopoverTrigger>
       <PopoverContent align="start" className="w-80 max-w-[calc(100vw-2rem)] p-3" aria-label={label}>
         <Input aria-label="Buscar cliente pelo nome" placeholder="Buscar cliente" value={query} onChange={event => { setQuery(event.target.value); setOffset(0); }} />
         <div className="mt-2 max-h-64 overflow-y-auto">

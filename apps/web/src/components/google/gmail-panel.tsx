@@ -392,7 +392,9 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
   };
 
   return <div className="gmail-workspace flex min-h-0 flex-1 flex-col overflow-hidden max-md:[&_button]:min-h-11 max-md:[&_button]:min-w-11">
-    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-3 md:px-10 lg:py-5">
+    {/* On a phone the title is hidden (the header names the module); without actions the bar has
+        nothing to show, so it takes no room instead of leaving an empty strip. */}
+    <div className={cn('flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-3 md:h-(--shell-header) md:px-10 md:py-0', !enabled && 'max-md:border-b-0 max-md:p-0')}>
       <h1 className="page-title leading-none max-md:sr-only">E-mails</h1>
       {enabled && <div className="flex items-center gap-1 lg:hidden">
         <SmartOptions options={mailboxOptions} onSelect={onMailboxOption} busy={digestBusy || triageBusy} align="end" />

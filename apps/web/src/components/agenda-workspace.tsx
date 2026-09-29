@@ -7,11 +7,12 @@ import { useRouter } from 'next/navigation';
 import { calendarDays } from '@/lib/calendar-days';
 import { useCallback, useEffect, useState } from 'react';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { agendaCall, selectStyle, type Choice } from '@/lib/agenda-client';
 import { localDate } from '@/lib/calendar-days';
+import { timeZoneLabel } from '@/lib/time-zone-label';
 import dynamic from 'next/dynamic';
 import type { OfficeRole } from '@/lib/offices';
 import { legalAreaLabels, legalAreas, type AgendaActivity, type CrmClient } from '@/lib/capabilities/agenda';
@@ -25,10 +26,19 @@ const CalendarPanel = dynamic(() => import('./google/calendar-panel').then(modul
 
 type View = 'tasks' | 'calendar' | 'clients';
 type Editor = { mode: 'activity'; activity?: AgendaActivity } | { mode: 'client'; client?: CrmClient };
+function savedNotice(editor: Editor) {
+  if (editor.mode === 'client') return editor.client ? 'Cliente atualizado.' : 'Cliente cadastrado.';
+  return editor.activity ? 'Atividade atualizada.' : 'Atividade criada.';
+}
 const statusLabels = { pending: 'Pendente', in_progress: 'Em andamento', completed: 'Concluída', cancelled: 'Cancelada' };
 const stageLabels = { prospect: 'Potencial cliente', active: 'Cliente ativo', archived: 'Arquivado' };
 const dateLabel = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
 
+// "Setembro de 2026": only the first letter goes up (CSS capitalize would also raise the "de").
+function monthLabel(date: Date) {
+  const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
 function Calendar({ day, markers, onChange, showMarkers = true }: { day: string; markers: Record<string, number>; onChange: (value: string) => void; showMarkers?: boolean }) {
   const date = new Date(`${day}T12:00:00`);
   const year = date.getFullYear(); const month = date.getMonth();
@@ -36,7 +46,7 @@ function Calendar({ day, markers, onChange, showMarkers = true }: { day: string;
   const count = new Date(year, month + 1, 0).getDate();
   const today = localDate(new Date());
   return <section aria-label="Calendário mensal" className="w-full md:w-72 md:shrink-0">
-    <div className="mb-4 flex items-center justify-between"><Button variant="ghost" size="icon" aria-label="Mês anterior" onClick={() => onChange(localDate(new Date(year, month - 1, 1)))}><ChevronLeft /></Button><h2 className="text-sm font-medium capitalize" aria-live="polite">{date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h2><Button variant="ghost" size="icon" aria-label="Próximo mês" onClick={() => onChange(localDate(new Date(year, month + 1, 1)))}><ChevronRight /></Button></div>
+    <div className="mb-4 flex items-center justify-between"><Button variant="ghost" size="icon" aria-label="Mês anterior" onClick={() => onChange(localDate(new Date(year, month - 1, 1)))}><ChevronLeft /></Button><h2 className="text-sm font-medium" aria-live="polite">{monthLabel(date)}</h2><Button variant="ghost" size="icon" aria-label="Próximo mês" onClick={() => onChange(localDate(new Date(year, month + 1, 1)))}><ChevronRight /></Button></div>
     <div className="grid grid-cols-7 text-center text-xs text-muted-foreground" aria-hidden="true">{['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label, i) => <span key={i} className="py-2">{label}</span>)}</div>
     <div className="grid grid-cols-7">{Array.from({ length: start }, (_, i) => <span key={`empty-${i}`} />)}{Array.from({ length: count }, (_, i) => {
       const value = localDate(new Date(year, month, i + 1));
@@ -88,6 +98,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   const [editor, setEditor] = useState<Editor | null>(canWrite && initialAction === 'new' ? { mode: initialView === 'clients' ? 'client' : 'activity' } : null);
   const [detail, setDetail] = useState<Editor | null>(null);
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
   const refresh = useCallback(() => { setRevision(value => value + 1); }, []);
 
   useEffect(() => {
@@ -177,7 +188,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     return () => { cancelled = true; };
   }, [view, taskLayout, archivedTasks, calendarMode, day, caseId, clientId, searchQuery, status, activityStatus, legalArea, offset, revision]);
 
-  function changeView(value: View) { setView(value); setStatus(''); setArchivedTasks(false); setOffset(0); setQuery(''); setLoading(true); }
+  function changeView(value: View) { setNotice(''); setView(value); setStatus(''); setArchivedTasks(false); setOffset(0); setQuery(''); setLoading(true); }
   function changeTaskArchive(value: boolean) { if (value === archivedTasks) return; setArchivedTasks(value); setStatus(''); setOffset(0); setLoading(true); }
   function inspect(value: Editor) { if (value.mode === 'client' && value.client) router.push(`/app/agenda/clients/${encodeURIComponent(value.client.id)}`); else if (canWrite) setEditor(value); else setDetail(value); }
   async function move(activity: AgendaActivity, status: AgendaActivity['status']) {
@@ -215,6 +226,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     return () => { cancelled = true; };
   }, [activities, clientId, clients, optionsReady]);
 
+  const opening = editor !== null && !optionsReady && !optionsFailure;
   const findName = (choices: Choice[], id: string | null) => choices.find(c => c.id === id)?.name;
   const period = (activity: AgendaActivity) => activity.kind === 'task'
     ? activity.dueOn ? dateLabel(activity.dueOn) : 'Sem data'
@@ -241,7 +253,9 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   };
 
   return <div className="flex min-w-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10 [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9">
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-5"><h1 className="page-title max-md:sr-only">Escritório</h1><div className="flex gap-2"><Button variant="ghost" onClick={refresh} disabled={loading && !(view === 'calendar' && calendarMode === 'personal')}>Atualizar</Button>{canWrite && !(view === 'calendar' && calendarMode === 'personal') && <Button disabled={!optionsReady} className="h-11 md:h-9" onClick={() => setEditor({ mode: view === 'clients' ? 'client' : 'activity' })}>{view === 'clients' ? 'Novo cliente' : 'Nova atividade'}</Button>}</div></header>
+    {/* A tap before the links load still counts: the form opens as soon as they arrive. */}
+    <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-5 max-md:justify-end"><h1 className="page-title max-md:sr-only">Escritório</h1><div className="flex gap-2"><Button variant="ghost" onClick={refresh} disabled={loading && !(view === 'calendar' && calendarMode === 'personal')}>Atualizar</Button>{canWrite && !(view === 'calendar' && calendarMode === 'personal') && <Button className="h-11 md:h-9" aria-busy={opening} onClick={() => { setNotice(''); setEditor({ mode: view === 'clients' ? 'client' : 'activity' }); }}><Plus aria-hidden="true" />{opening ? 'Abrindo…' : view === 'clients' ? 'Novo cliente' : 'Nova atividade'}</Button>}</div></header>
+    {notice && <p role="status" className="mt-4 border-l-2 border-brand pl-3 text-sm">{notice}</p>}
     <OfficeNavigation view={view} onChange={changeView} />
     {view === 'tasks' && <div className="flex gap-2 border-b py-3" role="group" aria-label="Visualização das tarefas"><Button variant={taskLayout === 'list' ? 'default' : 'ghost'} aria-pressed={taskLayout === 'list'} onClick={() => changeTaskLayout('list')}>Lista</Button><Button variant={taskLayout === 'kanban' ? 'default' : 'ghost'} aria-pressed={taskLayout === 'kanban'} onClick={() => changeTaskLayout('kanban')}>Kanban</Button></div>}
     {view === 'tasks' && taskLayout === 'list' && <nav aria-label="Situação das tarefas" className="flex gap-5 border-b">
@@ -269,7 +283,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       {view === 'calendar' && day && <div className="md:w-72 md:shrink-0"><Calendar day={day} markers={calendarMode === 'office' ? markers : {}} showMarkers={calendarMode === 'office'} onChange={value => { setDay(value); setOffset(0); setLoading(true); }} />{calendarMode === 'office' && markersLoading && <p role="status" className="mt-3 text-xs text-muted-foreground">Carregando marcadores…</p>}{calendarMode === 'office' && markerFailure && <div className="mt-3 space-y-2"><p role="alert" className="text-xs text-destructive">{markerFailure}</p><Button variant="ghost" onClick={refresh}>Tentar novamente</Button></div>}</div>}
       {view === 'calendar' && calendarMode === 'personal' && day ? <section aria-label="Agenda Google pessoal" className="min-w-0 flex-1"><h2 className="mb-4 text-base font-medium">{dateLabel(day)}</h2><CalendarPanel role={role} day={day} initialEventId={initialPersonalEventId} /></section> :
       <section aria-label={view === 'clients' ? 'Clientes' : 'Atividades'} aria-busy={loading} className="min-w-0 flex-1">
-        {view === 'calendar' && <div className="mb-4"><h2 className="text-base font-medium">{day && dateLabel(day)}</h2><p className="mt-1 text-xs text-muted-foreground">Horários em {timeZone}</p></div>}
+        {view === 'calendar' && <div className="mb-4"><h2 className="text-base font-medium">{day && dateLabel(day)}</h2><p className="mt-1 text-xs text-muted-foreground">{timeZoneLabel(timeZone)}</p></div>}
         {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : view === 'tasks' && taskLayout === 'kanban' ? <TaskBoard activities={activities} members={members} clients={clients} canWrite={canWrite} busy={busy} inspect={activity => inspect({ mode: 'activity', activity })} move={(activity, status) => void move(activity, status)} delegate={activity => void delegate(activity)} /> : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : archivedTasks ? 'Nenhuma tarefa arquivada.' : 'Nenhuma tarefa aberta.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-[13px] text-muted-foreground">{stageLabels[client.stage]}{client.legalAreas.length ? ` · ${client.legalAreas.map(area => legalAreaLabels[area]).join(', ')}` : ''}{client.city ? ` · ${client.city}${client.state ? `/${client.state}` : ''}` : ''}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : view === 'tasks' ? <div>{taskGroups.map(name => {
           const rows = activities.filter(activity => taskGroup(activity) === name);
           return rows.length ? <section key={name} className="pt-6 first:pt-0"><h2 className="pb-2 text-[13px] text-muted-foreground">{name}</h2><div className="divide-y border-y">{rows.map(activityRow)}</div></section> : null;
@@ -279,6 +293,6 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       }
     </div>
     {detail && <section className="mt-6 space-y-3 border-t pt-5" aria-label="Detalhes"><div className="flex items-center justify-between gap-3"><h2 className="font-medium">{detail.mode === 'client' ? detail.client?.name : detail.activity?.title}</h2><Button variant="ghost" onClick={() => setDetail(null)}>Fechar detalhes</Button></div>{detail.mode === 'activity' && detail.activity && <p className="text-sm">{period(detail.activity)} · {statusLabels[detail.activity.status]}</p>}{detail.mode === 'client' && detail.client && <><p className="text-sm">{stageLabels[detail.client.stage]} · {detail.client.email} · {detail.client.phone}</p>{detail.client.caseIds.map(id => <Link key={id} href={`/app/vault/cases/${encodeURIComponent(id)}`} className="mr-4 text-sm underline">{findName(cases, id) ?? 'Caso'}</Link>)}</>}<p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{(detail.mode === 'client' ? detail.client?.notes : detail.activity?.notes) || 'Sem observações.'}</p>{canWrite && <Button variant="outline" disabled={!optionsReady} onClick={() => { setEditor(detail); setDetail(null); }}>Editar</Button>}</section>}
-    {editor && optionsReady && day && <AgendaEditor {...editor} cases={cases} clients={clients} members={members} day={day} caseId={caseId} clientId={clientId} timeZone={timeZone} close={() => setEditor(null)} saved={() => { setEditor(null); refresh(); }} />}
+    {editor && optionsReady && day && <AgendaEditor {...editor} cases={cases} clients={clients} members={members} day={day} caseId={caseId} clientId={clientId} timeZone={timeZone} close={() => setEditor(null)} saved={() => { setNotice(savedNotice(editor)); setEditor(null); refresh(); }} />}
   </div>;
 }

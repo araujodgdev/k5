@@ -157,6 +157,8 @@ export async function changeAccess(context: WorkspaceContext, input: Exclude<z.i
       const changed = await tx.prepare("UPDATE collaboration_invitation SET status='revoked',responded_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'").run(input.id);
       if (!changed.changes) throw new CapabilityError('CONFLICT', 'O convite já foi respondido ou cancelado.');
     } else if (input.action === 'member') {
+      // Nobody changes or removes their own access from the team list; another administrator does.
+      if (input.userId === context.userId) throw new CapabilityError('CONFLICT', 'Você não pode alterar o seu próprio acesso. Peça a outro administrador.');
       const currentRole = await memberRole(tx, input.userId, officeId);
       if (!currentRole) throw new CapabilityError('NOT_FOUND', 'Membro não encontrado.');
       if (currentRole === 'administrator' && input.role !== 'administrator') {
@@ -223,5 +225,5 @@ export async function collaborationOverview(context: WorkspaceContext, caseId?: 
     WHERE a.office_id=? AND ${caseId ? 'a.case_id=?' : 'a.case_id IS NULL'} ORDER BY a.created_at DESC LIMIT 40`).all(officeId, ...(caseId ? [caseId] : [])) : [];
   return { members, participants, associates, outgoing, incoming, history, canManage, canAssociate,
     canManageParticipants: Boolean(access && canManage && !access.external), external: access?.external ?? false,
-    caseRole: access?.role };
+    caseRole: access?.role, viewerId: context.userId };
 }

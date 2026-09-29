@@ -16,9 +16,13 @@ export default async function PlatformFeedbackHistoryPage() {
     <header className="mt-5 flex flex-wrap items-center justify-between gap-4"><h2 className="font-serif text-2xl">Histórico A/B</h2>
       <a download className="inline-flex min-h-11 items-center rounded-md border px-4 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback">Exportar avaliações em JSON</a>
     </header>
+    {/* The two links wrap as a row with a gap, so the second one starts at the edge when it drops
+        to its own line instead of keeping the indent it has beside the first. */}
     <div className="mt-4 border-b pb-4 text-sm">
-      <a download className="inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback?format=dataset">Exportar base para avaliação e curadoria</a>
-      <a download className="ml-4 inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback?history=1">Exportar histórico das rodadas</a>
+      <div className="flex flex-wrap gap-x-4">
+        <a download className="inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback?format=dataset">Exportar base para avaliação e curadoria</a>
+        <a download className="inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback?history=1">Exportar histórico das rodadas</a>
+      </div>
       <p className="max-w-3xl text-xs text-muted-foreground">Inclui contexto, arquivos, origem e avaliações com autorização de uso, sem nomes ou escritórios. Preferências precisam de revisão antes de treinamento; respostas para SFT precisam de revisão especializada. Saídas da Meta e Inception ficam restritas à avaliação até revisão dos termos aplicáveis.</p>
     </div>
     <p className="mt-4 text-sm text-muted-foreground">{data.title} · {data.votes.length} {data.votes.length === 1 ? 'avaliação' : 'avaliações'} · Um voto por usuário, antes da revelação dos modelos.</p>
