@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { z } from 'zod';
+import { TaskBoard } from './task-board';
 import { useRouter } from 'next/navigation';
 import { calendarDays } from '@/lib/calendar-days';
 import { useCallback, useEffect, useState } from 'react';
@@ -23,7 +25,7 @@ const CalendarPanel = dynamic(() => import('./google/calendar-panel').then(modul
 
 type View = 'tasks' | 'calendar' | 'clients';
 type Editor = { mode: 'activity'; activity?: AgendaActivity } | { mode: 'client'; client?: CrmClient };
-const statusLabels = { pending: 'Pendente', completed: 'Concluída', cancelled: 'Cancelada' };
+const statusLabels = { pending: 'Pendente', in_progress: 'Em andamento', completed: 'Concluída', cancelled: 'Cancelada' };
 const stageLabels = { prospect: 'Potencial cliente', active: 'Cliente ativo', archived: 'Arquivado' };
 const dateLabel = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
 
@@ -48,11 +50,12 @@ function Calendar({ day, markers, onChange, showMarkers = true }: { day: string;
   </section>;
 }
 
-export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialActivityId, initialProposalId = '', initialView = 'tasks', initialAction = '', initialPersonalEventId = '' }: {
-  role: OfficeRole; initialCaseId: string; initialClientId: string; initialActivityId: string; initialProposalId?: string; initialView?: View; initialAction?: string; initialPersonalEventId?: string;
+export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialActivityId, initialProposalId = '', initialView = 'tasks', initialAction = '', initialPersonalEventId = '', initialTaskLayout = 'list' }: {
+  initialTaskLayout?: 'list' | 'kanban'; role: OfficeRole; initialCaseId: string; initialClientId: string; initialActivityId: string; initialProposalId?: string; initialView?: View; initialAction?: string; initialPersonalEventId?: string;
 }) {
   const router = useRouter();
   const canWrite = role !== 'reviewer';
+  const [taskLayout, setTaskLayout] = useState(initialTaskLayout);
   const [view, setView] = useState<View>(initialView);
   const [calendarMode, setCalendarMode] = useState<'office' | 'personal'>(initialPersonalEventId ? 'personal' : 'office');
   const [markers, setMarkers] = useState<Record<string, number>>({});
@@ -65,7 +68,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   const [status, setStatus] = useState('');
   // Tasks split into open work and an archive of completed or cancelled ones.
   const [archivedTasks, setArchivedTasks] = useState(false);
-  const activityStatus = view === 'tasks' ? (archivedTasks ? status || 'completed' : 'pending') : status;
+  const activityStatus = view === 'tasks' ? (taskLayout === 'kanban' ? status : archivedTasks ? status || 'completed' : '') : status;
   const [legalArea, setLegalArea] = useState('');
   const [query, setQuery] = useState('');
   const searchQuery = useDebouncedValue(query);
@@ -152,26 +155,53 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
         } else {
           const from = new Date(`${day}T00:00:00`); const to = new Date(from); to.setDate(to.getDate() + 1);
           const result = await agendaCall('k5_agenda_list_activities', {
-            query: searchQuery, ...(view === 'tasks' ? { kind: 'task' } : { dueFrom: day, dueTo: day, from: from.toISOString(), to: to.toISOString() }),
+            query: searchQuery, ...(view === 'tasks' ? { kind: 'task', ...(taskLayout === 'list' && !archivedTasks ? { openOnly: true } : {}) } : { dueFrom: day, dueTo: day, from: from.toISOString(), to: to.toISOString() }),
             ...(caseId ? { caseId } : {}), ...(clientId ? { clientId } : {}), ...(activityStatus ? { status: activityStatus as AgendaActivity['status'] } : {}), limit: 50, offset,
           });
-          if (!cancelled) { setActivities(result.activities); setTotal(result.total); }
+          const all = [...result.activities];
+          if (view === 'tasks' && taskLayout === 'kanban') {
+            for (let next = all.length; next < result.total; next += 100) {
+              const page = await agendaCall('k5_agenda_list_activities', { kind: 'task', query: searchQuery,
+                ...(caseId ? { caseId } : {}), ...(clientId ? { clientId } : {}), limit: 100, offset: next });
+              if (cancelled) return;
+              all.push(...page.activities);
+              if (!page.activities.length) break;
+            }
+          }
+          if (!cancelled) { setActivities(all); setTotal(result.total); }
         }
       } catch (error) { if (!cancelled) setFailure(error instanceof Error ? error.message : 'Não foi possível carregar.'); }
       finally { if (!cancelled) setLoading(false); }
     }
     void load();
     return () => { cancelled = true; };
-  }, [view, calendarMode, day, caseId, clientId, searchQuery, status, activityStatus, legalArea, offset, revision]);
+  }, [view, taskLayout, archivedTasks, calendarMode, day, caseId, clientId, searchQuery, status, activityStatus, legalArea, offset, revision]);
 
   function changeView(value: View) { setView(value); setStatus(''); setArchivedTasks(false); setOffset(0); setQuery(''); setLoading(true); }
   function changeTaskArchive(value: boolean) { if (value === archivedTasks) return; setArchivedTasks(value); setStatus(''); setOffset(0); setLoading(true); }
   function inspect(value: Editor) { if (value.mode === 'client' && value.client) router.push(`/app/agenda/clients/${encodeURIComponent(value.client.id)}`); else if (canWrite) setEditor(value); else setDetail(value); }
-  async function complete(activity: AgendaActivity) {
+  async function move(activity: AgendaActivity, status: AgendaActivity['status']) {
     setBusy(true); setFailure('');
-    try { await agendaCall('k5_agenda_update_activity', { activityId: activity.id, version: activity.version, status: activity.status === 'completed' ? 'pending' : 'completed', idempotencyKey: crypto.randomUUID() }); refresh(); }
+    try { await agendaCall('k5_agenda_update_activity', { activityId: activity.id, version: activity.version, status, idempotencyKey: crypto.randomUUID() }); refresh(); }
     catch (error) { setFailure(error instanceof Error ? error.message : 'Não foi possível atualizar.'); }
     finally { setBusy(false); }
+  }
+  async function delegate(activity: AgendaActivity) {
+    setBusy(true); setFailure('');
+    try {
+      const response = await fetch('/api/agenda/delegate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ activityId: activity.id, timeZone }) });
+      const result: unknown = await response.json();
+      if (!response.ok) throw new Error(z.object({ error: z.string() }).parse(result).error);
+      const session = z.object({ url: z.string() }).parse(result);
+      router.push(session.url);
+    } catch (error) { setFailure(error instanceof Error ? error.message : 'Não foi possível iniciar a sessão.'); }
+    finally { setBusy(false); }
+  }
+  function changeTaskLayout(layout: 'list' | 'kanban') {
+    setTaskLayout(layout); setOffset(0); setStatus(''); setLoading(true);
+    const url = new URL(window.location.href);
+    url.searchParams.set('layout', layout);
+    window.history.replaceState(null, '', url);
   }
   useEffect(() => {
     const missing = [...new Set([clientId, ...activities.map(activity => activity.clientId)].filter((id): id is string => Boolean(id)))].filter(id => !clients.some(client => client.id === id));
@@ -201,10 +231,10 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
     // Na visão de tarefas o cabeçalho do grupo já diz o tipo, a situação e o prazo; sobra a data, e só onde ela informa algo.
     const group = taskGroup(activity);
     const meta = view === 'tasks'
-      ? group === 'Hoje' || group === 'Sem data' ? '' : period(activity)
+      ? [group === 'Hoje' || group === 'Sem data' ? '' : period(activity), activity.status === 'in_progress' ? 'Em andamento' : ''].filter(Boolean).join(' · ')
       : `${period(activity)} · ${activity.kind === 'meeting' ? 'Reunião' : 'Tarefa'} · ${statusLabels[activity.status]}${activity.kind === 'task' && activity.status === 'pending' && activity.dueOn && activity.dueOn < today ? ' · Atrasada' : ''}`;
     return <article key={activity.id} className="flex items-start gap-3 py-4">
-      {canWrite && activity.kind === 'task' && activity.status !== 'cancelled' && <input aria-label={`${activity.status === 'completed' ? 'Reabrir' : 'Concluir'} ${activity.title}`} type="checkbox" checked={activity.status === 'completed'} disabled={busy} onChange={() => void complete(activity)} className="mt-1 size-5 shrink-0 accent-primary" />}
+      {canWrite && activity.kind === 'task' && activity.status !== 'cancelled' && <input aria-label={`${activity.status === 'completed' ? 'Reabrir' : 'Concluir'} ${activity.title}`} type="checkbox" checked={activity.status === 'completed'} disabled={busy} onChange={() => void move(activity, activity.status === 'completed' ? 'pending' : 'completed')} className="mt-1 size-5 shrink-0 accent-primary" />}
       <div className="min-w-0 flex-1"><button type="button" onClick={() => inspect({ mode: 'activity', activity })} className="break-words text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{activity.title}</button>{meta && <p className="mt-1 text-[13px] text-muted-foreground">{meta}</p>}<div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-muted-foreground">{activity.clientId && <span>{findName(clients, activity.clientId)}</span>}{activity.assigneeId && <span>{findName(members, activity.assigneeId) ?? 'Responsável anterior'}</span>}{activity.caseId && cases.some(c => c.id === activity.caseId) && <Link href={`/app/vault/cases/${encodeURIComponent(activity.caseId)}`} className="underline underline-offset-4">{findName(cases, activity.caseId)}</Link>}</div></div>
     </article>;
   };
@@ -212,7 +242,8 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
   return <div className="flex min-w-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10 [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9">
     <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-5"><h1 className="page-title max-md:sr-only">Escritório</h1><div className="flex gap-2"><Button variant="ghost" onClick={refresh} disabled={loading && !(view === 'calendar' && calendarMode === 'personal')}>Atualizar</Button>{canWrite && !(view === 'calendar' && calendarMode === 'personal') && <Button disabled={!optionsReady} className="h-11 md:h-9" onClick={() => setEditor({ mode: view === 'clients' ? 'client' : 'activity' })}>{view === 'clients' ? 'Novo cliente' : 'Nova atividade'}</Button>}</div></header>
     <OfficeNavigation view={view} onChange={changeView} />
-    {view === 'tasks' && <nav aria-label="Situação das tarefas" className="flex gap-5 border-b">
+    {view === 'tasks' && <div className="flex gap-2 border-b py-3" role="group" aria-label="Visualização das tarefas"><Button variant={taskLayout === 'list' ? 'default' : 'ghost'} aria-pressed={taskLayout === 'list'} onClick={() => changeTaskLayout('list')}>Lista</Button><Button variant={taskLayout === 'kanban' ? 'default' : 'ghost'} aria-pressed={taskLayout === 'kanban'} onClick={() => changeTaskLayout('kanban')}>Kanban</Button></div>}
+    {view === 'tasks' && taskLayout === 'list' && <nav aria-label="Situação das tarefas" className="flex gap-5 border-b">
       {([[false, 'Abertas'], [true, 'Arquivadas']] as const).map(([value, label]) => <button key={label} type="button" aria-current={archivedTasks === value ? 'page' : undefined} onClick={() => changeTaskArchive(value)}
         className={`min-h-11 border-b-2 px-1 text-sm focus-visible:ring-2 focus-visible:ring-ring ${archivedTasks === value ? 'border-foreground font-medium' : 'border-transparent text-muted-foreground'}`}>{label}</button>)}
     </nav>}
@@ -227,7 +258,7 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       <select aria-label="Filtrar por caso" value={caseId} onChange={event => { setCaseId(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">Todos os casos</option>{caseId && !cases.some(c => c.id === caseId) && <option value={caseId}>Caso selecionado</option>}{cases.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
       {view === 'clients' && <select aria-label="Filtrar área" value={legalArea} onChange={event => { setLegalArea(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">Todas as áreas</option>{legalAreas.map(area => <option key={area} value={area}>{legalAreaLabels[area]}</option>)}</select>}
       {view !== 'clients' && <ClientPicker label="Filtrar por cliente" emptyLabel="Todos os clientes" value={clientId} choices={clients} onChange={(id, client) => { setClientId(id); setOffset(0); setLoading(true); if (client) setClients(current => [...current.filter(item => item.id !== client.id), client]); }} />}
-      {view === 'tasks' ? archivedTasks && <select aria-label="Filtrar situação" value={status || 'completed'} onChange={event => { setStatus(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="completed">Concluídas</option><option value="cancelled">Canceladas</option></select>
+      {view === 'tasks' ? taskLayout === 'list' && archivedTasks && <select aria-label="Filtrar situação" value={status || 'completed'} onChange={event => { setStatus(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="completed">Concluídas</option><option value="cancelled">Canceladas</option></select>
         : <select aria-label={view === 'clients' ? 'Filtrar relacionamento' : 'Filtrar situação'} value={status} onChange={event => { setStatus(event.target.value); setOffset(0); setLoading(true); }} className={selectStyle}><option value="">{view === 'clients' ? 'Todos os relacionamentos' : 'Todas as situações'}</option>{Object.entries(view === 'clients' ? stageLabels : statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}
     </div>}
     {canWrite && optionsReady && view !== 'clients' && !(view === 'calendar' && calendarMode === 'personal') && <AgendaSuggestions cases={cases} clients={clients} members={members} day={day} timeZone={timeZone} initialProposalId={initialProposalId} refreshed={refresh} />}
@@ -238,11 +269,11 @@ export function AgendaWorkspace({ role, initialCaseId, initialClientId, initialA
       {view === 'calendar' && calendarMode === 'personal' && day ? <section aria-label="Agenda Google pessoal" className="min-w-0 flex-1"><h2 className="mb-4 text-base font-medium">{dateLabel(day)}</h2><CalendarPanel role={role} day={day} initialEventId={initialPersonalEventId} /></section> :
       <section aria-label={view === 'clients' ? 'Clientes' : 'Atividades'} aria-busy={loading} className="min-w-0 flex-1">
         {view === 'calendar' && <div className="mb-4"><h2 className="text-base font-medium">{day && dateLabel(day)}</h2><p className="mt-1 text-xs text-muted-foreground">Horários em {timeZone}</p></div>}
-        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : archivedTasks ? 'Nenhuma tarefa arquivada.' : 'Nenhuma tarefa aberta.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-[13px] text-muted-foreground">{stageLabels[client.stage]}{client.legalAreas.length ? ` · ${client.legalAreas.map(area => legalAreaLabels[area]).join(', ')}` : ''}{client.city ? ` · ${client.city}${client.state ? `/${client.state}` : ''}` : ''}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : view === 'tasks' ? <div>{taskGroups.map(name => {
+        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : view === 'tasks' && taskLayout === 'kanban' ? <TaskBoard activities={activities} members={members} clients={clients} canWrite={canWrite} busy={busy} inspect={activity => inspect({ mode: 'activity', activity })} move={(activity, status) => void move(activity, status)} delegate={activity => void delegate(activity)} /> : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : archivedTasks ? 'Nenhuma tarefa arquivada.' : 'Nenhuma tarefa aberta.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-[13px] text-muted-foreground">{stageLabels[client.stage]}{client.legalAreas.length ? ` · ${client.legalAreas.map(area => legalAreaLabels[area]).join(', ')}` : ''}{client.city ? ` · ${client.city}${client.state ? `/${client.state}` : ''}` : ''}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : view === 'tasks' ? <div>{taskGroups.map(name => {
           const rows = activities.filter(activity => taskGroup(activity) === name);
           return rows.length ? <section key={name} className="pt-6 first:pt-0"><h2 className="pb-2 text-[13px] text-muted-foreground">{name}</h2><div className="divide-y border-y">{rows.map(activityRow)}</div></section> : null;
         })}</div> : <div className="divide-y border-y">{activities.map(activityRow)}</div>}
-        {!loading && !failure && total > 0 && <div className="flex items-center justify-between gap-3 py-4 text-xs text-muted-foreground"><span>{offset + 1}–{Math.min(offset + 50, total)} de {total}</span><div className="flex gap-2"><Button variant="ghost" disabled={offset === 0} onClick={() => { setOffset(offset - 50); setLoading(true); }}>Anterior</Button><Button variant="ghost" disabled={offset + 50 >= total} onClick={() => { setOffset(offset + 50); setLoading(true); }}>Próxima</Button></div></div>}
+        {!loading && !failure && total > 0 && !(view === 'tasks' && taskLayout === 'kanban') && <div className="flex items-center justify-between gap-3 py-4 text-xs text-muted-foreground"><span>{offset + 1}–{Math.min(offset + 50, total)} de {total}</span><div className="flex gap-2"><Button variant="ghost" disabled={offset === 0} onClick={() => { setOffset(offset - 50); setLoading(true); }}>Anterior</Button><Button variant="ghost" disabled={offset + 50 >= total} onClick={() => { setOffset(offset + 50); setLoading(true); }}>Próxima</Button></div></div>}
       </section>
       }
     </div>

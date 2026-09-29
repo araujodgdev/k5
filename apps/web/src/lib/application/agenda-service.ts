@@ -100,7 +100,8 @@ export async function listMembers(context: WorkspaceContext) {
 export async function getActivity(context: WorkspaceContext, input: Input<'k5_agenda_get_activity'>) {
   const row = await database.prepare(`SELECT ${activityColumns} FROM agenda_activity WHERE office_id=? AND id=?`).get(context.officeId, input.activityId);
   if (!row) throw missing();
-  return { activity: activityDto.parse(row) };
+  const delegation = await database.prepare('SELECT conversation_id FROM agenda_delegation WHERE activity_id=? AND office_id=? AND user_id=?').get<{ conversation_id: string }>(input.activityId, context.officeId, context.userId);
+  return { activity: activityDto.parse({ ...row, ...(delegation ? { agentConversationId: delegation.conversation_id } : {}) }) };
 }
 
 export async function listActivities(context: WorkspaceContext, input: Input<'k5_agenda_list_activities'>) {
@@ -112,6 +113,7 @@ export async function listActivities(context: WorkspaceContext, input: Input<'k5
     if (value) { where.push(`${field}=?`); params.push(value); }
   }
   if (input.query) { where.push('strpos(lower(title),lower(?))>0'); params.push(input.query); }
+  if (input.openOnly) where.push("status IN ('pending','in_progress')");
   const task: string[] = []; const meeting: string[] = []; const dates: unknown[] = [];
   if (input.dueFrom) { task.push('due_on>=?'); dates.push(input.dueFrom); }
   if (input.dueTo) { task.push('due_on<=?'); dates.push(input.dueTo); }
@@ -124,7 +126,9 @@ export async function listActivities(context: WorkspaceContext, input: Input<'k5
   const filter = where.join(' AND ');
   const rows = await database.prepare(`SELECT ${activityColumns} FROM agenda_activity WHERE ${filter} ORDER BY coalesce(due_on::date::timestamptz,starts_at) NULLS LAST,id LIMIT ? OFFSET ?`).all(...params, input.limit, input.offset);
   const count = await database.prepare(`SELECT count(*) AS total FROM agenda_activity WHERE ${filter}`).get<{ total: number }>(...params);
-  return { activities: rows.map(row => activityDto.parse(row)), total: count!.total };
+  const delegations = rows.length ? await database.prepare('SELECT activity_id,conversation_id FROM agenda_delegation WHERE office_id=? AND user_id=? AND activity_id=ANY(?::text[])').all<{ activity_id: string; conversation_id: string }>(context.officeId, context.userId, rows.map(row => row.id)) : [];
+  const sessions = new Map(delegations.map(row => [row.activity_id, row.conversation_id]));
+  return { activities: rows.map(row => activityDto.parse({ ...row, ...(sessions.has(String(row.id)) ? { agentConversationId: sessions.get(String(row.id)) } : {}) })), total: count!.total };
 }
 
 export async function createActivity(context: WorkspaceContext, input: Input<'k5_agenda_create_activity'>) {

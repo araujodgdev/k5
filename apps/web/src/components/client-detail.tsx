@@ -13,7 +13,7 @@ import type { OfficeRole } from '@/lib/offices';
 const AgendaEditor = dynamic(() => import('./agenda-forms').then(module => module.AgendaEditor));
 
 const stages = { prospect: 'Potencial cliente', active: 'Cliente ativo', archived: 'Arquivado' };
-const statuses = { pending: 'Pendente', completed: 'Concluída', cancelled: 'Cancelada' };
+const statuses = { pending: 'Pendente', in_progress: 'Em andamento', completed: 'Concluída', cancelled: 'Cancelada' };
 
 export function ClientDetail({ clientId, role }: { clientId: string; role: OfficeRole }) {
   const [client, setClient] = useState<CrmClient | null>(null);

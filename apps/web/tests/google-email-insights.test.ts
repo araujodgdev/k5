@@ -156,3 +156,70 @@ test('reader: text parts lose Outlook conditional comments and the HTML part is 
     { mimeType: 'text/plain', body: { data: b64('texto') } }, { mimeType: 'text/html', body: { data: b64('<b>html</b>') } }] } }), '<b>html</b>');
   assert.equal(messageHtml({ id: 'm', payload: { mimeType: 'text/plain', body: { data: b64('só texto') } } }), null);
 });
+
+
+test('email digest cache: reuses unchanged content and sends only changes plus the previous overview', async () => {
+  const a = await setup();
+  const calls: Call[] = [];
+  let judgments = 0;
+  const options = { send: async (_key: string, request: DecisionRequest) => { judgments++; return jev('', request, new AbortController().signal); },
+    generate: writer({ headline: 'Panorama guardado.', attention: [], themes: [] }, calls) };
+  const first = await emailInsight(a.context, { kind: 'digest', period: 'week' }, options);
+  assert.deepEqual(await emailInsight(a.context, { kind: 'digest', period: 'week' }, options), first);
+  assert.equal(calls.length, 1); assert.equal(judgments, 1);
+  a.threads.t4 = { subject: 'Novo contrato', from: 'Cliente <novo@example.test>', snippet: 'Envio o contrato para revisão.' };
+  await emailInsight(a.context, { kind: 'digest', period: 'week' }, options);
+  assert.equal(calls.length, 2); assert.equal(judgments, 2);
+  assert.match(calls[1].prompt, /Panorama guardado/);
+  assert.match(calls[1].prompt, /Envio o contrato para revisão/);
+  assert.doesNotMatch(calls[1].prompt, /Pode confirmar o envio até sexta/);
+  a.threads.t4.snippet = 'O contrato foi corrigido.';
+  await emailInsight(a.context, { kind: 'digest', period: 'week' }, options);
+  assert.equal(calls.length, 3); assert.match(calls[2].prompt, /O contrato foi corrigido/);
+  delete a.threads.t4;
+  await emailInsight(a.context, { kind: 'digest', period: 'week' }, options);
+  assert.match(calls[3].prompt, /<removidas>\["t4"\]/);
+  await testDb.prepare('DELETE FROM office_member WHERE office_id=? AND user_id=?').run(a.officeId, a.userId);
+  await assert.rejects(emailInsight(a.context, { kind: 'digest', period: 'week' }, options), { code: 'FORBIDDEN' });
+});
+
+test('thread cache: read labels do not regenerate, new messages use the old overview, roles stay isolated', async () => {
+  const a = await setup('off');
+  const calls: Call[] = [];
+  const options = { generate: writer({ overview: 'Resumo anterior.', points: [], replies: [{ intent: 'confirm', label: 'Confirmar', body: 'Recebido.' }] }, calls) };
+  await emailInsight(a.context, { kind: 'thread', threadId: 't1' }, options);
+  let extra = false;
+  a.google.on('GET', /\/users\/me\/threads\/t1$/, () => respond(200, { id: 't1', messages: [
+    { id: 't1-m1', internalDate: '1790160000000', snippet: a.threads.t1.snippet, labelIds: ['INBOX'], payload: { mimeType: 'multipart/alternative', headers: [
+      { name: 'Subject', value: a.threads.t1.subject }, { name: 'From', value: a.threads.t1.from }, { name: 'To', value: 'me@example.test' }], parts: [
+      { partId: '0', mimeType: 'text/plain', body: { data: b64(`<!--[if !mso]><!-->\n${a.threads.t1.snippet}\n<!--<![endif]-->`) } },
+      { partId: '1', mimeType: 'text/html', body: { data: b64(`<p>${a.threads.t1.snippet}</p>`) } }] } },
+    ...(extra ? [{ id: 't1-m2', internalDate: '1790260000000', snippet: 'Documentos enviados agora.', labelIds: ['INBOX'], payload: { headers: [{ name: 'From', value: a.threads.t1.from }] } }] : []),
+  ] }));
+  await emailInsight(a.context, { kind: 'thread', threadId: 't1' }, options);
+  assert.equal(calls.length, 1);
+  extra = true;
+  await emailInsight(a.context, { kind: 'thread', threadId: 't1' }, options);
+  assert.equal(calls.length, 2); assert.match(calls[1].prompt, /Resumo anterior/);
+  assert.match(calls[1].prompt, /Documentos enviados agora/); assert.doesNotMatch(calls[1].prompt, /Pode confirmar o envio até sexta/);
+  await testDb.prepare("UPDATE office_member SET role='reviewer' WHERE office_id=? AND user_id=?").run(a.officeId, a.userId);
+  const read = await emailInsight(a.context, { kind: 'thread', threadId: 't1' }, options);
+  assert.ok('insight' in read); assert.deepEqual(read.insight.replies, []); assert.equal(calls.length, 3);
+});
+
+test('email cache: concurrent requests do not duplicate generation; failures release the lease', async () => {
+  const a = await setup('off');
+  let release = () => {};
+  let started = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const entered = new Promise<void>(resolve => { started = resolve; });
+  const generate: typeof generateStructured = async () => { started(); await gate; throw new Error('Provider offline'); };
+  const first = emailInsight(a.context, { kind: 'digest', period: 'week' }, { generate });
+  const failed = assert.rejects(first, /Provider offline/);
+  await entered;
+  await assert.rejects(emailInsight(a.context, { kind: 'digest', period: 'week' }, { generate }), { code: 'CONFLICT' });
+  release(); await failed;
+  const calls: Call[] = [];
+  await emailInsight(a.context, { kind: 'digest', period: 'week' }, { generate: writer({ headline: 'Recuperado.', attention: [], themes: [] }, calls) });
+  assert.equal(calls.length, 1);
+});

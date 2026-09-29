@@ -53,7 +53,7 @@ export function CommandCenter({ role }: { role: OfficeRole }) {
         }
       }
       await Promise.all([
-        section('tasks', agendaCall('k5_agenda_list_activities', { kind: 'task', status: 'pending', dueTo: day, limit: 5 })),
+        section('tasks', agendaCall('k5_agenda_list_activities', { kind: 'task', openOnly: true, dueTo: day, limit: 5 })),
         section('meetings', agendaCall('k5_agenda_list_activities', { kind: 'meeting', status: 'pending', from: now.toISOString(), limit: 4 })),
         section('clients', agendaCall('k5_crm_list_clients', { stage: 'active', limit: 4 })),
         section('vault', agendaCall('k5_vault_list_cases', {})),

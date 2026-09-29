@@ -1,4 +1,5 @@
 import { testDb } from './test-setup';
+import { delegateTask } from '../src/lib/application/task-delegation';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
@@ -151,4 +152,39 @@ test('agenda: client address and practice areas, filters, partial updates and re
   for (const invalid of [{ state: 'XX' }, { postalCode: '5005' }, { legalAreas: ['familia'] }]) {
     await assert.rejects(async () => (await call(a.context, 'k5_crm_update_client', { clientId: client.id, version: updated.version, ...invalid })));
   }
+});
+
+
+test('task delegation starts one session, carries context and preserves office and user isolation', async () => {
+  const a = await fixture(); const b = await fixture();
+  const { activity } = agendaCapabilities.k5_agenda_create_activity.output.parse(await call(a.context, 'k5_agenda_create_activity', { kind: 'task', title: 'Revisar contrato', notes: 'Conferir multa contratual.', caseId: a.caseId }));
+  let starts = 0;
+  const options = { ready: async () => true, start: async (turn: import('../src/lib/chat-turn').ChatTurn) => {
+    starts++; assert.equal(turn.request.caseId, a.caseId);
+    const row = await testDb.prepare('SELECT messages FROM ai_conversation WHERE id=?').get<{ messages: string }>(turn.conversationId);
+    assert.match(row!.messages, /Conferir multa contratual/);
+  } };
+  const [first, second] = await Promise.all([delegateTask(a.context, { activityId: activity.id }, options), delegateTask(a.context, { activityId: activity.id }, options)]);
+  assert.equal(first.conversationId, second.conversationId); assert.equal(starts, 1);
+  const updated = agendaCapabilities.k5_agenda_get_activity.output.parse(await call(a.context, 'k5_agenda_get_activity', { activityId: activity.id }));
+  assert.equal(updated.activity.status, 'in_progress'); assert.equal(updated.activity.agentConversationId, first.conversationId);
+  const listed = agendaCapabilities.k5_agenda_list_activities.output.parse(await call(a.context, 'k5_agenda_list_activities', { openOnly: true }));
+  assert.equal(listed.activities.length, 1);
+  await assert.rejects(delegateTask(b.context, { activityId: activity.id }, options), { code: 'NOT_FOUND' });
+  const reviewer = await fixture('reviewer');
+  await assert.rejects(delegateTask(reviewer.context, { activityId: activity.id }, options), { code: 'FORBIDDEN' });
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), a.context.officeId, b.context.userId, 'lawyer');
+  const other = agendaCapabilities.k5_agenda_get_activity.output.parse(await call({ ...b.context, officeId: a.context.officeId }, 'k5_agenda_get_activity', { activityId: activity.id }));
+  assert.equal(other.activity.agentConversationId, undefined);
+});
+
+test('task delegation retries a failed start without creating another conversation', async () => {
+  const a = await fixture();
+  const { activity } = agendaCapabilities.k5_agenda_create_activity.output.parse(await call(a.context, 'k5_agenda_create_activity', { kind: 'task', title: 'Revisar minuta' }));
+  const options = { ready: async () => true, start: async () => { throw new Error('Unavailable'); } };
+  await assert.rejects(delegateTask(a.context, { activityId: activity.id }, options), /Unavailable/);
+  const stored = agendaCapabilities.k5_agenda_get_activity.output.parse(await call(a.context, 'k5_agenda_get_activity', { activityId: activity.id }));
+  let started = false;
+  const recovered = await delegateTask(a.context, { activityId: activity.id }, { ready: options.ready, start: async () => { started = true; } });
+  assert.ok(started); assert.equal(recovered.conversationId, stored.activity.agentConversationId);
 });

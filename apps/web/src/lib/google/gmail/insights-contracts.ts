@@ -11,32 +11,20 @@ export const emailInsightInput = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('thread'), threadId: z.string().regex(/^[a-zA-Z0-9_-]{1,128}$/) }).strict(),
 ]);
 
-export type DigestThread = { threadId: string; subject: string; from: string; date: string; unread: boolean };
-
-/** An overview of the person's inbox over a period. Every thread it names came from their Gmail. */
-export type EmailDigest = {
-  period: DigestPeriod;
-  generatedAt: string;
-  /** Conversations read; `truncated` when the period held more than the limit. */
-  count: number;
-  truncated: boolean;
-  /** Whether Jev judged priority and pending replies; the overview still works without it. */
-  judged: boolean;
-  headline: string;
-  attention: (DigestThread & { reason: string; needsReply: boolean | null })[];
-  themes: { title: string; summary: string; threads: DigestThread[] }[];
-};
-
-/** An overview of one conversation and, for those who may write, replies to start from. */
-export type ThreadInsight = {
-  threadId: string;
-  generatedAt: string;
-  overview: string;
-  points: string[];
-  needsReply: boolean | null;
-  judged: boolean;
-  replies: { intent: ReplyIntent; label: string; body: string }[];
-};
+export const digestThreadSchema = z.object({ threadId: z.string(), subject: z.string(), from: z.string(), date: z.string(), unread: z.boolean() });
+export type DigestThread = z.infer<typeof digestThreadSchema>;
+export const emailDigestSchema = z.object({
+  period: z.enum(digestPeriods), generatedAt: z.string(), count: z.number(), truncated: z.boolean(), judged: z.boolean(), headline: z.string(),
+  attention: z.array(digestThreadSchema.extend({ reason: z.string(), needsReply: z.boolean().nullable() })),
+  themes: z.array(z.object({ title: z.string(), summary: z.string(), threads: z.array(digestThreadSchema) })),
+});
+export type EmailDigest = z.infer<typeof emailDigestSchema>;
+export const threadInsightSchema = z.object({
+  threadId: z.string(), generatedAt: z.string(), overview: z.string(), points: z.array(z.string()),
+  needsReply: z.boolean().nullable(), judged: z.boolean(),
+  replies: z.array(z.object({ intent: z.enum(replyIntents), label: z.string(), body: z.string() })),
+});
+export type ThreadInsight = z.infer<typeof threadInsightSchema>;
 
 export type EmailInsightResult =
   | { status: 'ready'; digest: EmailDigest }

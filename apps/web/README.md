@@ -497,3 +497,16 @@ pelo navegador quando usada; as variantes normais recebem preload.
 O Início reúne tarefas pendentes até hoje, próximas reuniões, clientes ativos, casos e conversas pessoais. Permite concluir tarefas e abrir os formulários existentes. As visões da agenda aceitam `?view=tasks`, `?view=calendar` e `?view=clients`; `action=new` abre o cadastro correspondente para quem pode editar. Clientes têm uma página própria em `/app/agenda/clients/[id]`.
 
 Com o servidor local em execução, rode `pnpm --filter @k5/web exec tsx scripts/verify-workspace-ui.ts` na raiz. O script reutiliza a conta de validação (ou `PWA_TEST_EMAIL` / `PWA_TEST_PASSWORD`), intercepta dados de negócio com fixtures e não cadastra contas nem altera os registros do escritório. Confere menu Mais, chat longo, retorno ao fim, calendário, Início e detalhes de cliente em desktop/mobile. Capturas ficam em `apps/web/playwright-report/workspace-ui/`.
+
+
+## Kanban e delegação de tarefas
+
+Em Escritório → Tarefas, alterne entre Lista e Kanban. O quadro reúne todas as tarefas dos filtros selecionados em A fazer, Em andamento, Concluídas e Canceladas. O controle de situação de cada cartão permite mover a tarefa com mouse, toque ou teclado. `?layout=kanban` abre o quadro diretamente.
+
+Administradores e advogados podem usar **Delegar ao Lume** em uma tarefa aberta. A ação cria uma conversa pessoal com título, observações, prazo e vínculos da tarefa, inicia o agente e coloca a tarefa em andamento. **Abrir sessão do Lume** retorna à mesma conversa. Cada usuário vê somente sua própria sessão. O agente deve entregar o resultado antes de concluir a tarefa; dúvidas e confirmações continuam na conversa. Revisores consultam o quadro sem alterar ou delegar tarefas.
+
+## Cache das opções inteligentes de email
+
+Os panoramas por período e os resumos com sugestões de resposta são persistidos por conexão Google, geração de autorização, papel e versão da análise. Cada pedido confere o conteúdo atual no Gmail. Sem mudanças, reutiliza a análise, inclusive depois de recarregar a página. Marcar como lido atualiza a apresentação sem chamar a IA.
+
+Quando chegam mensagens, o panorama usa a análise anterior e somente as conversas novas ou alteradas. Conversas removidas da caixa ou do período saem das referências. O resumo individual usa o resumo anterior e as novas mensagens; remoções exigem reconstrução do resumo. Permanecem os limites de 30, 50 e 80 conversas para dia, semana e mês, e a indicação de resultados limitados. Uma solicitação simultânea recebe uma orientação para aguardar; falhas não substituem o último resultado salvo. A autorização é verificada antes de qualquer leitura do cache.

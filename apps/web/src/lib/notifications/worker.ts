@@ -96,11 +96,11 @@ type ActivityReminderRow = {
 export async function reconcileNotificationReminders(db: Database = defaultDatabase, now = new Date().toISOString(), limit = 100) {
   await db.prepare(`UPDATE notification_reminder SET state='cancelled',updated_at=? WHERE state='scheduled'
     AND EXISTS(SELECT 1 FROM agenda_activity a WHERE a.id=notification_reminder.activity_id
-      AND a.office_id=notification_reminder.office_id AND a.status<>'pending')`).run(now);
+      AND a.office_id=notification_reminder.office_id AND a.status NOT IN ('pending','in_progress'))`).run(now);
   const activities = await db.prepare(`SELECT a.id,a.office_id,a.kind,a.title,a.status,a.due_on,a.starts_at,
     a.assignee_id,a.created_by,a.version FROM agenda_activity a
     JOIN notification_rollout ro ON ro.office_id=a.office_id AND ro.reminders_enabled=1
-    WHERE a.status='pending' AND ((a.kind='task' AND a.due_on IS NOT NULL) OR (a.kind='meeting' AND a.starts_at IS NOT NULL))
+    WHERE a.status IN ('pending','in_progress') AND ((a.kind='task' AND a.due_on IS NOT NULL) OR (a.kind='meeting' AND a.starts_at IS NOT NULL))
       AND (
         EXISTS(SELECT 1 FROM office_member m
           LEFT JOIN notification_preference p ON p.office_id=m.office_id AND p.user_id=m.user_id
@@ -170,7 +170,7 @@ export async function emitNextReminder(db: Database = defaultDatabase, now = new
     r.rule,r.due_at,r.expires_at,a.title FROM notification_reminder r
     JOIN agenda_activity a ON a.id=r.activity_id AND a.office_id=r.office_id
     WHERE r.state='scheduled' AND r.due_at<=? AND r.expires_at>?
-      AND a.status='pending' AND a.version=r.activity_version ORDER BY r.due_at,r.id LIMIT 1`)
+      AND a.status IN ('pending','in_progress') AND a.version=r.activity_version ORDER BY r.due_at,r.id LIMIT 1`)
     .get<DueReminder>(now, now);
   if (!reminder) return false;
   const eventType = reminder.rule === 'task_due' ? 'agenda.task.due' : 'agenda.meeting.soon';

@@ -11,5 +11,5 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   const peopleView = value('view');
   if (peopleView === 'team' || peopleView === 'associates' || peopleView === 'invites') return <CollaborationPanel key={peopleView} view={peopleView} />;
   const view = value('view') === 'calendar' ? 'calendar' : value('view') === 'clients' ? 'clients' : 'tasks';
-  return <AgendaWorkspace key={JSON.stringify([value('caseId'), value('clientId'), value('activityId'), value('proposalId'), value('personalEventId'), view, value('action')])} role={office.role} initialView={view} initialAction={value('action')} initialCaseId={value('caseId')} initialClientId={value('clientId')} initialActivityId={value('activityId')} initialProposalId={value('proposalId')} initialPersonalEventId={value('personalEventId')} />;
+  return <AgendaWorkspace key={JSON.stringify([value('caseId'), value('clientId'), value('activityId'), value('proposalId'), value('personalEventId'), view, value('action')])} initialTaskLayout={value('layout') === 'kanban' ? 'kanban' : 'list'} role={office.role} initialView={view} initialAction={value('action')} initialCaseId={value('caseId')} initialClientId={value('clientId')} initialActivityId={value('activityId')} initialProposalId={value('proposalId')} initialPersonalEventId={value('personalEventId')} />;
 }
