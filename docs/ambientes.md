@@ -41,7 +41,13 @@ docker compose up
 
 ## Cloudflare
 
-Web: <https://k5-staging.k5-web.workers.dev>. Os recursos de arquivo/vetores existentes continuam sendo `k5-vault-staging` e `k5-knowledge-staging` (1536 dimensões, cosseno). O PostgreSQL é o PlanetScale acessado pelo Hyperdrive; o ID configurado precisa ser o mesmo em todos os `wrangler*.jsonc`. Os scripts de deploy recusam um ID nulo. Veja [PostgreSQL e Hyperdrive](migracao-postgres.md).
+Veja a [configuração do domínio e a pendência de produção da AbacatePay](dominio-lume.md).
+
+Web: <https://lume.software>, Worker `lume`. Os Workers `lume-integrations` e `lume-notifications` usam, respectivamente, `integrations.lume.software` e `notifications.lume.software`. Os três domínios estão declarados nos arquivos `wrangler*.jsonc`. Os Workers de fundo trabalham por cron e filas; suas rotas HTTP retornam 404. Callbacks e webhooks públicos chegam ao Worker web.
+
+Configure `BETTER_AUTH_URL=https://lume.software` como secret nos Workers `lume` e `lume-integrations`. Para Google, use `GOOGLE_OAUTH_REDIRECT_URI=https://lume.software/api/integrations/google/callback` no web e `GOOGLE_CALENDAR_WEBHOOK_URL=https://lume.software/api/integrations/google/notify` nos dois Workers. Cadastre a mesma origem e callback no cliente OAuth e atualize os referrers da chave Picker no Google Cloud. Zernio recebe eventos em `https://lume.software/api/whatsapp/webhook`; AbacatePay em `https://lume.software/api/billing/webhook`, preservando o parâmetro `webhookSecret` existente. Essas configurações externas não são alteradas pelo deploy. O desenvolvimento local continua com `BETTER_AUTH_URL=http://localhost:3000`.
+
+Os recursos de arquivo/vetores existentes continuam sendo `k5-vault-staging` e `k5-knowledge-staging` (1536 dimensões, cosseno), e as filas mantêm seus nomes `k5-*-staging`. O PostgreSQL é o PlanetScale acessado pelo Hyperdrive; o ID configurado precisa ser o mesmo em todos os `wrangler*.jsonc`. Os scripts de deploy recusam um ID nulo. Veja [PostgreSQL e Hyperdrive](migracao-postgres.md).
 
 ```sh
 pnpm --filter @k5/web db:migrate

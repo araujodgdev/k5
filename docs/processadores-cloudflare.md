@@ -2,7 +2,7 @@
 
 O web e as notificações acessam o PostgreSQL PlanetScale `araujodgdev/lume`, branch `main`, em São Paulo, pelo Hyperdrive `lume` (`cb3229db2c05407aa00420f68bcb6f8f`). O cache de consultas fica desativado para preservar isolamento e revogação imediata de sessões. O limite inicial é de cinco conexões de origem.
 
-O Worker `k5-staging` também exporta `LumeProcessor` e `ContainerProxy`. Um cron por minuto inspeciona as filas no PostgreSQL e aciona as instâncias nomeadas `documents` e `judicial` somente quando há trabalho elegível. A limpeza de referências expiradas roda a cada cinco minutos. São no máximo dois Containers `basic`, com suspensão após 30 segundos ociosos. Trabalhos ativos renovam esse prazo; leases e checkpoints continuam no PostgreSQL.
+O Worker `lume` também exporta `LumeProcessor` e `ContainerProxy`. Um cron por minuto inspeciona as filas no PostgreSQL e aciona as instâncias nomeadas `documents` e `judicial` somente quando há trabalho elegível. A limpeza de referências expiradas roda a cada cinco minutos. São no máximo dois Containers `basic`, com suspensão após 30 segundos ociosos. Trabalhos ativos renovam esse prazo; leases e checkpoints continuam no PostgreSQL.
 
 Os Containers têm `constraints.regions: ["SAM"]` para permanecer na América do Sul, próximos ao PostgreSQL e às fontes brasileiras. A colocação automática chegou a iniciar o processador judicial em Taiwan, onde as chamadas ao TJDFT expiraram. A restrição está no Wrangler e foi aplicada à aplicação pela API Cloudflare. [Configuração oficial de localização](https://developers.cloudflare.com/containers/concepts/placement/).
 
@@ -13,7 +13,7 @@ O hostname privado `k5-bindings` é interceptado pelo proxy de saída do Contain
 ## Publicação e operação
 
 1. Mantenha o Docker Desktop/engine Linux ativo. O Wrangler constrói a imagem `linux/amd64` definida em `apps/web/Dockerfile.processors` usando a raiz do repositório como contexto.
-2. Configure `PROCESSOR_DATABASE_URL` como secret de `k5-staging`, mantendo as chaves criptográficas existentes. Aplique as migrações pela URL direta administrativa antes de publicar.
+2. Configure `PROCESSOR_DATABASE_URL` como secret de `lume`, mantendo as chaves criptográficas existentes. Aplique as migrações pela URL direta administrativa antes de publicar.
 3. Execute os checks e `pnpm --filter @k5/web deploy:vinext`. Publique notificações com `pnpm --filter @k5/web notifications:deploy`.
 4. Verifique a aplicação de Containers na Cloudflare, um upload processado, uma consulta externa habilitada e eventos operacionais no Sentry. O primeiro provisionamento da imagem pode levar alguns minutos.
 

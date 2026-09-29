@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "k5-staging",
+  "name": "lume",
+  "routes": [{ "pattern": "lume.software", "custom_domain": true }],
   "account_id": "bf552f67bcf46921dbe4137ee0ff8980",
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat"],
