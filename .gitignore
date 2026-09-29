@@ -19,3 +19,4 @@ apps/web/public/sw.js
 .agents/*
 !.agents/skills/
 /tmp/
+/output/jurisprudencia/

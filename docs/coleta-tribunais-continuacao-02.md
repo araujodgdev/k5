@@ -32,11 +32,13 @@ Execuções:
 - STJ: `45cc71b9-e289-4904-8123-33c63653156c`.
 - TST: `6a8e9fd2-2735-4ead-88aa-016040178ab7`.
 
-Evidências locais:
+Comprovantes preservados no repositório:
 
-- [STF publicado](../output/jurisprudencia/stf/continuacao-02/publication-result.json).
-- [STJ publicado](../output/jurisprudencia/stj/continuacao-02/publication-result.json).
-- [TST publicado](../output/jurisprudencia/tst/continuacao-02/publication-result.json).
-- [Conferência consolidada](../output/jurisprudencia/shared/verification-continuacao-02.json).
+- [STF publicado](coletas/jurisprudencia/stf/continuacao-02/publication-result.json).
+- [STJ publicado](coletas/jurisprudencia/stj/continuacao-02/publication-result.json).
+- [TST publicado](coletas/jurisprudencia/tst/continuacao-02/publication-result.json).
+- [Conferência consolidada](coletas/jurisprudencia/shared/verification-continuacao-02.json).
+
+Os arquivos de trabalho e scripts foram arquivados localmente durante a [limpeza da coleta](coletas/jurisprudencia/README.md).
 
 Os manifestos também estão no R2, referenciados em `research_crawl_run.evidence_storage_key`. O lote inicial está descrito no [relatório anterior](coleta-tribunais-2026-09-28.md).

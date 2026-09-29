@@ -38,11 +38,11 @@ Todas têm status `partial`. O checkpoint foi avançado somente após publicar o
 
 ## Evidências e reprodução
 
-Os diretórios locais `output/jurisprudencia/stf`, `stj` e `tst` contêm os manifestos, os arquivos coletados e `publication-result.json`. A conferência consolidada está em `output/jurisprudencia/shared/verification.json`. Os manifestos também estão no R2 e seus endereços em `research_crawl_run.evidence_storage_key`.
+Os arquivos de trabalho de `output/jurisprudencia` foram arquivados localmente em 29/09/2026. Os comprovantes de publicação foram preservados em `docs/coletas/jurisprudencia`, junto da [conferência consolidada](coletas/jurisprudencia/shared/verification.json). Consulte a [limpeza e restauração da coleta](coletas/jurisprudencia/README.md). Os manifestos também estão no R2 e seus endereços em `research_crawl_run.evidence_storage_key`.
 
-O publicador operacional está em `output/jurisprudencia/shared/publish-batch.mjs`. Ele usa o adaptador injetável de armazenamento do aplicativo com operações reais de `wrangler r2 object put/get --remote`. Não usa o backend local como substituto do R2. Carrega a conexão PostgreSQL do arquivo privado existente, sem copiar credenciais para os artefatos.
+O publicador histórico `shared/publish-batch.mjs` foi preservado no arquivo local, junto de seus arquivos de entrada. Ele usa o adaptador injetável de armazenamento do aplicativo com operações reais de `wrangler r2 object put/get --remote`. Não usa o backend local como substituto do R2. Carrega a conexão PostgreSQL do arquivo privado existente, sem copiar credenciais para os artefatos.
 
-Para republicar o mesmo lote, após conferir o manifesto e a ficha do tribunal, execute da raiz:
+Para republicar o mesmo lote, primeiro restaure o arquivo local em `output/jurisprudencia`, conforme o guia acima. Após conferir o manifesto e a ficha do tribunal, execute da raiz:
 
 ```powershell
 pnpm --filter @k5/web exec node --conditions=react-server --import tsx ../../output/jurisprudencia/shared/publish-batch.mjs stf
