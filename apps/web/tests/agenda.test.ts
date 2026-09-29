@@ -6,7 +6,7 @@ import test from 'node:test';
 import { z } from 'zod';
 import { agentTools, runCapability } from '../src/lib/agent-tools';
 import { capabilities, type CapabilityName } from '../src/lib/capabilities/contracts';
-import { agendaCapabilities } from '../src/lib/capabilities/agenda';
+import { agendaCapabilities, legalAreas } from '../src/lib/capabilities/agenda';
 import type { WorkspaceContext } from '../src/lib/application/context';
 
 async function fixture(role: WorkspaceContext['role'] = 'lawyer') {
@@ -149,8 +149,14 @@ test('agenda: client address and practice areas, filters, partial updates and re
   // Omitted fields are preserved; cleared text becomes null.
   const updated = (await call(a.context, 'k5_crm_update_client', { clientId: client.id, version: client.version, legalAreas: ['civel'], addressLine: '' }) as { client: Client }).client;
   assert.deepEqual(updated.legalAreas, ['civel']); assert.equal(updated.addressLine, null); assert.equal(updated.city, 'Recife'); assert.equal(updated.postalCode, '50050-000');
-  for (const invalid of [{ state: 'XX' }, { postalCode: '5005' }, { legalAreas: ['familia'] }]) {
-    await assert.rejects(async () => (await call(a.context, 'k5_crm_update_client', { clientId: client.id, version: updated.version, ...invalid })));
+  const expanded = (await call(a.context, 'k5_crm_update_client', { clientId: client.id, version: updated.version, legalAreas: [...legalAreas] }) as { client: Client }).client;
+  assert.deepEqual([...expanded.legalAreas].sort(), [...legalAreas].sort());
+  const criminal = agendaCapabilities.k5_crm_list_clients.output.parse(await call(a.context, 'k5_crm_list_clients', { legalArea: 'criminal' }));
+  assert.deepEqual(criminal.clients.map(c => c.id), [client.id]);
+  const cleared = (await call(a.context, 'k5_crm_update_client', { clientId: client.id, version: expanded.version, legalAreas: [] }) as { client: Client }).client;
+  assert.deepEqual(cleared.legalAreas, []);
+  for (const invalid of [{ state: 'XX' }, { postalCode: '5005' }, { legalAreas: ['inexistente'] }]) {
+    await assert.rejects(async () => (await call(a.context, 'k5_crm_update_client', { clientId: client.id, version: cleared.version, ...invalid })));
   }
 });
 

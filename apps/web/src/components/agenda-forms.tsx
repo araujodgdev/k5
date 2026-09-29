@@ -6,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { brazilianStates, legalAreaLabels, legalAreas, type AgendaActivity, type CrmClient } from '@/lib/capabilities/agenda';
+import { brazilianStates, type AgendaActivity, type CrmClient } from '@/lib/capabilities/agenda';
 import { localInstant } from '@/lib/typesafe/agenda-time';
 import { localDate } from '@/lib/calendar-days';
 import { agendaCall, selectStyle, type Choice } from '@/lib/agenda-client';
 import { ClientPicker } from './client-picker';
+import { LegalAreaPicker } from './legal-area-picker';
 
 export function Field({ name, label, children }: { name: string; label: string; children: ReactNode }) {
   return <div className="grid min-w-0 gap-1.5"><Label htmlFor={name}>{label}</Label>{children}</div>;
@@ -74,7 +75,7 @@ export function AgendaEditor({ activity, client, mode, cases, clients, members, 
           <Field name="name" label="Nome"><Input id="name" name="name" required minLength={2} maxLength={180} defaultValue={client?.name} className="h-11 md:h-9" /></Field>
           <div className="grid gap-4 sm:grid-cols-2"><Field name="email" label="E-mail"><Input id="email" name="email" type="email" maxLength={200} defaultValue={client?.email ?? ''} className="h-11 md:h-9" /></Field><Field name="phone" label="Telefone"><Input id="phone" name="phone" type="tel" maxLength={40} defaultValue={client?.phone ?? ''} className="h-11 md:h-9" /></Field></div>
           <Field name="stage" label="Relacionamento"><select id="stage" name="stage" defaultValue={client?.stage ?? 'prospect'} className={selectStyle}><option value="prospect">Potencial cliente</option><option value="active">Cliente ativo</option><option value="archived">Arquivado</option></select></Field>
-          <fieldset className="grid gap-2"><legend className="mb-2 text-sm font-medium">Áreas</legend><div className="flex flex-wrap gap-x-5 gap-y-1">{legalAreas.map(area => <label key={area} className="flex min-h-11 items-center gap-2 text-sm md:min-h-8"><input type="checkbox" name="legalAreas" value={area} defaultChecked={client?.legalAreas.includes(area)} className="size-4 accent-primary" />{legalAreaLabels[area]}</label>)}</div></fieldset>
+          <LegalAreaPicker defaultValue={client?.legalAreas} disabled={busy} onChange={() => setKey(crypto.randomUUID())} />
           <Field name="addressLine" label="Endereço (opcional)"><Input id="addressLine" name="addressLine" maxLength={240} autoComplete="street-address" placeholder="Rua, número, complemento e bairro" defaultValue={client?.addressLine ?? ''} className="h-11 md:h-9" /></Field>
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem_8rem]"><Field name="city" label="Cidade"><Input id="city" name="city" maxLength={120} autoComplete="address-level2" defaultValue={client?.city ?? ''} className="h-11 md:h-9" /></Field><Field name="state" label="UF"><select id="state" name="state" autoComplete="address-level1" defaultValue={client?.state ?? ''} className={selectStyle}><option value="">—</option>{brazilianStates.map(uf => <option key={uf} value={uf}>{uf}</option>)}</select></Field><Field name="postalCode" label="CEP"><Input id="postalCode" name="postalCode" inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}-?[0-9]{3}" title="CEP com 8 dígitos" maxLength={9} placeholder="00000-000" defaultValue={client?.postalCode ?? ''} className="h-11 md:h-9" /></Field></div>
           <fieldset className="grid gap-2"><legend className="mb-2 text-sm font-medium">Casos do Cofre</legend>{cases.length ? <div className="max-h-36 space-y-2 overflow-y-auto">{cases.map(c => <label key={c.id} className="flex min-h-11 items-center gap-2 text-sm md:min-h-8"><input type="checkbox" name="caseIds" value={c.id} defaultChecked={client?.caseIds.includes(c.id) ?? c.id === caseId} className="size-4 accent-primary" />{c.name}</label>)}</div> : <p className="text-sm text-muted-foreground">Nenhum caso cadastrado no Cofre.</p>}</fieldset>
