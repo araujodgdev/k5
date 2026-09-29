@@ -223,6 +223,8 @@ export default function Landing() {
         </div>
         <div className="grid grid-cols-2 border-b border-line md:border-l">
           <nav aria-label="Rodapé" className="flex flex-col gap-3 p-5 text-[17px] md:p-6">
+            <Link href="/termos-de-uso" className="w-fit underline underline-offset-4">Termos de uso</Link>
+            <Link href="/politica-privacidade" className="w-fit underline underline-offset-4">Privacidade</Link>
             <Link href="/sign-in" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Entrar</Link>
             <Link href="/sign-up" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Criar conta</Link>
             <a href="#modulos" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Módulos</a>

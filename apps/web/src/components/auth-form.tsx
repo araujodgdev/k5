@@ -125,6 +125,11 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
                 {fieldError("confirmPassword")}
               </div>}
               {error && <p className="flex items-start gap-2 text-destructive text-sm" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {isSignUp ? "Antes de criar sua conta, leia os " : "Consulte os "}
+                <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Termos de uso<span className="sr-only"> (abre em nova aba)</span></Link>
+                {" e a "}<Link href="/politica-privacidade" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Política de privacidade<span className="sr-only"> (abre em nova aba)</span></Link>.
+              </p>
               <Button type="submit" size="lg" className="mt-3 h-12 w-full justify-between px-4 text-[15px] md:h-12">
                 {pending ? (isSignUp ? "Criando conta…" : "Entrando…") : (isSignUp ? "Criar conta" : "Entrar")}
                 {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />}
