@@ -3,7 +3,9 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
-import {generateStructured,testModelCredential} from '../src/lib/ai-runtime';
+import {createAgent,generateStructured,testModelCredential} from '../src/lib/ai-runtime';
+import {createTool} from '@mastra/core/tools';
+import {researchCapabilities} from '../src/lib/capabilities/research';
 
 test('OpenAI requests carry the task effort through the Mastra adapter to the HTTP body, and none by default',async t=>{
   let body:Record<string,unknown>|undefined;
@@ -61,4 +63,25 @@ test('structured vision sends the original image and a typed JSON schema through
   assert.equal(text.format.schema.properties.code.type,'string');
   assert.deepEqual(await testDb.prepare('SELECT task,status,input_tokens,output_tokens FROM ai_usage WHERE office_id=?').all(office),
     [{task:'classification.trademark_logo',status:'completed',input_tokens:21,output_tokens:9}]);
+});
+
+test('trademark agent tools reach OpenAI with object parameters and typed Vienna codes',async t=>{
+  let requestBody:Record<string,unknown>|undefined;
+  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
+    requestBody=JSON.parse(typeof init?.body==='string'?init.body:await new Request(input,init).text());
+    return Response.json({id:'resp_tools',object:'response',created_at:1,model:'gpt-6-sol',status:'completed',incomplete_details:null,
+      output:[{type:'message',id:'msg_tools',status:'completed',role:'assistant',content:[{type:'output_text',text:'Confirmado.',annotations:[]}]}],
+      usage:{input_tokens:21,output_tokens:9,total_tokens:30}});
+  });
+  const names=['k5_research_start_trademark_search','k5_research_analyze_trademark_logo'] as const;
+  const tools=Object.fromEntries(names.map(name=>[name,createTool({id:name,description:researchCapabilities[name].description,
+    inputSchema:researchCapabilities[name].input,execute:async()=>({ok:true})})]));
+  const {agent}=await createAgent({task:'agent.chat',provider:'openai',modelId:'gpt-6-sol',apiKey:'test-only',connectionId:'c1',effort:null,modelSource:'default',effortSource:'default'},'Teste de contrato.',tools);
+  const result=await agent.generate('Verifique as ferramentas.');assert.equal(result.text,'Confirmado.');
+  assert.ok(requestBody);
+  const sent=requestBody.tools as Array<{name:string;parameters:{type:string;properties:Record<string,unknown>}}>;
+  assert.equal(sent.length,2);assert.ok(sent.every(tool=>tool.parameters.type==='object'));
+  const search=sent.find(tool=>tool.name==='k5_research_start_trademark_search');assert.ok(search);
+  const query=search.parameters.properties.query as {anyOf:Array<{properties:{kind:{const:string};codes?:{items:{type:string}}}}>};
+  const vienna=query.anyOf.find(branch=>branch.properties.kind.const==='vienna');assert.equal(vienna?.properties.codes?.items.type,'string');
 });
