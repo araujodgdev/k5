@@ -32,8 +32,12 @@ console.log(JSON.stringify({ index, version: helpContent.version, sections: help
 const ids = helpContent.sections.map(section => section.id);
 let visible = false;
 for (let attempt = 0; attempt < 12; attempt++) {
-  const rows = z.array(z.object({ id: z.string() })).parse(await api('POST', `vectorize/v2/indexes/${index}/get_by_ids`, { ids }));
-  if (rows.length === ids.length) { visible = true; break; }
+  const visibleIds = new Set<string>();
+  for (let offset = 0; offset < ids.length; offset += 20) {
+    const rows = z.array(z.object({ id: z.string() })).parse(await api('POST', `vectorize/v2/indexes/${index}/get_by_ids`, { ids: ids.slice(offset, offset + 20) }));
+    for (const row of rows) visibleIds.add(row.id);
+  }
+  if (ids.every(id => visibleIds.has(id))) { visible = true; break; }
   await new Promise(resolve => setTimeout(resolve, 5000));
 }
 if (!visible) throw new Error('Publicação enviada, mas ainda não visível. Verifique o índice antes de liberar esta versão.');
