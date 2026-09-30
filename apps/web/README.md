@@ -188,6 +188,13 @@ cria um documento de teste, salva, exporta DOCX e confere o painel móvel; exige
 conexão de IA ativa. Capturas, vídeo e DOCX ficam em `playwright-report/pr11-live/`.
 Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
 
+Alterações de documentos que ainda não foram salvas permanecem na memória da sessão
+ao navegar dentro do aplicativo, inclusive com Voltar/Avançar. O menu tenta salvar
+antes de sair do editor; falhas oferecem **Tentar salvar novamente**. Trocar de
+escritório exige salvar os documentos pendentes. Sair tenta salvar; se falhar, a pessoa
+escolhe continuar editando ou descartar os rascunhos e encerrar todas as sessões. Recarregar ou fechar o
+aplicativo continua exigindo salvar antes: rascunhos privados não são gravados no navegador.
+
 - **Administração:** módulo `/app/admin`, visível só para administradores da plataforma, com
   as abas Feedback, Clientes, IA e Credenciais. A aba IA (`/app/admin/ai`) configura uma vez,
   para todos os escritórios, as conexões de IA da plataforma (OpenAI, Anthropic, Google,
