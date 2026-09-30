@@ -3,6 +3,9 @@ import type { CapabilityName } from '../src/lib/capabilities/contracts';
 
 const id = randomUUID();
 export const workspaceCapabilityInputs: Partial<Record<CapabilityName, Record<string, unknown>>> = {
+  k5_research_start_trademark_search: { query: { kind: 'name', name: 'Lume' } },
+  k5_research_get_trademark_search: { searchId: id }, k5_research_list_trademark_searches: {},
+  k5_research_next_trademark_page: { searchId: id }, k5_research_get_trademark: { resultId: id }, k5_research_cancel_trademark_search: { searchId: id },
   k5_calendar_discard_pending: { eventId: id }, k5_calendar_share_event: { eventId: id, title: 'Reunião' },
   k5_calendar_unshare_event: { shareId: id }, k5_gmail_delete_draft: { draftId: id, idempotencyKey: id },
   k5_help_search: { query: 'Como registrar honorários?' },

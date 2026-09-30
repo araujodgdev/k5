@@ -30,7 +30,7 @@ function updateLocation(id: string | null) {
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
 }
 
-export function ResearchWorkspace({ initialSearchId }: { initialSearchId: string | null }) {
+export function ResearchWorkspace({ initialSearchId, embedded = false }: { initialSearchId: string | null; embedded?: boolean }) {
   const [tab, setTab] = useState<'search' | 'history'>('search');
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<WebSearchMode>('auto');
@@ -93,8 +93,8 @@ export function ResearchWorkspace({ initialSearchId }: { initialSearchId: string
     setLoading(false);
   }
 
-  return <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
-    <div className="border-b pb-5"><h1 className="page-title leading-none max-md:sr-only">Pesquisa</h1></div>
+  return <div className={embedded ? 'min-w-0' : 'min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10'}>
+    {!embedded && <div className="border-b pb-5"><h1 className="page-title leading-none max-md:sr-only">Pesquisa</h1></div>}
     <nav aria-label="Visões da pesquisa" className={sectionTabRow}>
       <button type="button" aria-current={tab === 'search' ? 'page' : undefined} onClick={() => changeTab('search')} className={sectionTab(tab === 'search')}>Pesquisar</button>
       <button type="button" aria-current={tab === 'history' ? 'page' : undefined} onClick={() => changeTab('history')} className={sectionTab(tab === 'history')}>Histórico</button>

@@ -7,6 +7,7 @@ import { captureOperationalError } from '../lib/observability/report';
 import { ChatRun, executeChatRun, followable } from '../lib/chat-run';
 import type { ChatTurn } from '../lib/chat-turn';
 import { withWhatsAppEnvironment, type WhatsAppEnvironment } from '../lib/whatsapp/environment';
+import { withTrademarkEnvironment } from '../lib/research/trademarks/environment';
 
 type ChatRunEnv = CloudflareEnv & WhatsAppEnvironment & { HYPERDRIVE: { connectionString: string } };
 
@@ -25,7 +26,7 @@ class ChatRunObject extends DurableObject<ChatRunEnv> {
     const run = new ChatRun();
     this.run = run;
     const pool = createPostgresPool(this.env.HYPERDRIVE.connectionString, { max: 3, idleTimeoutMillis: 0 });
-    void withPostgres(pool, () => withWhatsAppEnvironment(this.env, () => executeChatRun(run, turn)))
+    void withPostgres(pool, () => withTrademarkEnvironment(this.env, () => withWhatsAppEnvironment(this.env, () => executeChatRun(run, turn))))
       .catch(error => captureOperationalError(error, 'chat.run'))
       .finally(() => pool.end().catch(() => undefined));
   }

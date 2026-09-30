@@ -19,6 +19,12 @@ const googleRoutes = Object.fromEntries<Route>(Object.entries(googleOperations).
   [name, { method: 'POST', path: () => googleOperationPath(operation as GoogleOperation), body: (i: Record<string, unknown>) => i } satisfies Route])) as Record<GoogleCapabilityName, Route>;
 
 const routes: Record<CapabilityName, Route> = {
+  k5_research_start_trademark_search: { method: 'POST', path: () => '/api/capabilities/k5_research_start_trademark_search', body: i => i },
+  k5_research_get_trademark_search: { method: 'POST', path: () => '/api/capabilities/k5_research_get_trademark_search', body: i => i },
+  k5_research_list_trademark_searches: { method: 'POST', path: () => '/api/capabilities/k5_research_list_trademark_searches', body: i => i },
+  k5_research_next_trademark_page: { method: 'POST', path: () => '/api/capabilities/k5_research_next_trademark_page', body: i => i },
+  k5_research_get_trademark: { method: 'POST', path: () => '/api/capabilities/k5_research_get_trademark', body: i => i },
+  k5_research_cancel_trademark_search: { method: 'POST', path: () => '/api/capabilities/k5_research_cancel_trademark_search', body: i => i },
   k5_help_search: { method: 'POST', path: () => '/api/capabilities/k5_help_search', body: i => i },
   k5_collaboration_get: { method: 'POST', path: () => '/api/capabilities/k5_collaboration_get', body: i => i },
   k5_collaboration_change: { method: 'POST', path: () => '/api/capabilities/k5_collaboration_change', body: i => i },

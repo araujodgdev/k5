@@ -20,6 +20,7 @@
   // binding carries its own authorisation, so no staging credential needs to exist in an env file
   // for the application to reach its own storage.
   "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "cb3229db2c05407aa00420f68bcb6f8f" }],
+  "browser": { "binding": "BROWSER", "remote": true },
   "containers": [{
     "name": "k5-staging-lumeprocessor",
     "class_name": "LumeProcessor",
@@ -32,12 +33,14 @@
   // CHAT_RUNS holds each chat turn in flight, so the Lume finishes an answer after the page closes.
   "durable_objects": { "bindings": [
     { "name": "PROCESSORS", "class_name": "LumeProcessor" },
-    { "name": "CHAT_RUNS", "class_name": "LumeChatRun" }
+    { "name": "CHAT_RUNS", "class_name": "LumeChatRun" },
+    { "name": "TRADEMARK_RUNS", "class_name": "LumeTrademarkRun" }
   ] },
   // Cloudflare requires SQLite-backed classes for new Durable Objects; all business data is PostgreSQL.
   "migrations": [
     { "tag": "v1-processors", "new_sqlite_classes": ["LumeProcessor"] },
-    { "tag": "v2-chat-runs", "new_sqlite_classes": ["LumeChatRun"] }
+    { "tag": "v2-chat-runs", "new_sqlite_classes": ["LumeChatRun"] },
+    { "tag": "v3-trademark-runs", "new_sqlite_classes": ["LumeTrademarkRun"] }
   ],
   "triggers": { "crons": ["* * * * *"] },
   "queues": { "producers": [{ "binding": "INTEGRATIONS_QUEUE", "queue": "k5-integrations-staging" }] },

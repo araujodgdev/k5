@@ -2,6 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import type { CitationSource } from './detect';
+import { trademarkDetail, trademarkSearchView } from '@/lib/research/trademarks/contracts';
 
 type Owner = { officeId: string; userId: string };
 export type RecordedSource = Omit<CitationSource, 'id'> & { ref: string };
@@ -27,6 +28,14 @@ export async function conversationSources(owner: Owner, conversationId: string |
 export function sourcesFromTool(name: string, result: unknown): RecordedSource[] {
   if (!result || typeof result !== 'object') return [];
   const value = result as Record<string, unknown>;
+  if (name === 'k5_research_get_trademark' || name === 'k5_research_get_trademark_search' || name === 'k5_research_start_trademark_search' || name === 'k5_research_next_trademark_page') {
+    const detail = trademarkDetail.safeParse(value.trademark);
+    const search = trademarkSearchView.safeParse(value.search);
+    const items = detail.success ? [detail.data] : search.success ? search.data.results : [];
+    return items.map(item => ({ kind: 'web', ref: item.source.url, title: item.name || item.nativeId, url: item.source.url,
+      text: [item.name, item.owner, item.situation, `Nice: ${item.niceClasses.join(', ')}`, `Coletado: ${item.source.capturedAt}`,
+        ...(detail.success ? detail.data.fields.map(field => `${field.label}: ${field.value}`) : [])].filter(Boolean).join('\n') }));
+  }
   // Scored case law backs citations only when its link came back from a search.
   if (name === 'k5_research_score_jurisprudence' && Array.isArray(value.results)) {
     return (value.results as Array<Record<string, unknown>>).flatMap(item => typeof item.url === 'string' && item.linkFound === true ? [{

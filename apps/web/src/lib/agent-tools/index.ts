@@ -23,6 +23,7 @@ import * as agenda from '@/lib/application/agenda-service';
 import * as honorarios from '@/lib/honorarios/service';
 import * as honorarioCharges from '@/lib/honorarios/charges';
 import * as research from '@/lib/application/research-capability-service';
+import * as trademarks from '@/lib/research/trademarks/service';
 import * as annexes from '@/lib/application/annexes-service';
 import * as google from '@/lib/application/google-service';
 import { listThreads as listWhatsAppThreads, readThread as readWhatsAppThread } from '@/lib/whatsapp/history';
@@ -45,6 +46,12 @@ type Executor = (context: WorkspaceContext, input: never) => unknown;
 
 /** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_research_start_trademark_search: trademarks.startTrademarkSearch,
+  k5_research_get_trademark_search: trademarks.getTrademarkSearch,
+  k5_research_list_trademark_searches: trademarks.listTrademarkSearches,
+  k5_research_next_trademark_page: trademarks.nextTrademarkPage,
+  k5_research_get_trademark: trademarks.getTrademarkDetail,
+  k5_research_cancel_trademark_search: trademarks.cancelTrademarkSearch,
   k5_help_search: searchPlatformHelp,
   k5_agent_settings_get: getAgentSettings,
   k5_agent_settings_change: changeAgentSettings,

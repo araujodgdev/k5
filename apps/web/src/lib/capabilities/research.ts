@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { foundDecision, MAX_DECISIONS, reliabilityLevels } from '@/lib/research/jurisprudence-score-contract';
+import { trademarkSearchInput, trademarkSearchView, trademarkHistoryItem, trademarkDetail } from '@/lib/research/trademarks/contracts';
 
 const identifier = z.string().min(1).max(128);
 const readers = ['administrator', 'lawyer', 'reviewer'] as const;
@@ -56,6 +57,36 @@ const webSearchView = webSearchItem.extend({
 });
 
 export const researchCapabilities = {
+  k5_research_start_trademark_search: {
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    description: 'Inicia uma pesquisa de marcas na WIPO por nome ou logotipo previamente enviado. Brasil e todos os status são os padrões. Retorna uma consulta durável; acompanhe por get_trademark_search. A fonte pode bloquear a consulta. Ausência de resultados não comprova disponibilidade da marca.',
+    input: trademarkSearchInput, output: z.object({ search: trademarkSearchView }),
+  },
+  k5_research_get_trademark_search: {
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    description: 'Acompanha uma pesquisa WIPO da pessoa neste escritório e devolve resultados com fontes individuais. State completed cobre só as páginas solicitadas. Blocked, failed ou partial não significam ausência de marcas.',
+    input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
+  },
+  k5_research_list_trademark_searches: {
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    description: 'Lista o histórico privado de pesquisas de marcas da pessoa neste escritório.',
+    input: z.object({}), output: z.object({ searches: z.array(trademarkHistoryItem) }),
+  },
+  k5_research_next_trademark_page: {
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    description: 'Solicita outra página da pesquisa WIPO, ou tenta novamente a página que falhou. Mantém os resultados já encontrados.',
+    input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
+  },
+  k5_research_get_trademark: {
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    description: 'Lê os detalhes de uma marca encontrada, com campos da fonte, versão, horário de coleta e links WIPO/escritório de origem. Se pending, os detalhes são obtidos em segundo plano; consulte novamente antes de afirmar dados ainda ausentes.',
+    input: z.object({ resultId: z.uuid(), retry: z.boolean().default(false) }), output: z.object({ trademark: trademarkDetail }),
+  },
+  k5_research_cancel_trademark_search: {
+    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    description: 'Interrompe tarefas pendentes da própria pesquisa de marcas, preservando os resultados obtidos.',
+    input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
+  },
   k5_research_web_search: {
     module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
     description: 'Pesquisa na web pela Exa, no modo escolhido, e guarda a pesquisa no histórico da pessoa.',

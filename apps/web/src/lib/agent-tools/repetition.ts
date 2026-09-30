@@ -16,7 +16,7 @@ export class ToolReadGuard {
 
   before(name: string, input: unknown, effect: 'read' | 'write') {
     if (effect === 'write') { this.queried.clear(); return; }
-    if (/^k5_(runs_get|judicial_get_job|knowledge_get_index_status|artifacts_get_verification|research_get_search|research_get_assessment)$/.test(name)) return;
+    if (/^k5_(runs_get|judicial_get_job|knowledge_get_index_status|artifacts_get_verification|research_get_search|research_get_assessment|research_get_trademark_search|research_get_trademark)$/.test(name)) return;
     const signature = toolSignature(name, input);
     if (this.queried.has(signature)) {
       throw new CapabilityError('CONFLICT', 'Esta consulta já foi executada neste turno. Use o resultado anterior; não repita a chamada. Se faltam dados, altere um filtro relevante ou pergunte à pessoa.');

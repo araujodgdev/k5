@@ -57,6 +57,10 @@ test('repeated reads compare normalized input, refresh after writes and allow jo
   guard.before('k5_honorarios_list', { query: 'Maria', view: 'pending' }, 'read');
   guard.before('k5_runs_get', { runId: 'pending' }, 'read');
   guard.before('k5_runs_get', { runId: 'pending' }, 'read');
+  for (const name of ['k5_research_get_trademark_search', 'k5_research_get_trademark']) {
+    guard.before(name, { id: 'pending' }, 'read');
+    guard.before(name, { id: 'pending' }, 'read');
+  }
 });
 
 test('module selection exposes the requested authorized tools in the next real agent step', async () => {

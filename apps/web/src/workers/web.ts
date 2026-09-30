@@ -10,9 +10,12 @@ import { closePoolWithResponse } from '../lib/db/request';
 import { dueProcessors } from '../lib/processor-schedule';
 import { captureOperationalError, observeSchedule } from '../lib/observability/report';
 import { tutorialVideoResponse } from '../lib/tutorial-video-response';
+import { withTrademarkEnvironment } from '../lib/research/trademarks/environment';
+import { pendingTrademarkTasks } from '../lib/research/trademarks/worker';
 
 export { LumeProcessor, ContainerProxy } from './processors';
 export { LumeChatRun } from './chat-runs';
+export { LumeTrademarkRun } from './trademark-runs';
 
 type WebEnv = CloudflareEnv & {
   HYPERDRIVE: { connectionString: string };
@@ -24,9 +27,11 @@ export * from 'vinext/server/fetch-handler';
 export default withSentry<WebEnv>(env => serverOptions('web', env), {
   async scheduled(event: { scheduledTime: number }, env: WebEnv) {
     return observeSchedule('lume-processors-dispatch', async () => {
-    if (env.PROCESSORS_ENABLED !== 'true') return;
     const pool = createPostgresPool(env.HYPERDRIVE.connectionString, { max: 1, idleTimeoutMillis: 0 });
     try {
+      const searches = await withPostgres(pool, () => pendingTrademarkTasks());
+      await Promise.allSettled(searches.map(id => env.TRADEMARK_RUNS.getByName(id).start(id)));
+      if (env.PROCESSORS_ENABLED !== 'true') return;
       const due = await withPostgres(pool, () => dueProcessors(database, event.scheduledTime, Math.floor(event.scheduledTime / 60_000) % 5 === 0));
       const roles = (['documents', 'judicial'] as const).filter(role => due[role]);
       const results = await Promise.allSettled(roles.map(async role => {
@@ -40,11 +45,11 @@ export default withSentry<WebEnv>(env => serverOptions('web', env), {
   async fetch(request: Request, env: CloudflareEnv & WhatsAppEnvironment & PersonalChatEnvironment & { HYPERDRIVE: { connectionString:string } }, ctx: { waitUntil(promise:Promise<unknown>):void }) {
     if (new URL(request.url).pathname === '/tutorial/tutorial-lume.mp4') return tutorialVideoResponse(request, env.ASSETS);
     const pool = createPostgresPool(env.HYPERDRIVE.connectionString, { max:5, idleTimeoutMillis:0 });
-    return withPostgres(pool, () => withAdsEnvironment(env, () => withWhatsAppEnvironment(env, () => withPersonalChatEnvironment(env, async () => {
+    return withPostgres(pool, () => withTrademarkEnvironment(env, () => withAdsEnvironment(env, () => withWhatsAppEnvironment(env, () => withPersonalChatEnvironment(env, async () => {
       try {
         const response = await handler.fetch(request,env,ctx);
         return closePoolWithResponse(response,pool,promise=>ctx.waitUntil(promise));
       } catch (error) { await pool.end(); throw error; }
-    }))));
+    })))));
   },
 });
