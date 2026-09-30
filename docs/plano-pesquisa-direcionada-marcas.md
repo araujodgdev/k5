@@ -2,6 +2,8 @@
 
 Data: 30/09/2026. Este documento preserva o planejamento. A primeira implementação e suas escolhas finais estão em [Pesquisa de marcas](implementacao-pesquisa-marcas.md). A prova com o adaptador real em Browser Run remoto passou para nome, imagem, filtros, paginação e detalhes.
 
+Escopo atual: a interface oferece apenas Marcas e Jurisprudência. A modalidade Web prevista abaixo foi removida; `web_search` continua disponível ao agente.
+
 ## 1. Decisões confirmadas
 
 - Refatorar Pesquisa para oferecer modalidades com fontes e comportamento próprios.

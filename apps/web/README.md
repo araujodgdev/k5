@@ -147,9 +147,9 @@ guarda a resposta; fechar a página não interrompe mais o Lume. Ao reabrir a co
 reconecta ao turno em andamento por `/api/chat/[id]/stream`, e **Parar** chama `/api/chat/[id]/stop`.
 Em Node (`pnpm dev`) e no preview, sem o binding, o próprio processo mantém o turno.
 
-O módulo **Pesquisa** (`/app/research`) busca sempre na web pelo Exa, no tipo escolhido pela pessoa
-(instantânea, rápida, automática ou profunda), e exige `EXA_API_KEY`. Cada busca fica em
-`research_web_search`, visível só para quem a fez, e reabre pelo Histórico sem nova consulta.
+O módulo **Pesquisa** (`/app/research`) reúne Marcas e Jurisprudência, cada uma com seu histórico
+pessoal. A busca pública na web continua disponível ao agente pela ferramenta `web_search`.
+OpenAI e Anthropic usam a busca do provedor; modelos sem busca própria usam Exa com `EXA_API_KEY`.
 O microfone do composer grava, mostra o nível do áudio e, ao parar, envia a gravação para
 `/api/chat/transcribe`; a transcrição vira a mensagem da pessoa. A tarefa `transcription.voice_note`
 decide o modelo: sem atribuição, segue o provider do Agente (`gpt-4o-mini-transcribe` numa conexão

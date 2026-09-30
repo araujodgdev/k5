@@ -7,7 +7,6 @@ type WorkerOptions = {
   once: boolean;
   onError: (error: unknown) => void;
   sleep?: (ms: number) => Promise<void>;
-  reconcileSignatures?: Work;
 };
 
 export async function runWorkerQueues(options: WorkerOptions) {
@@ -35,6 +34,5 @@ export async function runWorkerQueues(options: WorkerOptions) {
       return processed || maintained;
     }),
     loop(options.verifyDocuments),
-    ...(options.reconcileSignatures ? [loop(options.reconcileSignatures)] : []),
   ]);
 }

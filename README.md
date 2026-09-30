@@ -94,7 +94,7 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/client` | Portal do cliente: documentos publicados, cobranças e envio de arquivos |
 | `/app/honorarios` | Honorários: parcelas, recebimentos e saldos do escritório |
 | `/app/notifications` | Abre o painel de notificações (sino no rodapé do menu) |
-| `/app/research` | Pesquisa na web pela Exa, com histórico pessoal |
+| `/app/research` | Pesquisa de Marcas e Jurisprudência, com histórico pessoal |
 | `/app/whatsapp` | Conversas do WhatsApp Business, para escritórios habilitados no piloto |
 | `/app/ads` | Anúncios BETA: conexão e validação da conta ChatGPT Ads, para usuários habilitados pelo Flagship |
 | `/app/messages` | Mensagens entre pessoas, associados e compartilhamentos do Cofre |
@@ -128,9 +128,8 @@ O [Portal do cliente](apps/web/docs/portal-cliente.md) usa convite e senha próp
 PDFs, arquivos e comprovantes e consultar cobranças explicitamente publicadas pelo advogado.
 O cliente não recebe acesso aos documentos internos do escritório.
 
-A [integração de assinatura ZapSign](apps/web/docs/assinaturas.md) envia PDFs publicados
-ao cliente e arquiva o PDF assinado após consulta ao provedor, acionada pelo webhook ou pelo botão Atualizar assinatura. O administrador configura
-a chave por escritório em Integrações. O portal também orienta a assinatura manual pelo gov.br.
+O portal também orienta a assinatura manual pelo gov.br, com devolução do PDF pelo cliente
+para conferência do advogado.
 
 A integração WhatsApp Business usa Zernio e liberação por escritório via Flagship.
 Ela oferece caixa compartilhada e ferramentas do agente com confirmação de envio.

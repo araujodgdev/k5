@@ -2,7 +2,7 @@
 
 # Pesquisa de marcas — primeira versão
 
-Pesquisa oferece Marcas Registradas, Web (Exa) e Jurisprudência. Os históricos anteriores continuam acessíveis. Links antigos com `?search=` abrem a pesquisa Web; os novos incluem `mode`.
+Pesquisa oferece Marcas e Jurisprudência, cada uma com seu histórico pessoal. Os links incluem `mode` e `search`. Links antigos da pesquisa Web abrem uma nova consulta de Marcas. A busca pública na web continua disponível ao agente pela ferramenta `web_search`.
 
 ## Consulta
 

@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { controlClass, Failure, Field } from '@/components/honorarios/fields';
 import { portalCall, portalMutation } from './client';
-import { SignatureManager } from '@/components/signatures/panel';
 
 const states = { invited: 'Convite aguardando aceite', active: 'Acesso ativo', expired: 'Convite expirado', revoked: 'Acesso revogado' };
 export function PortalManager({ clientId, initialEmail, canManage }: { clientId: string; initialEmail: string; canManage: boolean }) {
@@ -73,6 +72,5 @@ export function PortalManager({ clientId, initialEmail, canManage }: { clientId:
       </div>
     </div>}
     <Failure message={error} />{notice && <p role="status" className="mt-4 text-sm">{notice}</p>}
-    {data && <SignatureManager clientId={clientId} files={data.files} active={data.access?.state === 'active'} canManage={canManage} />}
   </section>;
 }

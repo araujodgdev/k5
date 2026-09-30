@@ -22,18 +22,17 @@ test('worker --once drains both queues even if one fails, without starting anoth
   assert.equal(calls, 1); assert.deepEqual(errors, [failure]);
 });
 
-test('signature reconciliation runs independently and shutdown waits for its in-flight work', async () => {
+test('document processing runs independently and shutdown waits for in-flight verification', async () => {
   let release!: () => void, entered!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; }), ready = new Promise<void>(resolve => { entered = resolve; });
-  let maintained = false, verified = false, finished = false;
+  let maintained = false, finished = false;
   const running = runWorkerQueues({
     processDocuments: async () => true,
-    verifyDocuments: async () => { verified = true; return true; },
+    verifyDocuments: async () => { entered(); await gate; return true; },
     maintain: async () => { maintained = true; return true; },
-    reconcileSignatures: async () => { entered(); await gate; return true; },
     stopping: () => false, once: true, onError: error => { throw error; },
   }).then(() => { finished = true; });
   await ready; await new Promise<void>(resolve => setImmediate(resolve));
-  assert.equal(maintained, true); assert.equal(verified, true); assert.equal(finished, false);
+  assert.equal(maintained, true); assert.equal(finished, false);
   release(); await running; assert.equal(finished, true);
 });

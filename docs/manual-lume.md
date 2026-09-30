@@ -102,13 +102,9 @@ Na cobrança de uma parcela própria, use **Publicar cobrança no portal** para 
 
 ## Assinaturas de documentos
 
-O administrador cadastra a chave e o ambiente da conta ZapSign em Integrações. No Portal do cliente, publique o PDF final e aguarde o aceite do convite. Em Assinaturas, selecione o PDF e escolha assinatura com código por e-mail ou certificado digital do cliente. O botão **Enviar PDF para assinatura** envia o documento e pede ao provedor o convite por e-mail ao cliente. A conta precisa ter acesso à API; custos e modalidades dependem do plano contratado.
+Para assinatura pelo gov.br, o cliente pode baixar o PDF, assinar no Assinador gov.br e devolver o arquivo pelo portal para conferência do advogado. Esse fluxo é manual e não confirma automaticamente a assinatura de um arquivo enviado.
 
-O cliente usa **Assinar na ZapSign** no portal. O administrador copia a **URL do webhook** em Integrações e a cadastra na ZapSign com Todos (documentos), sem condicionais, 5 tentativas e intervalo de 5 minutos. O Lume registra o evento e confirma o resultado pela API antes de guardar o PDF assinado e as evidências para download. O worker de documentos precisa estar ativo para a atualização automática; **Atualizar assinatura** mantém a consulta manual disponível. Um envio sem confirmação não é repetido automaticamente; o webhook pode recuperar seu vínculo após conferir o documento, ou o advogado pode vinculá-lo pelo ID externo mostrado. **Cancelar solicitação** interrompe a solicitação no provedor após confirmação na tela. Revogar o portal não cancela um link externo já entregue.
-
-O status registra o resultado informado pelo provedor. O Lume não emite certificados nem valida a cadeia ICP-Brasil de forma independente. Um hash SHA-256 verifica integridade e não equivale a assinatura. PDFs assinados podem ser conferidos no VALIDAR do ITI. A assinatura por e-mail não é qualificada ICP-Brasil.
-
-Para assinatura pelo gov.br, o cliente pode baixar o PDF, assinar no Assinador gov.br e devolver o arquivo pelo portal para conferência do advogado. Esse fluxo não integra a API gov.br, cuja liberação depende de elegibilidade e credenciais oficiais, nem confirma automaticamente a assinatura de um arquivo enviado.
+O Lume não emite certificados nem valida a cadeia ICP-Brasil de forma independente. Um hash SHA-256 verifica integridade e não equivale a assinatura. PDFs assinados podem ser conferidos no VALIDAR do ITI.
 
 ## Honorários e parcelas
 
@@ -140,7 +136,7 @@ Valores, vínculos e cronograma não são editados após o cadastro nesta versã
 
 ## Pesquisa jurídica e histórico
 
-Pesquisa fica em `/app/research`. A busca na web usa Exa e permite modos instantâneo, rápido, automático e profundo. A consulta fica no histórico pessoal e pode ser reaberta sem repetir a pesquisa. O assistente também consulta o histórico e pode iniciar pesquisas disponíveis para aquela pessoa.
+Pesquisa fica em `/app/research` e reúne Marcas e Jurisprudência. Cada modalidade tem seu histórico pessoal, que permite reabrir consultas. O assistente também consulta os históricos e pode iniciar pesquisas disponíveis para aquela pessoa. A busca pública na web continua disponível no chat do Lume.
 
 O acervo público reúne julgados e materiais oficiais admitidos. Materiais podem incluir ementa, inteiro teor, voto ou certidão. A existência de uma ementa não significa que o inteiro teor esteja disponível. Algumas obtenções rodam em segundo plano e dependem de fonte habilitada. É possível acompanhar o progresso e cancelar downloads pendentes sem apagar material já coletado.
 
