@@ -1,0 +1,7088 @@
+{
+  "source": "https://manualdemarcas.inpi.gov.br/attachments/download/2175/viena.pdf",
+  "edition": 4,
+  "copyright": "Classificação de Viena, OMPI/WIPO; tradução publicada pelo INPI.",
+  "sha256": "f0257a5037d55fc09bfe04373b078c8340408096ed1450f47f6c43ea928fbc43",
+  "terms": [
+    {
+      "code": "1.1",
+      "description": "ESTRELAS, COMETAS"
+    },
+    {
+      "code": "1.3",
+      "description": "SOL"
+    },
+    {
+      "code": "1.5",
+      "description": "TERRA, GLOBOS TERRESTRES, PLANETAS"
+    },
+    {
+      "code": "1.7",
+      "description": "LUA"
+    },
+    {
+      "code": "1.11",
+      "description": "CONSTELAÇÕES, GRUPOS DE ASTROS, CÉU ESTRELADO, GLOBOS CELESTES, MAPAS CELESTES"
+    },
+    {
+      "code": "1.13",
+      "description": "ESFERAS ARMILARES, PLANETÁRIOS, ÓRBITAS ASTRONÔMICAS, MODELOS ATÔMICOS, MODELOS MOLECULARES"
+    },
+    {
+      "code": "1.15",
+      "description": "FENÔMENOS NATURAIS"
+    },
+    {
+      "code": "1.17",
+      "description": "MAPAS GEOGRÁFICOS, PLANISFÉRIOS"
+    },
+    {
+      "code": "1.1.1",
+      "description": "Estrelas"
+    },
+    {
+      "code": "1.1.15",
+      "description": "Cometas, estrelas com cauda"
+    },
+    {
+      "code": "1.1.17",
+      "description": "Rosas dos ventos"
+    },
+    {
+      "code": "1.1.2",
+      "description": "Uma estrela"
+    },
+    {
+      "code": "1.1.3",
+      "description": "Duas estrelas"
+    },
+    {
+      "code": "1.1.4",
+      "description": "Três estrelas"
+    },
+    {
+      "code": "1.1.5",
+      "description": "Mais de três estrelas"
+    },
+    {
+      "code": "1.1.8",
+      "description": "Estrelas de três pontas"
+    },
+    {
+      "code": "1.1.9",
+      "description": "Estrelas de quatro pontas"
+    },
+    {
+      "code": "1.1.10",
+      "description": "Estrelas com mais de quatro pontas"
+    },
+    {
+      "code": "1.1.12",
+      "description": "Estrelas com pontas irregulares"
+    },
+    {
+      "code": "1.1.13",
+      "description": "Estrelas com raios ou linhas que se irradiam"
+    },
+    {
+      "code": "1.1.20",
+      "description": "Estrelas representando um rosto humano ou uma cabeça de animal"
+    },
+    {
+      "code": "1.1.25",
+      "description": "Outras representações de estrelas, não classificadas na divisão 1.11"
+    },
+    {
+      "code": "1.3.1",
+      "description": "Sol nascente ou poente"
+    },
+    {
+      "code": "1.3.2",
+      "description": "Outras representações do sol"
+    },
+    {
+      "code": "1.3.19",
+      "description": "Diversos sóis"
+    },
+    {
+      "code": "1.3.6",
+      "description": "Sol com paisagens"
+    },
+    {
+      "code": "1.3.7",
+      "description": "Sol com seres humanos ou partes do corpo humano"
+    },
+    {
+      "code": "1.3.8",
+      "description": "Sol com animais"
+    },
+    {
+      "code": "1.3.9",
+      "description": "Sol com plantas"
+    },
+    {
+      "code": "1.3.10",
+      "description": "Sol com nuvens, chuva, gotas d'água ou representações de outros fenômenos naturais"
+    },
+    {
+      "code": "1.3.11",
+      "description": "Sol com artigos manufaturados ou produtos industrializados"
+    },
+    {
+      "code": "1.3.12",
+      "description": "Sol com outros elementos figurativos"
+    },
+    {
+      "code": "1.3.13",
+      "description": "Sol com inscrições"
+    },
+    {
+      "code": "1.3.15",
+      "description": "Sol com raios constituídos por linhas retilíneas, feixes de linhas ou faixas"
+    },
+    {
+      "code": "1.3.16",
+      "description": "Sol com raios constituídos por chamas ou linhas onduladas, feixes de linhas ou faixas onduladas."
+    },
+    {
+      "code": "1.3.17",
+      "description": "Sol com raios constituídos por triângulos"
+    },
+    {
+      "code": "1.3.18",
+      "description": "Sol com raios irregulares (coroa)"
+    },
+    {
+      "code": "1.3.20",
+      "description": "Sol representando um rosto humano ou uma cabeça de animal"
+    },
+    {
+      "code": "1.5.1",
+      "description": "Globos terrestres"
+    },
+    {
+      "code": "1.5.15",
+      "description": "Partes de globos terrestres"
+    },
+    {
+      "code": "1.5.24",
+      "description": "Saturno"
+    },
+    {
+      "code": "1.5.25",
+      "description": "Outros planetas"
+    },
+    {
+      "code": "1.5.2",
+      "description": "Globos terrestres unicamente com a representação dos meridianos e dos paralelos"
+    },
+    {
+      "code": "1.5.3",
+      "description": "Globos terrestres achatados"
+    },
+    {
+      "code": "1.5.4",
+      "description": "Dois globos terrestres, mapas-múndi"
+    },
+    {
+      "code": "1.5.5",
+      "description": "Globos terrestres de pé"
+    },
+    {
+      "code": "1.5.6",
+      "description": "Globos terrestres com flâmula ou inscrição"
+    },
+    {
+      "code": "1.5.7",
+      "description": "Globos terrestres com seres humanos ou partes do corpo humano"
+    },
+    {
+      "code": "1.5.8",
+      "description": "Globos terrestres com animais"
+    },
+    {
+      "code": "1.5.9",
+      "description": "Globos terrestres com plantas"
+    },
+    {
+      "code": "1.5.10",
+      "description": "Globos terrestres com nuvens, chuva, gotas d'água ou representação de outros fenômenos naturais"
+    },
+    {
+      "code": "1.5.11",
+      "description": "Globos terrestres com artigos manufaturados ou produtos industrializados"
+    },
+    {
+      "code": "1.5.12",
+      "description": "Globos terrestres com outros elementos figurativos"
+    },
+    {
+      "code": "1.5.23",
+      "description": "Outras representações da Terra ou do globo terrestre"
+    },
+    {
+      "code": "1.7.1",
+      "description": "Lua cheia, diversas luas"
+    },
+    {
+      "code": "1.7.6",
+      "description": "Lua crescente, meia-lua"
+    },
+    {
+      "code": "1.7.19",
+      "description": "Crescentes diversos ou meias-luas"
+    },
+    {
+      "code": "1.7.22",
+      "description": "Globo lunar"
+    },
+    {
+      "code": "1.7.3",
+      "description": "Lua cheia representando um rosto humano ou uma cabeça de animal"
+    },
+    {
+      "code": "1.7.7",
+      "description": "Lua crescente ou meia-lua com seres humanos ou partes do corpo humano"
+    },
+    {
+      "code": "1.7.8",
+      "description": "Lua crescente ou meia-lua com animais"
+    },
+    {
+      "code": "1.7.10",
+      "description": "Lua crescente ou meia-lua com nuvens, chuva, gotas d'água ou representação de outros fenômenos naturais"
+    },
+    {
+      "code": "1.7.11",
+      "description": "Lua crescente ou meia-lua com artigos manufaturados ou produtos industrializados"
+    },
+    {
+      "code": "1.7.12",
+      "description": "Lua crescente ou meia-lua com outros elementos figurativos"
+    },
+    {
+      "code": "1.7.20",
+      "description": "Lua crescente ou meia-lua representando um rosto humano ou uma cabeça de animal"
+    },
+    {
+      "code": "1.11.1",
+      "description": "Constelações, galáxias"
+    },
+    {
+      "code": "1.11.12",
+      "description": "Céu estrelado"
+    },
+    {
+      "code": "1.11.15",
+      "description": "Globos celestes, mapas celestes"
+    },
+    {
+      "code": "1.11.2",
+      "description": "Órion"
+    },
+    {
+      "code": "1.11.3",
+      "description": "Cruzeiro do Sul"
+    },
+    {
+      "code": "1.11.4",
+      "description": "Ursa Maior, Ursa Menor"
+    },
+    {
+      "code": "1.11.8",
+      "description": "Estrelas agrupadas em círculos, em ovais ou em outra figura geométrica"
+    },
+    {
+      "code": "1.11.9",
+      "description": "Via Láctea, galáxias"
+    },
+    {
+      "code": "1.11.10",
+      "description": "Outras constelações ou grupos de astros (exceto A 1.11.8)"
+    },
+    {
+      "code": "1.13.1",
+      "description": "Esferas armilares, planetários, órbitas astronômicas, modelos atômicos, modelos moleculares"
+    },
+    {
+      "code": "1.13.2",
+      "description": "Esferas armilares, planetários"
+    },
+    {
+      "code": "1.13.5",
+      "description": "Órbitas astronômicas"
+    },
+    {
+      "code": "1.13.10",
+      "description": "Órbitas atômicas"
+    },
+    {
+      "code": "1.13.15",
+      "description": "Modelos atômicos, modelos moleculares, representações de células humanas, animais ou vegetais"
+    },
+    {
+      "code": "1.15.1",
+      "description": "Arco-íris"
+    },
+    {
+      "code": "1.15.3",
+      "description": "Relâmpagos"
+    },
+    {
+      "code": "1.15.5",
+      "description": "Chamas"
+    },
+    {
+      "code": "1.15.7",
+      "description": "Faíscas, explosões, fogos de artifício"
+    },
+    {
+      "code": "1.15.9",
+      "description": "Fontes luminosas, raios, feixes de luz"
+    },
+    {
+      "code": "1.15.11",
+      "description": "Nuvens, nevoeiro, vapor, fumaça"
+    },
+    {
+      "code": "1.15.13",
+      "description": "Chuva, granizo"
+    },
+    {
+      "code": "1.15.14",
+      "description": "Poças d'água"
+    },
+    {
+      "code": "1.15.15",
+      "description": "Gotas"
+    },
+    {
+      "code": "1.15.17",
+      "description": "Neve, flocos ou cristais de neve"
+    },
+    {
+      "code": "1.15.19",
+      "description": "Pedras de gelo, estalactites, estalagmites, cristais minerais"
+    },
+    {
+      "code": "1.15.21",
+      "description": "Bolhas, massas espumantes"
+    },
+    {
+      "code": "1.15.23",
+      "description": "Rodamoinhos, movimentos rotativos."
+    },
+    {
+      "code": "1.15.24",
+      "description": "Ondas"
+    },
+    {
+      "code": "26.11.3",
+      "description": "Mais de duas linhas ou de duas faixas"
+    },
+    {
+      "code": "1.15.25",
+      "description": "Outros fenômenos naturais, não classificados em outras divisões ou categorias"
+    },
+    {
+      "code": "1.17.1",
+      "description": "Planisférios"
+    },
+    {
+      "code": "1.17.2",
+      "description": "Continentes"
+    },
+    {
+      "code": "1.17.7",
+      "description": "Grupos de países"
+    },
+    {
+      "code": "1.17.11",
+      "description": "Países isolados"
+    },
+    {
+      "code": "1.17.12",
+      "description": "Ilhas, arquipélagos"
+    },
+    {
+      "code": "1.17.13",
+      "description": "Partes de um país"
+    },
+    {
+      "code": "1.17.14",
+      "description": "Planos urbanos"
+    },
+    {
+      "code": "1.17.15",
+      "description": "Mapas polares"
+    },
+    {
+      "code": "1.17.25",
+      "description": "Outros mapas geográficos"
+    },
+    {
+      "code": "1.17.3",
+      "description": "Europa, Ásia, Eurásia"
+    },
+    {
+      "code": "1.17.4",
+      "description": "América"
+    },
+    {
+      "code": "1.17.5",
+      "description": "África"
+    },
+    {
+      "code": "1.17.6",
+      "description": "Austrália, Oceania"
+    },
+    {
+      "code": "1.17.16",
+      "description": "Mapas físicos"
+    },
+    {
+      "code": "1.17.17",
+      "description": "Mapas políticos"
+    },
+    {
+      "code": "1.17.18",
+      "description": "Mapas econômicos"
+    },
+    {
+      "code": "1.17.19",
+      "description": "Mapas turísticos"
+    },
+    {
+      "code": "2.1",
+      "description": "HOMENS"
+    },
+    {
+      "code": "2.3",
+      "description": "MULHERES"
+    },
+    {
+      "code": "2.5",
+      "description": "CRIANÇAS"
+    },
+    {
+      "code": "2.7",
+      "description": "GRUPOS MISTOS, CENAS"
+    },
+    {
+      "code": "2.9",
+      "description": "PARTES DO CORPO HUMANO, ESQUELETOS, CRÂNIOS"
+    },
+    {
+      "code": "2.1.1",
+      "description": "Cabeças, bustos"
+    },
+    {
+      "code": "2.1.2",
+      "description": "Homens armados ou usando armadura ou uniforme"
+    },
+    {
+      "code": "2.1.3",
+      "description": "Religiosos, homens usando beca ou toga"
+    },
+    {
+      "code": "2.1.4",
+      "description": "Homens em traje folclórico ou histórico, vaqueiros"
+    },
+    {
+      "code": "2.1.5",
+      "description": "Homens usando smoking ou terno"
+    },
+    {
+      "code": "2.1.7",
+      "description": "Arlequins, palhaços, pierrôs, personagens carnavalescas ou grotescas, anões, mágicos"
+    },
+    {
+      "code": "2.1.8",
+      "description": "Acróbatas, atletas, dançarinos, malabaristas, homens nus, homens praticando esporte (exceto 2.1.2, 2.1.12, 2.1.14, 2.1.20 e 2.1.21)"
+    },
+    {
+      "code": "2.1.9",
+      "description": "Músicos, homens com instrumentos musicais, maestros"
+    },
+    {
+      "code": "2.1.11",
+      "description": "Açougueiros, cozinheiros, garçons, doceiros"
+    },
+    {
+      "code": "2.1.12",
+      "description": "Marinheiros, grumetes, pescadores"
+    },
+    {
+      "code": "2.1.13",
+      "description": "Camponeses, agricultores"
+    },
+    {
+      "code": "2.1.14",
+      "description": "Mergulhadores, homens-rã"
+    },
+    {
+      "code": "2.1.15",
+      "description": "Outros profissionais (homens)"
+    },
+    {
+      "code": "2.1.20",
+      "description": "Homens montados ou acompanhados de cavalo, mula, ou asno"
+    },
+    {
+      "code": "2.1.21",
+      "description": "Homens montados ou acompanhados de animais (exceto 2.1.20)"
+    },
+    {
+      "code": "2.1.22",
+      "description": "Personagens masculinas alegóricas ou mitológicas"
+    },
+    {
+      "code": "2.1.25",
+      "description": "Outros homens"
+    },
+    {
+      "code": "2.1.16",
+      "description": "Sombras ou silhuetas de homem"
+    },
+    {
+      "code": "2.1.17",
+      "description": "Homens sentados, ajoelhados ou deitados"
+    },
+    {
+      "code": "2.1.18",
+      "description": "Homens bebendo ou comendo"
+    },
+    {
+      "code": "2.1.19",
+      "description": "Homens fumando"
+    },
+    {
+      "code": "2.1.23",
+      "description": "Homens estilizados"
+    },
+    {
+      "code": "2.1.24",
+      "description": "Diversos homens"
+    },
+    {
+      "code": "2.3.1",
+      "description": "Cabeças, bustos"
+    },
+    {
+      "code": "2.3.3",
+      "description": "Religiosas, enfermeiras"
+    },
+    {
+      "code": "2.3.4",
+      "description": "Mulheres em traje folclórico ou histórico"
+    },
+    {
+      "code": "2.3.5",
+      "description": "Mulheres nuas ou com roupas de baixo, roupa de banho ou outro traje leve"
+    },
+    {
+      "code": "2.3.7",
+      "description": "Mulheres de vestido longo"
+    },
+    {
+      "code": "2.3.8",
+      "description": "Mulheres praticando esporte, bailarinas, balizas"
+    },
+    {
+      "code": "2.3.9",
+      "description": "Mulheres usando quimono, sári, túnica"
+    },
+    {
+      "code": "2.3.10",
+      "description": "Mulheres usando calça comprida"
+    },
+    {
+      "code": "2.3.11",
+      "description": "Mulheres cozinhando ou fazendo trabalhos domésticos, garçonetes"
+    },
+    {
+      "code": "2.3.12",
+      "description": "Mulheres fazendo trabalho agrícola"
+    },
+    {
+      "code": "2.3.13",
+      "description": "Mulheres costurando, fiando ou tricotando"
+    },
+    {
+      "code": "2.3.14",
+      "description": "Mulheres com máquinas de escrever ou ocupadas com outras atividades de escritório"
+    },
+    {
+      "code": "2.3.15",
+      "description": "Outras profissionais (mulheres)"
+    },
+    {
+      "code": "2.3.20",
+      "description": "Mulheres montadas ou acompanhadas de cavalo, mula ou asno"
+    },
+    {
+      "code": "2.3.21",
+      "description": "Mulheres montadas ou acompanhadas de animais (exceto 2.3.20)"
+    },
+    {
+      "code": "2.3.22",
+      "description": "Personagens femininas alegóricas ou mitológicas"
+    },
+    {
+      "code": "2.3.25",
+      "description": "Outras mulheres"
+    },
+    {
+      "code": "2.3.2",
+      "description": "Cabeças em silhueta, sem os detalhes do rosto"
+    },
+    {
+      "code": "2.3.6",
+      "description": "Mulheres fazendo a toalete, mulheres se maquiando"
+    },
+    {
+      "code": "2.3.16",
+      "description": "Mulheres de perfil, silhuetas de mulher"
+    },
+    {
+      "code": "2.3.17",
+      "description": "Mulheres sentadas, ajoelhadas ou deitadas"
+    },
+    {
+      "code": "2.3.18",
+      "description": "Mulheres bebendo ou comendo"
+    },
+    {
+      "code": "2.3.19",
+      "description": "Mulheres fumando"
+    },
+    {
+      "code": "2.3.23",
+      "description": "Mulheres estilizadas"
+    },
+    {
+      "code": "2.3.24",
+      "description": "Diversas mulheres"
+    },
+    {
+      "code": "2.5.1",
+      "description": "Cabeças, bustos"
+    },
+    {
+      "code": "2.5.2",
+      "description": "Meninos"
+    },
+    {
+      "code": "2.5.3",
+      "description": "Meninas"
+    },
+    {
+      "code": "2.5.4",
+      "description": "Crianças em traje folclórico, histórico ou de vaqueiro"
+    },
+    {
+      "code": "2.5.5",
+      "description": "Crianças com roupa de trabalho ou de uniforme"
+    },
+    {
+      "code": "2.5.6",
+      "description": "Bebês"
+    },
+    {
+      "code": "2.5.8",
+      "description": "Crianças praticando esporte ou brincando"
+    },
+    {
+      "code": "2.5.21",
+      "description": "Crianças com animais"
+    },
+    {
+      "code": "2.5.25",
+      "description": "Outras crianças"
+    },
+    {
+      "code": "2.5.17",
+      "description": "Crianças sentadas, de joelhos ou de quatro"
+    },
+    {
+      "code": "2.5.18",
+      "description": "Crianças bebendo ou comendo"
+    },
+    {
+      "code": "2.5.19",
+      "description": "Crianças chorando"
+    },
+    {
+      "code": "2.5.22",
+      "description": "Casais de crianças de sexos diferentes"
+    },
+    {
+      "code": "2.5.23",
+      "description": "Crianças estilizadas"
+    },
+    {
+      "code": "2.5.24",
+      "description": "Diversas crianças"
+    },
+    {
+      "code": "2.7.1",
+      "description": "Cabeças ou bustos de homem e mulher (casal)"
+    },
+    {
+      "code": "2.7.2",
+      "description": "Homem e mulher (casal)"
+    },
+    {
+      "code": "2.7.4",
+      "description": "Homem e mulher (casal) em traje folclórico ou histórico"
+    },
+    {
+      "code": "2.7.9",
+      "description": "Mulher(es) e bebê(s)"
+    },
+    {
+      "code": "2.7.10",
+      "description": "Mulher(es) e criança(s)"
+    },
+    {
+      "code": "2.7.11",
+      "description": "Homem (s) e criança(s)"
+    },
+    {
+      "code": "2.7.12",
+      "description": "Um homem e uma mulher com criança(s) (família)"
+    },
+    {
+      "code": "2.7.13",
+      "description": "Cenas esportivas de grupo"
+    },
+    {
+      "code": "2.7.14",
+      "description": "Grupos de trabalhadores no campo ou na floresta"
+    },
+    {
+      "code": "2.7.15",
+      "description": "Outros grupos trabalhando"
+    },
+    {
+      "code": "2.7.16",
+      "description": "Cenas de teatro, variedade, concerto ou dança"
+    },
+    {
+      "code": "2.7.17",
+      "description": "Espetáculos ambulantes, quermesses, feiras, cenas de rua, grupos com veículo(s)"
+    },
+    {
+      "code": "2.7.18",
+      "description": "Grupos comendo ou bebendo"
+    },
+    {
+      "code": "2.7.19",
+      "description": "Cenas internas, grupos reunidos em torno de uma mesa"
+    },
+    {
+      "code": "2.7.20",
+      "description": "Cenas de batalha, tropas militares"
+    },
+    {
+      "code": "2.7.21",
+      "description": "Grupos com animais (exceto 2.7.13, 2.7.14, 2.7.17 e 2.7.20)"
+    },
+    {
+      "code": "2.7.23",
+      "description": "Grupos estilizados"
+    },
+    {
+      "code": "2.7.25",
+      "description": "Outros grupos ou cenas"
+    },
+    {
+      "code": "2.7.5",
+      "description": "Homem e mulher (casal) nus ou com roupas de baixo, ou com outra roupa leve"
+    },
+    {
+      "code": "2.9.1",
+      "description": "Corações"
+    },
+    {
+      "code": "2.9.4",
+      "description": "Olhos"
+    },
+    {
+      "code": "2.9.6",
+      "description": "Orelhas"
+    },
+    {
+      "code": "2.9.7",
+      "description": "Narizes"
+    },
+    {
+      "code": "2.9.8",
+      "description": "Lábios, bocas"
+    },
+    {
+      "code": "2.9.10",
+      "description": "Dentes, dentaduras"
+    },
+    {
+      "code": "2.9.12",
+      "description": "Cabelos, mechas de cabelo, perucas, barbas, bigodes"
+    },
+    {
+      "code": "2.9.14",
+      "description": "Mãos, mãos em taça, dedos, marcas de mãos ou marcas de dedos, braços"
+    },
+    {
+      "code": "2.9.19",
+      "description": "Pés, artelhos, marcas de pés ou de artelhos, pernas"
+    },
+    {
+      "code": "2.9.21",
+      "description": "Corpos ou manequins sem cabeça nem pés"
+    },
+    {
+      "code": "2.9.22",
+      "description": "Esqueletos, partes do esqueleto, ossos (exceto 2.9.23)"
+    },
+    {
+      "code": "2.9.23",
+      "description": "Crânios"
+    },
+    {
+      "code": "2.9.25",
+      "description": "Outras partes do corpo humano"
+    },
+    {
+      "code": "2.9.15",
+      "description": "Mãos abertas (palma ou dorso)"
+    },
+    {
+      "code": "2.9.16",
+      "description": "Pulsos"
+    },
+    {
+      "code": "2.9.17",
+      "description": "Marcas de mãos ou de dedos"
+    },
+    {
+      "code": "3.1",
+      "description": "QUADRÚPEDES (SÉRIE I)"
+    },
+    {
+      "code": "3.2",
+      "description": "QUADRÚPEDES (SÉRIE II)"
+    },
+    {
+      "code": "3.3",
+      "description": "QUADRÚPEDES (SÉRIE III)"
+    },
+    {
+      "code": "3.4",
+      "description": "QUADRÚPEDES (SÉRIE IV)"
+    },
+    {
+      "code": "3.5",
+      "description": "QUADRÚPEDES (SÉRIE V), QUADRÚMANOS"
+    },
+    {
+      "code": "3.6",
+      "description": "PARTES DE CORPOS, ESQUELETOS, CRÂNIOS DE QUADRÚPEDES OU DE QUADRÚMANOS"
+    },
+    {
+      "code": "3.7",
+      "description": "PÁSSAROS, MORCEGOS"
+    },
+    {
+      "code": "3.9",
+      "description": "ANIMAIS AQUÁTICOS, ESCORPIÕES"
+    },
+    {
+      "code": "3.11",
+      "description": "RÉPTEIS, ANFÍBIOS, CARACÓIS, FOCAS, LEÕES MARINHOS"
+    },
+    {
+      "code": "3.13",
+      "description": "INSETOS, ARANHAS, MICROORGANISMOS"
+    },
+    {
+      "code": "3.15",
+      "description": "OUTROS ANIMAIS; GRANDES  ANIMAIS PRÉ-HISTÓRICOS"
+    },
+    {
+      "code": "3.17",
+      "description": "GRUPOS DE ANIMAIS CLASSIFICADOS EM DIVISÕES DIFERENTES DA CATEGORIA 3"
+    },
+    {
+      "code": "3.1.1",
+      "description": "Leões"
+    },
+    {
+      "code": "3.1.4",
+      "description": "Tigres ou outros grandes felinos"
+    },
+    {
+      "code": "3.1.6",
+      "description": "Gatos ou outros pequenos felinos"
+    },
+    {
+      "code": "3.1.8",
+      "description": "Cães, lobos, raposas"
+    },
+    {
+      "code": "3.1.14",
+      "description": "Ursos"
+    },
+    {
+      "code": "3.1.15",
+      "description": "Pandas"
+    },
+    {
+      "code": "3.1.16",
+      "description": "Cabeças de animais da série I"
+    },
+    {
+      "code": "3.1.2",
+      "description": "Leões heráldicos"
+    },
+    {
+      "code": "3.1.9",
+      "description": "Boxers, buldogues"
+    },
+    {
+      "code": "3.1.10",
+      "description": "São Bernardo"
+    },
+    {
+      "code": "3.1.11",
+      "description": "Poodles"
+    },
+    {
+      "code": "3.1.17",
+      "description": "Animais da série I em pé"
+    },
+    {
+      "code": "3.1.18",
+      "description": "Animais da série I deitados"
+    },
+    {
+      "code": "3.1.19",
+      "description": "Animais da série I sentados"
+    },
+    {
+      "code": "3.1.20",
+      "description": "Animais da série I empinados"
+    },
+    {
+      "code": "3.1.21",
+      "description": "Animais da série I saltando"
+    },
+    {
+      "code": "3.1.22",
+      "description": "Animais da série I com a(s) pata(s) dianteira(s) apoiada(s) em um escudo ou em outro objeto"
+    },
+    {
+      "code": "3.1.23",
+      "description": "Animais da série I encarando-se"
+    },
+    {
+      "code": "3.1.24",
+      "description": "Animais da série I estilizados"
+    },
+    {
+      "code": "3.1.25",
+      "description": "Animais da série I vestidos"
+    },
+    {
+      "code": "3.2.1",
+      "description": "Elefantes, mamutes"
+    },
+    {
+      "code": "3.2.7",
+      "description": "Hipopótamos, rinocerontes"
+    },
+    {
+      "code": "3.2.9",
+      "description": "Girafas"
+    },
+    {
+      "code": "3.2.11",
+      "description": "Ocapis"
+    },
+    {
+      "code": "3.2.13",
+      "description": "Camelos, dromedários, lhamas"
+    },
+    {
+      "code": "3.2.15",
+      "description": "Cabeças de animais da série II"
+    },
+    {
+      "code": "3.2.3",
+      "description": "Elefantes ou mamutes de frente"
+    },
+    {
+      "code": "3.2.4",
+      "description": "Dois elefantes encarando-se"
+    },
+    {
+      "code": "3.2.24",
+      "description": "Animais da série II estilizados"
+    },
+    {
+      "code": "3.2.25",
+      "description": "Animais da série II vestidos"
+    },
+    {
+      "code": "3.3.1",
+      "description": "Cavalos, mulas"
+    },
+    {
+      "code": "3.3.2",
+      "description": "Asnos"
+    },
+    {
+      "code": "3.3.3",
+      "description": "Zebras"
+    },
+    {
+      "code": "3.3.15",
+      "description": "Cabeças de animais da série III"
+    },
+    {
+      "code": "3.3.17",
+      "description": "Animais da série III empinados, saltando"
+    },
+    {
+      "code": "3.3.24",
+      "description": "Animais da série III estilizados"
+    },
+    {
+      "code": "3.3.25",
+      "description": "Animais da série III vestidos"
+    },
+    {
+      "code": "3.4.1",
+      "description": "Bovinos"
+    },
+    {
+      "code": "3.4.7",
+      "description": "Cabritos monteses, cervos, alces, renas, filhotes de cervo, antílopes"
+    },
+    {
+      "code": "3.4.11",
+      "description": "Cabras, carneiros"
+    },
+    {
+      "code": "3.4.12",
+      "description": "Cabeças de animais da série IV, sem chifres (exceto 3.4.20)"
+    },
+    {
+      "code": "3.4.13",
+      "description": "Cabeças de animais da série IV, com chifres"
+    },
+    {
+      "code": "3.4.18",
+      "description": "Porcos, javalis"
+    },
+    {
+      "code": "3.4.20",
+      "description": "Cabeças de porcos ou de javalis"
+    },
+    {
+      "code": "3.4.2",
+      "description": "Vacas, bezerros"
+    },
+    {
+      "code": "3.4.4",
+      "description": "Bisões, touros"
+    },
+    {
+      "code": "3.4.5",
+      "description": "Outros bovinos"
+    },
+    {
+      "code": "3.4.14",
+      "description": "Cabeças de cervos"
+    },
+    {
+      "code": "3.4.15",
+      "description": "Cabeças de cervos com cruz entre os chifres"
+    },
+    {
+      "code": "3.4.16",
+      "description": "Cabeça de alce"
+    },
+    {
+      "code": "3.4.22",
+      "description": "Animais da série IV saltando, galopando"
+    },
+    {
+      "code": "3.4.23",
+      "description": "Animais da série IV atacando"
+    },
+    {
+      "code": "3.4.24",
+      "description": "Animais da série IV estilizados"
+    },
+    {
+      "code": "3.4.25",
+      "description": "Animais da série IV vestidos"
+    },
+    {
+      "code": "3.5.1",
+      "description": "Coelhos, lebres"
+    },
+    {
+      "code": "3.5.3",
+      "description": "Esquilos"
+    },
+    {
+      "code": "3.5.5",
+      "description": "Castores, marmotas, texugos, martas, visom"
+    },
+    {
+      "code": "3.5.7",
+      "description": "Ratos, camundongos, toupeiras"
+    },
+    {
+      "code": "3.5.9",
+      "description": "Ouriços, porcos-espinhos"
+    },
+    {
+      "code": "3.5.11",
+      "description": "Pangolins, tamanduás"
+    },
+    {
+      "code": "3.5.15",
+      "description": "Cangurus, coalas"
+    },
+    {
+      "code": "3.5.17",
+      "description": "Outros quadrúpedes das séries I a V"
+    },
+    {
+      "code": "3.5.19",
+      "description": "Macacos, orangotangos e outros quadrúmanos"
+    },
+    {
+      "code": "3.5.20",
+      "description": "Cabeças de animais da série V"
+    },
+    {
+      "code": "3.5.24",
+      "description": "Animais da série V estilizados"
+    },
+    {
+      "code": "3.5.25",
+      "description": "Animais da série V vestidos"
+    },
+    {
+      "code": "3.6.1",
+      "description": "Partes do corpo de quadrúpedes ou de quadrúmanos, esqueletos, crânios"
+    },
+    {
+      "code": "3.6.3",
+      "description": "Patas, pés, marcas de patas ou de pés"
+    },
+    {
+      "code": "3.6.5",
+      "description": "Esqueletos, crânios de quadrúpedes ou de quadrúmanos"
+    },
+    {
+      "code": "3.6.11",
+      "description": "Couros, peles"
+    },
+    {
+      "code": "3.6.25",
+      "description": "Outras partes do corpo de quadrúpedes ou de quadrúmanos"
+    },
+    {
+      "code": "3.7.1",
+      "description": "Águias, falcões, abutres, condores"
+    },
+    {
+      "code": "3.7.3",
+      "description": "Galos, galinhas, pintos"
+    },
+    {
+      "code": "3.7.4",
+      "description": "Perus, faisões, pavões, poupas"
+    },
+    {
+      "code": "3.7.5",
+      "description": "Corujas"
+    },
+    {
+      "code": "3.7.6",
+      "description": "Patos, gansos, cisnes"
+    },
+    {
+      "code": "3.7.7",
+      "description": "Cegonhas, garças reais, grous, flamingos ou outros pernaltas"
+    },
+    {
+      "code": "3.7.8",
+      "description": "Pingüins"
+    },
+    {
+      "code": "3.7.9",
+      "description": "Albatrozes, corvos-marinhos, gaivotas, pelicanos"
+    },
+    {
+      "code": "3.7.10",
+      "description": "Andorinhas"
+    },
+    {
+      "code": "3.7.11",
+      "description": "Pombas selvagens, pombos, rolas"
+    },
+    {
+      "code": "3.7.12",
+      "description": "Gralhas, corvos, pegas"
+    },
+    {
+      "code": "3.7.13",
+      "description": "Pardais ou outros pássaros"
+    },
+    {
+      "code": "3.7.14",
+      "description": "Avestruzes"
+    },
+    {
+      "code": "3.7.15",
+      "description": "Papagaios, periquitos, tucanos"
+    },
+    {
+      "code": "3.7.16",
+      "description": "Pássaros voando ou com as asas amplamente abertas"
+    },
+    {
+      "code": "3.7.17",
+      "description": "Asas, estilizadas ou não"
+    },
+    {
+      "code": "3.7.19",
+      "description": "Partes de pássaros, penas, marcas de patas, esqueletos de pássaros"
+    },
+    {
+      "code": "3.7.20",
+      "description": "Ninhos, gaiolas de pássaros"
+    },
+    {
+      "code": "8.7.11",
+      "description": "Ovos de todo tipo, ovos cozidos"
+    },
+    {
+      "code": "3.7.21",
+      "description": "Outros pássaros"
+    },
+    {
+      "code": "3.7.23",
+      "description": "Morcegos"
+    },
+    {
+      "code": "3.7.2",
+      "description": "Águias heráldicas"
+    },
+    {
+      "code": "3.7.24",
+      "description": "Pássaros estilizados"
+    },
+    {
+      "code": "3.7.25",
+      "description": "Pássaros vestidos"
+    },
+    {
+      "code": "3.9.1",
+      "description": ")"
+    },
+    {
+      "code": "3.9.13",
+      "description": "Partes de peixe, espinhas de peixe"
+    },
+    {
+      "code": "3.9.14",
+      "description": "Cavalos-marinhos"
+    },
+    {
+      "code": "3.9.15",
+      "description": "Lula, polvos"
+    },
+    {
+      "code": "3.9.16",
+      "description": "Crustáceos (siris, camarões, lagostins, lagostas), escorpiões"
+    },
+    {
+      "code": "3.9.17",
+      "description": "Estrelas-do-mar"
+    },
+    {
+      "code": "3.9.18",
+      "description": "Moluscos (ostras, mariscos, conchas, outros moluscos)"
+    },
+    {
+      "code": "3.9.19",
+      "description": "Corais, madrepérolas"
+    },
+    {
+      "code": "3.9.21",
+      "description": "Grupos de animais aquáticos da divisão 3.9, de espécies diferentes (exceto"
+    },
+    {
+      "code": "3.9.22",
+      "description": "Aquários, terrários ou viveiros contendo animais da divisão 3.9"
+    },
+    {
+      "code": "3.9.23",
+      "description": "Outros animais aquáticos"
+    },
+    {
+      "code": "3.9.2",
+      "description": "Esqualos (tubarões)"
+    },
+    {
+      "code": "3.9.3",
+      "description": "Cetáceos (cachalotes, baleias, orcas)"
+    },
+    {
+      "code": "3.9.4",
+      "description": "Golfinhos"
+    },
+    {
+      "code": "3.9.5",
+      "description": "Peixe-espada, narval, peixe-serra"
+    },
+    {
+      "code": "3.9.6",
+      "description": "Peixe ornamental"
+    },
+    {
+      "code": "3.9.7",
+      "description": "Peixe achatado (peixe-lua, raias, linguados)"
+    },
+    {
+      "code": "3.9.8",
+      "description": "Peixes répteis (enguias ou outros)"
+    },
+    {
+      "code": "3.9.10",
+      "description": "Outros peixes"
+    },
+    {
+      "code": "3.9.11",
+      "description": "Peixes em seu elemento ou representados como tais"
+    },
+    {
+      "code": "3.9.12",
+      "description": "Grupos de peixes, ou de animais com forma de peixe, de espécies diferentes"
+    },
+    {
+      "code": "3.9.24",
+      "description": "Animais da divisão 3.9 estilizados"
+    },
+    {
+      "code": "3.9.25",
+      "description": "Animais da divisão 3.9 vestidos"
+    },
+    {
+      "code": "3.11.1",
+      "description": "Serpentes"
+    },
+    {
+      "code": "3.11.6",
+      "description": "Minhocas"
+    },
+    {
+      "code": "3.11.7",
+      "description": "Caracóis, lesmas"
+    },
+    {
+      "code": "3.11.9",
+      "description": "Jacarés, caimão, crocodilos"
+    },
+    {
+      "code": "3.11.10",
+      "description": "Camaleões, lagartos, salamandras"
+    },
+    {
+      "code": "3.11.11",
+      "description": "Tartarugas"
+    },
+    {
+      "code": "3.11.12",
+      "description": "Sapos, rãs, girinos"
+    },
+    {
+      "code": "3.11.17",
+      "description": "Focas, leões marinhos"
+    },
+    {
+      "code": "3.11.21",
+      "description": "Grupos de animais da divisão 3.11, de diferentes espécies"
+    },
+    {
+      "code": "3.11.22",
+      "description": "Terrários ou viveiros contendo animais da divisão 3.11"
+    },
+    {
+      "code": "3.11.23",
+      "description": "Outros animais pertencentes à divisão 3.11"
+    },
+    {
+      "code": "3.11.2",
+      "description": "Serpente e taça (símbolo da medicina)"
+    },
+    {
+      "code": "3.11.3",
+      "description": "Serpente(s) e bastão"
+    },
+    {
+      "code": "3.11.24",
+      "description": "Animais da divisão 3.11 estilizados A"
+    },
+    {
+      "code": "3.11.25",
+      "description": "Animais da divisão 3.11 vestidos"
+    },
+    {
+      "code": "3.13.1",
+      "description": "Borboletas"
+    },
+    {
+      "code": "3.13.2",
+      "description": "Insetos (exceto 3.13.1), aranhas"
+    },
+    {
+      "code": "3.13.5",
+      "description": "Colméias, células de favos"
+    },
+    {
+      "code": "3.13.20",
+      "description": "Microorganismos"
+    },
+    {
+      "code": "3.13.21",
+      "description": "Grupos de insetos, aranhas ou microorganismos, de espécies diferentes"
+    },
+    {
+      "code": "3.13.4",
+      "description": "Abelhas, vespas"
+    },
+    {
+      "code": "3.13.6",
+      "description": "Libélulas"
+    },
+    {
+      "code": "3.13.7",
+      "description": "Moscas, mosquitos"
+    },
+    {
+      "code": "3.13.8",
+      "description": "Aranhas, teias de aranha"
+    },
+    {
+      "code": "3.13.9",
+      "description": "Joaninhas"
+    },
+    {
+      "code": "3.13.10",
+      "description": "Escaravelhos"
+    },
+    {
+      "code": "3.13.11",
+      "description": ". Baratas"
+    },
+    {
+      "code": "3.13.12",
+      "description": "Cigarras, grilos, gafanhotos"
+    },
+    {
+      "code": "3.13.16",
+      "description": "Formigas"
+    },
+    {
+      "code": "3.13.17",
+      "description": "Piolhos, pulgões"
+    },
+    {
+      "code": "3.13.18",
+      "description": "Lagartas, bichos-da-seda"
+    },
+    {
+      "code": "3.13.19",
+      "description": "Casulos de bichos-da-seda, crisálidas"
+    },
+    {
+      "code": "3.13.23",
+      "description": "Outros insetos"
+    },
+    {
+      "code": "3.13.24",
+      "description": "Insetos ou aranhas estilizadas"
+    },
+    {
+      "code": "3.13.25",
+      "description": "Insetos ou aranhas vestidos"
+    },
+    {
+      "code": "27.3",
+      "description": "."
+    },
+    {
+      "code": "4.1",
+      "description": "PERSONAGENS ALADOS OU COM CHIFRES"
+    },
+    {
+      "code": "4.2",
+      "description": "SERES PARTE HUMANO E PARTE ANIMAL"
+    },
+    {
+      "code": "4.3",
+      "description": "ANIMAIS FABULOSOS"
+    },
+    {
+      "code": "4.5",
+      "description": "PLANTAS, OBJETOS OU FIGURAS GEOMÉTRICAS REPRESENTANDO PERSONAGEM OU ANIMAL: MASCARAS OU CABEÇAS FANTÁSTICAS OU NÃO IDENTIFICÁVEIS"
+    },
+    {
+      "code": "4.7",
+      "description": "GRUPOS DE ELEMENTOS FIGURATIVOS CLASSIFICADOS EM DIVISÕES DIFERENTES DA CATEGORIA 4"
+    },
+    {
+      "code": "4.1.1",
+      "description": "Cabeças humanas aladas"
+    },
+    {
+      "code": "4.1.2",
+      "description": "Crianças aladas (anjos, cupidos)"
+    },
+    {
+      "code": "4.1.3",
+      "description": "Outras personagens aladas (exceto 4.1.4)"
+    },
+    {
+      "code": "4.1.4",
+      "description": "Diabos ou outras personagens com chifres, com ou sem asas"
+    },
+    {
+      "code": "4.1.5",
+      "description": "Cabeças de diabos ou de personagens com chifres"
+    },
+    {
+      "code": "4.1.25",
+      "description": "Grupos de personagens alados ou com chifres classificados em seções diferentes da divisão 4.1."
+    },
+    {
+      "code": "4.2.1",
+      "description": "Centauros"
+    },
+    {
+      "code": "4.2.5",
+      "description": "Esfinge"
+    },
+    {
+      "code": "4.2.8",
+      "description": "Tritões"
+    },
+    {
+      "code": "4.2.11",
+      "description": "Sereias, náiades"
+    },
+    {
+      "code": "4.2.20",
+      "description": "Outros seres parte humano e parte animal"
+    },
+    {
+      "code": "4.2.25",
+      "description": "Grupos de seres classificados em seções diferentes da divisão 4.2"
+    },
+    {
+      "code": "4.2.2",
+      "description": "Centauros com arco, flecha(s) ou lança"
+    },
+    {
+      "code": "4.3.1",
+      "description": "Leões alados, grifos"
+    },
+    {
+      "code": "4.3.3",
+      "description": "Dragões"
+    },
+    {
+      "code": "4.3.5",
+      "description": "Cavalos alados (Pégaso)"
+    },
+    {
+      "code": "4.3.7",
+      "description": "Outros quadrúpedes alados"
+    },
+    {
+      "code": "4.3.9",
+      "description": "Unicórnios"
+    },
+    {
+      "code": "4.3.10",
+      "description": "Monstros com diversas cabeças"
+    },
+    {
+      "code": "4.3.19",
+      "description": "Cabeças de animais fabulosos"
+    },
+    {
+      "code": "4.3.20",
+      "description": "Fênix, outros animais fabulosos"
+    },
+    {
+      "code": "4.3.25",
+      "description": "Grupos de animais fabulosos classificados em seções diferentes da divisão"
+    },
+    {
+      "code": "4.5.1",
+      "description": "Plantas personificadas, combinações de plantas representando uma personagem"
+    },
+    {
+      "code": "4.5.2",
+      "description": "Objetos personificados, combinações de objetos representando uma personagem"
+    },
+    {
+      "code": "4.5.3",
+      "description": "Figuras ou sólidos geométricos personificados, combinações de figuras ou de sólidos geométricos representando uma personagem"
+    },
+    {
+      "code": "4.5.4",
+      "description": "Robôs de aspecto humano"
+    },
+    {
+      "code": "4.5.5",
+      "description": "Outras personificações não identificáveis, outros seres fantásticos de aspecto humano"
+    },
+    {
+      "code": "4.5.11",
+      "description": "Plantas ou combinações de plantas representando um animal"
+    },
+    {
+      "code": "4.5.12",
+      "description": "Objetos ou combinações de objetos representando um animal"
+    },
+    {
+      "code": "4.5.13",
+      "description": "Figuras ou sólidos geométricos ou combinações de figuras ou de sólidos geométricos representando um animal"
+    },
+    {
+      "code": "4.5.14",
+      "description": "Robôs com aparência de animais"
+    },
+    {
+      "code": "4.5.15",
+      "description": "Outras formas representando um animal não identificável, outros seres fantásticos com aparência de animais"
+    },
+    {
+      "code": "4.5.21",
+      "description": "Máscaras ou cabeças fantásticas ou não identificáveis"
+    },
+    {
+      "code": "5.1",
+      "description": "ÁRVORES, ARBUSTOS"
+    },
+    {
+      "code": "5.3",
+      "description": "FOLHAS, ESPINHOS, GALHOS COM FOLHAS OU ESPINHOS"
+    },
+    {
+      "code": "5.5",
+      "description": "FLORES, FLORAÇÃO"
+    },
+    {
+      "code": "5.7",
+      "description": "GRÃOS, SEMENTES, FRUTOS"
+    },
+    {
+      "code": "5.9",
+      "description": "LEGUMES E VERDURAS"
+    },
+    {
+      "code": "5.11",
+      "description": "OUTRAS PLANTAS"
+    },
+    {
+      "code": "5.13",
+      "description": "DECORAÇÕES FEITAS DE PLANTAS"
+    },
+    {
+      "code": "5.1.1",
+      "description": "a"
+    },
+    {
+      "code": "5.1.2",
+      "description": "Árvores ou arbustos de forma oblonga (choupos)"
+    },
+    {
+      "code": "5.1.3",
+      "description": "Árvores ou arbustos que tenham outra forma"
+    },
+    {
+      "code": "5.1.4",
+      "description": ", se não representar uma floresta propriamente dita."
+    },
+    {
+      "code": "5.1.9",
+      "description": "Grupos de árvores ou de arbustos com formas diferentes"
+    },
+    {
+      "code": "5.1.19",
+      "description": "Troncos, cepos"
+    },
+    {
+      "code": "5.1.20",
+      "description": "Troncos de árvores sem galhos"
+    },
+    {
+      "code": "5.1.21",
+      "description": "Galhos grossos, galhos sem folhas ou sem espinhos"
+    },
+    {
+      "code": "5.1.5",
+      "description": "Uma árvore ou um arbusto"
+    },
+    {
+      "code": "5.1.6",
+      "description": "Duas árvores ou dois arbustos"
+    },
+    {
+      "code": "5.1.7",
+      "description": "Três árvores ou três arbustos"
+    },
+    {
+      "code": "5.1.8",
+      "description": "Mais de três árvores ou três arbustos, pequenos bosques, matas"
+    },
+    {
+      "code": "5.1.16",
+      "description": "Árvores ou arbustos em forma estilizada"
+    },
+    {
+      "code": "5.1.10",
+      "description": "Coníferas"
+    },
+    {
+      "code": "5.1.11",
+      "description": "Árvores decíduas"
+    },
+    {
+      "code": "5.1.15",
+      "description": "Árvores e arbustos em flor"
+    },
+    {
+      "code": "5.1.12",
+      "description": "Palmeiras, bananeiras"
+    },
+    {
+      "code": "5.1.14",
+      "description": "Plantas trepadeiras"
+    },
+    {
+      "code": "5.3.1",
+      "description": "Folhas de tabaco"
+    },
+    {
+      "code": "5.3.2",
+      "description": "Folhas de carvalho"
+    },
+    {
+      "code": "5.3.3",
+      "description": "Folhas de azevinho"
+    },
+    {
+      "code": "5.3.4",
+      "description": "Folhas de parreira (exceto 5.3.19), folhas de plátano, folhas de bordo"
+    },
+    {
+      "code": "5.3.5",
+      "description": "Folhas de castanheiro"
+    },
+    {
+      "code": "5.3.6",
+      "description": "Trevos"
+    },
+    {
+      "code": "5.3.7",
+      "description": "Samambaias, palmas"
+    },
+    {
+      "code": "5.3.8",
+      "description": "Folhas de glicínia ou de acácia"
+    },
+    {
+      "code": "5.3.9",
+      "description": "Folhas de nogueira-do-japão"
+    },
+    {
+      "code": "5.3.11",
+      "description": "Outras folhas"
+    },
+    {
+      "code": "5.3.16",
+      "description": "Mais de quatro folhas, folhas espalhas, buquês de folhas"
+    },
+    {
+      "code": "5.3.17",
+      "description": "Galhos de oliveira, com ou sem fruto"
+    },
+    {
+      "code": "5.3.18",
+      "description": "Galhos de visgo"
+    },
+    {
+      "code": "5.3.19",
+      "description": "Brotos de parreira"
+    },
+    {
+      "code": "5.3.20",
+      "description": "Outros ramos com folhas, com ou sem fruto"
+    },
+    {
+      "code": "5.3.22",
+      "description": "Espinhos, galhos com espinhos"
+    },
+    {
+      "code": "5.3.13",
+      "description": "Folhas estilizadas"
+    },
+    {
+      "code": "5.3.14",
+      "description": "Uma folha"
+    },
+    {
+      "code": "5.3.15",
+      "description": "Duas a quatro folhas"
+    },
+    {
+      "code": "5.5.1",
+      "description": "Rosas"
+    },
+    {
+      "code": "5.5.2",
+      "description": "Lírios"
+    },
+    {
+      "code": "5.5.3",
+      "description": "Tulipas, magnólias"
+    },
+    {
+      "code": "5.5.4",
+      "description": "Margaridas, girassóis, margarida-dos-campos"
+    },
+    {
+      "code": "5.5.5",
+      "description": "Cravos"
+    },
+    {
+      "code": "5.5.6",
+      "description": "Amores-perfeitos"
+    },
+    {
+      "code": "5.5.7",
+      "description": "Lilás ou outras flores crescendo em ramalhetes verticais"
+    },
+    {
+      "code": "5.5.8",
+      "description": "Glicínia ou outras flores crescendo em ramalhetes pendentes"
+    },
+    {
+      "code": "5.5.10",
+      "description": "Edelvais"
+    },
+    {
+      "code": "5.5.11",
+      "description": "Gencianas"
+    },
+    {
+      "code": "5.5.12",
+      "description": "Cardos"
+    },
+    {
+      "code": "5.5.13",
+      "description": "Papoulas"
+    },
+    {
+      "code": "5.5.14",
+      "description": "Crisântemos"
+    },
+    {
+      "code": "5.5.15",
+      "description": "Orquídeas"
+    },
+    {
+      "code": "5.5.16",
+      "description": "Flores-de-lótus"
+    },
+    {
+      "code": "5.5.18",
+      "description": "Flores umbeladas"
+    },
+    {
+      "code": "5.5.19",
+      "description": "Outras flores, florações"
+    },
+    {
+      "code": "5.5.23",
+      "description": "Grupos de flores de espécies diferentes, buquês, coroas, cestas ou canteiros de flores, flores esparsas"
+    },
+    {
+      "code": "5.5.20",
+      "description": "Flores estilizadas"
+    },
+    {
+      "code": "5.5.21",
+      "description": "Uma flor"
+    },
+    {
+      "code": "5.5.22",
+      "description": "Diversas flores (exceto 5.5.7, 5.5.8, 5.5.18 e 5.5.23)"
+    },
+    {
+      "code": "5.7.1",
+      "description": "Grão, sementes"
+    },
+    {
+      "code": "5.7.2",
+      "description": "Espigas de cereais (trigo, centeio, cevada, etc.), espigas de milho, espigas de sorgo"
+    },
+    {
+      "code": "5.7.3",
+      "description": "Panículas de cereais (aveia, arroz, etc.)"
+    },
+    {
+      "code": "5.7.5",
+      "description": "Feixes de cereais"
+    },
+    {
+      "code": "5.7.6",
+      "description": "Frutas de casca dura (amêndoas, amendoins, cacau, nozes, avelãs, etc.)"
+    },
+    {
+      "code": "5.7.7",
+      "description": "Frutas cupuliformes (castanhas comestíveis, bolotas, etc.)"
+    },
+    {
+      "code": "5.7.8",
+      "description": "Morangos, framboesas, amoras"
+    },
+    {
+      "code": "5.7.9",
+      "description": "Groselhas, kiwis e outras bagas"
+    },
+    {
+      "code": "5.7.10",
+      "description": "Uvas (em unidade ou em cachos)"
+    },
+    {
+      "code": "5.7.11",
+      "description": "Laranjas, tangerinas, toranjas"
+    },
+    {
+      "code": "5.7.12",
+      "description": "Limões"
+    },
+    {
+      "code": "5.7.13",
+      "description": "Maçãs"
+    },
+    {
+      "code": "5.7.14",
+      "description": "Frutas com caroços (abricós, pêssegos, ameixas secas, ameixas frescas, tâmaras, mangas, lechias, nêsperas, etc.) (exceto 5.7.16 e 5.7.19)"
+    },
+    {
+      "code": "5.7.15",
+      "description": "Pêras"
+    },
+    {
+      "code": "5.7.16",
+      "description": "Cerejas"
+    },
+    {
+      "code": "5.7.17",
+      "description": "Abacaxis"
+    },
+    {
+      "code": "5.7.18",
+      "description": "Bananas"
+    },
+    {
+      "code": "5.7.19",
+      "description": "Azeitonas"
+    },
+    {
+      "code": "5.7.20",
+      "description": "Melões, melancias"
+    },
+    {
+      "code": "5.7.21",
+      "description": "Outras frutas (exceto 5.7.9)"
+    },
+    {
+      "code": "5.7.24",
+      "description": "Grupos de frutas de espécies diferentes"
+    },
+    {
+      "code": "5.7.25",
+      "description": "Fruteiras ou cestas de fruta"
+    },
+    {
+      "code": "5.7.26",
+      "description": "Frutas em jarras"
+    },
+    {
+      "code": "5.7.22",
+      "description": "Frutas abertas, fatias ou quartos de frutas"
+    },
+    {
+      "code": "5.7.23",
+      "description": "Uma fruta"
+    },
+    {
+      "code": "5.9.1",
+      "description": "Cenouras"
+    },
+    {
+      "code": "5.9.3",
+      "description": "Batatas, outros tubérculos"
+    },
+    {
+      "code": "5.9.6",
+      "description": "Cebolas, bulbos"
+    },
+    {
+      "code": "5.9.8",
+      "description": "Alhos-porós"
+    },
+    {
+      "code": "5.9.10",
+      "description": "Aspargos"
+    },
+    {
+      "code": "5.9.12",
+      "description": "Repolhos, alface, chicória"
+    },
+    {
+      "code": "5.9.14",
+      "description": "Abóboras"
+    },
+    {
+      "code": "5.9.15",
+      "description": "Berinjelas, pepinos, maxixes, pimentões"
+    },
+    {
+      "code": "5.9.17",
+      "description": "Tomates"
+    },
+    {
+      "code": "5.9.19",
+      "description": "Feijões, ervilhas, lentilhas"
+    },
+    {
+      "code": "5.9.21",
+      "description": "Outros legumes e verduras"
+    },
+    {
+      "code": "5.9.24",
+      "description": "Grupos de legumes e verduras de espécies diferentes"
+    },
+    {
+      "code": "5.9.25",
+      "description": "Cestos de legumes e verduras"
+    },
+    {
+      "code": "5.9.26",
+      "description": "Legumes e verduras em jarros"
+    },
+    {
+      "code": "5.9.23",
+      "description": "Um vegetal"
+    },
+    {
+      "code": "5.11.1",
+      "description": "Algas, plantas marinhas e outras plantas"
+    },
+    {
+      "code": "5.11.2",
+      "description": "Raízes, radícolas, ginsengs"
+    },
+    {
+      "code": "5.11.3",
+      "description": "Musgos, líquens"
+    },
+    {
+      "code": "5.11.5",
+      "description": "Cogumelos"
+    },
+    {
+      "code": "5.11.9",
+      "description": "Plantas da semente de batata"
+    },
+    {
+      "code": "5.11.11",
+      "description": "Ervas"
+    },
+    {
+      "code": "5.11.13",
+      "description": "Bambus, juncos, canas-de-açúcar, canas de milho, vagens de baunilha"
+    },
+    {
+      "code": "5.11.14",
+      "description": "Algodoeiros"
+    },
+    {
+      "code": "5.11.15",
+      "description": "Pinhas, pinhas do abeto, pinhas do lúpulo"
+    },
+    {
+      "code": "5.11.17",
+      "description": "Agaves, babosa"
+    },
+    {
+      "code": "5.11.18",
+      "description": "Cactos com espinhos"
+    },
+    {
+      "code": "5.11.19",
+      "description": "Cactos"
+    },
+    {
+      "code": "5.11.23",
+      "description": "Plantas em vasos, em jardineiras ou em tubos"
+    },
+    {
+      "code": "5.13.1",
+      "description": "Coroas de folhas, de flores ou de frutos"
+    },
+    {
+      "code": "5.13.3",
+      "description": "Palmas cruzadas"
+    },
+    {
+      "code": "5.13.4",
+      "description": "Galhos cruzados"
+    },
+    {
+      "code": "5.13.6",
+      "description": "Decorações de galhos de parreira"
+    },
+    {
+      "code": "5.13.7",
+      "description": "Guirlandas, faixas, bordas ou molduras feitas de plantas (exceto 5.13.6)"
+    },
+    {
+      "code": "5.13.15",
+      "description": "Árvores de Natal, galhos de árvores de Natal"
+    },
+    {
+      "code": "5.13.25",
+      "description": "Outras decorações feitas de plantas"
+    },
+    {
+      "code": "5.13.8",
+      "description": "Guirlandas, faixas, bordas ou molduras feitas de folhas"
+    },
+    {
+      "code": "5.13.9",
+      "description": "Guirlandas, faixas, bordas ou molduras feitas de flores"
+    },
+    {
+      "code": "5.13.10",
+      "description": "Guirlandas, faixas, bordas ou molduras feitas de frutos"
+    },
+    {
+      "code": "5.13.11",
+      "description": "Guirlandas, faixas, bordas ou molduras feitas de outras plantas PAISAGENS"
+    },
+    {
+      "code": "6.1",
+      "description": "MONTANHAS, ROCHAS, GRUTAS"
+    },
+    {
+      "code": "6.3",
+      "description": "PAISAGENS COM ÁGUA, RIO OU RIACHO"
+    },
+    {
+      "code": "6.6",
+      "description": "PAISAGENS DESÉRTICAS OU TROPICAIS"
+    },
+    {
+      "code": "6.7",
+      "description": "PAISAGENS URBANAS OU CENÁRIOS DE POVOADO"
+    },
+    {
+      "code": "6.19",
+      "description": "OUTRAS PAISAGENS"
+    },
+    {
+      "code": "6.1.1",
+      "description": "Rochedos, rochas, paredes de rochas"
+    },
+    {
+      "code": "6.1.2",
+      "description": "Montanhas, paisagens de montanha"
+    },
+    {
+      "code": "6.1.3",
+      "description": "Vulcões"
+    },
+    {
+      "code": "6.1.7",
+      "description": "Grutas"
+    },
+    {
+      "code": "6.1.4",
+      "description": "Montanhas ou vulcões estilizados"
+    },
+    {
+      "code": "6.3.1",
+      "description": "Paisagens lacustres ou marinhas"
+    },
+    {
+      "code": "6.3.11",
+      "description": "Paisagens com águas correntes"
+    },
+    {
+      "code": "6.3.2",
+      "description": "Praias, costas, baías"
+    },
+    {
+      "code": "6.3.3",
+      "description": "Ilhas, recifes"
+    },
+    {
+      "code": "6.3.4",
+      "description": "Mar aberto, extensões de água sem praias"
+    },
+    {
+      "code": "6.3.5",
+      "description": "Lagos ou mares com montanhas ao redor ou em segundo plano"
+    },
+    {
+      "code": "6.3.6",
+      "description": "Portos"
+    },
+    {
+      "code": "6.3.10",
+      "description": "Outras paisagens lacustres ou marinhas"
+    },
+    {
+      "code": "6.3.12",
+      "description": "Nascentes, paisagens com nascente(s)"
+    },
+    {
+      "code": "6.3.13",
+      "description": "Quedas d'água, paisagens com queda(s) d'água"
+    },
+    {
+      "code": "6.3.14",
+      "description": "Rios, riachos, cachoeiras, torrentes, com ou sem paisagem"
+    },
+    {
+      "code": "6.3.20",
+      "description": "Outras paisagens com água corrente"
+    },
+    {
+      "code": "6.6.1",
+      "description": "Paisagens desérticas ou com vegetação muito dispersa"
+    },
+    {
+      "code": "6.6.2",
+      "description": "Oásis"
+    },
+    {
+      "code": "6.6.25",
+      "description": "Outras paisagens de tipo tropical"
+    },
+    {
+      "code": "6.6.3",
+      "description": "Outras paisagens com palmeiras"
+    },
+    {
+      "code": "6.7.1",
+      "description": "Ruas"
+    },
+    {
+      "code": "6.7.2",
+      "description": "Praças"
+    },
+    {
+      "code": "6.7.4",
+      "description": "Áreas edificadas"
+    },
+    {
+      "code": "6.7.11",
+      "description": "Paisagens urbanas ou de interior com água, rio ou riacho"
+    },
+    {
+      "code": "6.7.25",
+      "description": "Outras paisagens urbanas ou de interior"
+    },
+    {
+      "code": "6.7.5",
+      "description": "Áreas edificadas com arranha-céus"
+    },
+    {
+      "code": "6.7.6",
+      "description": "Áreas edificadas com casas de telhado plano"
+    },
+    {
+      "code": "6.7.7",
+      "description": "Áreas edificadas com choupanas"
+    },
+    {
+      "code": "6.7.8",
+      "description": "Áreas edificadas com construções rurais"
+    },
+    {
+      "code": "6.19.1",
+      "description": "Outras paisagens"
+    },
+    {
+      "code": "6.19.5",
+      "description": "Florestas, vegetação rasteira"
+    },
+    {
+      "code": "6.19.7",
+      "description": "Vinhedos"
+    },
+    {
+      "code": "6.19.9",
+      "description": "Outras áreas cultivadas"
+    },
+    {
+      "code": "6.19.11",
+      "description": "Pradarias, pastagens"
+    },
+    {
+      "code": "6.19.13",
+      "description": "Pastos com montanhas ao redor ou ao fundo"
+    },
+    {
+      "code": "6.19.15",
+      "description": "Paisagens com moinho(s) de vento"
+    },
+    {
+      "code": "6.19.16",
+      "description": "Paisagens com casa(s)"
+    },
+    {
+      "code": "6.19.17",
+      "description": "Paisagens com fábrica(s) ou outra(s) construção(ões) industria(is)"
+    },
+    {
+      "code": "6.19.19",
+      "description": "Paisagens polares"
+    },
+    {
+      "code": "7.1",
+      "description": "HABITAÇÕES, EDIFÍCIOS, COLUNAS OU PAINÉIS PARA CARTAZES, GAIOLAS OU CANIS PARA ANIMAIS"
+    },
+    {
+      "code": "7.3",
+      "description": "PARTES DE HABITAÇÕES OU DE CONSTRUÇÕES, INTERIORES"
+    },
+    {
+      "code": "7.5",
+      "description": "MONUMENTOS, ESTÁDIOS, FONTES"
+    },
+    {
+      "code": "7.11",
+      "description": "TRABALHOS ESTRUTURAIS"
+    },
+    {
+      "code": "7.15",
+      "description": "MATERIAIS DE CONSTRUÇÃO, MUROS, PORTÕES OU BARREIRAS, ANDAIMES"
+    },
+    {
+      "code": "7.1.1",
+      "description": "Castelos, fortalezas, muros com ameias, palácios"
+    },
+    {
+      "code": "7.1.3",
+      "description": "Igrejas, catedrais, abadias, mosteiros"
+    },
+    {
+      "code": "7.1.4",
+      "description": "Mesquitas, minaretes"
+    },
+    {
+      "code": "7.1.5",
+      "description": "Pagodes"
+    },
+    {
+      "code": "7.1.6",
+      "description": "Torres ou mastros, guindastes (exceto 7.1.16)"
+    },
+    {
+      "code": "7.1.8",
+      "description": "Casas, arranha-céus"
+    },
+    {
+      "code": "7.1.13",
+      "description": "Moinhos de vento ou d’água"
+    },
+    {
+      "code": "7.1.14",
+      "description": "Estabelecimentos  industriais, chaminés de fábrica"
+    },
+    {
+      "code": "7.1.16",
+      "description": "Faróis"
+    },
+    {
+      "code": "7.1.17",
+      "description": "Quiosques, edículas, barracas de feira, barracas de mercado"
+    },
+    {
+      "code": "7.1.18",
+      "description": "Colunas ou painéis para afixar cartazes, outras estruturas para cartazes"
+    },
+    {
+      "code": "7.1.19",
+      "description": "Cabanas, choupanas"
+    },
+    {
+      "code": "7.1.20",
+      "description": "Barracas"
+    },
+    {
+      "code": "7.1.21",
+      "description": "Iglus"
+    },
+    {
+      "code": "7.1.22",
+      "description": "Gaiolas ou canis para animais"
+    },
+    {
+      "code": "7.1.24",
+      "description": "Habitações ou construções estilizadas"
+    },
+    {
+      "code": "7.1.25",
+      "description": "Outras habitações ou construções"
+    },
+    {
+      "code": "7.1.9",
+      "description": "Casas rurais, fazendas, celeiros"
+    },
+    {
+      "code": "7.1.10",
+      "description": "Casas de telhado plano"
+    },
+    {
+      "code": "7.1.11",
+      "description": "Chalés"
+    },
+    {
+      "code": "7.1.12",
+      "description": "Casas urbanas, arranha-céus"
+    },
+    {
+      "code": "7.1.23",
+      "description": "Habitações ou construções em ruínas"
+    },
+    {
+      "code": "7.3.1",
+      "description": "Portas, entradas"
+    },
+    {
+      "code": "7.3.2",
+      "description": "Janelas, vitrais"
+    },
+    {
+      "code": "7.3.3",
+      "description": "Janela panorâmica, sacadas, varandas"
+    },
+    {
+      "code": "7.3.4",
+      "description": "Interiores"
+    },
+    {
+      "code": "7.3.11",
+      "description": "Telhados"
+    },
+    {
+      "code": "7.3.12",
+      "description": "Chaminés, canos de chaminés"
+    },
+    {
+      "code": "7.3.13",
+      "description": "Vitrines de loja"
+    },
+    {
+      "code": "7.3.15",
+      "description": "Escadas"
+    },
+    {
+      "code": "7.3.20",
+      "description": "Persianas, venezianas, toldos"
+    },
+    {
+      "code": "7.3.25",
+      "description": "Outras partes de habitações ou de construções"
+    },
+    {
+      "code": "7.3.5",
+      "description": "Cozinhas"
+    },
+    {
+      "code": "7.3.6",
+      "description": "Banheiros e saunas"
+    },
+    {
+      "code": "7.3.7",
+      "description": "Quartos"
+    },
+    {
+      "code": "7.3.8",
+      "description": "Adegas"
+    },
+    {
+      "code": "7.3.9",
+      "description": "Outros interiores"
+    },
+    {
+      "code": "7.5.1",
+      "description": "Pirâmides"
+    },
+    {
+      "code": "7.5.2",
+      "description": "Construções reconhecidas como monumentos (a Grande Muralha da China, a Torre Eiffel, a Estátua da Liberdade, etc.)"
+    },
+    {
+      "code": "7.5.5",
+      "description": "Outros monumentos antigos"
+    },
+    {
+      "code": "7.5.9",
+      "description": "Estádios, anfiteatros, pátios de recreio, campos de esporte"
+    },
+    {
+      "code": "7.5.10",
+      "description": "Arcos de triunfo, pórticos, portais"
+    },
+    {
+      "code": "7.5.11",
+      "description": "Labirintos"
+    },
+    {
+      "code": "7.5.15",
+      "description": "Chafarizes, tanques, piscinas, borrifos ou jatos de água, poços"
+    },
+    {
+      "code": "7.5.25",
+      "description": "Outros monumentos"
+    },
+    {
+      "code": "7.5.6",
+      "description": "Templos antigos ou suas partes"
+    },
+    {
+      "code": "7.5.8",
+      "description": "Colunas, obeliscos"
+    },
+    {
+      "code": "7.11.1",
+      "description": "Pontes"
+    },
+    {
+      "code": "7.11.5",
+      "description": "Túneis"
+    },
+    {
+      "code": "7.11.10",
+      "description": "Estradas, cruzamentos, bifurcações"
+    },
+    {
+      "code": "7.11.15",
+      "description": "Estradas-de-ferro"
+    },
+    {
+      "code": "7.11.20",
+      "description": "Postes de amarração"
+    },
+    {
+      "code": "7.11.23",
+      "description": "Represas"
+    },
+    {
+      "code": "7.11.25",
+      "description": "Outros trabalhos estruturais"
+    },
+    {
+      "code": "7.15.1",
+      "description": "Pedras para construção, tijolos"
+    },
+    {
+      "code": "7.15.5",
+      "description": "Tábuas, placas, painéis, lajes"
+    },
+    {
+      "code": "7.15.6",
+      "description": "Chapas ou outros materiais ondulados"
+    },
+    {
+      "code": "7.15.8",
+      "description": "Representações de madeira"
+    },
+    {
+      "code": "7.15.9",
+      "description": "Azulejos"
+    },
+    {
+      "code": "7.15.20",
+      "description": "Outros materiais de construção"
+    },
+    {
+      "code": "7.15.22",
+      "description": "Muros, portões e barreiras"
+    },
+    {
+      "code": "7.15.25",
+      "description": "Andaimes"
+    },
+    {
+      "code": "8.1",
+      "description": "ARTIGOS DE PADARIA, PASTELARIA, CONFEITARIA, CHOCOLATE"
+    },
+    {
+      "code": "8.3",
+      "description": "LEITE, LATICÍNIOS, QUEIJOS"
+    },
+    {
+      "code": "8.5",
+      "description": "CARNES DE AÇOUGUE, PRODUTOS DE CARNE DE PORCO E DE PEIXARIA"
+    },
+    {
+      "code": "8.7",
+      "description": "OUTROS PRODUTOS ALIMENTÍCIOS"
+    },
+    {
+      "code": "8.1.1",
+      "description": "Pão"
+    },
+    {
+      "code": "8.1.6",
+      "description": "Torradas, fatias de pão, pão com manteiga, com geléia ou com outros alimentos comestíveis de consistência similar"
+    },
+    {
+      "code": "8.1.7",
+      "description": "Pãezinhos, brioches"
+    },
+    {
+      "code": "8.1.8",
+      "description": "Croissants"
+    },
+    {
+      "code": "8.1.9",
+      "description": "Biscoitinhos"
+    },
+    {
+      "code": "8.1.15",
+      "description": "Produtos de pastelaria"
+    },
+    {
+      "code": "8.1.18",
+      "description": "Sorvetes"
+    },
+    {
+      "code": "8.1.19",
+      "description": "Chocolate, produtos de confeitaria"
+    },
+    {
+      "code": "8.1.25",
+      "description": "Outros artigos de padaria"
+    },
+    {
+      "code": "8.1.2",
+      "description": "Pães de formato quadrado ou retangular"
+    },
+    {
+      "code": "8.1.3",
+      "description": "Pães longos, bisnagas"
+    },
+    {
+      "code": "8.1.4",
+      "description": "Pães de formato redondo ou cilíndrico"
+    },
+    {
+      "code": "8.1.10",
+      "description": "Biscoitinhos de formato redondo (exceto A 8.1.12)"
+    },
+    {
+      "code": "8.1.11",
+      "description": "Biscoitinhos de formato quadrado ou retangular (exceto A 8.1.12)"
+    },
+    {
+      "code": "8.1.12",
+      "description": "Biscoitinhos com bordas em lóbulos"
+    },
+    {
+      "code": "8.1.13",
+      "description": "Biscoitinhos de formato triangular (exceto A 8.1.12)"
+    },
+    {
+      "code": "8.1.14",
+      "description": "Misturas de biscoitinhos de diferentes formas"
+    },
+    {
+      "code": "8.1.16",
+      "description": "Tortinhas, flans, tortas"
+    },
+    {
+      "code": "8.1.17",
+      "description": "Bolos"
+    },
+    {
+      "code": "8.1.20",
+      "description": "Tabletes de chocolate"
+    },
+    {
+      "code": "8.1.21",
+      "description": "Bastões de chocolate"
+    },
+    {
+      "code": "8.1.22",
+      "description": "Quadrados de chocolate, pralina, fondants ou outras balas (exceto A 8.1.23)"
+    },
+    {
+      "code": "8.1.23",
+      "description": "Balas confeitadas, fondants ou outras balas embaladas"
+    },
+    {
+      "code": "8.1.24",
+      "description": "Pirulitos"
+    },
+    {
+      "code": "8.3.1",
+      "description": "Leite, creme (exceto 8.3.2)"
+    },
+    {
+      "code": "8.3.2",
+      "description": "Creme batido (chantilly)"
+    },
+    {
+      "code": "8.3.3",
+      "description": "Manteiga, margarina"
+    },
+    {
+      "code": "8.3.8",
+      "description": "Queijos"
+    },
+    {
+      "code": "8.3.25",
+      "description": "Outros laticínios (exceto 8.7.15)"
+    },
+    {
+      "code": "8.3.4",
+      "description": "Manteiga ou margarina a granel"
+    },
+    {
+      "code": "8.3.5",
+      "description": "Manteiga ou margarina em tabletes"
+    },
+    {
+      "code": "8.3.6",
+      "description": "Manteiga ou margarina em concha"
+    },
+    {
+      "code": "8.3.7",
+      "description": "Manteiga ou margarina sob outra forma"
+    },
+    {
+      "code": "8.3.9",
+      "description": "Queijos de formato circular"
+    },
+    {
+      "code": "8.3.10",
+      "description": "Queijos de formato quadrado ou retangular"
+    },
+    {
+      "code": "8.3.11",
+      "description": "Queijos de algum outro formato (inteiro)"
+    },
+    {
+      "code": "8.3.12",
+      "description": "Queijo cortado"
+    },
+    {
+      "code": "8.5.1",
+      "description": "Carnes de açougue, produtos de carne de porco e de peixaria"
+    },
+    {
+      "code": "8.5.2",
+      "description": "Presuntos, pernis, pedaços de carne"
+    },
+    {
+      "code": "8.5.3",
+      "description": "Salsichas (“frescas”), lingüiças (“secas”), salame"
+    },
+    {
+      "code": "8.5.4",
+      "description": "Carnes de açougue, artigos de carne de porco ou postas de peixe"
+    },
+    {
+      "code": "8.5.10",
+      "description": "Ave ou caça cozidas ou preparadas para o cozimento"
+    },
+    {
+      "code": "8.5.15",
+      "description": "Peixes, filés de peixe ou outros artigos de peixaria, cozidas ou preparados para o cozimento"
+    },
+    {
+      "code": "8.5.25",
+      "description": "Outros artigos de açougue, outros produtos de carne de porco"
+    },
+    {
+      "code": "8.7.1",
+      "description": "a"
+    },
+    {
+      "code": "8.7.3",
+      "description": "Macarrão, outras massas"
+    },
+    {
+      "code": "8.7.4",
+      "description": "Pizzas"
+    },
+    {
+      "code": "8.7.5",
+      "description": "Travessas ou pratos com guarnição"
+    },
+    {
+      "code": "8.7.7",
+      "description": "Travessas de legumes, saladas de legumes"
+    },
+    {
+      "code": "8.7.8",
+      "description": "Batatas fritas, produtos derivados de batatas e similares"
+    },
+    {
+      "code": "8.7.14",
+      "description": "Saladas de frutas, compotas de frutas"
+    },
+    {
+      "code": "8.7.15",
+      "description": "Cremes assados, pudins, omeletes"
+    },
+    {
+      "code": "8.7.17",
+      "description": "Misturas de produtos alimentícios classificados em diferentes divisões"
+    },
+    {
+      "code": "8.7.21",
+      "description": "Açúcar"
+    },
+    {
+      "code": "8.7.22",
+      "description": "TÊXTEIS, ROUPAS, ACESSÓRIOS DE COSTURA, CHAPÉUS, CALÇADOS"
+    },
+    {
+      "code": "8.7.25",
+      "description": "Outros produtos alimentícios não classificados em"
+    },
+    {
+      "code": "9.1",
+      "description": "TÊXTEIS QUE NÃO ROUPAS, LANÇADEIRAS"
+    },
+    {
+      "code": "9.3",
+      "description": "."
+    },
+    {
+      "code": "9.5",
+      "description": "ACESSÓRIOS E MOLDES DE COSTURA"
+    },
+    {
+      "code": "9.7",
+      "description": "CHAPÉUS"
+    },
+    {
+      "code": "9.9",
+      "description": "CALÇADOS"
+    },
+    {
+      "code": "9.1.1",
+      "description": "Linha"
+    },
+    {
+      "code": "9.1.7",
+      "description": "Galões, cadarços, fitas, cordões, cordas"
+    },
+    {
+      "code": "9.1.8",
+      "description": "Pontos de costura"
+    },
+    {
+      "code": "9.1.9",
+      "description": "Bordados, paninhos, toalhinhas para bandeja, enfeites"
+    },
+    {
+      "code": "9.1.10",
+      "description": "Faixas, laços"
+    },
+    {
+      "code": "9.1.11",
+      "description": "Tecidos, redes, tecidos sem revelos, cortinas, tapetes"
+    },
+    {
+      "code": "9.1.23",
+      "description": "Colchas, almofadas, edredons"
+    },
+    {
+      "code": "9.1.24",
+      "description": "Etiquetas de tecido, recortadas ou não"
+    },
+    {
+      "code": "9.1.25",
+      "description": "Outros artigos têxteis não classificados nas divisões 9.3,"
+    },
+    {
+      "code": "9.1.2",
+      "description": "Linha em meada"
+    },
+    {
+      "code": "9.1.3",
+      "description": "Linha em carretel ou em outro suporte (exceto A"
+    },
+    {
+      "code": "9.1.4",
+      "description": "Linha em lançadeira, com ou sem linha"
+    },
+    {
+      "code": "9.1.5",
+      "description": "Linhas em novelo"
+    },
+    {
+      "code": "9.1.6",
+      "description": "Outras apresentações de linha"
+    },
+    {
+      "code": "9.1.15",
+      "description": "Redes, tecidos com o ponto muito frouxo, pontos em elos"
+    },
+    {
+      "code": "9.1.16",
+      "description": "Tecidos bordados com uma linha ou com uma ou diversas faixas distintivas"
+    },
+    {
+      "code": "9.1.17",
+      "description": "Tecido sem revelo"
+    },
+    {
+      "code": "9.1.18",
+      "description": "Tecidos em peça ou em rolo"
+    },
+    {
+      "code": "9.1.19",
+      "description": "Tecidos em pilha"
+    },
+    {
+      "code": "9.1.20",
+      "description": "Tecidos drapeados, cortinas"
+    },
+    {
+      "code": "9.1.21",
+      "description": "Tapetes, tecidos com franjas"
+    },
+    {
+      "code": "9.1.22",
+      "description": "Amostras de tecido"
+    },
+    {
+      "code": "9.3.1",
+      "description": "9)"
+    },
+    {
+      "code": "9.3.26",
+      "description": "Grupos de roupas de diferentes espécies"
+    },
+    {
+      "code": "9.3.2",
+      "description": "Paletós, casacos, mantôs, capas"
+    },
+    {
+      "code": "9.3.3",
+      "description": "Calças compridas, culotes"
+    },
+    {
+      "code": "9.3.4",
+      "description": "Ternos (exceto A 9.3.5 e A 9.3.14)"
+    },
+    {
+      "code": "9.3.5",
+      "description": "Vestidos, aventais, tailleurs de senhoras"
+    },
+    {
+      "code": "9.3.8",
+      "description": "Pulôveres, suéteres"
+    },
+    {
+      "code": "9.3.9",
+      "description": "Camisas, camisetas, corpetes, blusas de manga comprida"
+    },
+    {
+      "code": "9.3.10",
+      "description": "e A"
+    },
+    {
+      "code": "9.3.13",
+      "description": "Gravatas, gravatas-borboleta, lenços de seda"
+    },
+    {
+      "code": "9.3.14",
+      "description": "Roupas de baixo, cuecas, fraldas, roupas de banho"
+    },
+    {
+      "code": "9.3.15",
+      "description": "Meia fina, meias curtas, sapatinhos (para bebê ou os usados dentro de casa)"
+    },
+    {
+      "code": "9.3.16",
+      "description": "Luvas"
+    },
+    {
+      "code": "9.3.17",
+      "description": "Cintos, fivelas de cinto"
+    },
+    {
+      "code": "9.3.18",
+      "description": "Babadouros"
+    },
+    {
+      "code": "9.3.19",
+      "description": "Bolsos de roupas"
+    },
+    {
+      "code": "9.3.20",
+      "description": "Partes de roupas da divisão   9.3 (exceto A"
+    },
+    {
+      "code": "9.3.21",
+      "description": "Roupas de mergulho"
+    },
+    {
+      "code": "9.3.25",
+      "description": "Outras roupas não classificadas nas divisões 9.7 e 9."
+    },
+    {
+      "code": "9.5.1",
+      "description": "Agulhas, dedais, colchetes, alfinetes"
+    },
+    {
+      "code": "9.5.10",
+      "description": "Outros acessórios de costura"
+    },
+    {
+      "code": "9.5.2",
+      "description": "Agulhas de costura, retas ou curvas"
+    },
+    {
+      "code": "9.5.3",
+      "description": "Agulhas de tricô"
+    },
+    {
+      "code": "9.5.5",
+      "description": "Dedais"
+    },
+    {
+      "code": "9.5.6",
+      "description": "Agulhas de crochê"
+    },
+    {
+      "code": "9.5.7",
+      "description": "Ganchos para fechar"
+    },
+    {
+      "code": "9.5.8",
+      "description": "Alfinetes (exceto A  9.5.9)"
+    },
+    {
+      "code": "9.5.9",
+      "description": "Alfinetes de segurança (inclusive de fralda)"
+    },
+    {
+      "code": "9.5.12",
+      "description": "Botões (exceto A 9.5.13)"
+    },
+    {
+      "code": "9.5.13",
+      "description": "Botões de pressão"
+    },
+    {
+      "code": "9.5.15",
+      "description": "Zíperes"
+    },
+    {
+      "code": "9.5.16",
+      "description": "Moldes de costura"
+    },
+    {
+      "code": "9.5.17",
+      "description": "Barbatanas de corpete"
+    },
+    {
+      "code": "9.5.25",
+      "description": "Outros acessórios de costura, não classificados em 9.5.1"
+    },
+    {
+      "code": "9.7.1",
+      "description": "Chapéus"
+    },
+    {
+      "code": "9.7.2",
+      "description": "Turbantes"
+    },
+    {
+      "code": "9.7.5",
+      "description": "Bonés e boinas"
+    },
+    {
+      "code": "9.7.9",
+      "description": "Chapéus de duas pontas"
+    },
+    {
+      "code": "9.7.11",
+      "description": "Quepes"
+    },
+    {
+      "code": "9.7.13",
+      "description": "Barretes frígios"
+    },
+    {
+      "code": "9.7.15",
+      "description": "Fez (barrete)"
+    },
+    {
+      "code": "9.7.17",
+      "description": "Chapéus com abas largas (chapéus mexicanos ou de vaqueiros)"
+    },
+    {
+      "code": "9.7.19",
+      "description": "Chapéu de cozinheiro"
+    },
+    {
+      "code": "9.7.21",
+      "description": "Capacetes de proteção"
+    },
+    {
+      "code": "9.7.22",
+      "description": "Barrete de formatura"
+    },
+    {
+      "code": "9.7.25",
+      "description": "Outros chapéus"
+    },
+    {
+      "code": "9.9.1",
+      "description": "Calçados"
+    },
+    {
+      "code": "9.9.2",
+      "description": "Tamancos"
+    },
+    {
+      "code": "9.9.3",
+      "description": "Calçados de salto baixo"
+    },
+    {
+      "code": "9.9.5",
+      "description": "Calçados de salto alto"
+    },
+    {
+      "code": "9.9.7",
+      "description": "Botas, botinas"
+    },
+    {
+      "code": "9.9.11",
+      "description": "Calçados esportivos, calçados de esqui"
+    },
+    {
+      "code": "9.9.13",
+      "description": "Calçados para bebês"
+    },
+    {
+      "code": "9.9.15",
+      "description": "Palmilhas, pegadas de botas e sapatos"
+    },
+    {
+      "code": "9.9.17",
+      "description": "Outras partes de calçado"
+    },
+    {
+      "code": "9.9.25",
+      "description": "Outros calçados"
+    },
+    {
+      "code": "10.1",
+      "description": "."
+    },
+    {
+      "code": "10.3",
+      "description": "ARTIGOS PARA VIAGEM, VENTAROLAS, BOLSAS"
+    },
+    {
+      "code": "10.5",
+      "description": "ARTIGOS DE TOALETE, ESPELHOS"
+    },
+    {
+      "code": "10.1.1",
+      "description": "Tabaco"
+    },
+    {
+      "code": "10.1.10",
+      "description": "Artigos para fumantes, fósforos"
+    },
+    {
+      "code": "10.1.2",
+      "description": "Tabaco picado"
+    },
+    {
+      "code": "10.1.3",
+      "description": "Charutos"
+    },
+    {
+      "code": "10.1.5",
+      "description": "Cigarros"
+    },
+    {
+      "code": "10.1.7",
+      "description": "Tabaco em qualquer outra forma"
+    },
+    {
+      "code": "10.1.11",
+      "description": "Cachimbos"
+    },
+    {
+      "code": "10.1.12",
+      "description": "Narguilés"
+    },
+    {
+      "code": "10.1.13",
+      "description": "Piteira para cigarro e charuto"
+    },
+    {
+      "code": "10.1.14",
+      "description": "Limpadores de cachimbo"
+    },
+    {
+      "code": "10.1.15",
+      "description": "Cortadores de charuto"
+    },
+    {
+      "code": "10.1.16",
+      "description": "Recipientes para tabaco"
+    },
+    {
+      "code": "10.1.17",
+      "description": "Bolsa de fumo"
+    },
+    {
+      "code": "10.1.18",
+      "description": "Isqueiros"
+    },
+    {
+      "code": "10.1.19",
+      "description": "Cinzeiros"
+    },
+    {
+      "code": "10.1.20",
+      "description": "Fósforos"
+    },
+    {
+      "code": "10.1.25",
+      "description": "Outros artigos para fumantes"
+    },
+    {
+      "code": "10.3.1",
+      "description": "Bengalas, guarda-chuvas, guarda-sóis"
+    },
+    {
+      "code": "10.3.7",
+      "description": "Ventarolas"
+    },
+    {
+      "code": "10.3.10",
+      "description": "Bolsas, valises, malas"
+    },
+    {
+      "code": "10.3.25",
+      "description": "Outros artigos de viagem"
+    },
+    {
+      "code": "10.3.4",
+      "description": "Guarda-chuvas ou guarda-sóis abertos"
+    },
+    {
+      "code": "10.3.11",
+      "description": "Bolsas de compras"
+    },
+    {
+      "code": "10.3.12",
+      "description": "Sacolas"
+    },
+    {
+      "code": "10.3.13",
+      "description": "Bolsas de mulher"
+    },
+    {
+      "code": "10.3.14",
+      "description": "Fechos de bolsa de mão, de valise ou de mala."
+    },
+    {
+      "code": "10.3.15",
+      "description": "Mochilas"
+    },
+    {
+      "code": "10.3.16",
+      "description": "Valises, baús"
+    },
+    {
+      "code": "10.5.1",
+      "description": "e"
+    },
+    {
+      "code": "10.5.4",
+      "description": "Artigos para barbear (exceto 10.5.21)"
+    },
+    {
+      "code": "10.5.11",
+      "description": "Máquinas de cortar cabelo"
+    },
+    {
+      "code": "10.5.13",
+      "description": "Pentes, escovas de cabelo"
+    },
+    {
+      "code": "10.5.15",
+      "description": "Batons"
+    },
+    {
+      "code": "10.5.17",
+      "description": "Espelhos"
+    },
+    {
+      "code": "10.5.19",
+      "description": "Vaporizadores para a toalete"
+    },
+    {
+      "code": "10.5.21",
+      "description": "Sabonete"
+    },
+    {
+      "code": "10.5.25",
+      "description": ")."
+    },
+    {
+      "code": "10.5.5",
+      "description": "Navalhas abertas"
+    },
+    {
+      "code": "10.5.6",
+      "description": "Aparelho de barbear"
+    },
+    {
+      "code": "10.5.7",
+      "description": "Lâminas para aparelho de barbear"
+    },
+    {
+      "code": "10.5.8",
+      "description": "Barbeadores elétricos"
+    },
+    {
+      "code": "10.5.9",
+      "description": "Pincéis de barba UTENSÍLIOS DOMÉSTICOS Obs.: Não incluindo utensílios domésticos classificados nas categorias 12, 13 ou 19."
+    },
+    {
+      "code": "11.1",
+      "description": "FACAS, GARFOS E COLHERES, UTENSÍLIOS E APARELHOS DE COZINHA"
+    },
+    {
+      "code": "11.3",
+      "description": "RECIPIENTES PARA BEBIDAS, LOUÇA, UTENSÍLIOS DE COZINHA PARA SERVIR, PREPARAR OU COZINHAR ALIMENTOS E BEBIDAS"
+    },
+    {
+      "code": "11.7",
+      "description": "OUTROS UTENSÍLIOS DE USO DOMÉSTICOS"
+    },
+    {
+      "code": "11.1.1",
+      "description": "Facas, garfos e colheres"
+    },
+    {
+      "code": "11.1.10",
+      "description": "Utensílios e aparelhos de cozinha"
+    },
+    {
+      "code": "13.3",
+      "description": "EQUIPAMENTO DE AQUECIMENTO, CULINÁRIA OU REFRIGERAÇÃO, MÁQUINAS DE LAVAR, EQUIPAMENTO DE SECAR"
+    },
+    {
+      "code": "11.1.2",
+      "description": "Colheres"
+    },
+    {
+      "code": "11.1.3",
+      "description": "Facas"
+    },
+    {
+      "code": "11.1.4",
+      "description": "Garfos"
+    },
+    {
+      "code": "11.1.5",
+      "description": "Conjunto de colher(es), faca(s) e/ou garfo(s)"
+    },
+    {
+      "code": "11.1.6",
+      "description": "Pauzinhos para comida oriental"
+    },
+    {
+      "code": "11.1.9",
+      "description": "Espátulas, outros utensílios de mesa"
+    },
+    {
+      "code": "11.1.11",
+      "description": "Funis"
+    },
+    {
+      "code": "11.1.13",
+      "description": "Coadores, peneiras"
+    },
+    {
+      "code": "11.1.14",
+      "description": "Abridor de latas, abridor de garrafas, saca-rolhas"
+    },
+    {
+      "code": "11.1.15",
+      "description": "Moedores de legumes, moedores de carne"
+    },
+    {
+      "code": "11.1.17",
+      "description": "Tábuas de picar ou de cortar"
+    },
+    {
+      "code": "11.1.18",
+      "description": "Filtros de café"
+    },
+    {
+      "code": "11.1.19",
+      "description": "Moedores de café"
+    },
+    {
+      "code": "11.1.20",
+      "description": "Moedores de pimenta"
+    },
+    {
+      "code": "11.1.21",
+      "description": "Batedeiras (misturadores)"
+    },
+    {
+      "code": "11.1.25",
+      "description": "Outros utensílios ou aparelhos de cozinha"
+    },
+    {
+      "code": "11.3.1",
+      "description": "Recipientes para bebidas, taças (troféus)"
+    },
+    {
+      "code": "11.3.5",
+      "description": "Pratos para comer ou servir, travessas"
+    },
+    {
+      "code": "11.3.14",
+      "description": "Bules de chá, cafeteiras, chaleiras"
+    },
+    {
+      "code": "11.3.18",
+      "description": "Caçarolas, frigideiras, marmitas, panelas de pressão, caldeirões"
+    },
+    {
+      "code": "11.3.2",
+      "description": "Copos com ou sem pés, sem asa"
+    },
+    {
+      "code": "11.3.3",
+      "description": "Canecas de chope, copos com asa"
+    },
+    {
+      "code": "11.3.4",
+      "description": "Xícaras, xícaras com pires"
+    },
+    {
+      "code": "11.3.6",
+      "description": "Canudos"
+    },
+    {
+      "code": "11.3.7",
+      "description": "Tigelas"
+    },
+    {
+      "code": "11.3.23",
+      "description": "Pratos e travessas com facas, garfos ou colheres"
+    },
+    {
+      "code": "11.3.8",
+      "description": "Jarros com asa"
+    },
+    {
+      "code": "11.3.9",
+      "description": "Pratos, pires"
+    },
+    {
+      "code": "11.3.10",
+      "description": "Travessas, compoteiras, saladeiras, fruteiras"
+    },
+    {
+      "code": "11.3.11",
+      "description": "Molheiras, sopeiras"
+    },
+    {
+      "code": "11.3.13",
+      "description": "Galheteiros, saleiros, pimenteiras, pote para mostarda"
+    },
+    {
+      "code": "11.3.20",
+      "description": "Recipientes, pratos ou travessas contendo alimento ou bebida"
+    },
+    {
+      "code": "11.3.25",
+      "description": "Outros pratos e travessas"
+    },
+    {
+      "code": "11.7.1",
+      "description": "Artigos de uso doméstico não classificados nas divisões 11.1 ou 11.3"
+    },
+    {
+      "code": "11.7.3",
+      "description": "Cabides de roupa"
+    },
+    {
+      "code": "11.7.4",
+      "description": "Pregadores de roupa"
+    },
+    {
+      "code": "11.7.5",
+      "description": "Escovas, esponjas, palha de aço"
+    },
+    {
+      "code": "11.7.7",
+      "description": "Vassouras, utensílios para limpeza de janela"
+    },
+    {
+      "code": "12.1",
+      "description": "MOBILIÁRIO"
+    },
+    {
+      "code": "12.3",
+      "description": "INSTALAÇÕES SANITÁRIAS"
+    },
+    {
+      "code": "12.1.1",
+      "description": "Mobiliário"
+    },
+    {
+      "code": "12.1.2",
+      "description": "Catres"
+    },
+    {
+      "code": "12.1.3",
+      "description": "Camas"
+    },
+    {
+      "code": "12.1.4",
+      "description": "Colchões, almofadas em forma de cunha, rolos de cama"
+    },
+    {
+      "code": "12.1.5",
+      "description": "Berços"
+    },
+    {
+      "code": "12.1.9",
+      "description": "Cadeiras, poltronas, tamboretes"
+    },
+    {
+      "code": "12.1.10",
+      "description": "Bancos, banquetas, assentos, sofás"
+    },
+    {
+      "code": "12.1.15",
+      "description": "Mesas, bancadas, balcões de açougueiro e de loja"
+    },
+    {
+      "code": "12.1.17",
+      "description": "Cômodas, arcas"
+    },
+    {
+      "code": "12.1.19",
+      "description": "Armários, guarda-louças"
+    },
+    {
+      "code": "12.1.21",
+      "description": "Estantes, armários sem portas"
+    },
+    {
+      "code": "12.1.22",
+      "description": "Cabideiros"
+    },
+    {
+      "code": "12.1.25",
+      "description": "Outras peças do mobiliário"
+    },
+    {
+      "code": "12.3.1",
+      "description": "Instalações sanitárias"
+    },
+    {
+      "code": "12.3.2",
+      "description": "Bacias, pias"
+    },
+    {
+      "code": "12.3.3",
+      "description": "Banheiras"
+    },
+    {
+      "code": "12.3.7",
+      "description": "Vasos sanitários e bidês, descargas de água"
+    },
+    {
+      "code": "12.3.11",
+      "description": "Torneiras"
+    },
+    {
+      "code": "12.3.25",
+      "description": "Outras instalações sanitárias"
+    },
+    {
+      "code": "13.1",
+      "description": "ILUMINAÇÃO, VÁLVULAS DE RÁDIO"
+    },
+    {
+      "code": "13.1.1",
+      "description": "Velas, castiçais"
+    },
+    {
+      "code": "13.1.5",
+      "description": "Archotes, tochas (exceto 13.1.6)"
+    },
+    {
+      "code": "13.1.6",
+      "description": "Lâmpadas, lampiões, lanternas, válvulas de rádio"
+    },
+    {
+      "code": "13.1.2",
+      "description": "Castiçais  (exceto A 13.1.3)"
+    },
+    {
+      "code": "13.1.3",
+      "description": "Castiçais com vários braços"
+    },
+    {
+      "code": "13.1.7",
+      "description": "Lâmpadas a óleo, lâmpadas emitindo luz fraca"
+    },
+    {
+      "code": "13.1.8",
+      "description": "Lampiões, lanternas (exceto A 13.1.9)"
+    },
+    {
+      "code": "13.1.9",
+      "description": "Farol"
+    },
+    {
+      "code": "13.1.10",
+      "description": "Lampiões de rua, lampadários"
+    },
+    {
+      "code": "13.1.11",
+      "description": "Lâmpadas de mesa, candeeiros, abajures"
+    },
+    {
+      "code": "13.1.12",
+      "description": "Lâmpadas suspensas"
+    },
+    {
+      "code": "13.1.13",
+      "description": "Apliques de luminária"
+    },
+    {
+      "code": "13.1.14",
+      "description": "Lanternas elétricas, lanternas de bolso"
+    },
+    {
+      "code": "13.1.15",
+      "description": "Lâmpadas pisca-pisca de sinalização"
+    },
+    {
+      "code": "13.1.16",
+      "description": "Faróis de veículos"
+    },
+    {
+      "code": "13.1.17",
+      "description": "Lâmpadas ou tubos de luz elétrica"
+    },
+    {
+      "code": "13.1.18",
+      "description": "Válvulas de rádio"
+    },
+    {
+      "code": "13.1.20",
+      "description": "Partes de lâmpadas (exceto A 13.1.11 e A 13.1.17)"
+    },
+    {
+      "code": "13.1.25",
+      "description": "Outros artigos de iluminação"
+    },
+    {
+      "code": "13.3.1",
+      "description": "Equipamento de aquecimento, culinária ou refrigeração"
+    },
+    {
+      "code": "13.3.23",
+      "description": "Máquinas de lavar, lavadoras de pratos (máquinas)"
+    },
+    {
+      "code": "13.3.24",
+      "description": "Equipamento de secar"
+    },
+    {
+      "code": "13.3.25",
+      "description": "Ferros e outros aparelhos de passar"
+    },
+    {
+      "code": "13.3.2",
+      "description": "Chaminés, braseiros e outros aparelhos de aquecimento com chama viva"
+    },
+    {
+      "code": "13.3.3",
+      "description": "Caldeira de calefação, aquecedores para quartos"
+    },
+    {
+      "code": "13.3.5",
+      "description": "Radiadores, aparelhos de aquecimento para sauna, outros aparelhos de calefação"
+    },
+    {
+      "code": "13.3.6",
+      "description": "Partes de aparelhos de aquecimento"
+    },
+    {
+      "code": "13.3.7",
+      "description": "Fornos de cozinha, estufas (rechaud), grelhas"
+    },
+    {
+      "code": "13.3.9",
+      "description": "Outros equipamentos de culinária"
+    },
+    {
+      "code": "13.3.21",
+      "description": "Equipamento de refrigeração"
+    },
+    {
+      "code": "14.1",
+      "description": "TUBOS, CABOS, ARTIGOS DE FERRAGENS PESADAS"
+    },
+    {
+      "code": "14.3",
+      "description": "ARTIGOS DE FERRAGENS DE PEQUENO PORTE, MOLAS"
+    },
+    {
+      "code": "14.5",
+      "description": "CHAVES PARA FECHADURA, FECHADURAS, CADEADOS"
+    },
+    {
+      "code": "14.7",
+      "description": "FERRAMENTAS"
+    },
+    {
+      "code": "14.9",
+      "description": "FERRAMENTAS PARA AGRICULTURA OU HORTICULTURA, PICARETAS"
+    },
+    {
+      "code": "14.11",
+      "description": "ESCADAS"
+    },
+    {
+      "code": "14.1.1",
+      "description": "Tubos, mangueiras, calhas"
+    },
+    {
+      "code": "14.1.5",
+      "description": "Barras, cabos"
+    },
+    {
+      "code": "14.1.13",
+      "description": "Correntes, elos de corrente"
+    },
+    {
+      "code": "14.1.18",
+      "description": "Outros artigos de ferragens de grande porte"
+    },
+    {
+      "code": "14.1.2",
+      "description": "Tubos ou canos, curvos, enrolados ou torcidos"
+    },
+    {
+      "code": "14.1.3",
+      "description": "Conexões de tubos ou de canos, calhas"
+    },
+    {
+      "code": "14.1.6",
+      "description": "Barras ou cabos, trançados ou torcidos"
+    },
+    {
+      "code": "14.1.8",
+      "description": "Cabos com fios distintivos ou com seções de cores diferentes"
+    },
+    {
+      "code": "14.1.10",
+      "description": "Cabos ou cordões com tomadas elétricas"
+    },
+    {
+      "code": "14.1.14",
+      "description": "Correntes de cilindro (para bicicleta, motos, etc.)"
+    },
+    {
+      "code": "14.1.15",
+      "description": "Elos de corrente"
+    },
+    {
+      "code": "14.1.16",
+      "description": "Correntes em forma de anel"
+    },
+    {
+      "code": "14.1.19",
+      "description": "Vigas mestras, vigas, barras, trilhos"
+    },
+    {
+      "code": "14.1.20",
+      "description": "Perfis de vigas mestras, de vigas, de barras ou trilhos"
+    },
+    {
+      "code": "14.1.22",
+      "description": "Barras de ferro para reforçar concreto, estruturas de ferro"
+    },
+    {
+      "code": "14.1.23",
+      "description": "Arame farpado"
+    },
+    {
+      "code": "14.1.24",
+      "description": "Rede de arame"
+    },
+    {
+      "code": "14.1.25",
+      "description": "Outros artigos de ferragens pesadas"
+    },
+    {
+      "code": "14.3.1",
+      "description": "Pregos, parafusos, cravos, pinos, roscas, porcas, percevejos"
+    },
+    {
+      "code": "14.3.20",
+      "description": "Outros artigos de ferragens de pequeno porte"
+    },
+    {
+      "code": "14.3.21",
+      "description": "Molas"
+    },
+    {
+      "code": "14.3.2",
+      "description": "Pregos"
+    },
+    {
+      "code": "14.3.3",
+      "description": "Parafusos, cravos, pinos, roscas, percevejos"
+    },
+    {
+      "code": "14.3.7",
+      "description": "Pregos, parafusos, cravos, porcas e/ou pinos, cruzados"
+    },
+    {
+      "code": "14.3.9",
+      "description": "Roscas"
+    },
+    {
+      "code": "14.3.11",
+      "description": "Ganchos"
+    },
+    {
+      "code": "14.3.13",
+      "description": "Anéis para cabos, pinças-alicate de cabo, grampos de barbará, luvas, anéis, arruelas, alças, segmentos, juntas"
+    },
+    {
+      "code": "14.3.15",
+      "description": "Maçanetas de portas ou janelas, dobradiças, charneiras"
+    },
+    {
+      "code": "14.3.16",
+      "description": "Fechaduras, ferrolhos"
+    },
+    {
+      "code": "14.5.1",
+      "description": "Chaves, partes de chaves"
+    },
+    {
+      "code": "14.5.20",
+      "description": "Chaveiros, com ou sem chaves"
+    },
+    {
+      "code": "14.5.21",
+      "description": "Fechaduras, espelhos de fechadura"
+    },
+    {
+      "code": "14.5.23",
+      "description": "Cadeados"
+    },
+    {
+      "code": "14.5.24",
+      "description": "Algemas"
+    },
+    {
+      "code": "14.5.2",
+      "description": "Uma chave"
+    },
+    {
+      "code": "14.5.3",
+      "description": "Duas chaves"
+    },
+    {
+      "code": "14.5.6",
+      "description": "Mais de duas chaves"
+    },
+    {
+      "code": "14.5.9",
+      "description": "Partes de chaves"
+    },
+    {
+      "code": "14.5.12",
+      "description": "Chaves com cabo circular, oval ou achatado"
+    },
+    {
+      "code": "14.5.13",
+      "description": "Chaves com cabo em lóbulos"
+    },
+    {
+      "code": "14.5.14",
+      "description": "Chaves com cabo em forma de losango, trabalhado ou não, com extremidade reta ou côncava"
+    },
+    {
+      "code": "14.5.15",
+      "description": "Chaves com cabo de outra forma"
+    },
+    {
+      "code": "14.5.18",
+      "description": "Chaves planas"
+    },
+    {
+      "code": "14.5.19",
+      "description": "Outras chaves"
+    },
+    {
+      "code": "14.7.1",
+      "description": "Martelos, marretas, macetes"
+    },
+    {
+      "code": "14.7.2",
+      "description": "Machados"
+    },
+    {
+      "code": "14.7.4",
+      "description": "Bigornas, pés de ferro"
+    },
+    {
+      "code": "14.7.6",
+      "description": "Outras ferramentas (exceto 14.7.18 a .. 14.7.23)"
+    },
+    {
+      "code": "14.7.18",
+      "description": "Cutelaria"
+    },
+    {
+      "code": "14.7.23",
+      "description": "Colher de pedreiro e trolhas"
+    },
+    {
+      "code": "14.7.3",
+      "description": "Dois martelos, duas marretas ou dois machados, cruzados"
+    },
+    {
+      "code": "14.7.7",
+      "description": "Tenazes, alicates"
+    },
+    {
+      "code": "14.7.8",
+      "description": "Pinças"
+    },
+    {
+      "code": "14.7.9",
+      "description": "Cunhas, chave inglesa"
+    },
+    {
+      "code": "14.7.11",
+      "description": "Verruma, aríete, furadeira manual"
+    },
+    {
+      "code": "14.7.12",
+      "description": "Furadeiras elétricas, martelos pneumáticos"
+    },
+    {
+      "code": "14.7.13",
+      "description": "Goivas (para furadeiras), brocas"
+    },
+    {
+      "code": "14.7.14",
+      "description": "Pedras de amolar, pedras de caiar"
+    },
+    {
+      "code": "14.7.15",
+      "description": "Serras, armações de serras"
+    },
+    {
+      "code": "14.7.16",
+      "description": "Lâminas de serrotes ou cintas de serras de fita"
+    },
+    {
+      "code": "14.7.19",
+      "description": "Facas"
+    },
+    {
+      "code": "14.7.20",
+      "description": "Tesouras (exceto A 14.7.21)"
+    },
+    {
+      "code": "14.7.21",
+      "description": "Tesouras de tosquiar carneiros"
+    },
+    {
+      "code": "14.9.1",
+      "description": "Pás"
+    },
+    {
+      "code": "14.9.5",
+      "description": "Enxadão, picaretas, enxadas"
+    },
+    {
+      "code": "14.9.7",
+      "description": "Alfanjes, foices"
+    },
+    {
+      "code": "14.9.10",
+      "description": "Outras ferramentas para a agricultura ou horticultura"
+    },
+    {
+      "code": "14.9.2",
+      "description": "Pás redondas ou pontudas"
+    },
+    {
+      "code": "14.9.3",
+      "description": "Pás retangulares ou quadradas"
+    },
+    {
+      "code": "14.9.11",
+      "description": "Ancinhos"
+    },
+    {
+      "code": "14.9.13",
+      "description": "Arados, relhas de arado"
+    },
+    {
+      "code": "14.11.1",
+      "description": "Escadas"
+    },
+    {
+      "code": "14.11.2",
+      "description": "Escadas simples"
+    },
+    {
+      "code": "14.11.3",
+      "description": "Escadas duplas"
+    },
+    {
+      "code": "14.11.4",
+      "description": "Escadas de mão"
+    },
+    {
+      "code": "14.11.5",
+      "description": "Escadas de piscina"
+    },
+    {
+      "code": "15.1",
+      "description": "MÁQUINAS PARA INDÚSTRIA OU AGRICULTURA, INSTALAÇÕES INDUSTRIAIS, MOTORES, ENGENHOS, APARELHOS MECÂNICOS DIVERSOS"
+    },
+    {
+      "code": "15.3",
+      "description": "MAQUINAS PARA USO DOMÉSTICO, RODAS DE FIAR"
+    },
+    {
+      "code": "15.5",
+      "description": "MAQUINAS DE ESCRITÓRIO"
+    },
+    {
+      "code": "15.7",
+      "description": "RODAS, ROLAMENTOS"
+    },
+    {
+      "code": "15.9",
+      "description": "EQUIPAMENTO ELÉTRICO"
+    },
+    {
+      "code": "15.1.1",
+      "description": "Máquinas para a indústria e instalações industriais (por exemplo, máquinas de prensar, triturar, misturar, destilar ou perfurar)"
+    },
+    {
+      "code": "15.1.7",
+      "description": "Esteiras transportadoras"
+    },
+    {
+      "code": "15.1.11",
+      "description": "Motores, engenhos"
+    },
+    {
+      "code": "15.1.13",
+      "description": "Hélices, ventiladores, foles, turbinas, queimadores"
+    },
+    {
+      "code": "15.1.17",
+      "description": "Peças de maquinaria para a indústria ou agricultura, de instalações industriais ou de motores e engenhos (incluindo braços de robôs)"
+    },
+    {
+      "code": "15.1.19",
+      "description": "Gruas, guinchos, roldanas"
+    },
+    {
+      "code": "15.1.21",
+      "description": "Pulverizadores, pistolas de pintura, extintores, regadores"
+    },
+    {
+      "code": "15.1.22",
+      "description": "Máquinas para agricultura"
+    },
+    {
+      "code": "15.1.23",
+      "description": "Bombas de gasolina"
+    },
+    {
+      "code": "15.1.24",
+      "description": "Distribuidores automáticos, máquinas de vendas operadas por moedas (exceto 15.1.23), caixas registradoras"
+    },
+    {
+      "code": "15.1.25",
+      "description": "Outros aparelhos mecânicos diversos"
+    },
+    {
+      "code": "15.3.1",
+      "description": "Máquinas para uso doméstico"
+    },
+    {
+      "code": "15.3.11",
+      "description": "Máquinas, rodas e rocas de fiar"
+    },
+    {
+      "code": "15.3.3",
+      "description": "Máquinas de costura"
+    },
+    {
+      "code": "15.3.5",
+      "description": "Aspiradores de pó, enceradeiras"
+    },
+    {
+      "code": "15.3.9",
+      "description": "Outras máquinas para uso doméstico"
+    },
+    {
+      "code": "15.5.1",
+      "description": "Máquinas de escrever"
+    },
+    {
+      "code": "15.5.25",
+      "description": "Outras máquinas de escritório"
+    },
+    {
+      "code": "15.7.1",
+      "description": "Rodas denteadas, dentes de roda"
+    },
+    {
+      "code": "15.7.7",
+      "description": "Rodas de leme, cabrestante, rodas de pá"
+    },
+    {
+      "code": "15.7.9",
+      "description": "Outras rodas, com ou sem raios"
+    },
+    {
+      "code": "15.7.11",
+      "description": "Rolamentos de esferas (bilha) e outros rolamentos"
+    },
+    {
+      "code": "15.7.15",
+      "description": "Engrenagem, várias rodas justapostas, rodas com transmissão"
+    },
+    {
+      "code": "15.7.17",
+      "description": "Rodas ou Segmentos de rodas aladas"
+    },
+    {
+      "code": "15.7.2",
+      "description": "Rodas com dentes de serra, discos de serras circulares"
+    },
+    {
+      "code": "15.7.3",
+      "description": "Segmentos de rodas denteadas, dentes de rodas"
+    },
+    {
+      "code": "15.7.4",
+      "description": "Rodas denteadas ou segmentos de roda denteada com raios"
+    },
+    {
+      "code": "15.7.18",
+      "description": "Rodas ou rolamentos sem inscrição ou desenho"
+    },
+    {
+      "code": "15.7.19",
+      "description": "Rodas ou rolamentos com inscrição"
+    },
+    {
+      "code": "15.7.20",
+      "description": "Rodas ou rolamentos com seres humanos, animais ou plantas"
+    },
+    {
+      "code": "15.7.21",
+      "description": "Rodas ou rolamentos com outros elementos figurativos"
+    },
+    {
+      "code": "15.9.1",
+      "description": "Equipamento elétrico"
+    },
+    {
+      "code": "15.9.2",
+      "description": "Baterias, pilhas"
+    },
+    {
+      "code": "15.9.3",
+      "description": "Velas de ignição"
+    },
+    {
+      "code": "15.9.9",
+      "description": "Acessórios elétricos para veículos (exceto A 15.9.2 e A 15.9.3)"
+    },
+    {
+      "code": "15.9.10",
+      "description": "Tomadas elétricas"
+    },
+    {
+      "code": "15.9.11",
+      "description": "Interruptores"
+    },
+    {
+      "code": "15.9.15",
+      "description": "Isoladores"
+    },
+    {
+      "code": "15.9.16",
+      "description": "Transístores, diodos, resistências e ímãs"
+    },
+    {
+      "code": "15.9.18",
+      "description": "Circuitos integrados, chips de computador"
+    },
+    {
+      "code": "15.9.25",
+      "description": "Outros materiais elétricos"
+    },
+    {
+      "code": "16.1",
+      "description": "TELECOMUNICAÇÕES, GRAVAÇÃO OU REPRODUÇÃO DE SOM, COMPUTADORES"
+    },
+    {
+      "code": "16.3",
+      "description": "FOTOGRAFIA, CINEMATOGRAFIA, ÓTICA"
+    },
+    {
+      "code": "16.1.1",
+      "description": "Antenas, antenas parabólicas; torres, postes ou linhas para telefone ou eletricidade"
+    },
+    {
+      "code": "16.1.4",
+      "description": "Aparelhos e equipamentos de telecomunicação, de televisão, de gravação ou reprodução de som, computadores"
+    },
+    {
+      "code": "16.1.5",
+      "description": "Aparelhos de rádio ou de televisão"
+    },
+    {
+      "code": "16.1.6",
+      "description": "Computadores, processadores de texto"
+    },
+    {
+      "code": "16.1.11",
+      "description": "Aparelhos de telefone"
+    },
+    {
+      "code": "16.1.12",
+      "description": "Aparelhos de fax"
+    },
+    {
+      "code": "16.1.15",
+      "description": "Toca-discos"
+    },
+    {
+      "code": "16.1.16",
+      "description": "Discos para gravação e reprodução de som, imagem e dados; capas e estojos para discos"
+    },
+    {
+      "code": "16.1.17",
+      "description": "Fitas de gravação, cassetes para fitas de gravação"
+    },
+    {
+      "code": "16.1.25",
+      "description": "Outros aparelhos de telecomunicação, de gravação ou reprodução do som"
+    },
+    {
+      "code": "16.3.1",
+      "description": "Aparelhos fotográficos ou cinematográficos, aparelhos e lanternas de projeção"
+    },
+    {
+      "code": "16.3.11",
+      "description": "Outros aparelhos, instrumentos ou equipamento para fotografia ou cinema"
+    },
+    {
+      "code": "16.3.13",
+      "description": "Óculos, armações de óculos"
+    },
+    {
+      "code": "16.3.15",
+      "description": "Binóculos, telescópios, lunetas, microscópios"
+    },
+    {
+      "code": "16.3.17",
+      "description": "Lentes de aumento com cabo"
+    },
+    {
+      "code": "16.3.19",
+      "description": "Lentes óticas, lentes de contato, lentes de óculos"
+    },
+    {
+      "code": "16.3.25",
+      "description": "Outros aparelhos, instrumentos ou material ótico"
+    },
+    {
+      "code": "16.3.3",
+      "description": "Diafragmas em forma de íris"
+    },
+    {
+      "code": "16.3.5",
+      "description": "Filmes, recipientes para filmes"
+    },
+    {
+      "code": "17.1",
+      "description": "ou balanças e pesos, classificados em"
+    },
+    {
+      "code": "17.2",
+      "description": "JÓIAS"
+    },
+    {
+      "code": "17.3",
+      "description": "."
+    },
+    {
+      "code": "17.5",
+      "description": "MEDIDAS"
+    },
+    {
+      "code": "17.1.1",
+      "description": "Instrumentos de relojoaria"
+    },
+    {
+      "code": "17.1.17",
+      "description": "Relógios de sol"
+    },
+    {
+      "code": "17.1.19",
+      "description": "Ampulhetas"
+    },
+    {
+      "code": "17.1.25",
+      "description": "Outros instrumentos de medição de tempo"
+    },
+    {
+      "code": "17.1.2",
+      "description": "Mostradores circulares, com ou sem ponteiros"
+    },
+    {
+      "code": "17.1.3",
+      "description": "Mostradores não-circulares, com ou sem ponteiros"
+    },
+    {
+      "code": "17.1.5",
+      "description": "Ponteiros de instrumentos de relojoaria"
+    },
+    {
+      "code": "17.1.6",
+      "description": "Outras peças de instrumentos de relojoaria"
+    },
+    {
+      "code": "17.1.7",
+      "description": "Relógios de pulso"
+    },
+    {
+      "code": "17.1.9",
+      "description": "Relógios, despertadores"
+    },
+    {
+      "code": "17.1.13",
+      "description": "Pulseiras de relógio"
+    },
+    {
+      "code": "17.2.1",
+      "description": "Pedras preciosas"
+    },
+    {
+      "code": "17.2.5",
+      "description": "Pérolas"
+    },
+    {
+      "code": "17.2.13",
+      "description": "Colares, braceletes, correntes"
+    },
+    {
+      "code": "17.2.17",
+      "description": "Anéis e alianças"
+    },
+    {
+      "code": "17.2.25",
+      "description": "Outras jóias"
+    },
+    {
+      "code": "17.2.2",
+      "description": "Pedras preciosas lapidadas com facetas"
+    },
+    {
+      "code": "17.2.4",
+      "description": "Outras representações de pedras preciosas"
+    },
+    {
+      "code": "17.2.6",
+      "description": "Pérolas ou pedras preciosas dentro de ostra"
+    },
+    {
+      "code": "17.3.1",
+      "description": "Balanças, pesos"
+    },
+    {
+      "code": "17.3.2",
+      "description": "Balanças com dois pratos"
+    },
+    {
+      "code": "17.3.3",
+      "description": "Outras balanças"
+    },
+    {
+      "code": "17.3.5",
+      "description": "Peças de balanças"
+    },
+    {
+      "code": "17.3.11",
+      "description": "Pesos"
+    },
+    {
+      "code": "17.5.1",
+      "description": "e na divisão 20.5."
+    },
+    {
+      "code": "17.5.2",
+      "description": "Instrumentos de medida linear (metros, réguas graduadas, fitas métricas, fitas e cadeias métricas de agrimensor)"
+    },
+    {
+      "code": "17.5.3",
+      "description": "Réguas, discos e tambores de calcular"
+    },
+    {
+      "code": "17.5.4",
+      "description": "Ábacos"
+    },
+    {
+      "code": "17.5.5",
+      "description": "Medidores, calibradores, medidores verniê, micrômetros"
+    },
+    {
+      "code": "17.5.7",
+      "description": "Compassos para desenhista e pedreiro"
+    },
+    {
+      "code": "17.5.9",
+      "description": "Esquadros, curvas francesas, réguas-tê"
+    },
+    {
+      "code": "17.5.13",
+      "description": "Fios de prumo, pesos de chumbo para fios de prumo"
+    },
+    {
+      "code": "17.5.15",
+      "description": "Níveis"
+    },
+    {
+      "code": "17.5.17",
+      "description": "Mostradores de instrumentos de medição"
+    },
+    {
+      "code": "17.5.19",
+      "description": "Termômetros"
+    },
+    {
+      "code": "17.5.21",
+      "description": "Bússolas e bússolas de navegação"
+    },
+    {
+      "code": "17.5.25",
+      "description": "Outros instrumentos de medição, marcadores TRANSPORTE, EQUIPAMENTO PARA ANIMAIS"
+    },
+    {
+      "code": "18.1",
+      "description": "VEÍCULOS TERRESTRES"
+    },
+    {
+      "code": "18.2",
+      "description": "EQUIPAMENTO PARA ANIMAIS"
+    },
+    {
+      "code": "18.3",
+      "description": "VEÍCULOS NÁUTICOS OU ANFÍBIOS"
+    },
+    {
+      "code": "18.4",
+      "description": "ÂNCORAS, BÓIAS OU COLETES SALVA-VIDAS"
+    },
+    {
+      "code": "18.5",
+      "description": "VEÍCULOS AÉREOS OU ESPACIAIS"
+    },
+    {
+      "code": "18.7",
+      "description": "SINAIS DE TRÂNSITO E PAINÉIS INDICADORES"
+    },
+    {
+      "code": "18.1.1",
+      "description": "Veículos movidos por tração humana ou animal (exceto 18.1.5 e  18.1.14)"
+    },
+    {
+      "code": "18.1.5",
+      "description": "Bicicletas, motocicletas, lambretas, triciclos"
+    },
+    {
+      "code": "18.1.7",
+      "description": "Automóveis rodoviários"
+    },
+    {
+      "code": "18.1.11",
+      "description": "Veículos ferroviários, trens, bondes"
+    },
+    {
+      "code": "18.1.14",
+      "description": "Outros veículos terrestres"
+    },
+    {
+      "code": "18.1.21",
+      "description": "Pneus, marcas de pneus, correntes para neve, eixos com ou sem rodas, volantes, radiadores, canos de descarga, amortecedores de veículos terrestres"
+    },
+    {
+      "code": "18.1.23",
+      "description": "Veículos terrestres estilizados"
+    },
+    {
+      "code": "18.1.25",
+      "description": "Outros meios de transporte não classificados nas divisões 18.3 e 18.5"
+    },
+    {
+      "code": "18.1.2",
+      "description": "Carros de corrida ou combate, carruagens puxadas a cavalo com duas rodas"
+    },
+    {
+      "code": "18.1.3",
+      "description": "Carros ou carruagens puxadas a cavalo com quatro rodas ou mais"
+    },
+    {
+      "code": "18.1.8",
+      "description": "Caminhões, tanques, tratores, ônibus elétricos"
+    },
+    {
+      "code": "18.1.9",
+      "description": "Automóveis"
+    },
+    {
+      "code": "18.1.12",
+      "description": "Locomotivas"
+    },
+    {
+      "code": "18.1.15",
+      "description": "Rolos compressores, veículos ou máquinas de canteiros de obras automotoras"
+    },
+    {
+      "code": "18.1.16",
+      "description": "Elevadores, empilhadeiras"
+    },
+    {
+      "code": "18.1.17",
+      "description": "Tobogãs, trenós, outros veículos para neve, máquinas automotoras para neve"
+    },
+    {
+      "code": "18.1.18",
+      "description": "Caravanas (trailers)"
+    },
+    {
+      "code": "18.1.19",
+      "description": "Carrinhos de crianças, carrinhos de golfe, patinetes (com ou sem guidão), carrinhos de supermercado"
+    },
+    {
+      "code": "18.1.20",
+      "description": "Cadeiras de rodas"
+    },
+    {
+      "code": "18.2.1",
+      "description": "Ferraduras"
+    },
+    {
+      "code": "18.2.7",
+      "description": "Equipamento para cavalos (exceto 18.2.1)"
+    },
+    {
+      "code": "18.2.17",
+      "description": "Equipamento para cachorros e gatos"
+    },
+    {
+      "code": "18.2.25",
+      "description": "Equipamento para outros animais"
+    },
+    {
+      "code": "18.2.9",
+      "description": "Estribos, esporas"
+    },
+    {
+      "code": "18.2.11",
+      "description": "Arreios"
+    },
+    {
+      "code": "18.2.13",
+      "description": "Selas"
+    },
+    {
+      "code": "18.2.15",
+      "description": "Chicotes, rebenques"
+    },
+    {
+      "code": "18.2.18",
+      "description": "Correias e coleiras para cachorros e gatos"
+    },
+    {
+      "code": "18.3.1",
+      "description": "Barcos a remo, pirogas, gôndolas, botes, caiaques"
+    },
+    {
+      "code": "18.3.2",
+      "description": "Barcos a vela, pranchas a vela"
+    },
+    {
+      "code": "18.3.14",
+      "description": "Barcos e navios a motor"
+    },
+    {
+      "code": "18.3.21",
+      "description": "Velas"
+    },
+    {
+      "code": "18.3.23",
+      "description": "Barcos de fantasia ou estilizados"
+    },
+    {
+      "code": "18.3.25",
+      "description": "Outros meios de transporte aquático"
+    },
+    {
+      "code": "18.3.3",
+      "description": "Barcos viquingues, galeras, barcas com uma única vela quadrada (amarrada em sentido horizontal ao mastro)"
+    },
+    {
+      "code": "18.3.5",
+      "description": "Barcos a vela antigos, barcos com profunda curvatura do convés, castelos de popa e proa muito aparentes"
+    },
+    {
+      "code": "18.3.7",
+      "description": "Grandes veleiros com cascos planos, clíperes"
+    },
+    {
+      "code": "18.3.9",
+      "description": "Outros barcos a vela"
+    },
+    {
+      "code": "18.3.10",
+      "description": "Pranchas a vela, pranchas de surf"
+    },
+    {
+      "code": "18.3.13",
+      "description": "Navios mistos (a velas e a vapor)"
+    },
+    {
+      "code": "18.3.15",
+      "description": "Navios A"
+    },
+    {
+      "code": "18.3.16",
+      "description": "Submarinos A"
+    },
+    {
+      "code": "18.3.17",
+      "description": "Outros barcos ou navios a motor, traineiras, rebocadores"
+    },
+    {
+      "code": "18.3.18",
+      "description": "Chaminés de navio"
+    },
+    {
+      "code": "18.4.1",
+      "description": "Âncoras, bóias ou coletes salva-vidas"
+    },
+    {
+      "code": "18.4.2",
+      "description": "Âncoras"
+    },
+    {
+      "code": "18.4.3",
+      "description": "Âncoras em cruz"
+    },
+    {
+      "code": "18.4.11",
+      "description": "Bóias ou coletes salva-vidas"
+    },
+    {
+      "code": "18.5.1",
+      "description": "Aviões, helicópteros"
+    },
+    {
+      "code": "18.5.5",
+      "description": "Outros veículos aéreos"
+    },
+    {
+      "code": "18.5.10",
+      "description": "Foguetes e cápsulas espaciais, satélites artificiais"
+    },
+    {
+      "code": "18.5.3",
+      "description": "Aviões estilizados"
+    },
+    {
+      "code": "18.5.6",
+      "description": "Balões, balões cativos, dirigíveis"
+    },
+    {
+      "code": "18.5.7",
+      "description": "Pipas, asas-delta"
+    },
+    {
+      "code": "18.5.8",
+      "description": "Pára-quedas"
+    },
+    {
+      "code": "18.7.1",
+      "description": "Sinais de trânsito rodoviário ou ferroviário"
+    },
+    {
+      "code": "18.7.22",
+      "description": "Sinais de trânsito náutico ou aéreo"
+    },
+    {
+      "code": "18.7.9",
+      "description": "Painéis ou postes indicadores de direção, placas com nomes e números de ruas"
+    },
+    {
+      "code": "18.7.11",
+      "description": "Sinais luminosos de trânsito rodoviários ou ferroviários"
+    },
+    {
+      "code": "18.7.13",
+      "description": "Marcos miliários"
+    },
+    {
+      "code": "18.7.20",
+      "description": "Outros sinais de trânsito rodoviário ou ferroviário"
+    },
+    {
+      "code": "18.7.19",
+      "description": "Semáforos"
+    },
+    {
+      "code": "18.7.23",
+      "description": "Bóias de sinalização"
+    },
+    {
+      "code": "18.7.25",
+      "description": "Outros sinais de trânsito náutico ou aéreo"
+    },
+    {
+      "code": "19.1",
+      "description": "GRANDES RECIPIENTES"
+    },
+    {
+      "code": "19.3",
+      "description": "PEQUENOS RECIPIENTES"
+    },
+    {
+      "code": "19.7",
+      "description": "GARRAFAS, FRASCOS"
+    },
+    {
+      "code": "19.8",
+      "description": "PARTES OU ACESSÓRIOS DE GARRAFAS"
+    },
+    {
+      "code": "19.9",
+      "description": "ÂNFORAS, CÂNTAROS, JARROS, VASOS DE FLORES, JARDINEIRAS"
+    },
+    {
+      "code": "19.11",
+      "description": "RECIPIENTES PARA USO EM LABORATÓRIO E PARA FARMÁCIA"
+    },
+    {
+      "code": "19.13",
+      "description": "APARELHOS, INSTRUMENTOS OU UTENSÍLIOS CIRÚRGICOS OU DE MEDICINA, PRÓTESES, MEDICAMENTOS"
+    },
+    {
+      "code": "19.19",
+      "description": "REPRESENTAÇÕES DE PRODUTOS DIVERSOS"
+    },
+    {
+      "code": "19.1.1",
+      "description": "Grandes recipientes cilíndricos ou elípticos (por exemplo, tanques, botijões de gás, tonéis)"
+    },
+    {
+      "code": "19.1.3",
+      "description": "Grandes recipientes não-cilíndricos ou não-elípticos (por exemplo, caixotes de embalagem, engradados)"
+    },
+    {
+      "code": "19.1.4",
+      "description": "Latas e latões, baldes, regadores"
+    },
+    {
+      "code": "19.1.5",
+      "description": "Barris deitados"
+    },
+    {
+      "code": "19.1.6",
+      "description": "Barris em pé"
+    },
+    {
+      "code": "19.1.7",
+      "description": "Barris vistos de frente"
+    },
+    {
+      "code": "19.1.8",
+      "description": "Cubas, vasos de madeira, baldes para ordenha"
+    },
+    {
+      "code": "19.1.11",
+      "description": "Grandes sacos para transporte de mercadorias"
+    },
+    {
+      "code": "19.1.12",
+      "description": "Cestos, incluindo cestos para carregar nas costas (jacás)"
+    },
+    {
+      "code": "19.1.25",
+      "description": "Outros recipientes grandes"
+    },
+    {
+      "code": "19.3.1",
+      "description": "Pequenos recipientes cilíndricos ou elípticos (por exemplo tubos para comprimidos ou para batons, potes para creme cosmético, latas de conserva, jarros)"
+    },
+    {
+      "code": "19.3.3",
+      "description": "Pequenos recipientes não cilíndricos ou não elípticos"
+    },
+    {
+      "code": "19.3.4",
+      "description": "Caixas de correspondência"
+    },
+    {
+      "code": "19.3.5",
+      "description": "Sachês"
+    },
+    {
+      "code": "19.3.9",
+      "description": "Pequenos recipientes abertos"
+    },
+    {
+      "code": "19.3.15",
+      "description": "Tubos ou garrafas com embalagem"
+    },
+    {
+      "code": "19.3.21",
+      "description": "Tubos fechados em uma das extremidades"
+    },
+    {
+      "code": "19.3.24",
+      "description": "Papel ou cartão preparados para montagem em pequenos recipientes"
+    },
+    {
+      "code": "19.3.25",
+      "description": "Outros pequenos recipientes"
+    },
+    {
+      "code": "19.7.1",
+      "description": "Garrafas ou frascos de seção horizontal, circular ou elíptica"
+    },
+    {
+      "code": "19.7.2",
+      "description": "Garrafas ou frascos de seção horizontal que não circular ou elíptica"
+    },
+    {
+      "code": "19.7.6",
+      "description": "Garrafas ou frascos representando um ser humano, um animal, uma parte do corpo humano ou de animal ou um objeto inanimado"
+    },
+    {
+      "code": "19.7.7",
+      "description": "Garrafas ou frascos com asa"
+    },
+    {
+      "code": "19.7.25",
+      "description": "Outras garrafas ou frascos"
+    },
+    {
+      "code": "19.7.26",
+      "description": "Mamadeiras"
+    },
+    {
+      "code": "19.7.9",
+      "description": "Garrafas ou frascos alongados"
+    },
+    {
+      "code": "19.7.10",
+      "description": "Garrafas ou frascos bojudos"
+    },
+    {
+      "code": "19.7.12",
+      "description": "Garrafas ou frascos sem gargalo"
+    },
+    {
+      "code": "19.7.13",
+      "description": "Garrafas ou frascos com gargalo oblíquo ou horizontal"
+    },
+    {
+      "code": "19.7.16",
+      "description": "Garrafas ou frascos com lados côncavos"
+    },
+    {
+      "code": "19.7.17",
+      "description": "Garrafas ou frascos com lados convexos, salientes ou arredondados"
+    },
+    {
+      "code": "19.7.20",
+      "description": "Garrafas ou frascos com forma cônica"
+    },
+    {
+      "code": "19.7.22",
+      "description": "Garrafas ou frascos com canelado vertical, horizontal ou outros"
+    },
+    {
+      "code": "19.7.23",
+      "description": "Garrafas ou frascos com relevos que não os canelados"
+    },
+    {
+      "code": "19.7.24",
+      "description": "Garrafas ou frascos em embalagem trançada"
+    },
+    {
+      "code": "19.8.1",
+      "description": "Partes ou acessórios de garrafas"
+    },
+    {
+      "code": "19.8.2",
+      "description": "Gargalos de garrafa"
+    },
+    {
+      "code": "19.8.5",
+      "description": "Rolhas"
+    },
+    {
+      "code": "19.8.7",
+      "description": "Chapinhas de garrafa"
+    },
+    {
+      "code": "19.8.25",
+      "description": "Outras partes ou acessórios de garrafas"
+    },
+    {
+      "code": "19.9.1",
+      "description": "Ânforas, cântaros, jarros, vasos de flores, jardineiras"
+    },
+    {
+      "code": "19.9.2",
+      "description": "Ânforas com ou sem asas, cântaros"
+    },
+    {
+      "code": "19.9.3",
+      "description": "Jarros de flores, jarros decorativos"
+    },
+    {
+      "code": "19.9.7",
+      "description": "Vasos de flores ou de cultivo de plantas"
+    },
+    {
+      "code": "19.9.9",
+      "description": "Jardineiras, caixas para plantas"
+    },
+    {
+      "code": "19.11.1",
+      "description": "Pilões"
+    },
+    {
+      "code": "19.11.4",
+      "description": "Recipientes para uso em laboratório e para farmácia"
+    },
+    {
+      "code": "19.11.5",
+      "description": "Retortas esféricas ou ovóides"
+    },
+    {
+      "code": "19.11.7",
+      "description": "Retortas triangulares"
+    },
+    {
+      "code": "19.11.9",
+      "description": "Recipientes de forma esférica (frascos em balões)"
+    },
+    {
+      "code": "19.11.11",
+      "description": "Recipientes de forma triangular"
+    },
+    {
+      "code": "19.11.13",
+      "description": "Provetas"
+    },
+    {
+      "code": "19.11.25",
+      "description": "Outros recipientes para uso em laboratório e para farmácia"
+    },
+    {
+      "code": "19.13.1",
+      "description": "Aparelhos, instrumentos ou utensílios cirúrgicos ou de medicina, próteses, medicamentos"
+    },
+    {
+      "code": "19.13.3",
+      "description": "Seringas hipodérmicas"
+    },
+    {
+      "code": "19.13.5",
+      "description": "Aparelhos de massagem"
+    },
+    {
+      "code": "19.13.7",
+      "description": "Próteses"
+    },
+    {
+      "code": "19.13.15",
+      "description": "Emplastros, curativos"
+    },
+    {
+      "code": "19.13.21",
+      "description": "Ampolas, cápsulas, pílulas, tabletes, supositórios"
+    },
+    {
+      "code": "19.13.25",
+      "description": "Outros aparelhos, instrumentos ou utensílios médicos ou cirúrgicos"
+    },
+    {
+      "code": "20.1",
+      "description": "ARTIGOS PARA ESCRITA, DESENHO OU PINTURA, PEQUENOS ARTIGOS DE ESCRITÓRIO"
+    },
+    {
+      "code": "20.5",
+      "description": "PAPÉIS, DOCUMENTOS"
+    },
+    {
+      "code": "20.7",
+      "description": "LIVROS, ENCADERNAÇÕES, JORNAIS"
+    },
+    {
+      "code": "20.1.1",
+      "description": "Artigos para escrita, desenho ou pintura (exceto 20.1.15 e 20.1.17)"
+    },
+    {
+      "code": "20.1.15",
+      "description": "Cavaletes de artistas, pranchetas de desenhar, quadros-negros, lousas"
+    },
+    {
+      "code": "20.1.17",
+      "description": "Outros pequenos artigos de escritório"
+    },
+    {
+      "code": "20.1.3",
+      "description": "Lápis, canetas, bicos de penas, canetas-tinteiro, canetas com ponta de feltro"
+    },
+    {
+      "code": "20.1.5",
+      "description": "Pincéis"
+    },
+    {
+      "code": "20.1.9",
+      "description": "Rolos de pintores"
+    },
+    {
+      "code": "20.1.11",
+      "description": "Outros artigos para escrita, desenho ou pintura"
+    },
+    {
+      "code": "20.1.16",
+      "description": "Claquetes"
+    },
+    {
+      "code": "20.1.19",
+      "description": "Carimbos com gravação em alto relevo"
+    },
+    {
+      "code": "20.5.1",
+      "description": "Pergaminhos com bordas enroladas ou em franja"
+    },
+    {
+      "code": "20.5.5",
+      "description": "Outros documentos com textos, manuscritos ou impressos, ou tabelas"
+    },
+    {
+      "code": "20.5.7",
+      "description": "Plantas, esquemas, diagramas, curvas, croquis"
+    },
+    {
+      "code": "20.5.11",
+      "description": "Fichas, fichários, cartões ou fitas perfuradas"
+    },
+    {
+      "code": "20.5.13",
+      "description": "Envelopes"
+    },
+    {
+      "code": "20.5.14",
+      "description": "Cartões de visita"
+    },
+    {
+      "code": "20.5.15",
+      "description": "Etiquetas soltas"
+    },
+    {
+      "code": "20.5.16",
+      "description": "Cartões bancários, de crédito ou de identificação, magnéticos ou não"
+    },
+    {
+      "code": "20.5.21",
+      "description": "Selos de correio"
+    },
+    {
+      "code": "20.5.23",
+      "description": "Papel-moeda"
+    },
+    {
+      "code": "20.5.25",
+      "description": "Papéis em rolo, papéis de parede, outros papéis e documentos"
+    },
+    {
+      "code": "20.7.1",
+      "description": "Livros, revistas, jornais, encadernações, classificadores"
+    },
+    {
+      "code": "20.7.2",
+      "description": "Livros, revistas, jornais"
+    },
+    {
+      "code": "20.7.5",
+      "description": "Encadernações, classificadores"
+    },
+    {
+      "code": "20.7.7",
+      "description": "Cabeçalhos de jornais ou revistas JOGOS, BRINQUEDOS, ARTIGOS ESPORTIVOS, CARROSSÉIS"
+    },
+    {
+      "code": "21.1",
+      "description": "JOGOS, BRINQUEDOS"
+    },
+    {
+      "code": "21.3",
+      "description": "ARTIGOS ESPORTIVOS, CARROSSÉIS"
+    },
+    {
+      "code": "21.1.1",
+      "description": "Baralhos, cartas de baralho, figuras do baralho"
+    },
+    {
+      "code": "21.1.9",
+      "description": "Dados, dominós"
+    },
+    {
+      "code": "21.1.11",
+      "description": "Tabuleiro de damas, de xadrez e palavras cruzadas"
+    },
+    {
+      "code": "21.1.13",
+      "description": "Peças do jogo de xadrez"
+    },
+    {
+      "code": "21.1.14",
+      "description": "Quebra-cabeças e seus elementos constitutivos"
+    },
+    {
+      "code": "21.1.15",
+      "description": "Jogos de armar, peças dos jogos de armar"
+    },
+    {
+      "code": "21.1.16",
+      "description": "Bolões"
+    },
+    {
+      "code": "21.1.17",
+      "description": "Cata-ventos (girândolas)"
+    },
+    {
+      "code": "21.1.25",
+      "description": "Outros jogos ou brinquedos"
+    },
+    {
+      "code": "21.1.2",
+      "description": "Naipe de espadas"
+    },
+    {
+      "code": "21.1.3",
+      "description": "Naipe de ouros"
+    },
+    {
+      "code": "21.1.4",
+      "description": "Quatro naipes juntos (copas, espadas, ouros, paus)"
+    },
+    {
+      "code": "21.1.5",
+      "description": "Figuras do Rei, da Dama e do Valete"
+    },
+    {
+      "code": "21.1.7",
+      "description": "Baralhos, cartas do baralho"
+    },
+    {
+      "code": "21.3.1",
+      "description": "Bolas, petecas"
+    },
+    {
+      "code": "21.3.3",
+      "description": "Pinos de boliche"
+    },
+    {
+      "code": "21.3.5",
+      "description": "Raquetes"
+    },
+    {
+      "code": "21.3.7",
+      "description": "Tacos de golfe, tacos de hóquei"
+    },
+    {
+      "code": "21.3.9",
+      "description": "Esquis, pontas de esqui, bastão de esqui"
+    },
+    {
+      "code": "21.3.10",
+      "description": "Pranchas de gelo"
+    },
+    {
+      "code": "21.3.11",
+      "description": "Patins de gelo ou de rodas, pranchas de skate"
+    },
+    {
+      "code": "21.3.13",
+      "description": "Alteres, pesos para levantamento"
+    },
+    {
+      "code": "21.3.14",
+      "description": "Tacos e estacas de críquete"
+    },
+    {
+      "code": "21.3.15",
+      "description": "Artigos para pesca e caça (exceto 21.3.16)"
+    },
+    {
+      "code": "21.3.16",
+      "description": "Redes para pesca, caça ou jogos"
+    },
+    {
+      "code": "21.3.17",
+      "description": "Gol para futebol e outros esportes de equipe"
+    },
+    {
+      "code": "21.3.19",
+      "description": "Carrosséis, tobogãs, balanços, gangorras"
+    },
+    {
+      "code": "21.3.21",
+      "description": "Alvos"
+    },
+    {
+      "code": "21.3.23",
+      "description": "Luvas de boxe"
+    },
+    {
+      "code": "21.3.25",
+      "description": "Outros artigos esportivos"
+    },
+    {
+      "code": "23.1.5",
+      "description": "Arcos, aljavas"
+    },
+    {
+      "code": "22.1",
+      "description": "INSTRUMENTOS MUSICAIS E ACESSÓRIOS DE INSTRUMENTOS MUSICAIS, ACESSÓRIOS PARA MÚSICA"
+    },
+    {
+      "code": "22.3",
+      "description": "SINOS"
+    },
+    {
+      "code": "22.5",
+      "description": "QUADROS, ESCULTURAS"
+    },
+    {
+      "code": "22.1.1",
+      "description": "Instrumentos de percussão"
+    },
+    {
+      "code": "22.1.5",
+      "description": "Instrumentos de sopro, apitos"
+    },
+    {
+      "code": "22.1.10",
+      "description": "Instrumentos de teclado"
+    },
+    {
+      "code": "22.1.15",
+      "description": "Instrumentos de corda"
+    },
+    {
+      "code": "22.1.21",
+      "description": "Acessórios para instrumentos musicais, acessórios para música"
+    },
+    {
+      "code": "22.1.25",
+      "description": "Outros instrumentos musicais"
+    },
+    {
+      "code": "22.1.6",
+      "description": "Instrumentos de metal (exceto A 22.1.7)"
+    },
+    {
+      "code": "22.1.7",
+      "description": "Trompa de caça"
+    },
+    {
+      "code": "22.1.8",
+      "description": "Instrumentos de sopro de madeira, gaitas de fole"
+    },
+    {
+      "code": "22.1.11",
+      "description": "Órgãos de tubos"
+    },
+    {
+      "code": "22.1.16",
+      "description": "Liras, harpas"
+    },
+    {
+      "code": "22.1.22",
+      "description": "Diapasões"
+    },
+    {
+      "code": "22.3.1",
+      "description": "Sinos"
+    },
+    {
+      "code": "22.3.5",
+      "description": "Um sino"
+    },
+    {
+      "code": "22.3.6",
+      "description": "Dois sinos"
+    },
+    {
+      "code": "22.3.7",
+      "description": "Três sinos"
+    },
+    {
+      "code": "22.3.8",
+      "description": "Mais de três sinos"
+    },
+    {
+      "code": "22.3.21",
+      "description": "Guizos"
+    },
+    {
+      "code": "22.5.1",
+      "description": "Quadros"
+    },
+    {
+      "code": "22.5.10",
+      "description": "Esculturas representando seres humanos"
+    },
+    {
+      "code": "22.5.19",
+      "description": "Esculturas representando animais"
+    },
+    {
+      "code": "22.5.25",
+      "description": "Outras esculturas"
+    },
+    {
+      "code": "22.5.3",
+      "description": "Quadros famosos"
+    },
+    {
+      "code": "22.5.12",
+      "description": "Esculturas representando uma mulher"
+    },
+    {
+      "code": "22.5.13",
+      "description": "Esculturas representando um homem"
+    },
+    {
+      "code": "22.5.14",
+      "description": "Esculturas representando uma criança"
+    },
+    {
+      "code": "22.5.15",
+      "description": "Esculturas representando um grupo de seres humanos"
+    },
+    {
+      "code": "22.5.17",
+      "description": "Esculturas eqüestres ARMAS, MUNIÇÕES, ARMADURAS"
+    },
+    {
+      "code": "23.1",
+      "description": "ARMAS BRANCAS, OUTRAS ARMAS QUE NÃO AS DE FOGO"
+    },
+    {
+      "code": "23.3",
+      "description": "ARMAS DE FOGO, MUNIÇÕES, EXPLOSIVOS"
+    },
+    {
+      "code": "23.5",
+      "description": "ARMADURAS"
+    },
+    {
+      "code": "23.1.1",
+      "description": "Armas brancas, lanças, espadas, punhais"
+    },
+    {
+      "code": "23.1.7",
+      "description": "Trabucos"
+    },
+    {
+      "code": "23.1.25",
+      "description": "Outras armas que não as de fogo"
+    },
+    {
+      "code": "23.3.1",
+      "description": "Armas de fogo"
+    },
+    {
+      "code": "23.3.10",
+      "description": "Munições, explosivos"
+    },
+    {
+      "code": "23.3.2",
+      "description": "Canhões, canhões automotores, lança-foquetes"
+    },
+    {
+      "code": "23.3.3",
+      "description": "Rifles, metralhadoras portáteis, metralhadoras"
+    },
+    {
+      "code": "23.3.5",
+      "description": "Pistolas, revólveres"
+    },
+    {
+      "code": "23.3.7",
+      "description": "Outras armas de fogo"
+    },
+    {
+      "code": "23.3.11",
+      "description": "Cartuchos de chumbo"
+    },
+    {
+      "code": "23.3.13",
+      "description": "Cartuchos de bala"
+    },
+    {
+      "code": "23.3.15",
+      "description": "Obuses, foguetes"
+    },
+    {
+      "code": "23.3.17",
+      "description": "Granadas"
+    },
+    {
+      "code": "23.3.25",
+      "description": "Outras munições ou explosivos"
+    },
+    {
+      "code": "23.5.1",
+      "description": "Armaduras"
+    },
+    {
+      "code": "23.5.5",
+      "description": "Capacetes sendo partes de armadura"
+    },
+    {
+      "code": "23.5.11",
+      "description": "Outras partes de armadura"
+    },
+    {
+      "code": "24.1",
+      "description": "ESCUDOS"
+    },
+    {
+      "code": "24.3",
+      "description": "SELOS, CARIMBOS"
+    },
+    {
+      "code": "24.5",
+      "description": "MEDALHAS, MOEDAS, CONDECORAÇÕES, ORDENS"
+    },
+    {
+      "code": "24.7",
+      "description": "BANDEIRAS"
+    },
+    {
+      "code": "24.9",
+      "description": "COROAS, DIADEMAS"
+    },
+    {
+      "code": "24.11",
+      "description": "EMBLEMAS, INSÍGNIA"
+    },
+    {
+      "code": "24.13",
+      "description": "CRUZES"
+    },
+    {
+      "code": "24.15",
+      "description": "FLECHAS"
+    },
+    {
+      "code": "24.17",
+      "description": "SINAIS, NOTAÇÕES, SÍMBOLOS"
+    },
+    {
+      "code": "24.1.1",
+      "description": "Escudos sem elementos figurativos ou inscrições"
+    },
+    {
+      "code": "24.1.3",
+      "description": "Escudos com representação de figuras ou sólidos geométricos, linhas, faixas ou divisões"
+    },
+    {
+      "code": "24.1.5",
+      "description": "Escudos com outros elementos figurativos ou inscrições"
+    },
+    {
+      "code": "24.1.17",
+      "description": "Escudos com elementos figurativos ou inscrições na parte externa"
+    },
+    {
+      "code": "24.1.23",
+      "description": "Vários escudos"
+    },
+    {
+      "code": "24.1.25",
+      "description": "Escudos com formas inusitadas"
+    },
+    {
+      "code": "24.1.7",
+      "description": "Escudos com representações de corpos celestes ou fenômenos naturais"
+    },
+    {
+      "code": "24.1.8",
+      "description": "Escudos com representações de seres humanos ou partes do corpo humano, com ou sem armadura"
+    },
+    {
+      "code": "24.1.9",
+      "description": "Escudos com representações de animais ou partes de corpos de animais"
+    },
+    {
+      "code": "24.1.10",
+      "description": "Escudos com representações de plantas"
+    },
+    {
+      "code": "24.1.11",
+      "description": "Escudos com representações de paisagens, habitações, construções ou trabalhos estruturais"
+    },
+    {
+      "code": "24.1.12",
+      "description": "Escudos com representações de artigos industrializados ou manufaturados"
+    },
+    {
+      "code": "24.1.13",
+      "description": "Escudos com outros elementos figurativos"
+    },
+    {
+      "code": "24.1.15",
+      "description": "Escudos com inscrições"
+    },
+    {
+      "code": "24.1.18",
+      "description": "Escudos encimados por elementos figurativos ou inscrições"
+    },
+    {
+      "code": "24.1.19",
+      "description": "Escudos com suportes"
+    },
+    {
+      "code": "24.1.20",
+      "description": "Escudos contendo elementos figurativos ou inscrições na parte externa, dispostos de qualquer outra forma"
+    },
+    {
+      "code": "24.3.1",
+      "description": "Selos ou carimbos"
+    },
+    {
+      "code": "24.3.2",
+      "description": "Selos ou carimbos afixados ou apostos em um documento, fita ou outro objeto"
+    },
+    {
+      "code": "24.3.7",
+      "description": "Selos ou carimbos fixados circulares"
+    },
+    {
+      "code": "24.3.8",
+      "description": "Selos ou carimbos afixados elípticos"
+    },
+    {
+      "code": "24.3.9",
+      "description": "Selos ou carimbos afixados com alguma outra forma"
+    },
+    {
+      "code": "24.3.11",
+      "description": "Selos ou carimbos afixados com representações de corpos celestes ou fenômenos naturais"
+    },
+    {
+      "code": "24.3.12",
+      "description": "Selos ou carimbos afixados com representações de seres humanos ou partes do corpo humano"
+    },
+    {
+      "code": "24.3.13",
+      "description": "Selos ou carimbos afixados com representações de animais ou partes do corpos de animais"
+    },
+    {
+      "code": "24.3.14",
+      "description": "Selos ou carimbos afixados com representações de plantas"
+    },
+    {
+      "code": "24.3.15",
+      "description": "Selos ou carimbos afixados com representações de paisagens, habitações, construções ou trabalhos estruturais"
+    },
+    {
+      "code": "24.3.16",
+      "description": "Selos ou carimbos afixados com representações de artigos industrializados ou manufaturados"
+    },
+    {
+      "code": "24.3.17",
+      "description": "Selos ou carimbos afixados com representações de sólidos ou figuras geométricas"
+    },
+    {
+      "code": "24.3.18",
+      "description": "Selos ou carimbos afixados com inscrições"
+    },
+    {
+      "code": "24.3.19",
+      "description": "Selos ou carimbos afixados com outros elementos figurativos"
+    },
+    {
+      "code": "24.5.1",
+      "description": "Uma medalha ou moeda"
+    },
+    {
+      "code": "24.5.5",
+      "description": "Duas medalhas ou moedas"
+    },
+    {
+      "code": "24.5.7",
+      "description": "Mais de duas medalhas ou moedas"
+    },
+    {
+      "code": "24.5.20",
+      "description": "Condecorações, ordens"
+    },
+    {
+      "code": "24.5.2",
+      "description": "Uma medalha ou moeda com a representação de uma cabeça humana ou a de um ser humano"
+    },
+    {
+      "code": "24.5.3",
+      "description": "Uma medalha ou moeda com outro elemento figurativo"
+    },
+    {
+      "code": "24.5.21",
+      "description": "Tosão de ouro"
+    },
+    {
+      "code": "24.5.25",
+      "description": "Outras condecorações ou ordens"
+    },
+    {
+      "code": "24.7.1",
+      "description": "Uma bandeira"
+    },
+    {
+      "code": "24.7.3",
+      "description": "Duas ou mais bandeiras"
+    },
+    {
+      "code": "24.7.5",
+      "description": "Conjuntos de bandeiras"
+    },
+    {
+      "code": "24.7.11",
+      "description": "Bandeiras em forma de bandeirola"
+    },
+    {
+      "code": "24.7.21",
+      "description": "Várias bandeiras em um único mastro, no mesmo cabo"
+    },
+    {
+      "code": "24.7.13",
+      "description": "Bandeiras cujo lado oposto ao do mastro está chanfrado"
+    },
+    {
+      "code": "24.7.15",
+      "description": "Bandeiras em forma de triângulo"
+    },
+    {
+      "code": "24.7.23",
+      "description": "Bandeiras estilizadas;"
+    },
+    {
+      "code": "24.9.1",
+      "description": "Coroas cuja parte superior é fechada (com cúpula ou casquete)"
+    },
+    {
+      "code": "24.9.2",
+      "description": "Coroas cuja parte superior é aberta"
+    },
+    {
+      "code": "24.9.3",
+      "description": "Coroas estilizadas ou de fantasia"
+    },
+    {
+      "code": "24.9.4",
+      "description": "Diademas"
+    },
+    {
+      "code": "24.9.5",
+      "description": "Uma coroa"
+    },
+    {
+      "code": "24.9.6",
+      "description": "Duas ou mais coroas"
+    },
+    {
+      "code": "24.9.7",
+      "description": "Coroas com esferas na extremidade das pontas"
+    },
+    {
+      "code": "24.9.8",
+      "description": "Coroas cujas pontas possuem representações de torres ou muralhas"
+    },
+    {
+      "code": "24.9.9",
+      "description": "Coroas com três pontas triangulares"
+    },
+    {
+      "code": "24.9.10",
+      "description": "Coroas com mais de três pontas triangulares"
+    },
+    {
+      "code": "24.9.11",
+      "description": "Coroas com pontas em forma de flechas"
+    },
+    {
+      "code": "24.9.12",
+      "description": "Coroas com folhagem dominante"
+    },
+    {
+      "code": "24.9.14",
+      "description": "Coroas que apresentam uma letra, monograma ou numeral(is)"
+    },
+    {
+      "code": "24.9.16",
+      "description": "Coroas que possuem qualquer outra inscrição"
+    },
+    {
+      "code": "24.9.20",
+      "description": "Coroas com a representação de seres humanos ou de partes do corpo humano"
+    },
+    {
+      "code": "24.9.21",
+      "description": "Coroas com a representação de animais ou partes do corpo de animal"
+    },
+    {
+      "code": "24.9.22",
+      "description": "Coroas com a representação de plantas"
+    },
+    {
+      "code": "24.9.23",
+      "description": "Coroas com a representação de artigos industrializados ou manufaturados"
+    },
+    {
+      "code": "24.9.24",
+      "description": "Coroas com outro elemento figurativo"
+    },
+    {
+      "code": "24.9.25",
+      "description": "Coroas com outras características"
+    },
+    {
+      "code": "24.11.1",
+      "description": "Insígnias romanas, feixes de lictors, cetros"
+    },
+    {
+      "code": "24.11.3",
+      "description": "Bastões alados (bastão de Mercúrio)"
+    },
+    {
+      "code": "24.11.5",
+      "description": "Croças, cajados"
+    },
+    {
+      "code": "24.11.7",
+      "description": "Tridentes de Netuno"
+    },
+    {
+      "code": "24.11.11",
+      "description": "Globos com uma cruz na parte superior"
+    },
+    {
+      "code": "24.11.13",
+      "description": "Mitras"
+    },
+    {
+      "code": "24.11.14",
+      "description": "Capacete Mercúrio (com asas)"
+    },
+    {
+      "code": "24.11.16",
+      "description": "Cornucópias"
+    },
+    {
+      "code": "24.11.17",
+      "description": "Símbolo chinês de boa sorte (Ruyi)"
+    },
+    {
+      "code": "24.11.18",
+      "description": "Sinais, desenhos e outros elementos figurativos reconhecidos como emblemas ou insígnia"
+    },
+    {
+      "code": "24.11.21",
+      "description": "Divisas (como condecoração de honra ou patente), cocares"
+    },
+    {
+      "code": "24.11.25",
+      "description": "Outros emblemas ou insígnias"
+    },
+    {
+      "code": "24.13.1",
+      "description": "Cruz grega ou de Santo-André"
+    },
+    {
+      "code": "24.13.2",
+      "description": "Cruz latina ou em forma de T"
+    },
+    {
+      "code": "24.13.3",
+      "description": "Cruz de Lorena ou Papal"
+    },
+    {
+      "code": "24.13.4",
+      "description": "Cruz de Malta"
+    },
+    {
+      "code": "24.13.5",
+      "description": "Cruzes com inscrições"
+    },
+    {
+      "code": "24.13.25",
+      "description": "Outras cruzes"
+    },
+    {
+      "code": "24.13.9",
+      "description": "Cruzes formadas de linhas que se cruzam"
+    },
+    {
+      "code": "24.13.13",
+      "description": "Cruzes contendo uma inscrição"
+    },
+    {
+      "code": "24.13.14",
+      "description": "Cruzes acompanhadas por uma inscrição"
+    },
+    {
+      "code": "24.13.17",
+      "description": "Cruzes contendo um elemento figurativo"
+    },
+    {
+      "code": "24.13.21",
+      "description": "Cruzes com raios ou linhas que se irradiam"
+    },
+    {
+      "code": "24.13.22",
+      "description": "Cruzes dentro de um círculo ou polígono"
+    },
+    {
+      "code": "24.13.23",
+      "description": "Cruzes dentro de um quadrado ou retângulo"
+    },
+    {
+      "code": "24.13.24",
+      "description": "Cruzes dentro de qualquer outro elemento figurativo"
+    },
+    {
+      "code": "24.15.1",
+      "description": "Uma flecha"
+    },
+    {
+      "code": "24.15.2",
+      "description": "Duas flechas"
+    },
+    {
+      "code": "24.15.3",
+      "description": "Mais de duas flechas"
+    },
+    {
+      "code": "24.15.21",
+      "description": "Pontas de flechas"
+    },
+    {
+      "code": "24.15.5",
+      "description": "Flechas com farpas"
+    },
+    {
+      "code": "24.15.7",
+      "description": "Flechas combinadas de uma letra, monograma ou numeral(is)"
+    },
+    {
+      "code": "24.15.8",
+      "description": "Flechas combinadas com qualquer outra inscrição (exceto A"
+    },
+    {
+      "code": "24.15.17",
+      "description": "Flechas formadas por uma inscrição"
+    },
+    {
+      "code": "24.15.11",
+      "description": "Flechas combinadas com qualquer outro elemento figurativo (exceto A"
+    },
+    {
+      "code": "24.15.13",
+      "description": "Flechas formando um círculo, um arco de um círculo ou um anel"
+    },
+    {
+      "code": "24.15.15",
+      "description": "Flechas formando qualquer outra figura geométrica"
+    },
+    {
+      "code": "24.17.1",
+      "description": "Sinais de pontuação"
+    },
+    {
+      "code": "24.17.3",
+      "description": "Asteriscos"
+    },
+    {
+      "code": "24.17.5",
+      "description": "Sinais matemáticos"
+    },
+    {
+      "code": "24.17.10",
+      "description": "Símbolos musicais"
+    },
+    {
+      "code": "24.17.15",
+      "description": "Sinais astronômicos ou astrológicos, signos do zodíaco, signos masculino ou feminino"
+    },
+    {
+      "code": "24.17.21",
+      "description": "Símbolo do yin e do yang"
+    },
+    {
+      "code": "24.17.25",
+      "description": "Outros sinais, notações ou símbolos"
+    },
+    {
+      "code": "24.17.2",
+      "description": "Pontos"
+    },
+    {
+      "code": "24.17.6",
+      "description": "Diversos sinais matemáticos"
+    },
+    {
+      "code": "24.17.7",
+      "description": "Sinais matemáticos combinados com algarismos ou letras"
+    },
+    {
+      "code": "24.17.8",
+      "description": "Símbolo de infinito"
+    },
+    {
+      "code": "24.17.9",
+      "description": "Outros símbolos matemáticos"
+    },
+    {
+      "code": "24.17.11",
+      "description": "Claves de sol isoladas"
+    },
+    {
+      "code": "24.17.12",
+      "description": "Notas isoladas"
+    },
+    {
+      "code": "24.17.13",
+      "description": "Claves de sol com notas e pauta ou somente com pauta"
+    },
+    {
+      "code": "24.17.14",
+      "description": "Outros símbolos musicais"
+    },
+    {
+      "code": "25.1",
+      "description": "MOTIVOS ORNAMENTAIS"
+    },
+    {
+      "code": "25.3",
+      "description": ". Outras superfícies de forma alongada"
+    },
+    {
+      "code": "25.5",
+      "description": "FUNDOS DIVIDIDOS EM DOIS OU QUATRO"
+    },
+    {
+      "code": "25.7",
+      "description": "SUPERFÍCIES OU FUNDOS COBERTOS COM ELEMENTOS FIGURATIVOS OU INSCRIÇÕES REPETIDOS"
+    },
+    {
+      "code": "25.12",
+      "description": "SUPERFÍCIES OU FUNDOS COBERTOS COM OUTROS ORNAMENTOS"
+    },
+    {
+      "code": "25.1.1",
+      "description": "Frontispícios como página de título ou sobre uma etiqueta"
+    },
+    {
+      "code": "25.1.5",
+      "description": "Faixas e bordas ornamentais (exceto 25.1.9)"
+    },
+    {
+      "code": "25.1.6",
+      "description": "Bandeirolas, cartuchos"
+    },
+    {
+      "code": "25.1.9",
+      "description": "Caixilhos e molduras"
+    },
+    {
+      "code": "25.1.15",
+      "description": "Rótulos, invólucros (rótulos de gargalos)"
+    },
+    {
+      "code": "25.1.25",
+      "description": "Outros motivos ornamentais"
+    },
+    {
+      "code": "25.1.10",
+      "description": "Caixilhos ou molduras inteiras"
+    },
+    {
+      "code": "25.1.13",
+      "description": "Molduras parciais, adornos"
+    },
+    {
+      "code": "25.1.17",
+      "description": "Invólucros de garrafa (rótulos de gargalo)"
+    },
+    {
+      "code": "25.1.18",
+      "description": "Rótulos em forma de faixas ou anéis"
+    },
+    {
+      "code": "25.1.19",
+      "description": "Outros rótulos"
+    },
+    {
+      "code": "26.1",
+      "description": "CÍRCULOS, ELIPSES"
+    },
+    {
+      "code": "25.3.1",
+      "description": "Superfícies alongadas no sentido horizontal"
+    },
+    {
+      "code": "25.3.3",
+      "description": "Superfícies de forma alongada com dois pequenos lados convexos ou côncavos"
+    },
+    {
+      "code": "25.3.5",
+      "description": "Superfícies de forma alongada com pequeno lado convexo ou côncavo"
+    },
+    {
+      "code": "25.3.7",
+      "description": "Superfícies de forma alongada com ênfase em um ou dois lados grandes"
+    },
+    {
+      "code": "25.3.9",
+      "description": "Polígonos de forma alongada"
+    },
+    {
+      "code": "25.3.11",
+      "description": "Superfícies de forma alongada com um ou dois grandes lados côncavos"
+    },
+    {
+      "code": "25.3.13",
+      "description": "Superfícies de forma alongada com um ou dois grandes lados convexos"
+    },
+    {
+      "code": "25.3.15",
+      "description": "Superfícies de forma alongada com um ou mais lados formando uma sucessão de arcos de círculos ou elipses A"
+    },
+    {
+      "code": "25.5.1",
+      "description": "Fundos divididos em dois no sentido vertical"
+    },
+    {
+      "code": "25.5.2",
+      "description": "Fundos divididos em dois no sentido horizontal"
+    },
+    {
+      "code": "25.5.3",
+      "description": "Fundos divididos em dois em forma diagonal"
+    },
+    {
+      "code": "25.5.5",
+      "description": "Fundos divididos em cruz, nos sentidos vertical e horizontal"
+    },
+    {
+      "code": "25.5.6",
+      "description": "Fundos divididos em cruz, na diagonal"
+    },
+    {
+      "code": "25.5.25",
+      "description": "Outros fundos divididos em dois ou em quatro"
+    },
+    {
+      "code": "25.7.1",
+      "description": "Superfícies ou fundos cobertos com figuras ou desenhos geométricos repetidos"
+    },
+    {
+      "code": "25.7.15",
+      "description": "Superfícies ou fundos cobertos com hachurado"
+    },
+    {
+      "code": "25.7.17",
+      "description": "Superfícies ou fundos cobertos com uma inscrição repetida"
+    },
+    {
+      "code": "25.7.20",
+      "description": "Superfícies ou fundos cobertos com linhas ou faixas"
+    },
+    {
+      "code": "25.7.25",
+      "description": "Superfícies ou fundos cobertos com outros elementos figurativos repetidos"
+    },
+    {
+      "code": "25.7.2",
+      "description": "Superfícies ou fundos cobertos com losangos"
+    },
+    {
+      "code": "25.7.3",
+      "description": "Superfícies ou fundos cobertos com quadrados ou retângulos (exceto    A"
+    },
+    {
+      "code": "25.7.4",
+      "description": "Superfícies ou fundos em xadrez"
+    },
+    {
+      "code": "25.7.5",
+      "description": "Superfícies ou fundos cobertos com polígonos"
+    },
+    {
+      "code": "25.7.6",
+      "description": "Superfícies ou fundos cobertos com círculos ou elipses"
+    },
+    {
+      "code": "25.7.7",
+      "description": "Superfícies ou fundos cobertos com pontos"
+    },
+    {
+      "code": "25.7.8",
+      "description": "Superfícies ou fundos cobertos com outras figuras ou desenhos geométricos repetidos"
+    },
+    {
+      "code": "25.7.21",
+      "description": "Superfícies ou fundos cobertos com linhas ou faixas retas"
+    },
+    {
+      "code": "25.7.22",
+      "description": "Superfícies ou fundos cobertos com linhas ou faixas onduladas"
+    },
+    {
+      "code": "25.7.23",
+      "description": "Superfícies ou fundos cobertos com linhas ou faixas em ziguezague ou em divisas"
+    },
+    {
+      "code": "25.12.1",
+      "description": "Superfícies ou fundos raiados ou linhas que se irradiam"
+    },
+    {
+      "code": "25.12.3",
+      "description": "Superfícies ou fundos achamalotados"
+    },
+    {
+      "code": "25.12.25",
+      "description": "Superfícies ou fundos cobertos com qualquer outro ornamento"
+    },
+    {
+      "code": "26.2",
+      "description": "SEGMENTOS OU SETORES DE CÍRCULOS OU ELIPSES"
+    },
+    {
+      "code": "26.3",
+      "description": "TRIÂNGULOS, LINHAS FORMANDO UM ÂNGULO"
+    },
+    {
+      "code": "26.4",
+      "description": "QUADRILÁTEROS"
+    },
+    {
+      "code": "26.5",
+      "description": "OUTROS POLÍGONOS"
+    },
+    {
+      "code": "26.7",
+      "description": "FIGURAS GEOMÉTRICAS DIFERENTES, JUSTAPOSTAS, UNIDAS OU ENTRECORTADAS"
+    },
+    {
+      "code": "26.11",
+      "description": "LINHAS, FAIXAS"
+    },
+    {
+      "code": "26.13",
+      "description": "OUTROS SÓLIDOS GEOMÉTRICOS, DESENHOS INDEFINÍVEIS"
+    },
+    {
+      "code": "26.15",
+      "description": "CORPOS GEOMÉTRICOS"
+    },
+    {
+      "code": "26.1.1",
+      "description": "Círculos"
+    },
+    {
+      "code": "26.1.2",
+      "description": "Elipses"
+    },
+    {
+      "code": "26.1.4",
+      "description": "Dois círculos, duas elipses, um dentro do outro"
+    },
+    {
+      "code": "26.1.5",
+      "description": "Mais de dois círculos ou elipses, um dentro do outro, espirais"
+    },
+    {
+      "code": "26.1.6",
+      "description": "Vários círculos ou elipses, justapostos, tangentes ou entrecortados"
+    },
+    {
+      "code": "26.1.7",
+      "description": "Círculos contendo uma ou mais elipses"
+    },
+    {
+      "code": "26.1.8",
+      "description": "Círculos contendo um ou mais polígonos (exceto"
+    },
+    {
+      "code": "26.1.10",
+      "description": "Círculos ou elipses contendo um ou mais triângulos ou linhas formando ângulo"
+    },
+    {
+      "code": "26.1.9",
+      "description": "Elipses contendo um ou mais círculos ou polígonos (exceto 26.1.10 ou"
+    },
+    {
+      "code": "26.1.11",
+      "description": "Círculos ou elipses contendo um ou mais quadriláteros"
+    },
+    {
+      "code": "26.1.12",
+      "description": "Círculos ou elipses contendo um ou várias outras figuras geométricas"
+    },
+    {
+      "code": "26.1.3",
+      "description": "Um círculo ou elipse"
+    },
+    {
+      "code": "26.1.13",
+      "description": "Círculos ou elipses com representações de corpos celestes ou fenômenos naturais"
+    },
+    {
+      "code": "26.1.14",
+      "description": "Círculos ou elipses com representações de seres humanos ou partes do corpo humano"
+    },
+    {
+      "code": "26.1.15",
+      "description": "Círculos ou elipses com representações de animais, partes de corpos de animais ou plantas"
+    },
+    {
+      "code": "26.1.16",
+      "description": "Círculos ou elipses com outros elementos figurativos"
+    },
+    {
+      "code": "26.1.17",
+      "description": "Círculos ou elipses com um ou mais algarismos"
+    },
+    {
+      "code": "26.1.18",
+      "description": "Círculos ou elipses com uma ou mais letras"
+    },
+    {
+      "code": "26.1.19",
+      "description": "Círculos ou elipses com inscrições que ultrapassem a circunferência"
+    },
+    {
+      "code": "26.1.20",
+      "description": "Círculos ou elipses com inscrições no sentido do raio ou do diâmetro"
+    },
+    {
+      "code": "26.1.21",
+      "description": "Círculos ou elipses com inscrições dispostas em círculos ou elipses"
+    },
+    {
+      "code": "26.1.22",
+      "description": "Círculos ou elipses com inscrições apresentadas em alguma outra forma"
+    },
+    {
+      "code": "26.1.24",
+      "description": "Círculos ou elipses com superfície ou parte da superfície escurecida"
+    },
+    {
+      "code": "26.2.1",
+      "description": "Segmentos de círculos ou elipses (exceto 26.2.7)"
+    },
+    {
+      "code": "26.2.3",
+      "description": "Setores de círculos ou elipses (exceto 26.2.7)"
+    },
+    {
+      "code": "26.2.5",
+      "description": "Segmentos ou setores de círculo ou elipse, juntos ou entrecortados"
+    },
+    {
+      "code": "26.2.7",
+      "description": "Semi-círculos, semi–elipses"
+    },
+    {
+      "code": "26.2.8",
+      "description": "Semi-elipses com letras"
+    },
+    {
+      "code": "26.2.9",
+      "description": "Semi-elipses com superfície sombreada"
+    },
+    {
+      "code": "26.3.1",
+      "description": "Um triângulo"
+    },
+    {
+      "code": "26.3.2",
+      "description": "Dois triângulos, um dentro do outro"
+    },
+    {
+      "code": "26.3.3",
+      "description": "Mais de dois triângulos, um dentro do outro"
+    },
+    {
+      "code": "26.3.4",
+      "description": "Vários triângulos, justapostos, juntos ou entrecortados"
+    },
+    {
+      "code": "26.3.10",
+      "description": "Triângulos contendo um ou mais círculos, elipses ou polígonos (exceto"
+    },
+    {
+      "code": "26.3.11",
+      "description": "Triângulos contendo um ou mais quadriláteros"
+    },
+    {
+      "code": "26.3.12",
+      "description": "Triângulos contendo uma ou mais outras figuras geométricas"
+    },
+    {
+      "code": "26.3.23",
+      "description": "Linhas ou faixas formando um ângulo"
+    },
+    {
+      "code": "26.3.5",
+      "description": "Triângulos apontando para baixo"
+    },
+    {
+      "code": "26.3.6",
+      "description": "Figuras triangulares com um ou mais lados convexos ou côncavos"
+    },
+    {
+      "code": "26.3.7",
+      "description": "Figuras triangulares com um ou mais ângulos cortados ou arredondados"
+    },
+    {
+      "code": "26.3.13",
+      "description": "Triângulos com a representação de corpos celestes ou fenômenos naturais"
+    },
+    {
+      "code": "26.3.14",
+      "description": "Triângulos com a representação de seres humanos ou partes do corpo humano"
+    },
+    {
+      "code": "26.3.15",
+      "description": "Triângulos com a representação de animais, ou partes do corpo de animais ou plantas"
+    },
+    {
+      "code": "26.3.16",
+      "description": "Triângulos com outros elementos figurativos"
+    },
+    {
+      "code": "26.3.17",
+      "description": "Triângulos com um ou mais algarismos"
+    },
+    {
+      "code": "26.3.18",
+      "description": "Triângulos com uma ou mais letras"
+    },
+    {
+      "code": "26.3.19",
+      "description": "Triângulos com inscrições que ultrapassam um ou mais lados"
+    },
+    {
+      "code": "26.3.22",
+      "description": "Triângulos contendo outras inscrições"
+    },
+    {
+      "code": "26.3.24",
+      "description": "Triângulos com superfície ou parte da superfície escura"
+    },
+    {
+      "code": "26.4.1",
+      "description": "Quadrados"
+    },
+    {
+      "code": "26.4.2",
+      "description": "Retângulos"
+    },
+    {
+      "code": "26.4.3",
+      "description": "Losangos ou quadrados sobre ponta"
+    },
+    {
+      "code": "26.4.4",
+      "description": "Outros paralelogramos, trapézios e quadriláteros irregulares, quadriláteros com um ou mais cantos arredondados"
+    },
+    {
+      "code": "26.4.7",
+      "description": "Dois quadriláteros, um dentro do outro"
+    },
+    {
+      "code": "26.4.8",
+      "description": "Mais de dois quadriláteros, um dentro do outro"
+    },
+    {
+      "code": "26.4.9",
+      "description": "Vários quadriláteros justapostos, ligados ou entrecortados"
+    },
+    {
+      "code": "26.4.10",
+      "description": "Quadriláteros contendo um ou mais círculos, elipses ou polígonos"
+    },
+    {
+      "code": "26.4.11",
+      "description": "Quadriláteros contendo um ou mais triângulos ou linhas formando um ângulo"
+    },
+    {
+      "code": "26.4.12",
+      "description": "Quadriláteros contendo uma ou mais figuras geométricas"
+    },
+    {
+      "code": "26.4.5",
+      "description": "Um quadrilátero"
+    },
+    {
+      "code": "26.4.6",
+      "description": "Figuras quadriláteras com um ou mais lados convexos ou côncavos"
+    },
+    {
+      "code": "26.4.13",
+      "description": "Quadriláteros contendo representações de corpos celestes ou fenômenos naturais"
+    },
+    {
+      "code": "26.4.14",
+      "description": "Quadriláteros contendo representações de seres humanos ou partes do corpo humano"
+    },
+    {
+      "code": "26.4.15",
+      "description": "Quadriláteros contendo representações de animais, de partes de corpos de animais ou plantas"
+    },
+    {
+      "code": "26.4.16",
+      "description": "Quadriláteros contendo outros elementos figurativos"
+    },
+    {
+      "code": "26.4.17",
+      "description": "Quadriláteros contendo um ou mais algarismos"
+    },
+    {
+      "code": "26.4.18",
+      "description": "Quadriláteros contendo uma ou mais letras"
+    },
+    {
+      "code": "26.4.19",
+      "description": "Quadriláteros contendo inscrições que ultrapassam um ou mais lados"
+    },
+    {
+      "code": "26.4.22",
+      "description": "Quadriláteros contendo outras inscrições"
+    },
+    {
+      "code": "26.4.24",
+      "description": "Quadriláteros com superfícies ou parte de superfícies escurecidas"
+    },
+    {
+      "code": "26.5.1",
+      "description": "Um polígono"
+    },
+    {
+      "code": "26.5.2",
+      "description": "Dois polígonos, um dentro do outro (exceto 26.5.10 e 26.5.11)"
+    },
+    {
+      "code": "26.5.3",
+      "description": "Vários polígonos, uns dentro dos outros (exceto"
+    },
+    {
+      "code": "26.5.10",
+      "description": "Polígonos contendo um ou mais triângulos ou linhas formando um ângulo"
+    },
+    {
+      "code": "26.5.11",
+      "description": "Polígonos contendo um ou mais quadriláteros"
+    },
+    {
+      "code": "26.5.4",
+      "description": "Vários polígonos, justapostos, juntos ou entrecortados"
+    },
+    {
+      "code": "26.5.9",
+      "description": "Polígonos contendo um ou mais círculos ou elipses"
+    },
+    {
+      "code": "26.5.12",
+      "description": "Polígonos contendo uma ou várias figuras geométricas"
+    },
+    {
+      "code": "26.5.6",
+      "description": "Figuras poligonais com um ou mais lados convexos ou côncavos"
+    },
+    {
+      "code": "26.5.13",
+      "description": "Polígonos contendo representações de corpos celestes ou fenômenos naturais"
+    },
+    {
+      "code": "26.5.14",
+      "description": "Polígonos contendo representações de seres humanos ou partes do corpo humano"
+    },
+    {
+      "code": "26.5.15",
+      "description": "Polígonos contendo representações de animais, ou partes de corpos de animais ou plantas"
+    },
+    {
+      "code": "26.5.16",
+      "description": "Polígonos contendo outros elementos figurativos"
+    },
+    {
+      "code": "26.5.17",
+      "description": "Polígonos contendo um ou mais algarismos"
+    },
+    {
+      "code": "26.5.18",
+      "description": "Polígonos contendo uma ou mais letras"
+    },
+    {
+      "code": "26.5.19",
+      "description": "Polígonos contendo inscrições que ultrapassam a circunferência"
+    },
+    {
+      "code": "26.5.22",
+      "description": "Polígonos contendo outras inscrições"
+    },
+    {
+      "code": "26.5.24",
+      "description": "Polígonos com superfície ou parte da superfície escurecida"
+    },
+    {
+      "code": "26.7.1",
+      "description": "Círculos ou elipses com um ou mais segmentos e/ou setores de círculos ou elipses"
+    },
+    {
+      "code": "26.7.3",
+      "description": "Círculos ou elipses com um ou mais triângulos e/ou linhas formando um ângulo"
+    },
+    {
+      "code": "26.7.9",
+      "description": "Segmentos ou setores de círculos ou elipses com um ou mais triângulos e/ou linhas formando um ângulo"
+    },
+    {
+      "code": "26.7.11",
+      "description": "Segmentos ou setores de círculos ou elipses com um ou mais quadriláteros"
+    },
+    {
+      "code": "26.7.13",
+      "description": "Segmentos ou setores de círculos ou elipses com um ou mais polígonos"
+    },
+    {
+      "code": "26.7.15",
+      "description": "Triângulos ou linhas formando um ângulo com um ou mais quadriláteros"
+    },
+    {
+      "code": "26.7.17",
+      "description": "Triângulos ou linhas formando um ângulo com um ou mais polígonos que não quadriláteros"
+    },
+    {
+      "code": "26.7.19",
+      "description": "Quadriláteros com um ou mais polígonos que não triângulos"
+    },
+    {
+      "code": "26.7.25",
+      "description": "Outras combinações de figuras geométricas diferentes, justapostas, unidas ou entrecortadas"
+    },
+    {
+      "code": "26.11.1",
+      "description": "Uma linha ou uma faixa"
+    },
+    {
+      "code": "26.11.2",
+      "description": "Duas linhas ou faixas"
+    },
+    {
+      "code": "26.11.5",
+      "description": "Linhas finas"
+    },
+    {
+      "code": "26.11.6",
+      "description": "Linhas grossas, faixas"
+    },
+    {
+      "code": "26.11.7",
+      "description": "Linhas ou faixas verticais"
+    },
+    {
+      "code": "26.11.8",
+      "description": "Linhas ou faixas horizontais"
+    },
+    {
+      "code": "26.11.9",
+      "description": "Linhas ou faixas oblíquas"
+    },
+    {
+      "code": "26.11.10",
+      "description": "Linhas ou faixas retas"
+    },
+    {
+      "code": "26.11.11",
+      "description": "Linhas ou faixas interrompidas (exceto A 26.11.13)"
+    },
+    {
+      "code": "26.11.12",
+      "description": "Linhas ou faixas curvas (exceto A 26.11.13)"
+    },
+    {
+      "code": "26.11.13",
+      "description": "Linhas ou faixas onduladas, ou em ziguezague"
+    },
+    {
+      "code": "26.11.14",
+      "description": "Linhas ou faixas pontilhadas"
+    },
+    {
+      "code": "26.11.21",
+      "description": "Conjunto de linhas invocando velocidade ou propulsão"
+    },
+    {
+      "code": "26.11.25",
+      "description": "Outras linhas ou faixas"
+    },
+    {
+      "code": "26.13.1",
+      "description": "Manchas"
+    },
+    {
+      "code": "26.13.25",
+      "description": "Outras figuras geométricas, desenhos indefiníveis"
+    },
+    {
+      "code": "26.15.1",
+      "description": "Esferas"
+    },
+    {
+      "code": "26.15.3",
+      "description": "Cilindros"
+    },
+    {
+      "code": "26.15.5",
+      "description": "Cones"
+    },
+    {
+      "code": "26.15.7",
+      "description": "Pirâmides"
+    },
+    {
+      "code": "26.15.9",
+      "description": "Cubos"
+    },
+    {
+      "code": "26.15.11",
+      "description": "Paralelepípedos"
+    },
+    {
+      "code": "26.15.13",
+      "description": "Prismas"
+    },
+    {
+      "code": "26.15.15",
+      "description": "Outros poliedros"
+    },
+    {
+      "code": "26.15.25",
+      "description": "Outros sólidos geométricos GRAFISMOS, ALGARISMOS"
+    },
+    {
+      "code": "27.1",
+      "description": "LETRAS OU ALGARISMOS FORMANDO FIGURAS GEOMÉTRICAS, INSCRIÇÕES EM PERSPECTIVA"
+    },
+    {
+      "code": "27.5",
+      "description": "LETRAS APRESENTANDO UM GRAFISMO ESPECIAL"
+    },
+    {
+      "code": "27.7",
+      "description": "ALGARISMOS APRESENTANDO UM GRAFISMO ESPECIAL"
+    },
+    {
+      "code": "27.1.1",
+      "description": "Letras ou algarismos formando figuras geométricas, inscrições em perspectiva"
+    },
+    {
+      "code": "27.1.2",
+      "description": "Letras ou algarismos formando um quadrado ou retângulo (superfície ou contorno)"
+    },
+    {
+      "code": "27.1.3",
+      "description": "Letras ou algarismos formando qualquer outro quadrilátero (superfície ou contorno)"
+    },
+    {
+      "code": "27.1.4",
+      "description": "Letras ou algarismos formando qualquer outro polígono (superfície ou contorno)"
+    },
+    {
+      "code": "27.1.5",
+      "description": "Letras ou algarismos formando um triângulo (superfície ou contorno)"
+    },
+    {
+      "code": "27.1.6",
+      "description": "Letras ou algarismos formando um círculo ou uma circunferência"
+    },
+    {
+      "code": "27.1.7",
+      "description": "Letras ou algarismos formando uma elipse (superfície ou contorno)"
+    },
+    {
+      "code": "27.1.8",
+      "description": "Letras ou algarismos formando uma figura plano-convexa"
+    },
+    {
+      "code": "27.1.9",
+      "description": "Letras ou algarismos formando uma figura plano-côncava"
+    },
+    {
+      "code": "27.1.10",
+      "description": "Letras ou algarismos formando uma figura biconvexa"
+    },
+    {
+      "code": "27.1.11",
+      "description": "Letras ou algarismos formando uma figura bicôncava"
+    },
+    {
+      "code": "27.1.12",
+      "description": "Letras ou algarismos formando uma figura na forma de um arco de círculo"
+    },
+    {
+      "code": "27.1.13",
+      "description": "Letras ou algarismos formando uma figura no formato de faixa com um ou mais lados ondulados ou em ziguezague"
+    },
+    {
+      "code": "27.1.16",
+      "description": "Letras ou algarismos em perspectiva (decrescendo em direção ao centro, em direção a uma ou ambas extremidades)"
+    },
+    {
+      "code": "27.1.25",
+      "description": "Letras ou algarismos formando uma outra figura geométrica"
+    },
+    {
+      "code": "27.3.1",
+      "description": "Letras ou algarismos representando um ser humano ou uma parte do corpo humano, um animal ou uma parte do corpo de um animal, uma planta ou um objeto"
+    },
+    {
+      "code": "27.3.2",
+      "description": "Letras ou algarismos representando um ser humano ou uma parte do corpo humano"
+    },
+    {
+      "code": "27.3.3",
+      "description": "Letras ou algarismos representando um animal ou parte do corpo de um animal"
+    },
+    {
+      "code": "27.3.11",
+      "description": "Letras ou algarismos representando uma planta"
+    },
+    {
+      "code": "27.3.15",
+      "description": "Letras ou algarismos representando um objeto"
+    },
+    {
+      "code": "27.5.1",
+      "description": "Letras apresentando um grafismo especial"
+    },
+    {
+      "code": "27.5.2",
+      "description": "Letras em contorno duplo"
+    },
+    {
+      "code": "27.5.3",
+      "description": "Letras em relevo ou sombreadas"
+    },
+    {
+      "code": "27.5.4",
+      "description": "Letras adornadas ou decoradas com desenho"
+    },
+    {
+      "code": "27.5.5",
+      "description": "Letras contendo inscrição"
+    },
+    {
+      "code": "27.5.6",
+      "description": "Letras compostas de um conjunto de desenho"
+    },
+    {
+      "code": "27.5.7",
+      "description": "Letras encimadas por um sinal de dimensão desproporcional"
+    },
+    {
+      "code": "27.5.8",
+      "description": "Letras ligadas a um elemento figurativo"
+    },
+    {
+      "code": "27.5.9",
+      "description": "Grupos de letras apresentando grafismos diferentes"
+    },
+    {
+      "code": "27.5.10",
+      "description": "Grupos de letras apresentando dimensões diferentes"
+    },
+    {
+      "code": "27.5.11",
+      "description": "Letras sublinhadas, sobrelinhadas, emolduradas ou riscadas com um ou vários traços"
+    },
+    {
+      "code": "27.5.12",
+      "description": "Letras cruzadas ou riscadas por letras, algarismos ou um elemento figurativo"
+    },
+    {
+      "code": "27.5.13",
+      "description": "Letras sob a forma de assinatura, assinaturas ilegíveis"
+    },
+    {
+      "code": "27.5.14",
+      "description": "Letras repetidas por efeito de espelho ou simetricamente em qualquer posição"
+    },
+    {
+      "code": "27.5.15",
+      "description": "Grupos de letras separadas umas das outras sem que seja por um único espaço"
+    },
+    {
+      "code": "27.5.17",
+      "description": "Letras em caracteres cheios"
+    },
+    {
+      "code": "27.5.19",
+      "description": "Letras sobrepostas"
+    },
+    {
+      "code": "27.5.21",
+      "description": "Uma letra"
+    },
+    {
+      "code": "27.5.22",
+      "description": "Monogramas formados por letras enlaçadas, sobrepostas ou  combinadas de outra maneira"
+    },
+    {
+      "code": "27.5.23",
+      "description": "Várias letras"
+    },
+    {
+      "code": "27.5.24",
+      "description": "Letras em caracteres claros sobre um fundo sombreado"
+    },
+    {
+      "code": "27.5.25",
+      "description": "Letras apresentando algum outro grafismo especial"
+    },
+    {
+      "code": "27.7.1",
+      "description": "Algarismos apresentando um algarismo especial"
+    },
+    {
+      "code": "27.7.2",
+      "description": "Algarismos com contorno duplo"
+    },
+    {
+      "code": "27.7.3",
+      "description": "Algarismos em relevo ou sombreados"
+    },
+    {
+      "code": "27.7.4",
+      "description": "Algarismos adornados ou decorados com desenho, contendo inscrição ou compostos de um conjunto de desenhos"
+    },
+    {
+      "code": "27.7.11",
+      "description": "Algarismos justapostos ou unidos por uma letra ou um elemento figurativo"
+    },
+    {
+      "code": "27.7.12",
+      "description": "Algarismos cruzados ou riscados por letras ou algarismos ou um elemento figurativo"
+    },
+    {
+      "code": "27.7.13",
+      "description": "Algarismos em caracteres manuscritos ou imitando esses caracteres"
+    },
+    {
+      "code": "27.7.17",
+      "description": "Algarismos em caracteres cheios"
+    },
+    {
+      "code": "27.7.19",
+      "description": "Algarismos sobrepostos ou compostos de caracteres irregulares ou dispostos de maneira irregular"
+    },
+    {
+      "code": "27.7.23",
+      "description": "Algarismos romanos"
+    },
+    {
+      "code": "27.7.24",
+      "description": "Algarismos em caracteres claros sobre um fundo sombreado"
+    },
+    {
+      "code": "27.7.25",
+      "description": "Algarismos apresentando algum outro grafismo especial"
+    },
+    {
+      "code": "28.1",
+      "description": "INSCRIÇÕES EM CARACTERES ÁRABES"
+    },
+    {
+      "code": "28.3",
+      "description": "INSCRIÇÕES EM CARACTERES CHINESES OU JAPONESES"
+    },
+    {
+      "code": "28.5",
+      "description": "INSCRIÇÕES EM CARACTERES CIRÍLICOS"
+    },
+    {
+      "code": "28.7",
+      "description": "INSCRIÇÕES EM CARACTERES GREGOS"
+    },
+    {
+      "code": "28.9",
+      "description": "INSCRIÇÕES EM CARACTERES HEBRAICOS"
+    },
+    {
+      "code": "28.11",
+      "description": "INSCRIÇÕES EM CARACTERES LATINOS"
+    },
+    {
+      "code": "28.17",
+      "description": "INSCRIÇÕES EM CARACTERES HISTÓRICOS"
+    },
+    {
+      "code": "28.19",
+      "description": "INSCRIÇÕES EM OUTROS CARACTERES"
+    },
+    {
+      "code": "29.1",
+      "description": "CORES"
+    },
+    {
+      "code": "29.1.1",
+      "description": "Vermelho, rosa, laranja"
+    },
+    {
+      "code": "29.1.2",
+      "description": "Amarelo, dourado"
+    },
+    {
+      "code": "29.1.3",
+      "description": "Verde"
+    },
+    {
+      "code": "29.1.4",
+      "description": "Azul"
+    },
+    {
+      "code": "29.1.5",
+      "description": "Violeta"
+    },
+    {
+      "code": "29.1.6",
+      "description": "Branco, cinza, prateado"
+    },
+    {
+      "code": "29.1.7",
+      "description": "Marrom"
+    },
+    {
+      "code": "29.1.8",
+      "description": "Preto"
+    },
+    {
+      "code": "29.1.12",
+      "description": "Duas cores predominantes"
+    },
+    {
+      "code": "29.1.13",
+      "description": "Três cores predominantes"
+    },
+    {
+      "code": "29.1.14",
+      "description": "Quatro cores"
+    },
+    {
+      "code": "29.1.15",
+      "description": "Cinco cores e mais"
+    },
+    {
+      "code": "29.1.11",
+      "description": "Uma cor predominante"
+    }
+  ]
+}

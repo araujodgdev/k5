@@ -160,6 +160,7 @@ export async function recordUsage(officeId: string, userId: string | null, confi
 /** Quick features (e-mail summaries, reply suggestions) pass their own instructions; the default keeps the grounded legal ones. */
 export type StructuredOptions<T = unknown> = {
   instructions?: string; timeoutMs?: number; maxOutputTokens?: number; signal?: AbortSignal;
+  image?: { bytes: Uint8Array; mimeType: string };
   /** Cheap quality signals computed from the answer, stored with the usage (for example, rejected citations). */
   signals?: (output: T) => Record<string, unknown>;
 };
@@ -174,7 +175,11 @@ export async function generateStructured<T extends z.ZodType>(officeId: string, 
     // Kept outside the try: an answer that fails the schema was still billed, so its usage is recorded.
     let usage: { inputTokens?: number; outputTokens?: number } | undefined;
     try {
-      const result = await agent.generate(prompt, {
+      const message = options.image ? [{ role: 'user' as const, content: [
+        { type: 'text' as const, text: prompt },
+        { type: 'image' as const, image: `data:${options.image.mimeType};base64,${Buffer.from(options.image.bytes).toString('base64')}` },
+      ] }] : prompt;
+      const result = await agent.generate(message, {
         requestContext: requestContextFor(config),
         // Mastra would throw on an invalid answer and drop its usage; the schema check below decides instead.
         structuredOutput: { schema, errorStrategy: 'warn' },

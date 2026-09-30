@@ -9,7 +9,7 @@ import { JurisprudenceWorkspace } from './jurisprudence-workspace';
 
 export type ResearchMode = 'trademarks' | 'web' | 'jurisprudence';
 const modes: Array<{ value: ResearchMode; label: string }> = [
-  { value: 'trademarks', label: 'Marcas Registradas' }, { value: 'web', label: 'Web' }, { value: 'jurisprudence', label: 'Jurisprudência' },
+  { value: 'trademarks', label: 'Marcas' }, { value: 'web', label: 'Web' }, { value: 'jurisprudence', label: 'Jurisprudência' },
 ];
 
 export function ResearchModule({ mode, searchId, role }: { mode: ResearchMode; searchId: string | null; role: OfficeRole }) {

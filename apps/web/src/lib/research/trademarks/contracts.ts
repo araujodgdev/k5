@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { viennaCode } from './inpi-contracts';
 
 export const trademarkCountries = [
   { code: 'BR', name: 'Brasil' }, { code: 'AR', name: 'Argentina' }, { code: 'CL', name: 'Chile' },
@@ -11,6 +12,7 @@ export const trademarkSituation = z.enum(['all', 'active', 'pending', 'ended']);
 export const trademarkQuery = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('name'), name: z.string().trim().min(2).max(200), strategy: z.enum(['contains', 'exact', 'fuzzy', 'phonetic']).default('contains') }),
   z.object({ kind: z.literal('logo'), uploadId: z.uuid(), strategy: z.literal('concept').default('concept') }),
+  z.object({ kind: z.literal('vienna'), codes: z.array(viennaCode).min(1).max(12), match: z.enum(['any','all']).default('any') }),
 ]);
 export const trademarkSearchInput = z.object({
   query: trademarkQuery,
@@ -22,13 +24,15 @@ export const trademarkSearchInput = z.object({
 export type TrademarkSearchInput = z.infer<typeof trademarkSearchInput>;
 export const trademarkRunStates = z.enum(['queued', 'running', 'completed', 'partial', 'blocked', 'failed', 'cancelled']);
 export const trademarkSource = z.object({
-  provider: z.literal('wipo'), url: z.url(), originUrl: z.url().nullable(), capturedAt: z.string(),
+  provider: z.enum(['wipo','inpi']), url: z.url(), originUrl: z.url().nullable(), capturedAt: z.string(),
+  publicationUrl: z.url().nullable().default(null), edition: z.number().nullable().default(null), publishedOn: z.string().nullable().default(null),
 });
 export const trademarkSummary = z.object({
   id: z.uuid(), nativeId: z.string(), name: z.string(), representationUrl: z.string().nullable(),
   owner: z.string().nullable(), office: z.string().nullable(), situation: z.string().nullable(),
   territory: z.string().nullable().default(null), recordType: z.string().nullable().default(null),
   niceClasses: z.array(z.number().int().min(1).max(45)), applicationNumber: z.string().nullable(),
+  viennaCodes: z.array(viennaCode).default([]),
   source: trademarkSource, detailState: z.enum(['pending', 'ready', 'failed', 'blocked']),
 });
 export type TrademarkSummary = z.infer<typeof trademarkSummary>;
@@ -37,11 +41,22 @@ export const trademarkDetail = trademarkSummary.extend({
   version: z.string(), detailError: z.string().nullable(),
 });
 export type TrademarkDetail = z.infer<typeof trademarkDetail>;
+export const trademarkLogoAnalysis = z.object({
+  description: z.string(), codes: z.array(z.object({ code: viennaCode, description: z.string(), reason: z.string() })),
+  note: z.string(), analyzedAt: z.string(),
+  catalogSourceUrl: z.url().nullable().default(null),
+});
+export type TrademarkLogoAnalysis = z.infer<typeof trademarkLogoAnalysis>;
+export const trademarkCorpus = z.object({
+  baselineDate: z.string().nullable(), latestEdition: z.number().nullable(), publishedOn: z.string().nullable(),
+  checkedAt: z.string().nullable(), note: z.string(),
+});
 export const trademarkSearchView = z.object({
   id: z.uuid(), input: trademarkSearchInput.omit({ idempotencyKey: true }), title: z.string(),
   state: trademarkRunStates, step: z.string(), error: z.string().nullable(), createdAt: z.string(),
   results: z.array(trademarkSummary), totalReported: z.number().int().nonnegative().nullable(),
   pagesLoaded: z.number().int().nonnegative(), hasMore: z.boolean(), sourceUrl: z.url().nullable(),
+  analysis: trademarkLogoAnalysis.nullable().default(null), corpus: trademarkCorpus.nullable().default(null),
 });
 export type TrademarkSearchView = z.infer<typeof trademarkSearchView>;
 export const trademarkHistoryItem = trademarkSearchView.omit({ results: true }).extend({ resultCount: z.number() });

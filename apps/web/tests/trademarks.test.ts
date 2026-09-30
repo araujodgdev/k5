@@ -17,7 +17,7 @@ async function actor(officeId: string = randomUUID()): Promise<WorkspaceContext>
   await testDb.prepare("INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,'reviewer')").run(randomUUID(), officeId, userId);
   return { userId, officeId, role: 'reviewer' };
 }
-const query = (idempotencyKey = randomUUID()) => trademarkSearchInput.parse({ query: { kind: 'name', name: 'LUME' }, idempotencyKey });
+const query = (idempotencyKey = randomUUID()) => trademarkSearchInput.parse({ query: { kind: 'name', name: 'LUME' }, country: 'US', idempotencyKey });
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZLsAAAAASUVORK5CYII=', 'base64');
 const hit = { nativeId: 'BR500000905046595', name: 'LUME', owner: 'Titular', office: null, territory: 'Brazil', recordType: 'National Trademark Application', situation: 'Ended', niceClasses: [35], applicationNumber: '905046595', representation: `data:image/png;base64,${png.toString('base64')}` };
 function browser(overrides: Partial<WipoBrowser> = {}): WipoBrowser {
@@ -36,7 +36,7 @@ async function openSession(context: WorkspaceContext) {
 }
 
 test('nome/logotipo: Brasil e todos os status são padrão, filtros inválidos são recusados', () => {
-  assert.equal(query().country, 'BR'); assert.equal(query().situation, 'all');
+  assert.equal(trademarkSearchInput.parse({query:{kind:'name',name:'LUME'}}).country, 'BR'); assert.equal(query().situation, 'all');
   assert.equal(trademarkSearchInput.parse({ query: { kind: 'logo', uploadId: randomUUID() } }).query.kind, 'logo');
   assert.equal(trademarkSearchInput.safeParse({ query: { kind: 'name', name: 'x' } }).success, false);
   assert.equal(trademarkSearchInput.safeParse({ ...query(), niceClass: 46 }).success, false);
@@ -48,7 +48,7 @@ test('histórico, resultados e imagens ficam no autor e no escritório; repetiç
   const input = query();
   const [a, b] = await Promise.all([start(owner, input), start(owner, input)]);
   assert.equal(a.search.id, b.search.id);
-  await assert.rejects(start(owner, { ...input, country: 'US' }), { code: 'CONFLICT' });
+  await assert.rejects(start(owner, { ...input, country: 'CA' }), { code: 'CONFLICT' });
   await processTrademarkTask(a.search.id, async () => browser());
   const { search } = await getTrademarkSearch(owner, { searchId: a.search.id });
   assert.equal(search.results.length, 1); assert.equal(search.state, 'completed'); assert.equal(search.totalReported, 2);
@@ -69,7 +69,7 @@ test('upload privado valida bytes e a busca envia apenas a imagem do autor', asy
   const { upload } = await saveTrademarkUpload(owner, new File([png], 'marca.png', { type: 'image/png' }));
   await assert.rejects(saveTrademarkUpload(owner, new File(['texto'], 'falso.png', { type: 'image/png' })), { code: 'INVALID' });
   await assert.rejects(readTrademarkUpload(colleague, upload.id), { code: 'NOT_FOUND' });
-  const input = trademarkSearchInput.parse({ query: { kind: 'logo', uploadId: upload.id } });
+  const input = trademarkSearchInput.parse({ query: { kind: 'logo', uploadId: upload.id }, country:'US' });
   await assert.rejects(start(colleague, input), { code: 'NOT_FOUND' });
   const { search } = await start(owner, input);
   let inspected = false;

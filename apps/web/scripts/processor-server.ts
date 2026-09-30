@@ -6,6 +6,7 @@ import { captureOperationalError, observeWorkerTask } from './sentry-worker';
 Sentry.init(serverOptions('processor', process.env));
 let busy = false;
 let maintenanceAt = 0;
+let inpiRunning: Promise<void> | undefined;
 
 async function documentPass() {
   const { processNextVaultDocument } = await import('../src/lib/vault');
@@ -62,6 +63,15 @@ async function judicialPass() {
 
 const server = createServer(async (request, response) => {
   if (request.method === 'GET' && request.url === '/health') { response.writeHead(200).end('ok'); return; }
+  if(request.method==='POST' && request.url==='/run/trademarks') {
+    if(!inpiRunning) {
+      inpiRunning=(async()=>{
+        const {runInpiMaintenance}=await import('../src/lib/research/trademarks/inpi-sync');
+        await observeWorkerTask('research.inpi.sync',runInpiMaintenance);
+      })().catch(error=>{captureOperationalError(error,'research.inpi.container');}).finally(()=>{inpiRunning=undefined;});
+    }
+    response.writeHead(204).end();return;
+  }
   if (request.method === 'POST' && request.url === '/convert/pdf') {
     try {
       const { MAX_DOCX_BYTES, DocumentPdfError } = await import('../src/lib/document-pdf-contract');

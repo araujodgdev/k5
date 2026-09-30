@@ -33,7 +33,7 @@ export function sourcesFromTool(name: string, result: unknown): RecordedSource[]
     const search = trademarkSearchView.safeParse(value.search);
     const items = detail.success ? [detail.data] : search.success ? search.data.results : [];
     return items.map(item => ({ kind: 'web', ref: item.source.url, title: item.name || item.nativeId, url: item.source.url,
-      text: [item.name, item.owner, item.situation, `Nice: ${item.niceClasses.join(', ')}`, `Coletado: ${item.source.capturedAt}`,
+      text: [item.name, item.owner, item.situation, `Nice: ${item.niceClasses.join(', ')}`, `Viena: ${item.viennaCodes.join(', ')}`, `Fonte: ${item.source.provider}`,item.source.edition ? `RPI ${item.source.edition}, ${item.source.publishedOn}` : null, `Coletado: ${item.source.capturedAt}`,
         ...(detail.success ? detail.data.fields.map(field => `${field.label}: ${field.value}`) : [])].filter(Boolean).join('\n') }));
   }
   // Scored case law backs citations only when its link came back from a search.

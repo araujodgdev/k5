@@ -29,18 +29,28 @@
     "max_instances": 2,
     "instance_type": "basic",
     "constraints": { "regions": ["SAM"] }
+  }, {
+    "name": "lume-inpi-processor",
+    "class_name": "LumeInpiProcessor",
+    "image": "./Dockerfile.processors",
+    "image_build_context": "../..",
+    "max_instances": 1,
+    "instance_type": "basic",
+    "constraints": { "regions": ["SAM"] }
   }],
   // CHAT_RUNS holds each chat turn in flight, so the Lume finishes an answer after the page closes.
   "durable_objects": { "bindings": [
     { "name": "PROCESSORS", "class_name": "LumeProcessor" },
     { "name": "CHAT_RUNS", "class_name": "LumeChatRun" },
-    { "name": "TRADEMARK_RUNS", "class_name": "LumeTrademarkRun" }
+    { "name": "TRADEMARK_RUNS", "class_name": "LumeTrademarkRun" },
+    { "name": "INPI_PROCESSOR", "class_name": "LumeInpiProcessor" }
   ] },
   // Cloudflare requires SQLite-backed classes for new Durable Objects; all business data is PostgreSQL.
   "migrations": [
     { "tag": "v1-processors", "new_sqlite_classes": ["LumeProcessor"] },
     { "tag": "v2-chat-runs", "new_sqlite_classes": ["LumeChatRun"] },
-    { "tag": "v3-trademark-runs", "new_sqlite_classes": ["LumeTrademarkRun"] }
+    { "tag": "v3-trademark-runs", "new_sqlite_classes": ["LumeTrademarkRun"] },
+    { "tag": "v4-inpi-processor", "new_sqlite_classes": ["LumeInpiProcessor"] }
   ],
   "triggers": { "crons": ["* * * * *"] },
   "queues": { "producers": [{ "binding": "INTEGRATIONS_QUEUE", "queue": "k5-integrations-staging" }] },

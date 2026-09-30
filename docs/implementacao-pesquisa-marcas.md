@@ -1,3 +1,5 @@
+> Atualização: a modalidade agora se chama Marcas e usa o INPI para o Brasil. Veja [a implementação atual](pesquisa-marcas-inpi.md). O fluxo WIPO descrito abaixo permanece para outros países e históricos anteriores.
+
 # Pesquisa de marcas — primeira versão
 
 Pesquisa oferece Marcas Registradas, Web (Exa) e Jurisprudência. Os históricos anteriores continuam acessíveis. Links antigos com `?search=` abrem a pesquisa Web; os novos incluem `mode`.

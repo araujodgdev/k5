@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { foundDecision, MAX_DECISIONS, reliabilityLevels } from '@/lib/research/jurisprudence-score-contract';
-import { trademarkSearchInput, trademarkSearchView, trademarkHistoryItem, trademarkDetail } from '@/lib/research/trademarks/contracts';
+import { trademarkLogoAnalysis, trademarkSearchInput, trademarkSearchView, trademarkHistoryItem, trademarkDetail } from '@/lib/research/trademarks/contracts';
 
 const identifier = z.string().min(1).max(128);
 const readers = ['administrator', 'lawyer', 'reviewer'] as const;
@@ -57,14 +57,20 @@ const webSearchView = webSearchItem.extend({
 });
 
 export const researchCapabilities = {
+  k5_research_analyze_trademark_logo: {
+    module:'research',effect:'read',roles:readers,publish:['agent','webmcp'],
+    description:'Analisa uma imagem de logotipo enviada na Pesquisa (uploadId) ou no Cofre/conversa (documentId), sugere códigos de Viena validados no catálogo INPI e explica os elementos visuais. A sugestão não é classificação oficial nem prova de conflito. Em seguida use start_trademark_search com query.kind=vienna e os codes retornados, country=BR. A ferramenta não mede similaridade visual entre imagens.',
+    input:z.discriminatedUnion('kind',[z.object({kind:z.literal('upload'),uploadId:z.uuid()}),z.object({kind:z.literal('document'),documentId:identifier})]),
+    output:z.object({analysis:trademarkLogoAnalysis}),
+  },
   k5_research_start_trademark_search: {
     module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
-    description: 'Inicia uma pesquisa de marcas na WIPO por nome ou logotipo previamente enviado. Brasil e todos os status são os padrões. Retorna uma consulta durável; acompanhe por get_trademark_search. A fonte pode bloquear a consulta. Ausência de resultados não comprova disponibilidade da marca.',
+    description: 'Pesquisa marcas brasileiras na nossa base oficial INPI por nome (contains/exact/fuzzy), logotipo enviado na Pesquisa ou códigos de Viena (query.kind=vienna, codes, match any/all). Brasil e todos os status são padrões. Para uma imagem da conversa, primeiro analyze_trademark_logo com documentId e depois pesquise os códigos sugeridos. Retorna dados e links individuais INPI imediatamente para nome/Viena. Confira corpus para cobertura e atualização. Outros países usam WIPO em segundo plano. Ausência de resultados não comprova disponibilidade.',
     input: trademarkSearchInput, output: z.object({ search: trademarkSearchView }),
   },
   k5_research_get_trademark_search: {
     module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
-    description: 'Acompanha uma pesquisa WIPO da pessoa neste escritório e devolve resultados com fontes individuais. State completed cobre só as páginas solicitadas. Blocked, failed ou partial não significam ausência de marcas.',
+    description: 'Lê a própria pesquisa de marcas neste escritório, resultados com fontes, cobertura da base INPI e análise de Viena quando usada. State completed cobre as páginas solicitadas. Falha ou carga parcial não significa ausência de marcas.',
     input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
   },
   k5_research_list_trademark_searches: {
@@ -74,12 +80,12 @@ export const researchCapabilities = {
   },
   k5_research_next_trademark_page: {
     module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
-    description: 'Solicita outra página da pesquisa WIPO, ou tenta novamente a página que falhou. Mantém os resultados já encontrados.',
+    description: 'Carrega outra página da pesquisa INPI/WIPO ou repete uma página que falhou, preservando os resultados anteriores.',
     input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
   },
   k5_research_get_trademark: {
     module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
-    description: 'Lê os detalhes de uma marca encontrada, com campos da fonte, versão, horário de coleta e links WIPO/escritório de origem. Se pending, os detalhes são obtidos em segundo plano; consulte novamente antes de afirmar dados ainda ausentes.',
+    description: 'Lê os detalhes publicados de uma marca encontrada, códigos de Viena, despachos da RPI, versão e link direto INPI ou WIPO. O último despacho não equivale necessariamente ao estado completo do processo. Detalhes INPI vêm da nossa base; detalhes WIPO pending são consultados em segundo plano.',
     input: z.object({ resultId: z.uuid(), retry: z.boolean().default(false) }), output: z.object({ trademark: trademarkDetail }),
   },
   k5_research_cancel_trademark_search: {

@@ -13,7 +13,7 @@ import { tutorialVideoResponse } from '../lib/tutorial-video-response';
 import { withTrademarkEnvironment } from '../lib/research/trademarks/environment';
 import { pendingTrademarkTasks } from '../lib/research/trademarks/worker';
 
-export { LumeProcessor, ContainerProxy } from './processors';
+export { LumeProcessor, LumeInpiProcessor, ContainerProxy } from './processors';
 export { LumeChatRun } from './chat-runs';
 export { LumeTrademarkRun } from './trademark-runs';
 
@@ -32,12 +32,18 @@ export default withSentry<WebEnv>(env => serverOptions('web', env), {
       const searches = await withPostgres(pool, () => pendingTrademarkTasks());
       await Promise.allSettled(searches.map(id => env.TRADEMARK_RUNS.getByName(id).start(id)));
       if (env.PROCESSORS_ENABLED !== 'true') return;
+      const inpiDue=await withPostgres(pool,()=>database.prepare(`SELECT 1 FROM inpi_sync WHERE next_check_at<=CURRENT_TIMESTAMP OR EXISTS(SELECT 1 FROM inpi_import WHERE state='running')`).get());
+      const inpiDispatch=async()=>{
+        if (!inpiDue) return;
+        try { await env.INPI_PROCESSOR.getByName('inpi').run('trademarks'); }
+        catch(error){captureOperationalError(error,'processors.dispatch',{processor:'trademarks'});throw error;}
+      };
       const due = await withPostgres(pool, () => dueProcessors(database, event.scheduledTime, Math.floor(event.scheduledTime / 60_000) % 5 === 0));
       const roles = (['documents', 'judicial'] as const).filter(role => due[role]);
-      const results = await Promise.allSettled(roles.map(async role => {
+      const results = await Promise.allSettled([inpiDispatch(),...roles.map(async role => {
         try { await env.PROCESSORS.getByName(role).run(role); }
         catch (error) { captureOperationalError(error, 'processors.dispatch', { processor: role }); throw error; }
-      }));
+      })]);
       if (results.some(result => result.status === 'rejected')) throw new Error('Lume processor dispatch did not complete.');
     } finally { await pool.end(); }
     });

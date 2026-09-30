@@ -17,7 +17,7 @@ import {
   assignmentOverview, loadAssignmentSnapshot, pinRunModelPlan, planGroup, planTask, resolveLegacyRunModel, resolvePinnedTaskModel,
   resolveTaskModelFromDatabase, testModelAssignment, updateModelAssignment, type AssignmentUpdate, type TaskModelPlan,
 } from '../src/lib/ai-assignments-core';
-import { AI_TASK_KEYS, type AiTaskKey } from '../src/lib/ai-tasks';
+import { type AiTaskKey } from '../src/lib/ai-tasks';
 import { DEFAULT_CHAT_MODEL } from '../src/lib/ai-defaults';
 import { chatHearsAudio } from '../src/lib/ai-modalities';
 import { encryptCredential } from '../src/lib/platform-crypto';
@@ -121,7 +121,8 @@ test('migration 0030 gives every task the connection, model and effort it resolv
     }
     await db.exec(adoption);
     const snapshot = await loadAssignmentSnapshot(db);
-    for (const task of AI_TASK_KEYS) {
+    const adoptedTasks = ['agent.chat','drafting.outline','drafting.section','extraction.chronology_facts','extraction.chronology_review','extraction.annex_plan','summary.email_digest','summary.email_thread','classification.injection_guard','transcription.voice_note'] satisfies AiTaskKey[];
+    for (const task of adoptedTasks) {
       assert.deepEqual(outcomeOf(planTask(task, snapshot)), legacy(connections, task), `${name}: ${task}`);
     }
   }

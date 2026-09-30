@@ -19,6 +19,7 @@ const googleRoutes = Object.fromEntries<Route>(Object.entries(googleOperations).
   [name, { method: 'POST', path: () => googleOperationPath(operation as GoogleOperation), body: (i: Record<string, unknown>) => i } satisfies Route])) as Record<GoogleCapabilityName, Route>;
 
 const routes: Record<CapabilityName, Route> = {
+  k5_research_analyze_trademark_logo: { method: 'POST', path: () => '/api/capabilities/k5_research_analyze_trademark_logo', body: i => i },
   k5_research_start_trademark_search: { method: 'POST', path: () => '/api/capabilities/k5_research_start_trademark_search', body: i => i },
   k5_research_get_trademark_search: { method: 'POST', path: () => '/api/capabilities/k5_research_get_trademark_search', body: i => i },
   k5_research_list_trademark_searches: { method: 'POST', path: () => '/api/capabilities/k5_research_list_trademark_searches', body: i => i },

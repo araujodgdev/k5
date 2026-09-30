@@ -23,6 +23,7 @@ export const AI_TASK_KEYS = [
   "extraction.chronology_facts", "extraction.chronology_review", "extraction.annex_plan",
   "summary.email_digest", "summary.email_thread",
   "classification.injection_guard",
+  "classification.trademark_logo",
   "transcription.voice_note",
 ] as const;
 export type AiTaskKey = typeof AI_TASK_KEYS[number];
@@ -66,6 +67,7 @@ export const AI_TASK_DEFINITIONS: Record<AiTaskKey, AiTaskDefinition> = {
   "summary.email_digest": { key: "summary.email_digest", group: "summary", label: "Panorama de e-mails", description: "Resumo do dia, da semana ou do mês." },
   "summary.email_thread": { key: "summary.email_thread", group: "summary", label: "Resumo e respostas rápidas", description: "Uma conversa de e-mail e até três respostas prontas." },
   "classification.injection_guard": { key: "classification.injection_guard", group: "classification", label: "Guarda contra injeção", description: "E-mails, Docs, publicações e páginas da web lidos pelo agente." },
+  "classification.trademark_logo": { key: "classification.trademark_logo", group: "classification", label: "Elementos figurativos de marcas", description: "Leitura de logotipos e sugestões de códigos de Viena conferidas no catálogo do INPI. Requer um modelo com visão." },
   "transcription.voice_note": { key: "transcription.voice_note", group: "transcription", label: "Nota de voz", description: "Gravações do composer e áudios enviados na conversa." },
 };
 

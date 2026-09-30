@@ -20,7 +20,7 @@ import { captureOperationalError } from './observability/report';
 export const GUARDED_TOOLS: ReadonlySet<string> = new Set([
   'k5_messages_read', 'k5_messages_list',
   'k5_research_web_search', 'k5_research_get_web_search',
-  'k5_research_start_trademark_search', 'k5_research_get_trademark_search', 'k5_research_get_trademark', 'k5_research_next_trademark_page',
+  'k5_research_start_trademark_search', 'k5_research_get_trademark_search', 'k5_research_get_trademark', 'k5_research_next_trademark_page', 'k5_research_analyze_trademark_logo',
   'k5_whatsapp_list_threads',
   'k5_whatsapp_read_thread',
   'k5_gmail_list_threads',

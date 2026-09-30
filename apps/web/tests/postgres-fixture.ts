@@ -9,8 +9,11 @@ export async function postgresFixture({ seedDefaults = true } = {}) {
   if (!url) throw new Error('Execute pnpm test (ou configure TEST_DATABASE_URL para um PostgreSQL de testes).');
   const schema = `k5_test_${randomUUID().replaceAll('-','')}`;
   const admin = createPostgresPool(url,{ max:1,idleTimeoutMillis:100 });
+  await admin.query("SELECT pg_advisory_lock(hashtext('k5-test-extensions'))");
+  try { await admin.query('CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public'); }
+  finally { await admin.query("SELECT pg_advisory_unlock(hashtext('k5-test-extensions'))"); }
   await admin.query(`CREATE SCHEMA "${schema}"`);
-  const pool = createPostgresPool(url,{max:3,idleTimeoutMillis:100,options:`-c search_path=${schema}`});
+  const pool = createPostgresPool(url,{max:3,idleTimeoutMillis:100,options:`-c search_path=${schema},public`});
   const db = postgresDatabase(pool);
   let closed = false;
   db.close = async () => {

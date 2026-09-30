@@ -2,7 +2,7 @@
 
 Next.js App Router com Better Auth, PostgreSQL, TypeScript e Tailwind CSS.
 
-Pesquisa tem as modalidades Marcas Registradas (WIPO/Browser Run), Web (Exa) e Jurisprudência. A execução e os limites de marcas estão em [Pesquisa de marcas](../../docs/implementacao-pesquisa-marcas.md).
+Pesquisa tem as modalidades Marcas (INPI para Brasil; WIPO para outros países), Web (Exa) e Jurisprudência. A carga e a análise de Viena estão em [Pesquisa INPI](../../docs/pesquisa-marcas-inpi.md). A execução e os limites de marcas estão em [Pesquisa de marcas](../../docs/implementacao-pesquisa-marcas.md).
 
 O produto se chama **Lume**. Identificadores técnicos existentes — como o pacote
 `@k5/web`, variáveis `K5_*`, capabilities `k5_*` e nomes de recursos de infraestrutura —

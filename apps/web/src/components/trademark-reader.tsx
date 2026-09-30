@@ -58,14 +58,16 @@ export function TrademarkReader({ resultId }: { resultId: string }) {
         </div>
       </header>
       <div className="flex flex-wrap gap-x-6 gap-y-3 border-b py-4 text-sm">
-        <a href={detail.source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4">Ver na WIPO<ArrowUpRight className="size-4" /><span className="sr-only">, abre em nova aba</span></a>
+        <a href={detail.source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4">{detail.source.provider==='inpi' ? 'Ver processo no INPI' : 'Ver na WIPO'}<ArrowUpRight className="size-4" /><span className="sr-only">, abre em nova aba</span></a>
+        {detail.source.publicationUrl && <a href={detail.source.publicationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4">{detail.source.edition ? `XML da RPI ${detail.source.edition}` : 'Dados abertos do INPI'}<ArrowUpRight className="size-4" /><span className="sr-only">, abre em nova aba</span></a>}
+        {detail.source.publishedOn && <span className="text-muted-foreground">Publicação de {detail.source.publishedOn}</span>}
         {detail.source.originUrl && <a href={detail.source.originUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4">Escritório de origem<ArrowUpRight className="size-4" /><span className="sr-only">, abre em nova aba</span></a>}
         <span className="text-muted-foreground">Coletado em {timestamp.format(new Date(detail.source.capturedAt))}</span>
       </div>
       {pending && <p role="status" className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />Obtendo detalhes na WIPO… Você pode sair e voltar a esta página.</p>}
       {detail.detailError && <div role="alert" className="flex flex-wrap items-center gap-3 py-5"><p className="text-sm text-destructive">{detail.detailError}</p><Button variant="outline" className="min-h-11 md:min-h-9" disabled={busy} onClick={async () => { setBusy(true); try { await load(undefined, true); } finally { setBusy(false); } }}>Tentar novamente</Button></div>}
       {!!detail.fields.length && <dl>{detail.fields.map((field, index) => <div key={`${field.label}-${index}`} className="grid gap-2 border-b py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:gap-8"><dt className="text-sm text-muted-foreground">{fieldLabel(field.label)}</dt><dd className="whitespace-pre-wrap break-words text-sm leading-6">{field.value}</dd></div>)}</dl>}
-      <p className="py-6 text-[13px] leading-5 text-subtle-foreground">Os dados refletem a coleta na WIPO. O status oficial pode ser diferente da categoria geral da base; confirme os campos e o registro no escritório de origem.</p>
+      <p className="py-6 text-[13px] leading-5 text-subtle-foreground">{detail.source.provider==='inpi' ? 'Os dados refletem as publicações importadas do INPI. O último despacho pode não representar toda a situação do processo. Os arquivos de dados não incluem imagens das marcas. Consulte a ficha oficial para conferir a representação e a situação atual.' : 'Os dados refletem a coleta na WIPO. O status oficial pode ser diferente da categoria geral da base; confirme os campos e o registro no escritório de origem.'}</p>
     </>}
   </div>;
 }

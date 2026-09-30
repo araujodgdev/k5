@@ -4,7 +4,7 @@ import { SENTRY_DSN } from '../lib/observability/settings';
 import { MAX_DOCX_BYTES } from '../lib/document-pdf-contract';
 
 export { ContainerProxy } from '@cloudflare/containers';
-export type ProcessorRole = 'documents' | 'judicial';
+export type ProcessorRole = 'documents' | 'judicial' | 'trademarks';
 export interface ProcessorEnv extends ProcessorBindings {
   PROCESSOR_DATABASE_URL: string;
   K5_CREDENTIALS_KEY?: string;
@@ -51,7 +51,7 @@ export class LumeProcessor extends Container<ProcessorEnv> {
   }
 
   async run(role: ProcessorRole): Promise<void> {
-    if (role !== 'documents' && role !== 'judicial') throw new Error('Processador inválido.');
+    if (role !== 'documents' && role !== 'judicial' && role !== 'trademarks') throw new Error('Processador inválido.');
     if (!this.env.PROCESSOR_DATABASE_URL || (!this.env.K5_CREDENTIALS_KEY && !this.env.K5_CREDENTIALS_NEXT_KEY)) throw new Error('Processador sem configuração de banco ou credenciais.');
     if (this.running) return;
     this.running = true;
@@ -67,4 +67,9 @@ export class LumeProcessor extends Container<ProcessorEnv> {
       this.renewActivityTimeout();
     }
   }
+}
+
+/** The scheduled minute-by-minute dispatch keeps a long streamed INPI load alive. */
+export class LumeInpiProcessor extends LumeProcessor {
+  sleepAfter='5m';
 }
