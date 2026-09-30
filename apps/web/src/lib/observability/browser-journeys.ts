@@ -29,7 +29,7 @@ const documentSchema = z.object({
   id: z.string().min(1), name: z.string(), scope: z.string(),
   status: z.enum(['queued', 'processing', 'ready', 'failed']), extractedCharacters: z.number(),
 });
-const documentsSchema = z.object({ documents: z.array(documentSchema) });
+const documentsSchema = z.object({ documents: z.array(documentSchema), total: z.number().int().nonnegative() });
 const failureCode = z.enum([
   'synthetic_request_failed', 'synthetic_navigation_failed', 'synthetic_origin_mismatch',
   'synthetic_identity_mismatch', 'synthetic_office_mismatch', 'synthetic_agenda_failed',
@@ -56,6 +56,15 @@ async function browserJson(page: Page, path: string, body?: object): Promise<unk
     if (!response.ok) throw new Error('synthetic_request_failed');
     return response.json();
   }, { path, body });
+}
+
+async function browserDocuments(page: Page) {
+  const documents: z.infer<typeof documentSchema>[] = [];
+  for (let offset = 0; ; offset += 50) {
+    const result = documentsSchema.parse(await browserJson(page, `/api/vault/documents?scope=library&limit=50&offset=${offset}`));
+    documents.push(...result.documents);
+    if (offset + 50 >= result.total) return documents;
+  }
 }
 
 async function go(page: Page, origin: string, path: string) {
@@ -281,8 +290,8 @@ export async function runBrowserJourneys(browser: Browser, credentials: {
         await go(currentPage, origin, '/app/vault');
         await currentPage.waitForFunction(() => document.querySelector('h1')?.textContent === 'Cofre');
         await goToLibrary(currentPage, origin);
-        const existing = documentsSchema.parse(await browserJson(currentPage, '/api/vault/documents?scope=library'));
-        if (existing.documents.some(document => document.name.startsWith(FILE_PREFIX))) throw new Error('synthetic_upload_residue');
+        const existing = await browserDocuments(currentPage);
+        if (existing.some(document => document.name.startsWith(FILE_PREFIX))) throw new Error('synthetic_upload_residue');
       });
       await stage('vault_upload', async () => {
         await selectExpectedOffice(currentPage, origin, credentials);
@@ -307,7 +316,7 @@ export async function runBrowserJourneys(browser: Browser, credentials: {
           const row = download?.parentElement?.parentElement;
           return row?.textContent?.includes('Pronto') || row?.textContent?.includes('Falhou');
         }, { timeout: 60_000, polling: 1_000 }, fileName);
-        const documents = documentsSchema.parse(await browserJson(currentPage, '/api/vault/documents?scope=library')).documents;
+        const documents = await browserDocuments(currentPage);
         const ready = documents.find(document => document.id === uploadedDocument?.id && document.name === fileName);
         if (ready?.status !== 'ready' || ready.extractedCharacters < 1) throw new Error('synthetic_extraction_failed');
       });
@@ -321,7 +330,7 @@ export async function runBrowserJourneys(browser: Browser, credentials: {
           try {
           await selectExpectedOffice(currentPage, origin, credentials);
           // A lost upload response is recovered by this run's unguessable filename, never by prefix.
-          const documents = documentsSchema.parse(await browserJson(currentPage, '/api/vault/documents?scope=library')).documents;
+          const documents = await browserDocuments(currentPage);
           const created = documents.filter(document => document.name === fileName && document.scope === 'library');
           if (created.length === 0 && !uploadedDocument) return;
           if (created.length !== 1 || (uploadedDocument && created[0].id !== uploadedDocument.id)) throw new Error('synthetic_cleanup_mismatch');
@@ -336,7 +345,7 @@ export async function runBrowserJourneys(browser: Browser, credentials: {
           ]);
           if (!response.ok()) throw new Error('synthetic_cleanup_failed');
           step = 'verify';
-          const after = documentsSchema.parse(await browserJson(currentPage, '/api/vault/documents?scope=library')).documents;
+          const after = await browserDocuments(currentPage);
           if (after.some(document => document.id === created[0].id)) throw new Error('synthetic_cleanup_not_persisted');
           } catch (error) {
             if (error instanceof Error && error.name === 'TimeoutError') throw new Error(`synthetic_cleanup_${step}_timeout`);

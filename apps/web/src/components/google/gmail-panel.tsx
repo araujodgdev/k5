@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { googleCall, GoogleClientError, GoogleConnectionNotice, type GoogleStatus, useGoogleAction } from './client';
 import { EmailFrame } from './email-frame';
 import { DigestView, periodNames, requestInsight, ThreadInsightView, type Pending } from './email-smart';
+import { useVaultDocumentOptions, VaultDocumentOptionsMore } from '@/components/vault-document-options';
 
 type ThreadSummary = CapabilityOutput<'k5_gmail_list_threads'>['threads'][number];
 type Thread = CapabilityOutput<'k5_gmail_get_thread'>['thread'];
@@ -27,7 +28,6 @@ type AttachmentRef = { kind: 'vault'; documentId: string; name: string } | { kin
 type Editor = { draftId?: string; to: string; cc: string; bcc: string; subject: string; body: string;
   replyToMessageId: string | null; attachments: AttachmentRef[] };
 type VaultCase = { id: string; name: string };
-type VaultDocument = { id: string; name: string; status: string };
 const blank = (): Editor => ({ to: '', cc: '', bcc: '', subject: '', body: '', replyToMessageId: null, attachments: [] });
 const labels = { INBOX: 'Recebidos', STARRED: 'Com estrela', SENT: 'Enviados', DRAFT: 'Rascunhos', ALL: 'Todos' } as const;
 const folderIcons: Record<keyof typeof labels, LucideIcon> = { INBOX: Inbox, STARRED: Star, SENT: Send, DRAFT: File, ALL: Mails };
@@ -78,9 +78,10 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
   const [editor, setEditor] = useState<Editor | null>(null);
   const [cases, setCases] = useState<VaultCase[]>([]);
   const [selectedCase, setSelectedCase] = useState('');
-  const [vaultDocuments, setVaultDocuments] = useState<VaultDocument[]>([]);
   const [vaultDocumentId, setVaultDocumentId] = useState('');
   const [showVault, setShowVault] = useState(false);
+  const vaultOptions = useVaultDocumentOptions(selectedCase && showVault ? `scope=case&caseId=${encodeURIComponent(selectedCase)}` : null);
+  const vaultDocuments = vaultOptions.documents;
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [listLoading, setListLoading] = useState(true);
@@ -162,17 +163,6 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
       return response.json() as Promise<{ cases: VaultCase[] }>;
     }).then(value => setCases(value.cases ?? [])).catch(() => undefined);
   }, [enabled, canWrite]);
-  useEffect(() => {
-    if (!selectedCase || !showVault) return;
-    let active = true;
-    fetch(`/api/vault/documents?scope=case&caseId=${encodeURIComponent(selectedCase)}`, { cache: 'no-store' })
-      .then(async response => {
-        if (!response.ok) throw new Error('Não foi possível listar os documentos do caso.');
-        return response.json() as Promise<{ documents: VaultDocument[] }>;
-      }).then(value => { if (active) setVaultDocuments(value.documents ?? []); })
-      .catch(error => { if (active) setFailure(message(error)); });
-    return () => { active = false; };
-  }, [selectedCase, showVault]);
 
   const invalidateTriage = () => { triageRequest.current += 1; setTriageBusy(false); setTriageMessage(''); setCategoryFilter('all'); setPriorityFilter('all'); setSortOrder('recent'); };
   const refresh = () => { invalidateTriage(); setListLoading(true); setRevision(value => value + 1); };
@@ -539,13 +529,14 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
             {showVault && <div className="grid max-w-lg gap-3 border-t pt-4">
               <div className="grid gap-1.5"><Label htmlFor="mail-vault-case">Caso</Label>
                 <select id="mail-vault-case" className="h-11 border border-input bg-background px-3 text-sm md:h-9"
-                  value={selectedCase} onChange={event => { setSelectedCase(event.target.value); setVaultDocumentId(''); setVaultDocuments([]); }}>
+                  value={selectedCase} onChange={event => { setSelectedCase(event.target.value); setVaultDocumentId(''); }}>
                   <option value="">Escolha um caso</option>{cases.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
               <div className="grid gap-1.5"><Label htmlFor="mail-vault-document">Documento</Label>
                 <select id="mail-vault-document" className="h-11 border border-input bg-background px-3 text-sm md:h-9"
                   value={vaultDocumentId} onChange={event => setVaultDocumentId(event.target.value)}>
                   <option value="">Escolha um documento</option>{vaultDocuments.filter(item => item.status === 'ready').map(item =>
                     <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
+              <VaultDocumentOptionsMore {...vaultOptions} />
               <Button type="button" variant="outline" disabled={!vaultDocumentId} onClick={attachVault}>Adicionar documento</Button>
             </div>}
             <div className="flex flex-wrap gap-2 border-t pt-5">

@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ArrowDown, ArrowUp, CircleAlert, LoaderCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import type { VaultDocument } from '@/lib/vault';
+import { useVaultDocumentOptions, VaultDocumentOptionsMore } from './vault-document-options';
 import type { AnnexItem } from '@/lib/annexes-contract';
 
 const selectStyle = 'h-11 w-full rounded-md border bg-background px-3 text-sm md:h-9';
@@ -28,7 +28,8 @@ type Plan = { pageCount: number; items: AnnexItem[]; uncoveredPages: number[] };
 type Result = { folderId: string; documents: Array<{ id: string; name: string }> };
 
 export function VaultAnnexes({ caseId, canWrite }: { caseId: string; canWrite: boolean }) {
-  const [documents, setDocuments] = useState<VaultDocument[] | null>(null);
+  const options = useVaultDocumentOptions(canWrite ? `caseId=${encodeURIComponent(caseId)}` : null);
+  const documents = options.documents;
   const [scanId, setScanId] = useState('');
   const [petitionId, setPetitionId] = useState('');
   const [petitionText, setPetitionText] = useState('');
@@ -38,17 +39,7 @@ export function VaultAnnexes({ caseId, canWrite }: { caseId: string; canWrite: b
   const [error, setError] = useState('');
   const [result, setResult] = useState<Result | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/vault/documents?caseId=${encodeURIComponent(caseId)}`, { cache: 'no-store' })
-      .then(response => response.ok ? response.json() as Promise<{ documents: VaultDocument[] }> : Promise.reject(new Error()))
-      .then(data => { if (!cancelled) setDocuments(data.documents); })
-      .catch(() => { if (!cancelled) { setDocuments([]); setError('Não foi possível listar os arquivos do caso.'); } });
-    return () => { cancelled = true; };
-  }, [caseId]);
-
   if (!canWrite) return <p className="py-6 text-sm text-muted-foreground">Seu papel permite apenas consultar os arquivos do caso.</p>;
-  if (!documents) return <p role="status" className="py-6 text-sm text-muted-foreground">Carregando arquivos do caso…</p>;
   const pdfs = documents.filter(document => document.mimeType === 'application/pdf');
   const readable = documents.filter(document => document.id !== scanId);
 
@@ -90,11 +81,12 @@ export function VaultAnnexes({ caseId, canWrite }: { caseId: string; canWrite: b
       <div className="grid gap-1.5"><Label htmlFor="annex-scan">PDF digitalizado com os documentos</Label>
         <select id="annex-scan" value={scanId} onChange={event => { setScanId(event.target.value); setPlan(null); }} required className={selectStyle}>
           <option value="">Escolha o arquivo</option>{pdfs.map(document => <option key={document.id} value={document.id} disabled={document.status !== 'ready'}>{document.name}{document.status !== 'ready' ? ' (em processamento)' : ''}</option>)}
-        </select>{pdfs.length === 0 && <p className="text-xs text-muted-foreground">Envie o PDF em Arquivos. A leitura (OCR) termina em alguns minutos.</p>}</div>
+        </select>{!options.loading && !options.error && pdfs.length === 0 && <p className="text-xs text-muted-foreground">Envie o PDF em Arquivos. A leitura (OCR) termina em alguns minutos.</p>}</div>
       <div className="grid gap-1.5"><Label htmlFor="annex-petition">Petição</Label>
         <select id="annex-petition" value={petitionId} onChange={event => setPetitionId(event.target.value)} disabled={Boolean(petitionText.trim())} className={selectStyle}>
           <option value="">Escolha a petição no caso</option>{readable.map(document => <option key={document.id} value={document.id} disabled={document.status !== 'ready'}>{document.name}</option>)}
         </select></div>
+      <VaultDocumentOptionsMore {...options} />
       <div className="grid gap-1.5"><Label htmlFor="annex-petition-text">Ou cole o texto da petição</Label>
         <Textarea id="annex-petition-text" value={petitionText} onChange={event => setPetitionText(event.target.value)} rows={4} maxLength={60_000} /></div>
       <Button type="submit" className="justify-self-start" size="lg" disabled={Boolean(busy) || !scanId || (!petitionId && petitionText.trim().length < 50)}>

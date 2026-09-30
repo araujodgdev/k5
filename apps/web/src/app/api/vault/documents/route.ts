@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { assertSameOrigin, createVaultDocument, drainQueuedDocument, listVaultDocuments, publicDocument, requireVaultWorkspace, requireVaultWriteRole, VaultHttpError } from "@/lib/vault";
+import { assertSameOrigin, createVaultDocument, drainQueuedDocument, publicDocument, requireVaultWorkspace, requireVaultWriteRole, VaultHttpError } from "@/lib/vault";
 import { vaultErrorResponse } from "@/lib/vault-api";
 import { workspaceContext } from "@/lib/application/context";
 import { consumeUploadRef, createUploadRef } from "@/lib/application/uploads-service";
@@ -7,6 +7,8 @@ import { contextForCase } from '@/lib/collaboration/access';
 import { assertCapabilityAllowed } from '@/lib/application/context';
 import { limitedFormData } from '@/lib/workspace-api';
 import { MAX_UPLOAD_BYTES } from '@/lib/application/uploads-service';
+import { capabilities } from '@/lib/capabilities/contracts';
+import { listDocuments } from '@/lib/application/vault-service';
 
 export const runtime = "nodejs";
 
@@ -14,17 +16,18 @@ export async function GET(request: Request) {
   try {
     const workspace = await requireVaultWorkspace();
     const url = new URL(request.url);
-    const caseId = url.searchParams.get('caseId');
-    const context = await assertCapabilityAllowed(caseId ? await contextForCase(workspaceContext(workspace), caseId) : workspaceContext(workspace), 'k5_vault_list_documents');
     const folder = url.searchParams.get("folderId");
-    return Response.json({
-      documents: await listVaultDocuments(context.officeId, {
-        scope: url.searchParams.get("scope"),
-        caseId: url.searchParams.get("caseId"),
-        // `folderId=root` is how the browser asks for a case's own level, as distinct from "any folder".
-        ...(folder === null ? {} : { folderId: folder === "root" ? null : folder }),
-      }),
+    const parsed = capabilities.k5_vault_list_documents.input.safeParse({
+      scope: url.searchParams.get('scope') ?? undefined,
+      caseId: url.searchParams.get('caseId') ?? undefined,
+      ...(folder === null ? {} : { folderId: folder === 'root' ? null : folder }),
+      limit: Number(url.searchParams.get('limit') ?? 50),
+      offset: Number(url.searchParams.get('offset') ?? 0),
     });
+    if (!parsed.success) throw new VaultHttpError(400, 'Filtros ou paginação de documentos inválidos.');
+    const { caseId } = parsed.data;
+    const context = await assertCapabilityAllowed(caseId ? await contextForCase(workspaceContext(workspace), caseId) : workspaceContext(workspace), 'k5_vault_list_documents');
+    return Response.json(await listDocuments(context, parsed.data));
   } catch (error) { return vaultErrorResponse(error); }
 }
 

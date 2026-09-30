@@ -156,7 +156,7 @@ export async function listDocuments(context: WorkspaceContext, input: Capability
   const filters = { scope: input.scope ?? null, caseId: input.caseId ?? null, ...(input.folderId === undefined ? {} : { folderId: input.folderId }) };
   // Tombstones are excluded in SQL and the page is taken in SQL: no per-row liveness query, and
   // no loading the whole office to slice twenty rows off the front of it.
-  const documents = await listVaultDocuments(context.officeId, { ...filters, limit: input.limit ?? 20 });
+  const documents = await listVaultDocuments(context.officeId, { ...filters, limit: input.limit ?? 20, offset: input.offset ?? 0 });
   return { documents, total: await countVaultDocuments(context.officeId, filters) };
 }
 

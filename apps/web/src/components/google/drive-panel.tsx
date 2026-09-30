@@ -10,11 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DrivePicker } from './drive-picker';
 import { GoogleConnectionNotice, googleCall, useGoogleAction, type GoogleStatus } from './client';
+import { useVaultDocumentOptions, VaultDocumentOptionsMore } from '@/components/vault-document-options';
 
 type DriveFile = z.infer<typeof driveFileDto>;
 type Import = z.infer<typeof driveImportDto>;
 type Permission = z.infer<typeof drivePermissionDto>;
-type VaultDoc = { id: string; name: string; status: string; byteSize: number };
 const row = 'flex min-h-12 flex-wrap items-center gap-3 border-b py-2 text-sm';
 const select = 'min-h-11 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9';
 const when = (value: string | null) => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
@@ -39,7 +39,6 @@ export function DrivePanel({ role, initialCaseId, initialFolderId, onImported }:
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [imports, setImports] = useState<Import[]>([]);
-  const [vaultDocs, setVaultDocs] = useState<VaultDoc[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [documentId, setDocumentId] = useState('');
   const [permissions, setPermissions] = useState<Permission[] | null>(null);
@@ -58,6 +57,9 @@ export function DrivePanel({ role, initialCaseId, initialFolderId, onImported }:
   const selected = files.find(file => file.id === selectedId) ?? null;
   const available = !!status?.connection && status.connection.status === 'active' &&
     !!status.modules.find(module => module.module === 'drive' && module.granted && module.rolledOut && module.enabledByOffice);
+  const vaultOptions = useVaultDocumentOptions(available ? initialCaseId ? `caseId=${encodeURIComponent(initialCaseId)}` : 'scope=library' : null,
+    imports.map(item => `${item.id}:${item.status}`).join(','));
+  const vaultDocs = vaultOptions.documents.filter(doc => doc.status === 'ready' && doc.byteSize <= 50 * 1024 * 1024);
 
   const refresh = useCallback(async () => {
     const [filePage, imported] = await Promise.all([
@@ -87,15 +89,6 @@ export function DrivePanel({ role, initialCaseId, initialFolderId, onImported }:
     const timer = window.setTimeout(() => { void refresh().catch(() => undefined); }, 4000);
     return () => window.clearTimeout(timer);
   }, [available, imports, refresh]);
-  useEffect(() => {
-    if (!available) return;
-    let active = true;
-    fetch(`/api/vault/documents?${initialCaseId ? `caseId=${encodeURIComponent(initialCaseId)}` : 'scope=library'}`, { cache: 'no-store' })
-      .then(r => r.ok ? r.json() as Promise<{ documents: VaultDoc[] }> : { documents: [] })
-      .then(data => { if (active) setVaultDocs(data.documents.filter(doc => doc.status === 'ready' && doc.byteSize <= 50 * 1024 * 1024)); })
-      .catch(() => { if (active) setVaultDocs([]); });
-    return () => { active = false; };
-  }, [initialCaseId, available, imports]);
 
   async function act<T>(work: () => Promise<T>, done: (result: T) => void) {
     setBusy(true); setError(''); setMessage('');
@@ -199,6 +192,7 @@ export function DrivePanel({ role, initialCaseId, initialFolderId, onImported }:
             <div className="mt-5 grid max-w-md gap-2 border-t pt-5"><Label htmlFor="drive-version">Enviar documento do Cofre como nova versão no Google</Label>
               <select id="drive-version" value={documentId} onChange={e => setDocumentId(e.target.value)} className={select}><option value="">Escolha um documento</option>
                 {vaultDocs.map(doc => <option key={doc.id} value={doc.id}>{doc.name}</option>)}</select>
+              <VaultDocumentOptionsMore {...vaultOptions} />
               <div><Button variant="outline" disabled={busy || !documentId} onClick={() => void mutate('drive-version', { fileId: selected.id, documentId },
                 (result: { file: DriveFile | null; operation: { status: string } }) => { if (result.file) setFiles(current => current.map(file => file.id === selected.id ? result.file! : file)); })}>Enviar versão</Button></div>
             </div>

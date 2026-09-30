@@ -226,6 +226,12 @@ aplicativo continua exigindo salvar antes: rascunhos privados não são gravados
   `pnpm platform:admin rotate-key --email <administrador da plataforma>`.
 - **Cofre (`/app/vault`):** casos e biblioteca; PDF (com OCR), DOCX, EML, XLSX, CSV e TXT
   com referências estáveis por página, parágrafo, mensagem ou célula.
+  A biblioteca e cada nível de pasta exibem 50 arquivos por página, com Anterior/Próxima e o total.
+  `/api/vault/documents` e `k5_vault_list_documents` aceitam `limit` (1–50) e `offset` (a partir de 0)
+  e devolvem `{ documents, total }`, respeitando os mesmos filtros e permissões. A ordem é
+  criação decrescente, com o ID como desempate; alterações concorrentes podem deslocar páginas.
+  Os seletores de anexos, e-mail e versões do Drive percorrem automaticamente as páginas de 50
+  até cobrir o total; uma falha permite repetir a consulta sem perder as opções já carregadas.
 - **Anexos da petição:** na aba **Anexos** do caso, a pessoa escolhe o PDF digitalizado com todos
   os documentos (já lido pelo OCR) e a petição (arquivo do caso ou texto colado). O modelo da tarefa
   `extraction.annex_plan` propõe os documentos e as páginas; o código ordena pela primeira citação na petição

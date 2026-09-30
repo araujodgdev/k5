@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Reveal } from "@/components/reveal";
 import { VaultCaseView } from "@/components/vault-case-view";
 import { requireWorkspace } from "@/lib/session";
-import { findVaultCase, findVaultFolder, listVaultDocuments, listVaultFolders, vaultFolderPath } from "@/lib/vault";
+import { countVaultDocuments, findVaultCase, findVaultFolder, listVaultDocuments, listVaultFolders, vaultFolderPath } from "@/lib/vault";
 import { caseAccess } from '@/lib/collaboration/access';
 import { CapabilityError } from '@/lib/capabilities/errors';
 
@@ -32,19 +32,22 @@ export default async function VaultCasePage({ params, searchParams }: Props) {
   // not part of this tree, so the view falls back to the case root.
   const folder = requested ? await findVaultFolder(office.officeId, requested) : undefined;
   const folderId = folder?.caseId === vaultCase.id ? folder.id : null;
-  const [folders, path, initialDocuments] = await Promise.all([
+  const [folders, path, initialDocuments, initialTotal] = await Promise.all([
     listVaultFolders(office.officeId, vaultCase.id, folderId),
     folderId ? vaultFolderPath(office.officeId, folderId) : Promise.resolve([]),
-    listVaultDocuments(office.officeId, { caseId: vaultCase.id, folderId }),
+    listVaultDocuments(office.officeId, { caseId: vaultCase.id, folderId, limit: 50 }),
+    countVaultDocuments(office.officeId, { caseId: vaultCase.id, folderId }),
   ]);
 
   return (
     <Reveal className="flex min-h-0 flex-1 flex-col">
       <VaultCaseView
+        key={`${vaultCase.id}:${folderId ?? 'root'}`}
         vaultCase={vaultCase}
         folders={folders}
         path={path}
         initialDocuments={initialDocuments}
+        initialTotal={initialTotal}
         folderId={folderId}
         role={office.role}
         external={office.external || office.officeId !== activeOffice.officeId}

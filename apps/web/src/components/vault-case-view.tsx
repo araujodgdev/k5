@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { DocumentRows, UploadControl, usePolledDocuments } from "@/components/vault-files";
+import { DocumentPagination, DocumentRows, UploadControl, usePolledDocuments } from "@/components/vault-files";
 import { CaseDelete } from "@/components/vault-case-delete";
 import { JudicialCaseLinks } from "@/components/judicial-case-links";
 import { ResearchCaseReferences } from "@/components/research-case-references";
@@ -48,11 +48,12 @@ function ViewToggle({ view, onChange }: { view: View; onChange: (view: View) => 
   </div>;
 }
 
-export function VaultCaseView({ vaultCase, folders, path, initialDocuments, folderId, role, external = false, initialSection = 'files' }: {
+export function VaultCaseView({ vaultCase, folders, path, initialDocuments, initialTotal, folderId, role, external = false, initialSection = 'files' }: {
   vaultCase: VaultCase;
   folders: VaultFolder[];
   path: VaultFolder[];
   initialDocuments: VaultDocument[];
+  initialTotal: number;
   folderId: string | null;
   role: OfficeRole;
   external?: boolean;
@@ -61,7 +62,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
   const router = useRouter();
   const canWrite = role !== "reviewer";
   const query = `caseId=${encodeURIComponent(vaultCase.id)}&folderId=${folderId ? encodeURIComponent(folderId) : "root"}`;
-  const { documents, setDocuments, refresh } = usePolledDocuments(query, initialDocuments);
+  const { documents, setDocuments, refresh, firstPage, pagination } = usePolledDocuments(query, initialDocuments, initialTotal);
   const [view, setView] = useState<View>("list");
   const [section, setSection] = useState<Section>(initialSection);
   const [failure, setFailure] = useState("");
@@ -190,7 +191,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
         {section === "files" && <div className="flex items-center gap-3">
           <ViewToggle view={view} onChange={setView} />
           <span aria-hidden="true" className="h-6 w-px bg-border" />
-          <UploadControl canWrite={canWrite} scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={(document) => setDocuments((current) => [document, ...current])} />
+          <UploadControl canWrite={canWrite} scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={() => void firstPage()} />
         </div>}
       </div>
       {/* From md, one row that wraps. min-w-0 lets it shrink instead of widening the page. */}
@@ -201,7 +202,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
           <>
             <ViewToggle view={view} onChange={setView} />
             {canWrite && <Button type="button" variant="outline" aria-expanded={creatingFolder} onClick={toggleFolderForm}><FolderPlus aria-hidden="true" />Nova pasta</Button>}
-            <UploadControl canWrite={canWrite} scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={(document) => setDocuments((current) => [document, ...current])} />
+            <UploadControl canWrite={canWrite} scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={() => void firstPage()} />
             {!external && <Button type="button" variant="outline" aria-expanded={driveOpen} onClick={toggleDrive}>{driveLabel}</Button>}
           </>
         )}
@@ -224,7 +225,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
 
     <div className="mt-5 min-h-0 overflow-auto">
       {section === 'participants' && <CollaborationPanel caseId={vaultCase.id} />}
-      {section === "files" && driveOpen && <DrivePanel role={role} initialCaseId={vaultCase.id} initialFolderId={folderId} onImported={refresh} />}
+      {section === "files" && driveOpen && <DrivePanel role={role} initialCaseId={vaultCase.id} initialFolderId={folderId} onImported={firstPage} />}
       {!folderId && section === "processes" && <JudicialCaseLinks caseId={vaultCase.id} canWrite={canWrite} />}
       {!folderId && section === "references" && <ResearchCaseReferences caseId={vaultCase.id} canWrite={canWrite} external={external} />}
       {!folderId && section === "annexes" && <VaultAnnexes caseId={vaultCase.id} canWrite={canWrite} />}
@@ -255,16 +256,17 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, fold
         </div>
       ))}
 
-      {section === "files" && (
+      {section === "files" && (<>
       <DocumentRows
         documents={documents}
         canWrite={canWrite}
         onError={setFailure}
         onRetried={(documentId) => setDocuments((current) => current.map((item) => item.id === documentId ? { ...item, status: "queued", progress: 0, errorMessage: null } : item))}
-        onDeleted={(documentId) => setDocuments((current) => current.filter((item) => item.id !== documentId))}
+        onDeleted={() => void refresh()}
         empty={folderId ? "Esta pasta está vazia." : "Nenhum arquivo neste caso ainda."}
       />
-      )}
+      <DocumentPagination {...pagination} />
+      </>)}
     </div>
   </div>;
 }

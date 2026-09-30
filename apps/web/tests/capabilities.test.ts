@@ -679,6 +679,61 @@ test("webmcp: every published capability has a route, a schema and typed failure
   }
 });
 
+test('vault pagination reaches older documents with stable ordering and preserves office, case and folder scopes', async () => {
+  const { userLawyer, officeA, officeB } = await seedFixture();
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: 'lawyer' };
+  const prefix = randomUUID();
+  await testDb.prepare(`INSERT INTO vault_document (id,office_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by,created_at)
+    SELECT ? || '-' || lpad(n::text,3,'0'),?,'library','Arquivo ' || n,? || '-' || n,'text/plain',1,'hash','ready',?,'2026-01-01' FROM generate_series(1,201) n`)
+    .run(prefix, officeA, prefix, userLawyer);
+  await testDb.prepare(`INSERT INTO vault_document (id,office_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by,deleted_at)
+    VALUES (?,?,'library','Excluído',?,'text/plain',1,'hash','ready',?,CURRENT_TIMESTAMP),
+    (?,?,'library','Outro escritório',?,'text/plain',1,'hash','ready',?,NULL)`)
+    .run(randomUUID(), officeA, randomUUID(), userLawyer, randomUUID(), officeB, randomUUID(), userLawyer);
+  const ids: string[] = [];
+  for (let offset = 0; offset < 201; offset += 50) {
+    const input = capabilities.k5_vault_list_documents.input.parse({ scope: 'library', limit: 50, offset });
+    const page = await vaultService.listDocuments(context, input);
+    assert.equal(page.total, 201);
+    assert.ok(page.documents.length <= 50);
+    ids.push(...page.documents.map(document => document.id));
+    assert.deepEqual((await vaultService.listDocuments(context, input)).documents, page.documents);
+  }
+  assert.deepEqual(ids, Array.from({ length: 201 }, (_, i) => `${prefix}-${String(201 - i).padStart(3, '0')}`));
+  assert.equal(new Set(ids).size, 201);
+  assert.equal((await vaultService.listDocuments(context, { scope: 'library', limit: 50, offset: 250 })).documents.length, 0);
+  for (const offset of [-1, 0.5, Infinity]) assert.equal(capabilities.k5_vault_list_documents.input.safeParse({ offset }).success, false);
+
+  const { case: vaultCase } = await vaultService.createCase(context, { name: `Paginação ${prefix}` });
+  const { folder } = await vaultService.createFolder(context, { caseId: vaultCase.id, name: 'Pasta' });
+  for (const folderId of [null, folder.id]) {
+    await testDb.prepare(`INSERT INTO vault_document (id,office_id,case_id,folder_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by)
+      VALUES (?,?,?,?,'case','No caso',?,'text/plain',1,'hash','ready',?)`)
+      .run(randomUUID(), officeA, vaultCase.id, folderId, randomUUID(), userLawyer);
+  }
+  const root = await vaultService.listDocuments(context, { caseId: vaultCase.id, folderId: null, limit: 50, offset: 0 });
+  assert.equal(root.total, 1);
+  assert.equal(root.documents[0].folderId, null);
+  const nested = await vaultService.listDocuments(context, { caseId: vaultCase.id, folderId: folder.id, limit: 50, offset: 0 });
+  assert.equal(nested.total, 1);
+  assert.equal(nested.documents[0].folderId, folder.id);
+  const scoped = await vaultService.listDocuments({ ...context, caseScope: { caseId: vaultCase.id, homeOfficeId: officeB } }, { scope: 'library', limit: 50, offset: 0 });
+  assert.equal(scoped.total, 2);
+  assert.ok(scoped.documents.every(document => document.caseId === vaultCase.id));
+
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async input => {
+      const url = new URL(String(input), 'http://localhost');
+      assert.equal(url.searchParams.get('limit'), '50');
+      assert.equal(url.searchParams.get('offset'), '200');
+      return Response.json(await vaultService.listDocuments(context, { scope: 'library', limit: 50, offset: 200 }));
+    };
+    const result = await executeViaHttp('k5_vault_list_documents', { scope: 'library', limit: 50, offset: 200 });
+    assert.equal(result.ok, true);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test("platform service: create, list, and delete the platform's AI connections", async () => {
   process.env.K5_CREDENTIALS_KEY = randomBytes(32).toString("base64");
   const { userAdmin, officeA } = (await seedFixture());
