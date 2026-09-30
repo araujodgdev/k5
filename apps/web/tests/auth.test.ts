@@ -31,15 +31,17 @@ test('portal registration binds the invitation through Better Auth without offic
   assert.equal((await request('/get-session', undefined, second.cookie)).data, null);
 });
 
-test('password recovery uses one-time Better Auth tokens and revokes every previous session', async () => {
+for (const resetPath of ['/reset-password', '/client/reset-password']) {
+test(`password recovery through ${resetPath} uses one-time tokens and revokes every previous session`, async () => {
   const deliveries: string[] = [];
   const { request, signup } = await fixture(undefined, { enabled: () => true, send: async input => { deliveries.push(input.url); } });
   const first = await signup('recover@portal.test');
   const second = await request('/sign-in/email', { email: 'recover@portal.test', password });
-  assert.equal((await request('/request-password-reset', { email: 'unknown@portal.test', redirectTo: `${origin}/client/reset-password` })).response.status, 200);
+  assert.equal((await request('/request-password-reset', { email: 'unknown@portal.test', redirectTo: `${origin}${resetPath}` })).response.status, 200);
   assert.equal(deliveries.length, 0);
-  assert.equal((await request('/request-password-reset', { email: 'recover@portal.test', redirectTo: `${origin}/client/reset-password` })).response.status, 200);
+  assert.equal((await request('/request-password-reset', { email: 'recover@portal.test', redirectTo: `${origin}${resetPath}` })).response.status, 200);
   assert.equal(deliveries.length, 1);
+  assert.equal(new URL(deliveries[0]).searchParams.get('callbackURL'), `${origin}${resetPath}`);
   const token = new URL(deliveries[0]).pathname.split('/').at(-1);
   const reset = await request('/reset-password', { token, newPassword: 'Nova-senha-segura-2026!' });
   assert.equal(reset.response.status, 200);
@@ -48,6 +50,7 @@ test('password recovery uses one-time Better Auth tokens and revokes every previ
   assert.ok((await request('/reset-password', { token, newPassword: password })).response.status >= 400);
   assert.equal((await request('/sign-in/email', { email: 'recover@portal.test', password: 'Nova-senha-segura-2026!' })).response.status, 200);
 });
+}
 
 test('disabled password delivery does not disclose whether an address is registered', async () => {
   const { request, signup } = await fixture(); await signup();

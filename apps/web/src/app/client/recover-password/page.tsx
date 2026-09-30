@@ -1,2 +1,2 @@
-import { PortalAuthForm } from '@/components/client-portal/auth-form';
-export default function ClientRecover() { return <PortalAuthForm mode="recover" />; }
+import { PasswordRecoveryForm } from '@/components/password-recovery-form';
+export default function ClientRecover() { return <PasswordRecoveryForm audience="client" mode="recover" />; }
