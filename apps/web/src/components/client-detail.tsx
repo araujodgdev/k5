@@ -10,6 +10,7 @@ import { Button } from './ui/button';
 import { BreakableEmail } from './breakable-email';
 import { legalAreaLabels, type CrmClient, type AgendaActivity } from '@/lib/capabilities/agenda';
 import type { OfficeRole } from '@/lib/offices';
+import { PortalManager } from './client-portal/manager';
 
 const AgendaEditor = dynamic(() => import('./agenda-forms').then(module => module.AgendaEditor));
 
@@ -60,6 +61,7 @@ export function ClientDetail({ clientId, role }: { clientId: string; role: Offic
           <Link href={`/app/agenda?view=calendar&clientId=${encodeURIComponent(clientId)}`} className="mt-4 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Ver na agenda</Link>
         </section>
       </div>
+      <PortalManager clientId={clientId} initialEmail={client.email ?? ''} canManage={role !== 'reviewer'} />
     </>}
     {editing && client && <AgendaEditor mode="client" client={client} cases={cases} clients={[client]} members={[]} day={localDate(new Date())} clientId={clientId} caseId="" timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} close={() => setEditing(false)} saved={() => { setEditing(false); setRevision(value => value + 1); }} />}
   </div>;

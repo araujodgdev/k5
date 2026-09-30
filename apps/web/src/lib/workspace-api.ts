@@ -2,7 +2,7 @@ import 'server-only';
 import { captureOperationalError } from './observability/report';
 import { getSession, requireWorkspace } from './session';
 import { auth } from './auth';
-import { ACTIVE_OFFICE_COOKIE, selectedOfficeForUser } from './offices';
+import { ACTIVE_OFFICE_COOKIE, selectedOfficeForUser, findOfficeForUser } from './offices';
 import { cookies } from 'next/headers';
 import { database } from './database';
 import { ZodError } from 'zod';
@@ -19,7 +19,9 @@ export class ApiError extends Error {
 }
 
 export async function apiWorkspace(request: Request, write = false) {
-  if (!await getSession()) throw new ApiError(401, 'Entre novamente para continuar.');
+  const session = await getSession();
+  if (!session) throw new ApiError(401, 'Entre novamente para continuar.');
+  if (session.user.accountKind === 'client' && !await findOfficeForUser(database, session.user.id)) throw new ApiError(403, 'Esta conta tem acesso ao portal do cliente.');
   const workspace = await requireWorkspace();
   if (write) {
     if (!isTrustedOrigin(request.headers.get('origin'))) throw new ApiError(403, 'Origem não autorizada.');

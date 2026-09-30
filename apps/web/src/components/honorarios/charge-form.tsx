@@ -63,6 +63,16 @@ export function ChargeForm({ installmentId, back, busy }: { installmentId: strin
     const link = document.createElement('a'); link.href = url; link.download = 'cobranca.pdf'; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
+  async function publication() {
+    if (!charge) return;
+    const response = await fetch('/api/client-portal/manage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      operation: charge.portalPublished ? 'withdraw-charge' : 'publish-charge', data: { clientId: charge.installment.clientId, installmentId, version: charge.version },
+    }) });
+    const body: unknown = await response.json();
+    if (!response.ok) { const result = z.object({ error: z.string() }).safeParse(body); throw new Error(result.success ? result.data.error : 'Não foi possível publicar a cobrança.'); }
+    const result = z.object({ published: z.boolean() }).parse(body);
+    setCharge({ ...charge, portalPublished: result.published }); setNotice(result.published ? 'Cobrança publicada no portal deste cliente.' : 'Cobrança retirada do portal.');
+  }
   const inactive = charge?.installment.status === 'cancelled' || charge?.installment.pendingCents === 0;
   return <div className="grid min-w-0 gap-5">
     <div><h2 className="font-medium">Cobrança da parcela {charge?.installment.number}</h2><p className="mt-2 text-sm text-muted-foreground">Prepare as instruções para pagamento direto ao advogado. Anexe o boleto emitido pelo banco, se houver.</p></div>
@@ -79,6 +89,7 @@ export function ChargeForm({ installmentId, back, busy }: { installmentId: strin
         </fieldset>
       </form>
       {charge.version > 0 && <section className="grid min-w-0 gap-3 border-t pt-4"><h3 className="font-medium text-sm">Enviar ao cliente</h3><p className="whitespace-pre-wrap break-words border-y py-3 text-sm">{charge.message}</p><p className="text-xs text-muted-foreground">Copie a mensagem para enviar no seu canal habitual. Registre o envio depois de realizá-lo.</p>
+        <Button className="min-h-11 justify-self-start" variant="outline" disabled={pending || dirty || (!charge.pdfUrl && !charge.portalPublished)} onClick={() => void perform(publication)}>{charge.portalPublished ? 'Retirar cobrança do portal' : 'Publicar cobrança no portal'}</Button>
         <div className="flex flex-wrap gap-2"><Button className="min-h-11" variant="outline" disabled={pending || dirty || !charge.pdfUrl} onClick={() => void perform(download)}>Baixar PDF</Button><Button className="min-h-11" variant="outline" disabled={pending || dirty || !charge.pdfUrl} onClick={() => void perform(async () => { await navigator.clipboard.writeText(charge.message); setNotice('Mensagem copiada.'); })}>Copiar mensagem</Button>{charge.boleto && <a className="inline-flex min-h-11 items-center px-3 text-sm underline" href={`/api/vault/documents/${encodeURIComponent(charge.boleto.id)}/download`}>Baixar boleto</a>}</div>
         {dirty && <p role="status" className="text-sm">Salve as alterações antes de enviar.</p>}
         <div className="flex flex-wrap items-end gap-2"><div className="min-w-0 flex-1"><Field label="Canal de envio">{id => <select id={id} className={controlClass} value={channel} onChange={event => { const value = event.target.value; if (value === 'whatsapp' || value === 'email' || value === 'other') setChannel(value); }}><option value="whatsapp">WhatsApp</option><option value="email">E-mail</option><option value="other">Outro</option></select>}</Field></div><Button className="min-h-11" disabled={pending || dirty || !charge.pdfUrl} onClick={() => void perform(() => save('charge-sent'))}>Registrar envio realizado</Button></div>

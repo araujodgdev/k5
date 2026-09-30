@@ -92,6 +92,14 @@ Um convite pode ser aceito, recusado ou cancelado. Ele tem prazo de validade. En
 
 O assistente consulta membros, parceiros e convites e pode preparar as alterações. Convites, aceite, mudança de papel e remoção de acesso exigem confirmação no chat. Ele não pode conceder um papel superior ao permitido à pessoa que pediu.
 
+## Portal do cliente
+
+No cadastro do cliente em Escritório, o Portal gera um convite para o e-mail informado. O link é secreto, vale por sete dias e deve ser enviado pelo canal habitual do advogado. O cliente cria uma senha ou aceita com sua conta do mesmo e-mail. Sua conta não cria um escritório nem recebe acesso à equipe. O portal fica em `/client`.
+
+Publique um PDF do computador ou uma versão salva de um documento do Lume. A publicação guarda uma cópia do PDF; edições posteriores da minuta não alteram o arquivo entregue. O cliente só consulta arquivos e cobranças publicados para ele. Pode enviar PDF, DOCX, PNG e JPG de até 20 MB e anexar comprovantes de pagamento. O advogado confere o comprovante e registra o recebimento em Honorários; o envio não quita a parcela automaticamente.
+
+Na cobrança de uma parcela própria, use **Publicar cobrança no portal** para liberar instruções, saldo atual, PDF e boleto anexado. Retirar a cobrança remove essa publicação. Revogar o portal bloqueia novos downloads e anexos imediatamente. Um novo convite invalida o anterior e suspende o acesso existente até novo aceite. A recuperação de senha depende do remetente de e-mail configurado na instalação.
+
 ## Honorários e parcelas
 
 Dentro de cada parcela própria, **Cobrança** prepara instruções de pagamento com chave PIX e boleto em PDF já emitido pelo banco. Salve para baixar o PDF ou copiar a mensagem. Depois de enviar pelo seu canal habitual, registre o envio no histórico. O cliente paga diretamente ao advogado; o Lume não movimenta o dinheiro nem emite boletos bancários.

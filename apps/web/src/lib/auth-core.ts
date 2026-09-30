@@ -6,6 +6,8 @@ import { signUpSchema } from "./auth-validation";
 import type { Database } from "./database";
 import { ensureOfficeForUser } from "./offices";
 import { revokePushSubscriptionsForUser } from "./notifications/revocation";
+import { clientRegistration } from './client-portal/registration';
+import { portalInvitation, acceptPortalInvitation } from './client-portal/invitations';
 
 /** Better Auth uses the same PostgreSQL pool as the business-data adapter. */
 export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
@@ -15,14 +17,16 @@ export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
  * hook writes Lume's tables through `db`. They are the same database; the two handles exist because
  * Better Auth needs a backend it recognises and Lume needs the async seam in `db/types.ts`.
  */
-export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[]; ipHeaders?: string[] }) {
+export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[]; ipHeaders?: string[];
+  passwordReset?: { enabled: () => boolean; send: (input: { user: { id: string; email: string }; url: string }) => Promise<void> } }) {
   return betterAuth({
     appName: "Lume",
     database: store,
     secret: settings.secret,
     baseURL: settings.baseURL,
     trustedOrigins: [settings.baseURL, ...(settings.extraOrigins ?? [])],
-    emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 128 },
+    emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 128, revokeSessionsOnPasswordReset: true,
+      sendResetPassword: settings.passwordReset ? settings.passwordReset.send : undefined },
     user: {
       // There is no e-mail delivery, so the address changes at once; the hook below asks for the
       // current password first, so a borrowed session cannot move the account to another address.
@@ -30,6 +34,7 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       additionalFields: {
         // Retained to recover office provisioning after an interrupted registration.
         officeName: { type: "string", required: true, validator: { input: z.string().trim().min(2).max(160) } },
+        accountKind: { type: 'string', required: false, defaultValue: 'office', input: false },
       },
     },
     session: {
@@ -52,6 +57,8 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       customRules: {
         "/sign-in/email": { window: 60, max: 10 },
         "/sign-up/email": { window: 60, max: 10 },
+        '/request-password-reset': { window: 60, max: 5 },
+        '/reset-password': { window: 60, max: 10 },
         // Both check the current password, so they get the sign-in budget.
         "/change-password": { window: 60, max: 10 },
         "/change-email": { window: 60, max: 10 },
@@ -59,9 +66,16 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === '/request-password-reset' && !settings.passwordReset?.enabled())
+          throw new APIError('SERVICE_UNAVAILABLE', { message: 'A recuperação por e-mail está indisponível. Entre em contato com o escritório.' });
         if (ctx.path === "/sign-up/email") {
           const result = signUpSchema.safeParse(ctx.body);
           if (!result.success) throw new APIError("BAD_REQUEST", { code: "INVALID_SIGN_UP", message: "Confira os dados do cadastro." });
+          const registration = clientRegistration();
+          if (registration) {
+            const invitation = await portalInvitation(db, registration.token);
+            if (invitation.email.toLowerCase() !== result.data.email) throw new APIError('FORBIDDEN', { message: 'Use o e-mail do convite.' });
+          }
           return { context: { body: { ...ctx.body, ...result.data } } };
         }
         if (ctx.path === "/change-email") {
@@ -86,7 +100,9 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       }),
     },
     databaseHooks: {
-      user: { create: { after: async (user) => {
+      user: { create: { before: async (user) => ({ data: { ...user, accountKind: clientRegistration() ? 'client' : 'office' } }), after: async (user) => {
+        const registration = clientRegistration();
+        if (registration) { await acceptPortalInvitation(db, registration.token, user); return; }
         await ensureOfficeForUser(db, { id: user.id, officeName: (user as typeof user & { officeName: string }).officeName });
       } } },
     },

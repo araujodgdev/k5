@@ -91,6 +91,7 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/app/agenda` | Escritório: tarefas, agenda, clientes, equipe, associados e convites |
 | `/invite/[token]` | Aceitar ou recusar um convite com a conta destinatária |
 | `/app/agenda/clients/[id]` | Detalhes do cliente, contato, casos e atividades |
+| `/client` | Portal do cliente: documentos publicados, cobranças e envio de arquivos |
 | `/app/honorarios` | Honorários: parcelas, recebimentos e saldos do escritório |
 | `/app/notifications` | Abre o painel de notificações (sino no rodapé do menu) |
 | `/app/research` | Pesquisa na web pela Exa, com histórico pessoal |
@@ -122,6 +123,10 @@ parcelas e recebimentos manuais. Cada pessoa controla seus honorários e os part
 dos casos vinculados podem consultar os valores. O dono corrige baixas com histórico
 e cancela honorários sem recebimentos. Não há emissão de cobrança
 bancária nesta versão.
+
+O [Portal do cliente](apps/web/docs/portal-cliente.md) usa convite e senha próprios para trocar
+PDFs, arquivos e comprovantes e consultar cobranças explicitamente publicadas pelo advogado.
+O cliente não recebe acesso aos documentos internos do escritório.
 
 A integração WhatsApp Business usa Zernio e liberação por escritório via Flagship.
 Ela oferece caixa compartilhada e ferramentas do agente com confirmação de envio.

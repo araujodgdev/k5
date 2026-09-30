@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "./database";
+import { CapabilityError } from './capabilities/errors';
 
 export type OfficeRole = "administrator" | "lawyer" | "reviewer";
 export type OfficeMembership = { officeId: string; officeName: string; role: OfficeRole };
@@ -17,6 +18,8 @@ export async function findOfficeForUser(db: Database, userId: string, officeId?:
 export async function ensureOfficeForUser(db: Database, user: { id: string; officeName: string }): Promise<OfficeMembership> {
   const existing = await findOfficeForUser(db, user.id);
   if (existing) return existing;
+  const account = await db.prepare('SELECT accountKind FROM "user" WHERE id=?').get<{ accountKind: string }>(user.id);
+  if (account?.accountKind === 'client') throw new CapabilityError('FORBIDDEN', 'Esta conta tem acesso ao portal do cliente.');
 
   // The office and its first membership are written together or not at all: an office with no
   // administrator cannot be joined or repaired, and a membership pointing at no office is worse.

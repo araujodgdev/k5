@@ -16,6 +16,7 @@ export const sentChargeInput = getChargeInput.extend({
 export const chargeDto = z.object({
   installment: honorarioInstallmentDto, officeName: z.string(), beneficiaryName: z.string(),
   version: z.number().int().nonnegative(), pixKey: z.string(), instructions: z.string(),
+  portalPublished: z.boolean().default(false),
   boleto: z.object({ id, name: z.string() }).nullable(), remindersEnabled: z.boolean(),
   message: z.string(), pdfUrl: z.string().nullable(),
   history: z.array(z.object({ id, operation: z.enum(['prepare','sent']), channel: z.enum(['whatsapp','email','other']).nullable(),

@@ -4,9 +4,55 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { createAuth } from "../src/lib/auth-core";
 import { ensureOfficeForUser, findOfficeForUser, selectedOfficeForUser, listOfficesForUser } from "../src/lib/offices";
+import { withClientRegistration } from '../src/lib/client-portal/registration';
+import { invitationHash } from '../src/lib/client-portal/invitations';
 
 const origin = "http://localhost:3000";
 const password = "Senha-teste-2026!";
+
+test('portal registration binds the invitation through Better Auth without office provisioning', async () => {
+  const { db, database, request, signup } = await fixture();
+  const attorney = await signup('attorney@portal.test');
+  const office = await findOfficeForUser(db, attorney.data.user.id); assert.ok(office);
+  const clientId = randomUUID(), accessId = randomUUID(), token = randomBytes(32).toString('base64url');
+  await db.prepare("INSERT INTO crm_client(id,office_id,name,stage,created_at,updated_at) VALUES(?,?,?,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)").run(clientId, office.officeId, 'Cliente');
+  await db.prepare("INSERT INTO client_portal_access(id,office_id,client_id,email,token_hash,expires_at,invited_by) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP+INTERVAL '1 day',?)")
+    .run(accessId, office.officeId, clientId, 'client@portal.test', invitationHash(token), attorney.data.user.id);
+  const result = await withClientRegistration(token, () => signup('client@portal.test', { officeName: 'Portal do cliente' }));
+  const session = (await request('/get-session', undefined, result.cookie)).data;
+  assert.equal(session.user.accountKind, 'client');
+  assert.equal(await findOfficeForUser(db, result.data.user.id), undefined);
+  await assert.rejects(ensureOfficeForUser(database, { id: result.data.user.id, officeName: 'Escritório indevido' }), { code: 'FORBIDDEN' });
+  await assert.rejects(selectedOfficeForUser(database, session.user, office.officeId), { code: 'FORBIDDEN' });
+  assert.equal((await db.prepare('SELECT user_id FROM client_portal_access WHERE id=?').get(accessId))?.user_id, result.data.user.id);
+  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM office').get())?.n, 1);
+  const second = await request('/sign-in/email', { email: 'client@portal.test', password });
+  await request('/sign-out', {}, result.cookie);
+  assert.equal((await request('/get-session', undefined, second.cookie)).data, null);
+});
+
+test('password recovery uses one-time Better Auth tokens and revokes every previous session', async () => {
+  const deliveries: string[] = [];
+  const { request, signup } = await fixture(undefined, { enabled: () => true, send: async input => { deliveries.push(input.url); } });
+  const first = await signup('recover@portal.test');
+  const second = await request('/sign-in/email', { email: 'recover@portal.test', password });
+  assert.equal((await request('/request-password-reset', { email: 'unknown@portal.test', redirectTo: `${origin}/client/reset-password` })).response.status, 200);
+  assert.equal(deliveries.length, 0);
+  assert.equal((await request('/request-password-reset', { email: 'recover@portal.test', redirectTo: `${origin}/client/reset-password` })).response.status, 200);
+  assert.equal(deliveries.length, 1);
+  const token = new URL(deliveries[0]).pathname.split('/').at(-1);
+  const reset = await request('/reset-password', { token, newPassword: 'Nova-senha-segura-2026!' });
+  assert.equal(reset.response.status, 200);
+  assert.equal((await request('/get-session', undefined, first.cookie)).data, null);
+  assert.equal((await request('/get-session', undefined, second.cookie)).data, null);
+  assert.ok((await request('/reset-password', { token, newPassword: password })).response.status >= 400);
+  assert.equal((await request('/sign-in/email', { email: 'recover@portal.test', password: 'Nova-senha-segura-2026!' })).response.status, 200);
+});
+
+test('disabled password delivery does not disclose whether an address is registered', async () => {
+  const { request, signup } = await fixture(); await signup();
+  for (const email of ['ana@example.test','unknown@example.test']) assert.equal((await request('/request-password-reset', { email, redirectTo: `${origin}/client/reset-password` })).response.status, 503);
+});
 
 test('sessão autenticada seleciona apenas vínculos atuais e preserva o escritório original', async () => {
   const { db, request, signup } = await fixture();
@@ -25,9 +71,9 @@ test('sessão autenticada seleciona apenas vínculos atuais e preserva o escrit�
   assert.equal((await request('/get-session', undefined, first.cookie)).data, null);
 });
 
-async function fixture(ipHeaders?: string[]) {
+async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof createAuth>[2]['passwordReset']) {
   const { db, database, pool } = await postgresFixture({seedDefaults:false});
-  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders });
+  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders, passwordReset });
   async function request(path: string, body?: object, cookie = "", requestOrigin = origin, connectingIp?: string) {
     const response = await auth.handler(new Request(`${origin}/api/auth${path}`, {
       method: body ? "POST" : "GET",

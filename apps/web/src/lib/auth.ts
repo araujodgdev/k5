@@ -2,12 +2,22 @@ import 'server-only';
 import type { Pool } from 'pg';
 import { createAuth } from './auth-core';
 import { databaseBackend, database } from './database';
+import { after } from 'next/server';
+import { personalEmailSettings, sendPersonalEmail } from './personal-chat/email-transport';
+import { captureOperationalError } from './observability/report';
 
 const secret = process.env.BETTER_AUTH_SECRET;
 if (!secret || secret.length < 32) throw new Error('Configure BETTER_AUTH_SECRET com pelo menos 32 caracteres. Em dev, execute pnpm db:setup.');
 const idleSeconds = Number(process.env.SESSION_IDLE_SECONDS ?? 28800);
 if (!Number.isInteger(idleSeconds) || idleSeconds < 60) throw new Error('SESSION_IDLE_SECONDS deve ser um inteiro de pelo menos 60 segundos.');
 const settings = {
+  passwordReset: { enabled: () => Boolean(personalEmailSettings()), send: async ({ user, url }: { user: { id: string; email: string }; url: string }) => {
+    after(async () => {
+      const result = await sendPersonalEmail({ to: user.email, subject: 'Redefina sua senha no Lume', text: `Para redefinir sua senha, abra este link: ${url}\nSe não fez o pedido, ignore esta mensagem.`,
+        html: `<p>Para redefinir sua senha, abra: ${url.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')}</p><p>Se não fez o pedido, ignore esta mensagem.</p>` });
+      if (result.state !== 'accepted') captureOperationalError(new Error('Password reset email was not accepted.'), 'auth.password-reset.delivery');
+    });
+  } },
   secret, baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000', idleSeconds,
   extraOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(',').map(origin=>origin.trim()).filter(Boolean),
   // Cloudflare overwrites cf-connecting-ip at the edge. Anywhere else a client can send it, so the

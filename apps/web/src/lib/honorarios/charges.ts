@@ -45,8 +45,9 @@ async function view(tx: Transaction, context: WorkspaceContext, installmentId: s
   const history = await tx.prepare(`SELECT e.id,e.operation,e.channel,e.notes,e.created_at AS createdAt,u.name AS createdByName
     FROM honorario_charge_event e JOIN "user" u ON u.id=e.user_id WHERE e.office_id=? AND e.installment_id=? AND e.response IS NOT NULL
     ORDER BY e.created_at DESC,e.id DESC LIMIT 50`).all(context.officeId, installmentId);
+  const publication = await tx.prepare('SELECT 1 FROM client_portal_charge WHERE office_id=? AND installment_id=?').get(context.officeId, installmentId);
   const result = contract.chargeDto.parse({ installment, officeName: row.office_name, beneficiaryName: row.beneficiary_name,
-    version: 0, pixKey: '', instructions: '', boleto: null, remindersEnabled: true, ...settings, history, message: '', pdfUrl: null });
+    version: 0, pixKey: '', instructions: '', boleto: null, remindersEnabled: true, ...settings, history, portalPublished: Boolean(publication), message: '', pdfUrl: null });
   const i = result.installment;
   result.message = [result.officeName, `Olá, ${i.clientName}.`, `${i.title} — parcela ${i.number} de ${i.installmentCount}`,
     `Saldo a pagar: ${currency(i.pendingCents)}`, `Vencimento: ${i.dueOn.split('-').reverse().join('/')}`,
