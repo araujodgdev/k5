@@ -1,8 +1,10 @@
 import { DurableObject } from 'cloudflare:workers';
+import { instrumentDurableObjectWithSentry } from '@sentry/cloudflare';
 import { z } from 'zod';
 import { withPostgres } from '../lib/database';
 import { createPostgresPool } from '../lib/db/postgres';
 import { captureOperationalError } from '../lib/observability/report';
+import { serverOptions } from '../lib/observability/options';
 import { pendingTrademarkTasks, processTrademarkTask } from '../lib/research/trademarks/worker';
 import { createWipoBrowser } from '../lib/research/trademarks/wipo';
 
@@ -11,7 +13,7 @@ type TrademarkState = {
   waitUntil(promise: Promise<unknown>): void;
 };
 
-export class LumeTrademarkRun extends DurableObject<CloudflareEnv> {
+class TrademarkRunObject extends DurableObject<CloudflareEnv> {
   private running: Promise<void> | undefined;
   constructor(private readonly state: TrademarkState, env: CloudflareEnv) { super(state, env); }
 
@@ -42,3 +44,8 @@ export class LumeTrademarkRun extends DurableObject<CloudflareEnv> {
     if (id) await this.start(id);
   }
 }
+
+export const LumeTrademarkRun = instrumentDurableObjectWithSentry(
+  (env: CloudflareEnv) => serverOptions('web-trademarks', env),
+  TrademarkRunObject as never,
+) as unknown as typeof TrademarkRunObject;

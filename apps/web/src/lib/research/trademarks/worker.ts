@@ -19,6 +19,8 @@ const runSchema = z.object({
   input_json: z.preprocess(value => typeof value === 'string' ? JSON.parse(value) : value, trademarkSearchInput.omit({ idempotencyKey: true })),
 });
 type Run = z.infer<typeof runSchema>;
+type Stage = 'authorization' | 'browser' | 'upload' | 'search' | 'representations' | 'detail' | 'publish';
+const errorNames = new Set(['Error', 'TimeoutError', 'ProtocolError', 'TargetCloseError', 'TypeError', 'ReferenceError', 'ZodError', 'CapabilityError', 'StorageError']);
 
 async function authorized(run: Run) {
   return Boolean(await database.prepare(`SELECT 1 FROM office_member m WHERE m.office_id=? AND m.user_id=?
@@ -72,15 +74,17 @@ async function saveRepresentation(run: Run, id: string, value: string | null) {
   return { url: `/api/research/trademarks/results/${id}/image`, key, mime };
 }
 
-async function page(task: Extract<Task, { kind: 'page' }>, run: Run, browser: WipoBrowser, signal: AbortSignal) {
+async function page(task: Extract<Task, { kind: 'page' }>, run: Run, browser: WipoBrowser, signal: AbortSignal, stage: (value: Stage) => void) {
   await database.prepare(`UPDATE research_trademark_search SET state='running',step='Consultando a WIPO',error=NULL WHERE id=? AND state<>'cancelled'`).run(run.id);
   let logo: { bytes: Buffer; mimeType: string } | undefined;
   if (run.input_json.query.kind === 'logo') {
+    stage('upload');
     const raw = await database.prepare('SELECT storage_key,mime_type FROM research_trademark_upload WHERE id=? AND office_id=? AND user_id=?')
       .get(run.input_json.query.uploadId, run.office_id, run.user_id);
     const upload = z.object({ storage_key: z.string(), mime_type: z.string() }).parse(raw);
     logo = { bytes: await (await objectStorage()).get(upload.storage_key), mimeType: upload.mime_type };
   }
+  stage('search');
   const found = await browser.search({ input: run.input_json, pageNumber: task.page_number, logo, guard: () => guard(task, run), signal,
     owner: { officeId: run.office_id, userId: run.user_id } });
   await guard(task, run);
@@ -88,6 +92,7 @@ async function page(task: Extract<Task, { kind: 'page' }>, run: Run, browser: Wi
   const createdKeys: string[] = [];
   const seen = new Set<string>();
   try {
+    stage('representations');
     for (const [index, hit] of found.results.entries()) {
       if (seen.has(hit.nativeId)) continue;
       seen.add(hit.nativeId);
@@ -101,6 +106,7 @@ async function page(task: Extract<Task, { kind: 'page' }>, run: Run, browser: Wi
       stored.push({ id, nativeId: hit.nativeId, summary, key: logoResult.key, mime: logoResult.mime,
         version: createHash('sha256').update(JSON.stringify({ ...summary, position: task.page_number * 30 + index })).digest('hex') });
     }
+    stage('publish');
     await withTransaction(async tx => {
       const lease = await tx.prepare(`SELECT 1 FROM research_trademark_task WHERE id=? AND state='running' AND lease_owner=? AND lease_until>CURRENT_TIMESTAMP FOR UPDATE`)
         .get(task.id, task.lease_owner);
@@ -122,7 +128,8 @@ async function page(task: Extract<Task, { kind: 'page' }>, run: Run, browser: Wi
   }
 }
 
-async function detail(task: Extract<Task, { kind: 'detail' }>, run: Run, browser: WipoBrowser, signal: AbortSignal) {
+async function detail(task: Extract<Task, { kind: 'detail' }>, run: Run, browser: WipoBrowser, signal: AbortSignal, stage: (value: Stage) => void) {
+  stage('detail');
   const raw = await database.prepare('SELECT native_id,summary_json FROM research_trademark_result WHERE id=? AND search_id=?').get(task.result_id, run.id);
   const row = z.object({ native_id: z.string(), summary_json: z.preprocess(value => typeof value === 'string' ? JSON.parse(value) : value, trademarkSummary) }).parse(raw);
   const found = await browser.detail({ nativeId: row.native_id, guard: () => guard(task, run), signal,
@@ -130,6 +137,7 @@ async function detail(task: Extract<Task, { kind: 'detail' }>, run: Run, browser
   await guard(task, run);
   const summary = { ...row.summary_json, situation: found.situation ?? row.summary_json.situation, office: found.office ?? row.summary_json.office,
     source: { ...row.summary_json.source, originUrl: safeSourceUrl(found.originUrl), capturedAt: new Date().toISOString() }, detailState: 'ready' };
+  stage('publish');
   await withTransaction(async tx => {
     const live = await tx.prepare(`SELECT 1 FROM research_trademark_task WHERE id=? AND state='running' AND lease_owner=? AND lease_until>CURRENT_TIMESTAMP FOR UPDATE`)
       .get(task.id, task.lease_owner);
@@ -145,6 +153,7 @@ export async function processTrademarkTask(searchId: string, createBrowser: () =
   if (!task) return false;
   const run = runSchema.parse(await database.prepare('SELECT * FROM research_trademark_search WHERE id=?').get(searchId));
   let browser: WipoBrowser | undefined;
+  let stage: Stage = 'authorization';
   const controller = new AbortController();
   const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(240_000)]);
   const renewal = setInterval(() => {
@@ -154,16 +163,18 @@ export async function processTrademarkTask(searchId: string, createBrowser: () =
   }, 25_000);
   try {
     await guard(task, run);
+    stage = 'browser';
     browser = await createBrowser();
-    if (task.kind === 'page') await page(task, run, browser, signal);
-    else await detail(task, run, browser, signal);
+    if (task.kind === 'page') await page(task, run, browser, signal, value => { stage = value; });
+    else await detail(task, run, browser, signal, value => { stage = value; });
   } catch (error) {
     const blocked = error instanceof TrademarkError && error.code === 'blocked';
     const revoked = error instanceof TrademarkError && error.code === 'forbidden';
     const message = error instanceof TrademarkError ? error.message : signal.aborted
       ? 'A consulta demorou mais que o previsto. Os resultados já encontrados foram preservados.'
       : 'A WIPO não respondeu à consulta. Tente novamente mais tarde.';
-    if (!revoked) captureOperationalError(error, 'research.trademarks.execute', { searchId, kind: task.kind });
+    if (!revoked) captureOperationalError(error, 'research.trademarks.execute', { searchId, kind: task.kind, stage,
+      error_type: error instanceof Error && errorNames.has(error.name) ? error.name : 'unknown' });
     await withTransaction(async tx => {
       const changed = await tx.prepare(`UPDATE research_trademark_task SET state=?,error=?,lease_owner=NULL,lease_until=NULL WHERE id=? AND state='running' AND lease_owner=?`)
         .run(revoked ? 'cancelled' : 'failed', message, task.id, task.lease_owner);
