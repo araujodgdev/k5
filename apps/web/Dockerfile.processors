@@ -8,7 +8,8 @@ WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/web/package.json apps/web/package.json
 # Runtime only: tooling (wrangler, workerd, embedded-postgres, Sentry CLI) kept the image above the 4 GB Containers limit.
-RUN --mount=type=cache,id=k5-processors-pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod
+RUN --mount=type=cache,id=k5-processors-pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod \
+    && find /repo/node_modules -type f -name '*.map' -delete
 WORKDIR /repo/apps/web
 RUN mkdir -p /opt/tessdata && node --input-type=module -e "import { createWorker } from 'tesseract.js'; const worker = await createWorker(['por','eng'], undefined, {cachePath:'/opt/tessdata'}); await worker.terminate();"
 ENV TESSERACT_CACHE_PATH=/opt/tessdata
