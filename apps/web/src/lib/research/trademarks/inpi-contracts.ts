@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 export const viennaCode = z.string().trim().regex(/^\d{1,2}\.\d{1,2}(?:\.\d{1,2})?$/)
   .transform(value => value.split('.').map(Number).join('.'))
-  .refine(value => { const [category, division, section] = value.split('.').map(Number); return category >= 1 && category <= 29 && division >= 1 && division <= 99 && (section===undefined || section >= 1 && section <= 99); });
+  .refine(value => { const [category, division, section] = value.split('.').map(Number); return category >= 1 && category <= 29 && division >= 1 && division <= 99 && (section===undefined || section >= 1 && section <= 99); })
+  .pipe(z.string().regex(/^\d{1,2}\.\d{1,2}(?:\.\d{1,2})?$/));
 export const normalizeTrademarkName = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
 export const inpiProcessNumber = z.string().regex(/^\d{9}$/);
 export const inpiDetailUrl = (number: string) => `https://servicos.busca.inpi.gov.br/marcas/${inpiProcessNumber.parse(number)}`;

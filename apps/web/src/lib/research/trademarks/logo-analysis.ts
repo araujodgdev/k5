@@ -41,7 +41,7 @@ export async function analyzeLogoBytes(owner: { officeId: string; userId: string
     note:`Códigos sugeridos pela IA, conferidos na Classificação de Viena, OMPI/WIPO, publicada pelo INPI. A busca encontra marcas com elementos classificados em comum e não mede semelhança visual. ${result.limitations}`.trim()});
 }
 
-export async function analyzeTrademarkLogo(context:WorkspaceContext,raw:z.infer<typeof trademarkLogoAnalysisInput>) {
+export async function analyzeTrademarkLogo(context:WorkspaceContext,raw:unknown) {
   await assertCapabilityAllowed(context,'k5_research_analyze_trademark_logo');
   const input=trademarkLogoAnalysisInput.parse(raw);
   if (input.kind==='upload') {

@@ -9,7 +9,7 @@ export const trademarkCountries = [
   { code: 'CN', name: 'China' }, { code: 'JP', name: 'Japão' }, { code: 'AU', name: 'Austrália' },
 ] as const;
 export const trademarkSituation = z.enum(['all', 'active', 'pending', 'ended']);
-export const trademarkQuery = z.discriminatedUnion('kind', [
+export const trademarkQuery = z.union([
   z.object({ kind: z.literal('name'), name: z.string().trim().min(2).max(200), strategy: z.enum(['contains', 'exact', 'fuzzy', 'phonetic']).default('contains') }),
   z.object({ kind: z.literal('logo'), uploadId: z.uuid(), strategy: z.literal('concept').default('concept') }),
   z.object({ kind: z.literal('vienna'), codes: z.array(viennaCode).min(1).max(12), match: z.enum(['any','all']).default('any') }),

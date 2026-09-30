@@ -60,7 +60,8 @@ export const researchCapabilities = {
   k5_research_analyze_trademark_logo: {
     module:'research',effect:'read',roles:readers,publish:['agent','webmcp'],
     description:'Analisa uma imagem de logotipo enviada na Pesquisa (kind upload, uploadId), no Cofre (kind document, documentId) ou anexada à conversa atual (kind attachment, attachmentId). Sugere códigos de Viena validados no catálogo INPI e explica os elementos visuais. A sugestão não é classificação oficial nem prova de conflito. Em seguida use start_trademark_search com query.kind=vienna e os codes retornados, country=BR. A ferramenta não mede similaridade visual entre imagens.',
-    input:z.discriminatedUnion('kind',[z.object({kind:z.literal('upload'),uploadId:z.uuid()}),z.object({kind:z.literal('document'),documentId:identifier}),z.object({kind:z.literal('attachment'),attachmentId:z.uuid()})]),
+    input:z.object({kind:z.enum(['upload','document','attachment']),uploadId:z.uuid().optional(),documentId:identifier.optional(),attachmentId:z.uuid().optional()})
+      .refine(input=>input.kind==='upload'?Boolean(input.uploadId):input.kind==='document'?Boolean(input.documentId):Boolean(input.attachmentId),'Informe a referência da imagem escolhida.'),
     output:z.object({analysis:trademarkLogoAnalysis}),
   },
   k5_research_start_trademark_search: {
