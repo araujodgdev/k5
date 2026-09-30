@@ -18,6 +18,8 @@ import { trademarkSearchInput } from '../src/lib/research/trademarks/contracts';
 import { analyzeTrademarkLogo } from '../src/lib/research/trademarks/logo-analysis';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import { sourcesFromTool } from '../src/lib/citations/sources';
+import { createConversation } from '../src/lib/ai-store';
+import { createChatAttachment, resolveChatAttachments, claimChatAttachments } from '../src/lib/chat-attachments';
 
 const publication={edition:2908,publishedOn:'2026-09-29',sourceUrl:'https://revistas.inpi.gov.br/txt/RM2908.zip'};
 const processXml=(number:string,name='LUME') => `<processo numero="${number}" data-deposito="19/07/2012"><despachos><despacho codigo="IPAS024" nome="Indeferimento do pedido"><texto-complementar>Colide com LUME &amp; DECOR.</texto-complementar></despacho></despachos><titulares><titular nome-razao-social="Titular" pais="BR"/></titulares><marca apresentacao="Mista"><nome>${name}</nome></marca><lista-classe-nice><classe-nice codigo="35"><especificacao>Publicidade</especificacao><status>Deferida</status></classe-nice></lista-classe-nice><classes-vienna><classe-vienna codigo="27.05.01"/></classes-vienna></processo>`;
@@ -102,6 +104,20 @@ test('descoberta usa os XMLs de marcas e ordena as edições',()=>{
   assert.deepEqual(discoverRpiPublications(html).map(item=>item.edition),[2907,2908]);
   assert.equal(discoverRpiPublications(html.replace('2026-09-29','29/09/2026'))[1].publishedOn,'2026-09-29');
   assert.throws(()=>discoverRpiPublications('<a href="https://example.com/RM2908.zip">XML</a>'));
+});
+
+test('análise de anexo exige a pessoa, o escritório, a conversa atual e uma imagem publicada na mensagem',async()=>{
+  const owner=await actor(),other=await actor();
+  const one=await createConversation(testDb,owner),two=await createConversation(testDb,owner);
+  const attachment=await createChatAttachment(owner,one.id,new File(['LUME'],'marca.txt',{type:'text/plain'}));
+  const input={kind:'attachment' as const,attachmentId:attachment.id};
+  await assert.rejects(analyzeTrademarkLogo({...owner,conversationId:one.id},input),{code:'NOT_FOUND'});
+  const rows=await resolveChatAttachments(owner,one.id,'message-logo',[attachment.id]);
+  await claimChatAttachments(owner,one.id,'message-logo',rows);
+  await assert.rejects(analyzeTrademarkLogo({...other,conversationId:one.id},input),{code:'NOT_FOUND'});
+  await assert.rejects(analyzeTrademarkLogo({...owner,conversationId:two.id},input),{code:'NOT_FOUND'});
+  await assert.rejects(analyzeTrademarkLogo(owner,input),{code:'NOT_FOUND'});
+  await assert.rejects(analyzeTrademarkLogo({...owner,conversationId:one.id},input),{code:'INVALID'});
 });
 
 test('importação atômica, repetível e esparsa mantém acervo; pesquisa INPI fornece detalhes e fontes sem navegador',async()=>{

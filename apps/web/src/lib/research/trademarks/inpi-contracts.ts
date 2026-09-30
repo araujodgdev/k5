@@ -22,4 +22,3 @@ export function situationGroup(description: string): 'active' | 'pending' | 'end
   if (/AGUARDANDO|PUBLICACAO DE PEDIDO.*OPOSICAO|DEFERIMENTO DO PEDIDO|DEFERIMENTO DE DESIGNACAO|EXIGENCIA DE MERITO$|SOBRESTAMENTO DO EXAME|NOTIFICACAO DE RECURSO|NOTIFICACAO DE OPOSICAO/.test(text)) return 'pending';
   return 'unknown';
 }
-

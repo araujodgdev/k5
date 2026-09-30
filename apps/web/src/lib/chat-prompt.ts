@@ -56,6 +56,7 @@ export async function chatPromptMessages(owner:Owner,conversationId:string,messa
     const attachments=resolved.get(message.id)??[];
     for(const attachment of attachments) {
       if(attachment.media_type.startsWith('image/')) {
+        parts.push({type:'text',text:`[Imagem anexa: ${JSON.stringify(attachment.name)}. attachmentId: ${attachment.id}.]`});
         if(!vision) {parts.push({type:'text',text:`[Anexo: ${attachment.name}. A configuração atual não permite ler imagens.]`});continue;}
         attachmentBytes+=attachment.byte_size;
         // Bound the complete prompt; recent images remain useful after follow-up messages.

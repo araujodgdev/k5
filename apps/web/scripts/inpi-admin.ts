@@ -11,6 +11,10 @@ try {
     const rows=await database.prepare('SELECT kind,edition,published_on,state,record_count,started_at,completed_at,error FROM inpi_import ORDER BY started_at DESC LIMIT 10').all();
     console.log(JSON.stringify(rows,null,2));
   } else if (command==='sync') {
+    if(envFile==='.env.postgres.local') {
+      const {remoteObjectStorage}=await import('../src/lib/storage');
+      if(!await remoteObjectStorage()) throw new Error('Configure R2 para arquivar a RPI de produção; a atualização agendada já usa o binding privado.');
+    }
     const {syncInpiRpi}=await import('../src/lib/research/trademarks/inpi-sync'); await syncInpiRpi({force:true});
     console.log('RPI verificada.');
   } else if (command==='baseline') {

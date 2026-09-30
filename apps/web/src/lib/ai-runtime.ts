@@ -177,7 +177,7 @@ export async function generateStructured<T extends z.ZodType>(officeId: string, 
     try {
       const message = options.image ? [{ role: 'user' as const, content: [
         { type: 'text' as const, text: prompt },
-        { type: 'image' as const, image: `data:${options.image.mimeType};base64,${Buffer.from(options.image.bytes).toString('base64')}` },
+        { type: 'image' as const, image: `data:${options.image.mimeType};base64,${Buffer.from(options.image.bytes).toString('base64')}`, mimeType:options.image.mimeType },
       ] }] : prompt;
       const result = await agent.generate(message, {
         requestContext: requestContextFor(config),

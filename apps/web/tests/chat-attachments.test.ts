@@ -37,6 +37,7 @@ test('chat files persist with their message, remain private and never enter the 
   const imageHistory:UIMessage[]=[...history,{id:'message-b',role:'user',parts:[{type:'text',text:'Leia a foto'},attachmentPart(image)]}];
   const imagePrompt=await chatPromptMessages(owner,one.id,imageHistory,true);
   assert.match(JSON.stringify(imagePrompt),/data:image\/png;base64/);
+  assert.ok(JSON.stringify(imagePrompt).includes(`attachmentId: ${image.id}`));
   assert.doesNotMatch(JSON.stringify(imagePrompt),/storage_key/);
   await removeChatAttachment(owner,image.id);
   await assert.rejects((await objectStorage()).get(imageRows[0].storage_key));

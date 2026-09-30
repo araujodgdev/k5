@@ -59,13 +59,13 @@ const webSearchView = webSearchItem.extend({
 export const researchCapabilities = {
   k5_research_analyze_trademark_logo: {
     module:'research',effect:'read',roles:readers,publish:['agent','webmcp'],
-    description:'Analisa uma imagem de logotipo enviada na Pesquisa (uploadId) ou no Cofre/conversa (documentId), sugere códigos de Viena validados no catálogo INPI e explica os elementos visuais. A sugestão não é classificação oficial nem prova de conflito. Em seguida use start_trademark_search com query.kind=vienna e os codes retornados, country=BR. A ferramenta não mede similaridade visual entre imagens.',
-    input:z.discriminatedUnion('kind',[z.object({kind:z.literal('upload'),uploadId:z.uuid()}),z.object({kind:z.literal('document'),documentId:identifier})]),
+    description:'Analisa uma imagem de logotipo enviada na Pesquisa (kind upload, uploadId), no Cofre (kind document, documentId) ou anexada à conversa atual (kind attachment, attachmentId). Sugere códigos de Viena validados no catálogo INPI e explica os elementos visuais. A sugestão não é classificação oficial nem prova de conflito. Em seguida use start_trademark_search com query.kind=vienna e os codes retornados, country=BR. A ferramenta não mede similaridade visual entre imagens.',
+    input:z.discriminatedUnion('kind',[z.object({kind:z.literal('upload'),uploadId:z.uuid()}),z.object({kind:z.literal('document'),documentId:identifier}),z.object({kind:z.literal('attachment'),attachmentId:z.uuid()})]),
     output:z.object({analysis:trademarkLogoAnalysis}),
   },
   k5_research_start_trademark_search: {
     module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
-    description: 'Pesquisa marcas brasileiras na nossa base oficial INPI por nome (contains/exact/fuzzy), logotipo enviado na Pesquisa ou códigos de Viena (query.kind=vienna, codes, match any/all). Brasil e todos os status são padrões. Para uma imagem da conversa, primeiro analyze_trademark_logo com documentId e depois pesquise os códigos sugeridos. Retorna dados e links individuais INPI imediatamente para nome/Viena. Confira corpus para cobertura e atualização. Outros países usam WIPO em segundo plano. Ausência de resultados não comprova disponibilidade.',
+    description: 'Pesquisa marcas brasileiras na nossa base oficial INPI por nome (contains/exact/fuzzy), logotipo enviado na Pesquisa ou códigos de Viena (query.kind=vienna, codes, match any/all). Brasil e todos os status são padrões. Para uma imagem da conversa, primeiro analyze_trademark_logo com kind attachment e attachmentId e depois pesquise os códigos sugeridos. Retorna dados e links individuais INPI imediatamente para nome/Viena. Confira corpus para cobertura e atualização. Outros países usam WIPO em segundo plano. Ausência de resultados não comprova disponibilidade.',
     input: trademarkSearchInput, output: z.object({ search: trademarkSearchView }),
   },
   k5_research_get_trademark_search: {

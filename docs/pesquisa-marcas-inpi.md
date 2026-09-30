@@ -20,7 +20,7 @@ A pessoa pode enviar PNG, JPG ou WebP, até 5 MB. A tarefa `classification.trade
 
 A busca figurativa encontra códigos em comum. Ela não compara pixels nem mede similaridade entre logotipos. Os dados abertos e o XML não fornecem os arquivos das imagens das marcas; o resultado oferece a ficha INPI para conferir a representação. Códigos oficiais de dois e três níveis são preservados.
 
-O Lume recebe `k5_research_start_trademark_search` e `k5_research_analyze_trademark_logo` entre as ferramentas iniciais. Para uma imagem do Cofre ou anexada à conversa, analisa pelo `documentId` autorizado e consulta a base com `query.kind=vienna`. Para nomes, consulta diretamente a base. As ferramentas de histórico, paginação e detalhes estão no módulo research. As fontes obtidas entram no registro de citações da conversa. Ausência de resultado não certifica disponibilidade.
+O Lume recebe `k5_research_start_trademark_search` e `k5_research_analyze_trademark_logo` entre as ferramentas iniciais. Para uma imagem do Cofre, analisa pelo `documentId` autorizado; para um anexo de chat, usa `attachmentId` restrito à pessoa, escritório e conversa atual e consulta a base com `query.kind=vienna`. Para nomes, consulta diretamente a base. As ferramentas de histórico, paginação e detalhes estão no módulo research. As fontes obtidas entram no registro de citações da conversa. Ausência de resultado não certifica disponibilidade.
 
 ## Operação
 
@@ -34,4 +34,4 @@ pnpm --filter @k5/web inpi:admin sync
 pnpm --filter @k5/web inpi:admin baseline
 ```
 
-`K5_ENV_FILE=.env.postgres.local` seleciona a conexão direta de produção para esses comandos. Sem essa variável, usa o ambiente local. O comando baseline também aceita um diretório de CSVs completos; o tamanho deve corresponder ao arquivo oficial. Credenciais e arquivos de desenvolvimento ficam fora do Git.
+`K5_ENV_FILE=.env.postgres.local` seleciona a conexão direta de produção para esses comandos. Sem essa variável, usa o ambiente local. O comando sync em produção exige as credenciais do R2 para arquivar o XML; prefira a atualização agendada pelo Container, que já recebe os bindings privados. O comando baseline também aceita um diretório de CSVs completos; o tamanho deve corresponder ao arquivo oficial. Credenciais e arquivos de desenvolvimento ficam fora do Git.

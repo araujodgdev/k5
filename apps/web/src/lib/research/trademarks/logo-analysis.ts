@@ -11,10 +11,12 @@ import { modelModalities } from '@/lib/ai-modalities';
 import { trademarkLogoAnalysis } from './contracts';
 import { viennaCode } from './inpi-contracts';
 import catalog from './vienna-catalog.json';
+import { ownedChatAttachment } from '@/lib/chat-attachments';
 
 export const trademarkLogoAnalysisInput = z.discriminatedUnion('kind',[
   z.object({kind:z.literal('upload'),uploadId:z.uuid()}),
   z.object({kind:z.literal('document'),documentId:z.string().min(1).max(128)}),
+  z.object({kind:z.literal('attachment'),attachmentId:z.uuid()}),
 ]);
 export async function analyzeLogoBytes(owner: { officeId: string; userId: string },image: {bytes:Uint8Array;mimeType:string},signal?:AbortSignal) {
   const config=await resolveTaskModel('classification.trademark_logo');
@@ -50,6 +52,12 @@ export async function analyzeTrademarkLogo(context:WorkspaceContext,raw:z.infer<
     const analysis=await analyzeLogoBytes(context,{bytes:await (await objectStorage()).get(upload.storage_key),mimeType:upload.mime_type});
     await database.prepare('UPDATE research_trademark_upload SET analysis_json=? WHERE id=? AND office_id=? AND user_id=?').run(JSON.stringify(analysis),input.uploadId,context.officeId,context.userId);
     return {analysis};
+  }
+  if(input.kind==='attachment') {
+    const attachment=await ownedChatAttachment(context,input.attachmentId);
+    if(!attachment || !context.conversationId || attachment.conversation_id!==context.conversationId || !attachment.message_id) throw new CapabilityError('NOT_FOUND','Imagem não encontrada nesta conversa.');
+    if(!['image/png','image/jpeg','image/webp'].includes(attachment.media_type) || attachment.byte_size>5*1024*1024) throw new CapabilityError('INVALID','Escolha uma imagem PNG, JPG ou WebP de até 5 MB.');
+    return {analysis:await analyzeLogoBytes(context,{bytes:await(await objectStorage()).get(attachment.storage_key),mimeType:attachment.media_type},context.signal)};
   }
   const document=await findVaultDocument(context.officeId,input.documentId);
   if (!document || context.caseScope && document.caseId!==context.caseScope.caseId) throw new CapabilityError('NOT_FOUND','Imagem não encontrada no Cofre deste escritório.');
