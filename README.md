@@ -128,6 +128,10 @@ O [Portal do cliente](apps/web/docs/portal-cliente.md) usa convite e senha próp
 PDFs, arquivos e comprovantes e consultar cobranças explicitamente publicadas pelo advogado.
 O cliente não recebe acesso aos documentos internos do escritório.
 
+A [integração de assinatura ZapSign](apps/web/docs/assinaturas.md) envia PDFs publicados
+ao cliente e arquiva o PDF assinado após consulta ao provedor. O administrador configura
+a chave por escritório em Integrações. O portal também orienta a assinatura manual pelo gov.br.
+
 A integração WhatsApp Business usa Zernio e liberação por escritório via Flagship.
 Ela oferece caixa compartilhada e ferramentas do agente com confirmação de envio.
 Veja [configuração e homologação](apps/web/docs/integracao-whatsapp.md) e

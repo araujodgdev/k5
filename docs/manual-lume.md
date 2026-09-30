@@ -100,6 +100,16 @@ Publique um PDF do computador ou uma versão salva de um documento do Lume. A pu
 
 Na cobrança de uma parcela própria, use **Publicar cobrança no portal** para liberar instruções, saldo atual, PDF e boleto anexado. Retirar a cobrança remove essa publicação. Revogar o portal bloqueia novos downloads e anexos imediatamente. Um novo convite invalida o anterior e suspende o acesso existente até novo aceite. A recuperação de senha depende do remetente de e-mail configurado na instalação.
 
+## Assinaturas de documentos
+
+O administrador cadastra a chave e o ambiente da conta ZapSign em Integrações. No Portal do cliente, publique o PDF final e aguarde o aceite do convite. Em Assinaturas, selecione o PDF e escolha assinatura com código por e-mail ou certificado digital do cliente. O botão **Enviar PDF para assinatura** envia o documento e pede ao provedor o convite por e-mail ao cliente. A conta precisa ter acesso à API; custos e modalidades dependem do plano contratado.
+
+O cliente usa **Assinar na ZapSign** no portal. **Atualizar assinatura** consulta o provedor e, quando a assinatura termina, guarda o PDF assinado e as evidências para download. Não há atualização automática em segundo plano nesta versão. Um envio sem confirmação não é repetido automaticamente; confira o documento existente na ZapSign e vincule seu token pelo ID externo mostrado. **Cancelar solicitação** interrompe a solicitação no provedor após confirmação na tela. Revogar o portal não cancela um link externo já entregue.
+
+O status registra o resultado informado pelo provedor. O Lume não emite certificados nem valida a cadeia ICP-Brasil de forma independente. Um hash SHA-256 verifica integridade e não equivale a assinatura. PDFs assinados podem ser conferidos no VALIDAR do ITI. A assinatura por e-mail não é qualificada ICP-Brasil.
+
+Para assinatura pelo gov.br, o cliente pode baixar o PDF, assinar no Assinador gov.br e devolver o arquivo pelo portal para conferência do advogado. Esse fluxo não integra a API gov.br, cuja liberação depende de elegibilidade e credenciais oficiais, nem confirma automaticamente a assinatura de um arquivo enviado.
+
 ## Honorários e parcelas
 
 Dentro de cada parcela própria, **Cobrança** prepara instruções de pagamento com chave PIX e boleto em PDF já emitido pelo banco. Salve para baixar o PDF ou copiar a mensagem. Depois de enviar pelo seu canal habitual, registre o envio no histórico. O cliente paga diretamente ao advogado; o Lume não movimenta o dinheiro nem emite boletos bancários.

@@ -38,6 +38,12 @@ async function fixture() {
   await insert('vault_document_share', { id: randomUUID(), office_id: office, document_id: document, document_version_id: version, version: 1, invitation_id: invitation, conversation_id: personalThread, granted_by: actor, state: 'pending', token_hash: randomUUID(), encrypted_token: encrypted('vault_document_share', 'encrypted_token'), expires_at: new Date(Date.now() + 60_000).toISOString() });
   await insert('ai_connection', { id: randomUUID(), office_id: office, name: 'Test AI', provider: 'openai', api_key_hint: 'hidden', encrypted_api_key: cipher });
   await insert('typesafe_connection', { office_id: office, encrypted_api_key: encrypted('typesafe_connection', 'encrypted_api_key') });
+  await insert('signature_connection', { office_id: office, environment: 'sandbox', updated_by: actor, encrypted_api_key: encrypted('signature_connection', 'encrypted_api_key') });
+  const client = randomUUID(), access = randomUUID(), portalFile = randomUUID();
+  await insert('crm_client', { id: client, office_id: office, name: 'Signature client', stage: 'active', created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  await insert('client_portal_access', { id: access, office_id: office, client_id: client, email: 'signature@example.test', invited_by: actor });
+  await insert('client_portal_file', { id: portalFile, office_id: office, client_id: client, kind: 'published', name: 'contract.pdf', mime_type: 'application/pdf', byte_size: 4, storage_key: randomUUID(), sha256: 'test', created_by: actor, idempotency_key: randomUUID() });
+  await insert('signature_request', { id: randomUUID(), office_id: office, client_id: client, file_id: portalFile, access_id: access, recipient_email: 'signature@example.test', recipient_name: 'Signature client', method: 'email', environment: 'sandbox', state: 'pending', original_sha256: 'test', requested_by: actor, idempotency_key: randomUUID(), encrypted_sign_url: encrypted('signature_request', 'encrypted_sign_url') });
   await f.db.prepare('INSERT INTO typesafe_platform_connection(id,encrypted_api_key) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET encrypted_api_key=EXCLUDED.encrypted_api_key').run(encrypted('typesafe_platform_connection', 'encrypted_api_key'));
   await insert('platform_secret_ref', { id: randomUUID(), user_id: actor, purpose: 'ai_connection_key', encrypted_secret: encrypted('platform_secret_ref', 'encrypted_secret'), secret_hint: 'hidden', expires_at: Date.now() + 60_000 });
   await insert('platform_secret_ref', { id: randomUUID(), user_id: actor, purpose: 'ai_connection_key', encrypted_secret: '', secret_hint: 'hidden', expires_at: Date.now() - 60_000 });
@@ -66,11 +72,11 @@ test('two-phase keyring reads old data, writes the staged key and supports promo
 test('rotation covers every encrypted column atomically, preserves empty references and is idempotent', async () => {
   const { db, pool, ring, actor, next, secret, cipher, expected } = await fixture();
   await db.prepare("INSERT INTO ai_connection(id,name,provider,encrypted_api_key,api_key_hint,deleted_at) VALUES(?,'Removed','openai',NULL,'hidden',CURRENT_TIMESTAMP)").run(randomUUID());
-  assert.deepEqual(await credentialRotationStatus(db, ring), { keyId: ring.current.id, total: 14, pending: 14, unreadable: 0 });
+  assert.deepEqual(await credentialRotationStatus(db, ring), { keyId: ring.current.id, total: 16, pending: 16, unreadable: 0 });
   assert.equal(await countSecretsNeedingReencryption(db, ring), 3);
   assert.equal((await db.prepare('SELECT encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL').get<{ encrypted_api_key: string }>())?.encrypted_api_key, cipher);
   const result = await postgresTransaction(pool, tx => rotateCredentials(tx, ring, actor, ring.current.id));
-  assert.equal(result.reencrypted, 14);
+  assert.equal(result.reencrypted, 16);
   const current = createCredentialKeyring(next);
   for (const { table, field, plaintext } of expected) {
     // Fixture-owned identifiers and distinct sentinels catch swaps between encrypted columns.
@@ -79,7 +85,7 @@ test('rotation covers every encrypted column atomically, preserves empty referen
     assert.equal(rows.length, 1, `${table}.${field} remains present`);
     assert.equal(decryptCredential(rows[0].cipher, current), plaintext, `${table}.${field} preserves its own plaintext`);
   }
-  assert.deepEqual(await credentialRotationStatus(db, current), { keyId: ring.current.id, total: 14, pending: 0, unreadable: 0 });
+  assert.deepEqual(await credentialRotationStatus(db, current), { keyId: ring.current.id, total: 16, pending: 0, unreadable: 0 });
   assert.equal(await countSecretsNeedingReencryption(db, current), 0);
   const updated = await db.prepare('SELECT encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL').get<{ encrypted_api_key: string }>();
   assert.equal(decryptCredential(updated!.encrypted_api_key, current), secret);
@@ -133,6 +139,11 @@ test('real route requires a live platform session, same origin and the reviewed 
     assert.equal(before.headers.get('cache-control'), 'private, no-store');
     assert.equal((await before.json()).enabled, false);
     assert.equal((await post({})).status, 409);
+    const membership = await db.prepare('SELECT office_id FROM office_member WHERE user_id=?').get<{ office_id: string }>(user.id);
+    assert.ok(membership);
+    const signatureSecret = 'synthetic-signature-api-key';
+    await db.prepare("INSERT INTO signature_connection(office_id,encrypted_api_key,environment,updated_by) VALUES(?,?,'sandbox',?)")
+      .run(membership.office_id, encryptCredential(signatureSecret, parseCredentialKeyring()), user.id);
     process.env.K5_CREDENTIALS_NEXT_KEY = randomBytes(32).toString('base64');
     try {
       const body = { expectedKeyId: parseCredentialKeyring().current.id, runtimesReady: true };
@@ -143,6 +154,9 @@ test('real route requires a live platform session, same origin and the reviewed 
       assert.equal((await post({ ...body, runtimesReady: false })).status, 400);
       assert.equal((await post({ ...body, actorUserId: 'forged' })).status, 400);
       assert.equal((await post(body)).status, 200);
+      const rotatedSignature = await db.prepare('SELECT encrypted_api_key FROM signature_connection WHERE office_id=?').get<{ encrypted_api_key: string }>(membership.office_id);
+      assert.ok(rotatedSignature);
+      assert.equal(decryptCredential(rotatedSignature.encrypted_api_key, createCredentialKeyring(Buffer.from(process.env.K5_CREDENTIALS_NEXT_KEY, 'base64'))), signatureSecret);
       await db.prepare('DELETE FROM platform_admin WHERE user_id=?').run(user.id);
       assert.equal((await post(body)).status, 403);
       await db.prepare('DELETE FROM session WHERE userId=?').run(user.id);

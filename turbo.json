@@ -19,7 +19,8 @@
       "dependsOn": ["^typecheck"]
     },
     "test": {
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["TEST_DATABASE_URL", "K5_TEST_CONCURRENCY"]
     }
   }
 }

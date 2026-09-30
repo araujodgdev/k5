@@ -16,7 +16,7 @@ import { invitationHash } from './invitations';
 import * as contract from './contracts';
 
 export type ClientContext = { userId: string; sessionId: string };
-type Access = { id: string; office_id: string; client_id: string; office_name: string; client_name: string };
+type Access = { id: string; office_id: string; client_id: string; office_name: string; client_name: string; email: string };
 const missing = () => new CapabilityError('NOT_FOUND', 'Acesso ou arquivo não encontrado.');
 const conflict = () => new CapabilityError('CONFLICT', 'O acesso mudou. Atualize a página antes de continuar.');
 const fileFields = `f.id,f.name,f.kind,f.mime_type AS mimeType,f.byte_size AS byteSize,f.created_at AS createdAt,f.installment_id AS installmentId,u.name AS createdByName`;
@@ -24,7 +24,7 @@ const fileFields = `f.id,f.name,f.kind,f.mime_type AS mimeType,f.byte_size AS by
 async function clientAccess(context: ClientContext, accessId: string, tx: Transaction = database, lock = false) {
   if (!await tx.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>CURRENT_TIMESTAMP').get(context.sessionId, context.userId))
     throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente para continuar.');
-  const row = await tx.prepare(`SELECT p.id,p.office_id,p.client_id,o.name AS office_name,c.name AS client_name
+  const row = await tx.prepare(`SELECT p.id,p.office_id,p.client_id,p.email,o.name AS office_name,c.name AS client_name
     FROM client_portal_access p JOIN office o ON o.id=p.office_id JOIN crm_client c ON c.office_id=p.office_id AND c.id=p.client_id
     WHERE p.id=? AND p.user_id=? AND p.revoked_at IS NULL AND p.accepted_at IS NOT NULL ${lock ? 'FOR SHARE OF p' : ''}`)
     .get<Access>(accessId, context.userId);
@@ -36,6 +36,7 @@ async function staff(context: WorkspaceContext, clientId: string, write = false)
   if (context.caseScope || !await database.prepare('SELECT 1 FROM crm_client WHERE office_id=? AND id=?').get(context.officeId, clientId)) throw missing();
   return context;
 }
+export { clientAccess as requireClientPortalAccess, staff as requirePortalStaff };
 function files(rows: unknown[], base: string) {
   return contract.portalFileDto.array().parse(rows.map(row => {
     const file = z.object({ id: z.string() }).passthrough().parse(row);
