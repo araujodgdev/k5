@@ -499,7 +499,15 @@ pnpm --filter @k5/web test
 pnpm --filter @k5/web lint
 pnpm --filter @k5/web typecheck
 pnpm --filter @k5/web build
+pnpm --filter @k5/web build:vinext
 ```
+
+O CI prepara um PostgreSQL descartável e compila Next.js e Cloudflare/vinext em cada PR.
+O build Cloudflare usa a configuração de Workers e não publica uma versão nem provisiona recursos.
+
+Com o servidor local e uma conta de validação, `pnpm --filter @k5/web exec playwright test -c playwright.workflows.config.ts`
+confere paginação do Cofre e recuperação de senha em desktop/mobile. Configure `E2E_EMAIL` e
+`E2E_PASSWORD` para os testes autenticados; os dados de negócio e envios de e-mail são simulados.
 
 Os testes usam os endpoints reais do Better Auth e PostgreSQL com esquemas isolados para validar
 autorização da plataforma, isolamento de credenciais, histórico de conversas, cronologia,

@@ -47,7 +47,7 @@ jobs:
 
       - run: pnpm test
 
-      - name: Build
+      - name: Build Next.js
         # Migrate the service database before parallel page collection.
         # These values are for compilation only; staging secrets stay out of PR builds.
         env:
@@ -64,6 +64,22 @@ jobs:
         run: |
           pnpm db:setup
           pnpm build
+
+      - name: Build Cloudflare
+        # Compile the deployed runtime without deploying or accessing Cloudflare resources.
+        env:
+          DATABASE_URL: postgresql://k5:ci-build-only@127.0.0.1:5432/k5_ci
+          BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
+          BETTER_AUTH_URL: http://localhost:3000
+          K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnQ=
+          SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
+          SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          SENTRY_RELEASE: ${{ github.sha }}
+          NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_ENABLED: 'false'
+          NEXT_PUBLIC_SENTRY_ENABLED: 'false'
+          WRANGLER_SEND_METRICS: 'false'
+        run: pnpm --filter @k5/web build:vinext
 
   migrations:
     # Migrations are append-only: editing a file that already ran leaves every existing database
