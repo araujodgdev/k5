@@ -12,7 +12,7 @@ Um caso do escritório organiza um assunto de trabalho, seus arquivos, clientes 
 
 O acesso fica em `/sign-in`. Criar conta, em `/sign-up`, pede nome, escritório, e-mail e senha e cria um escritório com vínculo de administrador. Convites permitem participar de outros escritórios sem perder os vínculos anteriores. A pessoa pode alternar o escritório ativo no aplicativo. Cadastros e ações do escritório usam essa seleção autenticada.
 
-Sair encerra todas as sessões da conta, inclusive em outros dispositivos. O aplicativo verifica sessões e permissões no servidor; remover um vínculo ou reduzir um papel interrompe as operações correspondentes. Não existe recuperação de senha ou verificação de e-mail pelo cadastro nesta versão. O suporte deve orientar casos de acesso sem prometer um fluxo que não está disponível.
+Sair encerra todas as sessões da conta, inclusive em outros dispositivos. O aplicativo verifica sessões e permissões no servidor; remover um vínculo ou reduzir um papel interrompe as operações correspondentes. Em Esqueci minha senha, na tela de acesso, a pessoa solicita um link de uso único por e-mail. Redefinir a senha encerra todas as sessões anteriores. O envio depende da configuração de e-mail da plataforma; quando indisponível, a tela orienta procurar o suporte. O portal do cliente oferece o mesmo fluxo na sua tela de acesso. Não existe verificação de e-mail pelo cadastro nesta versão.
 
 ## Papéis, privacidade e acesso
 

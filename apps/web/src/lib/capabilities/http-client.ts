@@ -121,6 +121,7 @@ const routes: Record<CapabilityName, Route> = {
       if (i.caseId) params.set('caseId', String(i.caseId));
       if (i.folderId !== undefined) params.set('folderId', i.folderId === null ? 'root' : String(i.folderId));
       if (i.limit) params.set('limit', String(i.limit));
+      if (i.offset !== undefined) params.set('offset', String(i.offset));
       const query = params.toString();
       return query ? `/api/vault/documents?${query}` : '/api/vault/documents';
     },

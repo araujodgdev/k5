@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { approveAndRun } from "@/lib/approve-and-run";
 import type { VaultDocument } from "@/lib/vault";
+import { documentPageSize, fetchVaultDocumentPage } from '@/lib/vault-document-page';
 
 // 44px on touch, compact from md up.
 export const touchIcon = "size-11 md:size-8";
@@ -17,23 +18,68 @@ export function stateLabel(document: VaultDocument) {
   return document.errorMessage ? `Falhou: ${document.errorMessage}` : "Falhou";
 }
 
-/**
- * Keeps a list fresh while anything in it is still being extracted, and stops polling the moment
- * nothing is pending. The query is whatever the calling view is showing.
- */
-export function usePolledDocuments(query: string, initial: VaultDocument[]) {
+export function usePolledDocuments(query: string, initial: VaultDocument[], initialTotal: number) {
   const [documents, setDocuments] = useState(initial);
-  const refresh = useCallback(async () => {
-    const response = await fetch(`/api/vault/documents?${query}`, { cache: "no-store" });
-    if (response.ok) setDocuments((await response.json() as { documents: VaultDocument[] }).documents);
+  const [total, setTotal] = useState(initialTotal);
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const currentOffset = useRef(0);
+  const failedOffset = useRef<number | null>(null);
+  const request = useRef<AbortController | null>(null);
+  const refresh = useCallback(async (target = currentOffset.current) => {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    setLoading(true);
+    setError('');
+    try {
+      let result = await fetchVaultDocumentPage(query, target, controller.signal);
+      // Deletion can empty the last page. Return to the last page that still contains files.
+      const lastOffset = Math.max(0, Math.ceil(result.total / documentPageSize) - 1) * documentPageSize;
+      if (target > lastOffset) {
+        target = lastOffset;
+        result = await fetchVaultDocumentPage(query, target, controller.signal);
+      }
+      if (controller.signal.aborted) return;
+      setDocuments(result.documents);
+      setTotal(result.total);
+      currentOffset.current = target;
+      setOffset(target);
+      failedOffset.current = null;
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      failedOffset.current = target;
+      setError(error instanceof Error && !(error instanceof TypeError) ? error.message : 'Confira sua conexão e tente novamente.');
+    } finally {
+      if (!controller.signal.aborted) { request.current = null; setLoading(false); }
+    }
   }, [query]);
   const pending = documents.some((document) => document.status === "queued" || document.status === "processing");
   useEffect(() => {
     const first = window.setTimeout(() => void refresh(), 0);
-    const timer = pending ? window.setInterval(() => void refresh(), 3_000) : undefined;
-    return () => { window.clearTimeout(first); window.clearInterval(timer); };
+    const timer = pending ? window.setInterval(() => {
+      if (document.visibilityState === 'visible' && !request.current) void refresh();
+    }, 3_000) : undefined;
+    return () => { window.clearTimeout(first); window.clearInterval(timer); request.current?.abort(); };
   }, [pending, refresh]);
-  return { documents, setDocuments, refresh };
+  const firstPage = useCallback(() => refresh(0), [refresh]);
+  return { documents, setDocuments, refresh, firstPage,
+    pagination: { total, offset, loading, error, previous: () => refresh(Math.max(0, offset - documentPageSize)),
+      next: () => refresh(offset + documentPageSize), retry: () => refresh(failedOffset.current ?? offset) } };
+}
+
+export function DocumentPagination({ total, offset, loading, error, previous, next, retry }: ReturnType<typeof usePolledDocuments>['pagination']) {
+  return <div className="mt-4 space-y-2">
+    {error && <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">{error}<Button variant="outline" onClick={() => void retry()} disabled={loading}>Tentar novamente</Button></div>}
+    <nav aria-label="Páginas de arquivos" className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+      <p role="status" className="text-sm text-muted-foreground">{loading ? 'Carregando arquivos…' : total ? `${offset + 1}–${Math.min(offset + documentPageSize, total)} de ${total} arquivos` : '0 arquivos'}</p>
+      {total > documentPageSize && <div className="flex gap-2">
+        <Button variant="outline" className="min-h-11" disabled={loading || offset === 0} onClick={() => void previous()}>Anterior</Button>
+        <Button variant="outline" className="min-h-11" disabled={loading || offset + documentPageSize >= total} onClick={() => void next()}>Próxima</Button>
+      </div>}
+    </nav>
+  </div>;
 }
 
 export function UploadControl({ canWrite, scope, caseId, folderId, disabled, onUploaded, onError }: {

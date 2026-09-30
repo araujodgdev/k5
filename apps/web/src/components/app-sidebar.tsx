@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { DocumentNavigationLink as Link, useSaveDocumentsBeforeExit } from '@/components/document/document-drafts-provider';
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import gsap from "gsap";
@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { readNavCollapsed, subscribeNavCollapsed, writeNavCollapsed } from "@/lib/nav-collapse";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { Avatar } from "@/components/profile/avatar";
@@ -61,10 +62,12 @@ function NavToggle({ collapsed, className }: { collapsed: boolean; className?: s
 type Person = { name: string; avatarUrl: string | null };
 
 export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled = false, adsEnabled = false, person }: { officeName: string; platformAdmin?: boolean; whatsappEnabled?: boolean; adsEnabled?: boolean; person: Person }) {
+  const saveDocumentsBeforeExit = useSaveDocumentsBeforeExit();
   const pathname = usePathname();
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [error, setError] = useState("");
   const [unread, setUnread] = useState(0);
   const [feedback, setFeedback] = useState<{ open: boolean; view: "form" | "history" }>({ open: false, view: "form" });
@@ -210,9 +213,11 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  async function logout() {
+  async function logout(discard = false) {
+    if (pending) return;
     setPending(true);
     setError("");
+    if (!discard && !await saveDocumentsBeforeExit()) { setPending(false); setConfirmDiscard(true); return; }
     try {
       const result = await authClient.signOut();
       if (result.error) throw new Error("logout");
@@ -293,7 +298,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
               <NavToggle collapsed={collapsed} className="nav-expand" />
               <SidebarMenu className="min-w-0 flex-1">
                 <SidebarMenuItem>
-                  <SidebarMenuButton onClick={logout} disabled={pending} className="h-9" tooltip="Sair" aria-label={collapsed ? "Sair" : undefined} title="Encerrar sessão em todos os dispositivos">
+                  <SidebarMenuButton onClick={() => void logout()} disabled={pending} className="h-9" tooltip="Sair" aria-label={collapsed ? "Sair" : undefined} title="Encerrar sessão em todos os dispositivos">
                     <LogOut aria-hidden="true" /><span className="nav-label">{pending ? "Saindo…" : "Sair"}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -356,7 +361,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
           <Separator className="my-1.5" />
           {error && <p role="alert" className="px-3 text-destructive text-xs">{error}</p>}
           <div className="flex items-center gap-1">
-            <button onClick={logout} disabled={pending} className="flex min-h-12 flex-1 items-center gap-3 px-3 text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60">
+            <button onClick={() => void logout()} disabled={pending} className="flex min-h-12 flex-1 items-center gap-3 px-3 text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60">
               <LogOut className="size-[18px]" aria-hidden="true" />{pending ? "Saindo…" : "Sair"}
             </button>
             <FeedbackTrigger className="size-12" onOpen={openFeedback} />
@@ -366,6 +371,19 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
           </div>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sair sem salvar?</AlertDialogTitle>
+            <AlertDialogDescription>Não foi possível salvar suas alterações. Se sair agora, os rascunhos não salvos serão descartados e sua conta sairá de todos os dispositivos.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="min-h-11" onClick={() => setSheetOpen(false)}>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction className="min-h-11" variant="destructive" onClick={() => void logout(true)}>Sair sem salvar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <FeedbackDialog open={feedback.open} initialView={feedback.view} pathname={pathname}
         onOpenChange={(open) => setFeedback((current) => ({ ...current, open }))}

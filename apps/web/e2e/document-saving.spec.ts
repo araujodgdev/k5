@@ -7,6 +7,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByLabel('Senha', { exact: true }).fill(process.env.E2E_PASSWORD ?? 'SenhaForte123!@#456');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page).toHaveURL(/\/app\//);
+  await page.getByRole('button', { name: 'Agora não', exact: true }).click();
 });
 
 async function documentFixture(page: Page, content = 'Texto original') {
@@ -31,7 +32,7 @@ async function documentFixture(page: Page, content = 'Texto original') {
     }
     return route.fulfill({ json: { artifact } });
   });
-  return { artifact, writes, fail: () => { failSave = true; }, restores: () => restores };
+  return { artifact, writes, fail: () => { failSave = true; }, recover: () => { failSave = false; }, restores: () => restores };
 }
 
 const editor = (page: Page) => page.getByRole('textbox', { name: 'Texto do documento' });
@@ -147,3 +148,69 @@ test('returning to the conversation stops when the full-page document cannot sav
   await expect(page).toHaveURL(/\/app\/documents\/saving-regression/);
   await expect(editor(page)).toContainText('Rascunho pendente na página inteira');
 });
+
+test('sidebar navigation waits for saving and a visible retry recovers a failed save', async ({ page }) => {
+  const data = await documentFixture(page);
+  await page.goto('/app/documents/saving-regression');
+  data.fail();
+  await editor(page).fill('Edição preservada ao usar o menu');
+  await page.getByRole('link', { name: 'Cofre', exact: true }).first().click();
+  await expect(page.getByRole('button', { name: 'Tentar salvar novamente' })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/documents\/saving-regression/);
+  data.recover();
+  await page.getByRole('button', { name: 'Tentar salvar novamente' }).click();
+  await expect(page.getByText('Salvo', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Cofre', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/app\/vault$/);
+  expect(data.artifact.content).toContain('Edição preservada');
+});
+
+for (const width of [1280, 390]) {
+test(`a failed save never traps global logout and discarding requires an explicit choice at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  const data = await documentFixture(page);
+  let logoutAttempts = 0;
+  await page.route('**/api/auth/sign-out', route => {
+    logoutAttempts++;
+    return route.fulfill({ status: 503, json: { code: 'UNAVAILABLE', message: 'Simulated logout failure' } });
+  });
+  await page.goto('/app/documents/saving-regression');
+  data.fail();
+  await editor(page).fill('Rascunho antes de sair');
+  if (width < 768) await page.getByRole('button', { name: 'Mais', exact: true }).click();
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  const dialog = page.getByRole('alertdialog', { name: 'Sair sem salvar?' });
+  await expect(dialog).toBeVisible();
+  expect(logoutAttempts).toBe(0);
+  await dialog.getByRole('button', { name: 'Continuar editando' }).click();
+  await expect(editor(page)).toContainText('Rascunho antes de sair');
+  expect(logoutAttempts).toBe(0);
+  if (width < 768) await page.getByRole('button', { name: 'Mais', exact: true }).click();
+  await page.getByRole('button', { name: 'Sair', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
+  await expect.poll(() => logoutAttempts).toBe(1);
+  await expect(page.getByRole('alert').filter({ hasText: 'Não foi possível sair.' })).toBeVisible();
+});
+}
+
+for (const width of [1280, 390]) {
+  test(`history navigation retains failed document edits at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const data = await documentFixture(page);
+    await page.goto('/app/agents?doc=saving-regression');
+    await expect(editor(page)).toBeVisible();
+    await page.evaluate(() => history.replaceState(null, '', '/app/agents'));
+    await expect(page.locator('#document-panel')).toHaveCount(0);
+    await page.evaluate(() => history.pushState(null, '', '/app/agents?doc=saving-regression'));
+    data.fail();
+    await editor(page).fill('Rascunho preservado no histórico');
+    await expect(page.getByRole('button', { name: 'Tentar salvar novamente' })).toBeVisible();
+    await page.goBack();
+    await expect(page.locator('#document-panel')).toHaveCount(0);
+    await page.goForward();
+    await expect(editor(page)).toContainText('Rascunho preservado no histórico');
+    data.recover();
+    await page.getByRole('button', { name: 'Tentar salvar novamente' }).click();
+    await expect.poll(() => data.artifact.content).toContain('Rascunho preservado no histórico');
+  });
+}

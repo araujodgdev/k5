@@ -119,6 +119,7 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
                   </Button>
                 </div>
                 {fieldError("password")}
+                {!isSignUp && <Link href="/recover-password" className="inline-flex min-h-11 w-fit items-center text-sm underline underline-offset-4">Esqueci minha senha</Link>}
               </div>
               {isSignUp && <div className="grid gap-1.5">
                 <Label htmlFor="confirmPassword">Confirmar senha</Label>

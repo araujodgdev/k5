@@ -86,8 +86,12 @@ A migração `0031_collaboration.sql` acrescenta associados, participantes, conv
 expiração e histórico de acesso. Os convites chegam à caixa da conta existente e também
 geram um link para compartilhar. Convites criados no módulo Mensagens também entram na
 fila de envio por e-mail quando o destinatário é externo, conforme a [configuração de mensagens](../../docs/mensagens.md). Endereços sem conta
-exigem o link secreto e login com o mesmo e-mail. Recuperação de senha e verificação de
-e-mail ainda não foram implementadas. Consulte [o fluxo e os limites](../../docs/colaboracao.md).
+exigem o link secreto e login com o mesmo e-mail. **Esqueci minha senha**, em `/sign-in`, abre
+`/recover-password`. O portal usa `/client/recover-password`. Ambos reutilizam o Better Auth:
+o link de uso único redefine a senha e revoga todas as sessões anteriores. O envio exige a
+configuração de e-mail pessoal descrita em [Mensagens](../../docs/mensagens.md); sem ela, o
+formulário informa a indisponibilidade. Verificação de e-mail no cadastro continua indisponível.
+Consulte [o fluxo e os limites](../../docs/colaboracao.md).
 
 ## Tarefas e Agenda
 
@@ -188,6 +192,13 @@ cria um documento de teste, salva, exporta DOCX e confere o painel móvel; exige
 conexão de IA ativa. Capturas, vídeo e DOCX ficam em `playwright-report/pr11-live/`.
 Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
 
+Alterações de documentos que ainda não foram salvas permanecem na memória da sessão
+ao navegar dentro do aplicativo, inclusive com Voltar/Avançar. O menu tenta salvar
+antes de sair do editor; falhas oferecem **Tentar salvar novamente**. Trocar de
+escritório exige salvar os documentos pendentes. Sair tenta salvar; se falhar, a pessoa
+escolhe continuar editando ou descartar os rascunhos e encerrar todas as sessões. Recarregar ou fechar o
+aplicativo continua exigindo salvar antes: rascunhos privados não são gravados no navegador.
+
 - **Administração:** módulo `/app/admin`, visível só para administradores da plataforma, com
   as abas Feedback, Clientes, IA e Credenciais. A aba IA (`/app/admin/ai`) configura uma vez,
   para todos os escritórios, as conexões de IA da plataforma (OpenAI, Anthropic, Google,
@@ -219,6 +230,12 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   `pnpm platform:admin rotate-key --email <administrador da plataforma>`.
 - **Cofre (`/app/vault`):** casos e biblioteca; PDF (com OCR), DOCX, EML, XLSX, CSV e TXT
   com referências estáveis por página, parágrafo, mensagem ou célula.
+  A biblioteca e cada nível de pasta exibem 50 arquivos por página, com Anterior/Próxima e o total.
+  `/api/vault/documents` e `k5_vault_list_documents` aceitam `limit` (1–50) e `offset` (a partir de 0)
+  e devolvem `{ documents, total }`, respeitando os mesmos filtros e permissões. A ordem é
+  criação decrescente, com o ID como desempate; alterações concorrentes podem deslocar páginas.
+  Os seletores de anexos, e-mail e versões do Drive percorrem automaticamente as páginas de 50
+  até cobrir o total; uma falha permite repetir a consulta sem perder as opções já carregadas.
 - **Anexos da petição:** na aba **Anexos** do caso, a pessoa escolhe o PDF digitalizado com todos
   os documentos (já lido pelo OCR) e a petição (arquivo do caso ou texto colado). O modelo da tarefa
   `extraction.annex_plan` propõe os documentos e as páginas; o código ordena pela primeira citação na petição
@@ -482,7 +499,15 @@ pnpm --filter @k5/web test
 pnpm --filter @k5/web lint
 pnpm --filter @k5/web typecheck
 pnpm --filter @k5/web build
+pnpm --filter @k5/web build:vinext
 ```
+
+O CI prepara um PostgreSQL descartável e compila Next.js e Cloudflare/vinext em cada PR.
+O build Cloudflare usa a configuração de Workers e não publica uma versão nem provisiona recursos.
+
+Com o servidor local e uma conta de validação, `pnpm --filter @k5/web exec playwright test -c playwright.workflows.config.ts`
+confere paginação do Cofre e recuperação de senha em desktop/mobile. Configure `E2E_EMAIL` e
+`E2E_PASSWORD` para os testes autenticados; os dados de negócio e envios de e-mail são simulados.
 
 Os testes usam os endpoints reais do Better Auth e PostgreSQL com esquemas isolados para validar
 autorização da plataforma, isolamento de credenciais, histórico de conversas, cronologia,

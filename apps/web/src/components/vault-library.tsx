@@ -5,13 +5,13 @@ import { useState } from "react";
 import { ChevronRight, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DrivePanel } from "@/components/google/drive-panel";
-import { DocumentRows, UploadControl, usePolledDocuments } from "@/components/vault-files";
+import { DocumentPagination, DocumentRows, UploadControl, usePolledDocuments } from "@/components/vault-files";
 import type { OfficeRole } from "@/lib/offices";
 import type { VaultDocument } from "@/lib/vault";
 
 /** Everything that belongs to the office but not to a case: models, templates, loose material. */
-export function VaultLibrary({ initialDocuments, role, initialDriveOpen = false }: { initialDocuments: VaultDocument[]; role: OfficeRole; initialDriveOpen?: boolean }) {
-  const { documents, setDocuments, refresh } = usePolledDocuments("scope=library", initialDocuments);
+export function VaultLibrary({ initialDocuments, initialTotal, role, initialDriveOpen = false }: { initialDocuments: VaultDocument[]; initialTotal: number; role: OfficeRole; initialDriveOpen?: boolean }) {
+  const { documents, setDocuments, refresh, firstPage, pagination } = usePolledDocuments("scope=library", initialDocuments, initialTotal);
   const [failure, setFailure] = useState("");
   const [driveOpen, setDriveOpen] = useState(initialDriveOpen);
   const canWrite = role !== "reviewer";
@@ -26,7 +26,7 @@ export function VaultLibrary({ initialDocuments, role, initialDriveOpen = false 
     <div className="mt-3 flex flex-wrap items-end justify-between gap-4 border-b pb-5" data-reveal>
       <h1 className="page-title leading-none">Biblioteca</h1>
       <div className="flex flex-wrap items-center gap-2">
-        <UploadControl canWrite={canWrite} scope="library" onError={setFailure} onUploaded={(document) => setDocuments((current) => [document, ...current])} />
+        <UploadControl canWrite={canWrite} scope="library" onError={setFailure} onUploaded={() => void firstPage()} />
         <Button type="button" variant="outline" aria-expanded={driveOpen} onClick={() => setDriveOpen(open => !open)}>
           {driveOpen ? "Fechar Google Drive" : canWrite ? "Importar do Google Drive" : "Ver Google Drive"}
         </Button>
@@ -37,15 +37,16 @@ export function VaultLibrary({ initialDocuments, role, initialDriveOpen = false 
     {failure && <p className="mt-4 flex items-start gap-2 text-sm text-destructive" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{failure}</p>}
 
     <div className="mt-5 min-h-0 overflow-auto">
-      {driveOpen && <DrivePanel role={role} onImported={refresh} />}
+      {driveOpen && <DrivePanel role={role} onImported={firstPage} />}
       <DocumentRows
         documents={documents}
         canWrite={canWrite}
         onError={setFailure}
         onRetried={(documentId) => setDocuments((current) => current.map((item) => item.id === documentId ? { ...item, status: "queued", progress: 0, errorMessage: null } : item))}
-        onDeleted={(documentId) => setDocuments((current) => current.filter((item) => item.id !== documentId))}
+        onDeleted={() => void refresh()}
         empty="Nenhum arquivo na biblioteca."
       />
+      <DocumentPagination {...pagination} />
     </div>
   </div>;
 }

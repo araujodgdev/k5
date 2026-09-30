@@ -215,6 +215,7 @@ export const capabilities = {
       caseId: identifier.optional().describe('Identificador de um caso listado por k5_vault_list_cases.'),
       folderId: identifier.nullish().describe('Subpasta do caso; null lista apenas a raiz do caso.'),
       limit: z.number().int().min(1).max(50).default(20),
+      offset: z.number().int().min(0).default(0).describe('Quantidade de documentos já listados. Aumente pelo limit para consultar a próxima página até alcançar total.'),
     }),
     output: z.object({ documents: z.array(documentDto), total: z.number() }),
   },

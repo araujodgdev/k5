@@ -244,7 +244,7 @@ export async function listVaultDocuments(
   else if (filters.folderId) { where.push("d.folder_id = ?"); values.push(filters.folderId); }
   const limit = Math.min(Math.max(filters.limit ?? 200, 1), 200);
   const offset = Math.max(filters.offset ?? 0, 0);
-  return (await database.prepare(`${documentSelect} WHERE ${where.join(" AND ")} ORDER BY d.created_at DESC LIMIT ? OFFSET ?`)
+  return (await database.prepare(`${documentSelect} WHERE ${where.join(" AND ")} ORDER BY d.created_at DESC, d.id DESC LIMIT ? OFFSET ?`)
     .all(...values, limit, offset)).map((row) => publicDocument(mapDocument(row)));
 }
 
