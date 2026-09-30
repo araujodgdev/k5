@@ -7,6 +7,7 @@ type WorkerOptions = {
   once: boolean;
   onError: (error: unknown) => void;
   sleep?: (ms: number) => Promise<void>;
+  reconcileSignatures?: Work;
 };
 
 export async function runWorkerQueues(options: WorkerOptions) {
@@ -26,7 +27,7 @@ export async function runWorkerQueues(options: WorkerOptions) {
   }
   // At most one verification is in flight in this process. Its checkpoints and leases
   // stay in processNextVerification; provider latency cannot stall the other queues.
-  // Await both loops so --once and shutdown drain work already in flight.
+  // Await the queues so --once and shutdown drain work already in flight.
   await Promise.all([
     loop(async () => {
       const processed = await options.processDocuments();
@@ -34,5 +35,6 @@ export async function runWorkerQueues(options: WorkerOptions) {
       return processed || maintained;
     }),
     loop(options.verifyDocuments),
+    ...(options.reconcileSignatures ? [loop(options.reconcileSignatures)] : []),
   ]);
 }

@@ -13,6 +13,7 @@ async function main() {
   const { runWorkerQueues } = await import('../src/lib/worker-scheduler');
   const { sweepResearchStaging, sweepResearchOrphans } = await import('../src/lib/research/storage');
   const { database } = await import('../src/lib/database');
+  const { processNextSignatureWebhook } = await import('../src/lib/signatures/webhooks');
   const { sweepAgentTraces } = await import('../src/lib/observability/agent-trace');
 
   let stopping = false;
@@ -25,6 +26,7 @@ async function main() {
   await runWorkerQueues({
     stopping: () => stopping,
     once: process.argv.includes('--once'),
+    reconcileSignatures: () => observeWorkerTask('signatures.webhook', processNextSignatureWebhook),
     processDocuments: async () => {
       const ingested = await observeWorkerTask('vault.ingest', processNextVaultDocument);
       const indexed = await observeWorkerTask('knowledge.index', processNextIndexJob);

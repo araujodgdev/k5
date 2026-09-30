@@ -17,6 +17,10 @@ async function documentPass() {
   const { processNextIndexJob, processNextDeletion } = await import('../src/lib/knowledge/indexing');
   const outcomes = await Promise.all([
     (async () => {
+      const { processNextSignatureWebhook } = await import('../src/lib/signatures/webhooks');
+      return observeWorkerTask('signatures.webhook', processNextSignatureWebhook);
+    })(),
+    (async () => {
       const ingested = await observeWorkerTask('vault.ingest', processNextVaultDocument);
       const indexed = await observeWorkerTask('knowledge.index', processNextIndexJob);
       const run = await observeWorkerTask('documents.run', processNextRun);

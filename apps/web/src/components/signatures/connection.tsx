@@ -18,6 +18,11 @@ export function SignatureConnection({ canManage }: { canManage: boolean }) {
       .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Não foi possível consultar a conexão.'); });
     return () => controller.abort();
   }, [revision]);
+  async function copyWebhook() {
+    if (!data?.webhookUrl) return;
+    try { await navigator.clipboard.writeText(data.webhookUrl); setNotice('URL do webhook copiada.'); setError(''); }
+    catch { setError('Selecione e copie a URL do webhook.'); }
+  }
   async function save(event: React.FormEvent) {
     event.preventDefault(); if (!data || busy.current) return; busy.current = true; setPending(true); setError(''); setNotice('');
     try {
@@ -33,6 +38,11 @@ export function SignatureConnection({ canManage }: { canManage: boolean }) {
       {canManage ? <form onSubmit={save} className="grid max-w-xl gap-4"><fieldset disabled={pending} className="grid gap-4"><Field label="Ambiente da conta ZapSign">{id => <select id={id} className={controlClass} value={environment} onChange={event => setEnvironment(event.target.value === 'production' ? 'production' : 'sandbox')}><option value="sandbox">Teste · sem assinatura de produção</option><option value="production">Produção</option></select>}</Field>
         <Field label={data.connected ? 'Nova chave de API (deixe vazio para manter)' : 'Chave de API ZapSign'}>{id => <Input id={id} className="min-h-11" type="password" autoComplete="new-password" maxLength={512} required={!data.connected} value={apiKey} onChange={event => setApiKey(event.target.value)} />}</Field>
         <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} />Permitir novas solicitações de assinatura</label><Button className="min-h-11 justify-self-start" type="submit">{pending ? 'Salvando…' : 'Salvar conexão'}</Button></fieldset></form> : <p className="text-sm text-muted-foreground">O administrador do escritório configura esta conexão.</p>}</>}
+    {canManage && data?.connected && <div className="mt-6 grid max-w-xl gap-3 border-t pt-4"><h3 className="text-sm font-medium">Webhook ZapSign</h3>
+      {data.webhookUrl ? <><Field label="URL do webhook">{id => <Input id={id} className="min-h-11" readOnly value={data.webhookUrl ?? ''} onFocus={event => event.currentTarget.select()} />}</Field>
+        <Button className="min-h-11 justify-self-start" variant="outline" onClick={() => void copyWebhook()}>Copiar URL do webhook</Button>
+        <p className="text-sm text-muted-foreground">Na ZapSign, escolha Todos (documentos), deixe os condicionais vazios e habilite 5 tentativas com intervalo de 5 minutos. A URL já contém o segredo deste escritório. O Lume confirma o resultado pela API antes de guardar o PDF assinado.</p></>
+        : <p className="text-sm text-muted-foreground">Salve a conexão para gerar a URL do webhook deste escritório.</p>}</div>}
     <Failure message={error} />{notice && <p role="status" className="mt-4 text-sm">{notice}</p>}
   </section>;
 }

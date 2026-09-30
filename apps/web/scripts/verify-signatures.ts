@@ -46,7 +46,17 @@ try {
   await officePage.getByLabel('Chave de API ZapSign', { exact: true }).fill('synthetic-signature-api-key');
   await officePage.getByRole('button', { name: 'Salvar conexão', exact: true }).click();
   await expect(officePage.getByText('Conexão de assinatura salva.', { exact: true })).toBeVisible();
+  const webhookUrl = await officePage.getByLabel('URL do webhook', { exact: true }).inputValue();
+  const webhookTarget = new URL(webhookUrl); assert.equal(webhookTarget.origin, new URL(baseURL).origin);
+  assert.match(webhookTarget.searchParams.get('secret') ?? '', /^[A-Za-z0-9_-]{43}$/);
+  await officePage.getByRole('button', { name: 'Copiar URL do webhook', exact: true }).focus();
+  await expect(officePage.getByText(/Na ZapSign, escolha Todos/)).toBeVisible();
   await officePage.screenshot({ path: `${output}/conexao-desktop.png`, fullPage: true });
+  await officePage.setViewportSize({ width: 390, height: 844 });
+  await officePage.getByLabel('URL do webhook', { exact: true }).scrollIntoViewIfNeeded();
+  assert.equal(await officePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
+  await officePage.screenshot({ path: `${output}/conexao-mobile.png`, fullPage: true });
+  await officePage.setViewportSize({ width: 1440, height: 1000 });
   let remote: Record<string, unknown> | null = null, posts = 0;
   const signerToken = randomUUID(), providerToken = randomUUID();
   const transport: SignatureTransport = { fetch: async (url, options) => {

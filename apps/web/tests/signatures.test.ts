@@ -1,7 +1,7 @@
 import { testDb } from './test-setup';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
 import * as signatures from '../src/lib/signatures/service';
 import * as portal from '../src/lib/client-portal/service';
@@ -9,6 +9,8 @@ import { objectStorage, resetObjectStorageForTests } from '../src/lib/storage';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import type { SignatureTransport } from '../src/lib/signatures/zapsign';
 import { ZapSign } from '../src/lib/signatures/zapsign';
+import { processNextSignatureWebhook } from '../src/lib/signatures/webhooks';
+import { dueProcessors } from '../src/lib/processor-schedule';
 
 async function fixture() {
   const context: WorkspaceContext = { officeId: randomUUID(), userId: randomUUID(), role: 'administrator' }, clientId = randomUUID(), clientUserId = randomUUID(), accessId = randomUUID();
@@ -54,6 +56,14 @@ function provider(f: Awaited<ReturnType<typeof fixture>>) {
       document = { ...document, status: 'signed', signed_file: 'https://zapsign.s3.amazonaws.com/signed.pdf', signers: [{ ...signers[0], status: 'signed', signed_at: '2026-09-29T18:00:00Z' }] }; } };
 }
 const request = (f: Awaited<ReturnType<typeof fixture>>) => ({ clientId: f.clientId, fileId: f.fileId, method: 'email' as const, idempotencyKey: randomUUID() });
+async function webhookPost(request: Request) {
+  process.env.BETTER_AUTH_SECRET ??= randomBytes(48).toString('base64url');
+  const { POST } = await import('../src/app/api/signatures/webhook/route'); return POST(request);
+}
+async function webhook(f: Awaited<ReturnType<typeof fixture>>, document: unknown, url?: string) {
+  const target = url ?? (await signatures.getSignatureConnection(f.context)).webhookUrl;
+  assert.ok(target); return webhookPost(new Request(target, { method: 'POST', body: JSON.stringify(document) }));
+}
 
 test('ZapSign uses the redirect mode accepted by Workers and never follows a redirect with credentials or PDF access', async () => {
   let calls = 0;
@@ -125,4 +135,74 @@ test('revoking access during a private signed PDF read blocks completion and a r
   await portal.invitePortal(f.context, { clientId: f.clientId, email: 'new@client.test', version: 2 });
   await testDb.prepare('UPDATE client_portal_access SET user_id=?,accepted_at=CURRENT_TIMESTAMP WHERE id=?').run(f.client.userId, f.accessId);
   assert.equal((await signatures.clientSignatures(f.client, f.accessId)).signatures.length, 0);
+});
+
+test('webhook authenticates its office, ignores unrelated documents and only API-confirmed bytes can become signed', async () => {
+  const f = await fixture(), other = await fixture(), p = provider(f);
+  const { signatures: [row] } = await signatures.requestSignature(f.context, request(f), p.transport);
+  const config = await signatures.getSignatureConnection(f.context); assert.ok(config.webhookUrl);
+  await testDb.prepare("UPDATE office_member SET role='reviewer' WHERE office_id=? AND user_id=?").run(f.context.officeId, f.context.userId);
+  assert.equal((await signatures.getSignatureConnection(f.context)).webhookUrl, null);
+  await testDb.prepare("UPDATE office_member SET role='administrator' WHERE office_id=? AND user_id=?").run(f.context.officeId, f.context.userId);
+  const body = { event_type: 'doc_signed', token: p.remoteToken, external_id: row.id, sandbox: true, status: 'signed', signed_file: 'https://other.test/forged.pdf' };
+  assert.equal((await webhook(f, body, 'https://localhost/api/signatures/webhook')).status, 401);
+  assert.equal((await webhook(f, body, config.webhookUrl.replace(/secret=.*/, 'secret=' + 'a'.repeat(43)))).status, 401);
+  assert.equal((await webhook(other, body)).status, 200);
+  assert.equal((await webhook(f, { ...body, sandbox: false })).status, 200);
+  assert.equal((await webhook(f, { ...body, external_id: randomUUID() })).status, 200);
+  assert.equal((await webhook(f, { event_type: 'signature_notification_sent' })).status, 200);
+  assert.equal((await testDb.prepare('SELECT count(*) AS count FROM signature_webhook_job').get<{ count: number }>())?.count, 0);
+  const received = await Promise.all([webhook(f, body), webhook(f, body)]); assert.ok(received.every(response => response.status === 200));
+  const queued = await testDb.prepare('SELECT generation,state FROM signature_webhook_job WHERE request_id=?').get<{ generation: number; state: string }>(row.id);
+  assert.deepEqual(queued, { generation: 1, state: 'pending' });
+  assert.equal((await dueProcessors(testDb, Date.now(), false)).documents, true);
+  assert.equal((await signatures.managedSignatures(f.context, f.clientId)).signatures[0].state, 'pending');
+  await processNextSignatureWebhook(p.transport);
+  assert.equal((await signatures.managedSignatures(f.context, f.clientId)).signatures[0].state, 'pending', 'the webhook body cannot assert a signature');
+  const deferred = await testDb.prepare('SELECT state,last_error,run_after>CURRENT_TIMESTAMP AS delayed FROM signature_webhook_job WHERE request_id=?')
+    .get<{ state: string; last_error: string; delayed: boolean }>(row.id);
+  assert.deepEqual(deferred, { state: 'pending', last_error: 'awaiting_provider', delayed: true });
+  await webhook(f, { ...body, event_type: 'doc_created', status: 'pending' });
+  await processNextSignatureWebhook(p.transport);
+  assert.deepEqual(await testDb.prepare('SELECT event_type,state,last_error FROM signature_webhook_job WHERE request_id=?').get(row.id),
+    { event_type: 'doc_signed', state: 'pending', last_error: 'awaiting_provider' }, 'late creation events must preserve reconciliation of an unconfirmed signature');
+  p.complete(); await testDb.prepare('UPDATE signature_webhook_job SET run_after=CURRENT_TIMESTAMP WHERE request_id=?').run(row.id);
+  await processNextSignatureWebhook(p.transport);
+  assert.deepEqual((await signatures.downloadManagedSignature(f.context, f.clientId, row.id, 'pdf')).bytes, p.signedBytes);
+  const evidence = JSON.parse((await signatures.downloadManagedSignature(f.context, f.clientId, row.id, 'evidence')).bytes.toString());
+  assert.equal(evidence.events.filter((item: { event: string }) => item.event === 'archived').length, 1);
+  assert.ok(evidence.events.some((item: { details: { source?: string } }) => item.details.source === 'webhook'));
+  await webhook(f, { ...body, event_type: 'doc_created', status: 'pending' }); assert.equal(await processNextSignatureWebhook(p.transport), false);
+  const tooLarge = await webhookPost(new Request(config.webhookUrl, { method: 'POST', body: JSON.stringify({ ...body, padding: 'x'.repeat(512_000) }) }));
+  assert.equal(tooLarge.status, 413);
+});
+
+test('a webhook recovers a lost create response without sending a second document', async () => {
+  const f = await fixture(), p = provider(f), input = request(f);
+  const lost: SignatureTransport = { fetch: async (url, options) => { await p.transport.fetch(url, options); throw new TypeError('lost response'); } };
+  const { signatures: [row] } = await signatures.requestSignature(f.context, input, lost);
+  assert.equal(row.state, 'uncertain'); p.complete();
+  const body = { event_type: 'doc_signed', token: p.remoteToken, external_id: row.id, sandbox: true, status: 'signed' };
+  p.change({ external_id: randomUUID() }); await webhook(f, body); await processNextSignatureWebhook(p.transport);
+  assert.equal((await signatures.managedSignatures(f.context, f.clientId)).signatures[0].state, 'uncertain');
+  p.change({ external_id: row.id }); await testDb.prepare('UPDATE signature_webhook_job SET run_after=CURRENT_TIMESTAMP WHERE request_id=?').run(row.id);
+  await processNextSignatureWebhook(p.transport);
+  assert.equal((await signatures.managedSignatures(f.context, f.clientId)).signatures[0].state, 'signed'); assert.equal(p.posts(), 1);
+});
+
+test('an event that supersedes a paused webhook lease prevents its PDF from being published', async () => {
+  const f = await fixture(), p = provider(f); const { signatures: [row] } = await signatures.requestSignature(f.context, request(f), p.transport);
+  p.complete(); const body = { event_type: 'doc_signed', token: p.remoteToken, external_id: row.id, sandbox: true, status: 'signed' };
+  await webhook(f, body);
+  let entered!: () => void, resume!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; }), release = new Promise<void>(resolve => { resume = resolve; });
+  const paused: SignatureTransport = { fetch: async (url, options) => {
+    if (String(url).includes('signed.pdf')) { entered(); await release; } return p.transport.fetch(url, options);
+  } };
+  const processing = processNextSignatureWebhook(paused); await started;
+  await webhook(f, { ...body, event_type: 'doc_created', status: 'pending' }); resume(); await processing;
+  assert.equal((await signatures.managedSignatures(f.context, f.clientId)).signatures[0].state, 'pending');
+  await assert.rejects(signatures.downloadManagedSignature(f.context, f.clientId, row.id, 'pdf'), { code: 'NOT_READY' });
+  await processNextSignatureWebhook(p.transport);
+  assert.equal((await signatures.managedSignatures(f.context, f.clientId)).signatures[0].state, 'signed');
 });

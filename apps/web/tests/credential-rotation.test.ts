@@ -38,7 +38,7 @@ async function fixture() {
   await insert('vault_document_share', { id: randomUUID(), office_id: office, document_id: document, document_version_id: version, version: 1, invitation_id: invitation, conversation_id: personalThread, granted_by: actor, state: 'pending', token_hash: randomUUID(), encrypted_token: encrypted('vault_document_share', 'encrypted_token'), expires_at: new Date(Date.now() + 60_000).toISOString() });
   await insert('ai_connection', { id: randomUUID(), office_id: office, name: 'Test AI', provider: 'openai', api_key_hint: 'hidden', encrypted_api_key: cipher });
   await insert('typesafe_connection', { office_id: office, encrypted_api_key: encrypted('typesafe_connection', 'encrypted_api_key') });
-  await insert('signature_connection', { office_id: office, environment: 'sandbox', updated_by: actor, encrypted_api_key: encrypted('signature_connection', 'encrypted_api_key') });
+  await insert('signature_connection', { office_id: office, environment: 'sandbox', updated_by: actor, encrypted_api_key: encrypted('signature_connection', 'encrypted_api_key'), encrypted_webhook_secret: encrypted('signature_connection', 'encrypted_webhook_secret'), webhook_secret_hash: 'fixture-hash' });
   const client = randomUUID(), access = randomUUID(), portalFile = randomUUID();
   await insert('crm_client', { id: client, office_id: office, name: 'Signature client', stage: 'active', created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   await insert('client_portal_access', { id: access, office_id: office, client_id: client, email: 'signature@example.test', invited_by: actor });
@@ -72,11 +72,11 @@ test('two-phase keyring reads old data, writes the staged key and supports promo
 test('rotation covers every encrypted column atomically, preserves empty references and is idempotent', async () => {
   const { db, pool, ring, actor, next, secret, cipher, expected } = await fixture();
   await db.prepare("INSERT INTO ai_connection(id,name,provider,encrypted_api_key,api_key_hint,deleted_at) VALUES(?,'Removed','openai',NULL,'hidden',CURRENT_TIMESTAMP)").run(randomUUID());
-  assert.deepEqual(await credentialRotationStatus(db, ring), { keyId: ring.current.id, total: 16, pending: 16, unreadable: 0 });
+  assert.deepEqual(await credentialRotationStatus(db, ring), { keyId: ring.current.id, total: 17, pending: 17, unreadable: 0 });
   assert.equal(await countSecretsNeedingReencryption(db, ring), 3);
   assert.equal((await db.prepare('SELECT encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL').get<{ encrypted_api_key: string }>())?.encrypted_api_key, cipher);
   const result = await postgresTransaction(pool, tx => rotateCredentials(tx, ring, actor, ring.current.id));
-  assert.equal(result.reencrypted, 16);
+  assert.equal(result.reencrypted, 17);
   const current = createCredentialKeyring(next);
   for (const { table, field, plaintext } of expected) {
     // Fixture-owned identifiers and distinct sentinels catch swaps between encrypted columns.
@@ -85,7 +85,7 @@ test('rotation covers every encrypted column atomically, preserves empty referen
     assert.equal(rows.length, 1, `${table}.${field} remains present`);
     assert.equal(decryptCredential(rows[0].cipher, current), plaintext, `${table}.${field} preserves its own plaintext`);
   }
-  assert.deepEqual(await credentialRotationStatus(db, current), { keyId: ring.current.id, total: 16, pending: 0, unreadable: 0 });
+  assert.deepEqual(await credentialRotationStatus(db, current), { keyId: ring.current.id, total: 17, pending: 0, unreadable: 0 });
   assert.equal(await countSecretsNeedingReencryption(db, current), 0);
   const updated = await db.prepare('SELECT encrypted_api_key FROM ai_connection WHERE deleted_at IS NULL').get<{ encrypted_api_key: string }>();
   assert.equal(decryptCredential(updated!.encrypted_api_key, current), secret);

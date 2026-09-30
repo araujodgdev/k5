@@ -129,7 +129,7 @@ PDFs, arquivos e comprovantes e consultar cobranças explicitamente publicadas p
 O cliente não recebe acesso aos documentos internos do escritório.
 
 A [integração de assinatura ZapSign](apps/web/docs/assinaturas.md) envia PDFs publicados
-ao cliente e arquiva o PDF assinado após consulta ao provedor. O administrador configura
+ao cliente e arquiva o PDF assinado após consulta ao provedor, acionada pelo webhook ou pelo botão Atualizar assinatura. O administrador configura
 a chave por escritório em Integrações. O portal também orienta a assinatura manual pelo gov.br.
 
 A integração WhatsApp Business usa Zernio e liberação por escritório via Flagship.
