@@ -38,6 +38,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Install PDF converter
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-liberation fonts-dejavu-core
+
       - run: pnpm lint
 
       - run: pnpm typecheck

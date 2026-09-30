@@ -27,7 +27,9 @@ if (!url) {
 let exitCode = 1;
 try {
   const files=process.argv.slice(2);
-  const child=spawn(process.execPath,['--import','tsx','--test','--test-concurrency=4',
+  const concurrency = Number(process.env.K5_TEST_CONCURRENCY ?? 4);
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) throw new Error('K5_TEST_CONCURRENCY deve estar entre 1 e 8.');
+  const child=spawn(process.execPath,['--import','tsx','--test',`--test-concurrency=${concurrency}`,
     ...(files.length?files:readdirSync('tests').filter(file=>file.endsWith('.test.ts')).map(file=>`tests/${file}`))],
     {stdio:'inherit',windowsHide:true,env:{...process.env,TEST_DATABASE_URL:url}});
   exitCode=await new Promise<number>((resolve,reject)=>{child.on('error',reject);child.on('exit',code=>resolve(code??1));});

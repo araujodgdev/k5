@@ -144,7 +144,7 @@ Uma publicação coletada não equivale automaticamente a intimação válida pa
 
 O Lume cria textos para uso fora da conversa como documentos no editor, em `/app/documents/[id]`. Isso inclui minutas, petições, contratos, pareceres e outros textos. Cronologias e minutas baseadas em fontes podem rodar em segundo plano. O chat informa a tarefa e permite acompanhar seu estado, cancelar ou tentar novamente quando a operação permitir.
 
-O editor permite alterar texto, salvar versões, consultar o histórico, restaurar versão e exportar DOCX. Quando você pede ajustes, o assistente deve consultar a versão atual e editar os trechos necessários. Conflitos de versão exigem nova leitura, sem sobrescrever uma edição recente silenciosamente. Alterações em documentos existentes podem exigir confirmação no chat.
+O editor permite alterar texto, salvar versões, consultar o histórico, restaurar versão e exportar PDF ou DOCX. Exportar salva a edição atual antes de gerar o arquivo. O PDF é convertido a partir do mesmo DOCX, incluindo o timbrado, tabelas e margens do modelo. Quando você pede ajustes, o assistente deve consultar a versão atual e editar os trechos necessários. Conflitos de versão exigem nova leitura, sem sobrescrever uma edição recente silenciosamente. Alterações em documentos existentes podem exigir confirmação no chat.
 
 O modelo Word define o timbrado e o formato de exportação. A seleção pessoal prevalece sobre a do escritório quando o documento não tem modelo próprio. Exportar não protocola o documento nem o envia a um tribunal ou destinatário.
 

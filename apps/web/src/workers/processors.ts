@@ -1,6 +1,7 @@
 import { Container, type OutboundHandler } from '@cloudflare/containers';
 import { processorBindingRequest, type ProcessorBindings } from './processor-bindings';
 import { SENTRY_DSN } from '../lib/observability/settings';
+import { MAX_DOCX_BYTES } from '../lib/document-pdf-contract';
 
 export { ContainerProxy } from '@cloudflare/containers';
 export type ProcessorRole = 'documents' | 'judicial';
@@ -38,6 +39,16 @@ export class LumeProcessor extends Container<ProcessorEnv> {
     SENTRY_ENVIRONMENT: this.env.SENTRY_ENVIRONMENT ?? 'staging',
     SENTRY_RELEASE: this.env.SENTRY_RELEASE ?? '',
   };
+
+  async convertPdf(input: Uint8Array): Promise<Uint8Array> {
+    if (input.byteLength > MAX_DOCX_BYTES) throw new Error('Documento excede o limite de conversão.');
+    const heartbeat = setInterval(() => this.renewActivityTimeout(), 15_000);
+    try {
+      const response = await this.containerFetch('http://container/convert/pdf', { method: 'POST', body: new Uint8Array(input) });
+      if (!response.ok) throw new Error('Conversão PDF indisponível.');
+      return new Uint8Array(await response.arrayBuffer());
+    } finally { clearInterval(heartbeat); this.renewActivityTimeout(); }
+  }
 
   async run(role: ProcessorRole): Promise<void> {
     if (role !== 'documents' && role !== 'judicial') throw new Error('Processador inválido.');

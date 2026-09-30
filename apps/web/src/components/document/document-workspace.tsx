@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type MouseEvent, type Ref } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type Ref } from "react";
 import { ArrowLeft, CircleAlert, Download, History, LoaderCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -90,6 +90,9 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   const [highlightAgainst, setHighlightAgainst] = useState<string[] | null>(null);
   const [citations, setCitations] = useState<StoredCitations | null>(null);
   const [rechecking, setRechecking] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
+  const [exportError, setExportError] = useState("");
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   const editorRef = useRef<RichEditorHandle>(null);
   const contentRef = useRef("");
@@ -290,11 +293,25 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     setTab(next);
   }
 
-  async function exportDocx(event: MouseEvent<HTMLAnchorElement>) {
-    if (saveStateRef.current === "saved" && !snapshotNeededRef.current) return;
-    event.preventDefault();
-    const href = event.currentTarget.href;
-    if (await save(true)) window.location.assign(href);
+  async function download(format: "pdf" | "docx") {
+    if (exporting || !artifact) return;
+    setExportMenuOpen(false);
+    setExporting(format);
+    setExportError("");
+    try {
+      if (!await save(true)) return;
+      const response = await fetch(`/api/artifacts/${encodeURIComponent(artifact.id)}/export?format=${format}&version=${versionRef.current}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível exportar o documento."));
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${titleRef.current.replace(/[\\/:*?"<>|]/g, "-") || "documento"}.${format}`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (cause) { setExportError(cause instanceof Error ? cause.message : "Não foi possível exportar o documento."); }
+    finally { setExporting(null); }
   }
 
   if (phase === "loading") {
@@ -334,13 +351,16 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
         </label>
         <span className={cn("hidden shrink-0 text-xs sm:inline", saveState === "conflict" || saveState === "error" ? "text-destructive" : "text-muted-foreground")} aria-live="polite">{status}</span>
         <Versions artifactId={artifact.id} current={artifact.version} beforeRestore={() => save(true)} onRestored={() => void load(true, true)} />
-        <Button asChild className="min-h-11 md:min-h-9">
-          <a href={`/api/artifacts/${encodeURIComponent(artifact.id)}/export`} onClick={(event) => void exportDocx(event)} aria-label="Exportar DOCX">
-            <Download aria-hidden="true" /><span className="hidden sm:inline">Exportar DOCX</span>
-          </a>
-        </Button>
+        <Popover open={exportMenuOpen} onOpenChange={setExportMenuOpen}>
+          <PopoverTrigger asChild><Button className="min-h-11 md:min-h-9" disabled={exporting !== null} aria-label={exporting ? `Exportando ${exporting.toUpperCase()}` : "Exportar documento"}>{exporting ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Download aria-hidden="true" />}<span className="hidden sm:inline">{exporting ? "Exportando…" : "Exportar"}</span></Button></PopoverTrigger>
+          <PopoverContent align="end" className="grid w-44 gap-1 p-1">
+            <Button variant="ghost" className="min-h-11 justify-start" onClick={() => void download("pdf")}>Exportar PDF</Button>
+            <Button variant="ghost" className="min-h-11 justify-start" onClick={() => void download("docx")}>Exportar DOCX</Button>
+          </PopoverContent>
+        </Popover>
         {variant === "panel" && <Button variant="ghost" size="icon" className="hidden size-9 lg:inline-flex" aria-label="Fechar documento" onClick={() => void close()}><X /></Button>}
       </header>
+      {exportError && <p role="alert" className="border-b px-4 py-3 text-sm text-destructive">{exportError}</p>}
 
       <div className="flex shrink-0 items-center gap-1 border-b px-2 md:px-4" role="tablist" aria-label="Modo do documento">
         {([["edit", "Editar"], ["page", "Página"], ["review", reviewCount ? `Revisão (${reviewCount})` : "Revisão"]] as const).map(([value, label]) => (

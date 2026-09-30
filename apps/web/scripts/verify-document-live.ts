@@ -53,7 +53,8 @@ try {
   await expect(page.locator('section.docx').first()).toBeVisible();
   await page.screenshot({ path: resolve(output, 'page-preview.png') });
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('link', { name: 'Exportar DOCX', exact: true }).click();
+  await page.getByRole('button', { name: 'Exportar documento', exact: true }).click();
+  await page.getByRole('button', { name: 'Exportar DOCX', exact: true }).click();
   const download = await downloadPromise;
   await download.saveAs(resolve(output, 'documento.docx'));
   console.log('PASS: page preview and DOCX export.');

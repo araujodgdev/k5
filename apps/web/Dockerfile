@@ -30,6 +30,7 @@ ENV SENTRY_RELEASE=$SENTRY_RELEASE
 RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN pnpm --filter @k5/web build
 
 FROM base AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends libreoffice-writer fonts-liberation fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 ENV VAULT_STORAGE_PATH=/data/uploads
 ENV RESEARCH_STORAGE_PATH=/data/research-objects

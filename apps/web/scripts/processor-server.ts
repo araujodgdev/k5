@@ -58,6 +58,24 @@ async function judicialPass() {
 
 const server = createServer(async (request, response) => {
   if (request.method === 'GET' && request.url === '/health') { response.writeHead(200).end('ok'); return; }
+  if (request.method === 'POST' && request.url === '/convert/pdf') {
+    try {
+      const { MAX_DOCX_BYTES, DocumentPdfError } = await import('../src/lib/document-pdf-contract');
+      const chunks: Buffer[] = [];
+      let size = 0;
+      for await (const chunk of request) {
+        size += chunk.length;
+        if (size > MAX_DOCX_BYTES) { response.writeHead(413).end(); return; }
+        chunks.push(chunk);
+      }
+      try {
+        const { convertDocxToPdf } = await import('../src/lib/document-pdf-node');
+        const pdf = await convertDocxToPdf(Buffer.concat(chunks));
+        response.writeHead(200, { 'Content-Type': 'application/pdf', 'Cache-Control': 'no-store' }).end(pdf);
+      } catch (error) { response.writeHead(error instanceof DocumentPdfError ? error.status : 500).end(); }
+    } catch { response.writeHead(500).end(); }
+    return;
+  }
   const role = request.url?.match(/^\/run\/(documents|judicial)$/)?.[1];
   if (request.method !== 'POST' || !role) { response.writeHead(404).end(); return; }
   if (busy) { response.writeHead(409).end(); return; }

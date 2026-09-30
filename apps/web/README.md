@@ -227,7 +227,7 @@ Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
   e imagens privados para a conversa, com prévia, remoção antes do envio e acesso no histórico.
   Aceita até seis anexos por mensagem, escolhidos de uma vez, com documentos de até 25 MB e imagens de até 10 MB. Eles não criam documentos no Cofre.
   **Fontes** seleciona arquivos existentes do Cofre e referências do caso. Cronologia e minuta rodam como tarefas duráveis e abrem no
-  editor em `/app/documents/[id]`, com exportação DOCX no timbrado do modelo.
+  editor em `/app/documents/[id]`, com exportação PDF e DOCX no timbrado do modelo.
 - **Câmera:** **+ → Tirar foto** abre a câmera do dispositivo após a permissão do navegador,
   permite conferir ou repetir a foto e a anexa à mensagem. Exige HTTPS (ou localhost) e um
   modelo com visão. A alternativa **Escolher foto** permanece disponível quando a câmera
