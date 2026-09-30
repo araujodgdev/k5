@@ -4,10 +4,11 @@ export class NotificationRequestError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
 }
 
-export const notificationCategories = ['agenda', 'vault', 'documents', 'judicial', 'system'] as const;
+export const notificationCategories = ['agenda', 'vault', 'documents', 'judicial', 'honorarios', 'system'] as const;
 export type NotificationCategory = typeof notificationCategories[number];
 
 export const notificationEventTypes = [
+  'honorarios.charge.soon', 'honorarios.charge.due', 'honorarios.charge.overdue',
   'agenda.activity.assigned',
   'agenda.activity.changed',
   'agenda.task.due',
@@ -29,13 +30,14 @@ export const notificationEventTypes = [
 export type NotificationEventType = typeof notificationEventTypes[number];
 
 export const notificationSourceKinds = [
-  'activity', 'case', 'document', 'run', 'artifact', 'judicial_alert', 'system',
+  'activity', 'case', 'document', 'run', 'artifact', 'judicial_alert', 'honorario', 'system',
 ] as const;
 export type NotificationSourceKind = typeof notificationSourceKinds[number];
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const categories = z.object({
   agenda: z.boolean(), vault: z.boolean(), documents: z.boolean(), judicial: z.boolean(), system: z.boolean(),
+  honorarios: z.boolean(),
 });
 
 export const notificationPreferenceInput = z.strictObject({

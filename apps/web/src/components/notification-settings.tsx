@@ -24,6 +24,7 @@ type Device = {
 type PushConfig = { available: boolean; publicKey: string | null; keyId: string | null; authorizationGeneration: number };
 
 const categoryLabels: Record<Exclude<NotificationCategory, "system">, string> = {
+  honorarios: "Honorários",
   agenda: "Escritório", vault: "Cofre", documents: "Lume e documentos", judicial: "Judicial",
 };
 

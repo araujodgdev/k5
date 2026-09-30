@@ -2,6 +2,7 @@ import { handleCapability } from '@/lib/capability-route';
 import type { CapabilityName } from '@/lib/capabilities/contracts';
 
 const operations: Readonly<Record<string, CapabilityName>> = {
+  'charge-get': 'k5_honorarios_charge_get', 'charge-prepare': 'k5_honorarios_charge_prepare', 'charge-sent': 'k5_honorarios_charge_sent',
   list: 'k5_honorarios_list', get: 'k5_honorarios_get', options: 'k5_honorarios_options',
   create: 'k5_honorarios_create', receive: 'k5_honorarios_receive', reverse: 'k5_honorarios_reverse', cancel: 'k5_honorarios_cancel',
 };

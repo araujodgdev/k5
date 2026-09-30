@@ -5,6 +5,7 @@ import { eventInsertStatement } from './events';
 import { categoryForEvent, DEFAULT_TIMEZONE, quietUntil, reminderInstant } from './policy';
 import { decryptPushSubscription } from './subscriptions';
 import { PushTransportError, type PushSender } from './push-contract';
+import { emitChargeReminders } from '@/lib/honorarios/reminders';
 
 const categoryPreferenceSql = (category: string) => `COALESCE((p.categories_json::jsonb->>'${category}')::boolean,true)`;
 let lastRetentionWindow: string | null = null;
@@ -19,6 +20,11 @@ async function sourceAllowed(db: Database, event: ClaimedEvent, userId: string) 
   if (!await db.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(event.office_id, userId)) return false;
   if (!event.source_id || event.source_kind === 'system') return true;
   const lookups: Record<string, { sql: string; params: unknown[] }> = {
+    honorario: { sql: `SELECT 1 FROM honorario_installment i JOIN honorario_agreement a ON a.office_id=i.office_id AND a.id=i.agreement_id
+      JOIN honorario_charge ch ON ch.office_id=i.office_id AND ch.installment_id=i.id
+      WHERE i.id=? AND i.office_id=? AND a.created_by=? AND a.cancelled_at IS NULL AND ch.reminders_enabled
+        AND i.amount_cents>COALESCE((SELECT SUM(r.amount_cents) FROM honorario_receipt r WHERE r.office_id=i.office_id AND r.installment_id=i.id
+          AND NOT EXISTS(SELECT 1 FROM honorario_receipt_reversal v WHERE v.office_id=r.office_id AND v.receipt_id=r.id)),0)`, params: [event.source_id, event.office_id, userId] },
     activity: { sql: 'SELECT 1 FROM agenda_activity WHERE id=? AND office_id=?', params: [event.source_id, event.office_id] },
     case: { sql: 'SELECT 1 FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL', params: [event.source_id, event.office_id] },
     document: { sql: 'SELECT 1 FROM vault_document WHERE id=? AND office_id=? AND deleted_at IS NULL', params: [event.source_id, event.office_id] },
@@ -331,7 +337,7 @@ export async function runNotificationPass(input: {
     lastRetentionWindow = retentionWindow;
   }
   await reconcileNotificationReminders(db, now);
-  const counts = { reminders: 0, projected: 0, delivered: 0 };
+  const counts = { reminders: await emitChargeReminders(db, now, max), projected: 0, delivered: 0 };
   for (let index = 0; index < max && await emitNextReminder(db, now); index++) counts.reminders++;
   for (let index = 0; index < max && await projectNextNotification(db, now); index++) counts.projected++;
   if (input.sender) {

@@ -94,6 +94,10 @@ O assistente consulta membros, parceiros e convites e pode preparar as alteraç�
 
 ## Honorários e parcelas
 
+Dentro de cada parcela própria, **Cobrança** prepara instruções de pagamento com chave PIX e boleto em PDF já emitido pelo banco. Salve para baixar o PDF ou copiar a mensagem. Depois de enviar pelo seu canal habitual, registre o envio no histórico. O cliente paga diretamente ao advogado; o Lume não movimenta o dinheiro nem emite boletos bancários.
+
+As cobranças podem lembrar o responsável às 9h de São Paulo: três dias antes, no vencimento e a cada sete dias de atraso. Os avisos usam o saldo atual e param após quitação, cancelamento ou remoção do acesso. Podem ser desligados na cobrança e na categoria Honorários das notificações. Um recebimento parcial reduz o valor da próxima cobrança consultada.
+
 Honorários fica em `/app/honorarios`. Cada honorário tem cliente, título, observações, parcelas e, opcionalmente, um caso. As parcelas guardam valor e vencimento. O cadastro pode distribuir o total em parcelas mensais; confira os valores e datas antes de salvar. Valores são calculados em centavos, sem arredondamento de ponto flutuante.
 
 A lista separa parcelas a receber, recebidas e canceladas. Mostra total, recebido, saldo e atrasado. Os totais respeitam os filtros e o acesso da pessoa, e não apenas a página exibida. Filtrar por vencimento não equivale a filtrar pelo período em que o pagamento entrou. O atraso considera saldo em aberto e a data atual em São Paulo.

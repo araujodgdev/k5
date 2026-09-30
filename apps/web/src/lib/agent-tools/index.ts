@@ -21,6 +21,7 @@ import * as platform from '@/lib/application/platform-service';
 import * as judicial from '@/lib/application/judicial-service';
 import * as agenda from '@/lib/application/agenda-service';
 import * as honorarios from '@/lib/honorarios/service';
+import * as honorarioCharges from '@/lib/honorarios/charges';
 import * as research from '@/lib/application/research-capability-service';
 import * as annexes from '@/lib/application/annexes-service';
 import * as google from '@/lib/application/google-service';
@@ -66,6 +67,9 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_notifications_update_preferences: workspace.updatePreferences,
   k5_notifications_follow_case: workspace.followCase,
   k5_honorarios_list: honorarios.listHonorarios,
+  k5_honorarios_charge_get: honorarioCharges.getCharge,
+  k5_honorarios_charge_prepare: honorarioCharges.prepareCharge,
+  k5_honorarios_charge_sent: honorarioCharges.recordChargeSent,
   k5_honorarios_get: honorarios.getHonorario,
   k5_honorarios_options: honorarios.honorariosOptions,
   k5_honorarios_create: honorarios.createHonorario,
@@ -383,6 +387,9 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_notifications_update_preferences: 'Atualizou as preferências de notificações',
     k5_notifications_follow_case: 'Atualizou o acompanhamento do caso',
     k5_honorarios_list: 'Consultou as parcelas de honorários',
+    k5_honorarios_charge_get: 'Consultou uma cobrança',
+    k5_honorarios_charge_prepare: 'Preparou uma cobrança',
+    k5_honorarios_charge_sent: 'Registrou o envio de uma cobrança',
     k5_honorarios_get: 'Consultou um honorário e seus recebimentos',
     k5_honorarios_options: 'Consultou clientes e casos para honorários',
     k5_honorarios_create: 'Cadastrou honorários',

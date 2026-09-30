@@ -4,6 +4,7 @@ import { WebCryptoPushSender } from '@/lib/notifications/push-webcrypto';
 import { withSentry } from '@sentry/cloudflare';
 import { serverOptions } from '@/lib/observability/options';
 import { captureOperationalError, observeSchedule } from '@/lib/observability/report';
+import { emitChargeReminders } from '@/lib/honorarios/reminders';
 
 type QueueMessage = { body: { kind?: string }; ack(): void; retry(): void };
 type QueueBatch = { messages: QueueMessage[] };
@@ -25,6 +26,7 @@ const notificationWorker = {
     const now = new Date().toISOString();
     if (now.slice(14, 16) === '00') await cleanNotificationRetention(db, now);
     await reconcileNotificationReminders(db, now, 20);
+    await emitChargeReminders(db, now, 20);
     for (let index = 0; index < 10 && await emitNextReminder(db, now); index++);
     for (let index = 0; index < 20 && await projectNextNotification(db, now); index++);
     // Queue messages are acceleration hints. A later Cron always sweeps PostgreSQL again if this send fails.

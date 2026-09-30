@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { z } from 'zod';
 import { honorarioDetailDto, type HonorarioDetail } from '@/lib/honorarios/contracts';
 
-type Operation = 'list' | 'get' | 'options' | 'create' | 'receive' | 'reverse' | 'cancel';
+type Operation = 'list' | 'get' | 'options' | 'create' | 'receive' | 'reverse' | 'cancel' | 'charge-get' | 'charge-prepare' | 'charge-sent';
 
 export async function honorariosCall<T>(operation: Operation, input: Record<string, unknown>, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`/api/honorarios/${operation}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), signal, cache: 'no-store' });

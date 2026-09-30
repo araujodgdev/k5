@@ -34,7 +34,10 @@ export function HonorariosPanel({ canCreate }: { canCreate: boolean }) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const [filterError, setFilterError] = useState('');
   const [notice, setNotice] = useState('');
-  const [dialog, setDialog] = useState<DialogState>({ kind: 'closed' });
+  const [dialog, setDialog] = useState<DialogState>(() => {
+    const agreementId = params.get('agreementId');
+    return agreementId ? { kind: 'detail', agreementId, today: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) } : { kind: 'closed' };
+  });
   const opener = useRef<HTMLElement | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {

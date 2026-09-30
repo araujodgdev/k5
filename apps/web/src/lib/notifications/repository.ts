@@ -159,7 +159,7 @@ function preferenceView(row: PreferenceRow) {
     quietStart: row.quiet_start,
     quietEnd: row.quiet_end,
     pushEnabled: Boolean(row.push_enabled),
-    categories: JSON.parse(row.categories_json) as Record<NotificationCategory, boolean>,
+    categories: { honorarios: true, ...JSON.parse(row.categories_json) } as Record<NotificationCategory, boolean>,
     authorizationGeneration: row.revocation_generation,
   };
 }
@@ -299,6 +299,11 @@ export async function resolveNotificationDestination(context: WorkspaceContext, 
   if (!row) return null;
   await markNotificationRead(context, eventId, db);
   if (row.event_type === 'system.feedback.resolved') return '/app/command-center?feedback=relatos';
+  if (row.source_kind === 'honorario' && row.source_id) {
+    const installment = await db.prepare(`SELECT a.id FROM honorario_installment i JOIN honorario_agreement a ON a.office_id=i.office_id AND a.id=i.agreement_id
+      WHERE i.id=? AND i.office_id=? AND a.created_by=?`).get<{ id: string }>(row.source_id, context.officeId, context.userId);
+    if (installment) return `/app/honorarios?agreementId=${encodeURIComponent(installment.id)}`;
+  }
   if (row.source_kind === 'activity' && row.source_id && await db.prepare('SELECT 1 FROM agenda_activity WHERE id=? AND office_id=?').get(row.source_id, context.officeId)) {
     return `/app/agenda?activityId=${encodeURIComponent(row.source_id)}`;
   }

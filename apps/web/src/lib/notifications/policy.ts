@@ -17,6 +17,7 @@ export function categoryForEvent(type: NotificationEventType): NotificationCateg
   if (type.startsWith('vault.')) return 'vault';
   if (type.startsWith('documents.')) return 'documents';
   if (type.startsWith('judicial.')) return 'judicial';
+  if (type.startsWith('honorarios.')) return 'honorarios';
   return 'system';
 }
 
@@ -70,6 +71,12 @@ export function quietUntil(input: {
 export function eventCopy(type: NotificationEventType, data: Record<string, unknown>, userId: string) {
   const activity = typeof data.activityTitle === 'string' ? data.activityTitle : 'uma atividade';
   switch (type) {
+    case 'honorarios.charge.soon':
+      return { title: 'Cobrança vence em 3 dias', summary: 'Confira a cobrança de honorários e o envio ao cliente.' };
+    case 'honorarios.charge.due':
+      return { title: 'Cobrança vence hoje', summary: 'Confira o pagamento dos honorários ou lembre o cliente.' };
+    case 'honorarios.charge.overdue':
+      return { title: 'Honorários em atraso', summary: 'Há uma cobrança pendente. Confira o pagamento e entre em contato com o cliente.' };
     case 'agenda.activity.assigned':
       if (data.previousAssigneeId === userId && data.assigneeId !== userId) {
         return { title: 'Responsabilidade alterada', summary: `Você não é mais responsável por ${activity}.` };

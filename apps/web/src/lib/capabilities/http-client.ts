@@ -42,6 +42,9 @@ const routes: Record<CapabilityName, Route> = {
   k5_agent_settings_change: { method: 'POST', path: () => '/api/capabilities/k5_agent_settings_change', body: i => i },
 
   k5_honorarios_list: { method: 'POST', path: () => '/api/honorarios/list', body: i => i },
+  k5_honorarios_charge_get: { method: 'POST', path: () => '/api/honorarios/charge-get', body: i => i },
+  k5_honorarios_charge_prepare: { method: 'POST', path: () => '/api/honorarios/charge-prepare', body: i => i },
+  k5_honorarios_charge_sent: { method: 'POST', path: () => '/api/honorarios/charge-sent', body: i => i },
   k5_honorarios_get: { method: 'POST', path: () => '/api/honorarios/get', body: i => i },
   k5_honorarios_options: { method: 'POST', path: () => '/api/honorarios/options', body: i => i },
   k5_honorarios_create: { method: 'POST', path: () => '/api/honorarios/create', body: i => i },
