@@ -10,9 +10,9 @@ import { containerBindingFetch } from '../container-bindings';
  * way to make one and every backend re-validates the shape before touching a byte.
  */
 export interface ObjectStorage {
-  put(key: string, data: Buffer): Promise<void>;
-  get(key: string): Promise<Buffer>;
-  delete(key: string): Promise<void>;
+  put(key: string, data: Buffer, options?: { signal?: AbortSignal }): Promise<void>;
+  get(key: string, options?: { signal?: AbortSignal }): Promise<Buffer>;
+  delete(key: string, options?: { signal?: AbortSignal }): Promise<void>;
   /** Backends that predate the key format implement this; the rest reject and the caller stops. */
   deleteLegacy?(key: string): Promise<void>;
 }
@@ -58,22 +58,23 @@ class LocalObjectStorage implements ObjectStorage {
     return full;
   }
 
-  async put(key: string, data: Buffer) {
+  async put(key: string, data: Buffer, options?: { signal?: AbortSignal }) {
     const full = this.path(key);
     await mkdir(resolve(full, '..'), { recursive: true });
-    await writeFile(full, data, { flag: 'wx', mode: 0o600 });
+    await writeFile(full, data, { flag: 'wx', mode: 0o600, signal: options?.signal });
   }
 
-  async get(key: string) {
+  async get(key: string, options?: { signal?: AbortSignal }) {
     try {
-      return await readFile(this.path(key));
+      return await readFile(this.path(key), { signal: options?.signal });
     } catch (error) {
       if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') throw new StorageError('not_found', 'Arquivo original não encontrado.');
       throw error;
     }
   }
 
-  async delete(key: string) {
+  async delete(key: string, options?: { signal?: AbortSignal }) {
+    options?.signal?.throwIfAborted();
     await unlink(this.path(key)).catch((error: NodeJS.ErrnoException) => {
       if (error?.code !== 'ENOENT') throw error;
     });
@@ -101,31 +102,34 @@ class LocalObjectStorage implements ObjectStorage {
  * default so a developer without credentials still has a working Vault.
  */
 class R2ObjectStorage implements ObjectStorage {
+  private cachedClient?: Promise<import('@aws-sdk/client-s3').S3Client>;
   constructor(
     private readonly config: { accountId: string; bucket: string; accessKeyId: string; secretAccessKey: string },
     private readonly validateKey: (key:string)=>string = assertStorageKey,
   ) {}
 
   private async client() {
-    const { S3Client } = await import('@aws-sdk/client-s3');
-    return new S3Client({
+    this.cachedClient ??= import('@aws-sdk/client-s3').then(({ S3Client }) => new S3Client({
       region: 'auto',
+      maxAttempts: 3,
+      requestHandler: { connectionTimeout: 10_000 },
       endpoint: `https://${this.config.accountId}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId: this.config.accessKeyId, secretAccessKey: this.config.secretAccessKey },
-    });
+    }));
+    return this.cachedClient;
   }
 
-  async put(key: string, data: Buffer) {
+  async put(key: string, data: Buffer, options?: { signal?: AbortSignal }) {
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
     const client = await this.client();
-    await client.send(new PutObjectCommand({ Bucket: this.config.bucket, Key: this.validateKey(key), Body: data }));
+    await client.send(new PutObjectCommand({ Bucket: this.config.bucket, Key: this.validateKey(key), Body: data }), { abortSignal: options?.signal });
   }
 
-  async get(key: string) {
+  async get(key: string, options?: { signal?: AbortSignal }) {
     const { GetObjectCommand } = await import('@aws-sdk/client-s3');
     const client = await this.client();
     try {
-      const response = await client.send(new GetObjectCommand({ Bucket: this.config.bucket, Key: this.validateKey(key) }));
+      const response = await client.send(new GetObjectCommand({ Bucket: this.config.bucket, Key: this.validateKey(key) }), { abortSignal: options?.signal });
       const bytes = await response.Body?.transformToByteArray();
       if (!bytes) throw new StorageError('not_found', 'Arquivo original não encontrado.');
       return Buffer.from(bytes);
@@ -136,10 +140,10 @@ class R2ObjectStorage implements ObjectStorage {
     }
   }
 
-  async delete(key: string) {
+  async delete(key: string, options?: { signal?: AbortSignal }) {
     const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
     const client = await this.client();
-    await client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: this.validateKey(key) }));
+    await client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: this.validateKey(key) }), { abortSignal: options?.signal });
   }
 }
 
@@ -194,9 +198,9 @@ export async function remoteObjectStorage(validateKey: (key:string)=>string = as
   if (process.env.K5_CONTAINER_BINDINGS === 'true') {
     const path = (key: string) => `/objects/${encodeURIComponent(validateKey(key))}`;
     return {
-      async put(key, data) { await containerBindingFetch(path(key), { method: 'PUT', body: new Uint8Array(data) }); },
-      async get(key) { return Buffer.from(await (await containerBindingFetch(path(key))).arrayBuffer()); },
-      async delete(key) { await containerBindingFetch(path(key), { method: 'DELETE' }); },
+      async put(key, data, options) { await containerBindingFetch(path(key), { method: 'PUT', body: new Uint8Array(data), signal: options?.signal }); },
+      async get(key, options) { return Buffer.from(await (await containerBindingFetch(path(key), { signal: options?.signal })).arrayBuffer()); },
+      async delete(key, options) { await containerBindingFetch(path(key), { method: 'DELETE', signal: options?.signal }); },
     };
   }
   const bucket = process.env.R2_BUCKET;

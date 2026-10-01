@@ -2,7 +2,7 @@
 
 Next.js App Router com Better Auth, PostgreSQL, TypeScript e Tailwind CSS.
 
-Pesquisa tem as modalidades Marcas (INPI para Brasil; WIPO para outros países), Web (Exa) e Jurisprudência. A carga e a análise de Viena estão em [Pesquisa INPI](../../docs/pesquisa-marcas-inpi.md). A execução e os limites de marcas estão em [Pesquisa de marcas](../../docs/implementacao-pesquisa-marcas.md).
+Pesquisa tem as modalidades Marcas e Jurisprudência. Novas pesquisas de marcas usam a automação do WIPO Global Brand Database por nome ou logotipo, inclusive no Brasil. A busca Web continua disponível ao agente. O carregamento automático do INPI está desativado; seus dados e históricos anteriores foram preservados. A execução e os limites estão em [Pesquisa de marcas](../../docs/implementacao-pesquisa-marcas.md).
 
 O produto se chama **Lume**. Identificadores técnicos existentes — como o pacote
 `@k5/web`, variáveis `K5_*`, capabilities `k5_*` e nomes de recursos de infraestrutura —

@@ -6,7 +6,6 @@ import { captureOperationalError, observeWorkerTask } from './sentry-worker';
 Sentry.init(serverOptions('processor', process.env));
 let busy = false;
 let maintenanceAt = 0;
-let inpiRunning: Promise<void> | undefined;
 
 async function documentPass() {
   const { processNextVaultDocument } = await import('../src/lib/vault');
@@ -60,13 +59,8 @@ async function judicialPass() {
 const server = createServer(async (request, response) => {
   if (request.method === 'GET' && request.url === '/health') { response.writeHead(200).end('ok'); return; }
   if(request.method==='POST' && request.url==='/run/trademarks') {
-    if(!inpiRunning) {
-      inpiRunning=(async()=>{
-        const {runInpiMaintenance}=await import('../src/lib/research/trademarks/inpi-sync');
-        await observeWorkerTask('research.inpi.sync',runInpiMaintenance);
-      })().catch(error=>{captureOperationalError(error,'research.inpi.container');}).finally(()=>{inpiRunning=undefined;});
-    }
-    response.writeHead(204).end();return;
+    response.writeHead(410, { 'Content-Type': 'text/plain; charset=utf-8' }).end('A importação automática do INPI foi desativada.');
+    return;
   }
   if (request.method === 'POST' && request.url === '/convert/pdf') {
     try {

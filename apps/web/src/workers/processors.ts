@@ -21,9 +21,6 @@ export class LumeProcessor extends Container<ProcessorEnv> {
   defaultPort = 8080;
   sleepAfter = '30s';
   private running = false;
-  static outboundByHost: Record<string, OutboundHandler> = {
-    'k5-bindings': (request, env) => processorBindingRequest(request, env as ProcessorBindings),
-  };
   envVars = {
     NODE_ENV: 'production',
     K5_CONTAINER_BINDINGS: 'true',
@@ -69,7 +66,14 @@ export class LumeProcessor extends Container<ProcessorEnv> {
   }
 }
 
-/** The scheduled minute-by-minute dispatch keeps a long streamed INPI load alive. */
+/** Retained for existing Durable Object bindings; automatic INPI dispatch is disabled. */
 export class LumeInpiProcessor extends LumeProcessor {
   sleepAfter='5m';
 }
+
+// The SDK setter registers handlers by class name; a static field bypasses it.
+const bindingHosts: Record<string, OutboundHandler> = {
+  'k5-bindings': (request, env) => processorBindingRequest(request, env as ProcessorBindings),
+};
+LumeProcessor.outboundByHost = bindingHosts;
+LumeInpiProcessor.outboundByHost = bindingHosts;

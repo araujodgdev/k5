@@ -1,6 +1,7 @@
 import { SaxesParser } from 'saxes';
 
 import { inpiRecord, type InpiRecord } from './inpi-contracts';
+import { InpiImportError } from './inpi-errors';
 
 type XmlNode = { name: string; attributes: Record<string, string>; text: string; children: XmlNode[] };
 const child = (node: XmlNode, name: string) => node.children.find(value => value.name === name);
@@ -31,12 +32,12 @@ function record(node: XmlNode): InpiRecord {
     fields, events: children(child(node,'despachos'),'despacho').map(value => ({ code: value.attributes.codigo, description: value.attributes.nome, complement: optional(nodeText(child(value,'texto-complementar'))) })) });
 }
 
-/** Only one process is retained. XML entities, invalid editions and truncated files fail the import. */
+/** Bound both parser input and pending records; a whole ZIP entry may arrive as one chunk. */
 export async function parseInpiXml(input: AsyncIterable<string | Uint8Array>, expected: { edition: number; publishedOn: string }, consume: (records: InpiRecord[]) => Promise<void>) {
   const parser = new SaxesParser({ xmlns: false });
   const decoder = new TextDecoder('utf-8', { fatal: true });
   const stack: XmlNode[] = [];
-  let batch: InpiRecord[] = [], count = 0, root = false, processSize = 0;
+  let batch: InpiRecord[] = [], batchBytes = 0, count = 0, root = false, processSize = 0, fragmentBytes = 0;
   parser.on('doctype', () => { throw new Error('DOCTYPE não permitido no XML do INPI.'); });
   parser.on('opentag', tag => {
     if (!root) {
@@ -59,11 +60,19 @@ export async function parseInpiXml(input: AsyncIterable<string | Uint8Array>, ex
   parser.on('text', addText); parser.on('cdata', addText);
   parser.on('closetag', () => {
     const node = stack.pop(); if (!node || node.name !== 'processo') return;
-    batch.push(record(node)); count++; processSize = 0;
+    const item = record(node);
+    batchBytes += Buffer.byteLength(JSON.stringify(item));
+    batch.push(item); count++; processSize = 0; fragmentBytes = 0;
   });
   for await (const chunk of input) {
-    parser.write(typeof chunk === 'string' ? chunk : decoder.decode(chunk, { stream: true }));
-    if (batch.length >= 500) { await consume(batch); batch = []; }
+    const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
+    for (let offset = 0; offset < bytes.length; offset += 32 * 1024) {
+      const part = bytes.subarray(offset, offset + 32 * 1024);
+      fragmentBytes += part.length;
+      if (fragmentBytes > 2 * 1024 * 1024) throw new InpiImportError('capacity', 'Fragmento XML sem término de processo excede 2 MiB.');
+      parser.write(decoder.decode(part, { stream: true }));
+      if (batch.length >= 500 || batchBytes >= 8 * 1024 * 1024) { await consume(batch); batch = []; batchBytes = 0; }
+    }
   }
   parser.write(decoder.decode()).close();
   if (!root || !count) throw new Error('A RPI não contém processos de marcas.');

@@ -209,8 +209,8 @@ async function recordFailure(job: WhatsAppJob, error: unknown) {
   }
 }
 
-export async function runWhatsAppPass({ max = 10 }: { max?: number } = {}): Promise<number> {
-  await purgeExpiredWhatsAppUploads();
+export async function runWhatsAppPass({ max = 10, cleanup = true }: { max?: number; cleanup?: boolean } = {}): Promise<number> {
+  if (cleanup) await purgeExpiredWhatsAppUploads();
   await database.prepare(`UPDATE whatsapp_attachment a SET state='unavailable',updated_at=CURRENT_TIMESTAMP WHERE a.state='pending'
     AND EXISTS(SELECT 1 FROM whatsapp_job j WHERE j.subject_id=a.id AND j.kind='media' AND j.status IN ('done','failed'))`).run();
   await database.prepare(`UPDATE whatsapp_send SET status='unknown',

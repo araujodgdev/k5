@@ -8,7 +8,7 @@ const fields = z.object({
 }).passthrough();
 
 const networkCodes = new Set(['ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'EPIPE', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_SOCKET']);
-const databaseCodes = new Set(['08000', '08001', '08003', '08006', '08004', '08007', '08P01', '22001', '22003', '22007', '22P02', '23502', '23503', '23505', '23514', '28000', '28P01', '40001', '40P01', '42501', '42601', '42703', '42P01', '53300', '53400', '57014', '57P01', '57P02', '57P03']);
+const databaseCodes = new Set(['08000', '08001', '08003', '08006', '08004', '08007', '08P01', '22001', '22003', '22007', '22P02', '23502', '23503', '23505', '23514', '25006', 'pg_readonly', '28000', '28P01', '40001', '40P01', '42501', '42601', '42703', '42P01', '53100', '53300', '53400', '57014', '57P01', '57P02', '57P03']);
 
 export function diagnosticTags(error: unknown): Record<string, string> {
   const tags: Record<string, string> = {};

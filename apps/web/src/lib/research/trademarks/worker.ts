@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { database, withTransaction } from '@/lib/database';
 import { objectStorage, storageKey } from '@/lib/storage';
 import { captureOperationalError } from '@/lib/observability/report';
-import { trademarkLogoAnalysis, trademarkSearchInput, trademarkSummary, safeSourceUrl, wipoRecordUrl, TrademarkError } from './contracts';
+import { trademarkLogoAnalysis, trademarkSearchInput, storedTrademarkSearchInput, trademarkSummary, safeSourceUrl, wipoRecordUrl, TrademarkError } from './contracts';
 import { imageMime } from './service';
 import type { WipoBrowser } from './wipo';
 import { runInpiSearchPage } from './inpi-search';
@@ -20,7 +20,7 @@ type Task = z.infer<typeof taskSchema>;
 const runSchema = z.object({
   id: z.string(), office_id: z.string(), user_id: z.string(), session_id: z.string().nullable(),
   provider: z.enum(['inpi','wipo']),
-  input_json: z.preprocess(value => typeof value === 'string' ? JSON.parse(value) : value, trademarkSearchInput.omit({ idempotencyKey: true })),
+  input_json: z.preprocess(value => typeof value === 'string' ? JSON.parse(value) : value, storedTrademarkSearchInput.omit({ idempotencyKey: true })),
 });
 type Run = z.infer<typeof runSchema>;
 type Stage = 'authorization' | 'browser' | 'upload' | 'search' | 'representations' | 'detail' | 'publish';
@@ -89,7 +89,7 @@ async function page(task: Extract<Task, { kind: 'page' }>, run: Run, browser: Wi
     logo = { bytes: await (await objectStorage()).get(upload.storage_key), mimeType: upload.mime_type };
   }
   stage('search');
-  const found = await browser.search({ input: run.input_json, pageNumber: task.page_number, logo, guard: () => guard(task, run), signal,
+  const found = await browser.search({ input: trademarkSearchInput.parse(run.input_json), pageNumber: task.page_number, logo, guard: () => guard(task, run), signal,
     owner: { officeId: run.office_id, userId: run.user_id } });
   await guard(task, run);
   const stored: Array<{ id: string; nativeId: string; summary: z.infer<typeof trademarkSummary>; key: string | null; mime: string | null; version: string }> = [];

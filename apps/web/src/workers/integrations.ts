@@ -9,9 +9,11 @@ import { withWhatsAppEnvironment, type WhatsAppEnvironment } from '@/lib/whatsap
 import { runWhatsAppPass } from '@/lib/whatsapp/worker';
 import { withPersonalChatEnvironment, type PersonalChatEnvironment } from '@/lib/personal-chat/environment';
 import { runPersonalEmailPass } from '@/lib/personal-chat/email-worker';
+import { purgeExpiredWhatsAppUploads } from '@/lib/whatsapp/media';
+import { runIntegrationPass } from '@/lib/integration-pass';
 
 // Queue bodies carry only a job id hint; PostgreSQL rows hold state, checkpoints and leases.
-type QueueMessage = { body: { jobId?: string }; ack(): void; retry(): void };
+type QueueMessage = { body: { jobId?: string }; ack(): void; retry(options?: { delaySeconds: number }): void };
 type QueueBatch = { messages: QueueMessage[] };
 type Env = {
   INTEGRATIONS_QUEUE: { send(message: { jobId: string } | { kind: 'sweep' }): Promise<void> };
@@ -33,11 +35,13 @@ const integrationsWorker = {
   async scheduled(_controller: unknown, env: Env) {
     return observeSchedule('lume-integrations-schedule', async () => {
     await withDatabase(env, async db => {
-      await runWhatsAppPass({ max: 5 });
-      await runPersonalEmailPass({ max: 5 });
-      await runEdgeMaintenance(db);
-      // Leave headroom under the Cron CPU budget; the next minute continues from PostgreSQL.
-      await drainEdgeJobs(db, 20, Date.now() + 20_000);
+      await runIntegrationPass(db, [
+        { name: 'whatsapp_cleanup', run: purgeExpiredWhatsAppUploads },
+        { name: 'whatsapp', run: () => runWhatsAppPass({ max: 5, cleanup: false }) },
+        { name: 'personal_email', run: () => runPersonalEmailPass({ max: 5 }) },
+        { name: 'google_maintenance', run: () => runEdgeMaintenance(db) },
+        { name: 'google_jobs', run: () => drainEdgeJobs(db, 20, Date.now() + 20_000) },
+      ]);
     });
     await env.INTEGRATIONS_QUEUE.send({ kind: 'sweep' });
     });
@@ -45,9 +49,20 @@ const integrationsWorker = {
 
   async queue(batch: QueueBatch, env: Env) {
     await withDatabase(env, async db => {
-      for (const message of batch.messages) {
-        try { await runWhatsAppPass({ max: 5 }); await runPersonalEmailPass({ max: 5 }); await drainEdgeJobs(db, 10, Date.now() + 20_000); message.ack(); }
-        catch (error) { captureOperationalError(error, 'integrations.queue'); message.retry(); }
+      // Messages are hints for the same durable queues. One pass per batch avoids N retries
+      // against a failed cluster; provider idempotency remains owned by each job processor.
+      try {
+        await runIntegrationPass(db, [
+          { name: 'whatsapp_cleanup', run: purgeExpiredWhatsAppUploads },
+          { name: 'whatsapp', run: () => runWhatsAppPass({ max: 5, cleanup: false }) },
+          { name: 'personal_email', run: () => runPersonalEmailPass({ max: 5 }) },
+          { name: 'google_jobs', run: () => drainEdgeJobs(db, 10, Date.now() + 20_000) },
+        ]);
+        for (const message of batch.messages) message.ack();
+      } catch (error) {
+        captureOperationalError(error, 'integrations.queue');
+        for (const message of batch.messages) message.retry({ delaySeconds: 900 });
+        throw error;
       }
     });
   },

@@ -1,0 +1,199 @@
+{
+  "source": "official-full-corpus",
+  "complete": true,
+  "elapsedMs": 8602876,
+  "peakRssBytes": 500752384,
+  "peakHeapBytes": 170663448,
+  "initialClusterBytes": 69115249,
+  "peakClusterBytes": 10403844708,
+  "peakObjectBytes": 1908190067,
+  "peakScratchBytes": 28278784,
+  "peakDatabaseBytes": 7819728575,
+  "peakCandidateBytes": 7454670848,
+  "peakPostgresRssBytes": 905302016,
+  "walGeneratedBytes": 39911225296,
+  "tempBytes": 899268608,
+  "records": 6632742,
+  "manifest": [
+    {
+      "url": "https://dadosabertos.inpi.gov.br/download/marcas/MARCAS_DADOS_BIBLIOGRAFICOS.csv",
+      "etag": "\"1790419035.227065-934724960-2665551012\"",
+      "size": 934724960,
+      "modified": "2026-09-26T10:37:15.000Z"
+    },
+    {
+      "url": "https://dadosabertos.inpi.gov.br/download/marcas/MARCAS_CLASSIFICACOES_NICE.csv",
+      "etag": "\"1790418674.2946048-3823211155-2319848533\"",
+      "size": 3823211155,
+      "modified": "2026-09-26T10:31:14.000Z"
+    },
+    {
+      "url": "https://dadosabertos.inpi.gov.br/download/marcas/MARCAS_CLASSIFICACOES_VIENA.csv",
+      "etag": "\"1790418814.2483306-821622061-2666665129\"",
+      "size": 821622061,
+      "modified": "2026-09-26T10:33:34.000Z"
+    },
+    {
+      "url": "https://dadosabertos.inpi.gov.br/download/marcas/MARCAS_DEPOSITANTES.csv",
+      "etag": "\"1790419142.2403922-851839745-92476014\"",
+      "size": 851839745,
+      "modified": "2026-09-26T10:39:02.000Z"
+    }
+  ],
+  "checkpoints": [
+    {
+      "source": "inpi_stage_owner",
+      "byte_offset": "851839745",
+      "records": "6697548",
+      "rejected": "7",
+      "complete": true
+    },
+    {
+      "source": "inpi_stage_nice",
+      "byte_offset": "3823211155",
+      "records": "5331060",
+      "rejected": "14",
+      "complete": true
+    },
+    {
+      "source": "inpi_stage_bib",
+      "byte_offset": "934724960",
+      "records": "6632742",
+      "rejected": "12",
+      "complete": true
+    },
+    {
+      "source": "inpi_stage_vienna",
+      "byte_offset": "821622061",
+      "records": "9959983",
+      "rejected": "23",
+      "complete": true
+    }
+  ],
+  "failure": null,
+  "importId": "13c82aca-d8d8-410f-8d0c-81c4d6c364a8",
+  "peakWalRetainedBytes": 2499805184,
+  "finalCorpusBytes": 7454670848,
+  "finalDatabaseBytes": 7819728575,
+  "capacityAdjustments": [
+    {
+      "updated": 1,
+      "at": "2026-10-01T07:43:45.485Z",
+      "bucket": 56,
+      "previous": {
+        "walBytes": 12884901888,
+        "diskBytes": 42949672960,
+        "otherBytes": 1073741824,
+        "approvedUntil": "2026-10-01T10:24:27.807Z",
+        "databaseBytes": 25769803776,
+        "candidateBytes": 17179869184,
+        "appReserveBytes": 2147483648
+      },
+      "next": {
+        "walBytes": 25769803776,
+        "diskBytes": 42949672960,
+        "otherBytes": 1073741824,
+        "approvedUntil": "2026-10-01T10:24:27.807Z",
+        "databaseBytes": 12884901888,
+        "candidateBytes": 12884901888,
+        "appReserveBytes": 2147483648
+      }
+    },
+    {
+      "at": "2026-10-01T07:57:16.039Z",
+      "bucket": 221,
+      "previous": {
+        "walBytes": 25769803776,
+        "diskBytes": 42949672960,
+        "otherBytes": 1073741824,
+        "approvedUntil": "2026-10-01T10:24:27.807Z",
+        "databaseBytes": 12884901888,
+        "candidateBytes": 12884901888,
+        "appReserveBytes": 2147483648
+      },
+      "next": {
+        "walBytes": 34359738368,
+        "diskBytes": 51539607552,
+        "otherBytes": 1073741824,
+        "approvedUntil": "2026-10-01T10:24:27.807Z",
+        "databaseBytes": 12884901888,
+        "candidateBytes": 12884901888,
+        "appReserveBytes": 2147483648
+      },
+      "updated": 1
+    },
+    {
+      "at": "2026-10-01T08:16:53.221Z",
+      "bucket": 311,
+      "previous": {
+        "walBytes": 34359738368,
+        "diskBytes": 51539607552,
+        "otherBytes": 1073741824,
+        "approvedUntil": "2026-10-01T10:24:27.807Z",
+        "databaseBytes": 12884901888,
+        "candidateBytes": 12884901888,
+        "appReserveBytes": 2147483648
+      },
+      "next": {
+        "walBytes": 38654705664,
+        "diskBytes": 51539607552,
+        "otherBytes": 1073741824,
+        "approvedUntil": "2026-10-01T10:24:27.807Z",
+        "databaseBytes": 9126805504,
+        "candidateBytes": 9126805504,
+        "appReserveBytes": 2147483648
+      },
+      "updated": 1
+    },
+    {
+      "at": "2026-10-01T08:40:28.961Z",
+      "bucket": 465,
+      "previous": {
+        "walBytes": 38654705664,
+        "diskBytes": 51539607552,
+        "otherBytes": 1073741824,
+        "approvedUntil": "2026-10-01T10:24:27.807Z",
+        "databaseBytes": 9126805504,
+        "candidateBytes": 9126805504,
+        "appReserveBytes": 2147483648
+      },
+      "next": {
+        "walBytes": 41204842496,
+        "diskBytes": 51539607552,
+        "otherBytes": 134217728,
+        "approvedUntil": "2026-10-01T10:24:27.807Z",
+        "databaseBytes": 8589934592,
+        "candidateBytes": 8589934592,
+        "appReserveBytes": 1073741824
+      },
+      "oldMaxWalSize": "1GB",
+      "newMaxWalSize": "4GB",
+      "reason": "Local full-volume calibration; no production configuration changed"
+    }
+  ],
+  "measuredAt": "2026-10-01T08:49:21.355Z",
+  "publicationObservedAt": "2026-10-01T08:46:16.082Z",
+  "platform": "Windows; PostgreSQL descartável; objetos simulados em diretório local",
+  "runtime": {
+    "node": "26.6.0",
+    "pnpm": "12.4.2",
+    "postgres": "18.4",
+    "visibleHostMemoryBytes": 15869378560
+  },
+  "sqlBatches": 512,
+  "maxBatchBytes": 12801429,
+  "maxBatchRows": 61760,
+  "maxBatchDurationMs": 69146,
+  "maxObservedDatabaseGrowthBetweenBatches": 20930560,
+  "maxObservedWalGrowthBetweenBatches": 373112832,
+  "notes": [
+    "RSS do PostgreSQL soma processos e pode contar páginas compartilhadas mais de uma vez.",
+    "Pico físico amostrado a cada dois segundos; não é espaço livre do provedor.",
+    "Tempo inclui publicação, primeira passagem de limpeza e coleta final das métricas; objetos restantes são limpos em passagens limitadas.",
+    "Importação inicial em volume real; atualização de corpus existente validada nos testes funcionais.",
+    "O ensaio começou antes dos endurecimentos finais de cancelamento do pipeline, checkpoint por bytes de entrada, watchdog, medição opcional de WAL retido e resposta HTTP vinculada à conclusão da fatia; esses ajustes têm testes funcionais separados. Particionamento SQL, esquema e índices do corpus medido são os mesmos.",
+    "O orçamento conservador de desenvolvimento foi ajustado durante o ensaio, sem alteração de disco, plano, provedor ou produção. Os ajustes estão registrados neste artefato.",
+    "No bucket 465, max_wal_size do PostgreSQL descartável foi alterado de 1GB para 4GB para reduzir checkpoints forçados; o pico de WAL inclui os dois regimes. Nenhuma configuração de produção foi alterada.",
+    "Validações locais compartilharam a máquina durante parte do ensaio."
+  ]
+}

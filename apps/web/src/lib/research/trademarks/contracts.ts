@@ -9,19 +9,24 @@ export const trademarkCountries = [
   { code: 'CN', name: 'China' }, { code: 'JP', name: 'Japão' }, { code: 'AU', name: 'Austrália' },
 ] as const;
 export const trademarkSituation = z.enum(['all', 'active', 'pending', 'ended']);
-export const trademarkQuery = z.union([
+const browserTrademarkQuery = z.union([
   z.object({ kind: z.literal('name'), name: z.string().trim().min(2).max(200), strategy: z.enum(['contains', 'exact', 'fuzzy', 'phonetic']).default('contains') }),
   z.object({ kind: z.literal('logo'), uploadId: z.uuid(), strategy: z.literal('concept').default('concept') }),
+]);
+export const trademarkQuery = z.union([
+  ...browserTrademarkQuery.options,
   z.object({ kind: z.literal('vienna'), codes: z.array(viennaCode).min(1).max(12), match: z.enum(['any','all']).default('any') }),
 ]);
-export const trademarkSearchInput = z.object({
+export const storedTrademarkSearchInput = z.object({
   query: trademarkQuery,
   country: z.string().regex(/^[A-Z]{2}$/).refine(code => trademarkCountries.some(country => country.code === code)).default('BR'),
   situation: trademarkSituation.default('all'),
   niceClass: z.number().int().min(1).max(45).nullable().default(null),
   idempotencyKey: z.string().min(8).max(128).optional(),
 });
+export const trademarkSearchInput = storedTrademarkSearchInput.extend({ query: browserTrademarkQuery });
 export type TrademarkSearchInput = z.infer<typeof trademarkSearchInput>;
+export type StoredTrademarkSearchInput = z.infer<typeof storedTrademarkSearchInput>;
 export const trademarkRunStates = z.enum(['queued', 'running', 'completed', 'partial', 'blocked', 'failed', 'cancelled']);
 export const trademarkSource = z.object({
   provider: z.enum(['wipo','inpi']), url: z.url(), originUrl: z.url().nullable(), capturedAt: z.string(),
@@ -52,7 +57,7 @@ export const trademarkCorpus = z.object({
   checkedAt: z.string().nullable(), note: z.string(),
 });
 export const trademarkSearchView = z.object({
-  id: z.uuid(), input: trademarkSearchInput.omit({ idempotencyKey: true }), title: z.string(),
+  id: z.uuid(), input: storedTrademarkSearchInput.omit({ idempotencyKey: true }), title: z.string(),
   state: trademarkRunStates, step: z.string(), error: z.string().nullable(), createdAt: z.string(),
   results: z.array(trademarkSummary), totalReported: z.number().int().nonnegative().nullable(),
   pagesLoaded: z.number().int().nonnegative(), hasMore: z.boolean(), sourceUrl: z.url().nullable(),

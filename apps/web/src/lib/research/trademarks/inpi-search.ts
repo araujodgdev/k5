@@ -1,19 +1,20 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { database, withTransaction } from '@/lib/database';
+import { database, withTransaction, type Transaction } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
-import { trademarkCorpus, trademarkLogoAnalysis, trademarkSummary, type TrademarkSearchInput } from './contracts';
+import { trademarkCorpus, trademarkLogoAnalysis, trademarkSummary, type StoredTrademarkSearchInput } from './contracts';
 import { inpiDetailUrl, normalizeTrademarkName } from './inpi-contracts';
 
-export async function inpiCorpusStatus() {
-  const row = await database.prepare(`SELECT
+export async function inpiCorpusStatus(db: Transaction = database) {
+  const row = await db.prepare(`SELECT
     (SELECT max(published_on)::text FROM inpi_import WHERE kind='baseline' AND state='completed') AS baseline,
     (SELECT max(edition) FROM inpi_import WHERE state='completed') AS edition,
     (SELECT max(published_on)::text FROM inpi_import WHERE state='completed') AS published,
-    checked_at,error FROM inpi_sync WHERE id=1`).get<{ baseline: string|null; edition: number|null; published: string|null; checked_at: string|null; error: string|null }>();
-  return trademarkCorpus.parse({baselineDate:row?.baseline ?? null,latestEdition:row?.edition ?? null,publishedOn:row?.published ?? null,checkedAt:row?.checked_at ?? null,
-    note:row?.error ?? (row?.baseline ? 'Acervo dos dados abertos do INPI, atualizado pelas publicações da RPI.' : 'Carga inicial em andamento. A busca cobre apenas os processos já importados da RPI.')});
+    (SELECT id FROM inpi_import WHERE state='completed' ORDER BY completed_at DESC NULLS LAST,started_at DESC,id DESC LIMIT 1) AS generation,
+    checked_at,error FROM inpi_sync WHERE id=1`).get<{ baseline: string|null; edition: number|null; published: string|null; generation: string|null; checked_at: string|null; error: string|null }>();
+  return { ...trademarkCorpus.parse({baselineDate:row?.baseline ?? null,latestEdition:row?.edition ?? null,publishedOn:row?.published ?? null,checkedAt:row?.checked_at ?? null,
+    note:row?.error ?? (row?.baseline ? 'Acervo dos dados abertos do INPI, atualizado pelas publicações da RPI.' : 'Carga inicial em andamento. A busca cobre apenas os processos já importados da RPI.')}), generation: row?.generation ?? null };
 }
 const recordSchema = z.object({
   process_number:z.string(),name:z.string().nullable(),owners:z.array(z.string()),nice_classes:z.array(z.number()),vienna_codes:z.array(z.string()),
@@ -21,8 +22,10 @@ const recordSchema = z.object({
   event_fields:z.array(z.object({label:z.string(),value:z.string()})),
 });
 
-export async function runInpiSearchPage(searchId: string, input: TrademarkSearchInput, pageNumber: number, analysis: z.infer<typeof trademarkLogoAnalysis> | null = null, lease?: {id:string;owner:string}) {
-  const corpus = await inpiCorpusStatus();
+export async function runInpiSearchPage(searchId: string, input: StoredTrademarkSearchInput, pageNumber: number, analysis: z.infer<typeof trademarkLogoAnalysis> | null = null, lease?: {id:string;owner:string}) {
+  return withTransaction(async tx => {
+  await tx.prepare("SELECT pg_advisory_xact_lock_shared(hashtext('inpi-corpus-publication'))").get();
+  const corpus = await inpiCorpusStatus(tx);
   if (!corpus.publishedOn) throw new CapabilityError('NOT_READY','A base de marcas do INPI ainda não está disponível. Tente novamente após a carga inicial.');
   const conditions: string[] = [], params: unknown[] = [];
   let order = 't.process_number', query = input.query;
@@ -45,16 +48,16 @@ export async function runInpiSearchPage(searchId: string, input: TrademarkSearch
   if (input.situation!=='all') { conditions.push('t.situation_group=?'); params.push(input.situation); }
   if (input.niceClass!==null) { conditions.push('t.nice_classes @> ?::int[]'); params.push([input.niceClass]); }
   const where=conditions.join(' AND '), orderParams=input.query.kind==='name' && input.query.strategy==='fuzzy' ? [normalizeTrademarkName(input.query.name)] : [];
-  const total = await database.prepare(`SELECT count(*)::int AS total FROM inpi_trademark t WHERE ${where}`).get<{total:number}>(...params);
-  const raw = await database.prepare(`SELECT t.*,coalesce((SELECT jsonb_agg(jsonb_build_object('label','RPI ' || e.edition || ' · ' || e.code,'value',e.description || coalesce(E'\n' || e.complement,'')) ORDER BY e.edition,e.ordinal)
+  const total = await tx.prepare(`SELECT count(*)::int AS total FROM inpi_trademark t WHERE ${where}`).get<{total:number}>(...params);
+  const raw = await tx.prepare(`SELECT t.*,coalesce((SELECT jsonb_agg(jsonb_build_object('label','RPI ' || e.edition || ' · ' || e.code,'value',e.description || coalesce(E'\n' || e.complement,'')) ORDER BY e.edition,e.ordinal)
     FROM inpi_trademark_event e WHERE e.process_number=t.process_number),'[]'::jsonb) AS event_fields
     FROM inpi_trademark t WHERE ${where} ORDER BY ${order} LIMIT 30 OFFSET ?`).all(...params,...orderParams,pageNumber*30);
   const records=raw.map(value => recordSchema.parse(value));
-  await withTransaction(async tx => {
     if (lease && !await tx.prepare(`SELECT 1 FROM research_trademark_task WHERE id=? AND state='running' AND lease_owner=? AND lease_until>CURRENT_TIMESTAMP FOR UPDATE`).get(lease.id,lease.owner)) throw new CapabilityError('FORBIDDEN','A execução foi interrompida.');
-    const live=await tx.prepare(`SELECT 1 FROM research_trademark_search s JOIN office_member m ON m.office_id=s.office_id AND m.user_id=s.user_id
-      WHERE s.id=? AND s.state<>'cancelled' AND (s.session_id IS NULL OR EXISTS(SELECT 1 FROM session WHERE id=s.session_id AND userId=s.user_id AND expiresAt>CURRENT_TIMESTAMP)) FOR UPDATE OF s`).get(searchId);
+    const live=await tx.prepare(`SELECT s.pages_loaded,s.corpus_json->>'generation' AS generation FROM research_trademark_search s JOIN office_member m ON m.office_id=s.office_id AND m.user_id=s.user_id
+      WHERE s.id=? AND s.state<>'cancelled' AND (s.session_id IS NULL OR EXISTS(SELECT 1 FROM session WHERE id=s.session_id AND userId=s.user_id AND expiresAt>CURRENT_TIMESTAMP)) FOR UPDATE OF s`).get<{ pages_loaded: number; generation: string|null }>(searchId);
     if (!live) throw new CapabilityError('FORBIDDEN','A pesquisa foi cancelada ou seu acesso foi encerrado.');
+    if (live.pages_loaded > 0 && live.generation !== corpus.generation) throw new CapabilityError('CONFLICT','O acervo do INPI foi atualizado. Os resultados anteriores foram preservados; inicie outra pesquisa para consultar a nova versão.');
     for (const [index,row] of records.entries()) {
       const id=randomUUID(),fields=[...Object.entries(row.fields).map(([label,value]) => ({label,value})),{label:'Classificação de Viena',value:row.vienna_codes.join(', ')},...row.event_fields].filter(value => value.value);
       const summary=trademarkSummary.parse({id,nativeId:row.process_number,name:row.name ?? 'Marca figurativa sem nome publicado',representationUrl:null,

@@ -14,7 +14,7 @@ const SAFE_CODE = /^[a-z]+_[a-z0-9]+$/;
 export async function containerBindingFetch(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(`http://${CONTAINER_BINDINGS_HOST}${path}`, {
     ...init,
-    signal: AbortSignal.timeout(60_000),
+    signal: init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => undefined) as { code?: unknown } | undefined;

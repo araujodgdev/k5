@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import type { WorkspaceContext } from '../src/lib/application/context';
-import { trademarkSearchInput, TrademarkError } from '../src/lib/research/trademarks/contracts';
+import { trademarkSearchInput, storedTrademarkSearchInput, TrademarkError } from '../src/lib/research/trademarks/contracts';
 import { startTrademarkSearch, getTrademarkSearch, listTrademarkSearches, nextTrademarkPage, cancelTrademarkSearch,
   getTrademarkDetail, saveTrademarkUpload, readTrademarkUpload, readTrademarkImage } from '../src/lib/research/trademarks/service';
 import { processTrademarkTask } from '../src/lib/research/trademarks/worker';
@@ -17,7 +17,7 @@ async function actor(officeId: string = randomUUID()): Promise<WorkspaceContext>
   await testDb.prepare("INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,'reviewer')").run(randomUUID(), officeId, userId);
   return { userId, officeId, role: 'reviewer' };
 }
-const query = (idempotencyKey = randomUUID()) => trademarkSearchInput.parse({ query: { kind: 'name', name: 'LUME' }, country: 'US', idempotencyKey });
+const query = (idempotencyKey = randomUUID()) => trademarkSearchInput.parse({ query: { kind: 'name', name: 'LUME' }, idempotencyKey });
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZLsAAAAASUVORK5CYII=', 'base64');
 const hit = { nativeId: 'BR500000905046595', name: 'LUME', owner: 'Titular', office: null, territory: 'Brazil', recordType: 'National Trademark Application', situation: 'Ended', niceClasses: [35], applicationNumber: '905046595', representation: `data:image/png;base64,${png.toString('base64')}` };
 function browser(overrides: Partial<WipoBrowser> = {}): WipoBrowser {
@@ -41,6 +41,43 @@ test('nome/logotipo: Brasil e todos os status são padrão, filtros inválidos s
   assert.equal(trademarkSearchInput.safeParse({ query: { kind: 'name', name: 'x' } }).success, false);
   assert.equal(trademarkSearchInput.safeParse({ ...query(), niceClass: 46 }).success, false);
   assert.equal(trademarkSearchInput.safeParse({ query: { kind: 'logo', uploadId: randomUUID(), strategy: 'shape' } }).success, false);
+  assert.equal(trademarkSearchInput.safeParse({ query: { kind: 'vienna', codes: ['27.5.1'] } }).success, false);
+  assert.equal(storedTrademarkSearchInput.safeParse({ query: { kind: 'vienna', codes: ['27.5.1'] } }).success, true);
+});
+
+test('nova pesquisa brasileira usa o navegador, inclusive fonética, sem depender de carga INPI', async () => {
+  const owner = await actor();
+  const input = trademarkSearchInput.parse({ query: { kind: 'name', name: 'LUME', strategy: 'phonetic' }, situation: 'pending', niceClass: 35 });
+  const { search } = await start(owner, input);
+  assert.equal(search.state, 'queued');
+  assert.equal(search.corpus, null);
+  assert.equal((await testDb.prepare('SELECT provider FROM research_trademark_search WHERE id=?').get<{provider:string}>(search.id))?.provider, 'wipo');
+  let consulted = false;
+  await processTrademarkTask(search.id, async () => browser({ async search(request) {
+    consulted = true;
+    assert.deepEqual(request.input, { ...input });
+    await request.guard();
+    return { results: [hit], total: 1, hasMore: false, sourceUrl: 'https://branddb.wipo.int/en/advancedsearch/results' };
+  } }));
+  const completed = (await getTrademarkSearch(owner, { searchId: search.id })).search;
+  assert.equal(consulted, true);
+  assert.equal(completed.state, 'completed');
+  assert.equal(completed.results[0].source.provider, 'wipo');
+  assert.equal(completed.corpus, null);
+});
+
+test('repetir a chave de uma pesquisa INPI anterior preserva sua fonte; outra pesquisa usa WIPO', async () => {
+  const owner = await actor(), input = query();
+  const { idempotencyKey, ...saved } = input;
+  const id = randomUUID();
+  await testDb.prepare(`INSERT INTO research_trademark_search(id,office_id,user_id,input_json,title,idempotency_key,provider,state,pages_loaded,has_more)
+    VALUES(?,?,?,?,?,?,'inpi','completed',1,false)`).run(id, owner.officeId, owner.userId, JSON.stringify(saved), 'LUME', idempotencyKey);
+  assert.equal((await start(owner, input)).search.id, id);
+  assert.equal((await testDb.prepare('SELECT provider FROM research_trademark_search WHERE id=?').get<{provider:string}>(id))?.provider, 'inpi');
+  assert.equal((await testDb.prepare('SELECT count(*)::int AS n FROM research_trademark_task WHERE search_id=?').get<{n:number}>(id))?.n, 0);
+  const fresh = await start(owner);
+  assert.notEqual(fresh.search.id, id);
+  assert.equal((await testDb.prepare('SELECT provider FROM research_trademark_search WHERE id=?').get<{provider:string}>(fresh.search.id))?.provider, 'wipo');
 });
 
 test('histórico, resultados e imagens ficam no autor e no escritório; repetição é idempotente', async () => {
@@ -69,12 +106,12 @@ test('upload privado valida bytes e a busca envia apenas a imagem do autor', asy
   const { upload } = await saveTrademarkUpload(owner, new File([png], 'marca.png', { type: 'image/png' }));
   await assert.rejects(saveTrademarkUpload(owner, new File(['texto'], 'falso.png', { type: 'image/png' })), { code: 'INVALID' });
   await assert.rejects(readTrademarkUpload(colleague, upload.id), { code: 'NOT_FOUND' });
-  const input = trademarkSearchInput.parse({ query: { kind: 'logo', uploadId: upload.id }, country:'US' });
+  const input = trademarkSearchInput.parse({ query: { kind: 'logo', uploadId: upload.id } });
   await assert.rejects(start(colleague, input), { code: 'NOT_FOUND' });
   const { search } = await start(owner, input);
   let inspected = false;
   await processTrademarkTask(search.id, async () => browser({ async search(request) {
-    inspected = true; assert.equal(request.input.query.kind, 'logo'); assert.deepEqual(Buffer.from(request.logo!.bytes), png);
+    inspected = true; assert.equal(request.input.country, 'BR'); assert.equal(request.input.query.kind, 'logo'); assert.deepEqual(Buffer.from(request.logo!.bytes), png);
     await request.guard(); return { results: [], total: 0, hasMore: false, sourceUrl: 'https://branddb.wipo.int/en/advancedsearch/results' };
   } }));
   assert.equal(inspected, true); assert.equal((await getTrademarkSearch(owner, { searchId: search.id })).search.state, 'completed');

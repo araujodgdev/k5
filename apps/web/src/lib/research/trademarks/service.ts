@@ -6,13 +6,13 @@ import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/applicatio
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { objectStorage, storageKey } from '@/lib/storage';
 import { captureOperationalError } from '@/lib/observability/report';
-import { trademarkCorpus, trademarkLogoAnalysis, trademarkDetail, trademarkSearchInput, trademarkSearchView, trademarkSummary, trademarkUpload, type TrademarkSearchInput, type TrademarkSearchView } from './contracts';
+import { trademarkCorpus, trademarkLogoAnalysis, trademarkDetail, trademarkSearchInput, storedTrademarkSearchInput, trademarkSearchView, trademarkSummary, trademarkUpload, type TrademarkSearchInput, type StoredTrademarkSearchInput, type TrademarkSearchView } from './contracts';
 import { wakeTrademarkRun } from './environment';
 import { runInpiSearchPage } from './inpi-search';
 
 const storedJson = <T>(schema: z.ZodType<T>) => z.preprocess(value => typeof value === 'string' ? JSON.parse(value) : value, schema);
 const searchRow = z.object({
-  id: z.string(), input_json: storedJson(trademarkSearchInput.omit({ idempotencyKey: true })), title: z.string(), state: trademarkSearchView.shape.state,
+  id: z.string(), input_json: storedJson(storedTrademarkSearchInput.omit({ idempotencyKey: true })), title: z.string(), state: trademarkSearchView.shape.state,
   step: z.string(), error: z.string().nullable(), created_at: z.union([z.string(), z.date()]),
   total_reported: z.number().nullable(), pages_loaded: z.number(), has_more: z.boolean(), source_url: z.string().nullable(),
   provider: z.enum(['inpi','wipo']), analysis_json: storedJson(trademarkLogoAnalysis.nullable()), corpus_json: storedJson(trademarkCorpus.nullable()),
@@ -72,9 +72,7 @@ async function wake(searchId: string, trigger = wakeTrademarkRun) {
 export async function startTrademarkSearch(context: WorkspaceContext, raw: TrademarkSearchInput, options: { wake?: typeof wakeTrademarkRun } = {}) {
   await assertCapabilityAllowed(context, 'k5_research_start_trademark_search');
   const { idempotencyKey = randomUUID(), ...input } = trademarkSearchInput.parse(raw);
-  if (input.query.kind==='vienna' && input.country!=='BR') throw new CapabilityError('INVALID','A busca por códigos de Viena está disponível para o Brasil.');
-  if (input.country==='BR' && input.query.kind==='name' && input.query.strategy==='phonetic') throw new CapabilityError('INVALID','Selecione contém, nome exato ou nomes semelhantes para pesquisar no INPI.');
-  let title = input.query.kind === 'name' ? input.query.name : input.query.kind==='vienna' ? `Viena: ${input.query.codes.join(', ')}` : 'Pesquisa por logotipo';
+  let title = input.query.kind === 'name' ? input.query.name : 'Pesquisa por logotipo';
   if (input.query.kind === 'logo') {
     const upload = await database.prepare('SELECT name FROM research_trademark_upload WHERE id=? AND office_id=? AND user_id=?')
       .get<{ name: string }>(input.query.uploadId, context.officeId, context.userId);
@@ -86,7 +84,7 @@ export async function startTrademarkSearch(context: WorkspaceContext, raw: Trade
     const existing = await tx.prepare('SELECT id,input_json FROM research_trademark_search WHERE office_id=? AND user_id=? AND idempotency_key=?')
       .get<{ id: string; input_json: unknown }>(context.officeId, context.userId, idempotencyKey);
     if (existing) {
-      if (inputHash(storedJson(trademarkSearchInput.omit({ idempotencyKey: true })).parse(existing.input_json)) !== inputHash(input)) throw new CapabilityError('CONFLICT', 'Esta chave já foi usada para outra pesquisa.');
+      if (inputHash(storedJson(storedTrademarkSearchInput.omit({ idempotencyKey: true })).parse(existing.input_json)) !== inputHash(input)) throw new CapabilityError('CONFLICT', 'Esta chave já foi usada para outra pesquisa.');
       return existing.id;
     }
     const count = await tx.prepare(`SELECT count(*)::int AS count FROM research_trademark_search WHERE user_id=? AND created_at>CURRENT_TIMESTAMP-INTERVAL '1 day'`)
@@ -94,8 +92,8 @@ export async function startTrademarkSearch(context: WorkspaceContext, raw: Trade
     if ((count?.count ?? 0) >= 30) throw new CapabilityError('RATE_LIMITED', 'O limite de 30 pesquisas de marcas por dia foi atingido.');
     const id = randomUUID();
     await tx.prepare(`INSERT INTO research_trademark_search(id,office_id,user_id,session_id,input_json,title,idempotency_key,provider) VALUES(?,?,?,?,?,?,?,?)`)
-      .run(id, context.officeId, context.userId, context.sessionId ?? null, JSON.stringify(input), title, idempotencyKey,input.country==='BR' ? 'inpi' : 'wipo');
-    if (input.country!=='BR' || input.query.kind==='logo') await tx.prepare(`INSERT INTO research_trademark_task(id,search_id,kind,page_number) VALUES(?,?,'page',0)`).run(randomUUID(), id);
+      .run(id, context.officeId, context.userId, context.sessionId ?? null, JSON.stringify(input), title, idempotencyKey, 'wipo');
+    await tx.prepare(`INSERT INTO research_trademark_task(id,search_id,kind,page_number) VALUES(?,?,'page',0)`).run(randomUUID(), id);
     return id;
   });
   const current = await ownedSearch(context,searchId);
@@ -104,7 +102,7 @@ export async function startTrademarkSearch(context: WorkspaceContext, raw: Trade
   return getTrademarkSearch(context, { searchId });
 }
 
-async function localPage(id: string,input: TrademarkSearchInput,page: number) {
+async function localPage(id: string,input: StoredTrademarkSearchInput,page: number) {
   try { await runInpiSearchPage(id,input,page); }
   catch (error) {
     const message=error instanceof CapabilityError ? error.message : 'Não foi possível consultar a base do INPI. Tente novamente.';

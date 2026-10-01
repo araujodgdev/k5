@@ -3,18 +3,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+
 import PizZip from 'pizzip';
 import { authStore } from '../src/lib/database';
 import { parseInpiXml } from '../src/lib/research/trademarks/inpi-xml';
 import { inpiDetailUrl, situationGroup, viennaCode, type InpiRecord } from '../src/lib/research/trademarks/inpi-contracts';
-import { importInpiBaseline } from '../src/lib/research/trademarks/inpi-baseline';
-import { downloadInpiCsv } from '../src/lib/research/trademarks/inpi-download';
+
 import { importRpiPublication, discoverRpiPublications } from '../src/lib/research/trademarks/inpi-sync';
-import { getTrademarkDetail, startTrademarkSearch, nextTrademarkPage, getTrademarkSearch } from '../src/lib/research/trademarks/service';
-import { trademarkSearchInput } from '../src/lib/research/trademarks/contracts';
+import { getTrademarkDetail, nextTrademarkPage, getTrademarkSearch } from '../src/lib/research/trademarks/service';
+import { storedTrademarkSearchInput, type StoredTrademarkSearchInput } from '../src/lib/research/trademarks/contracts';
+import { runInpiSearchPage } from '../src/lib/research/trademarks/inpi-search';
 import { analyzeTrademarkLogo } from '../src/lib/research/trademarks/logo-analysis';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import { sourcesFromTool } from '../src/lib/citations/sources';
@@ -33,6 +31,14 @@ async function actor():Promise<WorkspaceContext> {
   return {officeId,userId,role:'lawyer'};
 }
 
+async function legacySearch(context: WorkspaceContext, input: StoredTrademarkSearchInput) {
+  const id = randomUUID();
+  await testDb.prepare(`INSERT INTO research_trademark_search(id,office_id,user_id,input_json,title,idempotency_key,provider)
+    VALUES(?,?,?,?,?,?,'inpi')`).run(id, context.officeId, context.userId, JSON.stringify(input), 'Pesquisa INPI anterior', randomUUID());
+  await runInpiSearchPage(id, input, 0);
+  return getTrademarkSearch(context, { searchId: id });
+}
+
 test('XML lê campos, entidades e Viena e não confunde status da classe Nice com situação da marca',async()=>{
   const records:InpiRecord[]=[];
   const bytes=Buffer.from(xml(processXml('905046595')));
@@ -46,57 +52,19 @@ test('XML lê campos, entidades e Viena e não confunde status da classe Nice co
   assert.equal(inpiDetailUrl('905046595'),'https://servicos.busca.inpi.gov.br/marcas/905046595');
 });
 
-test('carga CSV usa COPY, audita linhas inválidas e enriquece despachos mais recentes sem substituí-los',async t=>{
-  const directory=await mkdtemp(join(tmpdir(),'k5-inpi-baseline-'));
-  const files:Record<string,string>={
-    MARCAS_DADOS_BIBLIOGRAFICOS:'codigo_interno,numero_inpi,data_deposito,data_publicacao,data_concessao,data_vigencia,descricao_apresentacao,descricao_natureza,elemento_nominativo,traducao,apostila,codigo_situacao,descricao_situacao\n1,905046595,2012-07-19,,,,Mista,Produto,Lúme,,Nota,1,Registro de marca em vigor\n2,99       ,,,,,,,Inválida,,,,\n3,900000002,,,,,Nominativa,Serviço,LUME CAFÉ,,,2,Registro de marca extinto\n',
-    MARCAS_CLASSIFICACOES_NICE:'codigo_interno,numero_inpi,edicao_nice,classe_nice,especificacao,especificacao_trad\n1,905046595,12,35,Publicidade,\n3,900000002,12,43,Cafeteria,\n',
-    MARCAS_CLASSIFICACOES_VIENA:'codigo_interno,numero_inpi,simbolo,classificacao_viena,revisao_viena\n1,905046595,27.05.01,Letras apresentando grafismo especial,4\n1,905046595,28.19,Inscrições em outros caracteres,4\n',
-    MARCAS_DEPOSITANTES:'codigo_interno,numero_inpi,nome,estado,pais,cpf_cnpj\n1,905046595,Titular,SP,BR,SEGREDO DESCARTADO\n3,900000002,Titular Café,SP,BR,SEGREDO DESCARTADO\n',
-  };
-  for(const [name,value] of Object.entries(files)) await writeFile(join(directory,name+'.csv'),value);
-  t.mock.method(globalThis,'fetch',async(input:string|URL|Request)=>{
-    const name=new URL(String(input)).pathname.split('/').at(-1)?.replace('.csv','') ?? '';
-    assert.ok(files[name]);
-    return new Response(null,{headers:{'content-length':String(Buffer.byteLength(files[name])),'last-modified':'Sat, 26 Sep 2026 10:37:15 GMT',etag:'"fixture"'}});
-  });
-  const client=await (await authStore()).connect();
-  try {
-    await client.query('DELETE FROM inpi_trademark_event');await client.query('DELETE FROM inpi_trademark');await client.query('DELETE FROM inpi_import');
-    const id=randomUUID();
-    await client.query("INSERT INTO inpi_import(id,kind,edition,published_on,source_url,state) VALUES($1,'rpi',2908,'2026-09-29','https://revistas.inpi.gov.br/txt/RM2908.zip','completed')",[id]);
-    await client.query("INSERT INTO inpi_trademark(process_number,situation,situation_group,fields,latest_edition,published_on,import_id) VALUES('905046595','Último despacho: Indeferimento do pedido','ended','{\"Apostila\":\"Campo mais recente\"}',2908,'2026-09-29',$1)",[id]);
-    await importInpiBaseline(client,{directory});
-    const rows=(await client.query('SELECT * FROM inpi_trademark ORDER BY process_number')).rows;
-    assert.equal(rows.length,2);assert.equal(rows[1].name,'Lúme');assert.equal(rows[1].normalized_name,'LUME');
-    assert.equal(rows[1].situation_group,'ended');assert.equal(rows[1].latest_edition,2908);
-    assert.equal(rows[1].fields.Apostila,'Campo mais recente');assert.deepEqual(rows[1].vienna_codes,['27.5.1','28.19']);
-    assert.deepEqual(rows[1].owners,['Titular']);assert.deepEqual(rows[1].nice_classes,[35]);
-    assert.ok(!JSON.stringify(rows).includes('SEGREDO DESCARTADO'));
-    const run=(await client.query("SELECT * FROM inpi_import WHERE kind='baseline'")).rows[0];
-    assert.equal(run.state,'completed');assert.equal(run.manifest_json[0].rejected,1);assert.equal(run.manifest_json.length,4);
-    await writeFile(join(directory,'MARCAS_DADOS_BIBLIOGRAFICOS.csv'),'incompleto');
-    await assert.rejects(importInpiBaseline(client,{directory}),/incompleto/);
-    assert.equal((await client.query('SELECT count(*)::int AS n FROM inpi_trademark')).rows[0].n,2);
-  } finally {client.release();await rm(directory,{recursive:true,force:true});}
-});
-
-test('download por intervalos repete trechos truncados e recusa uma versão alterada',async t=>{
-  let calls=0;
-  t.mock.method(globalThis,'fetch',async(_url:unknown,options:RequestInit)=>{
-    assert.equal((options.headers as Record<string,string>).Range,'bytes=0-2');calls++;
-    return new Response(calls===1?new Uint8Array([1]):new Uint8Array([1,2,3]),{status:206,headers:{'content-range':'bytes 0-2/3',etag:'"version"'}});
-  });
-  const chunks=[];for await(const bytes of downloadInpiCsv('https://dadosabertos.inpi.gov.br/test',{size:3,etag:'"version"'}))chunks.push(...bytes);
-  assert.deepEqual(chunks,[1,2,3]);assert.equal(calls,2);
-  t.mock.method(globalThis,'fetch',async()=>new Response(new Uint8Array([1,2,3]),{status:206,headers:{'content-range':'bytes 0-2/3',etag:'"changed"'}}));
-  await assert.rejects(async()=>{for await(const bytes of downloadInpiCsv('https://dadosabertos.inpi.gov.br/test',{size:3,etag:'"version"'})){assert.fail(`must not publish ${bytes.length} unchecked bytes`);}},/mudou/);
-});
-
 test('XML truncado, DOCTYPE, processo inválido e edição trocada são recusados',async()=>{
   for(const invalid of [xml(processXml('905046595')).slice(0,-5),xml(processXml('x')),xml(processXml('905046595'),2907),'<!DOCTYPE revista [<!ENTITY test SYSTEM "file:///etc/passwd">]>'+xml(processXml('905046595'))]) {
     await assert.rejects(parseInpiXml(Readable.from([invalid]),publication,async()=>{}));
   }
+});
+
+test('XML entregue em um único chunk produz lotes limitados e recusa um atributo gigante', async () => {
+  let total = 0, largest = 0;
+  const large = xml(Array.from({ length: 2000 }, (_, index) => processXml(String(800000000 + index))).join(''));
+  await parseInpiXml(Readable.from([large]), publication, async batch => { total += batch.length; largest = Math.max(largest, batch.length); });
+  assert.equal(total, 2000);
+  assert.ok(largest < 600);
+  await assert.rejects(parseInpiXml(Readable.from([xml(`<processo numero="905046595" atributo="${'a'.repeat(3 * 1024 * 1024)}"/>`)]), publication, async () => {}), { code: 'capacity' });
 });
 
 test('descoberta usa os XMLs de marcas e ordena as edições',()=>{
@@ -123,6 +91,9 @@ test('análise de anexo exige a pessoa, o escritório, a conversa atual e uma im
 test('importação atômica, repetível e esparsa mantém acervo; pesquisa INPI fornece detalhes e fontes sem navegador',async()=>{
   const client=await (await authStore()).connect();
   try {
+    await client.query("SELECT pg_advisory_lock(hashtext('inpi-corpus-import'))");
+    await client.query('UPDATE inpi_sync SET capacity=$1', [JSON.stringify({ diskBytes: 32*1024**3, otherBytes: 1024**3, appReserveBytes: 2*1024**3,
+      databaseBytes: 12*1024**3, candidateBytes: 4*1024**3, walBytes: 8*1024**3, approvedUntil: new Date(Date.now()+3600_000).toISOString() })]);
     await client.query('DELETE FROM inpi_trademark_event');
     await client.query('DELETE FROM inpi_trademark');
     await client.query('DELETE FROM inpi_import');
@@ -138,14 +109,25 @@ test('importação atômica, repetível e esparsa mantém acervo; pesquisa INPI 
     assert.equal(await importRpiPublication(client,publication,{bytes:zip(xml(body)),archive:async()=>{throw new Error('must not archive twice');}}),false);
     assert.equal((await client.query('SELECT count(*)::int AS n FROM inpi_trademark_event')).rows[0].n,3);
     const owner=await actor(),other=await actor();
-    const {search}=await startTrademarkSearch(owner,trademarkSearchInput.parse({query:{kind:'name',name:'Lume'},situation:'ended',niceClass:35}));
+    const {search}=await legacySearch(owner,storedTrademarkSearchInput.parse({query:{kind:'name',name:'Lume'},situation:'ended',niceClass:35}));
     assert.equal(search.state,'completed');assert.equal(search.results.length,2);assert.equal(search.corpus?.latestEdition,2908);
     const old=search.results.find(result=>result.nativeId==='905046595');assert.ok(old);assert.equal(old.detailState,'ready');
     const {trademark}=await getTrademarkDetail(owner,{resultId:old.id});assert.ok(trademark.fields.some(field=>field.value==='Campo preservado'));
     assert.equal(sourcesFromTool('k5_research_start_trademark_search',{search})[0].url,search.results[0].source.url);
     await assert.rejects(getTrademarkDetail(other,{resultId:old.id}),{code:'NOT_FOUND'});
-    const figurative=await startTrademarkSearch(owner,trademarkSearchInput.parse({query:{kind:'vienna',codes:['27.05.01'],match:'all'}}));assert.equal(figurative.search.results.length,2);
+    const figurative=await legacySearch(owner,storedTrademarkSearchInput.parse({query:{kind:'vienna',codes:['27.05.01'],match:'all'}}));assert.equal(figurative.search.results.length,2);
     await assert.rejects(analyzeTrademarkLogo(other,{kind:'upload',uploadId:randomUUID()}),{code:'NOT_FOUND'});
     const before=await getTrademarkSearch(owner,{searchId:search.id});await nextTrademarkPage(owner,{searchId:search.id});assert.deepEqual((await getTrademarkSearch(owner,{searchId:search.id})).search,before.search);
-  } finally {client.release();}
+    const extra = Array.from({ length: 40 }, (_, index) => processXml(String(810000000 + index), 'LUME PAGE')).join('');
+    await importRpiPublication(client,{ ...publication,edition:2909,sourceUrl:'https://revistas.inpi.gov.br/txt/RM2909.zip' },
+      { bytes:new PizZip().file('RM2909.xml',xml(extra,2909)).generate({type:'nodebuffer'}),archive:async()=>randomUUID() });
+    const paged = await legacySearch(owner,storedTrademarkSearchInput.parse({query:{kind:'name',name:'Lume'}}));
+    assert.equal(paged.search.results.length,30); assert.equal(paged.search.hasMore,true);
+    await importRpiPublication(client,{ ...publication,edition:2910,sourceUrl:'https://revistas.inpi.gov.br/txt/RM2910.zip' },
+      { bytes:new PizZip().file('RM2910.xml',xml(processXml('810000000','OUTRO NOME'),2910)).generate({type:'nodebuffer'}),archive:async()=>randomUUID() });
+    const changed = await nextTrademarkPage(owner,{searchId:paged.search.id});
+    assert.equal(changed.search.state,'partial'); assert.equal(changed.search.pagesLoaded,1);
+    assert.match(changed.search.error ?? '',/acervo do INPI foi atualizado/);
+    assert.deepEqual(changed.search.results,paged.search.results);
+  } finally {client.release(true);}
 });

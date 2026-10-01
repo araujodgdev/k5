@@ -65,7 +65,7 @@ test('structured vision sends the original image and a typed JSON schema through
     [{task:'classification.trademark_logo',status:'completed',input_tokens:21,output_tokens:9}]);
 });
 
-test('trademark agent tools reach OpenAI with object parameters and typed Vienna codes',async t=>{
+test('trademark agent tools reach OpenAI with typed name and logo queries',async t=>{
   let requestBody:Record<string,unknown>|undefined;
   t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
     requestBody=JSON.parse(typeof init?.body==='string'?init.body:await new Request(input,init).text());
@@ -82,6 +82,8 @@ test('trademark agent tools reach OpenAI with object parameters and typed Vienna
   const sent=requestBody.tools as Array<{name:string;parameters:{type:string;properties:Record<string,unknown>}}>;
   assert.equal(sent.length,2);assert.ok(sent.every(tool=>tool.parameters.type==='object'));
   const search=sent.find(tool=>tool.name==='k5_research_start_trademark_search');assert.ok(search);
-  const query=search.parameters.properties.query as {anyOf:Array<{properties:{kind:{const:string};codes?:{items:{type:string}}}}>};
-  const vienna=query.anyOf.find(branch=>branch.properties.kind.const==='vienna');assert.equal(vienna?.properties.codes?.items.type,'string');
+  const query=search.parameters.properties.query as {anyOf:Array<{properties:{kind:{const:string};name?:{type:string};uploadId?:{type:string}}}>};
+  assert.deepEqual(query.anyOf.map(branch=>branch.properties.kind.const),['name','logo']);
+  assert.equal(query.anyOf.find(branch=>branch.properties.kind.const==='name')?.properties.name?.type,'string');
+  assert.equal(query.anyOf.find(branch=>branch.properties.kind.const==='logo')?.properties.uploadId?.type,'string');
 });
