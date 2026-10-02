@@ -12,9 +12,16 @@ for (const width of [1280, 390]) {
       { type: 'data-web-sources', data: { sources: [{ id: 'turn0search2', url: 'https://example.test/fonte', title: 'Fonte oficial' }] } },
       ...approvals,
     ] }];
-    await browser.route('**/api/conversations', route => route.request.method === 'POST' ? route.fulfill({ json: { conversation } }) : route.continue());
-    await browser.route('**/api/conversations/chat-feedback-fixture', route => route.fulfill({ headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversation, messages }) }));
-    await browser.route('**/api/chat/chat-feedback-fixture/stream*', route => route.fulfill({ status: 204 }));
+    let created = 0;
+    await browser.route('**/api/conversations', route => {
+      if (route.request.method !== 'POST') return route.continue();
+      // A new id per request, as the server would: re-creating with the same id clears the
+      // messages without reloading them, which a real new conversation never does.
+      created++;
+      return route.fulfill({ json: { conversation: { ...conversation, id: `chat-feedback-fixture-${created}` } } });
+    });
+    await browser.route(/\/api\/conversations\/chat-feedback-fixture-\d+$/, route => route.fulfill({ headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversation, messages }) }));
+    await browser.route(/\/api\/chat\/chat-feedback-fixture-\d+\/stream/, route => route.fulfill({ status: 204 }));
     const calls: string[] = [];
     let failOnce = true;
     await browser.route('**/api/chat/approvals/*-fixture', async route => {
@@ -32,7 +39,13 @@ for (const width of [1280, 390]) {
     });
     const openChat = async () => {
       await app.open('/app/agents');
-      await screen.getByRole('button', 'Nova conversa', { visible: true }).tap();
+      // The button is server-rendered; a tap that lands before hydration does nothing, so tap again
+      // until the app asks for the conversation (the mock always returns the same one).
+      const before = created;
+      await expect.poll(async () => {
+        if (created === before) await screen.getByRole('button', 'Nova conversa', { visible: true }).tap();
+        return created;
+      }).toBeGreaterThan(before);
     };
     await openChat();
     const groups = screen.getByRole('group', 'Confirmação');

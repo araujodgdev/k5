@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 import { extractText } from 'unpdf';
@@ -7,7 +6,10 @@ import { ApiSession, uniqueAccount } from './support/accounts';
 import { overflowsHorizontally } from './support/fixtures';
 import { signInWithSession } from './support/sign-in';
 
-const pdfText = async (path: string) => (await extractText(new Uint8Array(await readFile(path)), { mergePages: true })).text;
+const pdfText = async (response: Response) => {
+  expect(response.status).toBe(200);
+  return (await extractText(new Uint8Array(await response.arrayBuffer()), { mergePages: true })).text;
+};
 
 test('a cobrança de uma parcela com PIX e boleto gera o PDF, registra o envio e trava depois da quitação', { tags: ['pdf'] }, async ({ app, screen, browser }) => {
   const account = uniqueAccount('Ana');
@@ -29,8 +31,10 @@ test('a cobrança de uma parcela com PIX e boleto gera o PDF, registra o envio e
   await screen.getByRole('button', 'Salvar cobrança').tap();
   const download = screen.getByRole('button', 'Baixar PDF');
   await expect(download).toBeEnabled();
-  const { path } = await browser.waitForDownload(() => download.tap(), { timeout: 120_000 });
-  const text = await pdfText(path);
+  const { suggestedFilename } = await browser.waitForDownload(() => download.tap(), { timeout: 120_000 });
+  expect(suggestedFilename).toBe('cobranca.pdf');
+  // The download's path is relative to the attempt's artifacts; read the same PDF the button fetched.
+  const text = await pdfText(await api.request(`/api/honorarios/charges/${installmentId}/pdf?version=1`));
   expect(text).toMatch(/Maria Cliente/);
   expect(text).toMatch(/1\.250,00/);
   expect(text).toMatch(/financeiro@example\.test/);

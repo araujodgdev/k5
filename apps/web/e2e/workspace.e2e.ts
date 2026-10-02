@@ -29,14 +29,27 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await browser.setViewport({ width: 390, height: 844 });
     const conversation = { id: 'ui-scroll-fixture', title: 'Conversa de verificação', updatedAt: new Date().toISOString() };
     // The page is server-rendered with the latest real conversation; "Nova conversa" switches to the fixture.
-    await browser.route('**/api/conversations', route => route.request.method === 'POST' ? route.fulfill({ json: { conversation } }) : route.continue());
-    await browser.route('**/api/conversations/ui-scroll-fixture', route => route.fulfill({ json: { conversation, messages: Array.from({ length: 30 }, (_, i) => ({
+    let created = 0;
+    await browser.route('**/api/conversations', route => {
+      if (route.request.method !== 'POST') return route.continue();
+      // A new id per request, as the server would: re-creating with the same id clears the
+      // messages without reloading them, which a real new conversation never does.
+      created++;
+      return route.fulfill({ json: { conversation: { ...conversation, id: `ui-scroll-fixture-${created}` } } });
+    });
+    await browser.route(/\/api\/conversations\/ui-scroll-fixture-\d+$/, route => route.fulfill({ json: { conversation, messages: Array.from({ length: 30 }, (_, i) => ({
       id: `fixture-${i}`, role: i % 2 ? 'assistant' : 'user',
       parts: [{ type: 'text', text: `Mensagem ${i}. ` + 'Conteúdo da conversa para verificar rolagem e acesso ao campo de mensagem. '.repeat(8) }],
     })) } }));
-    await browser.route('**/api/chat/ui-scroll-fixture/stream*', route => route.fulfill({ status: 204 }));
+    await browser.route(/\/api\/chat\/ui-scroll-fixture-\d+\/stream/, route => route.fulfill({ status: 204 }));
     await app.open('/app/agents');
-    await screen.getByRole('button', 'Nova conversa', { visible: true }).tap();
+    // The button is server-rendered; a tap that lands before hydration does nothing, so tap again
+    // until the app asks for the conversation (the mock always returns the same one).
+    const before = created;
+    await expect.poll(async () => {
+      if (created === before) await screen.getByRole('button', 'Nova conversa', { visible: true }).tap();
+      return created;
+    }).toBeGreaterThan(before);
     const input = screen.getByRole('textbox', 'Pergunte ao Lume');
     const bottomOf = async () => { const box = (await input.boundingBox())!; return box.y + box.height; };
     const latest = screen.getByRole('button', 'Voltar ao mais recente');

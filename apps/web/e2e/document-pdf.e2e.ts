@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 import { extractText } from 'unpdf';
@@ -20,8 +19,12 @@ test('exportar PDF baixa o texto salvo, recusa versão antiga e sessão ausente,
   await editor.fill('Texto de validação atualizado. Cliente José, R$ 1.250,00.');
   await screen.getByRole('button', 'Exportar documento').focus();
   await browser.keyboard.press('Enter');
-  const { path } = await browser.waitForDownload(() => screen.getByRole('button', 'Exportar PDF').tap(), { timeout: 120_000 });
-  expect((await extractText(new Uint8Array(await readFile(path)), { mergePages: true })).text).toMatch(/Texto de validação atualizado/);
+  const { suggestedFilename } = await browser.waitForDownload(() => screen.getByRole('button', 'Exportar PDF').tap(), { timeout: 120_000 });
+  expect(suggestedFilename).toMatch(/\.pdf$/);
+  // The download's path is relative to the attempt's artifacts; export the saved text again over the API.
+  const exported = await api.request(`/api/artifacts/${artifactId}/export?format=pdf`);
+  expect(exported.status).toBe(200);
+  expect((await extractText(new Uint8Array(await exported.arrayBuffer()), { mergePages: true })).text).toMatch(/Texto de validação atualizado/);
   await browser.keyboard.press('Escape');
   await expect(editor).toBeVisible();
 
