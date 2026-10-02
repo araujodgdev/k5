@@ -11,29 +11,30 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 ## Driving conventions
 
-- Run a feature with `k5-verify.mts drive <id>`. Each driver is `scripts/drive-<id>.mts`, built on `openApp()` from `scripts/session.mts`.
-- Take screenshots only through `shot()`. A bare `page.screenshot()` hides the caret by writing `caret-color` into inputs, and before hydration that shows up as a false React hydration mismatch.
-- Prefer roles and accessible names in pt-BR (`getByRole('button', { name: 'Salvar', exact: true })`). Use `exact: true`, because many labels share prefixes.
+- Run a feature with `k5-verify.mts drive <id>`. It runs the e2e tests that the recipe's `Test:` lines name (`apps/web/e2e/*.e2e.ts`) against the instance, signed in as its account. Write tests with the `e2e` skill.
+- Every drive records a trace per test; e2e adds a screenshot on failure. Call `app.screenshot(label)` in a test for a before/after image.
+- Prefer roles and accessible names in pt-BR (`screen.getByRole('button', 'Salvar')`). e2e matches names exactly by default, because many labels share prefixes; pass `{ exact: false }` for a substring.
 - Use unique titles per run (`Date.now().toString(36)` suffix), because the database persists for the whole instance.
-- Wait for UI state or poll with `expect.poll`, never for a fixed sleep.
+- Wait for UI state or poll with `expect.poll`, never for a fixed sleep. Reads such as `inputValue()` do not wait: assert the field is visible first.
 
 ## Proof and skip reporting
 
-- UI proof: numbered screenshots of before, action and after, plus `trace.zip`.
+- UI proof: the trace of each test, plus `app.screenshot()` images where the before/after matters.
 - Mutation proof: a `sql()` read of the row scoped to the verification office, and a page reload showing the same state.
 - Mobile proof: the same screen at 390px wide, with no horizontal scroll.
-- `errors.json` is empty or each entry is explained.
-- Record the feature ID and entry point in the `log()` line of every `PASS`.
+- Open the trace when a page error matters: e2e does not collect console errors itself.
+- The drive's `tests` list names each test title; a passing title is the proof of its entry point.
 - Report an unreachable path with the attempted step and the missing precondition. Never report a skipped entry point as verified through another one.
 
 ## Feature entry contract
 
-Each file has an H1, one paragraph on the user-visible behavior, then exactly: `Sub-features`, `How to get to it (user POV)`, `Driving it with Playwright (session.mts)` (starting with `Preconditions:`), and `Gotchas`. Keep implementation details out; name user paths, handles, state and observable proof.
+Each file has an H1, one paragraph on the user-visible behavior, then exactly: `Sub-features`, `How to get to it (user POV)`, `Driving it with e2e` (starting with its `Test:` lines, then `Preconditions:`), and `Gotchas`. Keep implementation details out; name user paths, handles, state and observable proof.
 
 ## Features
 
-- [Office tasks](./office-tasks.md): create, persist, complete and archive tasks in Escritório → Tarefas. Driver: `drive-office-tasks.mts` (proved).
-- [Vault cases](./vault-cases.md): create a case in Cofre and open its page.
-- [Office clients](./office-clients.md): create and edit a client in Escritório → Clientes.
-- [Profile](./profile.md): edit the profile, photo and credentials, and see a user's card while inviting. Driver: `drive-profile.mts`.
-- [Authentication](./authentication.md): sign up a new office, sign in, and sign out everywhere.
+- [Office tasks](./office-tasks.md): create, persist, complete and archive tasks in Escritório → Tarefas. Test: `e2e/office-tasks.e2e.ts`.
+- [Vault cases](./vault-cases.md): create a case in Cofre and open its page. Test: `e2e/agent/vault-cases.e2e.ts` (agent steps, needs `OPENAI_API_KEY`).
+- [Office clients](./office-clients.md): create and edit a client in Escritório → Clientes. Test: `e2e/agent/office-clients.e2e.ts` (agent steps, needs `OPENAI_API_KEY`).
+- [Profile](./profile.md): edit the profile, photo and credentials, and see a user's card while inviting. Test: `e2e/profile.e2e.ts`.
+- [Authentication](./authentication.md): sign up a new office, sign in, and sign out everywhere. Tests: `e2e/auth.setup.e2e.ts`, `e2e/password-recovery.e2e.ts`.
+- [Brand shell](./brand-shell.md): the Lume identity across the signed-in shell, desktop and mobile. Test: `e2e/app-shell.e2e.ts`.

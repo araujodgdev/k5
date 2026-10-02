@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { chromium } from '@playwright/test';
+import { chromium } from 'playwright';
 import puppeteer from '@cloudflare/puppeteer';
 import { z } from 'zod';
 import { runBrowserJourneys } from '../src/lib/observability/browser-journeys';

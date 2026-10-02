@@ -16,11 +16,16 @@ A new user creates an account and an office in one step, signs in with e-mail an
 - `/sign-in`, or the "Entrar" link on `/sign-up`.
 - "Sair" at the bottom of the desktop sidebar. On mobile it is inside "Mais" (`dialog "Mais opções"`).
 
-## Driving it with Playwright (session.mts)
+## Driving it with e2e
+
+Test: `apps/web/e2e/auth.setup.e2e.ts`
+Test: `apps/web/e2e/password-recovery.e2e.ts`
+
+The tests cover sign-in through the form (the shared session setup) and password recovery. The sign-up form and global sign-out have no e2e test yet; `tests/auth.test.ts` covers them at the API.
 
 Preconditions:
 
-- `doctor` all OK. For sign-up, use `openApp('auth', { signIn: false })` and a unique e-mail such as `novo-<suffix>@k5.test`.
+- `doctor` all OK. For sign-up, start from a test without `session` (a clean browser) and a unique e-mail such as `novo-<suffix>@k5.test`.
 
 - **Sign up.** On `/sign-up`, fill `label "Nome completo"`, `label "Nome do escritório"`, `label "E-mail"`, `label "Senha"` and `label "Confirmar senha"`, then click `button "Criar conta"`. The URL becomes `/app/…`, and the sidebar shows the office name.
 - **Stored.** Run `sql('SELECT o.name, m.role FROM "user" u JOIN office_member m ON m.user_id=u.id JOIN office o ON o.id=m.office_id WHERE u.email=$1')`. Expect the office name and `administrator`.

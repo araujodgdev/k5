@@ -1,8 +1,7 @@
-import { chromium, expect as playwrightExpect, type Page, type Locator } from '@playwright/test';
+import { chromium, type Page, type Locator } from 'playwright';
+import { gone, visible } from './browser-wait';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-
-const expect = playwrightExpect.configure({ timeout: 60_000 });
 
 const baseURL = process.env.TUTORIAL_BASE_URL ?? 'http://localhost:3000';
 if (!['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) throw new Error('A gravação exige um ambiente demo local.');
@@ -63,7 +62,7 @@ async function chapter(id: string, title: string, route: string, run: (page: Pag
     await page.goto(`${published ? 'https://k5-staging.k5-web.workers.dev' : baseURL}${route}`);
     await page.locator('#main-content').waitFor();
     await page.waitForTimeout(1800);
-    await expect(page.getByText(/^Carregando/)).toHaveCount(0, { timeout: 90_000 });
+    await gone(page.getByText(/^Carregando/), 90_000);
     await run(page, cue);
     await context.close();
     if (!video) throw new Error('Gravação indisponível.');
@@ -103,9 +102,9 @@ try {
     }, 8);
     await cue('Salve o cadastro. Abra a ficha para consultar os dados, casos e atividades do cliente.', async () => {
       await click(page.getByRole('button', { name: 'Salvar', exact: true }));
-      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await gone(page.getByRole('dialog'));
       if (!hasClient) await click(page.getByRole('link', { name: clientName, exact: true }).first());
-      await expect(page.getByRole('heading', { name: clientName })).toBeVisible();
+      await visible(page.getByRole('heading', { name: clientName }));
     }, 8);
   });
   await chapter('03-cofre', 'Cofre · Casos e documentos', '/app/vault', async (page, cue) => {
@@ -117,13 +116,13 @@ try {
     await cue('Abra o caso criado. As abas separam arquivos, referências e participantes.', async () => {
       await click(page.getByRole('button', { name: 'Criar caso', exact: true }));
       await click(page.getByRole('link').filter({ hasText: caseName }).first());
-      await expect(page.getByRole('button', { name: 'Enviar arquivos', exact: true })).toBeVisible();
+      await visible(page.getByRole('button', { name: 'Enviar arquivos', exact: true }));
     }, 7);
     await cue('Envie um documento e acompanhe seu processamento. Use pastas para organizar o material.', async () => {
       const chooser = page.waitForEvent('filechooser');
       await click(page.getByRole('button', { name: 'Enviar arquivos', exact: true }));
       await (await chooser).setFiles({ name: 'Contrato demonstrativo.txt', mimeType: 'text/plain', buffer: Buffer.from('DOCUMENTO FICTÍCIO PARA DEMONSTRAÇÃO\nCliente: Ana Costa\nObjeto: revisão de contrato de prestação de serviços.\nHonorários acordados: R$ 3.000,00 em três parcelas de R$ 1.000,00.\nA reunião de revisão ocorrerá após a análise do contrato.\nNenhum dado deste arquivo corresponde a um caso real.') });
-      await expect(page.getByText('Contrato demonstrativo.txt', { exact: true })).toBeVisible();
+      await visible(page.getByText('Contrato demonstrativo.txt', { exact: true }));
     }, 8);
     await cue('Em Participantes, compartilhe somente este caso. Confira o papel antes de conceder acesso.', async () => { await click(page.getByRole('button', { name: 'Participantes', exact: true })); });
   });
@@ -134,7 +133,7 @@ try {
       await page.getByLabel('Responsável', { exact: true }).selectOption({ label: 'Marina Oliveira' });
       await page.getByLabel('Caso do Cofre').selectOption({ label: caseName });
       await click(page.getByRole('button', { name: 'Salvar', exact: true }));
-      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await gone(page.getByRole('dialog'));
     }, 9);
     await cue('O Kanban organiza as tarefas por situação. Concluídas ficam disponíveis em Arquivadas.', async () => {
       await click(page.getByRole('button', { name: 'Kanban', exact: true }));
@@ -146,7 +145,7 @@ try {
       await fill(page.getByLabel('Título', { exact: true }), 'Reunião com Ana · Demo');
       await page.getByLabel('Tipo', { exact: true }).selectOption('meeting');
       await click(page.getByRole('button', { name: 'Salvar', exact: true }));
-      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await gone(page.getByRole('dialog'));
     }, 9);
     await cue('Selecione um dia para consultar os compromissos. A agenda Google pessoal é uma conexão separada.');
   });
@@ -161,15 +160,15 @@ try {
       await fill(page.getByLabel('Número de parcelas'), '3');
       await fill(page.getByLabel('Primeiro vencimento'), '2026-10-10');
       await click(page.getByRole('button', { name: 'Cadastrar honorário', exact: true }));
-      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await gone(page.getByRole('dialog'));
       await click(page.getByRole('button', { name: 'Abrir Revisão contratual · Demo, parcela 1 de 3', exact: true }).first());
-      await expect(page.getByRole('heading', { name: 'Revisão contratual · Demo', exact: true })).toBeVisible();
+      await visible(page.getByRole('heading', { name: 'Revisão contratual · Demo', exact: true }));
     }, 9);
     await cue('Registre um recebimento na parcela correspondente. O lançamento é interno e não cobra o cliente.', async () => {
       await click(page.getByRole('button', { name: /Registrar recebimento/ }).first());
       await page.getByLabel('Meio de recebimento').selectOption('pix');
       await click(page.getByRole('button', { name: 'Salvar recebimento', exact: true }));
-      await expect(page.getByLabel('Meio de recebimento')).toHaveCount(0);
+      await gone(page.getByLabel('Meio de recebimento'));
     }, 8);
     await cue('Os totais mostram o valor recebido e o saldo. O histórico preserva os registros e as correções.');
   });
@@ -182,7 +181,7 @@ try {
       await fill(page.getByRole('textbox', { name: 'Pergunte ao Lume' }), 'Demonstração do tutorial: crie um documento com o título Roteiro de atendimento demonstrativo. Escreva dois parágrafos curtos sobre uma reunião fictícia de revisão contratual com Ana Costa. Não consulte dados do escritório nem a web. Use apenas dados fictícios e identifique o documento como demonstração.');
       await click(page.getByRole('button', { name: 'Enviar mensagem', exact: true }));
     }, 8);
-    await expect(page.getByRole('button', { name: 'Copiar resposta' }).last()).toBeVisible({ timeout: 240_000 });
+    await visible(page.getByRole('button', { name: 'Copiar resposta' }).last(), 240_000);
     await cue('A resposta chega na conversa. Confira o resultado e revise o documento antes de utilizá-lo.', undefined, 8);
     const editor = page.getByRole('link', { name: 'Exportar DOCX', exact: true });
     if (await editor.isVisible()) {
@@ -202,7 +201,7 @@ try {
     const documentPath = readFileSync('.data/tutorial/document-url.txt', 'utf8').replace(/^\uFEFF/, '').trim();
     if (!/^\/app\/documents\/[a-zA-Z0-9-]+$/.test(documentPath)) throw new Error('Referência de documento inválida.');
     await chapter('06b-documento', 'Documentos · Revisão e exportação', documentPath, async (page, cue) => {
-      await expect(page.getByRole('link', { name: 'Exportar DOCX', exact: true })).toBeVisible();
+      await visible(page.getByRole('link', { name: 'Exportar DOCX', exact: true }));
       await cue('O editor salva as alterações. A aba Revisão ajuda a conferir o texto e suas referências.', async () => { await click(page.getByRole('tab', { name: /Revisão/ })); }, 6);
       await cue('Consulte as versões e use Exportar DOCX para baixar o documento e continuar seu trabalho.', async () => {
         await click(page.getByRole('tab', { name: 'Editar', exact: true }));
@@ -218,14 +217,14 @@ try {
       await click(page.getByText('Rápida', { exact: true }));
       await click(page.locator('form').getByRole('button', { name: 'Pesquisar', exact: true }));
     }, 7);
-    await expect(page.getByRole('heading', { name: /resultado/i })).toBeVisible({ timeout: 120_000 });
+    await visible(page.getByRole('heading', { name: /resultado/i }), 120_000);
     await cue('Os resultados trazem links e trechos. Abra a fonte e confira o conteúdo antes de citar.', undefined, 7);
     await cue('O Histórico guarda suas consultas. Reabra uma pesquisa para consultar os resultados sem pesquisar novamente.', async () => {
       await click(page.getByRole('button', { name: 'Histórico', exact: true }));
     });
   }, true);
   await chapter('08-email', 'E-mails · Gmail conectado', '/app/email', async (page, cue) => {
-    await expect(page.getByRole('button', { name: 'Escrever', exact: true }).filter({ visible: true })).toBeVisible({ timeout: 90_000 });
+    await visible(page.getByRole('button', { name: 'Escrever', exact: true }).filter({ visible: true }), 90_000);
     await page.addStyleTag({ content: '[aria-label="Lista de e-mails"] { filter: blur(7px); }' });
     await cue('Com o Google conectado, use as pastas e a busca do Gmail. Mensagens pessoais estão desfocadas nesta gravação.', async () => {
       await fill(page.getByRole('textbox', { name: 'Buscar e-mails' }), 'subject:"Tutorial demonstrativo Lume"');
@@ -254,7 +253,7 @@ try {
     await cue('Escreva e envie a mensagem. Compartilhar do Cofre permite enviar documentos com controle de acesso.', async () => {
       await fill(page.getByPlaceholder('Escreva uma mensagem'), 'Olá, Pedro. Esta é uma conversa fictícia para o tutorial do Lume.');
       await click(page.getByRole('button', { name: 'Enviar', exact: true }));
-      await expect(page.getByText('Olá, Pedro. Esta é uma conversa fictícia para o tutorial do Lume.', { exact: true }).last()).toBeVisible();
+      await visible(page.getByText('Olá, Pedro. Esta é uma conversa fictícia para o tutorial do Lume.', { exact: true }).last());
     }, 7);
     await page.keyboard.press('Escape');
   });
@@ -264,7 +263,7 @@ try {
     await page.keyboard.press('Escape');
   });
   await chapter('11-integracoes', 'Integrações · Google e WhatsApp', '/app/integrations', async (page, cue) => {
-    await expect(page.getByRole('heading', { name: 'Conta Google', exact: true })).toBeVisible({ timeout: 90_000 });
+    await visible(page.getByRole('heading', { name: 'Conta Google', exact: true }), 90_000);
     await cue('Em Integrações, autorize Gmail, Agenda, Drive e Docs. As conexões Google são pessoais.', undefined, 7);
     await cue('Em Regras do escritório, o administrador define os limites das integrações.', async () => { await click(page.getByRole('tab', { name: 'Regras do escritório', exact: true })); });
     await click(page.getByRole('tab', { name: 'Conexões', exact: true }));

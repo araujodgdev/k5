@@ -23,6 +23,7 @@ The application lives in `apps/web`; `packages/` is reserved for shared librarie
 
 - For code changes, run the relevant checks from the root: `pnpm lint`, `pnpm typecheck`, and `pnpm test`. Scripts are defined in the root and app `package.json` files.
 - Authentication tests in `apps/web/tests/auth.test.ts` exercise real Better Auth endpoints against PostgreSQL (`tests/postgres-fixture.ts`). Extend this coverage when changing session behavior, office isolation, or provisioning.
+- For changes to screens, routes or user flows in `apps/web`, run the affected e2e tests (`pnpm --filter @k5/web exec e2e run e2e/<name>.e2e.ts`) and add or update one in `apps/web/e2e/`; CI runs the whole suite with `pnpm test:e2e`. See `apps/web/README.md` (Testes end-to-end) and the `e2e` skill.
 - Run `pnpm build` for changes affecting routes, configuration, or production compilation. Configure the environment and run `pnpm db:setup` first, as described in the READMEs. `pnpm dev` performs setup automatically.
 - For UI changes, verify desktop and mobile behavior, including keyboard access and affected loading, empty, and error states, against `apps/web/DESIGN.md`.
 - Documentation-only edits need link/path and content checks; application tests are unnecessary. Report which checks ran and any checks that could not run.

@@ -16,7 +16,9 @@ A member creates a case in Cofre to organize files by legal matter, optionally w
 - Sidebar "Cofre" (`/app/vault`), then the "Novo caso" button.
 - On mobile: the bottom tab "Cofre".
 
-## Driving it with Playwright (session.mts)
+## Driving it with e2e
+
+Test: `apps/web/e2e/agent/vault-cases.e2e.ts`
 
 Preconditions:
 

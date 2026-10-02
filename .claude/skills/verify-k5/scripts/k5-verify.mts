@@ -10,7 +10,7 @@ import { appendFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileS
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SCRIPTS = dirname(fileURLToPath(import.meta.url));
@@ -136,6 +136,9 @@ async function serve(runDir: string) {
       DATABASE_URL: state.databaseUrl, DATABASE_URL_UNPOOLED: state.databaseUrl, SESSION_IDLE_SECONDS: '28800',
       K5_CREDENTIALS_KEY: randomBytes(32).toString('base64'), RESEARCH_STORAGE_PATH: join(runDir, 'research-objects'),
       SENTRY_ENABLED: 'false', NEXT_PUBLIC_SENTRY_ENABLED: 'false',
+      // The e2e suite's HTTP sessions each send their own value, so its many test accounts get
+      // separate auth rate-limit buckets. Only this local instance trusts the header.
+      K5_CLIENT_IP_HEADER: 'x-e2e-client',
     };
     writeFileSync(envFile, Object.entries(env).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { mode: 0o600 });
     const setup = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/setup.ts'], { cwd: WEB, stdio: ['ignore', logFd, logFd], windowsHide: true, env: { ...process.env, K5_ENV_FILE: envFile } });
@@ -202,7 +205,8 @@ async function up(flags: Flags) {
   }
   const runId = `${new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '')}-${randomUUID().slice(0, 6)}`;
   const runDir = join(tmpdir(), `k5-verify-${runId}`);
-  const evidenceDir = join(WEB, 'playwright-report', 'verify', runId);
+  // Inside apps/web, because e2e writes its output under the project root; .e2e/ is git-ignored.
+  const evidenceDir = join(WEB, '.e2e', 'verify', runId);
   const port = await freePort(); const pgPort = await freePort();
   if (port === DEV_PORT || pgPort === DEV_DB_PORT) throw new CliError('PORT_COLLISION', `The OS offered a developer port (${port}/${pgPort}).`, `Run \`${CLI} up\` again.`);
   const plan = { runId, runDir, evidenceDir, baseURL: `http://127.0.0.1:${port}`, pgPort, distDir: join(WEB, DIST_DIR), cleansStaleRun: existing ? existing.runDir : null };
@@ -260,19 +264,23 @@ async function doctor() {
   return result;
 }
 
+// Each recipe names the e2e tests that prove it, one `Test:` line per file under apps/web/e2e/.
 function listFeatures() {
   return readdirSync(FEATURES).filter(file => file.endsWith('.md') && file !== 'README.md').map(file => {
     const id = file.replace(/\.md$/, '');
     const text = readFileSync(join(FEATURES, file), 'utf8');
-    const driver = join(SCRIPTS, `drive-${id}.mts`);
-    return { id, title: /^# (.+)$/m.exec(text)?.[1] ?? id, recipe: join(FEATURES, file), driver: existsSync(driver) ? driver : null };
+    const tests = [...text.matchAll(/^Test: `apps\/web\/(e2e\/[^`]+\.e2e\.ts)`/gm)].map(match => match[1]);
+    return { id, title: /^# (.+)$/m.exec(text)?.[1] ?? id, recipe: join(FEATURES, file), tests: tests.filter(test => existsSync(join(WEB, test))) };
   });
 }
 
 function features() {
   const list = listFeatures();
-  return { features: list, next: `Read a feature's recipe before driving it; \`${CLI} drive <id>\` runs features that have a driver. Features without one need a new scripts/drive-<id>.mts (copy drive-office-tasks.mts).` };
+  return { features: list, next: `Read a feature's recipe before driving it; \`${CLI} drive <id>\` runs its e2e tests against the instance. A feature without tests needs an apps/web/e2e/<name>.e2e.ts and a \`Test:\` line in its recipe.` };
 }
+
+type E2EReport = { run: { status: string; exitCode: number; results: { titlePath: string[]; file: string; status: string; tags: string[]; error?: { code?: string; message?: string };
+  attempts: { artifacts: { kind?: string; path?: string }[] }[] }[] } };
 
 function drive(args: string[]) {
   const id = args[0];
@@ -280,20 +288,31 @@ function drive(args: string[]) {
   if (!id) throw new CliError('MISSING_FEATURE', 'drive needs a feature id.', `Pick one of: ${known.map(f => f.id).join(', ')}. Example: \`${CLI} drive office-tasks\`.`);
   const feature = known.find(f => f.id === id);
   if (!feature) throw new CliError('UNKNOWN_FEATURE', `No feature "${id}" in the map.`, `Use one of: ${known.map(f => f.id).join(', ')}. To add one, write features/${id}.md following features/README.md.`);
-  if (!feature.driver) throw new CliError('NO_DRIVER', `Feature "${id}" has a recipe but no driver script.`, `Write scripts/drive-${id}.mts from ${feature.recipe} (copy drive-office-tasks.mts), then rerun.`);
+  if (!feature.tests.length) throw new CliError('NO_TESTS', `Feature "${id}" has a recipe but no e2e test.`, `Write apps/web/e2e/<name>.e2e.ts from ${feature.recipe}, add a \`Test:\` line for it to the recipe, then rerun.`);
   const state = requireReady();
   const dir = join(state.evidenceDir, id);
   // Results of an earlier drive of the same feature must not be reported as this run's.
-  for (const file of ['checks.txt', 'errors.json']) rmSync(join(dir, file), { force: true });
-  note(`driving ${id} against ${state.baseURL}`);
-  const run = spawnSync(process.execPath, ['--import', 'tsx', feature.driver], { cwd: WEB, encoding: 'utf8', windowsHide: true, maxBuffer: 32 * 1024 * 1024 });
-  const checks = existsSync(join(dir, 'checks.txt')) ? readFileSync(join(dir, 'checks.txt'), 'utf8').split('\n').filter(Boolean) : [];
-  const errors = readJson<string[]>(join(dir, 'errors.json')) ?? [];
-  const result = { feature: id, passed: run.status === 0, evidenceDir: dir, checks, pageErrors: errors, artifacts: existsSync(dir) ? readdirSync(dir) : [] };
+  rmSync(dir, { recursive: true, force: true });
+  note(`driving ${id} (${feature.tests.join(', ')}) against ${state.baseURL}`);
+  const bin = join(WEB, 'node_modules', 'e2e', JSON.parse(readFileSync(join(WEB, 'node_modules', 'e2e', 'package.json'), 'utf8')).bin.e2e);
+  const run = spawnSync(process.execPath, [bin, 'run', ...feature.tests, '--output', relative(WEB, dir), '--reporter', 'list,markdown', '--trace', 'on', '--retries', '0'], {
+    cwd: WEB, encoding: 'utf8', windowsHide: true, maxBuffer: 32 * 1024 * 1024,
+    // apps/web/e2e.config.ts targets K5_E2E_URL instead of starting a server; tests sign in as this account.
+    env: { ...process.env, K5_E2E_URL: state.baseURL, DATABASE_URL: state.databaseUrl, E2E_EMAIL: state.account.email, E2E_PASSWORD: state.account.password, E2E_OFFICE_NAME: state.account.officeName },
+  });
+  const report = readJson<E2EReport>(join(dir, 'report.json'));
+  const tests = (report?.run.results ?? []).filter(result => result.status !== 'skipped').map(result => ({
+    title: result.titlePath.join(' › '), file: result.file, status: result.status,
+    ...(result.error ? { error: [result.error.code, result.error.message].filter(Boolean).join(': ') } : {}),
+    artifacts: result.attempts.flatMap(attempt => attempt.artifacts.flatMap(artifact => artifact.path ? [join(dir, 'artifacts', artifact.path)] : [])),
+  }));
+  const result = { feature: id, passed: run.status === 0, evidenceDir: dir, summary: join(dir, 'summary.md'), tests };
   if (run.status !== 0) {
-    const failure = (run.stderr || run.stdout || '').split('\n').filter(line => line.trim() && !line.includes('node:internal') && !/^\s+at /.test(line)).slice(0, 25).join('\n');
-    throw new CliError('DRIVE_FAILED', `Driver ${basename(feature.driver)} failed after ${checks.length} passing check(s).`,
-      `Open the trace (\`pnpm --dir apps/web exec playwright show-trace ${join(dir, 'trace.zip')}\`) and the failure below. If the app is wrong, report it; if the driver is wrong, fix the driver and note the trap in the feature's Gotchas.`,
+    // The runner prints colors; strip them so the failure reads as plain text in JSON.
+    const failure = `${run.stdout}\n${run.stderr}`.replace(/\x1b\[[0-9;]*m/g, '').split('\n')
+      .filter(line => line.trim() && !/^\s+at /.test(line) && !/^⎯+/.test(line.trim())).slice(-25).join('\n');
+    throw new CliError('DRIVE_FAILED', `e2e exited ${run.status} for ${id}: ${tests.filter(test => test.status !== 'passed').length} test(s) did not pass.`,
+      `Read ${join(dir, 'summary.md')} and its failures/ pages, then open the trace (\`pnpm --dir apps/web exec playwright show-trace <artifacts/.../trace.zip>\`). If the app is wrong, report it; if the test is wrong, fix it and note the trap in the feature's Gotchas.`,
       { ...result, failure });
   }
   return result;
@@ -359,8 +378,8 @@ Usage: ${CLI} <command> [options]
 Commands (in the order you use them):
   up         start an isolated instance (own database, port and build dir)
   doctor     read-only health check; run before driving
-  features   list mapped features, their recipes and drivers
-  drive      run a feature's browser driver and collect its evidence
+  features   list mapped features, their recipes and e2e tests
+  drive      run a feature's e2e tests against the instance and collect evidence
   sql        read-only query against the instance database
   status     show the registered instance without checking it
   down       stop the instance and delete its scratch data (evidence is kept)
@@ -378,13 +397,13 @@ Read-only checks: status ready, supervisor and next dev alive, ports isolated fr
 /sign-in serving Lume, verification account provisioned with its office.
 Output: { ok, healthy, checks: [{ name, ok, detail, fix? }] }. ok:false means do not drive.`,
   features: `features
-List the feature map (features/*.md) with each recipe path and its driver script, if any.
-Output: { ok, features: [{ id, title, recipe, driver }] }`,
+List the feature map (features/*.md) with each recipe path and the e2e tests its \`Test:\` lines name.
+Output: { ok, features: [{ id, title, recipe, tests }] }`,
   drive: `drive <feature-id>
-Run scripts/drive-<feature-id>.mts against the ready instance. The driver signs in through /sign-in,
-performs the recipe, and writes screenshots, trace.zip, checks.txt and errors.json to
-<evidenceDir>/<feature-id>/.
-Output: { ok, passed, checks, pageErrors, artifacts, evidenceDir }; on failure, error.details.failure has the assertion.
+Run the feature's e2e tests (apps/web/e2e/*.e2e.ts) against the ready instance, signed in as its
+account, with a trace for every test. The report, summary.md, screenshots and traces go to
+<evidenceDir>/<feature-id>/. Agent tests (e2e/agent/) need OPENAI_API_KEY in your environment.
+Output: { ok, passed, tests: [{ title, status, error?, artifacts }], summary, evidenceDir }; on failure, error.details.failure has the runner's last lines.
 Example: ${CLI} drive office-tasks`,
   sql: `sql "<query>" [--params '<json array>']
 Run one query inside a READ ONLY transaction on the instance database. Writes are rejected by design.

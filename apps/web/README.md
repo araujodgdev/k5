@@ -177,20 +177,9 @@ Escopo e próximas etapas: [plano de Tarefas e Agenda](../../docs/plano-tarefas-
 
 O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
 
-Para validar regressões do editor, com o servidor local em execução e uma conta de
-teste já provisionada, execute da raiz:
-
-```sh
-pnpm --filter @k5/web exec playwright test -c playwright.documents.config.ts
-pnpm --filter @k5/web exec tsx scripts/verify-document-live.ts
-```
-
-`E2E_EMAIL` e `E2E_PASSWORD` permitem usar outra conta de teste existente. A suíte
-usa o editor real e respostas controladas da API para reproduzir conflitos e
-falhas de salvamento. O segundo comando usa o modelo configurado pelo administrador,
-cria um documento de teste, salva, exporta DOCX e confere o painel móvel; exige a
-conexão de IA ativa. Capturas, vídeo e DOCX ficam em `playwright-report/pr11-live/`.
-Esse fluxo termina com logout pela interface, revogando as sessões dessa conta.
+As regressões do editor ficam em `e2e/document-saving.e2e.ts` e a exportação em PDF em
+`e2e/document-pdf.e2e.ts` (veja [Testes end-to-end](#testes-end-to-end)). Elas usam o editor
+real e respostas controladas da API para reproduzir conflitos e falhas de salvamento.
 
 Alterações de documentos que ainda não foram salvas permanecem na memória da sessão
 ao navegar dentro do aplicativo, inclusive com Voltar/Avançar. O menu tenta salvar
@@ -385,10 +374,8 @@ Para validar, rode `pnpm db:setup`, `pnpm build` e `pnpm --filter @k5/web start`
 No navegador, confira Application → Manifest e Service Workers; após a primeira
 visita online, simule modo offline e recarregue uma rota de `/app`. Confira que o
 Cache Storage contém apenas recursos públicos e teste **Tentar novamente** ao reconectar.
-O teste de navegador pode ser repetido com
-`pnpm --filter @k5/web exec tsx scripts/verify-pwa.ts` contra esse servidor local.
-Com `PWA_TEST_UPDATE=1`, o teste também simula uma nova versão local e confirma que
-outra aba mantém seu formulário. O arquivo gerado é restaurado ao final.
+`e2e/pwa.e2e.ts` confere manifesto, ícones, cabeçalho do service worker, o convite de
+instalação e a cor do tema; offline e Cache Storage seguem nesta conferência manual.
 O teste isolado `pnpm --filter @k5/web exec tsx scripts/verify-pwa-update.ts` inicia
 um servidor temporário e verifica duas atualizações com abas abertas: remove os JS/CSS
 antigos do servidor e confirma carregamento pelo cache, sem perder o formulário.
@@ -502,12 +489,9 @@ pnpm --filter @k5/web build
 pnpm --filter @k5/web build:vinext
 ```
 
-O CI prepara um PostgreSQL descartável e compila Next.js e Cloudflare/vinext em cada PR.
-O build Cloudflare usa a configuração de Workers e não publica uma versão nem provisiona recursos.
-
-Com o servidor local e uma conta de validação, `pnpm --filter @k5/web exec playwright test -c playwright.workflows.config.ts`
-confere paginação do Cofre e recuperação de senha em desktop/mobile. Configure `E2E_EMAIL` e
-`E2E_PASSWORD` para os testes autenticados; os dados de negócio e envios de e-mail são simulados.
+O CI roda em jobs paralelos: lint e typecheck; `pnpm test`; o build do Next.js seguido da suíte
+e2e contra `next start` nesse build, com um PostgreSQL descartável; e o build Cloudflare/vinext,
+que usa a configuração de Workers e não publica uma versão nem provisiona recursos.
 
 Os testes usam os endpoints reais do Better Auth e PostgreSQL com esquemas isolados para validar
 autorização da plataforma, isolamento de credenciais, histórico de conversas, cronologia,
@@ -519,11 +503,49 @@ A UI usa Inter e Newsreader, baixadas por `next/font/google` durante o build e
 servidas pela própria aplicação. A variante itálica da Newsreader só é carregada
 pelo navegador quando usada; as variantes normais recebem preload.
 
+## Testes end-to-end
+
+A suíte de navegador fica em `e2e/` e roda com o [e2e](https://e2e.tester.army/docs), que usa o
+Playwright como motor. Da raiz:
+
+```sh
+pnpm test:e2e                                                  # suíte inteira
+pnpm --filter @k5/web exec e2e run e2e/office-tasks.e2e.ts     # um arquivo
+pnpm --filter @k5/web exec e2e run --exclude-tag agent --last-failed
+```
+
+- `e2e.config.ts` sobe o servidor: `next dev` localmente (ou reaproveita o que já responde em
+  `localhost:3000`, lendo `.env.local` para as conferências no banco) e `next start` sobre o
+  build no CI. `K5_E2E_URL` aponta a suíte para um servidor já iniciado, como a instância da
+  skill `verify-k5`.
+- Localmente, sem `K5_E2E_URL`, os testes de fluxo real criam contas descartáveis
+  (`*@k5.test`) e registros de teste no banco do `.env.local`. Para não tocar nesse banco, rode
+  contra a instância isolada da `verify-k5` (`k5-verify.mts up` e depois `drive <id>`).
+- `e2e/auth.setup.e2e.ts` entra uma vez pelo formulário com `admin@advocacia.test` (ou
+  `E2E_EMAIL`/`E2E_PASSWORD`) e cria a conta se ela não existir; os testes com
+  `{ session: 'admin' }` reaproveitam essa sessão. Testes que mudam credenciais ou precisam de
+  outra pessoa criam contas próprias pela API (`e2e/support/accounts.ts`).
+- Tags: `agent` marca testes cujos passos o modelo conduz (`agent.act`/`agent.assert`) e exige
+  `OPENAI_API_KEY`; o CI os pula quando o secret não existe. `pdf` marca o que depende do
+  LibreOffice no servidor; em uma máquina sem conversor, use `--exclude-tag pdf`.
+- O servidor que a suíte sobe confia no cabeçalho `x-e2e-client` (`K5_CLIENT_IP_HEADER`) para
+  separar os limites de login por cliente de teste. Não configure esse cabeçalho em ambientes reais.
+- A saída fica em `.e2e/` (ignorada pelo Git): `report.json`, `summary.md`, `failures/` e
+  `artifacts/` com um trace por teste
+  (`pnpm --filter @k5/web exec playwright show-trace <arquivo>`). O replay cache dos passos de
+  agente fica em `.e2e/cache/`, preservado entre execuções do CI.
+- Para escrever ou depurar testes, use a skill `e2e` (`.agents/skills/e2e`).
+
+Os scripts em `scripts/` que ainda usam a biblioteca `playwright` não são testes: gravam o
+tutorial (`record-tutorial.ts`, `tutorial-*.ts`, `record-system-live.ts`), conferem ambientes
+publicados (`verify-sentry-browser.ts`, `verify-monitoring-browser.ts`) e reproduzem a
+atualização do service worker com várias abas (`verify-pwa-update.ts`).
+
 ## Visão geral e validação de interface
 
 O Início reúne tarefas pendentes até hoje, próximas reuniões, clientes ativos, casos e conversas pessoais. Permite concluir tarefas e abrir os formulários existentes. As visões da agenda aceitam `?view=tasks`, `?view=calendar` e `?view=clients`; `action=new` abre o cadastro correspondente para quem pode editar. Clientes têm uma página própria em `/app/agenda/clients/[id]`.
 
-Com o servidor local em execução, rode `pnpm --filter @k5/web exec tsx scripts/verify-workspace-ui.ts` na raiz. O script reutiliza a conta de validação (ou `PWA_TEST_EMAIL` / `PWA_TEST_PASSWORD`), intercepta dados de negócio com fixtures e não cadastra contas nem altera os registros do escritório. Confere menu Mais, chat longo, retorno ao fim, calendário, Início e detalhes de cliente em desktop/mobile. Capturas ficam em `apps/web/playwright-report/workspace-ui/`.
+`e2e/workspace.e2e.ts` confere menu Mais, chat longo, retorno ao fim, calendário, Início e detalhes de cliente em desktop/mobile, com dados de negócio interceptados por fixtures; não altera os registros do escritório.
 
 
 ## Kanban e delegação de tarefas

@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { chromium, expect } from "@playwright/test";
+import { chromium } from "playwright";
+import { until } from "./browser-wait";
 
 const pushClient = await readFile(new URL("../src/lib/notifications/push-client.js", import.meta.url), "utf8");
 const template = `${pushClient.replace(/^export /gm, "")}\n${await readFile(new URL("./service-worker.js", import.meta.url), "utf8")}`;
@@ -61,15 +62,15 @@ try {
   }
   for (release = 2; release <= 3; release++) {
     await updatingTab.evaluate(async () => { await (await navigator.serviceWorker.ready).update(); });
-    await expect.poll(() => updatingTab.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting)).toBe(true);
+    await until(() => updatingTab.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting), value => value === true, 'nova versão do worker em espera');
     await updatingTab.evaluate(async () => {
       const registration = await navigator.serviceWorker.getRegistration();
       if (!registration?.waiting) throw new Error("No waiting worker");
       registration.waiting.postMessage({ type: "SKIP_WAITING" });
     });
-    await expect(oldTab.locator("html")).toHaveAttribute("data-controller-changes", String(release - 1));
+    await until(() => oldTab.locator("html").getAttribute("data-controller-changes"), value => value === String(release - 1), 'atributo ' + "data-controller-changes");
     await updatingTab.reload();
-    await expect(oldTab.getByRole("textbox", { name: "Draft" })).toHaveValue("unsaved draft");
+    await until(() => oldTab.getByRole("textbox", { name: "Draft" }).inputValue(), value => value === "unsaved draft", 'valor do campo');
     for (const asset of assets) {
       // Bypass the worker to prove the origin has actually removed the asset.
       assert.equal((await context.request.get(`${origin}${asset}`)).status(), 404);
@@ -80,7 +81,7 @@ try {
   assert.equal(await oldTab.evaluate(async (path) => (await import(path)).version as string, assets[0]), "old-release");
   await oldTab.addStyleTag({ url: `${origin}${assets[1]}` });
   assert.equal(await oldTab.evaluate(() => getComputedStyle(document.body).getPropertyValue("--old-release").trim()), "available");
-  await expect(oldTab.getByRole("textbox", { name: "Draft" })).toHaveValue("unsaved draft");
+  await until(() => oldTab.getByRole("textbox", { name: "Draft" }).inputValue(), value => value === "unsaved draft", 'valor do campo');
   console.log("PASS: two accepted updates preserve an old tab's draft, lazy JS and CSS after origin removal, with the HTTP cache disabled.");
 } finally {
   await browser.close();

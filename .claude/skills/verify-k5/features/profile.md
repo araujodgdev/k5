@@ -18,13 +18,15 @@ A person edits their own profile (name, practice, OAB, city, a short text and a 
 - Mobile: tab "Mais" → first row (name, "Perfil").
 - Cards: Escritório → Associados/Equipe → "Convidar …", and a case's Participantes tab.
 
-## Driving it with Playwright (session.mts)
+## Driving it with e2e
 
-Preconditions: a second account, created with `POST /api/auth/sign-up/email` in a separate browser context (with an `origin` header), and its profile set through `PATCH /api/profile`.
+Test: `apps/web/e2e/profile.e2e.ts`
 
-- The photo input is visually hidden; use `locator('input[type=file]').setInputFiles(...)` with a PNG drawn on a canvas in the page.
+Preconditions: none from the instance. The test signs up two accounts of its own over HTTP (`ApiSession` in `apps/web/e2e/support/accounts.ts`) and sets the second one's profile through `PATCH /api/profile`.
+
+- The photo input is visually hidden; use `browser.locator('input[type=file]').setInputFiles(['e2e/fixtures/foto-perfil.png'])`.
 - The card trigger is the button "Ver perfil de <e-mail>"; the card is `[data-slot=hover-card-content]`.
-- The driver changes the verification account's e-mail and password, then restores both before it moves on.
+- The test changes its own account's e-mail and password, so the verification account and the shared session stay untouched.
 
 ## Gotchas
 
