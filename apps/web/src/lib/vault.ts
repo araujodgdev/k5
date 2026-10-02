@@ -420,6 +420,18 @@ const EXTRACTOR_VERSION = "k5-extract-1";
  * flat file name instead of a key; those are read from the legacy directory by base name only,
  * which is also what keeps an old row from pointing outside it.
  */
+export async function readVaultOriginalStream(document: Pick<DocumentRow, 'storedName'>) {
+  try { assertStorageKey(document.storedName); }
+  catch { return readVaultOriginal(document); }
+  const storage = await objectStorage();
+  if (!storage.getStream) return readVaultOriginal(document);
+  try { return await storage.getStream(document.storedName); }
+  catch (error) {
+    if (error instanceof StorageError && error.code === 'not_found') throw new VaultHttpError(404, 'Arquivo original não encontrado.');
+    throw new VaultHttpError(503, 'Armazenamento de documentos indisponível.');
+  }
+}
+
 export async function readVaultOriginal(document: Pick<DocumentRow, "storedName">) {
   const key = document.storedName;
   try {

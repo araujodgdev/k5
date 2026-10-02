@@ -5,8 +5,7 @@ import { workspaceContext } from "@/lib/application/context";
 import { consumeUploadRef, createUploadRef } from "@/lib/application/uploads-service";
 import { contextForCase } from '@/lib/collaboration/access';
 import { assertCapabilityAllowed } from '@/lib/application/context';
-import { limitedFormData } from '@/lib/workspace-api';
-import { MAX_UPLOAD_BYTES } from '@/lib/application/uploads-service';
+import { vaultUploadForm } from '@/lib/vault-upload-request';
 import { capabilities } from '@/lib/capabilities/contracts';
 import { listDocuments } from '@/lib/application/vault-service';
 
@@ -40,7 +39,7 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const workspace = await requireVaultWorkspace();
-    const form = await limitedFormData(request, MAX_UPLOAD_BYTES + 64_000);
+    const form = await vaultUploadForm(request);
     const file = form.get("file");
     if (!(file instanceof File)) throw new VaultHttpError(400, "Escolha um arquivo para enviar.");
     const caseId = form.get('scope') === 'case' && typeof form.get('caseId') === 'string' ? String(form.get('caseId')) : null;

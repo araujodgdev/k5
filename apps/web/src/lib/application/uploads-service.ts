@@ -56,20 +56,34 @@ export async function createUploadRef(context: WorkspaceContext, file: File): Pr
   if (file.size <= 0) throw new CapabilityError('INVALID', 'O arquivo está vazio.');
   if (file.size > MAX_UPLOAD_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
 
-  const data = Buffer.from(await file.arrayBuffer());
-  if (data.byteLength > MAX_UPLOAD_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
+  const hash = createHash('sha256');
+  const reader = file.stream().getReader();
+  let byteSize = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      byteSize += value.byteLength;
+      if (byteSize > MAX_UPLOAD_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
+      hash.update(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
 
   const id = randomUUID();
   const key = storageKey(context.officeId, id, extension);
   const storage = await objectStorage();
-  await storage.put(key, data);
+  if (storage.putFile) await storage.putFile(key, file);
+  else await storage.put(key, Buffer.from(await file.arrayBuffer()));
 
-  const sha256 = createHash('sha256').update(data).digest('hex');
+  const sha256 = hash.digest('hex');
   try {
     await database.prepare(`
       INSERT INTO vault_upload_ref (id, office_id, user_id, storage_key, original_name, mime_type, byte_size, sha256, expires_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, context.officeId, context.userId, key, name, mimeType, data.byteLength, sha256, Date.now() + UPLOAD_REF_TTL_MS);
+    `).run(id, context.officeId, context.userId, key, name, mimeType, byteSize, sha256, Date.now() + UPLOAD_REF_TTL_MS);
   } catch (error) {
     // The row is what makes the object findable; without it the sweep has nothing to walk and the
     // bytes are unreachable forever. Undo the write before surfacing the failure.
@@ -77,7 +91,7 @@ export async function createUploadRef(context: WorkspaceContext, file: File): Pr
     throw error;
   }
 
-  return { id, storageKey: key, originalName: name, mimeType, byteSize: data.byteLength, sha256 };
+  return { id, storageKey: key, originalName: name, mimeType, byteSize, sha256 };
 }
 
 /**

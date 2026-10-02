@@ -196,6 +196,11 @@ aplicativo continua exigindo salvar antes: rascunhos privados não são gravados
   `pnpm platform:admin rotate-key --email <administrador da plataforma>`.
 - **Cofre (`/app/vault`):** casos e biblioteca; PDF (com OCR), DOCX, EML, XLSX, CSV e TXT
   com referências estáveis por página, parágrafo, mensagem ou célula.
+  Cada arquivo pode ter até 100 MB. A interface envia o arquivo no corpo da solicitação, com
+  `x-k5-file-name` codificado por `encodeURIComponent` e os metadados em `x-k5-upload-scope`,
+  `x-k5-upload-caseid` e `x-k5-upload-folderid`. Isso evita acrescentar multipart ao limite de
+  100 MB da Cloudflare. As rotas de upload também aceitam multipart para clientes existentes.
+  O binding R2 recebe o File sem cópia em ArrayBuffer e transmite downloads como stream.
   A biblioteca e cada nível de pasta exibem 50 arquivos por página, com Anterior/Próxima e o total.
   `/api/vault/documents` e `k5_vault_list_documents` aceitam `limit` (1–50) e `offset` (a partir de 0)
   e devolvem `{ documents, total }`, respeitando os mesmos filtros e permissões. A ordem é

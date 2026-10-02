@@ -11,7 +11,9 @@ import { containerBindingFetch } from '../container-bindings';
  */
 export interface ObjectStorage {
   put(key: string, data: Buffer, options?: { signal?: AbortSignal }): Promise<void>;
+  putFile?(key: string, file: File): Promise<void>;
   get(key: string, options?: { signal?: AbortSignal }): Promise<Buffer>;
+  getStream?(key: string): Promise<ReadableStream<Uint8Array>>;
   delete(key: string, options?: { signal?: AbortSignal }): Promise<void>;
   /** Backends that predate the key format implement this; the rest reject and the caller stops. */
   deleteLegacy?(key: string): Promise<void>;
@@ -19,8 +21,8 @@ export interface ObjectStorage {
 
 /** The narrow subset of an R2 bucket binding used by the Vault storage adapter. */
 export interface R2BucketBinding {
-  put(key: string, value: ArrayBufferView): Promise<unknown>;
-  get(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> } | null>;
+  put(key: string, value: ArrayBufferView | Blob): Promise<unknown>;
+  get(key: string): Promise<{ body?: ReadableStream<Uint8Array>; arrayBuffer(): Promise<ArrayBuffer> } | null>;
   delete(key: string): Promise<unknown>;
 }
 
@@ -150,6 +152,26 @@ class R2ObjectStorage implements ObjectStorage {
 /** R2 through the capability binding injected into the Cloudflare Worker. */
 class BoundR2ObjectStorage implements ObjectStorage {
   constructor(private readonly binding: R2BucketBinding, private readonly validateKey: (key:string)=>string = assertStorageKey) {}
+
+  async getStream(key: string) {
+    try {
+      const object = await this.binding.get(this.validateKey(key));
+      if (!object) throw new StorageError('not_found', 'Arquivo original não encontrado.');
+      if (!object.body) throw new StorageError('backend', 'Armazenamento de documentos indisponível.');
+      return object.body;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      throw new StorageError('backend', 'Armazenamento de documentos indisponível.');
+    }
+  }
+
+  async putFile(key: string, file: File) {
+    try { await this.binding.put(this.validateKey(key), file); }
+    catch (error) {
+      if (error instanceof StorageError) throw error;
+      throw new StorageError('backend', 'Armazenamento de documentos indisponível.');
+    }
+  }
 
   async put(key: string, data: Buffer) {
     try {

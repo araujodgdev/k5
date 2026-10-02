@@ -1,6 +1,6 @@
 import { testDb } from "./test-setup";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 
 import { CapabilityError } from "../src/lib/capabilities/errors";
@@ -105,11 +105,12 @@ test("storage: the Worker R2 binding is preferred without S3 credentials", async
   const objects = new Map<string, Uint8Array>();
   resetObjectStorageForTests(undefined, {
     async put(key, value) {
-      objects.set(key, new Uint8Array(value.buffer, value.byteOffset, value.byteLength).slice());
+      objects.set(key, value instanceof Blob ? new Uint8Array(await value.arrayBuffer())
+        : new Uint8Array(value.buffer, value.byteOffset, value.byteLength).slice());
     },
     async get(key) {
       const value = objects.get(key);
-      return value ? { arrayBuffer: async () => value.slice().buffer } : null;
+      return value ? { body: new Blob([value.slice()]).stream(), arrayBuffer: async () => value.slice().buffer } : null;
     },
     async delete(key) {
       objects.delete(key);
@@ -121,8 +122,16 @@ test("storage: the Worker R2 binding is preferred without S3 credentials", async
     const key = storageKey(randomUUID(), randomUUID(), ".txt");
     await storage.put(key, Buffer.from("binding-r2"));
     assert.equal((await storage.get(key)).toString(), "binding-r2");
+    assert.ok(storage.getStream);
+    assert.equal(await new Response(await storage.getStream(key)).text(), 'binding-r2');
     await storage.delete(key);
     await assert.rejects(() => storage.get(key), /não encontrado/);
+    const { lawyer } = await seedOffices();
+    const upload = await uploadsService.createUploadRef(lawyer, new File(['binding-file'], 'via-binding.txt'));
+    assert.equal((await storage.get(upload.storageKey)).toString(), 'binding-file');
+    assert.equal(upload.sha256, createHash('sha256').update('binding-file').digest('hex'));
+    await storage.delete(upload.storageKey);
+    await testDb.prepare('DELETE FROM vault_upload_ref WHERE id=?').run(upload.id);
   } finally {
     process.env = previous;
     resetObjectStorageForTests(undefined);

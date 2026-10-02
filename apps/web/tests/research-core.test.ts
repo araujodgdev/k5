@@ -28,7 +28,8 @@ import { resetObjectStorageForTests } from '../src/lib/storage';
 test('originais públicos usam o binding R2 compartilhado e verificam integridade',async()=>{
   const objects=new Map<string,Buffer>();
   resetObjectStorageForTests(undefined,{
-    async put(key,bytes){objects.set(key,Buffer.from(bytes.buffer,bytes.byteOffset,bytes.byteLength));},
+    async put(key,bytes){objects.set(key,bytes instanceof Blob ? Buffer.from(await bytes.arrayBuffer())
+      : Buffer.from(bytes.buffer,bytes.byteOffset,bytes.byteLength));},
     async get(key){const bytes=objects.get(key);return bytes?{async arrayBuffer(){return Uint8Array.from(bytes).buffer;}}:null;},
     async delete(key){objects.delete(key);},
   });

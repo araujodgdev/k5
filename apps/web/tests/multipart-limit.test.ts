@@ -3,9 +3,26 @@ import { before, test } from 'node:test';
 import assert from 'node:assert/strict';
 let ApiError: typeof import('../src/lib/workspace-api').ApiError;
 let limitedFormData: typeof import('../src/lib/workspace-api').limitedFormData;
+let limitedBlob: typeof import('../src/lib/workspace-api').limitedBlob;
 before(async () => {
   process.env.BETTER_AUTH_SECRET ??= 'multipart-test-only-secret-with-at-least-32-characters';
-  ({ ApiError, limitedFormData } = await import('../src/lib/workspace-api'));
+  ({ ApiError, limitedFormData, limitedBlob } = await import('../src/lib/workspace-api'));
+});
+
+test('raw file accepts its exact byte limit without Content-Length', async () => {
+  const bytes = new Uint8Array([1, 2, 3]);
+  const blob = await limitedBlob(new Request('http://localhost/upload', { method: 'POST', body: bytes }), bytes.length);
+  assert.deepEqual(new Uint8Array(await blob.arrayBuffer()), bytes);
+});
+
+test('raw file stops a stream that exceeds the limit despite a false Content-Length', async () => {
+  let cancelled = false;
+  const body = new ReadableStream({ pull(controller) { controller.enqueue(new Uint8Array(100)); },
+    cancel() { cancelled = true; } }, { highWaterMark: 0 });
+  const request = new Request('http://localhost/upload', { method: 'POST', headers: { 'content-length': '1' },
+    body, duplex: 'half' } as RequestInit);
+  await assert.rejects(limitedBlob(request, 250), (error: unknown) => error instanceof ApiError && error.status === 413);
+  assert.equal(cancelled, true);
 });
 
 const contentType = 'multipart/form-data; boundary=qa-boundary';

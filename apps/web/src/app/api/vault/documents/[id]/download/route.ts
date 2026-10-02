@@ -1,4 +1,4 @@
-import { findVaultDocument, readVaultOriginal, requireVaultWorkspace, VaultHttpError } from "@/lib/vault";
+import { findVaultDocument, readVaultOriginalStream, requireVaultWorkspace, VaultHttpError } from "@/lib/vault";
 import { vaultErrorResponse } from "@/lib/vault-api";
 import { documentAccess } from '@/lib/collaboration/access';
 import { workspaceContext, assertCapabilityAllowed } from '@/lib/application/context';
@@ -17,8 +17,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const context = await assertCapabilityAllowed(await documentAccess(workspaceContext(workspace), id), 'k5_vault_download_document');
     const document = await findVaultDocument(context.officeId, id, context.userId);
     if (!document || (context.caseScope && document.caseId !== context.caseScope.caseId)) throw new VaultHttpError(404, "Documento não encontrado.");
-    const file = await readVaultOriginal(document);
-    await assertCapabilityAllowed(await documentAccess(context, id), 'k5_vault_download_document');
-    return new Response(new Uint8Array(file), { headers: { "content-type": document.mimeType, "content-length": String(file.length), "content-disposition": contentDisposition(document.name), "x-content-type-options": "nosniff", "cache-control": "private, no-store" } });
+    const file = await readVaultOriginalStream(document);
+    try { await assertCapabilityAllowed(await documentAccess(context, id), 'k5_vault_download_document'); }
+    catch (error) {
+      if (!Buffer.isBuffer(file)) await file.cancel().catch(() => undefined);
+      throw error;
+    }
+    return new Response(Buffer.isBuffer(file) ? new Uint8Array(file) : file, { headers: { "content-type": document.mimeType, "content-length": String(Buffer.isBuffer(file) ? file.length : document.byteSize), "content-disposition": contentDisposition(document.name), "x-content-type-options": "nosniff", "cache-control": "private, no-store" } });
   } catch (error) { return vaultErrorResponse(error); }
 }

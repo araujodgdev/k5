@@ -86,7 +86,15 @@ export async function limitedJson(request: Request, max = 256_000): Promise<unkn
 }
 
 /** Bounds bytes before multipart parsing, including chunked requests and misleading length headers. */
-export async function limitedFormData(request: Request, max: number): Promise<FormData> {
+export function limitedFormData(request: Request, max: number): Promise<FormData> {
+  return limitedBody(request, max, response => response.formData());
+}
+
+export function limitedBlob(request: Request, max: number): Promise<Blob> {
+  return limitedBody(request, max, response => response.blob());
+}
+
+async function limitedBody<T>(request: Request, max: number, parse: (response: Response) => Promise<T>): Promise<T> {
   if (Number(request.headers.get('content-length')) > max) {
     await request.body?.cancel().catch(() => undefined);
     throw new ApiError(413, 'Solicitação muito grande.');
@@ -113,7 +121,7 @@ export async function limitedFormData(request: Request, max: number): Promise<Fo
     cancel(reason) { return reader.cancel(reason); },
   });
   try {
-    return await new Response(body, { headers: { 'content-type': request.headers.get('content-type') ?? '' } }).formData();
+    return await parse(new Response(body, { headers: { 'content-type': request.headers.get('content-type') ?? '' } }));
   } catch {
     throw new ApiError(exceeded ? 413 : 400, exceeded ? 'Solicitação muito grande.' : 'Confira o arquivo enviado.');
   } finally {

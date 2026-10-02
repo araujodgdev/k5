@@ -97,13 +97,11 @@ export function UploadControl({ scope, caseId, folderId, disabled, onUploaded, o
 
   async function sendOne(file: File): Promise<string | null> {
     if (file.size > MAX_UPLOAD_BYTES) return UPLOAD_SIZE_ERROR;
-    const body = new FormData();
-    body.set("file", file);
-    body.set("scope", scope);
-    if (scope === "case" && caseId) body.set("caseId", caseId);
-    if (folderId) body.set("folderId", folderId);
+    const headers = new Headers({ 'x-k5-file-name': encodeURIComponent(file.name), 'x-k5-upload-scope': scope });
+    if (scope === 'case' && caseId) headers.set('x-k5-upload-caseid', caseId);
+    if (folderId) headers.set('x-k5-upload-folderid', folderId);
     try {
-      const response = await fetch("/api/vault/documents", { method: "POST", body });
+      const response = await fetch("/api/vault/documents", { method: "POST", body: file, headers });
       const result = await response.json().catch(() => null) as { error?: string; document?: VaultDocument } | null;
       if (!response.ok || !result?.document) return result?.error ?? "Não foi possível enviar o arquivo.";
       onUploaded(result.document);

@@ -1,7 +1,7 @@
-import { apiWorkspace, apiError, ApiError, limitedFormData } from '@/lib/workspace-api';
+import { apiWorkspace, apiError, ApiError } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
 import { createUploadRef } from '@/lib/application/uploads-service';
-import { MAX_UPLOAD_BYTES } from '@/lib/vault-upload-contract';
+import { vaultUploadForm } from '@/lib/vault-upload-request';
 
 export const runtime = 'nodejs';
 
@@ -12,7 +12,7 @@ export const runtime = 'nodejs';
 export async function POST(request: Request) {
   try {
     const workspace = await apiWorkspace(request, true);
-    const form = await limitedFormData(request, MAX_UPLOAD_BYTES + 64_000);
+    const form = await vaultUploadForm(request);
     const file = form.get('file');
     if (!(file instanceof File)) throw new ApiError(400, 'Escolha um arquivo para enviar.');
     const upload = await createUploadRef(workspaceContext(workspace), file);
