@@ -60,38 +60,15 @@ as migrações explicitamente; não use o gerador local de segredos.
 
 ## Escritórios e colaboração
 
-O Better Auth mantém `user`, `account`, `session`, `verification` e `rateLimit`.
-`user.officeName` guarda o nome informado no cadastro para permitir retomar a
-criação do escritório após uma interrupção; o nome oficial fica em `office.name`.
+O Better Auth mantém contas e sessões. `user.officeName` preserva o nome informado no cadastro; o nome oficial fica em `office.name`. `office_member` exige um usuário por escritório e um escritório por advogado, sem papel. O provisionamento é idempotente e atômico, serializado no usuário.
 
-`office_member` relaciona usuário e escritório com chaves estrangeiras e papel:
-`administrator`, `lawyer` ou `reviewer`. O primeiro usuário é administrador. Uma pessoa
-pode integrar vários escritórios; aceitar um convite mantém seus vínculos anteriores.
-O provisionamento é idempotente e a criação de escritório/vínculo é atômica, serializada
-no usuário para suportar cadastros e aceites concorrentes.
+`requireWorkspace()` deriva o escritório da sessão. Dados de negócio usam `office_id` e acesso ao recurso, sem confiar em IDs do navegador. Administração da plataforma é separada.
 
-`requireWorkspace()` deriva o usuário da sessão e valida o escritório escolhido no cookie
-HttpOnly `k5-office`. `findOfficeForUser()` sempre filtra pelo usuário, inclusive quando
-recebe um ID de escritório. Se o vínculo foi removido, a seleção volta a um vínculo atual.
-Novas tabelas de negócio deverão exigir `office_id`, e novas operações deverão
-usar esse contexto autenticado e verificar o papel correspondente.
+**Associados** e **Convites** ficam em Escritório. O aceite cria associação mútua sem liberar arquivos. Só o dono inclui associados em **Participantes** de um caso. Todos colaboram na raiz; subpastas são públicas, privadas ou restritas. Só o criador muda seu acesso. Listas, busca, downloads, Lume e Pesquisa respeitam também as pastas acima. Encerrar a associação retira cada advogado dos casos do outro, preservando o conteúdo.
 
-O papel `reviewer` apenas consulta os dados compartilhados. **Equipe**, **Associados** e
-**Convites** ficam no módulo Escritório. **Participantes**, dentro de um caso, concede
-consulta ou colaboração somente naquele caso, sem liberar a biblioteca ou os demais casos.
-Os arquivos, fontes de conhecimento e referências são resolvidos pelo servidor para o
-escritório proprietário, com permissões revalidadas em cada operação.
+`0059_associate_access.sql` substitui os papéis e convites antigos. Antes de aplicá-la em ambiente existente, execute `pnpm --filter @k5/web db:migrate --check-associates`. Vínculos incompatíveis impedem a migração sem remoção automática de dados. Veja [colaboração e convites](../../docs/colaboracao.md).
 
-A migração `0031_collaboration.sql` acrescenta associados, participantes, convites com
-expiração e histórico de acesso. Os convites chegam à caixa da conta existente e também
-geram um link para compartilhar. Convites criados no módulo Mensagens também entram na
-fila de envio por e-mail quando o destinatário é externo, conforme a [configuração de mensagens](../../docs/mensagens.md). Endereços sem conta
-exigem o link secreto e login com o mesmo e-mail. **Esqueci minha senha**, em `/sign-in`, abre
-`/recover-password`. O portal usa `/client/recover-password`. Ambos reutilizam o Better Auth:
-o link de uso único redefine a senha e revoga todas as sessões anteriores. O envio exige a
-configuração de e-mail pessoal descrita em [Mensagens](../../docs/mensagens.md); sem ela, o
-formulário informa a indisponibilidade. Verificação de e-mail no cadastro continua indisponível.
-Consulte [o fluxo e os limites](../../docs/colaboracao.md).
+Convites chegam à conta existente e oferecem um link. Endereços sem conta exigem esse link e login com o mesmo e-mail. Não há envio automático por e-mail. **Esqueci minha senha** abre `/recover-password`; o portal usa `/client/recover-password`. O link de uso único redefine a senha e revoga sessões. O envio depende da [configuração de mensagens](../../docs/mensagens.md); o cadastro ainda não verifica e-mail.
 
 ## Tarefas e Agenda
 
@@ -121,7 +98,7 @@ Dados de clientes existentes nos casos do Cofre são preservados, sem importaç�
 O cadastro de cliente aceita endereço, cidade, UF, CEP e áreas jurídicas (cível, trabalhista,
 previdenciário; mais de uma é permitida), todos opcionais. A lista filtra por área.
 
-Administrador e advogado podem cadastrar e editar; revisor apenas consulta. Referências
+O advogado cadastra e edita no próprio escritório. Referências
 a clientes, casos e responsáveis são verificadas no escritório autenticado. Atualizações
 exigem a versão lida; tarefas concluídas e reuniões canceladas permanecem no histórico.
 Tarefas usam datas civis opcionais; reuniões exigem início e fim com offset, persistidos em
@@ -129,7 +106,7 @@ UTC e apresentados no fuso do navegador. Não há cálculo automático de prazos
 
 As capacidades `k5_crm_*` e `k5_agenda_*` usam o mesmo executor da interface,
 Mastra e WebMCP. O Lume cria, altera, conclui e reagenda atividades direto, com o
-papel e o escritório da sessão; WebMCP continua preparando sugestões por `k5_agenda_interpret`.
+acesso e o escritório da sessão; WebMCP continua preparando sugestões por `k5_agenda_interpret`.
 Ações de alto impacto pedidas pelo Lume (excluir caso, documento, pasta ou conversa, vincular,
 desvincular ou consultar um tribunal, sobrescrever uma minuta) viram uma proposta em
 `capability_approval` e só rodam quando a pessoa aperta **Confirmar** no chat
@@ -167,7 +144,7 @@ jurisprudência e busca na web) passam pelo `PromptInjectionDetector` do Mastra,
 tarefa `classification.injection_guard`, antes de o modelo lê-los. Se houver instruções dirigidas ao assistente, o conteúdo é
 retido e o Lume avisa a pessoa (`src/lib/agent-guard.ts`).
 Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
-escritas verificam origem e papel. Chaves de idempotência evitam criação duplicada em
+escritas verificam origem e acesso. Chaves de idempotência evitam criação duplicada em
 repetições, inclusive simultâneas. `k5_ui_open_resource` abre agenda, cliente e atividade.
 O botão **Atualizar** recarrega alterações realizadas pelo agente ou por outro integrante.
 
@@ -273,7 +250,7 @@ aplicativo continua exigindo salvar antes: rascunhos privados não são gravados
 `/app/research` consulta o acervo de julgados por tema e pode solicitar páginas da fonte TJDFT
 quando uma instalação apta estiver habilitada. A pesquisa, os jobs e o perfil do caso pertencem
 ao escritório e ao usuário; julgados e materiais oficiais admitidos formam o acervo público
-compartilhado. O revisor lê o acervo, enquanto administrador e advogado podem iniciar coleta,
+compartilhado. O advogado lê o acervo e pode iniciar coleta,
 avaliar pertinência e vincular versões de material a casos. A busca pelo tema no STJ usa os
 recursos já ingeridos no acervo; ela não consulta o CKAN a cada pesquisa de usuário.
 
@@ -382,8 +359,8 @@ antigos do servidor e confirma carregamento pelo cache, sem perder o formulário
 
 ## Plano e pagamentos (AbacatePay)
 
-Cada escritório paga uma mensalidade em **Plano** (`/app/billing`). Só administradores pagam; os
-demais papéis veem a situação. O pagamento usa o checkout hospedado da AbacatePay (PIX ou cartão):
+Cada advogado administra a mensalidade do seu escritório em **Plano** (`/app/billing`).
+O pagamento usa o checkout hospedado da AbacatePay (PIX ou cartão):
 `POST /api/billing/checkout` cria (uma vez) o produto `tises-plano-mensal-<centavos>` e o cliente
 na AbacatePay e devolve a URL do checkout. Um checkout pendente dos últimos 30 minutos é reaproveitado,
 inclusive quando chegam pedidos simultâneos do mesmo escritório (lock transacional no PostgreSQL).
@@ -418,7 +395,7 @@ e o valor após reembolsos não representa saldo disponível na AbacatePay. A li
 Administradores **da plataforma** podem gerar/copiar um link avulso ou de assinatura mensal,
 reembolsar integralmente um avulso pago, atualizar as cobranças e cancelar a renovação de uma
 assinatura ativa. As mutações verificam sessão, papel de plataforma, origem e vínculo do recurso
-com o escritório. O responsável selecionado precisa ser administrador daquele escritório;
+com o escritório. O responsável selecionado precisa ser o advogado dono daquele escritório;
 o cadastro de cobrança existente é reutilizado. Não há envio automático de mensagens.
 
 A assinatura usa o produto `tises-assinatura-mensal-<centavos>`, com `cycle: MONTHLY`, e checkout
@@ -552,10 +529,10 @@ O Início reúne tarefas pendentes até hoje, próximas reuniões, clientes ativ
 
 Em Escritório → Tarefas, alterne entre Lista e Kanban. O quadro reúne todas as tarefas dos filtros selecionados em A fazer, Em andamento, Concluídas e Canceladas. O controle de situação de cada cartão permite mover a tarefa com mouse, toque ou teclado. `?layout=kanban` abre o quadro diretamente.
 
-Administradores e advogados podem usar **Delegar ao Lume** em uma tarefa aberta. A ação cria uma conversa pessoal com título, observações, prazo e vínculos da tarefa, inicia o agente e coloca a tarefa em andamento. **Abrir sessão do Lume** retorna à mesma conversa. Cada usuário vê somente sua própria sessão. O agente deve entregar o resultado antes de concluir a tarefa; dúvidas e confirmações continuam na conversa. Revisores consultam o quadro sem alterar ou delegar tarefas.
+O advogado pode usar **Delegar ao Lume** em uma tarefa aberta. A ação cria uma conversa pessoal com título, observações, prazo e vínculos da tarefa, inicia o agente e coloca a tarefa em andamento. **Abrir sessão do Lume** retorna à mesma conversa. Cada usuário vê somente sua própria sessão. O agente deve entregar o resultado antes de concluir a tarefa; dúvidas e confirmações continuam na conversa.
 
 ## Cache das opções inteligentes de email
 
-Os panoramas por período e os resumos com sugestões de resposta são persistidos por conexão Google, geração de autorização, papel e versão da análise. Cada pedido confere o conteúdo atual no Gmail. Sem mudanças, reutiliza a análise, inclusive depois de recarregar a página. Marcar como lido atualiza a apresentação sem chamar a IA.
+Os panoramas por período e os resumos com sugestões de resposta são persistidos por conexão Google, geração de autorização e versão da análise. Cada pedido confere o conteúdo atual no Gmail. Sem mudanças, reutiliza a análise, inclusive depois de recarregar a página. Marcar como lido atualiza a apresentação sem chamar a IA.
 
 Quando chegam mensagens, o panorama usa a análise anterior e somente as conversas novas ou alteradas. Conversas removidas da caixa ou do período saem das referências. O resumo individual usa o resumo anterior e as novas mensagens; remoções exigem reconstrução do resumo. Permanecem os limites de 30, 50 e 80 conversas para dia, semana e mês, e a indicação de resultados limitados. Uma solicitação simultânea recebe uma orientação para aguardar; falhas não substituem o último resultado salvo. A autorização é verificada antes de qualquer leitura do cache.

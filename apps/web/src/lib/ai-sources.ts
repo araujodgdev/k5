@@ -1,5 +1,5 @@
 import 'server-only';
-import { getDocumentChunks } from './vault';
+import { getDocumentChunks, type Viewer } from './vault';
 import type { SourceChunk } from './ai-policy';
 import { database } from './database';
 import type { WorkspaceContext } from './application/context';
@@ -8,9 +8,9 @@ import { assertResearchCaseAccess } from './research/case-profile';
 import { materialSnapshot } from './research/case-material';
 import { contextForCase } from './collaboration/access';
 
-export async function selectedSources(officeId: string, documentIds: string[], query?: string): Promise<SourceChunk[]> {
+export async function selectedSources(officeId: string, viewer: Viewer, documentIds: string[], query?: string): Promise<SourceChunk[]> {
   if (!documentIds.length) return [];
-  return (await getDocumentChunks(officeId, documentIds, query)).map(chunk => ({
+  return (await getDocumentChunks(officeId, viewer, documentIds, query)).map(chunk => ({
     id: chunk.id, documentId: chunk.documentId, text: chunk.content, sourceLabel: chunk.sourceLabel, sourceType: 'vault',
   }));
 }

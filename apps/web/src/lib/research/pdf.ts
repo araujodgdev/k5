@@ -173,9 +173,9 @@ export async function processNextResearchExtraction(workerId=extractionWorkerId)
     if (!row || !row.storage_key || row.mime_type!=='application/pdf') throw new ResearchError('not_found','PDF não encontrado.');
     if (job.material_id!==row.material_id || job.installation_id!==row.installation_id || row.kind!=='full_text' ||
       row.status==='restricted' || row.judgment_status!=='active') throw new ResearchError('forbidden','Alvo do job mudou.');
-    const member=await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?')
-      .get<{role:string}>(job.office_id,job.user_id);
-    if (member?.role!=='administrator' && member?.role!=='lawyer') throw new ResearchError('forbidden','Solicitante perdeu acesso.');
+    const member=await database.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?')
+      .get(job.office_id,job.user_id);
+    if (!member) throw new ResearchError('forbidden','Solicitante perdeu acesso.');
     const source=await findInstallation(row.installation_id);
     if (!source || !canUseResearchSource(source,'store_document')) {
       throw new ResearchError('source_disabled','Fonte restringiu o material.');
@@ -189,10 +189,9 @@ export async function processNextResearchExtraction(workerId=extractionWorkerId)
       }
       await assertResearchLease(job,workerId);
       const currentSource=await findInstallation(source.id);
-      const liveMember=await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?')
-        .get<{role:string}>(job.office_id,job.user_id);
-      if (!currentSource || !canUseResearchSource(currentSource,'store_document') ||
-        (liveMember?.role!=='administrator' && liveMember?.role!=='lawyer')) {
+      const liveMember=await database.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?')
+        .get(job.office_id,job.user_id);
+      if (!currentSource || !canUseResearchSource(currentSource,'store_document') || !liveMember) {
         throw new ResearchError('forbidden','Autorização revogada durante a extração.');
       }
       await publishExtracted(request.versionId,extraction.sections,{job,workerId});

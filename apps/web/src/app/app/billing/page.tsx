@@ -16,5 +16,5 @@ export default async function BillingPage({ searchParams }: Props) {
   const overview = await billingOverview(office.officeId);
   const { pagamento } = await searchParams;
   const subscriptions = await subscriptionsForOffice(office.officeId);
-  return <BillingPanel overview={overview} hasSubscription={subscriptions.some(item => item.status === 'ACTIVE')} canPay={office.role === 'administrator'} returned={pagamento === 'concluido'} />;
+  return <BillingPanel overview={overview} hasSubscription={subscriptions.some(item => item.status === 'ACTIVE')} returned={pagamento === 'concluido'} />;
 }

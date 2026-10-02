@@ -12,7 +12,7 @@ Os e-mails são somente de saída. Respostas por e-mail não voltam para o Lume 
 
 Compartilhar um documento concede leitura da versão escolhida. O arquivo continua no Cofre. O destinatário não recebe acesso ao caso, aos arquivos vizinhos, à pesquisa ou a versões posteriores. O compartilhamento pode ser revogado. Pré-visualização e download consultam a concessão atual no servidor. A saída do remetente do escritório mantém os acessos já aceitos, mas impede aceitar os pendentes. O escritório proprietário continua podendo revogar o acesso.
 
-Compartilhar um caso cria um convite com a permissão escolhida. O destinatário precisa aceitá-lo pelo fluxo de colaboração. Ser associado ou participar de uma conversa não concede acesso ao caso.
+Para compartilhar um caso, inclua um associado em Participantes. Mensagens compartilha apenas versões individuais de documentos. Ser associado ou participar de uma conversa não concede acesso ao caso.
 
 As prévias do Cofre suportam imagens, PDF, DOCX e texto simples. Formatos sem visualização disponível oferecem download. O chat do WhatsApp também reproduz áudio e vídeo, conforme os [formatos aceitos](../apps/web/docs/integracao-whatsapp.md). A reprodução depende dos codecs disponíveis no navegador.
 

@@ -9,7 +9,7 @@ export async function emitChargeReminders(db: Database = defaultDatabase, now = 
       'honorario:'||i.id||':'||clock.local::date::text AS dedupe_key,clock.instant
     FROM honorario_charge ch JOIN honorario_installment i ON i.office_id=ch.office_id AND i.id=ch.installment_id
     JOIN honorario_agreement a ON a.office_id=i.office_id AND a.id=i.agreement_id
-    JOIN office_member m ON m.office_id=a.office_id AND m.user_id=a.created_by AND m.role IN ('administrator','lawyer')
+    JOIN office_member m ON m.office_id=a.office_id AND m.user_id=a.created_by
     JOIN notification_rollout ro ON ro.office_id=a.office_id AND ro.reminders_enabled=1 AND ro.capture_enabled=1
     LEFT JOIN notification_preference p ON p.office_id=a.office_id AND p.user_id=a.created_by CROSS JOIN clock
     WHERE ch.reminders_enabled AND a.cancelled_at IS NULL AND clock.local::time >= TIME '09:00'

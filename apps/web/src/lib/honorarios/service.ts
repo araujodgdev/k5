@@ -18,14 +18,14 @@ async function authorize(context: WorkspaceContext, write = false) {
 }
 
 const accessibleAgreements = `WITH visible_agreements AS (
-  SELECT a.*, (a.office_id=? AND a.created_by=? AND ?::boolean) AS canManage FROM honorario_agreement a
+  SELECT a.*, (a.office_id=? AND a.created_by=?) AS canManage FROM honorario_agreement a
   WHERE (a.office_id=? AND a.created_by=?) OR EXISTS (
     SELECT 1 FROM vault_case c WHERE c.office_id=a.case_office_id AND c.id=a.case_id AND c.deleted_at IS NULL
     AND (EXISTS (SELECT 1 FROM case_participant p WHERE p.office_id=c.office_id AND p.case_id=c.id AND p.user_id=? AND p.revoked_at IS NULL)
       OR (c.created_by=? AND EXISTS (SELECT 1 FROM office_member m WHERE m.office_id=c.office_id AND m.user_id=c.created_by)))
   )
 )`;
-const accessParams = (context: WorkspaceContext) => [context.officeId, context.userId, context.role !== 'reviewer', context.officeId, context.userId, context.userId, context.userId];
+const accessParams = (context: WorkspaceContext) => [context.officeId, context.userId, context.officeId, context.userId, context.userId, context.userId];
 const installmentRows = `${accessibleAgreements}, received AS (
   SELECT r.office_id, r.installment_id, SUM(r.amount_cents)::bigint AS cents
   FROM honorario_receipt r LEFT JOIN honorario_receipt_reversal v ON v.office_id=r.office_id AND v.receipt_id=r.id

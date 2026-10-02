@@ -14,19 +14,19 @@ export function whatsappTestEnvironment<T>(action: () => T, enabled = true) {
     FLAGS: { getBooleanValue: async () => enabled } }, action);
 }
 
-export async function whatsappFixture(role: WorkspaceContext['role'] = 'lawyer') {
+export async function whatsappFixture() {
   const officeId = randomUUID(), userId = randomUUID(), connectionId = randomUUID(), sessionId = randomUUID();
   const profileId = `profile-${randomUUID()}`, accountId = `account-${randomUUID()}`;
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'WhatsApp sintético');
   await testDb.prepare('INSERT INTO "user"(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, 'Pessoa sintética');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role);
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   await testDb.prepare(`INSERT INTO session(id,userId,token,expiresAt,createdAt,updatedAt)
     VALUES(?,?,?,CURRENT_TIMESTAMP+INTERVAL '1 day',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
     .run(sessionId, userId, randomUUID());
   await testDb.prepare(`INSERT INTO whatsapp_connection(id,office_id,status,profile_id,account_id,api_key_id,encrypted_api_key,verified_at)
     VALUES(?,?,'connected',?,?,?,?,CURRENT_TIMESTAMP-INTERVAL '1 hour')`)
     .run(connectionId, officeId, profileId, accountId, `key-${randomUUID()}`, encryptCredential('synthetic-office-key', parseCredentialKeyring()));
-  const context: WorkspaceContext = { officeId, userId, role, sessionId };
+  const context: WorkspaceContext = { officeId, userId, sessionId };
   return { officeId, userId, connectionId, profileId, accountId, context };
 }
 

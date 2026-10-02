@@ -12,7 +12,7 @@ async function seedQueues(db: Database) {
   await db.exec(`
     INSERT INTO "user"(id,email,name) VALUES('user','private@example.test','Private name');
     INSERT INTO office(id,name) VALUES('office','Private office');
-    INSERT INTO office_member(id,office_id,user_id,role) VALUES('member','office','user','administrator');
+    INSERT INTO office_member(id,office_id,user_id) VALUES('member','office','user');
     INSERT INTO judicial_source_installation(id,kind,court_code,court_name,degree,system,purpose,enabled)
       VALUES('source','jurisprudence_api','fixture','Fixture','superior','not_applicable','jurisprudence',1);
     INSERT INTO google_connection(id,office_id,user_id,google_subject,email,status)

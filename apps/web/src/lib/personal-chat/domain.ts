@@ -15,7 +15,7 @@ export const contactDto = z.strictObject({
   userId,
   name: z.string().min(1).max(160),
   email: z.string().max(254),
-  sources: z.array(z.enum(['team', 'associate', 'case_participant'])).min(1),
+  sources: z.array(z.enum(['associate', 'case_participant'])).min(1),
 });
 export const contactQuery = pageQuery.extend({ query: z.string().trim().max(160).default('') });
 export const contactPageDto = z.strictObject({ contacts: z.array(contactDto), nextCursor: cursor.nullable() });
@@ -122,34 +122,16 @@ export const documentPickDto = z.strictObject({
 });
 export const documentPickPageDto = z.strictObject({ documents: z.array(documentPickDto), nextCursor: cursor.nullable() });
 
-export const casePickQuery = pageQuery.extend({ query: z.string().trim().max(180).default('') });
-export const casePickDto = z.strictObject({
-  id: internalId,
-  name: z.string(),
-  allowedPermissions: z.array(z.enum(['viewer', 'editor'])).min(1),
+// A case is shared by including an associate as its participant, inside the case; Mensagens
+// shares single document versions. Old case invitations stay readable in the conversation.
+export const createShareInput = z.strictObject({
+  kind: z.literal('document'), documentId: internalId, version: z.number().int().positive(),
+  clientMessageId: internalId, idempotencyKey: internalId,
 });
-export const casePickPageDto = z.strictObject({ cases: z.array(casePickDto), nextCursor: cursor.nullable() });
-
-export const createShareInput = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('document'), documentId: internalId, version: z.number().int().positive(),
-    clientMessageId: internalId, idempotencyKey: internalId,
-  }),
-  z.strictObject({
-    kind: z.literal('case'), caseId: internalId, permission: z.enum(['viewer', 'editor']),
-    canInvite: z.boolean().default(false), clientMessageId: internalId, idempotencyKey: internalId,
-  }),
-]);
-export const createShareOutput = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('document'), message: messageDto,
-    share: z.strictObject({ id: internalId, state: documentShareBodyDto.shape.state }),
-  }),
-  z.strictObject({
-    kind: z.literal('case'), message: messageDto,
-    invitation: z.strictObject({ id: internalId, state: caseInvitationBodyDto.shape.state }),
-  }),
-]);
+export const createShareOutput = z.strictObject({
+  kind: z.literal('document'), message: messageDto,
+  share: z.strictObject({ id: internalId, state: documentShareBodyDto.shape.state }),
+});
 
 export const claimAddressInput = z.strictObject({ token: z.string().min(32).max(512) });
 export const claimAddressOutput = z.strictObject({

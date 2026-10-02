@@ -9,7 +9,7 @@ export async function listCandidates(
   input: CapabilityInput<'k5_citations_list_candidates'>
 ): Promise<CapabilityOutput<'k5_citations_list_candidates'>> {
   const sources = [
-    ...await selectedSources(context.officeId, input.documentIds),
+    ...await selectedSources(context.officeId, context.userId, input.documentIds),
     ...(input.researchReferenceIds?.length ? await selectedResearchSources(context, input.caseId!, input.researchReferenceIds) : []),
   ];
   const candidates = citationCandidates(sources);

@@ -83,8 +83,8 @@ export function DigestView({ period, state, onPeriod, onOpenThread, onRetry, onC
   </section>;
 }
 
-export function ThreadInsightView({ state, canWrite, onUseReply, onRetry, onClose }: {
-  state: Pending<ThreadInsight>; canWrite: boolean; onUseReply: (body: string) => void; onRetry: () => void; onClose: () => void;
+export function ThreadInsightView({ state, onUseReply, onRetry, onClose }: {
+  state: Pending<ThreadInsight>; onUseReply: (body: string) => void; onRetry: () => void; onClose: () => void;
 }) {
   if (state.status === 'loading') return <div className="border-b"><Working>Lendo a conversa…</Working></div>;
   if (state.status === 'failed') return <div className="border-b py-5"><p role="alert" className="text-sm text-destructive">{state.error}</p>
@@ -100,7 +100,7 @@ export function ThreadInsightView({ state, canWrite, onUseReply, onRetry, onClos
       </div>
       <Button type="button" variant="ghost" size="icon" aria-label="Fechar resumo" onClick={onClose}><X /></Button>
     </div>
-    {canWrite && insight.replies.length > 0 && <div className="mt-6">
+    {insight.replies.length > 0 && <div className="mt-6">
       <p className="label-mono mb-1 text-subtle-foreground">Respostas rápidas</p>
       {insight.replies.map(reply => <button key={reply.intent} type="button" onClick={() => onUseReply(reply.body)}
         className="group hover-rise flex w-full items-start justify-between gap-4 border-b px-1 py-3 text-left transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
@@ -112,6 +112,6 @@ export function ThreadInsightView({ state, canWrite, onUseReply, onRetry, onClos
       </button>)}
       <p className="mt-2 text-xs text-subtle-foreground">A resposta abre no editor para você revisar; nada é enviado sem você.</p>
     </div>}
-    {canWrite && insight.replies.length === 0 && <p className="mt-4 text-xs text-subtle-foreground">Esta conversa não parece pedir resposta.</p>}
+    {insight.replies.length === 0 && <p className="mt-4 text-xs text-subtle-foreground">Esta conversa não parece pedir resposta.</p>}
   </section>;
 }

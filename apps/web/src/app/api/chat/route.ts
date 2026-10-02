@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       const input: UIMessage = { id: body.message.id, role: 'user', parts: [{ type: 'text', text: [text, ...spoken.map(item => `[Áudio] ${item}`)].join('\n\n') },...chatAttachments.map(item=>attachmentPart(publicChatAttachment(item)))] };
       await saveMessages(database, owner, id, mergeHistory(stored.messages, input));
       await startChatRun({
-        workspace: { userId: context.userId, officeId: context.officeId, role: context.role, sessionId: context.sessionId },
+        workspace: { userId: context.userId, officeId: context.officeId, sessionId: context.sessionId },
         conversationId: id,
         request: { documentIds: body.documentIds, caseId: body.caseId, researchReferenceIds: body.researchReferenceIds, attachments: body.attachments,
           timeZone: body.timeZone, openDocumentId: body.openDocumentId, selection: body.selection },

@@ -12,17 +12,17 @@ Nenhum dado financeiro do escritório usado no diagnóstico foi alterado. As bai
 
 ## Cobertura
 
-O catálogo de capabilities é a fonte das operações e permissões. Cada chamada revalida sessão, vínculo, papel e acesso ao recurso. O modelo não escolhe o usuário ou escritório em nome de quem atua.
+O catálogo de capabilities é a fonte das operações e permissões. Cada chamada revalida sessão, vínculo e acesso ao recurso. O modelo não escolhe o usuário ou escritório em nome de quem atua.
 
 | Área | Operações do agente |
 | --- | --- |
 | Cofre e Biblioteca | Consultar, criar e editar casos/pastas/documentos, versões, movimentação, exclusão e processamento conforme contratos existentes |
 | Escritório | Clientes, tarefas, reuniões, arquivamento, estados e vínculos com casos |
-| Equipe, associados e convites | Consultar, convidar, responder, cancelar, mudar papel e remover acesso |
+| Associados, convites e participantes | Consultar, convidar, responder, cancelar, incluir participantes e remover acesso |
 | Honorários | Consultar/opções, cadastrar parcelas, registrar recebimento, estornar e cancelar |
 | Pesquisa | Acervo e web, histórico, coleta, perfis factuais, avaliações e referências dos casos |
 | Documentos e Lume | Geração, revisão, versões, conversas, memória, regras, conhecimento e modelo Word |
-| Mensagens | Contatos, conversas, leitura/envio, compartilhar documento/caso e revogar compartilhamento |
+| Mensagens | Contatos, conversas, leitura/envio, compartilhar versões de documentos e revogar compartilhamento |
 | Notificações | Consultar, marcar lida, arquivar, preferências e acompanhamento de caso |
 | Google conectado | Gmail, agenda, eventos compartilhados, arquivos autorizados do Drive e Docs; inclui excluir rascunho e descartar alteração pendente |
 | WhatsApp habilitado | Consultar caixa e conversa e enviar com confirmação |
@@ -59,7 +59,7 @@ Publicação verificada em 28/09/2026: índice `k5-platform-help-staging`, vers�
 | Consulta | Seção |
 | --- | --- |
 | Como dar baixa na segunda parcela de honorários? | Registrar um recebimento de honorários |
-| Como convidar um advogado para a equipe? | Equipe, associados, convites e participantes |
+| Como convidar um advogado para ser associado? | Associados, convites e participantes |
 | Você pode alterar meu plano ou minhas integrações? | Integrações e Plano |
 | Como apagar sua memória? | Fontes, memória e conhecimento do assistente |
 

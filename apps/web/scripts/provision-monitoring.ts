@@ -31,7 +31,7 @@ try {
     if (!response.ok) throw new Error(`Provisionamento recusado: HTTP ${response.status}.`);
   }
   const result = await pool.query(`SELECT o.id FROM office o JOIN office_member m ON m.office_id=o.id
-    JOIN "user" u ON u.id=m.user_id WHERE u.email=$1 AND o.name=$2 AND m.role='administrator'`, [secrets.MONITOR_EMAIL, officeName]);
+    JOIN "user" u ON u.id=m.user_id WHERE u.email=$1 AND o.name=$2`, [secrets.MONITOR_EMAIL, officeName]);
   const office = z.array(z.object({ id: z.string().min(1) })).length(1).parse(result.rows)[0];
   if (secrets.MONITOR_OFFICE_ID && secrets.MONITOR_OFFICE_ID !== office.id) throw new Error('O escritório sintético mudou. Verifique antes de continuar.');
   secrets.MONITOR_OFFICE_ID = office.id;

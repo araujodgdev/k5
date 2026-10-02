@@ -112,7 +112,8 @@ async function messageDto(row: MessageRow, viewerId: string): Promise<PersonalMe
   const body = bodyOf(row.body_json);
   if (body.kind === 'document_share') {
     const share = await database.prepare(`SELECT s.state,s.granted_by,
-    EXISTS(SELECT 1 FROM office_member m WHERE m.office_id=s.office_id AND m.user_id=s.granted_by AND m.role IN ('administrator','lawyer')) AS owner_live,
+    (EXISTS(SELECT 1 FROM office_member m WHERE m.office_id=s.office_id AND m.user_id=s.granted_by)
+      AND EXISTS(SELECT 1 FROM vault_document d WHERE d.id=s.document_id AND vault_folder_visible(d.folder_id, s.granted_by))) AS owner_live,
     EXISTS(SELECT 1 FROM vault_document d WHERE d.id=s.document_id AND d.office_id=s.office_id AND d.deleted_at IS NULL
     AND d.case_id IS NOT DISTINCT FROM s.source_case_id AND (s.source_case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case c WHERE c.id=s.source_case_id AND c.deleted_at IS NULL))) AS source_live
     FROM vault_document_share s WHERE s.id=?`).get<{
@@ -215,8 +216,7 @@ export async function listContacts(context: PersonContext, officeId: string, inp
   const offset = Number(decodeCursor(input.cursor) ?? 0);
   const like = `%${input.query.replace(/[\\%_]/g, '\\$&')}%`;
   const rows = await database.prepare(`WITH candidates AS (
-  SELECT m.user_id,'team' source FROM office_member m WHERE m.office_id=? UNION ALL
-  SELECT a.user_id,'associate' FROM office_associate a WHERE a.office_id=? UNION ALL
+  SELECT a.user_id,'associate' source FROM office_associate a WHERE a.office_id=? UNION ALL
   SELECT p.user_id,'case_participant' FROM case_participant p JOIN vault_case c ON c.id=p.case_id WHERE c.office_id=? AND p.revoked_at IS NULL)
   SELECT u.id AS "userId",u.name,u.email,array_agg(DISTINCT c.source) AS sources FROM candidates c JOIN "user" u ON u.id=c.user_id
   WHERE u.id<>? AND (u.name ILIKE ? ESCAPE '\\' OR u.email ILIKE ? ESCAPE '\\') GROUP BY u.id,u.name,u.email ORDER BY u.name,u.id LIMIT ? OFFSET ?`)
@@ -224,8 +224,8 @@ export async function listContacts(context: PersonContext, officeId: string, inp
     userId: string;
     name: string;
     email: string;
-    sources: Array<'team' | 'associate' | 'case_participant'>;
-  }>(officeId, officeId, officeId, context.userId, like, like, input.limit + 1, offset);
+    sources: Array<'associate' | 'case_participant'>;
+  }>(officeId, officeId, context.userId, like, like, input.limit + 1, offset);
   return { contacts: rows.slice(0, input.limit), nextCursor: rows.length > input.limit ? encodeCursor(offset + input.limit) : null };
 }
 async function createDirect(tx: Transaction, actorId: string, targetId: string, requestedId: string) {
@@ -389,8 +389,8 @@ export async function claimAddress(context: PersonContext, token: string) {
     const documentGrant = await tx.prepare(`SELECT s.id,s.state,s.recipient_user_id,s.expires_at,i.id AS invitation_id,i.thread_id,i.normalized_email,i.state AS invitation_state,i.claimed_by,
     v.original_name,v.mime_type,v.version FROM vault_document_share s JOIN personal_thread_invitation i ON i.id=s.invitation_id
     JOIN vault_document_version v ON v.id=s.document_version_id JOIN vault_document d ON d.id=s.document_id AND d.office_id=s.office_id
-    JOIN office_member owner ON owner.office_id=s.office_id AND owner.user_id=s.granted_by AND owner.role IN ('administrator','lawyer')
-    WHERE s.token_hash=? AND d.deleted_at IS NULL AND d.case_id IS NOT DISTINCT FROM s.source_case_id
+    JOIN office_member owner ON owner.office_id=s.office_id AND owner.user_id=s.granted_by
+    WHERE s.token_hash=? AND d.deleted_at IS NULL AND vault_folder_visible(d.folder_id, s.granted_by) AND d.case_id IS NOT DISTINCT FROM s.source_case_id
     AND (s.source_case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case c WHERE c.id=s.source_case_id AND c.office_id=s.office_id AND c.deleted_at IS NULL))
     FOR UPDATE OF s,i`).get<{
       id: string;

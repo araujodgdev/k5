@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { testDb as db } from './test-setup';
 import type { WorkspaceContext } from '../src/lib/application/context';
-import { respond } from '../src/lib/collaboration/service';
+import { createShareInput } from '../src/lib/personal-chat/domain';
 import { ensureOfficeForUser } from '../src/lib/offices';
 import type { PersonContext } from '../src/lib/personal-chat/auth';
 import {
@@ -30,7 +30,7 @@ async function person(name: string, verified = false, email = `${randomUUID()}@m
   const sessionId = await createSession(id);
   return {
     person: { userId: id, email, name, sessionId },
-    workspace: { userId: id, officeId: office.officeId, role: 'administrator', sessionId },
+    workspace: { userId: id, officeId: office.officeId, sessionId },
   };
 }
 
@@ -273,24 +273,9 @@ test('document claim is specific and does not cancel an already dispatched lease
     .get<{ state: string }>(other.share.id))?.state, 'pending');
 });
 
-test('case invitation card follows the live collaboration state', async () => {
-  const sender = await person('Olga');
-  const recipient = await person('Paulo', true);
-  const thread = (await startThread(sender.person, sender.workspace.officeId, {
-    requestId: randomUUID(), recipient: { kind: 'exact_email', email: recipient.person.email },
-  })).thread;
-  const caseId = randomUUID();
-  await db.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)')
-    .run(caseId, sender.workspace.officeId, 'Caso compartilhado', sender.person.userId);
-  const output = await createShare(sender.person, sender.workspace, thread.id, {
-    kind: 'case', caseId, permission: 'viewer', canInvite: false,
+test('Mensagens only accepts document shares; case participation belongs to Associates', () => {
+  assert.equal(createShareInput.safeParse({
+    kind: 'case', caseId: randomUUID(), permission: 'viewer', canInvite: false,
     clientMessageId: randomUUID(), idempotencyKey: randomUUID(),
-  });
-  assert.equal(output.kind, 'case');
-  if (output.kind !== 'case') return;
-  assert.equal(output.message.body.kind === 'case_invitation' && output.message.body.state, 'pending');
-
-  await respond(recipient.workspace, output.invitation.id, true);
-  const refreshed = await getMessageForViewer(output.message.id, sender.person.userId);
-  assert.equal(refreshed.body.kind === 'case_invitation' && refreshed.body.state, 'accepted');
+  }).success, false);
 });

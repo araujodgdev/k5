@@ -12,7 +12,7 @@ async function office() {
   const officeId = randomUUID(); const userId = randomUUID(); const caseId = randomUUID();
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Advogado');
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, 'lawyer');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId, officeId, 'Divórcio', userId);
   return { officeId, userId, caseId };
 }
@@ -62,7 +62,7 @@ test('annexes: generation cuts the reviewed ranges into a new folder, scoped to 
   assert.deepEqual(result.documents.map(document => document.name), ['01_procuracao.pdf', '02_rg_cpf_conjuge.pdf', '03_certidao_de_nascimento_do_filho_menor.pdf', '04_documento.pdf']);
   const folder = await testDb.prepare('SELECT name,case_id FROM vault_folder WHERE id=?').get<{ name: string; case_id: string }>(result.folderId);
   assert.deepEqual(folder, { name: 'Anexos do divórcio', case_id: owner.caseId });
-  const second = await findVaultDocument(owner.officeId, result.documents[1].id);
+  const second = await findVaultDocument(owner.officeId, result.documents[1].id, null);
   assert.equal(second?.folderId, result.folderId); assert.equal(second?.status, 'queued');
   const parts = await PDFDocument.load(await readVaultOriginal(second!));
   assert.equal(parts.getPageCount(), 2);
@@ -76,7 +76,7 @@ test('annexes: generation cuts the reviewed ranges into a new folder, scoped to 
   await assert.rejects(generateAnnexes(owner, { caseId: otherCase, scanDocumentId: scan, folderName: '', items: [{ label: 'Outro caso', startPage: 1, endPage: 1 }] }), { code: 'NOT_FOUND' });
 });
 
-test('annexes: planning waits for OCR and a petition, and reviewers cannot run it', async () => {
+test('annexes: planning waits for OCR and a petition, and unrelated lawyers cannot run it', async () => {
   const owner = await office();
   const processing = await scannedPdf(owner, 3, 'processing');
   await assert.rejects(analyzeAnnexes(owner, { caseId: owner.caseId, scanDocumentId: processing, petitionText: 'x'.repeat(80) }), { code: 'NOT_READY' });
@@ -85,7 +85,7 @@ test('annexes: planning waits for OCR and a petition, and reviewers cannot run i
   await assert.rejects(analyzeAnnexes(owner, { caseId: owner.caseId, scanDocumentId: ready, petitionText: 'curta' }), { code: 'INVALID' });
   const reviewer = randomUUID();
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(reviewer, `${reviewer}@example.test`, 'Revisor');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), owner.officeId, reviewer, 'reviewer');
-  await assert.rejects(runCapability({ officeId: owner.officeId, userId: reviewer, role: 'reviewer' }, 'k5_vault_generate_annexes',
+
+  await assert.rejects(runCapability({ officeId: owner.officeId, userId: reviewer }, 'k5_vault_generate_annexes',
     { caseId: owner.caseId, scanDocumentId: ready, items: [{ label: 'Procuração', startPage: 1, endPage: 1 }] }));
 });

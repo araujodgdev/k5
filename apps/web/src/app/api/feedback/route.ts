@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   } catch (error) { return failure(error); }
 }
 
-/** Every office role, reviewers included, may report; nothing here writes business data. */
+/** Each lawyer may submit their own report. */
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);

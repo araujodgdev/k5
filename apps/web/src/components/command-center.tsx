@@ -8,7 +8,6 @@ import { localDate } from '@/lib/calendar-days';
 import { Button } from './ui/button';
 import type { AgendaActivity, CrmClient } from '@/lib/capabilities/agenda';
 import type { CapabilityOutput } from '@/lib/capabilities/contracts';
-import type { OfficeRole } from '@/lib/offices';
 
 type Overview = {
   tasks?: { activities: AgendaActivity[]; total: number };
@@ -30,7 +29,7 @@ function OverviewSection({ title, href, module, children, loading, failed }: { t
   return <section aria-label={title} className={`relative min-w-0 border-t pt-4 md:min-h-56 before:absolute before:-top-px before:left-0 before:h-0.5 before:w-10 ${moduleRule[module]}`}><header className="mb-2 flex items-center justify-between gap-3"><h2 className="font-medium">{title}</h2><Link href={href} className={linkStyle}>Ver tudo<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only"> em {title}</span></Link></header>{loading ? <p role="status" className="py-5 text-sm text-muted-foreground">Carregando…</p> : failed ? <p role="alert" className="py-5 text-sm text-destructive">Não foi possível carregar. Use Atualizar para tentar novamente.</p> : children}</section>;
 }
 
-export function CommandCenter({ role }: { role: OfficeRole }) {
+export function CommandCenter() {
   const [data, setData] = useState<Overview>({});
   const [pending, setPending] = useState(pendingSections);
   const loading = Object.values(pending).some(Boolean);
@@ -73,12 +72,12 @@ export function CommandCenter({ role }: { role: OfficeRole }) {
   }
   const empty = (text: string) => <p className="py-2 text-sm text-muted-foreground md:py-5">{text}</p>;
   return <div className="min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
-    <header className="mb-7 flex flex-wrap items-center justify-between gap-4 max-md:justify-end"><h1 className="page-title max-md:sr-only">Início</h1><div className="flex items-center gap-2"><Button variant="ghost" size="lg" disabled={loading} onClick={() => setRevision(value => value + 1)}>Atualizar</Button>{role !== 'reviewer' && <Button asChild size="lg"><Link href="/app/agenda?action=new"><Plus className="size-4" />Nova atividade</Link></Button>}</div></header>
+    <header className="mb-7 flex flex-wrap items-center justify-between gap-4 max-md:justify-end"><h1 className="page-title max-md:sr-only">Início</h1><div className="flex items-center gap-2"><Button variant="ghost" size="lg" disabled={loading} onClick={() => setRevision(value => value + 1)}>Atualizar</Button><Button asChild size="lg"><Link href="/app/agenda?action=new"><Plus className="size-4" />Nova atividade</Link></Button></div></header>
     {failure && <p role="alert" className="mb-4 text-sm text-destructive">{failure}</p>}
     <div className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-2">
       <OverviewSection title="Tarefas até hoje" href="/app/agenda" module="agenda" loading={pending.tasks && !data.tasks} failed={!data.tasks}>
         {data.tasks?.activities.length ? <div className="divide-y">{data.tasks.activities.map(activity => <article key={activity.id} className="flex items-start gap-3 py-3">
-          {role !== 'reviewer' && <label className="flex min-h-11 shrink-0 items-start pt-0.5"><input type="checkbox" aria-label={`Concluir ${activity.title}`} disabled={busy !== null} checked={busy === activity.id} onChange={() => void complete(activity)} className="size-5 accent-primary" /></label>}
+          <label className="flex min-h-11 shrink-0 items-start pt-0.5"><input type="checkbox" aria-label={`Concluir ${activity.title}`} disabled={busy !== null} checked={busy === activity.id} onChange={() => void complete(activity)} className="size-5 accent-primary" /></label>
           <Link href={`/app/agenda?activityId=${encodeURIComponent(activity.id)}`} className="min-w-0 flex-1 py-0.5 underline-offset-4 hover:underline"><p className="break-words text-sm">{activity.title}</p><p className={`mt-1 text-[13px] ${activity.dueOn! < today ? 'text-schedule' : 'text-muted-foreground'}`}>{activity.dueOn! < today ? `Atrasada · ${new Date(`${activity.dueOn}T12:00:00`).toLocaleDateString('pt-BR')}` : 'Hoje'}</p></Link>
         </article>)}</div> : empty('Tudo em dia. Nenhuma tarefa pendente até hoje.')}
       </OverviewSection>
@@ -91,7 +90,7 @@ export function CommandCenter({ role }: { role: OfficeRole }) {
       </OverviewSection>
       <OverviewSection title="Clientes ativos" href="/app/agenda?view=clients" module="agenda" loading={pending.clients && !data.clients} failed={!data.clients}>
         {data.clients?.clients.length ? <div className="divide-y">{data.clients.clients.map(client => <Link key={client.id} href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="block py-3 underline-offset-4 hover:underline"><p className="break-words text-sm">{client.name}</p><p className="mt-1 truncate text-[13px] text-muted-foreground">{client.email || client.phone || 'Contato não informado'}</p></Link>)}</div> : empty('Nenhum cliente ativo cadastrado.')}
-        {role !== 'reviewer' && <Link href="/app/agenda?view=clients&action=new" className={linkStyle}>Cadastrar cliente</Link>}
+        <Link href="/app/agenda?view=clients&action=new" className={linkStyle}>Cadastrar cliente</Link>
       </OverviewSection>
       <div className="lg:col-span-2"><OverviewSection title="Conversas com Lume" href="/app/agents" module="lume" loading={pending.conversations && !data.conversations} failed={!data.conversations}>
         {data.conversations?.conversations.length ? <div className="divide-y">{data.conversations.conversations.slice(0, 3).map(conversation => <Link key={conversation.id} href={`/app/agents?conversationId=${encodeURIComponent(conversation.id)}`} className="flex min-h-14 items-center justify-between gap-4 py-3 text-sm underline-offset-4 hover:underline"><span className="truncate">{conversation.title}</span><span className="shrink-0 text-[13px] text-muted-foreground">Retomar<ArrowUpRight className="ml-1 inline size-3.5" aria-hidden="true" /></span></Link>)}</div> : <div className="flex flex-wrap items-center justify-between gap-3 py-4"><p className="text-sm text-muted-foreground">Consulte documentos e organize o trabalho com Lume.</p><Link href="/app/agents" className={linkStyle}>Abrir conversa<ArrowUpRight className="size-4" aria-hidden="true" /></Link></div>}

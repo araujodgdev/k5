@@ -6,7 +6,7 @@ import { applyEdits, documentFocusPrompt } from '../src/lib/artifact-edits';
 import { chatRequestSchema } from '../src/lib/chat-contract';
 import { runCapability } from '../src/lib/agent-tools';
 import { createConversation } from '../src/lib/ai-store';
-import { publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts';
+import { publishedCapabilities } from '../src/lib/capabilities/contracts';
 import type { WorkspaceContext } from '../src/lib/application/context';
 
 test('artifact edits: applied in order, all or nothing, and only on a unique excerpt', () => {
@@ -20,17 +20,14 @@ test('artifact edits: applied in order, all or nothing, and only on a unique exc
 async function fixture() {
   const officeId = randomUUID();
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
-  const member = async (role: WorkspaceContext['role']) => {
-    const userId = randomUUID();
-    await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, role);
-    await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role);
-    return { officeId, userId, role } as WorkspaceContext;
-  };
-  const lawyer = await member('lawyer');
+  const userId = randomUUID();
+  await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, 'Advogada');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
+  const lawyer: WorkspaceContext = { officeId, userId };
   const first = await createConversation(testDb, lawyer);
   const second = await createConversation(testDb, lawyer);
   const agent = (conversationId: string): WorkspaceContext => ({ ...lawyer, invocation: 'agent', conversationId });
-  return { lawyer, member, agent, first: first.id, second: second.id };
+  return { lawyer, agent, first: first.id, second: second.id };
 }
 type Artifact = { id: string; title: string; content: string; version: number; validationIssues: string[] };
 const run = async (context: WorkspaceContext, name: 'k5_artifacts_create' | 'k5_artifacts_edit', input: unknown) =>
@@ -62,7 +59,7 @@ test('artifact edits: the agent refines its own document in the same conversatio
 });
 
 test('artifact edits: another conversation, a job document or another person needs confirmation or sees nothing', async () => {
-  const { lawyer, member, agent, first, second } = await fixture();
+  const { lawyer, agent, first, second } = await fixture();
   const created = await run(agent(first), 'k5_artifacts_create', { title: 'Contrato', content: 'Cláusula única.' });
   await assert.rejects(runCapability(agent(second), 'k5_artifacts_edit', { artifactId: created.id, version: 1, edits: [{ find: 'única', replace: 'primeira' }] }), { code: 'APPROVAL_REQUIRED' });
 
@@ -72,10 +69,8 @@ test('artifact edits: another conversation, a job document or another person nee
   await testDb.prepare("INSERT INTO ai_artifact(id,office_id,user_id,run_id,title,content,conversation_id) VALUES(?,?,?,?,'Minuta','Dos fatos.',?)").run(draftId, lawyer.officeId, lawyer.userId, runId, first);
   await assert.rejects(runCapability(agent(first), 'k5_artifacts_edit', { artifactId: draftId, version: 1, edits: [{ find: 'fatos', replace: 'fatos e do direito' }] }), { code: 'APPROVAL_REQUIRED' });
 
-  const colleague = await member('lawyer');
-  await assert.rejects(runCapability({ ...colleague, invocation: 'agent', conversationId: first }, 'k5_artifacts_edit', { artifactId: created.id, version: 1, edits: [{ find: 'única', replace: 'x' }] }), { code: 'NOT_FOUND' });
-  const reviewer = await member('reviewer');
-  await assert.rejects(runCapability({ ...reviewer, invocation: 'agent' }, 'k5_artifacts_create', { title: 'x', content: 'y' }), { code: 'FORBIDDEN' });
+  const { lawyer: stranger } = await fixture();
+  await assert.rejects(runCapability({ ...stranger, invocation: 'agent', conversationId: first }, 'k5_artifacts_edit', { artifactId: created.id, version: 1, edits: [{ find: 'única', replace: 'x' }] }), { code: 'NOT_FOUND' });
 });
 
 test('artifact edits: the list puts this conversation first, and the tools stay off WebMCP', async () => {
@@ -85,7 +80,7 @@ test('artifact edits: the list puts this conversation first, and the tools stay 
   const { artifacts } = await runCapability(agent(first), 'k5_artifacts_list', {}) as { artifacts: Array<{ id: string; inThisConversation: boolean }> };
   assert.equal(artifacts[0].id, mine.id);
   assert.deepEqual(artifacts.map(item => item.inThisConversation), [true, false]);
-  const webmcp = publishedCapabilitiesForRole('lawyer', 'webmcp');
+  const webmcp = publishedCapabilities('webmcp');
   for (const name of ['k5_artifacts_create', 'k5_artifacts_edit', 'k5_artifacts_list'] as const) assert.ok(!webmcp.includes(name));
 });
 

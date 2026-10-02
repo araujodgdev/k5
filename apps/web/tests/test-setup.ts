@@ -16,8 +16,11 @@ try {
   // If not resolvable, ignore
 }
 
-const ready = postgresFixture();
-before(async () => { await ready; });
+// Heavy imports can block the event loop beyond the database handshake timeout. Start the
+// connection after module evaluation, when the runner executes its setup hook.
+const start = Promise.withResolvers<void>();
+const ready = start.promise.then(() => postgresFixture());
+before(async () => { start.resolve(); await ready; });
 export const testDatabase: Database = {
   prepare(sql) { return {
     async get<T>(...params: unknown[]) { return (await ready).db.prepare(sql).get<T>(...params); },

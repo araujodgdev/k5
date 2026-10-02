@@ -16,8 +16,7 @@ const actionStatuses: Record<string,string> = { REQUESTED: 'Solicitada', SUCCEED
 
 export function PlatformClientBilling({ data }: { data: ClientBilling }) {
   const router = useRouter();
-  const administrators = data.members.filter(member => member.role === 'administrator');
-  const [memberId,setMemberId] = useState(administrators[0]?.id ?? '');
+  const [memberId,setMemberId] = useState(data.members[0]?.id ?? '');
   const [recurring,setRecurring] = useState(false);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
@@ -56,12 +55,12 @@ export function PlatformClientBilling({ data }: { data: ClientBilling }) {
       <h3 id="new-payment" className="label-mono">Gerar cobrança</h3>
       {!data.overview.configured && <p className="text-sm text-muted-foreground">Os pagamentos ainda não foram configurados neste ambiente.</p>}
       <div className="grid gap-4 md:grid-cols-2">
-        <label className="grid gap-1.5 text-sm">Responsável no escritório<select value={memberId} onChange={event=>setMemberId(event.target.value)} className="h-11 min-w-0 border border-input bg-background px-3 focus-visible:ring-2 focus-visible:ring-ring"><option value="" disabled>Selecione um administrador</option>{administrators.map(member=><option key={member.id} value={member.id}>{member.name} · {member.email}</option>)}</select></label>
+        <label className="grid gap-1.5 text-sm">Responsável no escritório<select value={memberId} onChange={event=>setMemberId(event.target.value)} className="h-11 min-w-0 border border-input bg-background px-3 focus-visible:ring-2 focus-visible:ring-ring"><option value="" disabled>Selecione o advogado</option>{data.members.map(member=><option key={member.id} value={member.id}>{member.name} · {member.email}</option>)}</select></label>
         <label className="grid gap-1.5 text-sm">Tipo de cobrança<select value={recurring ? 'subscription' : 'one-time'} onChange={event=>setRecurring(event.target.value === 'subscription')} className="h-11 border border-input bg-background px-3 focus-visible:ring-2 focus-visible:ring-ring"><option value="one-time">Um mês avulso · {formatMoney(data.overview.price)}</option><option value="subscription" disabled={openSubscription}>Assinatura mensal · {formatMoney(data.overview.price)}/mês</option></select></label>
       </div>
       <p className="text-sm text-muted-foreground">{recurring ? 'O cliente conclui a adesão no checkout seguro. Depois, a cobrança no cartão é automática a cada mês, até o cancelamento.' : 'O cliente paga por PIX ou cartão. O pagamento adiciona um mês ao prazo atual, sem renovação automática.'} O cadastro de cobrança existente será reutilizado.</p>
       {!recurring && openSubscription && <p className="text-sm">Este cliente já tem uma assinatura ativa ou aguardando adesão. Uma cobrança avulsa será adicional.</p>}
-      {!administrators.length && <p className="text-sm">O cliente precisa de um administrador para gerar uma cobrança.</p>}
+      {!data.members.length && <p className="text-sm">O cliente precisa de um advogado cadastrado para gerar uma cobrança.</p>}
       <Button disabled={busy || !memberId || !data.overview.configured || (recurring && openSubscription)} className="h-11" onClick={()=>void command({ action: 'checkout',memberId,recurring })}>{busy ? 'Aguarde…' : 'Gerar link de pagamento'}</Button>
       {link && <div className="flex flex-col gap-2 sm:flex-row"><label className="min-w-0 flex-1"><span className="sr-only">Link de pagamento</span><Input className="h-11" value={link} readOnly onFocus={event=>event.target.select()} /></label><Button variant="outline" className="h-11" onClick={()=>void copy(link)}>Copiar link</Button></div>}
     </section>

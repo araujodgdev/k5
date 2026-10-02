@@ -8,11 +8,12 @@ import { saveConnection, connectionView } from '../src/lib/typesafe/config';
 import { connectionSettings, type DecisionResponse } from '../src/lib/typesafe/contracts';
 import type { DecisionRequest, DecisionTransport } from '../src/lib/typesafe/client';
 
-async function member(role = 'lawyer', officeId: string = randomUUID()) {
+async function member() {
+  const officeId = randomUUID();
   const userId = randomUUID();
   if (!await testDb.prepare('SELECT 1 FROM office WHERE id=?').get(officeId)) await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório de teste');
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Pessoa');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role);
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   return { officeId, userId };
 }
 async function admin() {
@@ -46,8 +47,8 @@ async function enableTypesafe(actor: string) {
 async function drain(send: DecisionTransport) { while (await processNextFeedbackClassification({ send })); }
 
 test('feedback: any member reports, authors see only their own tickets, invalid input is refused', async () => {
-  const author = await member('reviewer');
-  const colleague = await member('lawyer', author.officeId);
+  const author = await member();
+  const colleague = await member();
   const outsider = await member();
   const first = await createTicket(author, { message: 'O upload travou no Cofre.', pagePath: '/app/vault' }, png(), 'Navegador de teste');
   assert.ok(first.number > 0);

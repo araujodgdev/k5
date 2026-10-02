@@ -402,7 +402,7 @@ export async function recordSyncFailureAlert(officeId: string, linkId: string | 
     .get<{ case_id: string }>(linkId, officeId))?.case_id ?? null : null;
   const recipients = await database.prepare(`SELECT DISTINCT user_id FROM (
       SELECT authorized_by AS user_id FROM judicial_subscription s JOIN judicial_sync_job j ON j.subscription_id=s.id WHERE j.id=? AND j.office_id=?
-      UNION SELECT user_id FROM office_member WHERE office_id=? AND role='administrator'
+      UNION SELECT user_id FROM office_member WHERE office_id=?
     )`).all<{ user_id: string }>(jobId, officeId, officeId);
   const dedupe = alertDedupeKey('sync_failed', 'job', jobId);
   const now = nowIso();

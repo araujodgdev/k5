@@ -13,8 +13,8 @@ async function fixture() {
   const userA = randomUUID(), userB = randomUUID(), officeA = randomUUID(), officeB = randomUUID();
   (await db.prepare("INSERT INTO user (id,email,name) VALUES (?,?,?),(?,?,?)").run(userA, "a@example.test", "A", userB, "b@example.test", "B"));
   (await db.prepare("INSERT INTO office (id,name) VALUES (?,?),(?,?)").run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia"));
-  (await db.prepare("INSERT INTO office_member (id,office_id,user_id,role) VALUES (?,?,?,?),(?,?,?,?)")
-    .run(randomUUID(), officeA, userA, "lawyer", randomUUID(), officeB, userB, "lawyer"));
+  (await db.prepare("INSERT INTO office_member (id,office_id,user_id) VALUES (?,?,?),(?,?,?)")
+    .run(randomUUID(), officeA, userA, randomUUID(), officeB, userB));
   // The raw handle arranges rows; `database` is the async seam every module under test uses.
   return { db, database: db, userA, userB, officeA, officeB };
 }

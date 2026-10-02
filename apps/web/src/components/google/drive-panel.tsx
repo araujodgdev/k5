@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import Link from 'next/link';
 import type { z } from 'zod';
 import type { driveFileDto, driveImportDto, drivePermissionDto } from '@/lib/capabilities/google';
-import type { OfficeRole } from '@/lib/offices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,10 +30,9 @@ function operationState(status: string) {
 }
 
 /** Selected Drive files stay personal; the picker copies them to this Vault destination. */
-export function DrivePanel({ role, initialCaseId, initialFolderId, onImported }: {
-  role: OfficeRole; initialCaseId?: string; initialFolderId?: string | null; onImported?: () => void;
+export function DrivePanel({ initialCaseId, initialFolderId, onImported }: {
+  initialCaseId?: string; initialFolderId?: string | null; onImported?: () => void;
 }) {
-  const canWrite = role !== 'reviewer';
   const { run, approvalDialog } = useGoogleAction();
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [files, setFiles] = useState<DriveFile[]>([]);
@@ -152,7 +150,7 @@ export function DrivePanel({ role, initialCaseId, initialFolderId, onImported }:
   return <section className="border-t py-6 max-md:[&_button]:min-h-11 max-md:[&_button]:min-w-11" aria-label="Arquivos do Google Drive">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-lg font-medium">Google Drive</h2>
-      {available && canWrite && <DrivePicker onPicked={picked} disabled={busy} />}
+      {available && <DrivePicker onPicked={picked} disabled={busy} />}
     </div>
     {loading && <p className="mt-4 text-sm text-muted-foreground" role="status">Carregando arquivos…</p>}
     {status && !available && <GoogleConnectionNotice status={status} module="drive" />}
@@ -176,7 +174,7 @@ export function DrivePanel({ role, initialCaseId, initialFolderId, onImported }:
           <div><h3 className="font-medium">{selected.name}</h3><p className="text-xs text-muted-foreground">Última alteração: {when(selected.modifiedTime)} · {selected.sizeBytes === null ? 'tamanho não informado' : `${Math.ceil(selected.sizeBytes / 1024)} KB`}</p></div>
           {selected.webViewLink && <a href={selected.webViewLink} target="_blank" rel="noopener noreferrer" className="text-sm underline underline-offset-4">Abrir no Google</a>}
         </div>
-        {selected.state === 'available' && canWrite && <>
+        {selected.state === 'available' && <>
           <div className="mt-5 grid gap-3 border-t pt-5">
             <h4 className="font-medium">Copiar para o Cofre</h4>
             <p className="text-sm text-muted-foreground">Reimportar este arquivo cria outra versão da cópia neste destino.</p>
@@ -202,10 +200,10 @@ export function DrivePanel({ role, initialCaseId, initialFolderId, onImported }:
           <Button variant="outline" disabled={busy} onClick={() => void loadPermissions(selected.id)}>Ver acessos no Google</Button>
           {permissions && <div className="mt-3 divide-y border-y">{permissions.length ? permissions.map(p => <div key={p.id} className={row}>
             <span className="min-w-0 flex-1 break-words">{p.emailAddress ?? p.displayName ?? p.type} · {p.role} {p.inherited && '· herdado do Drive compartilhado'}</span>
-            {canWrite && p.removable && <Button variant="ghost" size="sm" disabled={busy} onClick={() => void mutate('drive-revoke', { fileId: selected.id, permissionId: p.id },
+            {p.removable && <Button variant="ghost" size="sm" disabled={busy} onClick={() => void mutate('drive-revoke', { fileId: selected.id, permissionId: p.id },
               () => void loadPermissions(selected.id))}>Remover acesso</Button>}
           </div>) : <p className="py-3 text-sm text-muted-foreground">Nenhum acesso listado.</p>}</div>}
-          {canWrite && selected.capabilities.canShare && <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={(e: FormEvent) => {
+          {selected.capabilities.canShare && <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={(e: FormEvent) => {
             e.preventDefault(); void mutate('drive-share', { fileId: selected.id, email, role: shareRole, notify: true },
               () => { setEmail(''); void loadPermissions(selected.id); });
           }}><div className="grid min-w-48 flex-1 gap-1.5"><Label htmlFor="drive-share-email">Compartilhar com uma pessoa</Label><Input id="drive-share-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
@@ -218,7 +216,7 @@ export function DrivePanel({ role, initialCaseId, initialFolderId, onImported }:
           {revisionId && <>
             <p className="text-xs text-muted-foreground">Revisão {revisionId}. O conteúdo abaixo vem do Google e deve ser conferido.</p>
             <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-y py-3 text-sm font-sans">{docText}</pre>
-            {canWrite && selected.capabilities.canEdit && <form className="grid gap-3" onSubmit={(e: FormEvent) => {
+            {selected.capabilities.canEdit && <form className="grid gap-3" onSubmit={(e: FormEvent) => {
               e.preventDefault(); void mutate<{ revisionId: string | null; operation: { status: string } }>('docs-edit',
                 { fileId: selected.id, revisionId, edits: [{ find, replace }] }, result => {
                   if (result.operation.status === 'succeeded') void loadDoc(selected.id);

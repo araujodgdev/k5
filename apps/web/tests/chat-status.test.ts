@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { capabilities, publishedCapabilitiesForRole, type Capability } from '../src/lib/capabilities/contracts';
+import { capabilities, publishedCapabilities, type Capability } from '../src/lib/capabilities/contracts';
 import { toolStatus } from '../src/lib/chat-status';
 
 test('chat status: every tool the agent can call says where it is working', () => {
-  const names = new Set((['administrator', 'lawyer', 'reviewer'] as const).flatMap(role => publishedCapabilitiesForRole(role, 'agent')));
+  const names = new Set(publishedCapabilities('agent'));
   const unnamed = [...names].filter(name => toolStatus(name, (capabilities[name] as Capability).effect) === 'Trabalhando…');
   assert.deepEqual(unnamed, [], 'a new group of tools needs a place in chat-status.ts');
 });

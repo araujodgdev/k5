@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { database } from '@/lib/database';
-import { ACTIVE_OFFICE_COOKIE, selectedOfficeForUser } from '@/lib/offices';
-import { cookies } from 'next/headers';
+import { ensureOfficeForUser } from '@/lib/offices';
 import { completeGoogleConnect } from '@/lib/google/connections';
 import { googleOAuthConfig } from '@/lib/google/config';
 import { captureOperationalError } from '@/lib/observability/report';
@@ -28,7 +27,7 @@ export async function GET(request: Request) {
   if (!session?.session?.id) return back(request, 'invalid');
   const url = new URL(request.url);
   try {
-    const office = await selectedOfficeForUser(database, session.user, (await cookies()).get(ACTIVE_OFFICE_COOKIE)?.value);
+    const office = await ensureOfficeForUser(database, session.user);
     const result = await completeGoogleConnect({ officeId: office.officeId, userId: session.user.id, sessionId: session.session.id }, {
       code: url.searchParams.get('code'), state: url.searchParams.get('state'), error: url.searchParams.get('error'),
     });

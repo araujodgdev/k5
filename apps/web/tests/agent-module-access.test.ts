@@ -10,7 +10,7 @@ import { MockLanguageModelV4 } from 'ai/test';
 import { agentTools, runCapability } from '../src/lib/agent-tools';
 import { moduleToolSelection } from '../src/lib/agent-tools/selection';
 import { ToolReadGuard } from '../src/lib/agent-tools/repetition';
-import { capabilities, publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts';
+import { capabilities, publishedCapabilities } from '../src/lib/capabilities/contracts';
 import { helpContent, searchHelp } from '../src/lib/platform-help/search';
 import { approvalIdFromMessage } from '../src/lib/application/approvals-service';
 import { decideAgentApproval, describeAgentApproval } from '../src/lib/application/agent-approvals';
@@ -18,12 +18,12 @@ import { CapabilityError } from '../src/lib/capabilities/errors';
 import { toolOutcome, type ToolOutcome } from '../src/lib/chat-tool-outcome';
 import type { WorkspaceContext } from '../src/lib/application/context';
 
-async function fixture(role: WorkspaceContext['role'] = 'administrator') {
+async function fixture(): Promise<WorkspaceContext & { invocation: 'agent' }> {
   const officeId = randomUUID(), userId = randomUUID();
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Pessoa');
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role);
-  return { officeId, userId, role, invocation: 'agent' as const };
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
+  return { officeId, userId, invocation: 'agent' as const };
 }
 async function proposal(call: Promise<unknown>) {
   try { await call; } catch (error) {
@@ -93,10 +93,10 @@ test('module selection exposes the requested authorized tools in the next real a
   assert.equal(step, 3);
   const maxModules = Object.values(capabilities).reduce<Record<string, number>>((counts, capability) => { counts[capability.module] = (counts[capability.module] ?? 0) + 1; return counts; }, {});
   assert.ok(Object.values(maxModules).sort((a, b) => b - a).slice(0, 3).reduce((a, b) => a + b, 0) + 22 < 128);
-  assert.ok(!publishedCapabilitiesForRole('reviewer', 'agent').includes('k5_honorarios_receive'));
+  assert.ok(publishedCapabilities('agent').includes('k5_honorarios_receive'));
 });
 
-test('settings wait for confirmation, bind the full edit and enforce office administrator access', async () => {
+test('settings wait for confirmation, bind the full edit and keep each lawyer to their own office', async () => {
   const context = await fixture();
   const input = { scope: 'personal', idempotencyKey: randomUUID(), change: { action: 'create_instruction', title: 'Estilo', content: 'Use frases curtas.', appliesTo: 'chat', enabled: true } };
   const id = await proposal(runCapability(context, 'k5_agent_settings_change', input));
@@ -108,16 +108,16 @@ test('settings wait for confirmation, bind the full edit and enforce office admi
   assert.equal(after.instructions.personal[0].content, 'Use frases curtas.');
   const stranger = await fixture();
   assert.equal(capabilities.k5_agent_settings_get.output.parse(await runCapability(stranger, 'k5_agent_settings_get', {})).instructions.personal.length, 0);
-  const lawyer = await fixture('lawyer');
-  const denied = await proposal(runCapability(lawyer, 'k5_agent_settings_change', { ...input, scope: 'office', idempotencyKey: randomUUID() }));
-  assert.equal((await decideAgentApproval(lawyer, denied, 'confirm')).state, 'failed');
+  const office = await proposal(runCapability(stranger, 'k5_agent_settings_change', { ...input, scope: 'office', idempotencyKey: randomUUID() }));
+  assert.equal((await decideAgentApproval(stranger, office, 'confirm')).state, 'confirmed');
+  assert.equal(capabilities.k5_agent_settings_get.output.parse(await runCapability(context, 'k5_agent_settings_get', {})).instructions.office.length, 0);
 });
 
 test('personal message tools send only after confirmation and reject another person reading the thread', async () => {
   const sender = await fixture();
   const peer = randomUUID();
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(peer, `${peer}@example.test`, 'Colega');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), sender.officeId, peer, 'lawyer');
+  await testDb.prepare('INSERT INTO office_associate(office_id,user_id,created_by) VALUES(?,?,?)').run(sender.officeId, peer, sender.userId);
   const { thread } = capabilities.k5_messages_start.output.parse(await runCapability(sender, 'k5_messages_start', { requestId: randomUUID(), recipient: { kind: 'known_user', userId: peer } }));
   const input = { threadId: thread.id, clientMessageId: randomUUID(), body: { kind: 'text', text: 'Mensagem de teste local.' } };
   const id = await proposal(runCapability(sender, 'k5_messages_send', input));
@@ -128,9 +128,9 @@ test('personal message tools send only after confirmation and reject another per
   await assert.rejects(runCapability(await fixture(), 'k5_messages_read', { threadId: thread.id }), { code: 'NOT_FOUND' });
 });
 
-test('reviewers can manage their notification preferences without changing another user', async () => {
-  const context = await fixture('reviewer');
-  const other = await fixture('reviewer');
+test('each lawyer manages their own notification preferences without changing another user', async () => {
+  const context = await fixture();
+  const other = await fixture();
   const original = await runCapability(other, 'k5_notifications_get_preferences', {});
   const changed = capabilities.k5_notifications_update_preferences.output.parse(await runCapability(context, 'k5_notifications_update_preferences', { categories: { agenda: false } }));
   assert.equal(changed.categories.agenda, false);
@@ -139,23 +139,25 @@ test('reviewers can manage their notification preferences without changing anoth
   await assert.rejects(runCapability(context, 'k5_notifications_get_preferences', {}), { code: 'FORBIDDEN' });
 });
 
-test('collaboration tools invite, accept and change access through separate confirmations', async () => {
-  const owner = await fixture(), peer = await fixture('lawyer');
-  const invitation = { change: { action: 'invite', invitation: { kind: 'team', email: `${peer.userId}@example.test`, role: 'lawyer' } } };
+test('collaboration tools invite, accept and include a participant through separate confirmations', async () => {
+  const owner = await fixture(), peer = await fixture();
+  const invitation = { change: { action: 'invite', invitation: { email: `${peer.userId}@example.test` } } };
   const id = await proposal(runCapability(owner, 'k5_collaboration_change', invitation));
   assert.equal(capabilities.k5_collaboration_get.output.parse(await runCapability(owner, 'k5_collaboration_get', {})).outgoing.length, 0);
-  assert.match(await describeAgentApproval(owner, 'k5_collaboration_change', invitation), /como advogado/);
+  assert.match(await describeAgentApproval(owner, 'k5_collaboration_change', invitation), /como associado/);
   assert.equal((await decideAgentApproval(owner, id, 'confirm')).state, 'confirmed');
   const incoming = capabilities.k5_collaboration_get.output.parse(await runCapability(peer, 'k5_collaboration_get', {})).incoming;
   assert.equal(incoming.length, 1);
   const accept = await proposal(runCapability(peer, 'k5_collaboration_change', { change: { action: 'respond', id: incoming[0].id, accept: true } }));
   assert.equal((await decideAgentApproval(peer, accept, 'confirm')).state, 'confirmed');
-  const change = { change: { action: 'member', userId: peer.userId, role: 'reviewer' } };
-  const role = await proposal(runCapability(owner, 'k5_collaboration_change', change));
-  assert.match(await describeAgentApproval(owner, 'k5_collaboration_change', change), /Alterar acesso para revisor de Pessoa/);
-  assert.equal((await decideAgentApproval(owner, role, 'confirm')).state, 'confirmed');
-  const overview = capabilities.k5_collaboration_get.output.parse(await runCapability(owner, 'k5_collaboration_get', {}));
-  assert.equal(overview.members.find(member => member.id === peer.userId)?.role, 'reviewer');
+  const caseId = randomUUID();
+  await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId, owner.officeId, 'Inventário', owner.userId);
+  const change = { change: { action: 'participant', caseId, userId: peer.userId, add: true } };
+  const participant = await proposal(runCapability(owner, 'k5_collaboration_change', change));
+  assert.match(await describeAgentApproval(owner, 'k5_collaboration_change', change), /Incluir Pessoa .* como participante do caso “Inventário”/);
+  assert.equal((await decideAgentApproval(owner, participant, 'confirm')).state, 'confirmed');
+  const overview = capabilities.k5_collaboration_get.output.parse(await runCapability(owner, 'k5_collaboration_get', { caseId }));
+  assert.deepEqual(overview.participants.map(person => person.id), [peer.userId]);
   const stranger = await fixture();
-  await assert.rejects(describeAgentApproval(owner, 'k5_collaboration_change', { change: { action: 'member', userId: stranger.userId, role: null } }), { code: 'NOT_FOUND' });
+  await assert.rejects(describeAgentApproval(owner, 'k5_collaboration_change', { change: { action: 'participant', caseId, userId: stranger.userId, add: true } }), { code: 'NOT_FOUND' });
 });

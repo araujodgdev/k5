@@ -9,14 +9,14 @@ import { withAdsTransport, verifyAdsAccount } from '../src/lib/ads/provider';
 import { connectAds, disconnectAds, getAdsStatus, refreshAds } from '../src/lib/ads/service';
 import { decryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
 
-async function fixture(role: WorkspaceContext['role'] = 'administrator') {
+async function fixture() {
   const officeId = randomUUID(), userId = randomUUID(), sessionId = randomUUID();
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Anúncios sintéticos');
   await testDb.prepare('INSERT INTO "user"(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@ads.test`, 'Pessoa sintética');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role);
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   await testDb.prepare('INSERT INTO session(id,userId,token,expiresAt,createdAt,updatedAt) VALUES(?,?,?,CURRENT_TIMESTAMP+INTERVAL \'1 day\',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)')
     .run(sessionId, userId, randomUUID());
-  return { officeId, userId, role, sessionId } satisfies WorkspaceContext;
+  return { officeId, userId, sessionId } satisfies WorkspaceContext;
 }
 const account = (id = randomUUID()) => ({ id: `adacct_${id}`, name: 'Conta sintética', currency_code: 'USD', timezone: 'UTC', status: 'active', review: { status: 'pending' } });
 function enabled<T>(action: () => T, value = true) {
@@ -27,14 +27,14 @@ test('Ads flag targets the authenticated user and office, independently of Whats
   const results = await withAdsEnvironment({ FLAGS: { async getBooleanValue(key, fallback, context) {
     assert.equal(key, 'chatgpt-ads'); assert.equal(fallback, false);
     assert.equal(context.targetingKey, `${context.office_id}:${context.user_id}`);
-    return context.office_id === 'office-a' && context.user_id === 'user-a' && context.role === 'administrator';
+    return context.office_id === 'office-a' && context.user_id === 'user-a';
   } } }, () => Promise.all([
-    isAdsEnabled({ officeId: 'office-a', userId: 'user-a', role: 'administrator' }),
-    isAdsEnabled({ officeId: 'office-a', userId: 'user-b', role: 'administrator' }),
-    isAdsEnabled({ officeId: 'office-b', userId: 'user-a', role: 'administrator' }),
+    isAdsEnabled({ officeId: 'office-a', userId: 'user-a' }),
+    isAdsEnabled({ officeId: 'office-a', userId: 'user-b' }),
+    isAdsEnabled({ officeId: 'office-b', userId: 'user-a' }),
   ]));
   assert.deepEqual(results, [true, false, false]);
-  assert.equal(await withAdsEnvironment({}, () => isAdsEnabled({ officeId: 'a', userId: 'b', role: 'administrator' })), false);
+  assert.equal(await withAdsEnvironment({}, () => isAdsEnabled({ officeId: 'a', userId: 'b' })), false);
 });
 
 test('Ads onboarding stores encrypted credentials, scopes accounts, refreshes and disconnects with audit', async () => enabled(async () => {
@@ -66,7 +66,7 @@ test('Ads onboarding stores encrypted credentials, scopes accounts, refreshes an
   });
 }));
 
-test('Ads denies disabled flags, reviewers, removed memberships and revoked sessions before contacting OpenAI', async () => {
+test('Ads denies disabled flags, removed memberships and revoked sessions before contacting OpenAI', async () => {
   const context = await fixture();
   await withAdsTransport(async () => { assert.fail('Unauthorized access contacted OpenAI'); }, async () => {
     await enabled(async () => {
@@ -74,11 +74,11 @@ test('Ads denies disabled flags, reviewers, removed memberships and revoked sess
       await assert.rejects(() => connectAds(context, { apiKey: 'synthetic', expectedVersion: null }), { code: 'NOT_FOUND' });
     }, false);
     await enabled(async () => {
-      const reviewer = await fixture('reviewer');
-      assert.equal((await getAdsStatus(reviewer)).canManage, false);
-      await assert.rejects(() => connectAds(reviewer, { apiKey: 'synthetic', expectedVersion: null }), { code: 'FORBIDDEN' });
-      await testDb.prepare('DELETE FROM office_member WHERE office_id=?').run(reviewer.officeId);
-      await assert.rejects(() => getAdsStatus(reviewer), { code: 'FORBIDDEN' });
+      const removed = await fixture();
+      assert.equal((await getAdsStatus(removed)).canManage, true);
+      await testDb.prepare('DELETE FROM office_member WHERE office_id=?').run(removed.officeId);
+      await assert.rejects(() => getAdsStatus(removed), { code: 'FORBIDDEN' });
+      await assert.rejects(() => connectAds(removed, { apiKey: 'synthetic', expectedVersion: null }), { code: 'FORBIDDEN' });
       await testDb.prepare('DELETE FROM session WHERE id=?').run(context.sessionId);
       await assert.rejects(() => getAdsStatus(context), { code: 'UNAUTHENTICATED' });
     });

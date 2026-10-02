@@ -1,6 +1,6 @@
 # Manual do Lume
 
-Referência da plataforma para clientes e para a busca de ajuda do assistente. Revisado em 28/09/2026. Descreve o comportamento implementado, inclusive as ferramentas do agente nesta revisão. Recursos que dependem de conexão, permissão ou processamento não ficam disponíveis apenas por serem mencionados aqui.
+Referência da plataforma para clientes e para a busca de ajuda do assistente. Revisado em 02/10/2026. Descreve o comportamento implementado, inclusive as ferramentas do agente nesta revisão. Recursos que dependem de conexão, permissão ou processamento não ficam disponíveis apenas por serem mencionados aqui.
 
 ## O que é o Lume
 
@@ -8,25 +8,25 @@ O Lume organiza o trabalho de um escritório jurídico. Reúne casos e documento
 
 Um caso do escritório organiza um assunto de trabalho, seus arquivos, clientes e participantes. Não é necessariamente um processo judicial. Um caso pode não ter processo ou envolver vários processos. Um julgado é uma decisão judicial usada em pesquisa; não é o caso de um cliente. A Biblioteca do Cofre guarda documentos que não pertencem a um caso específico.
 
-## Entrar, sair e escolher o escritório
+## Entrar e sair
 
-O acesso fica em `/sign-in`. Criar conta, em `/sign-up`, pede nome, escritório, e-mail e senha e cria um escritório com vínculo de administrador. Convites permitem participar de outros escritórios sem perder os vínculos anteriores. A pessoa pode alternar o escritório ativo no aplicativo. Cadastros e ações do escritório usam essa seleção autenticada.
+O acesso fica em `/sign-in`. O cadastro em `/sign-up` pede nome, escritório, e-mail e senha e cria o escritório pessoal do advogado. Cada advogado tem um único escritório. Associados colaboram nos casos em que forem incluídos.
 
-Sair encerra todas as sessões da conta, inclusive em outros dispositivos. O aplicativo verifica sessões e permissões no servidor; remover um vínculo ou reduzir um papel interrompe as operações correspondentes. Em Esqueci minha senha, na tela de acesso, a pessoa solicita um link de uso único por e-mail. Redefinir a senha encerra todas as sessões anteriores. O envio depende da configuração de e-mail da plataforma; quando indisponível, a tela orienta procurar o suporte. O portal do cliente oferece o mesmo fluxo na sua tela de acesso. Não existe verificação de e-mail pelo cadastro nesta versão.
+Sair encerra todas as sessões da conta. O servidor verifica sessões e acesso. Esqueci minha senha envia um link de uso único quando o e-mail da plataforma está configurado. Redefinir a senha encerra sessões anteriores. O portal do cliente tem o mesmo fluxo; o cadastro ainda não verifica e-mail.
 
-## Papéis, privacidade e acesso
+## Privacidade e acesso
 
-Os papéis do escritório são administrador, advogado e revisor. Administrador gerencia equipe e regras do escritório. Advogado cadastra e altera dados de trabalho. Revisor consulta os dados compartilhados que seu acesso permite. O acesso ao chat e às operações depende também da disponibilidade na interface e das permissões do recurso.
+Cada advogado gerencia o próprio escritório. Associados só acessam casos em que o dono os incluir. A raiz e as pastas públicas são compartilhadas. Pastas privadas ficam só para o criador; restritas ficam para ele e as pessoas escolhidas. As pastas acima também limitam o acesso.
 
-Participação em um caso pode conceder consulta ou colaboração sem liberar os demais casos ou a Biblioteca. Ser associado não concede acesso automático a casos. As conversas com o assistente, pesquisas pessoais, caixa de Mensagens e preferências pessoais não se tornam visíveis a toda a equipe. Honorários têm regras próprias de privacidade. Ser administrador do escritório não concede acesso automático aos honorários particulares de outra pessoa.
+Conversas, memória, Biblioteca, pesquisas pessoais, integrações e preferências continuam pessoais. Participantes consultam honorários vinculados ao caso; alterações cabem a quem os cadastrou.
 
-Administração da plataforma, em `/app/admin`, é uma função separada, destinada aos operadores autorizados. Administrador de escritório não é administrador da plataforma. O assistente do escritório não pode conceder a si mesmo mais acesso, trocar credenciais ou administrar outras organizações.
+Administração da plataforma, em `/app/admin`, é um acesso separado para operadores autorizados. O Lume não pode ampliar suas permissões nem administrar outros escritórios.
 
 ## Conversar com o assistente
 
 O assistente fica em `/app/agents`. Faça pedidos concretos, como "liste as parcelas pendentes da Maria", "crie uma tarefa para revisar o contrato sexta-feira" ou "resuma os documentos deste caso". O Lume usa ferramentas para consultar e alterar dados. Só deve afirmar que executou uma ação depois de receber um resultado de sucesso.
 
-O assistente consegue operar Cofre, Escritório, Honorários, Pesquisa, documentos, suas conversas e preferências, Mensagens, Notificações, e-mail e agenda Google conectados e WhatsApp habilitado. As operações respeitam os papéis e as regras de cada módulo. Integrações e Plano ficam fora da administração pelo chat. Para conectar um serviço, alterar permissões OAuth, cadastrar credenciais ou contratar o plano, use as respectivas telas.
+O assistente consegue operar Cofre, Escritório, Honorários, Pesquisa, documentos, suas conversas e preferências, Mensagens, Notificações, e-mail e agenda Google conectados e WhatsApp habilitado. As operações respeitam o acesso ao recurso e as regras de cada módulo. Integrações e Plano ficam fora da administração pelo chat. Para conectar um serviço, alterar permissões OAuth, cadastrar credenciais ou contratar o plano, use as respectivas telas.
 
 Quando falta um dado necessário ou há registros parecidos, o Lume pergunta. Não deve adivinhar qual cliente, parcela, destinatário ou data você quis dizer. A lista de atividades abaixo da resposta mostra consultas e ações tentadas. Uma consulta concluída não significa que a alteração seguinte também deu certo. Em falha, nenhuma execução deve ser apresentada como concluída.
 
@@ -50,9 +50,9 @@ Fontes seleciona documentos do Cofre e referências vinculadas ao caso para a co
 
 A memória do Lume guarda preferências e informações que a pessoa pediu para lembrar, por pessoa e escritório, entre conversas. É possível consultar e limpar essa memória. Apagar memória não é o mesmo que excluir conversas ou documentos.
 
-As preferências do Lume incluem regras de escrita, conhecimento e modelo Word. Regras podem ser pessoais ou do escritório, aplicáveis ao chat, aos documentos ou a ambos. A regra pessoal prevalece no estilo quando conflita com a do escritório, mas nenhuma regra pode desativar permissões, confirmações ou cuidados com fontes. Só administradores alteram regras do escritório.
+As preferências do Lume incluem regras de escrita, conhecimento e modelo Word. Regras aparecem em uma única lista e podem valer no chat, nos documentos ou em ambos. Regras antigas continuam disponíveis; nenhuma regra desativa permissões, confirmações ou cuidados com fontes. Cada advogado controla suas regras.
 
-Conhecimento referencia documentos existentes no Cofre. O modo de consulta busca trechos quando necessário; o modo de leitura fixa inclui texto dentro do limite de contexto disponível. Remover um documento da lista de conhecimento não exclui o original do Cofre. O modelo Word pessoal tem preferência sobre o modelo do escritório. O arquivo precisa ser DOCX. A ajuda sobre o próprio produto é uma base separada dos documentos privados do escritório.
+Conhecimento referencia documentos existentes no Cofre e respeita o acesso às pastas. O modo de consulta busca trechos quando necessário; o modo de leitura fixa inclui texto dentro do limite de contexto disponível. Remover um documento da lista de conhecimento não exclui o original do Cofre. Há um único modelo Word efetivo, que precisa ser DOCX. Selecionar ou remover o modelo também substitui qualquer configuração antiga do escritório. A ajuda sobre o próprio produto é uma base separada dos documentos privados do escritório.
 
 ## Cofre, Biblioteca e casos
 
@@ -84,13 +84,13 @@ Peça ao assistente para criar, atualizar, concluir, cancelar, reabrir ou reagen
 
 Notificações internas podem avisar atribuições e alterações; lembretes dependem das configurações e do processamento de notificações. O aplicativo não calcula automaticamente prazos processuais, dias úteis, feriados de tribunal ou regras de intimação. Confirme esse cálculo antes de cadastrar uma data como prazo jurídico.
 
-## Equipe, associados, convites e participantes
+## Associados, convites e participantes
 
-As abas Equipe, Associados e Convites ficam em Escritório. Administradores convidam integrantes e alteram seus papéis. Associados representam parceiros; o vínculo não libera dados de casos automaticamente. Na aba Participantes de um caso, quem tem autoridade pode convidar pessoas para consulta ou colaboração e definir se podem convidar outras.
+Associados e Convites ficam em Escritório. O aceite do convite torna os advogados associados sem liberar arquivos. Em Participantes, só o dono inclui seus associados no caso. Todos colaboram na raiz e cada criador controla suas subpastas.
 
-Um convite pode ser aceito, recusado ou cancelado. Ele tem prazo de validade. Endereços sem conta precisam do link recebido e de login com o mesmo e-mail. Aceitar um convite não remove os vínculos anteriores. Remover um membro ou participante revoga o acesso correspondente. O sistema impede alterações incompatíveis com a autoridade da pessoa que age, inclusive a remoção do último administrador quando aplicável.
+O convite expira em sete dias. Contas existentes o recebem no Lume; o link também pode ser compartilhado. Não há envio automático por e-mail. Quem não tem conta precisa do link e deve entrar com o e-mail convidado.
 
-O assistente consulta membros, parceiros e convites e pode preparar as alterações. Convites, aceite, mudança de papel e remoção de acesso exigem confirmação no chat. Ele não pode conceder um papel superior ao permitido à pessoa que pediu.
+O dono remove participantes; eles podem sair. Encerrar a associação retira cada um dos casos do outro. O acesso é revogado nas próximas operações; arquivos e pastas privadas permanecem. Convites e mudanças de acesso exigem confirmação no chat.
 
 ## Portal do cliente
 
@@ -116,7 +116,7 @@ Honorários fica em `/app/honorarios`. Cada honorário tem cliente, título, obs
 
 A lista separa parcelas a receber, recebidas e canceladas. Mostra total, recebido, saldo e atrasado. Os totais respeitam os filtros e o acesso da pessoa, e não apenas a página exibida. Filtrar por vencimento não equivale a filtrar pelo período em que o pagamento entrou. O atraso considera saldo em aberto e a data atual em São Paulo.
 
-O dono dos honorários pode cadastrar e registrar recebimentos enquanto mantiver papel de administrador ou advogado no escritório. Participantes explícitos e o criador do caso vinculado podem consultar os valores, inclusive quando pertencem a outro escritório. Esse acesso não permite dar baixa, estornar ou cancelar honorários de outra pessoa. Um honorário sem caso é particular de quem o cadastrou.
+O dono dos honorários pode cadastrar e registrar recebimentos enquanto mantiver acesso ao próprio escritório. Participantes explícitos e o criador do caso vinculado podem consultar os valores, inclusive quando pertencem a outro escritório. Esse acesso não permite dar baixa, estornar ou cancelar honorários de outra pessoa. Um honorário sem caso é particular de quem o cadastrou.
 
 ## Registrar um recebimento de honorários
 
@@ -196,11 +196,11 @@ Conversas internas permitem receber e enviar mensagens. Para endereços externos
 
 O envio externo depende de configuração e processamento. Pendente, aceito, falha e não confirmado são estados diferentes. Não confirmado não deve ser repetido automaticamente, pois o destinatário pode já ter recebido. Aceitação pelo serviço de e-mail não garante chegada à caixa de entrada ou leitura.
 
-## Compartilhar documentos e casos por Mensagens
+## Compartilhar documentos por Mensagens
 
 Compartilhar documento concede leitura da versão escolhida. Não libera versões posteriores, arquivos vizinhos ou o caso inteiro. O documento continua no Cofre. O proprietário autorizado pode revogar o compartilhamento. Visualização e download verificam se o acesso continua válido.
 
-Compartilhar um caso cria convite com permissão de consulta ou colaboração. O destinatário precisa aceitá-lo. Endereços externos exigem os procedimentos de comprovação de acesso ao endereço e aceite previstos no link. Criar uma conta com o mesmo e-mail não importa automaticamente mensagens antigas ou documentos compartilhados.
+Para compartilhar um caso, inclua um associado em Participantes. Mensagens compartilha apenas versões individuais de documentos. Endereços externos exigem os procedimentos de comprovação de acesso ao endereço e aceite previstos no link. Criar uma conta com o mesmo e-mail não importa automaticamente mensagens antigas ou documentos compartilhados.
 
 O assistente solicita confirmação para compartilhamentos e revogações, com destinatário e recurso. Ser associado, conversar com a pessoa ou ter seu e-mail não concede acesso automático aos dados do escritório.
 

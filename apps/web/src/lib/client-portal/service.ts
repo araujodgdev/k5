@@ -85,10 +85,10 @@ export async function portalChoices(context: ClientContext) {
   return contract.portalChoicesDto.parse({ accesses });
 }
 async function chargeForClient(access: Access, installmentId: string) {
-  const row = await database.prepare(`SELECT p.published_by,m.role FROM client_portal_charge p JOIN office_member m ON m.office_id=p.office_id AND m.user_id=p.published_by
-    WHERE p.office_id=? AND p.client_id=? AND p.installment_id=? AND m.role IN ('administrator','lawyer')`).get<{ published_by: string; role: WorkspaceContext['role'] }>(access.office_id, access.client_id, installmentId);
+  const row = await database.prepare(`SELECT p.published_by FROM client_portal_charge p JOIN office_member m ON m.office_id=p.office_id AND m.user_id=p.published_by
+    WHERE p.office_id=? AND p.client_id=? AND p.installment_id=?`).get<{ published_by: string }>(access.office_id, access.client_id, installmentId);
   if (!row) throw missing();
-  return getCharge({ userId: row.published_by, officeId: access.office_id, role: row.role }, { installmentId });
+  return getCharge({ userId: row.published_by, officeId: access.office_id }, { installmentId });
 }
 export async function clientPortal(context: ClientContext, accessId: string) {
   const access = await clientAccess(context, accessId);
@@ -173,7 +173,7 @@ export async function publishPortalArtifact(context: WorkspaceContext, raw: unkn
   const artifact = await ownedArtifact(database, { officeId: context.officeId, userId: context.userId }, input.artifactId);
   if (!artifact || artifact.version !== input.version) throw conflict();
   const templateId = artifact.template_id ?? await resolveDocumentTemplateId(context);
-  const template = templateId ? await readVaultDocumentFile(context.officeId, templateId).catch(() => undefined) : undefined;
+  const template = templateId ? await readVaultDocumentFile(context.officeId, templateId, context.userId).catch(() => undefined) : undefined;
   const bytes = await exportPdf(await exportDocument(artifact.content, template?.name.toLowerCase().endsWith('.docx') ? template.buffer : undefined));
   const current = await ownedArtifact(database, { officeId: context.officeId, userId: context.userId }, input.artifactId);
   if (!current || current.version !== artifact.version) throw conflict();
@@ -217,7 +217,8 @@ export async function downloadClientCharge(context: ClientContext, accessId: str
   const charge = await chargeForClient(access, installmentId);
   if (format === 'boleto') {
     if (!charge.boleto) throw missing();
-    const file = await readVaultDocumentFile(access.office_id, charge.boleto.id);
+    // The lawyer picked this boleto from their own Cofre when publishing the charge.
+    const file = await readVaultDocumentFile(access.office_id, charge.boleto.id, null);
     await clientAccess(context, accessId);
     const current = await chargeForClient(access, installmentId);
     if (current.boleto?.id !== charge.boleto.id) throw conflict();

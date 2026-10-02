@@ -95,13 +95,11 @@ async function fill(page: Page, selector: string, value: string) {
   }, {}, { selector, value });
 }
 
-async function selectExpectedOffice(page: Page, origin: string, credentials: z.infer<typeof credentialsSchema>) {
+// Each account owns exactly one office, so the signed-in identity settles which office is in use.
+async function assertExpectedIdentity(page: Page, origin: string, credentials: z.infer<typeof credentialsSchema>) {
   if (new URL(page.url()).origin !== origin) throw new Error('synthetic_origin_mismatch');
   const session = sessionSchema.parse(await browserJson(page, '/api/auth/get-session'));
   if (session.user.email.toLowerCase() !== credentials.email.toLowerCase()) throw new Error('synthetic_identity_mismatch');
-  const selected = z.object({ success: z.literal(true) }).parse(await browserJson(page, '/api/offices/active', { officeId: credentials.officeId }));
-  const cookie = (await page.cookies(origin)).find(cookie => cookie.name === 'k5-office');
-  if (!selected.success || cookie?.value !== credentials.officeId || !cookie.httpOnly) throw new Error('synthetic_office_mismatch');
 }
 
 async function waitForAgenda(page: Page) {
@@ -229,7 +227,7 @@ export async function runBrowserJourneys(browser: Browser, credentials: {
         }
       });
       await stage('office_guard', async () => {
-        await selectExpectedOffice(currentPage, origin, credentials);
+        await assertExpectedIdentity(currentPage, origin, credentials);
         officeVerified = true;
       });
       await stage('command_center', async () => {
@@ -266,7 +264,7 @@ export async function runBrowserJourneys(browser: Browser, credentials: {
         await fill(currentPage, '#notes', taskNotes);
         await currentPage.select('#status', 'pending');
         await clearTaskDate(currentPage);
-        await selectExpectedOffice(currentPage, origin, credentials);
+        await assertExpectedIdentity(currentPage, origin, credentials);
         const [response] = await Promise.all([
           currentPage.waitForResponse(response => new URL(response.url()).pathname === `/api/agenda/activities/${activity ? 'update' : 'create'}` && response.request().method() === 'POST'),
           currentPage.click('[role="dialog"] button[type="submit"]'),
@@ -294,7 +292,7 @@ export async function runBrowserJourneys(browser: Browser, credentials: {
         if (existing.some(document => document.name.startsWith(FILE_PREFIX))) throw new Error('synthetic_upload_residue');
       });
       await stage('vault_upload', async () => {
-        await selectExpectedOffice(currentPage, origin, credentials);
+        await assertExpectedIdentity(currentPage, origin, credentials);
         uploadAttempted = true;
         const [response] = await Promise.all([
           currentPage.waitForResponse(response => new URL(response.url()).pathname === '/api/vault/documents' && response.request().method() === 'POST'),
@@ -328,7 +326,7 @@ export async function runBrowserJourneys(browser: Browser, credentials: {
         await stage('vault_cleanup', async () => {
           let step: 'identity' | 'library' | 'dialog' | 'submit' | 'verify' = 'identity';
           try {
-          await selectExpectedOffice(currentPage, origin, credentials);
+          await assertExpectedIdentity(currentPage, origin, credentials);
           // A lost upload response is recovered by this run's unguessable filename, never by prefix.
           const documents = await browserDocuments(currentPage);
           const created = documents.filter(document => document.name === fileName && document.scope === 'library');

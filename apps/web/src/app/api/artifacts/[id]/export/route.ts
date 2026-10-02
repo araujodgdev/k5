@@ -21,7 +21,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // letterhead reaches documents written before it was set.
     const owner = { officeId: office.officeId, userId: user.id };
     const templateId = artifact.template_id ?? await resolveDocumentTemplateId(owner);
-    const file = templateId ? await readVaultDocumentFile(office.officeId, templateId).catch(() => undefined) : undefined;
+    const file = templateId ? await readVaultDocumentFile(office.officeId, templateId, user.id).catch(() => undefined) : undefined;
     const template = file?.name.toLowerCase().endsWith('.docx') ? file.buffer : undefined;
     const buffer = await exportDocument(artifact.content, template);
     const bytes = format === 'pdf' ? await exportPdf(buffer) : new Uint8Array(buffer);

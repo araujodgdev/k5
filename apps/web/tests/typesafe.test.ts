@@ -10,7 +10,7 @@ import { localInstant, temporalCandidates } from '../src/lib/typesafe/agenda-tim
 import { interpretAgenda } from '../src/lib/typesafe/agenda';
 import { enqueueVerification, processNextVerification, getVerification } from '../src/lib/typesafe/verification';
 import { agentTools, runCapability } from '../src/lib/agent-tools';
-import { publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts';
+import { publishedCapabilities } from '../src/lib/capabilities/contracts';
 import { agendaCapabilities } from '../src/lib/capabilities/agenda';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import { ownedArtifact } from '../src/lib/ai-store';
@@ -20,13 +20,13 @@ import { runWorkerQueues } from '../src/lib/worker-scheduler';
 import { enqueueDeletion, processNextDeletion } from '../src/lib/knowledge/indexing';
 import { withTransaction } from '../src/lib/database';
 
-async function fixture(role: WorkspaceContext['role'] = 'lawyer') {
+async function fixture() {
   const officeId = randomUUID(); const userId = randomUUID();
   (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório de teste'));
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Advogado'));
-  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role));
+  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId));
   (await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId));
-  return { officeId, userId, role };
+  return { officeId, userId } as WorkspaceContext;
 }
 async function configure(context: WorkspaceContext, patch: Record<string, unknown> = {}) {
   return saveConnection(context.userId, connectionSettings.parse({ apiKey: `fake-${context.officeId}`, enabled: true, rag: 'enabled', documents: 'enabled', agenda: 'enabled', version: (await connectionView()).version, ...patch }));
@@ -191,14 +191,15 @@ test('agenda interpretation: no mutation, no invented meeting end, owner-scoped 
 });
 test('agenda autonomy: the Lume saves activities itself, WebMCP only suggests', async () => {
   const context = (await fixture());
-  const catalog = publishedCapabilitiesForRole('lawyer', 'webmcp');
+  const catalog = publishedCapabilities('webmcp');
   assert.ok(catalog.includes('k5_agenda_interpret')); assert.ok(!catalog.includes('k5_agenda_create_activity')); assert.ok(!catalog.includes('k5_agenda_apply_proposal'));
   const tools = agentTools(context);
   assert.ok(tools.k5_agenda_create_activity && tools.k5_agenda_update_activity);
   assert.ok(!tools.k5_agenda_interpret, 'the agent writes directly instead of preparing suggestions');
   const saved = await runCapability({ ...context, invocation: 'agent' }, 'k5_agenda_create_activity', { kind: 'task', title: 'Salvar direto', confirmed: true, origin: 'user' }) as { activity: { title: string; version: number } };
   assert.equal(saved.activity.title, 'Salvar direto');
-  const reviewer = (await fixture('reviewer'));
+  const reviewer = await fixture();
+  await testDb.prepare('DELETE FROM office_member WHERE user_id=?').run(reviewer.userId);
   await assert.rejects(runCapability(reviewer, 'k5_agenda_interpret', { message: 'Criar tarefa' }), { code: 'FORBIDDEN' });
 });
 test('agenda confirmation: concurrent retries and changed payload, receipt survives missing idempotency cache', async () => {

@@ -82,8 +82,7 @@ export function DocumentPagination({ total, offset, loading, error, previous, ne
   </div>;
 }
 
-export function UploadControl({ canWrite, scope, caseId, folderId, disabled, onUploaded, onError }: {
-  canWrite: boolean;
+export function UploadControl({ scope, caseId, folderId, disabled, onUploaded, onError }: {
   scope: "library" | "case";
   caseId?: string | null;
   folderId?: string | null;
@@ -94,7 +93,6 @@ export function UploadControl({ canWrite, scope, caseId, folderId, disabled, onU
   const input = useRef<HTMLInputElement>(null);
   // Which file of the batch is on its way; null when idle.
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
-  if (!canWrite) return null;
 
   async function sendOne(file: File): Promise<string | null> {
     const body = new FormData();
@@ -153,9 +151,8 @@ export function UploadControl({ canWrite, scope, caseId, folderId, disabled, onU
   );
 }
 
-export function DocumentRows({ documents, canWrite, showOrigin, onRetried, onDeleted, onError, empty }: {
+export function DocumentRows({ documents, showOrigin, onRetried, onDeleted, onError, empty }: {
   documents: VaultDocument[];
-  canWrite: boolean;
   showOrigin?: boolean;
   onRetried: (documentId: string) => void;
   onDeleted: (documentId: string) => void;
@@ -207,10 +204,10 @@ export function DocumentRows({ documents, canWrite, showOrigin, onRetried, onDel
             <Button asChild variant="ghost" size="icon-sm" className={touchIcon}>
               <a href={`/api/vault/documents/${document.id}/download`} aria-label={`Baixar ${document.name}`}><Download aria-hidden="true" /></a>
             </Button>
-            {(document.status === "failed" || document.status === "queued") && canWrite && (
+            {(document.status === "failed" || document.status === "queued") && (
               <Button type="button" variant="ghost" size="icon-sm" className={touchIcon} onClick={() => void retry(document.id)} aria-label={`Reenviar ${document.name}`}><RotateCw aria-hidden="true" /></Button>
             )}
-            {canWrite && <DocumentDelete name={document.name} onConfirm={() => void remove(document.id)} />}
+            <DocumentDelete name={document.name} onConfirm={() => void remove(document.id)} />
           </div>
         </div>
       ))}

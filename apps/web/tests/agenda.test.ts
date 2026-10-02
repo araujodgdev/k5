@@ -9,13 +9,13 @@ import { capabilities, type CapabilityName } from '../src/lib/capabilities/contr
 import { agendaCapabilities, legalAreas } from '../src/lib/capabilities/agenda';
 import type { WorkspaceContext } from '../src/lib/application/context';
 
-async function fixture(role: WorkspaceContext['role'] = 'lawyer') {
+async function fixture() {
   const officeId = randomUUID(); const userId = randomUUID(); const caseId = randomUUID();
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, 'Advogado'));
   (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório'));
-  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role));
+  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId));
   (await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId, officeId, 'Caso de teste', userId));
-  return { context: { officeId, userId, role }, caseId };
+  return { context: { officeId, userId } as WorkspaceContext, caseId };
 }
 async function call<N extends CapabilityName>(context: WorkspaceContext, name: N, input: unknown) {
   return capabilities[name].output.parse(await runCapability(context, name, input));
@@ -66,18 +66,17 @@ test('agenda: office isolation covers reads, updates and every foreign reference
   assert.deepEqual(clients.clients, []);
 });
 
-test('agenda: reviewer tools are read only and revoked roles are checked at execution', async () => {
-  const { context } = (await fixture('reviewer'));
+test('agenda: the lawyer gets every agenda tool and a removed membership is checked at execution', async () => {
+  const { context } = (await fixture());
   const tools = agentTools(context);
   assert.ok(tools.k5_agenda_list_activities);
-  assert.ok(!tools.k5_agenda_create_activity, 'reviewers never get write tools');
-  for (const [name, capability] of Object.entries(agendaCapabilities)) {
-    if (capability.effect === 'write') await assert.rejects(async () => (await call(context, name as CapabilityName, {})), { code: 'FORBIDDEN' });
+  assert.ok(tools.k5_agenda_create_activity);
+  for (const capability of Object.values(agendaCapabilities)) {
     assert.doesNotThrow(() => z.toJSONSchema(capability.input, { io: 'input' }));
     assert.doesNotThrow(() => z.toJSONSchema(capability.output));
   }
   const writer = (await fixture());
-  (await testDb.prepare("UPDATE office_member SET role='reviewer' WHERE user_id=?").run(writer.context.userId));
+  (await testDb.prepare('DELETE FROM office_member WHERE user_id=?').run(writer.context.userId));
   await assert.rejects(async () => (await call(writer.context, 'k5_agenda_create_activity', { kind: 'task', title: 'Revogada' })), { code: 'FORBIDDEN' });
 });
 
@@ -177,11 +176,6 @@ test('task delegation starts one session, carries context and preserves office a
   const listed = agendaCapabilities.k5_agenda_list_activities.output.parse(await call(a.context, 'k5_agenda_list_activities', { openOnly: true }));
   assert.equal(listed.activities.length, 1);
   await assert.rejects(delegateTask(b.context, { activityId: activity.id }, options), { code: 'NOT_FOUND' });
-  const reviewer = await fixture('reviewer');
-  await assert.rejects(delegateTask(reviewer.context, { activityId: activity.id }, options), { code: 'FORBIDDEN' });
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), a.context.officeId, b.context.userId, 'lawyer');
-  const other = agendaCapabilities.k5_agenda_get_activity.output.parse(await call({ ...b.context, officeId: a.context.officeId }, 'k5_agenda_get_activity', { activityId: activity.id }));
-  assert.equal(other.activity.agentConversationId, undefined);
 });
 
 test('task delegation retries a failed start without creating another conversation', async () => {

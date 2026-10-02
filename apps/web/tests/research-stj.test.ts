@@ -18,7 +18,7 @@ async function actor() {
   const userId = randomUUID(), officeId = randomUUID(), email = `${userId}@example.test`;
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,email,'Operadora'));
   (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Escritório de teste'));
-  (await testDb.prepare("INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,'administrator')")
+  (await testDb.prepare("INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)")
     .run(randomUUID(),officeId,userId));
   (await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId));
   return { userId, officeId, email };

@@ -118,7 +118,7 @@ export async function uploadVersion(c: WorkspaceContext, i: Input<'k5_drive_uplo
   const { file, meta } = await selected(c, 'drive', i.fileId);
   if (isGoogleNative(meta.mimeType)) throw new CapabilityError('INVALID', 'Arquivos nativos do Google devem ser editados no Google.');
   need(meta, 'canModifyContent');
-  const doc = await findVaultDocument(c.officeId, i.documentId);
+  const doc = await findVaultDocument(c.officeId, i.documentId, c.userId);
   if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado no Cofre.');
   if (doc.byteSize > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', 'Documento acima de 50 MB.');
   const vault = await vaultSnapshot(c.officeId, doc.id);
@@ -133,7 +133,7 @@ export async function uploadVersion(c: WorkspaceContext, i: Input<'k5_drive_uplo
       const current = await fetchMetadata(op.connection, file.google_file_id);
       if (current.version !== bound.driveVersion) throw new CapabilityError('CONFLICT', 'O arquivo mudou no Google. Atualize antes de substituir.');
       need(current, 'canModifyContent');
-      const fresh = await findVaultDocument(c.officeId, doc.id);
+      const fresh = await findVaultDocument(c.officeId, doc.id, c.userId);
       if (!fresh) throw new CapabilityError('CONFLICT', 'O documento do Cofre foi removido.');
       const currentVault = await vaultSnapshot(c.officeId, doc.id);
       if (currentVault.sha256 !== bound.documentSha256 || currentVault.version !== bound.documentVersion ||
@@ -260,10 +260,10 @@ export async function editDoc(c: WorkspaceContext, i: Input<'k5_docs_edit'>) {
 function opFile(op: RunningOperation) {
   const id = op.args.fileId;
   if (typeof id !== 'string') throw new CapabilityError('INVALID', 'Operação sem arquivo.');
-  return ownFile({ officeId: op.connection.office_id, userId: op.connection.user_id, role: 'lawyer' }, id, op.connection);
+  return ownFile({ officeId: op.connection.office_id, userId: op.connection.user_id }, id, op.connection);
 }
 function opContext(op: RunningOperation): WorkspaceContext {
-  return { officeId: op.connection.office_id, userId: op.connection.user_id, role: 'lawyer' };
+  return { officeId: op.connection.office_id, userId: op.connection.user_id };
 }
 const reconcileRename: Reconciler = async op => {
   const file = await opFile(op);

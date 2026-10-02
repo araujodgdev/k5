@@ -56,9 +56,8 @@ test('consultas revalidam flag, papel e sessão e mostram anexo sem mídia como 
   const threadId = await seedMessage(fixture, fact({ attachments: [{ kind: 'file', filename: 'arquivo.pdf', mimeType: 'application/pdf' }] }));
   await testDb.prepare('UPDATE whatsapp_thread SET history_complete=true WHERE id=?').run(threadId);
   await whatsappTestEnvironment(async () => {
-    await testDb.prepare(`UPDATE office_member SET role='reviewer' WHERE office_id=? AND user_id=?`).run(fixture.officeId, fixture.userId);
     const history = await readThread(fixture.context, { threadId, limit: 10 });
-    assert.equal(history.canSend, false);
+    assert.equal(history.canSend, true);
     const attachment = history.items[0]?.attachments[0];
     assert.ok(attachment?.id);
     assert.deepEqual(attachment, { id: attachment.id, kind: 'file', filename: 'arquivo.pdf', mimeType: 'application/pdf', byteLength: null,

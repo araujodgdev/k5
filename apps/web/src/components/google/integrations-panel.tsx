@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { CapabilityOutput } from '@/lib/capabilities/contracts';
-import type { OfficeRole } from '@/lib/offices';
 import { Button } from '@/components/ui/button';
 import { sectionTab, sectionTabRow } from '@/components/section-tabs';
 import { Input } from '@/components/ui/input';
@@ -39,7 +38,7 @@ function moduleState(status: GoogleStatus, item: GoogleStatus['modules'][number]
   return status.connection ? 'Acesso não autorizado' : 'Não conectado';
 }
 
-export function IntegrationsPanel({ role }: { role: OfficeRole }) {
+export function IntegrationsPanel() {
   const params = useSearchParams();
   const [tab, setTab] = useState<Tab>('connections');
   const tabButtons = useRef<Array<HTMLButtonElement | null>>([]);
@@ -53,24 +52,24 @@ export function IntegrationsPanel({ role }: { role: OfficeRole }) {
   const refresh = useCallback(async () => {
     const [connection, rules] = await Promise.all([
       googleCall<GoogleStatus>('status'),
-      role === 'administrator' ? googleCall<Policy>('policy') : Promise.resolve(null),
+      googleCall<Policy>('policy'),
     ]);
     setStatus(connection);
     setPolicy(rules);
-  }, [role]);
+  }, []);
 
   useEffect(() => {
     let active = true;
     Promise.all([
       googleCall<GoogleStatus>('status'),
-      role === 'administrator' ? googleCall<Policy>('policy') : Promise.resolve(null),
+      googleCall<Policy>('policy'),
     ]).then(([connection, rules]) => {
       if (active) { setStatus(connection); setPolicy(rules); }
     }).catch(failure => {
       if (active) setError(failure instanceof Error ? failure.message : 'Não foi possível carregar as integrações.');
     });
     return () => { active = false; };
-  }, [role]);
+  }, []);
 
   async function perform(name: string, action: () => Promise<void>) {
     setBusy(name); setError(''); setNotice('');
@@ -111,7 +110,7 @@ export function IntegrationsPanel({ role }: { role: OfficeRole }) {
 
   return <div className="w-full max-w-5xl space-y-8 px-5 py-6 md:px-10 md:py-10 [&_button:not([role=tab])]:min-h-11 md:[&_button:not([role=tab])]:min-h-9">
     <h1 className="page-title max-md:sr-only">Integrações</h1>
-    {role === 'administrator' && <div role="tablist" aria-label="Áreas de integrações" className={sectionTabRow}>
+    <div role="tablist" aria-label="Áreas de integrações" className={sectionTabRow}>
       {([['connections', 'Conexões'], ['policy', 'Regras do escritório']] as const).map(([value, label], index) => <button
         key={value} ref={element => { tabButtons.current[index] = element; }} type="button" role="tab"
         id={`integrations-tab-${value}`} aria-controls={`integrations-panel-${value}`}
@@ -123,11 +122,11 @@ export function IntegrationsPanel({ role }: { role: OfficeRole }) {
           if (next !== null) { event.preventDefault(); selectTab(next === 0 ? 'connections' : 'policy', next); }
         }}
       >{label}</button>)}
-    </div>}
+    </div>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {(notice || callbackMessages[params.get('google') ?? '']) && <p role="status" className="text-sm">{notice || callbackMessages[params.get('google') ?? '']}</p>}
     {!status ? error ? <Button variant="outline" disabled={Boolean(busy)} onClick={() => void perform('refresh', refresh)}>Tentar novamente</Button> : <p role="status" className="text-sm text-muted-foreground">Carregando integrações…</p> : <>
-      <div id="integrations-panel-connections" role={role === 'administrator' ? 'tabpanel' : undefined} aria-labelledby={role === 'administrator' ? 'integrations-tab-connections' : undefined} hidden={tab !== 'connections'} className="space-y-8">
+      <div id="integrations-panel-connections" role="tabpanel" aria-labelledby="integrations-tab-connections" hidden={tab !== 'connections'} className="space-y-8">
         <section aria-labelledby="google-account" className="space-y-4">
           <div><h2 id="google-account" className="text-lg font-medium">Conta Google</h2>
             <p className="mt-1 text-sm text-muted-foreground">{status.connection ? `${status.connection.email} · ${status.connection.status === 'active' ? 'Conectada' : 'Reconexão necessária'}` : 'Nenhuma conta conectada.'}</p>
@@ -153,14 +152,14 @@ export function IntegrationsPanel({ role }: { role: OfficeRole }) {
           <p className="mt-2 text-xs text-muted-foreground">A desconexão encerra o acesso de todas as integrações. Cópias já importadas permanecem no Cofre.</p>
         </div>}
       </div>
-      {role === 'administrator' && <div id="integrations-panel-policy" role="tabpanel" aria-labelledby="integrations-tab-policy" hidden={tab !== 'policy'}>
+      <div id="integrations-panel-policy" role="tabpanel" aria-labelledby="integrations-tab-policy" hidden={tab !== 'policy'}>
         {!policy ? <p role="status" className="text-sm text-muted-foreground">Carregando regras…</p> : <section aria-labelledby="google-rules" className="space-y-5">
           <div><h2 id="google-rules" className="text-lg font-medium">Regras do escritório</h2><p className="mt-1 text-sm text-muted-foreground">Valem para interface e Lume. Ações automáticas acima dos limites pedem confirmação. Bloqueios sempre prevalecem.</p></div>
           <fieldset className="flex flex-wrap gap-5" disabled={Boolean(busy)}><legend className="mb-2 text-sm font-medium">Recursos permitidos</legend>{status.modules.map(item => <label key={item.module} className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={policy.rules.modules[item.module]} onChange={event => { const checked = event.target.checked; setPolicy(previous => previous ? { ...previous, rules: { ...previous.rules, modules: { ...previous.rules.modules, [item.module]: checked } } } : previous); }}/>{item.label}</label>)}</fieldset>
           <div className="divide-y">{policy.actions.map(item => { const rule = policy.rules.actions[item.action]; return <fieldset key={item.action} disabled={Boolean(busy)} className="grid gap-3 py-5 md:grid-cols-[minmax(180px,1fr)_2fr]"><legend className="sr-only">{item.label}</legend><label className="text-sm font-medium" htmlFor={`mode-${item.action}`}>{item.label}</label><div className="space-y-3"><select className={selectStyle} id={`mode-${item.action}`} value={rule.mode} onChange={event => updateRule(item.action, 'mode', event.target.value)}><option value="blocked">Bloqueada</option><option value="confirmation">Exige confirmação</option><option value="automatic">Automática dentro dos limites</option></select>{rule.mode === 'automatic' && <div className="grid gap-3 sm:grid-cols-2">{item.limits.map(limit => { const value = rule[limit as keyof typeof rule]; return <label key={limit} className="space-y-1 text-xs">{limits[limit]}<Input type="number" min={limit === 'maxRecipients' ? 1 : 0} step={limit === 'maxAttachmentBytes' ? '0.1' : '1'} value={value === null ? '' : Number(value) / (limit === 'maxAttachmentBytes' ? 1024 * 1024 : 1)} placeholder="Limite técnico" onChange={event => updateRule(item.action, limit, event.target.value)} /></label>; })}</div>}</div></fieldset>; })}</div>
           <div className="flex flex-wrap items-center gap-3"><Button disabled={Boolean(busy)} onClick={() => void perform('policy', async () => { const saved = await googleCall<Policy>('policy-save', { version: policy.version, rules: policy.rules }); setPolicy(saved); await refresh(); setNotice('Regras salvas.'); })}>{busy === 'policy' ? 'Salvando…' : 'Salvar regras'}</Button><p className="text-xs text-muted-foreground">Versão {policy.version} · Máximo técnico: 500 ações/dia, 100 destinatários, 10 anexos e 25 MB.</p></div>
         </section>}
-      </div>}
+      </div>
     </>}
     <Dialog open={disconnect} onOpenChange={setDisconnect}><DialogContent><DialogHeader><DialogTitle>Desconectar a conta Google?</DialogTitle><DialogDescription>O Lume interromperá a sincronização e revogará o acesso a todas as integrações. Os arquivos já importados permanecem no Cofre.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={Boolean(busy)} onClick={() => setDisconnect(false)}>Cancelar</Button><Button disabled={Boolean(busy)} onClick={() => void perform('disconnect', async () => { const response = await fetch('/api/integrations/google/disconnect', { method: 'POST' }); if (!response.ok) throw new Error((await response.json()).error); setDisconnect(false); await refresh(); setNotice('Conta desconectada.'); })}>{busy === 'disconnect' ? 'Desconectando…' : 'Desconectar'}</Button></DialogFooter></DialogContent></Dialog>
   </div>;

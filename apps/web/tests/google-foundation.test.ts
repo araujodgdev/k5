@@ -118,7 +118,7 @@ test('UI exige aprovação exata; mudança de conteúdo ou política invalida; p
   const id = await proposal(() => runGoogleOperation(f.context, spec()));
   const row = await testDb.prepare('SELECT * FROM capability_approval WHERE id=?').get(id);
   assert.deepEqual(googleApprovalReview(row as never), [{ label:'Destinatário',value:'pessoa@example.com' }]);
-  const other = await googleFixture({ officeId: f.officeId });
+  const other = await googleFixture({});
   await assert.rejects(() => approveProposal(other.context,id), /não encontrada/);
   await approveProposal(f.context,id);
   await assert.rejects(() => runGoogleOperation(f.context,spec({ approvalId:id,body:'Alterado' })), /alterados/);
@@ -150,8 +150,8 @@ test('checkpoint de efeito parcial permanece cifrado; falha posterior não liber
 test('sessão encerrada e papel removido interrompem ações interativas',async()=>{
   const f=await googleFixture(); await setRule(f.officeId,'gmail.send',{mode:'automatic'});
   await assert.rejects(()=>runGoogleOperation({...f.context,sessionId:'revoked'},spec()),/sessão/);
-  await testDb.prepare("UPDATE office_member SET role='reviewer' WHERE user_id=?").run(f.userId);
-  await assert.rejects(()=>runGoogleOperation(f.context,spec()),/escrita/);
+  await testDb.prepare("DELETE FROM office_member WHERE user_id=?").run(f.userId);
+  await assert.rejects(()=>runGoogleOperation(f.context,spec()),/acesso/);
 });
 
 test('bindings de Worker não vazam entre execuções simultâneas',async()=>{

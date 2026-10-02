@@ -32,13 +32,13 @@ async function fixture() {
   return { db, database, auth, signup, handler };
 }
 
-test("anônimo e administrador de escritório sem papel de plataforma não acessam a API da plataforma", async (t) => {
+test("anônimo e advogado sem papel de plataforma não acessam a API da plataforma", async (t) => {
   const { db, database, signup, handler } = await fixture();
   t.after(async () => (await db.close()));
   assert.equal((await handler()).status, 401);
   assert.equal((await handler("better-auth.session_token=inventado")).status, 401);
   const officeAdmin = await signup("ana@example.test");
-  assert.equal((await findOfficeForUser(database, officeAdmin.user.id))?.role, "administrator");
+  assert.ok(await findOfficeForUser(database, officeAdmin.user.id));
   const denied = await handler(officeAdmin.cookie);
   assert.equal(denied.status, 403);
   assert.equal(JSON.stringify(await denied.json()).includes("Silva Advocacia"), false);

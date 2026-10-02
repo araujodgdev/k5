@@ -6,7 +6,7 @@ import type { WorkspaceContext } from '../src/lib/application/context';
 import type { PersonContext } from '../src/lib/personal-chat/auth';
 import { createShareOutput, type CreateShareInput } from '../src/lib/personal-chat/domain';
 import { ensureOfficeForUser } from '../src/lib/offices';
-import { respond } from '../src/lib/collaboration/service';
+import { invite, respond, changeAccess } from '../src/lib/collaboration/service';
 import { getMessageForViewer, startThread } from '../src/lib/personal-chat/service';
 import { createShare, readDocumentShare, revokeDocumentShare } from '../src/lib/personal-chat/shares';
 import { localObjectStorage, objectStorage, resetObjectStorageForTests, storageKey } from '../src/lib/storage';
@@ -21,7 +21,7 @@ async function user(name: string) {
   const office = await ensureOfficeForUser(db, { id, officeName: `${name} Advocacia` });
   return {
     person: { userId: id, email, name, sessionId } satisfies PersonContext,
-    workspace: { userId: id, officeId: office.officeId, role: 'administrator', sessionId } satisfies WorkspaceContext,
+    workspace: { userId: id, officeId: office.officeId, sessionId } satisfies WorkspaceContext,
   };
 }
 
@@ -82,43 +82,35 @@ test('replaying a document share returns its revoked or unavailable state withou
   assert.equal(Number(operations?.count), 1);
 });
 
-test('a case invitation links to the current action and hides access that was removed', async () => {
-  const f = await fixture(), caseId = randomUUID();
+test('legacy case invitation history follows current case access and closed invitation states', async () => {
+  const f = await fixture(), caseId = randomUUID(), invitationId = randomUUID(), messageId = randomUUID();
   await db.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)')
-    .run(caseId, f.owner.workspace.officeId, 'Caso convidado', f.owner.person.userId);
-  const input: CreateShareInput = { kind: 'case', caseId, permission: 'viewer', canInvite: false, clientMessageId: randomUUID(), idempotencyKey: randomUUID() };
-  const created = createShareOutput.parse(await createShare(f.owner.person, f.owner.workspace, f.thread.id, input));
-  assert.equal(created.kind, 'case');
-  if (created.kind !== 'case') assert.fail('Expected a case invitation.');
-  if (created.message.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
-  const casePath = `/app/vault/cases/${caseId}`;
-  assert.equal(created.message.body.actionPath, casePath);
-  const pending = await getMessageForViewer(created.message.id, f.recipient.person.userId);
-  if (pending.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
-  assert.match(pending.body.actionPath ?? '', /^\/invite\/[A-Za-z0-9_-]+$/);
-  await respond(f.recipient.workspace, created.invitation.id, true);
-  const replay = createShareOutput.parse(await createShare(f.owner.person, f.owner.workspace, f.thread.id, input));
-  assert.equal(replay.kind, 'case');
-  if (replay.kind !== 'case') assert.fail('Expected a case invitation.');
-  assert.equal(replay.message.id, created.message.id);
-  assert.equal(replay.invitation.id, created.invitation.id);
-  assert.equal(replay.invitation.state, 'accepted');
+    .run(caseId, f.owner.workspace.officeId, 'Caso legado', f.owner.person.userId);
+  await db.prepare(`INSERT INTO collaboration_invitation(id,office_id,kind,case_id,email,recipient_user_id,invited_by,token_hash,status)
+    VALUES(?,?,'case',?,?,?,?,?,'accepted')`).run(invitationId, f.owner.workspace.officeId, caseId,
+      f.recipient.person.email, f.recipient.person.userId, f.owner.person.userId, randomUUID());
+  await db.prepare(`INSERT INTO personal_message(id,thread_id,sequence,sender_user_id,client_message_id,input_hash,body_kind,body_json)
+    VALUES(?,?,1,?,?,?,'case_invitation',?::jsonb)`).run(messageId, f.thread.id, f.owner.person.userId, randomUUID(), 'legacy',
+      JSON.stringify({ kind: 'case_invitation', invitationId, caseName: 'Caso legado', state: 'accepted', actionPath: `/app/vault/cases/${caseId}` }));
+  const association = await invite(f.owner.workspace, { email: f.recipient.person.email });
+  await respond(f.recipient.workspace, association.id, true);
+  await changeAccess(f.owner.workspace, { action: 'participant', caseId, userId: f.recipient.person.userId, add: true });
   for (const viewer of [f.recipient.person.userId, f.owner.person.userId]) {
-    const accepted = await getMessageForViewer(created.message.id, viewer);
-    if (accepted.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
-    assert.equal(accepted.body.actionPath, casePath);
+    const accepted = await getMessageForViewer(messageId, viewer);
+    if (accepted.body.kind !== 'case_invitation') assert.fail('Expected legacy case history.');
+    assert.equal(accepted.body.state, 'accepted');
+    assert.equal(accepted.body.actionPath, `/app/vault/cases/${caseId}`);
   }
-  await db.prepare('UPDATE case_participant SET revoked_at=CURRENT_TIMESTAMP WHERE case_id=? AND user_id=?')
-    .run(caseId, f.recipient.person.userId);
-  const removed = await getMessageForViewer(created.message.id, f.recipient.person.userId);
-  if (removed.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
+  await changeAccess(f.owner.workspace, { action: 'participant', caseId, userId: f.recipient.person.userId, add: false });
+  const removed = await getMessageForViewer(messageId, f.recipient.person.userId);
+  if (removed.body.kind !== 'case_invitation') assert.fail('Expected legacy case history.');
   assert.equal(removed.body.actionPath, null);
-  for (const status of ['declined', 'revoked', 'pending']) {
-    await db.prepare("UPDATE collaboration_invitation SET status=?,expires_at=CURRENT_TIMESTAMP-INTERVAL '1 day' WHERE id=?")
-      .run(status, created.invitation.id);
+  for (const status of ['declined', 'revoked']) {
+    await db.prepare('UPDATE collaboration_invitation SET status=? WHERE id=?').run(status, invitationId);
     for (const viewer of [f.recipient.person.userId, f.owner.person.userId]) {
-      const closed = await getMessageForViewer(created.message.id, viewer);
-      if (closed.body.kind !== 'case_invitation') assert.fail('Expected a case invitation message.');
+      const closed = await getMessageForViewer(messageId, viewer);
+      if (closed.body.kind !== 'case_invitation') assert.fail('Expected legacy case history.');
+      assert.equal(closed.body.state, status);
       assert.equal(closed.body.actionPath, null);
     }
   }

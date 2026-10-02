@@ -5,7 +5,7 @@ import test from 'node:test';
 import { z } from 'zod';
 import { agentTools, runCapability } from '../src/lib/agent-tools';
 import { honorariosCapabilities } from '../src/lib/capabilities/honorarios';
-import { publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts';
+import { publishedCapabilities } from '../src/lib/capabilities/contracts';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import * as dto from '../src/lib/honorarios/contracts';
 import * as service from '../src/lib/honorarios/service';
@@ -13,14 +13,14 @@ import { CapabilityError } from '../src/lib/capabilities/errors';
 import { approvalIdFromMessage } from '../src/lib/application/approvals-service';
 import { decideAgentApproval, describeAgentApproval } from '../src/lib/application/agent-approvals';
 
-async function fixture(role: WorkspaceContext['role'] = 'administrator') {
+async function fixture() {
   const officeId = randomUUID(); const userId = randomUUID(); const caseId = randomUUID(); const clientId = randomUUID();
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, 'Administradora');
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role);
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId, officeId, 'Caso próprio', userId);
   await testDb.prepare("INSERT INTO crm_client(id,office_id,name,stage,created_at,updated_at) VALUES(?,?,?,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)").run(clientId, officeId, 'Maria Silva');
-  return { context: { officeId, userId, role }, caseId, clientId };
+  return { context: { officeId, userId } as WorkspaceContext, caseId, clientId };
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 test('agent can find the second installment and register its receipt without editing the client', async () => {
@@ -189,20 +189,18 @@ test('honorários: office references, owned options, cross-office reads/mutation
   await assert.rejects(testDb.prepare('INSERT INTO honorario_installment(id,office_id,agreement_id,number,due_on,amount_cents) VALUES(?,?,?,1,?,1)').run(randomUUID(), a.context.officeId, outside.agreement.id, '2024-02-29'), { code: '23503' });
 });
 
-test('honorários: fresh roles/sessions, agent access and no implicit shared-case context', async () => {
+test('honorários: fresh sessions, agent access and no implicit shared-case context', async () => {
   const a = await fixture(); const detail = await create(a);
   const names = ['k5_honorarios_list', 'k5_honorarios_get', 'k5_honorarios_options', 'k5_honorarios_create', 'k5_honorarios_receive', 'k5_honorarios_reverse', 'k5_honorarios_cancel'] as const;
-  const reviewer = await fixture('reviewer');
-  for (const name of ['k5_honorarios_create', 'k5_honorarios_receive', 'k5_honorarios_reverse', 'k5_honorarios_cancel'] as const) await assert.rejects(runCapability(reviewer.context, name, {}), { code: 'FORBIDDEN' });
-  assert.equal((await service.listHonorarios(reviewer.context)).total, 0);
-  await assert.rejects(service.getHonorario(reviewer.context, { agreementId: detail.agreement.id }), { code: 'NOT_FOUND' });
-  await assert.rejects(service.createHonorario(reviewer.context, creation(reviewer)), { code: 'FORBIDDEN' });
+  const stranger = await fixture();
+  assert.equal((await service.listHonorarios(stranger.context)).total, 0);
+  await assert.rejects(service.getHonorario(stranger.context, { agreementId: detail.agreement.id }), { code: 'NOT_FOUND' });
   for (const invocation of ['agent', 'webmcp'] as const) {
     assert.equal(dto.honorariosListDto.parse(await runCapability({ ...a.context, invocation }, 'k5_honorarios_list', {})).total, 1);
     assert.equal((await service.listHonorarios({ ...a.context, invocation })).total, 1);
   }
   assert.ok(agentTools(a.context).k5_honorarios_list);
-  assert.ok(publishedCapabilitiesForRole('administrator', 'webmcp').includes('k5_honorarios_receive'));
+  assert.ok(publishedCapabilities('webmcp').includes('k5_honorarios_receive'));
   const scoped = { ...a.context, caseScope: { caseId: a.caseId, homeOfficeId: a.context.officeId } };
   for (const name of names) await assert.rejects(runCapability(scoped, name, {}), { code: 'FORBIDDEN' });
   await assert.rejects(service.listHonorarios(scoped), { code: 'FORBIDDEN' });
@@ -211,24 +209,18 @@ test('honorários: fresh roles/sessions, agent access and no implicit shared-cas
   await service.listHonorarios({ ...a.context, sessionId });
   await testDb.prepare('DELETE FROM session WHERE id=?').run(sessionId);
   await assert.rejects(service.listHonorarios({ ...a.context, sessionId }), { code: 'UNAUTHENTICATED' });
-  await testDb.prepare("UPDATE office_member SET role='reviewer' WHERE user_id=?").run(a.context.userId);
-  const downgraded = await service.listHonorarios(a.context);
-  assert.equal(downgraded.total, 1); assert.equal(downgraded.installments[0].canManage, false);
-  await assert.rejects(runCapability(a.context, 'k5_honorarios_create', creation(a)), { code: 'FORBIDDEN' });
   await testDb.prepare('DELETE FROM office_member WHERE user_id=?').run(a.context.userId);
   await assert.rejects(service.honorariosOptions(a.context), { code: 'FORBIDDEN' });
 });
 
-test('honorários: owner privacy, explicit participants across offices, case creator, revocation and owner-only mutation', async () => {
-  const owner = await fixture('lawyer'); const colleague = await fixture(); const external = await fixture('lawyer');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), owner.context.officeId, colleague.context.userId, 'administrator');
-  const colleagueContext = { ...colleague.context, officeId: owner.context.officeId };
+test('honorários: owner privacy, case participants across offices, case creator, revocation and owner-only mutation', async () => {
+  const owner = await fixture(); const external = await fixture();
   const linked = await create(owner);
   const privateFee = dto.honorarioDetailDto.parse(await runCapability(owner.context, 'k5_honorarios_create', { ...creation(owner), caseId: null }));
-  assert.equal((await service.listHonorarios(colleagueContext)).total, 0, 'office administrator has no private finance access');
-  await assert.rejects(service.getHonorario(colleagueContext, { agreementId: linked.agreement.id }), { code: 'NOT_FOUND' });
-  for (const participant of [colleague, external]) await testDb.prepare("INSERT INTO case_participant(office_id,case_id,user_id,permission,invited_by) VALUES(?,?,?,'editor',?)").run(owner.context.officeId, owner.caseId, participant.context.userId, owner.context.userId);
-  for (const context of [colleagueContext, external.context]) {
+  assert.equal((await service.listHonorarios(external.context)).total, 0, 'another lawyer has no finance access before taking part in the case');
+  await assert.rejects(service.getHonorario(external.context, { agreementId: linked.agreement.id }), { code: 'NOT_FOUND' });
+  await testDb.prepare('INSERT INTO case_participant(office_id,case_id,user_id,invited_by) VALUES(?,?,?,?)').run(owner.context.officeId, owner.caseId, external.context.userId, owner.context.userId);
+  for (const context of [external.context]) {
     const visible = await service.listHonorarios(context);
     assert.equal(visible.total, 1); assert.equal(visible.summary.totalCents, 10001); assert.equal(visible.installments[0].canManage, false);
     const shared = await service.getHonorario(context, { agreementId: linked.agreement.id });
@@ -238,7 +230,7 @@ test('honorários: owner privacy, explicit participants across offices, case cre
     await assert.rejects(runCapability(context, 'k5_honorarios_cancel', { agreementId: linked.agreement.id, reason: 'Contrato encerrado', idempotencyKey: randomUUID() }), { code: 'NOT_FOUND' });
   }
   const paid = await receive(owner, linked, 1);
-  await assert.rejects(runCapability(colleagueContext, 'k5_honorarios_reverse', { receiptId: paid.receipts[0].id, reason: 'Registro incorreto', idempotencyKey: randomUUID() }), { code: 'NOT_FOUND' });
+  await assert.rejects(runCapability(external.context, 'k5_honorarios_reverse', { receiptId: paid.receipts[0].id, reason: 'Registro incorreto', idempotencyKey: randomUUID() }), { code: 'NOT_FOUND' });
   assert.equal((await service.getHonorario(external.context, { agreementId: linked.agreement.id })).receipts.length, 1);
   const options = await service.honorariosOptions(external.context, { caseId: owner.caseId });
   assert.ok(options.cases.some(c => c.id === owner.caseId));
@@ -251,7 +243,6 @@ test('honorários: owner privacy, explicit participants across offices, case cre
   assert.deepEqual(stored, { office_id: external.context.officeId, case_office_id: owner.context.officeId });
   assert.equal((await service.getHonorario(owner.context, { agreementId: externalFee.agreement.id })).agreement.canManage, false, 'case creator can view fees tied to their case');
   await testDb.prepare('UPDATE case_participant SET revoked_at=CURRENT_TIMESTAMP WHERE case_id=?').run(owner.caseId);
-  assert.equal((await service.listHonorarios(colleagueContext)).total, 0);
   await assert.rejects(service.getHonorario(external.context, { agreementId: linked.agreement.id }), { code: 'NOT_FOUND' });
   assert.equal((await service.listHonorarios(external.context)).total, 1, 'revoked participant retains their own finance record');
   assert.equal((await service.honorariosOptions(external.context)).cases.some(c => c.id === owner.caseId), false);

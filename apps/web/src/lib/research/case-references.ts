@@ -66,7 +66,7 @@ export async function getResearchCaseReference(context: WorkspaceContext, refere
 
 export async function addResearchCaseReference(context: WorkspaceContext, raw: AddResearchCaseReferenceInput): Promise<ResearchCaseReference> {
   const input = addResearchCaseReferenceInput.parse(raw);
-  await assertResearchCaseAccess(context, input.caseId, true);
+  await assertResearchCaseAccess(context, input.caseId);
   await requireMaterialSnapshot(input.materialVersionId);
   const assessment = await getResearchCaseAssessment(context, input.assessmentId);
   if (!assessment.current || assessment.caseId !== input.caseId || assessment.materialVersionId !== input.materialVersionId)
@@ -90,7 +90,7 @@ export async function updateResearchCaseReference(context: WorkspaceContext, raw
   const row = await database.prepare('SELECT * FROM research_case_reference WHERE id=? AND office_id=? AND deleted_at IS NULL')
     .get<ReferenceRow>(input.referenceId, context.officeId);
   if (!row) throw new CapabilityError('NOT_FOUND', 'Referência não encontrada.');
-  await assertResearchCaseAccess(context, row.case_id, true);
+  await assertResearchCaseAccess(context, row.case_id);
   if (input.materialVersionId && input.materialVersionId !== row.material_version_id) {
     const [previous, next] = await Promise.all([materialSnapshot(row.material_version_id), requireMaterialSnapshot(input.materialVersionId)]);
     if (!previous || previous.materialId !== next.materialId)
@@ -116,7 +116,7 @@ export async function removeResearchCaseReference(context: WorkspaceContext, ref
   const row = await database.prepare('SELECT * FROM research_case_reference WHERE id=? AND office_id=? AND deleted_at IS NULL')
     .get<ReferenceRow>(referenceId, context.officeId);
   if (!row) throw new CapabilityError('NOT_FOUND', 'Referência não encontrada.');
-  await assertResearchCaseAccess(context, row.case_id, true);
+  await assertResearchCaseAccess(context, row.case_id);
   const result = await database.prepare(`UPDATE research_case_reference SET deleted_at=CURRENT_TIMESTAMP,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP
     WHERE id=? AND office_id=? AND version=? AND deleted_at IS NULL`).run(context.userId, referenceId, context.officeId, expectedVersion);
   if (!result.changes) throw new CapabilityError('CONFLICT', 'A referência mudou. Atualize antes de remover.');

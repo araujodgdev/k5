@@ -12,15 +12,10 @@ import type { GoogleAction } from '../policy';
 import { assertWritable, calendarDto, eventBody, eventDto, eventPath, ownCalendar, ownEvent, privateHidden, saveRemoteEvent, validateEventTime, type CalendarRow, type EventRow, type GoogleEvent } from './model';
 
 type Owner = Pick<WorkspaceContext, 'officeId' | 'userId'>;
-async function memberRole(context:Owner) {
-  const row=await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?')
-    .get<{role:string}>(context.officeId,context.userId);
+async function requireMember(context:Owner) {
+  const row=await database.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?')
+    .get(context.officeId,context.userId);
   if(!row)throw new CapabilityError('FORBIDDEN','Seu acesso a este escritório foi removido.');
-  return row.role;
-}
-async function requireWriter(context:Owner) {
-  if(!['administrator','lawyer'].includes(await memberRole(context)))
-    throw new CapabilityError('FORBIDDEN','Seu papel permite apenas consultas.');
 }
 const readable = (value: string | number | boolean) => typeof value === 'boolean' ? (value ? 'Sim' : 'Não') : String(value);
 const review = (entries: Array<[string,string | number | boolean | null | undefined]>) =>
@@ -493,7 +488,7 @@ async function reconcileMutation(operation:RunningOperation,calendar:CalendarRow
   }
 }
 export async function discardPending(context:WorkspaceContext,input:Input<'k5_calendar_discard_pending'>) {
-  await requireWriter(context);
+  await requireMember(context);
   const connection=await requireConnection(context,'calendar');
   const row=await ownEvent(context,input.eventId,connection);
   if(row.sync_state!=='synced')await database.prepare("UPDATE personal_event SET pending_fields_json=NULL,sync_state='synced',sync_error=NULL,version=version+1 WHERE id=? AND office_id=? AND user_id=?")
@@ -504,7 +499,7 @@ type Share={id:string;owner_name:string;owner_user_id:string;title:string;notes:
 const shareDto=(row:Share,context:Owner)=>({id:row.id,ownerName:row.owner_name,mine:row.owner_user_id===context.userId,title:row.title,notes:row.notes,
   location:row.location,allDay:Boolean(row.all_day),startsAt:row.starts_at,endsAt:row.ends_at,startDate:row.start_date,endDate:row.end_date,version:row.version});
 export async function shareEvent(context:WorkspaceContext,input:Input<'k5_calendar_share_event'>) {
-  await requireWriter(context);
+  await requireMember(context);
   const connection=await requireConnection(context,'calendar');
   const event=await ownEvent(context,input.eventId,connection);
   const calendar=await ownCalendar(context,event.calendar_id,connection);
@@ -520,14 +515,14 @@ export async function shareEvent(context:WorkspaceContext,input:Input<'k5_calend
   return {share:shareDto(row!,context)};
 }
 export async function unshareEvent(context:WorkspaceContext,input:Input<'k5_calendar_unshare_event'>) {
-  await requireWriter(context);
+  await requireMember(context);
   const changed=await database.prepare('UPDATE personal_event_share SET revoked_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND owner_user_id=? AND revoked_at IS NULL')
     .run(input.shareId,context.officeId,context.userId);
   if(!changed.changes)throw new CapabilityError('NOT_FOUND','Compartilhamento não encontrado.');
   return {success:true};
 }
 export async function listShared(context:WorkspaceContext,input:Input<'k5_calendar_list_shared'>) {
-  await memberRole(context);
+  await requireMember(context);
   if(Date.parse(input.to)<=Date.parse(input.from))throw new CapabilityError('INVALID','Período inválido.');
   const rows=await database.prepare(`SELECT s.*,u.name AS owner_name FROM personal_event_share s JOIN "user" u ON u.id=s.owner_user_id
     JOIN personal_event e ON e.id=s.event_id AND e.office_id=s.office_id

@@ -7,6 +7,6 @@ export default async function ResearchJudgmentPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ search?: string }>;
 }) {
-  const [{ id }, { search }, { office }] = await Promise.all([params, searchParams, requireWorkspace()]);
-  return <ResearchReader judgmentId={id} searchId={search ?? null} role={office.role} />;
+  const [{ id }, { search }] = await Promise.all([params, searchParams, requireWorkspace()]);
+  return <ResearchReader judgmentId={id} searchId={search ?? null} />;
 }

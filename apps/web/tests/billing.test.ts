@@ -16,7 +16,7 @@ async function office() {
   const officeId = randomUUID(), userId = randomUUID();
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório de teste');
   await testDb.prepare('INSERT INTO "user"(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Pessoa');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, 'administrator');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   return { officeId, userId, email: `${userId}@example.test`, name: 'Pessoa' };
 }
 
@@ -76,7 +76,7 @@ test('platform billing authorizes every action and verifies the target office me
   const actor = await platformActor(), payer = await office(), other = await office();
   const fake = fakeAbacate();
   await assert.rejects(createClientCheckout(other.userId,payer.officeId,payer.userId,false,fake.client), /Acesso restrito/);
-  await assert.rejects(createClientCheckout(actor,payer.officeId,other.userId,false,fake.client), /administrador deste cliente/);
+  await assert.rejects(createClientCheckout(actor,payer.officeId,other.userId,false,fake.client), /advogado deste cliente/);
   assert.equal(fake.calls.length,0);
   const opened = await createClientCheckout(actor,payer.officeId,payer.userId,false,fake.client);
   const id = opened.url.split('/').pop()!;

@@ -114,7 +114,7 @@ async function preparedFiles(context: WorkspaceContext, connection: ConnectionRo
     for (const part of attachmentParts(draft.message)) files.push(await fileFromPart(connection, draft.message, part));
   } else for (const ref of input.attachments ?? []) {
     if (ref.kind === 'vault') {
-      const file = await readVaultDocumentFile(context.officeId, ref.documentId);
+      const file = await readVaultDocumentFile(context.officeId, ref.documentId, context.userId);
       files.push({ filename: file.name, mimeType: file.mimeType, data: file.buffer,
         digest: createHash('sha256').update(file.buffer).digest('hex') });
     } else if (ref.kind === 'upload') {

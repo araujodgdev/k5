@@ -13,7 +13,7 @@ async function office(research: 'enabled' | 'off') {
   const officeId = randomUUID(); const userId = randomUUID();
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Advogada');
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, 'lawyer');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId); // configures the platform TypeSafe connection
   await saveConnection(userId, connectionSettings.parse({ apiKey: `fake-${officeId}`, enabled: true, research, version: (await connectionView()).version }));
   return { officeId, userId };

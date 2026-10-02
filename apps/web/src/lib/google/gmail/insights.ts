@@ -74,7 +74,7 @@ export async function emailInsight(context: WorkspaceContext, raw: unknown, opti
   const input = emailInsightInput.parse(raw);
   const authorized = await assertCapabilityAllowed(context, 'k5_gmail_get_thread');
   const connection = await requireConnection(authorized, 'gmail');
-  const key = `${emailInsightVersion}:${connection.authorization_generation}:${authorized.role}:${input.kind === 'digest' ? input.period : input.threadId}`;
+  const key = `${emailInsightVersion}:${connection.authorization_generation}:${input.kind === 'digest' ? input.period : input.threadId}`;
   return input.kind === 'digest'
     ? withInsightCache(connection.id, key, digestCacheSchema, async (previous, save) => {
       const digestResult = await digest(authorized, connection, input.period, options, previous);
@@ -241,7 +241,6 @@ async function threadInsight(context: WorkspaceContext, connection: ConnectionRo
       texto: clip(messageText(message) || message.snippet || '', index === list.length - 1 ? 8000 : 1500) };
   });
   const last = view.at(-1)!;
-  const canWrite = context.role !== 'reviewer';
   const judgment = await judgeThread(context, { subject: clip(subject, 240), from: last.de, fromSelf: last.enviadoPelaPessoa, latest: clip(last.texto, 6000) }, options);
   const intents = judgment?.intents ?? null;
   const schema = z.object({
@@ -253,7 +252,7 @@ async function threadInsight(context: WorkspaceContext, connection: ConnectionRo
   const written = await write(context, 'summary.email_thread', `Resuma esta conversa de e-mail para ${person}, que a está lendo.
 overview: duas ou três frases com o que a conversa trata e em que pé está.
 points: até 4 linhas curtas com o que importa para agir: pedidos, prazos, datas, valores, documentos, próximos passos. Sem repetir o overview. Vazio se não houver.
-${!canWrite || intents?.length === 0 ? 'replies: lista vazia.' : intents
+${intents?.length === 0 ? 'replies: lista vazia.' : intents
     ? `replies: exatamente uma resposta para cada intenção, nesta ordem: ${intents.map(intent => `${intent} (${intentCriteria[intent]})`).join('; ')}.`
     : 'replies: até 3 respostas curtas e diferentes entre si que façam sentido para a última mensagem; lista vazia se nada pede resposta.'}
 Cada resposta: label com até 4 palavras em português dizendo o que ela faz; body pronto para enviar, no idioma da última mensagem, cordial e objetivo (até 6 frases), sem assunto, assinado apenas com "${person.split(' ')[0]}". Não prometa nada que a conversa não sustente e use [colchetes] para dados que a pessoa precisa completar.
@@ -262,7 +261,7 @@ ${incremental ? `Atualize o resumo anterior usando apenas as novas mensagens. O 
 ${view.map(message => JSON.stringify(message)).join('\n')}
 </conversa>`, schema, { timeoutMs: 60_000, maxOutputTokens: 3000, signal: context.signal }, options.generate ?? generateStructured);
 
-  const allowed = canWrite ? new Set(intents ?? replyIntents) : new Set<ReplyIntent>();
+  const allowed = new Set(intents ?? replyIntents);
   const replies = written.replies.filter(reply => allowed.has(reply.intent) && reply.body.trim()).slice(0, 3)
     .map(reply => ({ intent: reply.intent, label: clip(reply.label.trim() || intentLabel[reply.intent], 40), body: clip(reply.body.trim(), 4000) }));
   return { fingerprints, result: { threadId, generatedAt: new Date(now).toISOString(), overview: clip(written.overview.trim(), 800),

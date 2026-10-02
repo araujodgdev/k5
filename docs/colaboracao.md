@@ -1,78 +1,59 @@
-# Colaboração em escritórios e casos
+# Associados e acesso aos casos
 
-## Usar na interface
+Cada advogado tem um único escritório pessoal. Administração da plataforma é um acesso separado. Não existem equipe, papéis de escritório ou troca de escritório ativo.
 
-- **Escritório → Equipe:** administradores convidam pessoas pelo e-mail, alteram papéis e
-  removem membros. O último administrador não pode ser removido nem perder o papel.
-- **Escritório → Associados:** administradores e advogados mantêm uma lista de parceiros
-  que aceitaram a associação. A lista sugere destinatários ao convidar para um caso.
-- **Cofre → Caso → Participantes:** convide alguém para consultar ou colaborar naquele caso.
-  Não é necessário fazer parte da equipe nem aceitar uma associação antes.
-- **Escritório → Convites:** a pessoa aceita ou recusa os convites recebidos. Convites para
-  casos abrem o caso após o aceite. Ao integrar outra equipe, o seletor **Escritório ativo**
-  permite alternar os escritórios sem perder o original.
+## Convidar e trabalhar juntos
 
-Os convites expiram em sete dias e podem ser cancelados antes do aceite. Contas existentes
-recebem o convite dentro do Lume. O criador também recebe um link que pode copiar e
-compartilhar. **Não há envio automático por e-mail.** Para um endereço ainda sem conta,
-o destinatário precisa do link secreto e deve entrar ou cadastrar-se com aquele e-mail.
-O banco guarda apenas o hash do token; o link completo é apresentado quando criado.
+Em **Escritório → Associados**, convide outro advogado pelo e-mail. Ele aceita ou recusa em **Escritório → Convites**. O aceite torna ambos associados, mas não libera arquivos. O dono do caso escolhe seus associados em **Cofre → Caso → Participantes → Incluir associado**. Cada advogado pode incluir o outro nos próprios casos.
 
-## O que cada vínculo permite
+Os convites expiram em sete dias e podem ser cancelados antes do aceite. Contas existentes recebem o convite no Lume. O criador também recebe um link para compartilhar. Não há envio automático por e-mail. Para um endereço ainda sem conta, o destinatário precisa do link secreto e deve entrar ou cadastrar-se com aquele e-mail. O banco guarda apenas o hash do token.
 
-| Vínculo | Acesso |
+## Quem vê o conteúdo
+
+| Recurso | Acesso |
 | --- | --- |
-| Administrador da equipe | Dados compartilhados do escritório, gestão da equipe e permissões administrativas existentes. |
-| Advogado da equipe | Consulta e edição dos dados compartilhados, associados e participantes de casos. |
-| Revisor da equipe | Consulta dos dados compartilhados; sem edição ou gestão de pessoas. |
-| Associado | Nenhum conteúdo por si só. A participação em um caso exige outro convite. |
-| Participante com consulta | Arquivos, pastas, fontes de conhecimento e referências do caso, incluindo downloads. |
-| Participante com colaboração | Também envia, organiza, edita e remove arquivos, edita dados do caso, referências e gera anexos. |
+| Associação | Nenhum arquivo por si só. |
+| Caso e pasta raiz | Dono e participantes consultam e colaboram. Só o dono gerencia participantes e exclui o caso. |
+| Pasta pública | Todos do caso, desde que tenham acesso às pastas acima. |
+| Pasta privada | Somente quem criou, inclusive quando outra pessoa é dona do caso. |
+| Pasta restrita | Criador e pessoas do caso escolhidas por ele, respeitando as pastas acima. |
+| Biblioteca, clientes, agenda e integrações | Continuam pessoais; participar de um caso não os libera. |
 
-A equipe tem acesso a todos os casos do escritório conforme seu papel. Um participante
-externo acessa somente o caso aceito. Ele não pode mover arquivos para fora dele, excluir
-o caso, acessar a biblioteca geral, os clientes ou as atividades do escritório.
-A permissão **Pode convidar** é independente da edição. Quando delegada, permite convidar
-para o mesmo caso, com acesso igual ou menor, sem delegar essa permissão a terceiros.
-Somente a equipe responsável gerencia as permissões e remove participantes.
+Ao criar uma subpasta, escolha **Quem vê a pasta**. Somente o criador altera a escolha em **Acesso à pasta**. Uma subpasta pública dentro de uma privada continua invisível aos demais. Nomes podem se repetir entre criadores, evitando revelar pastas privadas por conflito de nome.
 
-**Conversar sobre o caso** seleciona o caso no Lume e usa suas fontes autorizadas.
-Conversas, memória pessoal, rascunhos de documentos e conexões Google continuam pessoais;
-aceitar um convite não compartilha esses dados. Processos judiciais e tarefas de Pesquisa
-executadas pelo escritório permanecem disponíveis à equipe. As referências já vinculadas
-ao caso podem ser consultadas pelos participantes externos.
+Arquivos herdam o acesso da pasta. A regra vale nas listas, busca, downloads, fontes do Lume, conhecimento, modelos e avaliações de Pesquisa. Revogar acesso impede as próximas leituras; conteúdo já baixado não pode ser recolhido. Compartilhar uma versão individual por Mensagens concede acesso explícito àquela versão.
 
-Remover um associado mantém suas participações nos casos. Remover um participante revoga
-aquele caso. Remover alguém da equipe revoga também participações antigas e convites
-pendentes ligados à pessoa naquele escritório. Arquivos e alterações já feitos permanecem.
-O servidor verifica novamente o acesso nas operações seguintes, inclusive downloads,
-fontes e ferramentas do agente. Conteúdo já baixado não pode ser recolhido.
+Mover arquivos para fora de uma pasta reservada de outra pessoa é recusado. Excluir uma pasta reservada com conteúdo exige mover esse conteúdo ou ajustar o acesso antes. Excluir um caso com transferência de arquivos também é recusado enquanto houver pastas reservadas, para impedir exposição acidental.
 
-## Implementação e validação
+**Conversar sobre o caso** seleciona fontes autorizadas. Conversas, memória, rascunhos, pesquisas pessoais e conexões Google continuam pessoais. Participantes consultam referências e avaliações cujas fontes estejam autorizadas para eles.
 
-A migração `apps/web/db/postgres/0031_collaboration.sql` remove a restrição de um escritório
-por usuário e cria `office_associate`, `case_participant`, `collaboration_invitation` e
-`collaboration_audit`. Não execute SQL manualmente: use `pnpm db:setup`, que aplica somente
-as migrações pendentes. O escritório ativo é uma preferência validada contra a sessão;
-nenhum ID fornecido pelo cliente concede acesso.
+Remover um participante revoga o acesso àquele caso. Ele também pode **Sair do caso**. Encerrar uma associação remove o vínculo nos dois sentidos e retira cada advogado dos casos do outro. Arquivos e alterações permanecem, incluindo pastas privadas fora do alcance dos demais.
 
-O módulo `apps/web/src/lib/collaboration/` concentra convites, gestão e resolução de acesso.
-As operações compartilháveis usam uma lista explícita e um contexto limitado a um caso.
-Recursos secundários (documentos, pastas e referências) também precisam pertencer ao caso.
-Aceites e mudanças de acesso usam transações com o mesmo bloqueio por escritório para
-evitar aceite duplo, conflitos com revogação e perda do último administrador.
+## Migração e operação
 
-`pnpm test` inclui cenários reais de PostgreSQL em `tests/collaboration.test.ts` e
-`tests/auth.test.ts`: isolamento, consulta/edição, revogação, associação, múltiplos
-escritórios, aceite concorrente, tokens, expiração e delegação.
+`0059_associate_access.sql` retira papéis e níveis de participação, torna associações mútuas, converte participantes existentes em associados e cancela convites pendentes de equipe/caso. Ela exige um advogado por escritório e um escritório por advogado. Use `pnpm db:setup` para aplicar migrações pendentes, sem alterar migrações já aplicadas.
 
-A validação de interface é `apps/web/e2e/collaboration.e2e.ts`, parte da
-[suíte e2e](../apps/web/README.md#testes-end-to-end) que roda no CI. Para repeti-la na raiz:
+`0060_folder_access_fail_closed.sql` impede leitura por caminhos de pastas removidos, inexistentes, cíclicos ou que atravessem outro caso ou escritório.
+
+Antes de migrar um ambiente existente, execute a verificação somente de leitura:
 
 ```sh
+pnpm --filter @k5/web db:migrate --check-associates
+```
+
+O comando usa o destino de `K5_ENV_FILE`, com padrão `.env.postgres.local`. Usuários em vários escritórios ou escritórios com vários membros impedem a migração sem alterar dados. Resolva os vínculos e a propriedade dos registros antes de migrar. Nenhum dado é dividido ou removido automaticamente.
+
+`requireWorkspace()` deriva o escritório do usuário autenticado. Cada operação revalida sessão e acesso ao recurso. IDs enviados pelo navegador não concedem acesso. Aceites e revogações usam transações com bloqueios dos escritórios em ordem.
+
+## Validar
+
+`pnpm test` cobre associação mútua, isolamento, participantes, pastas, fontes e revogação em PostgreSQL real. Na raiz:
+
+```sh
+pnpm lint
+pnpm typecheck
+pnpm test
 pnpm --filter @k5/web exec e2e run e2e/collaboration.e2e.ts
 ```
 
-O teste cria duas contas descartáveis (dona e parceira), um caso de teste e um documento de
-teste; concede e revoga acesso ao caso, associação e equipe, e confere troca de escritório,
-CSRF e recuperação de erro no celular. Não usa contas reais nem envia mensagens.
+O e2e cria contas descartáveis e confere colaboração, acesso às pastas, revogação e recuperação de erro em desktop e celular. Não usa contas reais nem envia mensagens.

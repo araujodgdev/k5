@@ -6,9 +6,8 @@ import { runCapability } from '@/lib/agent-tools';
 import { sharedCaseCapabilities } from '@/lib/collaboration/capability-access';
 
 /**
- * HTTP entry point for a capability. Both adapters now converge on `runCapability`, so the role
- * policy declared in the contract is enforced on this path too - previously only the Mastra tools
- * consulted it, and the routes settled for "not a reviewer".
+ * HTTP entry point for a capability. HTTP and agent adapters use `runCapability`
+ * to enforce publication, session and resource access checks.
  */
 export async function handleCapability(
   request: Request,

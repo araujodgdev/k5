@@ -17,7 +17,7 @@ export type NavSlug = (typeof appNavigation)[number]["slug"];
 
 export const officeSections = [
   { slug: 'tasks', label: 'Tarefas' }, { slug: 'calendar', label: 'Agenda' }, { slug: 'clients', label: 'Clientes' },
-  { slug: 'team', label: 'Equipe' }, { slug: 'associates', label: 'Associados' }, { slug: 'invites', label: 'Convites' },
+  { slug: 'associates', label: 'Associados' }, { slug: 'invites', label: 'Convites' },
 ] as const;
 
 /** Sections shown directly in the mobile tab bar; the rest live under "Mais". */

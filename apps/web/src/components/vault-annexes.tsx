@@ -27,8 +27,8 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 type Plan = { pageCount: number; items: AnnexItem[]; uncoveredPages: number[] };
 type Result = { folderId: string; documents: Array<{ id: string; name: string }> };
 
-export function VaultAnnexes({ caseId, canWrite }: { caseId: string; canWrite: boolean }) {
-  const options = useVaultDocumentOptions(canWrite ? `caseId=${encodeURIComponent(caseId)}` : null);
+export function VaultAnnexes({ caseId }: { caseId: string }) {
+  const options = useVaultDocumentOptions(`caseId=${encodeURIComponent(caseId)}`);
   const documents = options.documents;
   const [scanId, setScanId] = useState('');
   const [petitionId, setPetitionId] = useState('');
@@ -39,7 +39,6 @@ export function VaultAnnexes({ caseId, canWrite }: { caseId: string; canWrite: b
   const [error, setError] = useState('');
   const [result, setResult] = useState<Result | null>(null);
 
-  if (!canWrite) return <p className="py-6 text-sm text-muted-foreground">Seu papel permite apenas consultar os arquivos do caso.</p>;
   const pdfs = documents.filter(document => document.mimeType === 'application/pdf');
   const readable = documents.filter(document => document.id !== scanId);
 

@@ -6,9 +6,8 @@ import { workspaceCapabilityInputs } from './workspace-capability-inputs';
 
 import {
   capabilities,
-  capabilitiesForRole,
   capabilityNames,
-  publishedCapabilitiesForRole,
+  publishedCapabilities,
 } from "../src/lib/capabilities/contracts";
 import { CapabilityError } from "../src/lib/capabilities/errors";
 import { assertCapabilityAllowed, type WorkspaceContext } from "../src/lib/application/context";
@@ -28,34 +27,30 @@ import { grantPlatformAdmin } from "../src/lib/platform-core";
 import { createSecretRef } from "../src/lib/application/secrets-service";
 
 async function seedFixture() {
-  const userAdmin = randomUUID();
   const userLawyer = randomUUID();
-  const userReviewer = randomUUID();
   const userOfficeB = randomUUID();
+  // Each office has exactly one lawyer, who owns it.
+  const userAdmin = userLawyer;
 
   const officeA = randomUUID();
   const officeB = randomUUID();
 
-  (await testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?)")
+  (await testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?), (?, ?, ?)")
     .run(
-      userAdmin, `admin-${randomUUID()}@alfa.test`, "Admin Alfa",
       userLawyer, `lawyer-${randomUUID()}@alfa.test`, "Lawyer Alfa",
-      userReviewer, `reviewer-${randomUUID()}@alfa.test`, "Reviewer Alfa",
       userOfficeB, `user-${randomUUID()}@beta.test`, "User Beta"
     ));
 
   (await testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?)")
     .run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia"));
 
-  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)")
+  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id) VALUES (?, ?, ?), (?, ?, ?)")
     .run(
-      randomUUID(), officeA, userAdmin, "administrator",
-      randomUUID(), officeA, userLawyer, "lawyer",
-      randomUUID(), officeA, userReviewer, "reviewer",
-      randomUUID(), officeB, userOfficeB, "lawyer"
+      randomUUID(), officeA, userLawyer,
+      randomUUID(), officeB, userOfficeB
     ));
 
-  return { userAdmin, userLawyer, userReviewer, userOfficeB, officeA, officeB };
+  return { userAdmin, userLawyer, userOfficeB, officeA, officeB };
 }
 
 /** Mints a genuine upload reference: bytes through the storage adapter, row in the database. */
@@ -64,42 +59,23 @@ function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
   return uploadsService.createUploadRef(context, file);
 }
 
-test("capabilities contract: complete catalog and role permissions", () => {
+test("capabilities contract: complete catalog without office roles", () => {
   assert.equal(new Set(capabilityNames).size, capabilityNames.length, "Capability names are unique");
-
-  const reviewerCaps = capabilitiesForRole("reviewer");
-  const lawyerCaps = capabilitiesForRole("lawyer");
-  const adminCaps = capabilitiesForRole("administrator");
-
-  // Reviewer only has read capabilities on office data (plus self session termination)
-  for (const name of reviewerCaps) {
-    if (name === 'k5_session_end_global') continue;
-    if (['messages', 'notifications'].includes(capabilities[name].module) || name === 'k5_collaboration_change') continue;
-    if (['k5_calendar_select_calendars', 'k5_calendar_sync_now', 'k5_drive_register_files'].includes(name)) {
-      assert.deepEqual((capabilities[name] as { publish?: readonly string[] }).publish, [], 'Personal setup is never an agent tool');
-      continue;
-    }
-    assert.equal(capabilities[name].effect, "read", `Reviewer should only read, but ${name} has effect ${capabilities[name].effect}`);
-  }
-
-  // Lawyers and Admins have all capabilities
-  assert.deepEqual(capabilityNames.filter(name => !lawyerCaps.includes(name)), ['k5_google_save_policy', 'k5_google_list_audit']);
-  assert.equal(adminCaps.length, capabilityNames.length);
+  for (const name of capabilityNames) assert.ok(!('roles' in capabilities[name]), `${name} declares no office role`);
 });
 
 
-test("authorization: dynamic role check and membership revocation", async () => {
-  const { userAdmin, userReviewer, officeA } = (await seedFixture());
+test("authorization: membership is re-read and its removal takes effect", async () => {
+  const { userAdmin, userOfficeB, officeA } = (await seedFixture());
 
-  const adminCtx: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator" };
-  const reviewerCtx: WorkspaceContext = { officeId: officeA, userId: userReviewer, role: "reviewer" };
+  const adminCtx: WorkspaceContext = { officeId: officeA, userId: userAdmin };
+  const outsiderCtx: WorkspaceContext = { officeId: officeA, userId: userOfficeB };
 
-  // Admin can do write operations
   await assert.doesNotReject(() => assertCapabilityAllowed(adminCtx, "k5_vault_create_case"));
 
-  // Reviewer cannot do write operations
+  // Someone else's office is never reachable by naming it.
   await assert.rejects(
-    () => assertCapabilityAllowed(reviewerCtx, "k5_vault_create_case"),
+    () => assertCapabilityAllowed(outsiderCtx, "k5_vault_list_cases"),
     (err: unknown) => err instanceof CapabilityError && err.code === "FORBIDDEN"
   );
 
@@ -116,7 +92,7 @@ test("authorization: a live session is checked by its resolved column", async ()
   const { userAdmin, officeA } = (await seedFixture());
   const sessionId = randomUUID();
   (await testDb.prepare("INSERT INTO session (id,userId,token,expiresAt,createdAt,updatedAt) VALUES (?,?,gen_random_uuid()::text,CURRENT_TIMESTAMP+INTERVAL '1 day',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)").run(sessionId, userAdmin));
-  const context: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator", sessionId };
+  const context: WorkspaceContext = { officeId: officeA, userId: userAdmin, sessionId };
 
   await assert.doesNotReject(() => assertCapabilityAllowed(context, "k5_vault_list_cases"));
   (await testDb.prepare("DELETE FROM session WHERE id = ?").run(sessionId));
@@ -128,7 +104,7 @@ test("authorization: a live session is checked by its resolved column", async ()
 
 test("vault service: idempotent case creation, update and deletion with approval", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   // 1. Create case
   const res1 = await vaultService.createCase(context, { name: "Caso Silva vs. Souza" });
@@ -167,7 +143,7 @@ test("vault service: idempotent case creation, update and deletion with approval
 
 test("vault deletion clears stale folders when documents move to another case", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
   const source = await vaultService.createCase(context, { name: `Origem ${randomUUID()}` });
   const target = await vaultService.createCase(context, { name: `Destino ${randomUUID()}` });
   const folder = await vaultService.createFolder(context, { caseId: source.case.id, name: "Pasta antiga" });
@@ -192,7 +168,7 @@ test("vault deletion clears stale folders when documents move to another case", 
 
 test("vault deletion can resume after approval consumption", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
   const source = await vaultService.createCase(context, { name: `Retomavel ${randomUUID()}` });
   const proposal = await approvalsService.createApprovalProposal(context, "k5_vault_delete_case", { caseId: source.case.id });
   await approvalsService.approveProposal(context, proposal.id);
@@ -218,8 +194,8 @@ test("vault deletion can resume after approval consumption", async () => {
 
 test("vault document service: versions, tombstone and office isolation", async () => {
   const { userLawyer, userOfficeB, officeA, officeB } = (await seedFixture());
-  const contextA: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
-  const contextB: WorkspaceContext = { officeId: officeB, userId: userOfficeB, role: "lawyer" };
+  const contextA: WorkspaceContext = { officeId: officeA, userId: userLawyer };
+  const contextB: WorkspaceContext = { officeId: officeB, userId: userOfficeB };
 
   // Ingest document for Office A through a real, server-issued upload reference
   const ingested = await vaultService.ingestUpload(contextA, {
@@ -256,7 +232,7 @@ test("vault document service: versions, tombstone and office isolation", async (
 
 test("knowledge engine: hybrid retrieval, source inspection and audit", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   // Create a ready document with chunks
   const docId = randomUUID();
@@ -317,7 +293,7 @@ test("knowledge engine: hybrid retrieval, source inspection and audit", async ()
 
 test("knowledge search covers ready documents while another selected one is still processing", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
   const ready = randomUUID();
   const processing = randomUUID();
   await testDb.prepare(`
@@ -341,7 +317,7 @@ test("knowledge search covers ready documents while another selected one is stil
 
 test("artifacts service: version history and rollback restoration", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   // Create a run and artifact
   const runId = randomUUID();
@@ -387,7 +363,7 @@ test("artifacts service: version history and rollback restoration", async () => 
 
 test("conversations service: lifecycle and processing locking", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   // Create conversation
   const created = await conversationsService.createNewConversation(context, { title: "Dúvidas Tributárias" });
@@ -414,24 +390,20 @@ test("conversations service: lifecycle and processing locking", async () => {
 });
 
 test("agent tools: mastra tools creation and summary formatting", async () => {
-  const { userLawyer, userReviewer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const { userLawyer, officeA } = (await seedFixture());
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   const tools = agentTools(context, undefined, { whatsappEnabled: true });
-  // The catalog is the published set for this role, not every capability the role may exercise:
+  // The catalog is the published set, not every capability the person may exercise:
   // global logout stays out of it even though a lawyer is allowed to log themselves out.
-  assert.deepEqual(Object.keys(tools).sort(), publishedCapabilitiesForRole("lawyer", "agent").sort());
+  assert.deepEqual(Object.keys(tools).sort(), publishedCapabilities("agent").sort());
   assert.ok(!Object.keys(tools).includes("k5_session_end_global"));
   assert.deepEqual(Object.keys(tools).filter(name => name.startsWith('k5_whatsapp_')).sort(), [
     'k5_whatsapp_list_threads', 'k5_whatsapp_read_thread', 'k5_whatsapp_send',
   ]);
-  const withoutWhatsApp = publishedCapabilitiesForRole("lawyer", "agent").filter(name => capabilities[name].module !== 'whatsapp').sort();
+  const withoutWhatsApp = publishedCapabilities("agent").filter(name => capabilities[name].module !== 'whatsapp').sort();
   assert.deepEqual(Object.keys(agentTools(context, undefined, { whatsappEnabled: false })).sort(), withoutWhatsApp);
   assert.deepEqual(Object.keys(agentTools(context)).sort(), withoutWhatsApp);
-  const reviewerContext: WorkspaceContext = { officeId: officeA, userId: userReviewer, role: 'reviewer' };
-  const reviewerTools = Object.keys(agentTools(reviewerContext, undefined, { whatsappEnabled: true })).sort();
-  assert.deepEqual(reviewerTools, publishedCapabilitiesForRole('reviewer', 'agent').sort());
-  assert.deepEqual(reviewerTools.filter(name => name.startsWith('k5_whatsapp_')), ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread']);
 
   // Formatting summaries
   const s1 = toolSummary("k5_vault_list_cases", { cases: [{}, {}] }, false);
@@ -459,30 +431,26 @@ test("webmcp: registration adapter handles mock browser modelContext", () => {
   };
 
   try {
-    const roles: WorkspaceContext['role'][] = ['administrator', 'lawyer', 'reviewer'];
-    for (const role of roles) {
-      for (const whatsappEnabled of [false, true]) {
-        registered.length = 0;
-        const cleanup = registerWebMCPCapabilities(role, { whatsappEnabled });
-        try {
-          const published = publishedCapabilitiesForRole(role, 'webmcp');
-          const expected = whatsappEnabled ? published : published.filter(name => capabilities[name].module !== 'whatsapp');
-          const names = registered.map(definition => definition.name).sort();
-          assert.deepEqual(names, expected.sort(), `${role} receives the complete catalog with WhatsApp ${whatsappEnabled ? 'enabled' : 'disabled'}`);
-          assert.deepEqual(names.filter(name => name.startsWith('k5_whatsapp_')), !whatsappEnabled ? [] : role === 'reviewer'
-            ? ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread']
-            : ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread', 'k5_whatsapp_send']);
-          assert.ok(names.includes('k5_vault_list_cases'));
-          assert.equal(names.includes('k5_vault_create_case'), role !== 'reviewer');
-          for (const name of ['k5_judicial_list_publications', 'k5_judicial_get_publication', ...(whatsappEnabled ? ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread'] : [])]) {
-            assert.equal(registered.find(definition => definition.name === name)?.hints?.untrustedContentHint, true);
-          }
-        } finally { assert.doesNotThrow(() => cleanup()); }
-      }
+    for (const whatsappEnabled of [false, true]) {
+      registered.length = 0;
+      const cleanup = registerWebMCPCapabilities({ whatsappEnabled });
+      try {
+        const published = publishedCapabilities('webmcp');
+        const expected = whatsappEnabled ? published : published.filter(name => capabilities[name].module !== 'whatsapp');
+        const names = registered.map(definition => definition.name).sort();
+        assert.deepEqual(names, expected.sort(), `the complete catalog with WhatsApp ${whatsappEnabled ? 'enabled' : 'disabled'}`);
+        assert.deepEqual(names.filter(name => name.startsWith('k5_whatsapp_')), !whatsappEnabled ? []
+          : ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread', 'k5_whatsapp_send']);
+        assert.ok(names.includes('k5_vault_list_cases'));
+        assert.ok(names.includes('k5_vault_create_case'));
+        for (const name of ['k5_judicial_list_publications', 'k5_judicial_get_publication', ...(whatsappEnabled ? ['k5_whatsapp_list_threads', 'k5_whatsapp_read_thread'] : [])]) {
+          assert.equal(registered.find(definition => definition.name === name)?.hints?.untrustedContentHint, true);
+        }
+      } finally { assert.doesNotThrow(() => cleanup()); }
     }
     registered.length = 0;
-    const cleanup = registerWebMCPCapabilities('reviewer');
-    assert.deepEqual(registered.map(definition => definition.name).sort(), publishedCapabilitiesForRole('reviewer', 'webmcp')
+    const cleanup = registerWebMCPCapabilities();
+    assert.deepEqual(registered.map(definition => definition.name).sort(), publishedCapabilities('webmcp')
       .filter(name => capabilities[name].module !== 'whatsapp').sort());
     cleanup();
   } finally {
@@ -506,7 +474,7 @@ test("capability routes: boolean query parameters accept only one exact true or 
 
 test("approval security: rejects modified target resource or modified input arguments", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   const c1 = await vaultService.createCase(context, { name: "Caso Original" });
   const c2 = await vaultService.createCase(context, { name: "Caso Invasor" });
@@ -534,7 +502,7 @@ test("approval security: rejects modified target resource or modified input argu
 
 test("knowledge engine: vectors fuse with lexical hits and tombstones stay out", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   const docId = randomUUID();
   const chunkId1 = randomUUID();
@@ -583,7 +551,7 @@ test("knowledge engine: vectors fuse with lexical hits and tombstones stay out",
 
 test("knowledge scope: updating sources for a conversation does not duplicate rows", async () => {
   const { userLawyer, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   const conv = await conversationsService.createNewConversation(context, { title: "Escopo Conversa" });
   const docId = randomUUID();
@@ -604,7 +572,7 @@ test("knowledge scope: updating sources for a conversation does not duplicate ro
 
 test("ui service: openResource validates resource access and throws NOT_FOUND on cross-office or invalid IDs", async () => {
   const { userLawyer, officeA, officeB } = (await seedFixture());
-  const contextA: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const contextA: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   const foreignCaseId = randomUUID();
   (await testDb.prepare("INSERT INTO vault_case (id, office_id, name, created_by) VALUES (?, ?, 'Caso Alheio', ?)")
@@ -631,7 +599,7 @@ test("webmcp: every published capability has a route, a schema and typed failure
   };
 
   try {
-    const published = publishedCapabilitiesForRole("administrator", "webmcp");
+    const published = publishedCapabilities("webmcp");
     assert.ok(!published.includes("k5_session_end_global"), "global logout is never a browser tool");
 
     for (const name of published) {
@@ -681,7 +649,7 @@ test("webmcp: every published capability has a route, a schema and typed failure
 
 test('vault pagination reaches older documents with stable ordering and preserves office, case and folder scopes', async () => {
   const { userLawyer, officeA, officeB } = await seedFixture();
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: 'lawyer' };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
   const prefix = randomUUID();
   await testDb.prepare(`INSERT INTO vault_document (id,office_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by,created_at)
     SELECT ? || '-' || lpad(n::text,3,'0'),?,'library','Arquivo ' || n,? || '-' || n,'text/plain',1,'hash','ready',?,'2026-01-01' FROM generate_series(1,201) n`)
@@ -737,7 +705,7 @@ test('vault pagination reaches older documents with stable ordering and preserve
 test("platform service: create, list, and delete the platform's AI connections", async () => {
   process.env.K5_CREDENTIALS_KEY = randomBytes(32).toString("base64");
   const { userAdmin, officeA } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userAdmin, role: "administrator" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userAdmin };
 
   // Make user a platform admin
   await grantPlatformAdmin(testDatabase, userAdmin);
@@ -777,8 +745,8 @@ test("platform service: create, list, and delete the platform's AI connections",
 
 test("vault drive: a case carries its client data and folders stay inside their own case", async () => {
   const { userLawyer, officeA, officeB, userOfficeB } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
-  const other: WorkspaceContext = { officeId: officeB, userId: userOfficeB, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
+  const other: WorkspaceContext = { officeId: officeB, userId: userOfficeB };
 
   const created = await vaultService.createCase(context, {
     name: `Drive ${randomUUID()}`,
@@ -817,7 +785,7 @@ test("vault drive: a case carries its client data and folders stay inside their 
 
 test("knowledge engine: an empty scope searches this office's Cofre and never another's", async () => {
   const { userLawyer, officeA, officeB, userOfficeB } = (await seedFixture());
-  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer, role: "lawyer" };
+  const context: WorkspaceContext = { officeId: officeA, userId: userLawyer };
 
   const seedDocument = async (officeId: string, userId: string, name: string, text: string) => {
     const documentId = randomUUID();

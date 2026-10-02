@@ -25,13 +25,13 @@ test('web sources saved at the end of a search step are available to the next do
   const userId = randomUUID(), officeId = randomUUID();
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Revisora');
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Fontes');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, 'lawyer');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   const owner = { officeId, userId };
   const chat = await createConversation(testDb, owner);
   await recordSources(owner, chat.id, recordedWebSources({ toolResults: [{ toolName: 'web_search', result: { results: [
     { url: 'https://example.test/cc', title: 'Código Civil', text: 'Art. 113 do Código Civil. Os negócios jurídicos devem ser interpretados conforme a boa-fé.' },
   ] } }] }));
-  const created = await runCapability({ ...owner, role: 'lawyer', invocation: 'agent', conversationId: chat.id }, 'k5_artifacts_create', {
+  const created = await runCapability({ ...owner, invocation: 'agent', conversationId: chat.id }, 'k5_artifacts_create', {
     title: 'Fundamento pesquisado', content: 'Aplica-se o art. 113 do Código Civil.',
   });
   assert.ok(created && typeof created === 'object' && 'citations' in created);
@@ -74,7 +74,7 @@ async function fixture() {
   const officeId = randomUUID(), userId = randomUUID();
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, 'Advogada');
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, 'lawyer');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId);
   return { officeId, userId };
 }

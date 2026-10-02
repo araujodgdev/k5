@@ -30,9 +30,9 @@ async function destination(c: WorkspaceContext, scope: 'case' | 'library', caseI
     return;
   }
   if (!caseId) throw new CapabilityError('INVALID', 'Escolha um caso para a importação.');
-  if (!await findVaultCase(c.officeId, caseId)) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado no Cofre deste escritório.');
+  if (!await findVaultCase(c.officeId, caseId, c.userId)) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado no Cofre deste escritório.');
   if (folderId) {
-    const folder = await findVaultFolder(c.officeId, folderId);
+    const folder = await findVaultFolder(c.officeId, folderId, c.userId);
     if (!folder || folder.caseId !== caseId) throw new CapabilityError('NOT_FOUND', 'Pasta não encontrada neste caso.');
   }
 }
@@ -78,7 +78,6 @@ async function queue(c: WorkspaceContext, input: {
   return dto(row);
 }
 export async function queueDriveImport(c: WorkspaceContext, i: Input<'k5_drive_import_file'>) {
-  if (c.role === 'reviewer') throw new CapabilityError('FORBIDDEN', 'Seu papel permite apenas consultas.');
   const connection = await requireConnection(c, 'drive');
   const file = await ownFile(c, i.fileId, connection);
   const meta = await fetchMetadata(connection, file.google_file_id);
@@ -96,7 +95,6 @@ export async function queueGmailAttachmentImport(c: WorkspaceContext, i: {
   messageId: string; partId: string; caseId: string; folderId?: string | null; idempotencyKey?: string;
   sourceName: string; sourceMimeType: string; sourceVersion?: string | null;
 }) {
-  if (c.role === 'reviewer') throw new CapabilityError('FORBIDDEN', 'Seu papel permite apenas consultas.');
   const connection = await requireConnection(c, 'gmail');
   const format = importFormatFor(i.sourceMimeType);
   if (!format) throw new CapabilityError('INVALID', 'Este formato de anexo não pode ser copiado para o Cofre.');
@@ -175,7 +173,7 @@ export async function processDriveImport(job: GoogleJob, db: Database = database
     RETURNING id`).get<{ id: string }>(row.id, job.id, job.lease_token);
   if (!lease) throw new CapabilityError('CONFLICT', 'A importação já está em execução.');
   try {
-    const c: WorkspaceContext = { officeId: row.office_id, userId: row.user_id, role: 'lawyer' };
+    const c: WorkspaceContext = { officeId: row.office_id, userId: row.user_id };
     await destination(c, row.scope, row.case_id, row.folder_id);
     const connection = await requireConnection(c, row.source_kind === 'drive' ? 'drive' : 'gmail', db);
     if (connection.id !== job.connection_id) throw new CapabilityError('FORBIDDEN', 'A conexão Google mudou.');
@@ -205,8 +203,8 @@ export async function processDriveImport(job: GoogleJob, db: Database = database
           .get(job.id, job.lease_token);
         if (!activeJob) throw new Error('A licença da fila expirou; outra execução assumiu.');
         const currentConnection = await requireConnection(c, row.source_kind === 'drive' ? 'drive' : 'gmail', tx);
-        if (!await tx.prepare("SELECT 1 FROM office_member WHERE office_id=? AND user_id=? AND role IN ('administrator','lawyer')").get(row.office_id,row.user_id))
-          throw new CapabilityError('FORBIDDEN', 'Seu acesso de escrita ao Cofre foi removido.');
+        if (!await tx.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(row.office_id,row.user_id))
+          throw new CapabilityError('FORBIDDEN', 'Seu acesso ao Cofre foi removido.');
         if (currentConnection.id !== job.connection_id) throw new CapabilityError('FORBIDDEN', 'A conexão Google mudou durante a importação.');
         if (row.source_kind === 'drive' && !await tx.prepare('SELECT 1 FROM google_drive_file WHERE id=? AND office_id=? AND user_id=? AND connection_id=?')
           .get(row.drive_file_id, row.office_id, row.user_id, currentConnection.id))

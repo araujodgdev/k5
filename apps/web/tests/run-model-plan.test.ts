@@ -11,7 +11,7 @@ test('a chronology stops with its reason when the review connection is disabled 
   const officeId = randomUUID(), userId = randomUUID(), documentId = randomUUID();
   await testDb.prepare('INSERT INTO user (id,email,name) VALUES (?,?,?)').run(userId, `${userId}@example.test`, 'Advogada');
   await testDb.prepare('INSERT INTO office (id,name) VALUES (?,?)').run(officeId, 'Escritório da cronologia');
-  await testDb.prepare("INSERT INTO office_member (id,office_id,user_id,role) VALUES (?,?,?,'lawyer')").run(randomUUID(), officeId, userId);
+  await testDb.prepare("INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)").run(randomUUID(), officeId, userId);
   await testDb.prepare(`INSERT INTO vault_document(id,office_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by)
     VALUES(?,?,'library','contrato.txt',?,'text/plain',60,'hash','ready',?)`).run(documentId, officeId, documentId, userId);
   const chunks = [randomUUID(), randomUUID()];

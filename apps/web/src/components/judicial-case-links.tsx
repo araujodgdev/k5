@@ -47,7 +47,7 @@ function jobsByLink(rows: JudicialJob[]): Record<string, JudicialJob> {
   return Object.fromEntries(rows.flatMap((job) => job.linkId ? [[job.linkId, job]] : []));
 }
 
-export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWrite: boolean }) {
+export function JudicialCaseLinks({ caseId }: { caseId: string }) {
   const headingId = useId();
   const [data, setData] = useState<Loaded | null>(null);
   const [failure, setFailure] = useState<ApiFailure | null>(null);
@@ -204,17 +204,15 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
               {busy === "following" ? "Salvando…" : following ? "Notificações ativas" : "Receber notificações"}
             </Button>
           )}
-          {canWrite && (
-            <Button type="button" variant="outline" className={touch} aria-expanded={adding} onClick={() => { setAdding((value) => !value); setFailure(null); }}>
-              {adding ? "Fechar" : "Vincular processo"}
-            </Button>
-          )}
+          <Button type="button" variant="outline" className={touch} aria-expanded={adding} onClick={() => { setAdding((value) => !value); setFailure(null); }}>
+            {adding ? "Fechar" : "Vincular processo"}
+          </Button>
         </div>
       </div>
 
       <ErrorText failure={failure} />
 
-      {adding && canWrite && (
+      {adding && (
         <LinkForm
           caseId={caseId}
           sources={data.sources}
@@ -240,7 +238,6 @@ export function JudicialCaseLinks({ caseId, canWrite }: { caseId: string; canWri
               siblings={bySource.get(link.installationId) ?? 1}
               expanded={expanded === link.id}
               busy={busy === link.id}
-              canWrite={canWrite}
               onToggle={() => setExpanded((current) => (current === link.id ? null : link.id))}
               onDecide={decide}
               onUnlink={unlink}
@@ -289,7 +286,7 @@ function useJobPolling(
   }, [pendingIds, setJobs, onSettled]);
 }
 
-function LinkRow({ link, source, publications, job, completedJob, siblings, expanded, busy, canWrite, onToggle, onDecide, onUnlink, onRefresh }: {
+function LinkRow({ link, source, publications, job, completedJob, siblings, expanded, busy, onToggle, onDecide, onUnlink, onRefresh }: {
   link: JudicialLink;
   source: JudicialSource | undefined;
   publications: JudicialPublication[];
@@ -298,7 +295,6 @@ function LinkRow({ link, source, publications, job, completedJob, siblings, expa
   siblings: number;
   expanded: boolean;
   busy: boolean;
-  canWrite: boolean;
   onToggle: () => void;
   onDecide: (linkId: string, decision: "confirmed" | "rejected") => void;
   onUnlink: (linkId: string) => void;
@@ -327,23 +323,21 @@ function LinkRow({ link, source, publications, job, completedJob, siblings, expa
           {source?.courtName ?? link.courtName} · {degreeLabels[link.degree] ?? link.degree}
         </span>
         <span className="ml-auto text-[13px] text-subtle-foreground">{status}</span>
-        {canWrite && (
-          <span className="flex items-center gap-1">
-            {link.confirmation === "pending_review" && (
-              <>
-                <Button type="button" className={touch} disabled={busy} onClick={() => onDecide(link.id, "confirmed")}>Confirmar</Button>
-                <Button type="button" variant="ghost" className={touch} disabled={busy} onClick={() => onDecide(link.id, "rejected")}>Rejeitar</Button>
-              </>
-            )}
-            {link.confirmation === "confirmed" && link.cnjNumber && (
-              <Button type="button" variant="ghost" className={touch} disabled={busy} onClick={() => onRefresh(link.id)}>
-                {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
-                Atualizar
-              </Button>
-            )}
-            <UnlinkDialog number={number} onConfirm={() => onUnlink(link.id)} />
-          </span>
-        )}
+        <span className="flex items-center gap-1">
+          {link.confirmation === "pending_review" && (
+            <>
+              <Button type="button" className={touch} disabled={busy} onClick={() => onDecide(link.id, "confirmed")}>Confirmar</Button>
+              <Button type="button" variant="ghost" className={touch} disabled={busy} onClick={() => onDecide(link.id, "rejected")}>Rejeitar</Button>
+            </>
+          )}
+          {link.confirmation === "confirmed" && link.cnjNumber && (
+            <Button type="button" variant="ghost" className={touch} disabled={busy} onClick={() => onRefresh(link.id)}>
+              {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
+              Atualizar
+            </Button>
+          )}
+          <UnlinkDialog number={number} onConfirm={() => onUnlink(link.id)} />
+        </span>
       </div>
 
       {siblings > 1 && (

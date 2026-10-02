@@ -49,8 +49,8 @@ async function actor(): Promise<WorkspaceContext> {
   const officeId=randomUUID(),userId=randomUUID();
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@test.invalid`,'Pesquisador'));
   (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Escritório de teste'));
-  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(),officeId,userId,'lawyer'));
-  return {officeId,userId,role:'lawyer'};
+  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(),officeId,userId));
+  return {officeId,userId};
 }
 async function source() {
   return upsertInstallation({kind:'jurisprudence_api',courtCode:'TJDFT',courtName:'Tribunal de Justiça do Distrito Federal',

@@ -13,7 +13,7 @@ import { agentMemory, clearMemory, forgetThread, memoryResource, readMemory } fr
 import { isWithheld, resultText, UntrustedToolResultGuard, WITHHELD_NOTICE } from '../src/lib/agent-guard';
 import { exaSearch, webSearchFor } from '../src/lib/agent-web-search';
 import { beforeSendSpan } from '../src/lib/observability/privacy';
-import { capabilities, publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts';
+import { capabilities, publishedCapabilities } from '../src/lib/capabilities/contracts';
 
 type Chunk = Record<string, unknown>;
 const usage = { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } };
@@ -163,7 +163,7 @@ test('agent spans keep tool names and counts, never content', () => {
 test('memory capabilities are the chat agent\'s, not the browser adapter\'s', () => {
   for (const name of ['k5_memory_get', 'k5_memory_clear'] as const) {
     assert.equal(capabilities[name].module, 'memory');
-    assert.ok(publishedCapabilitiesForRole('lawyer', 'agent').includes(name));
-    assert.ok(!publishedCapabilitiesForRole('lawyer', 'webmcp').includes(name));
+    assert.ok(publishedCapabilities('agent').includes(name));
+    assert.ok(!publishedCapabilities('webmcp').includes(name));
   }
 });

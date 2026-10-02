@@ -5,8 +5,8 @@ import { MessagesInbox } from '@/components/messaging/inbox';
 export const metadata = { title: 'Mensagens' };
 
 export default async function MessagesPage() {
-  const { office } = await requireWorkspace();
+  await requireWorkspace();
   return <Suspense fallback={<p role="status" className="px-5 py-6 text-sm text-muted-foreground md:px-10">Carregando mensagens…</p>}>
-    <MessagesInbox canShareDocuments={office.role !== 'reviewer'} />
+    <MessagesInbox />
   </Suspense>;
 }

@@ -13,9 +13,8 @@ type FeedbackRow = {
 };
 
 async function assertMember(db: Database, context: FeedbackContext) {
-  const member = await db.prepare('SELECT role FROM office_member WHERE office_id = ? AND user_id = ?').get<{ role: string }>(context.officeId, context.userId);
-  // All office roles may evaluate their own feedback, including reviewers. This grants no business writes.
-  if (!member || !['administrator', 'lawyer', 'reviewer'].includes(member.role)) throw new PlatformRequestError(403, 'Seu acesso ao escritório não está disponível.');
+  const member = await db.prepare('SELECT 1 FROM office_member WHERE office_id = ? AND user_id = ?').get(context.officeId, context.userId);
+  if (!member) throw new PlatformRequestError(403, 'Seu acesso ao escritório não está disponível.');
 }
 
 function ordered(context: FeedbackContext) {

@@ -10,6 +10,7 @@ import { assertResearchCaseAccess, researchCaseSnapshot } from './case-profile';
 import { materialSnapshot } from './case-material';
 import { assertResearchWritableRuntime } from './runtime';
 import { ResearchError } from './contracts';
+import { contextForCase } from '@/lib/collaboration/access';
 import { composeResearchAssessment, researchAssessmentCompositionVersion, researchAssessmentQuestions, researchAssessmentQuestionVersion,
   type ResearchCaseAssessment, type ResearchAssessmentResult, type ResearchAssessmentStatus } from './case-assessment-contracts';
 
@@ -21,22 +22,23 @@ type AssessmentRow = {
   attempts: number; lease_token: string | null; lease_until: number; created_at: string; updated_at: string;
 };
 /** A bounded source set, with coverage declared. The source text is untrusted data for Jev. */
-async function assessmentInput(officeId: string, caseId: string, materialVersionId: string) {
+async function assessmentInput(context: Pick<WorkspaceContext, 'officeId' | 'userId'>, caseId: string, materialVersionId: string) {
+  const { officeId, userId } = context;
   const [caseState, material, config] = await Promise.all([
-    researchCaseSnapshot(officeId, caseId), materialSnapshot(materialVersionId), getConnection(),
+    researchCaseSnapshot(context, caseId), materialSnapshot(materialVersionId), getConnection(),
   ]);
   const profile = caseState?.profile ?? null;
   const selectedChunkIds = [...new Set(profile?.documentedFacts.flatMap(fact => fact.chunkIds) ?? [])];
   const selectedChunks = selectedChunkIds.length ? await database.prepare(`SELECT c.id,c.document_id,c.stable_reference,c.content
     FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
-    WHERE c.office_id=? AND d.case_id=? AND d.deleted_at IS NULL AND d.status='ready' AND c.id IN (${selectedChunkIds.map(() => '?').join(',')})`)
-    .all<{ id: string; document_id: string; stable_reference: string; content: string }>(officeId, caseId, ...selectedChunkIds) : [];
+    WHERE c.office_id=? AND d.case_id=? AND d.deleted_at IS NULL AND d.status='ready' AND vault_folder_visible(d.folder_id, ?) AND c.id IN (${selectedChunkIds.map(() => '?').join(',')})`)
+    .all<{ id: string; document_id: string; stable_reference: string; content: string }>(officeId, caseId, userId, ...selectedChunkIds) : [];
   // A documented fact can cite the document alone. Use one bounded chunk per selected document when no span was selected.
   const fallback = !selectedChunkIds.length && profile?.documentIds.length ? await database.prepare(`SELECT c.id,c.document_id,c.stable_reference,c.content
     FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
-    WHERE c.office_id=? AND d.case_id=? AND d.deleted_at IS NULL AND d.status='ready' AND c.ordinal=0
+    WHERE c.office_id=? AND d.case_id=? AND d.deleted_at IS NULL AND d.status='ready' AND vault_folder_visible(d.folder_id, ?) AND c.ordinal=0
       AND c.document_id IN (${profile.documentIds.map(() => '?').join(',')}) ORDER BY c.document_id LIMIT 12`)
-    .all<{ id: string; document_id: string; stable_reference: string; content: string }>(officeId, caseId, ...profile.documentIds) : [];
+    .all<{ id: string; document_id: string; stable_reference: string; content: string }>(officeId, caseId, userId, ...profile.documentIds) : [];
   const caseChunks = (selectedChunkIds.length ? selectedChunks : fallback).slice(0, 6);
   const sourceChunks = material?.chunks.slice(0, 6) ?? [];
   const materialChunksAvailable = material ? Number((await database.prepare('SELECT count(*) AS n FROM research_chunk WHERE material_version_id=?').get<{ n: number }>(materialVersionId))?.n ?? 0) : 0;
@@ -102,13 +104,21 @@ export async function getResearchCaseAssessment(context: WorkspaceContext, asses
     .get<AssessmentRow>(assessmentId, context.officeId);
   if (!row) throw new CapabilityError('NOT_FOUND', 'Avaliação não encontrada.');
   await assertResearchCaseAccess(context, row.case_id);
-  const current = (await assessmentInput(context.officeId, row.case_id, row.material_version_id)).currentFingerprint === row.input_fingerprint;
-  return rowView(row, current);
+  const snapshot = await assessmentInput(context, row.case_id, row.material_version_id);
+  const result = rowView(row, snapshot.currentFingerprint === row.input_fingerprint);
+  const sourceIds = result.result?.excerpts.filter(source => source.source === 'vault').map(source => source.id) ?? [];
+  if (sourceIds.length) {
+    const allowed = await database.prepare(`SELECT c.id FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
+      WHERE d.office_id=? AND d.case_id=? AND d.deleted_at IS NULL AND vault_folder_visible(d.folder_id, ?) AND c.id IN (${sourceIds.map(() => '?').join(',')})`)
+      .all(context.officeId, row.case_id, context.userId, ...sourceIds);
+    if (allowed.length !== new Set(sourceIds).size) return { ...result, status: 'stale', current: false, reason: 'inputs_changed', result: null };
+  }
+  return result;
 }
 
 export async function assessResearchCaseMaterial(context: WorkspaceContext, input: { caseId: string; materialVersionId: string }): Promise<ResearchCaseAssessment> {
-  await assertResearchCaseAccess(context, input.caseId, true);
-  const snapshot = await assessmentInput(context.officeId, input.caseId, input.materialVersionId);
+  await assertResearchCaseAccess(context, input.caseId);
+  const snapshot = await assessmentInput(context, input.caseId, input.materialVersionId);
   if (!snapshot.material) throw new CapabilityError('NOT_FOUND', 'Material não encontrado.');
   const mode: DecisionMode = snapshot.config?.research_mode ?? 'off';
   const status: ResearchAssessmentStatus = snapshot.reason === 'profile_missing' || snapshot.reason === 'facts_missing' ||
@@ -151,9 +161,9 @@ export async function processNextResearchAssessment(options: { send?: DecisionTr
     .get<AssessmentRow>(token, now + 30_000, now, now);
   if (!row) return false;
   try {
-    const context: WorkspaceContext = { officeId: row.office_id, userId: row.requested_by, role: 'lawyer' };
-    await assertResearchCaseAccess(context, row.case_id, true);
-    const before = await assessmentInput(row.office_id, row.case_id, row.material_version_id);
+    const context = await contextForCase({ officeId: row.office_id, userId: row.requested_by }, row.case_id);
+    await assertResearchCaseAccess(context, row.case_id);
+    const before = await assessmentInput(context, row.case_id, row.material_version_id);
     if (before.currentFingerprint !== row.input_fingerprint || before.reason || !before.state) {
       await database.prepare("UPDATE research_case_assessment SET status='stale',reason='inputs_changed',lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=?")
         .run(row.id, token);
@@ -162,7 +172,8 @@ export async function processNextResearchAssessment(options: { send?: DecisionTr
     const evaluated = await evaluate({ officeId: row.office_id, userId: row.requested_by }, 'research',
       { state: before.state, questions: before.questions, questionVersion: researchAssessmentQuestionVersion },
       { send: options.send, deadlineMs: 10_000 });
-    const after = await assessmentInput(row.office_id, row.case_id, row.material_version_id);
+    await assertResearchCaseAccess(context, row.case_id);
+    const after = await assessmentInput(context, row.case_id, row.material_version_id);
     if (after.currentFingerprint !== row.input_fingerprint) {
       await database.prepare("UPDATE research_case_assessment SET status='stale',reason='inputs_changed',lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=?")
         .run(row.id, token);

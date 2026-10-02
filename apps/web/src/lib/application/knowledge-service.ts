@@ -10,7 +10,7 @@ import { activeGeneration, enqueueIndexJob } from '@/lib/knowledge/indexing';
 import { scopeCapability } from '@/lib/collaboration/capability-access';
 
 async function requireSourceDocument(context: WorkspaceContext, documentId: string) {
-  const doc = await findVaultDocument(context.officeId, documentId);
+  const doc = await findVaultDocument(context.officeId, documentId, context.userId);
   if (!doc || (context.caseScope && doc.caseId !== context.caseScope.caseId))
     throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
   return doc;

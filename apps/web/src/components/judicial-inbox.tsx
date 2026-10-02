@@ -45,7 +45,7 @@ async function loadAllLinks(): Promise<JudicialLink[]> {
   return links;
 }
 
-export function JudicialInbox({ canWrite, initialCaseId }: { canWrite: boolean; initialCaseId?: string }) {
+export function JudicialInbox({ initialCaseId }: { initialCaseId?: string }) {
   const id = useId();
   const [data, setData] = useState<Loaded | null>(null);
   const [failure, setFailure] = useState<ApiFailure | null>(null);
@@ -194,7 +194,6 @@ export function JudicialInbox({ canWrite, initialCaseId }: { canWrite: boolean; 
                 key={alert.id}
                 alert={alert}
                 publication={publicationById.get(alert.subjectId)}
-                canWrite={canWrite}
                 busy={busy === alert.id}
                 onRead={() => void markRead(alert.id)}
               />
@@ -235,10 +234,9 @@ export function JudicialInbox({ canWrite, initialCaseId }: { canWrite: boolean; 
   );
 }
 
-function AlertRow({ alert, publication, canWrite, busy, onRead }: {
+function AlertRow({ alert, publication, busy, onRead }: {
   alert: JudicialAlert;
   publication: JudicialPublication | undefined;
-  canWrite: boolean;
   busy: boolean;
   onRead: () => void;
 }) {
@@ -261,7 +259,7 @@ function AlertRow({ alert, publication, canWrite, busy, onRead }: {
             Abrir o caso
           </Link>
         )}
-        {!alert.read && canWrite && (
+        {!alert.read && (
           <Button type="button" variant="ghost" className={touch} disabled={busy} onClick={onRead}>
             {busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
             Marcar como lido

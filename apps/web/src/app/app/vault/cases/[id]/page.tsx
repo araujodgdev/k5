@@ -18,25 +18,25 @@ export async function generateMetadata({ params }: Props) {
   const { user } = await requireWorkspace();
   const { id } = await params;
   const access = await accessForPage(user.id, id);
-  return { title: (await findVaultCase(access.officeId, id))?.name ?? "Caso" };
+  return { title: (await findVaultCase(access.officeId, id, user.id))?.name ?? "Caso" };
 }
 
 export default async function VaultCasePage({ params, searchParams }: Props) {
-  const { user, office: activeOffice } = await requireWorkspace();
+  const { user } = await requireWorkspace();
   const [{ id }, { folder: requested, section }] = await Promise.all([params, searchParams]);
   const office = await accessForPage(user.id, id);
-  const vaultCase = await findVaultCase(office.officeId, id);
+  const vaultCase = await findVaultCase(office.officeId, id, user.id);
   if (!vaultCase) notFound();
 
-  // A folder from another case (or another office) is not a 404 for this page's data: it is simply
-  // not part of this tree, so the view falls back to the case root.
-  const folder = requested ? await findVaultFolder(office.officeId, requested) : undefined;
+  // A folder from another case (or another office), or one hidden from this person, is not a 404
+  // for this page's data: it is simply not part of the tree they see, so the view falls back to the case root.
+  const folder = requested ? await findVaultFolder(office.officeId, requested, user.id) : undefined;
   const folderId = folder?.caseId === vaultCase.id ? folder.id : null;
   const [folders, path, initialDocuments, initialTotal] = await Promise.all([
-    listVaultFolders(office.officeId, vaultCase.id, folderId),
-    folderId ? vaultFolderPath(office.officeId, folderId) : Promise.resolve([]),
-    listVaultDocuments(office.officeId, { caseId: vaultCase.id, folderId, limit: 50 }),
-    countVaultDocuments(office.officeId, { caseId: vaultCase.id, folderId }),
+    listVaultFolders(office.officeId, user.id, vaultCase.id, folderId),
+    folderId ? vaultFolderPath(office.officeId, folderId, user.id) : Promise.resolve([]),
+    listVaultDocuments(office.officeId, user.id, { caseId: vaultCase.id, folderId, limit: 50 }),
+    countVaultDocuments(office.officeId, user.id, { caseId: vaultCase.id, folderId }),
   ]);
 
   return (
@@ -49,8 +49,7 @@ export default async function VaultCasePage({ params, searchParams }: Props) {
         initialDocuments={initialDocuments}
         initialTotal={initialTotal}
         folderId={folderId}
-        role={office.role}
-        external={office.external || office.officeId !== activeOffice.officeId}
+        external={!office.owner}
         initialSection={!folderId && (section === 'references' || section === 'annexes') ? section : 'files'}
       />
     </Reveal>

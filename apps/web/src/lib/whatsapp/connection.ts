@@ -23,9 +23,8 @@ export function connectedCredential(connection: ConnectionRow) {
   return decryptCredential(connection.encrypted_api_key, keyring());
 }
 
-export async function authorizeWhatsApp(context: WorkspaceContext, options: { write?: boolean; manage?: boolean; allowDisabled?: boolean } = {}) {
+export async function authorizeWhatsApp(context: WorkspaceContext, options: { write?: boolean; allowDisabled?: boolean } = {}) {
   const current = await assertCapabilityAllowed(context, options.write ? 'k5_whatsapp_send' : 'k5_whatsapp_list_threads');
-  if (options.manage && current.role !== 'administrator') throw new CapabilityError('FORBIDDEN', 'Somente administradores podem gerenciar esta conexão.');
   if (!options.allowDisabled && !await isWhatsAppEnabled(current.officeId)) throw new CapabilityError('NOT_FOUND', 'O WhatsApp não está disponível para este escritório.');
   return current;
 }
@@ -40,18 +39,18 @@ export async function requireWhatsApp(context: WorkspaceContext, options: { writ
 }
 
 export async function whatsappStatus(context: WorkspaceContext): Promise<ConnectionStatus> {
-  const current = await authorizeWhatsApp(context, { allowDisabled: true });
+  await authorizeWhatsApp(context, { allowDisabled: true });
   const connection = await database.prepare('SELECT * FROM whatsapp_connection WHERE office_id=?').get<ConnectionRow>(context.officeId);
   return {
     enabled: await isWhatsAppEnabled(context.officeId),
     configured: Boolean(whatsappEnvironment().ZERNIO_API_KEY && whatsappEnvironment().ZERNIO_WEBHOOK_SECRET),
-    canManage: current.role === 'administrator',
+    canManage: true,
     connection: connection ? { id: connection.id, status: connection.status, number: connection.number, label: connection.label, updatedAt: connection.updated_at } : null,
   };
 }
 
 export async function beginWhatsAppConnect(context: WorkspaceContext) {
-  await authorizeWhatsApp(context, { write: true, manage: true });
+  await authorizeWhatsApp(context, { write: true });
   if (!context.sessionId) throw new CapabilityError('UNAUTHENTICATED', 'Entre novamente para conectar o WhatsApp.');
   const env = whatsappEnvironment();
   if (!env.ZERNIO_API_KEY || !env.ZERNIO_WEBHOOK_SECRET || !env.BETTER_AUTH_URL) {
@@ -90,7 +89,7 @@ export async function beginWhatsAppConnect(context: WorkspaceContext) {
     redirect.searchParams.set('state', state);
     await reserveWhatsAppApiCall(context.officeId);
     const url = await connectionUrl(profileId, redirect.toString());
-    await authorizeWhatsApp(context, { write: true, manage: true });
+    await authorizeWhatsApp(context, { write: true });
     return { url };
   } catch (error) {
     await database.prepare("UPDATE whatsapp_connect_state SET status='consumed' WHERE state_hash=?").run(stateHash);
@@ -100,7 +99,7 @@ export async function beginWhatsAppConnect(context: WorkspaceContext) {
 }
 
 export async function completeWhatsAppConnect(context: WorkspaceContext, input: { state: string; accountId: string; profileId: string }) {
-  await authorizeWhatsApp(context, { write: true, manage: true });
+  await authorizeWhatsApp(context, { write: true });
   if (!context.sessionId) throw new CapabilityError('UNAUTHENTICATED', 'Entre novamente para continuar.');
   const hash = createHash('sha256').update(input.state).digest('hex');
   const claimed = await database.prepare(`UPDATE whatsapp_connect_state SET status='verifying'
@@ -114,7 +113,7 @@ export async function completeWhatsAppConnect(context: WorkspaceContext, input: 
     if (!connection || connection.profile_id !== input.profileId) throw new CapabilityError('FORBIDDEN', 'A conta não corresponde à conexão deste escritório.');
     await reserveWhatsAppApiCall(context.officeId);
     const account = await getAccount(input.accountId, input.profileId);
-    await authorizeWhatsApp(context, { write: true, manage: true });
+    await authorizeWhatsApp(context, { write: true });
     await reserveWhatsAppApiCall(context.officeId);
     const operationId = randomUUID();
     const provisioning = await database.prepare(`UPDATE whatsapp_connection SET key_provisioning_state='pending',key_operation_id=?,updated_at=CURRENT_TIMESTAMP
@@ -124,7 +123,7 @@ export async function completeWhatsAppConnect(context: WorkspaceContext, input: 
     const createdKey = await createProfileKey(input.profileId, operationId);
     newKey = createdKey;
     const encrypted = encryptCredential(createdKey.key, keyring());
-    await authorizeWhatsApp(context, { write: true, manage: true });
+    await authorizeWhatsApp(context, { write: true });
     await withTransaction(async tx => {
       const pending = await tx.prepare("SELECT id FROM whatsapp_connect_state WHERE state_hash=? AND status='verifying' AND expires_at>CURRENT_TIMESTAMP FOR UPDATE").get(hash);
       if (!pending) throw new CapabilityError('CONFLICT', 'Esta conexão expirou. Inicie novamente.');
@@ -159,7 +158,7 @@ export async function completeWhatsAppConnect(context: WorkspaceContext, input: 
 }
 
 export async function disconnectWhatsApp(context: WorkspaceContext) {
-  await authorizeWhatsApp(context, { write: true, manage: true, allowDisabled: true });
+  await authorizeWhatsApp(context, { write: true, allowDisabled: true });
   await withTransaction(async tx => {
     const row = await tx.prepare("UPDATE whatsapp_connection SET status='disconnecting',generation=generation+1,updated_at=CURRENT_TIMESTAMP WHERE office_id=? AND status NOT IN ('disconnected','disconnecting') RETURNING *").get<ConnectionRow>(context.officeId);
     if (!row) return;
@@ -171,7 +170,7 @@ export async function disconnectWhatsApp(context: WorkspaceContext) {
 }
 
 export async function cancelWhatsAppConnect(context: WorkspaceContext, state: string) {
-  await authorizeWhatsApp(context, { write: true, manage: true, allowDisabled: true });
+  await authorizeWhatsApp(context, { write: true, allowDisabled: true });
   if (!context.sessionId) throw new CapabilityError('UNAUTHENTICATED', 'Entre novamente para continuar.');
   const hash = createHash('sha256').update(state).digest('hex');
   await withTransaction(async tx => {

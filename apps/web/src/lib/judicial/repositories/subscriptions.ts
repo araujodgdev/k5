@@ -192,10 +192,9 @@ export type AuthorizationCheck =
   | { ok: false; reason: string; waiting: boolean };
 
 export async function subscriptionStillAuthorized(subscription: Subscription): Promise<AuthorizationCheck> {
-  const member = await database.prepare('SELECT role FROM office_member WHERE user_id = ? AND office_id = ?')
-    .get(subscription.authorizedBy, subscription.officeId) as { role: string } | undefined;
+  const member = await database.prepare('SELECT 1 FROM office_member WHERE user_id = ? AND office_id = ?')
+    .get(subscription.authorizedBy, subscription.officeId);
   if (!member) return { ok: false, waiting: false, reason: 'Quem autorizou esta assinatura não faz mais parte do escritório.' };
-  if (member.role === 'reviewer') return { ok: false, waiting: false, reason: 'Quem autorizou esta assinatura não tem mais permissão de escrita.' };
 
   if (subscription.linkId) {
     const link = await database.prepare(

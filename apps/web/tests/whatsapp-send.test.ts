@@ -26,7 +26,7 @@ async function proposal(operation: Promise<unknown>) {
 }
 
 test('WhatsApp send: a lawyer sends to the office account with its profile key and gets a durable receipt', async () => {
-  const fixture = await whatsappFixture({ role: 'lawyer' });
+  const fixture = await whatsappFixture();
   const provider = new FakeWhatsApp(fixture);
   const input = intent(fixture, '  Recebemos seu documento.  ');
   await provider.run(async () => {
@@ -71,14 +71,13 @@ test('WhatsApp send: office isolation also scopes idempotency and ALS credential
   assert.deepEqual(secondProvider.sends[0]?.body, { accountId: second.accountId, message: 'Segundo escritório.' });
 });
 
-test('WhatsApp send: reviewers and disabled rollout are refused before a provider request', async () => {
-  const fixture = await whatsappFixture({ role: 'reviewer' });
+test('WhatsApp send: unrelated lawyers and disabled rollout are refused before a provider request', async () => {
+  const fixture = await whatsappFixture();
   const provider = new FakeWhatsApp(fixture);
   const input = intent(fixture);
   await provider.run(async () => {
-    await assert.rejects(sendWhatsAppText({ ...fixture.context, role: 'administrator' }, input), { code: 'FORBIDDEN' });
+    await assert.rejects(sendWhatsAppText({ ...fixture.context, userId: 'unrelated-lawyer', sessionId: undefined }, input), { code: 'FORBIDDEN' });
     assert.equal(provider.calls.length, 0);
-    await testDb.prepare("UPDATE office_member SET role='lawyer' WHERE office_id=? AND user_id=?").run(fixture.officeId, fixture.userId);
     provider.enabled = false;
     await assert.rejects(sendWhatsAppText(fixture.context, input), { code: 'NOT_FOUND' });
     assert.equal(provider.calls.length, 0);
@@ -144,7 +143,7 @@ for (const failure of ['lost response', 'upstream 503', 'invalid success body'])
 
 test('WhatsApp send: a known rejection needs a new user intent, while changed text or owner cannot reuse a key', async () => {
   const fixture = await whatsappFixture();
-  const colleague = await whatsappIdentity({ officeId: fixture.officeId, role: 'lawyer' });
+  const colleague = await whatsappIdentity();
   const provider = new FakeWhatsApp(fixture).on('POST', `/api/v1/inbox/conversations/${fixture.providerThreadId}/messages`, () => whatsappJson({ error: 'Forbidden' }, 403));
   const input = intent(fixture);
   await provider.run(async () => {
@@ -152,7 +151,7 @@ test('WhatsApp send: a known rejection needs a new user intent, while changed te
     assert.equal(failed.status, 'failed');
     assert.deepEqual(await sendWhatsAppText(fixture.context, input), failed);
     await assert.rejects(sendWhatsAppText(fixture.context, { ...input, text: 'Texto alterado.' }), { code: 'CONFLICT' });
-    await assert.rejects(sendWhatsAppText(colleague.context, input), { code: 'CONFLICT' });
+    await assert.rejects(sendWhatsAppText(colleague.context, input), { code: 'NOT_READY' });
     assert.equal(provider.sends.length, 1);
     provider.on('POST', provider.sendPath, () => whatsappJson({ success: true, data: { messageId: 'explicit-new-intent' } }));
     const next = await sendWhatsAppText(fixture.context, { ...input, idempotencyKey: randomUUID() });
@@ -164,8 +163,8 @@ test('WhatsApp send: a known rejection needs a new user intent, while changed te
 const invocations: NonNullable<WorkspaceContext['invocation']>[] = ['agent', 'webmcp'];
 for (const invocation of invocations) {
   test(`WhatsApp send: ${invocation} waits for the person's exact text, recipient and intent approval`, async () => {
-    const fixture = await whatsappFixture({ role: 'lawyer' });
-    const colleague = await whatsappIdentity({ officeId: fixture.officeId, role: 'lawyer' });
+    const fixture = await whatsappFixture();
+    const colleague = await whatsappIdentity();
     const otherThread = await whatsappThread(fixture, { participantName: 'Outra cliente' });
     const provider = new FakeWhatsApp(fixture);
     const input = intent(fixture);
@@ -249,7 +248,7 @@ test('WhatsApp send: the reply window is checked again immediately before dispat
   } } });
 });
 
-test('WhatsApp send: a revoked role during the operation prevents dispatch even with a stale trusted context', async () => {
+test('WhatsApp send: a revoked membership during the operation prevents dispatch even with a stale trusted context', async () => {
   const fixture = await whatsappFixture();
   const provider = new FakeWhatsApp(fixture);
   await provider.run(async () => {
@@ -257,7 +256,7 @@ test('WhatsApp send: a revoked role during the operation prevents dispatch even 
     assert.equal(provider.sends.length, 0);
     assert.equal((await testDb.prepare('SELECT status FROM whatsapp_send WHERE office_id=?').get<{ status: string }>(fixture.officeId))?.status, 'failed');
   }, { FLAGS: { getBooleanValue: async () => {
-    await testDb.prepare("UPDATE office_member SET role='reviewer' WHERE office_id=? AND user_id=?").run(fixture.officeId, fixture.userId);
+    await testDb.prepare("DELETE FROM office_member WHERE office_id=? AND user_id=?").run(fixture.officeId, fixture.userId);
     return true;
   } } });
 });

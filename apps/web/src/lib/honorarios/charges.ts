@@ -31,17 +31,17 @@ async function view(tx: Transaction, context: WorkspaceContext, installmentId: s
     CASE WHEN a.cancelled_at IS NOT NULL THEN 'cancelled' WHEN COALESCE(r.cents,0)=i.amount_cents THEN 'received'
       WHEN COALESCE(r.cents,0)>0 THEN 'partial' ELSE 'pending' END AS status,
     (a.cancelled_at IS NULL AND i.due_on<(CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date AND COALESCE(r.cents,0)<i.amount_cents) AS overdue,
-    ?::boolean AS canManage
+    TRUE AS canManage
     FROM honorario_installment i JOIN honorario_agreement a ON a.office_id=i.office_id AND a.id=i.agreement_id
     JOIN crm_client c ON c.office_id=a.office_id AND c.id=a.client_id
     LEFT JOIN vault_case k ON k.office_id=a.case_office_id AND k.id=a.case_id
     LEFT JOIN LATERAL (SELECT SUM(p.amount_cents) AS cents FROM honorario_receipt p
       WHERE p.office_id=i.office_id AND p.installment_id=i.id AND NOT EXISTS(SELECT 1 FROM honorario_receipt_reversal v WHERE v.office_id=p.office_id AND v.receipt_id=p.id)) r ON true
-    WHERE i.office_id=? AND i.id=?`).get(context.role !== 'reviewer', context.officeId, installmentId);
+    WHERE i.office_id=? AND i.id=?`).get(context.officeId, installmentId);
   const settings = await tx.prepare(`SELECT ch.version,ch.pix_key AS "pixKey",ch.instructions,ch.reminders_enabled AS "remindersEnabled",
     CASE WHEN d.id IS NULL THEN NULL ELSE json_build_object('id',d.id,'name',d.original_name) END AS boleto
-    FROM honorario_charge ch LEFT JOIN vault_document d ON d.office_id=ch.office_id AND d.id=ch.boleto_document_id AND d.deleted_at IS NULL
-    WHERE ch.office_id=? AND ch.installment_id=?`).get(context.officeId, installmentId);
+    FROM honorario_charge ch LEFT JOIN vault_document d ON d.office_id=ch.office_id AND d.id=ch.boleto_document_id AND d.deleted_at IS NULL AND vault_folder_visible(d.folder_id, ?)
+    WHERE ch.office_id=? AND ch.installment_id=?`).get(context.userId, context.officeId, installmentId);
   const history = await tx.prepare(`SELECT e.id,e.operation,e.channel,e.notes,e.created_at AS createdAt,u.name AS createdByName
     FROM honorario_charge_event e JOIN "user" u ON u.id=e.user_id WHERE e.office_id=? AND e.installment_id=? AND e.response IS NOT NULL
     ORDER BY e.created_at DESC,e.id DESC LIMIT 50`).all(context.officeId, installmentId);
@@ -75,13 +75,19 @@ async function mutate(context: WorkspaceContext, operation: 'prepare' | 'sent', 
     const claim = z.object({ input_hash: z.string(), operation: z.string(), response: z.unknown() }).parse(await tx.prepare(`SELECT input_hash,operation,response FROM honorario_charge_event
       WHERE office_id=? AND user_id=? AND idempotency_key=? FOR UPDATE`).get(context.officeId, context.userId, input.idempotencyKey));
     if (claim.input_hash !== hash || claim.operation !== operation) throw conflict('Esta chave já foi usada com outros dados.');
-    if (claim.response !== null) return contract.chargeDto.parse(claim.response);
+    if (claim.response !== null) {
+      const response = contract.chargeDto.parse(claim.response);
+      if (response.boleto && !await tx.prepare('SELECT 1 FROM vault_document WHERE id=? AND office_id=? AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?)')
+        .get(response.boleto.id, context.officeId, context.userId))
+        return { ...response, boleto: null, message: response.message.split('\n').filter(line => line !== 'Boleto anexado separadamente.').join('\n') };
+      return response;
+    }
     const current = await view(tx, context, input.installmentId);
     if (agreement.cancelled_at || current.installment.pendingCents === 0) throw conflict('Esta parcela foi quitada ou cancelada.');
     if (current.version !== input.version) throw conflict('A cobrança mudou. Reabra a versão atual antes de continuar.');
     if (operation === 'prepare' && 'pixKey' in input) {
-      if (input.boletoDocumentId && !await tx.prepare(`SELECT 1 FROM vault_document WHERE office_id=? AND id=? AND mime_type='application/pdf' AND byte_size<=10000000 AND deleted_at IS NULL FOR SHARE`)
-        .get(context.officeId, input.boletoDocumentId)) throw new CapabilityError('INVALID', 'Escolha um boleto em PDF do Cofre deste escritório, de até 10 MB.');
+      if (input.boletoDocumentId && !await tx.prepare(`SELECT 1 FROM vault_document WHERE office_id=? AND id=? AND mime_type='application/pdf' AND byte_size<=10000000 AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?) FOR SHARE`)
+        .get(context.officeId, input.boletoDocumentId, context.userId)) throw new CapabilityError('INVALID', 'Escolha um boleto em PDF do Cofre deste escritório, de até 10 MB.');
       await tx.prepare(`INSERT INTO honorario_charge(office_id,installment_id,version,pix_key,instructions,boleto_document_id,reminders_enabled,updated_by)
         VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(office_id,installment_id) DO UPDATE SET version=EXCLUDED.version,pix_key=EXCLUDED.pix_key,instructions=EXCLUDED.instructions,
         boleto_document_id=EXCLUDED.boleto_document_id,reminders_enabled=EXCLUDED.reminders_enabled,updated_by=EXCLUDED.updated_by,updated_at=CURRENT_TIMESTAMP`)

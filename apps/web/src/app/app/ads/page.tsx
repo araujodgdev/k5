@@ -6,6 +6,6 @@ import { AdsConnection } from '@/components/ads/connection';
 export const metadata = { title: 'Anúncios' };
 export default async function AdsPage() {
   const { office, user } = await requireWorkspace();
-  if (!await isAdsEnabled({ officeId: office.officeId, userId: user.id, role: office.role })) notFound();
+  if (!await isAdsEnabled({ officeId: office.officeId, userId: user.id })) notFound();
   return <AdsConnection key={office.officeId} />;
 }

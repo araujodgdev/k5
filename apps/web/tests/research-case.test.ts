@@ -10,6 +10,9 @@ import { materialSnapshot } from '../src/lib/research/case-material';
 import { addResearchCaseReference, listResearchCaseReferences, removeResearchCaseReference, updateResearchCaseReference } from '../src/lib/research/case-references';
 import { selectedPinnedResearchSources, selectedResearchSources, resolveArtifactResearchSource } from '../src/lib/ai-sources';
 import { citationCandidates } from '../src/lib/ai-policy';
+import { runCapability } from '../src/lib/agent-tools';
+import { contextForCase } from '../src/lib/collaboration/access';
+import { createVaultFolder } from '../src/lib/vault';
 
 test('trecho de jurisprudência selecionado pode ser citado sem palavra-chave no texto', () => {
   const text = 'Os cuidados cotidianos da avó asseguraram estabilidade à criança.';
@@ -27,18 +30,18 @@ import { saveConnection, connectionView } from '../src/lib/typesafe/config';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
 import type { DecisionTransport } from '../src/lib/typesafe/client';
 
-async function fixture(role: WorkspaceContext['role'] = 'lawyer') {
+async function fixture() {
   const officeId = randomUUID(), userId = randomUUID(), caseId = randomUUID(), documentId = randomUUID(), chunkId = randomUUID();
   (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório de teste'));
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Advogada'));
-  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role));
+  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId));
   (await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId, officeId, 'Caso da cliente', userId));
   (await testDb.prepare(`INSERT INTO vault_document(id,office_id,case_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by)
     VALUES(?,?,?,'case','relato.txt',?,'text/plain',100,?,'ready',?)`)
     .run(documentId, officeId, caseId, randomUUID(), randomUUID().replaceAll('-', ''), userId));
   (await testDb.prepare('INSERT INTO vault_document_chunk(id,document_id,office_id,ordinal,stable_reference,content) VALUES(?,?,?,?,?,?)')
     .run(chunkId, documentId, officeId, 0, 'linha:1', 'A avó cuida da criança desde janeiro, conforme o relatório anexado.'));
-  return { context: { officeId, userId, role }, caseId, documentId, chunkId };
+  return { context: { officeId, userId } as WorkspaceContext, caseId, documentId, chunkId };
 }
 
 async function publicMaterial() {
@@ -80,16 +83,64 @@ const sendOpposes: DecisionTransport = async (_key, request) => ({ model: reques
       probabilities: Object.fromEntries(Object.keys(question.criteria ?? {}).map(key => [key, Number(key === choice)])) }];
   })) });
 
-test('profile versions, per-fact evidence, reviewer and office isolation', async () => {
-  const a = (await fixture()), b = (await fixture()), reviewer = (await fixture('reviewer'));
+async function participant(f: Awaited<ReturnType<typeof fixture>>) {
+  const guest = await fixture();
+  await testDb.prepare('INSERT INTO office_associate(office_id,user_id,created_by) VALUES(?,?,?),(?,?,?)')
+    .run(f.context.officeId, guest.context.userId, f.context.userId, guest.context.officeId, f.context.userId, f.context.userId);
+  await testDb.prepare('INSERT INTO case_participant(office_id,case_id,user_id,invited_by) VALUES(?,?,?,?)')
+    .run(f.context.officeId, f.caseId, guest.context.userId, f.context.userId);
+  return guest;
+}
+
+async function enableResearch(f: Awaited<ReturnType<typeof fixture>>) {
+  await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(f.context.userId);
+  await saveConnection(f.context.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true,
+    research: 'enabled', version: (await connectionView()).version }));
+}
+
+test('profile versions, per-fact evidence and office isolation', async () => {
+  const a = (await fixture()), b = (await fixture());
   assert.equal(await getResearchCaseProfile(a.context, a.caseId), null);
   await assert.rejects(saveResearchCaseProfile(a.context, { ...profileInput(a), documentedFacts: [{ text: 'Fato externo', documentIds: [b.documentId], chunkIds: [] }] }), { code: 'INVALID' });
   const saved = await saveResearchCaseProfile(a.context, profileInput(a));
   assert.equal(saved.version, 1); assert.deepEqual(saved.documentedFacts[0].chunkIds, [a.chunkId]);
   await assert.rejects(saveResearchCaseProfile(a.context, profileInput(a)), { code: 'CONFLICT' });
   await assert.rejects(getResearchCaseProfile(b.context, a.caseId), { code: 'NOT_FOUND' });
-  await assert.rejects(saveResearchCaseProfile(reviewer.context, profileInput(reviewer)), { code: 'FORBIDDEN' });
   assert.equal((await testDb.prepare('SELECT count(*) AS n FROM research_case_profile_revision WHERE case_id=?').get(a.caseId))!.n, 1);
+});
+
+test('reserved case evidence is hidden in profiles and cached assessments when folder access changes', async () => {
+  const a = await fixture(), guest = await participant(a), material = await publicMaterial();
+  await saveResearchCaseProfile(a.context, profileInput(a));
+  await enableResearch(a);
+  const assessment = await assessResearchCaseMaterial(a.context, { caseId: a.caseId, materialVersionId: material.versionId });
+  await processNextResearchAssessment({ send: sendOpposes });
+  assert.ok((await getResearchCaseAssessment(a.context, assessment.id)).result?.excerpts.some(source => source.id === a.chunkId));
+  const folder = await createVaultFolder(a.context.officeId, guest.context.userId, a.caseId, 'Estratégia', null, { visibility: 'private' });
+  await runCapability(guest.context, 'k5_vault_update_document', { documentId: a.documentId, folderId: folder.id });
+  const profile = await getResearchCaseProfile(a.context, a.caseId);
+  assert.deepEqual(profile?.documentIds, []);
+  assert.deepEqual(profile?.documentedFacts, []);
+  await assert.rejects(saveResearchCaseProfile(a.context, { ...profileInput(a), expectedVersion: 1 }), { code: 'NOT_FOUND' });
+  const hidden = await getResearchCaseAssessment(a.context, assessment.id);
+  assert.equal(hidden.status, 'stale'); assert.equal(hidden.result, null);
+  const incomplete = await assessResearchCaseMaterial(a.context, { caseId: a.caseId, materialVersionId: material.versionId });
+  assert.equal(incomplete.status, 'incomplete');
+  const scoped = await contextForCase(guest.context, a.caseId);
+  assert.deepEqual((await getResearchCaseProfile(scoped, a.caseId))?.documentIds, [a.documentId]);
+});
+
+test('a participant requests and reads case assessments and the worker retains their scope', async () => {
+  const a = await fixture(), guest = await participant(a), material = await publicMaterial();
+  await enableResearch(a);
+  await saveResearchCaseProfile(a.context, profileInput(a));
+  const { assessment } = await runCapability(guest.context, 'k5_research_assess_material', { caseId: a.caseId, materialVersionId: material.versionId }) as { assessment: { id: string; status: string } };
+  assert.equal(assessment.status, 'queued');
+  await processNextResearchAssessment({ send: sendOpposes });
+  const read = await runCapability(guest.context, 'k5_research_get_assessment', { assessmentId: assessment.id }) as { assessment: { status: string; result: unknown } };
+  assert.equal(read.assessment.status, 'evaluated'); assert.ok(read.assessment.result);
+  const outside = await fixture();
+  await assert.rejects(runCapability(outside.context, 'k5_research_get_assessment', { assessmentId: assessment.id }), { code: 'NOT_FOUND' });
 });
 
 test('queued assessment keeps stance apart from relevance and invalidates changed evidence', async () => {

@@ -2,8 +2,6 @@ import { z } from 'zod';
 import { decisionAnswer, decisionMode } from '@/lib/typesafe/contracts';
 
 const uuid = z.uuid();
-const readers = ['administrator', 'lawyer', 'reviewer'] as const;
-const writers = ['administrator', 'lawyer'] as const;
 const idempotencyKey = z.string().trim().min(8).max(128).optional();
 const purpose = z.enum(['foundation', 'counterpoint', 'context']);
 const fact = z.string().trim().min(2).max(1200);
@@ -38,12 +36,12 @@ const reference = z.object({
 
 export const researchCaseCapabilities = {
   k5_research_get_profile: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Lê o perfil factual versionado de um caso.',
     input: z.object({ caseId: uuid }), output: z.object({ profile: profile.nullable() }),
   },
   k5_research_save_profile: {
-    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'write', publish: ['agent', 'webmcp'],
     description: 'Salva o perfil factual revisado de um caso.',
     input: z.object({
       caseId: uuid, expectedVersion: z.number().int().nonnegative(),
@@ -54,34 +52,34 @@ export const researchCaseCapabilities = {
     }), output: z.object({ profile }),
   },
   k5_research_assess_material: {
-    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'write', publish: ['agent', 'webmcp'],
     description: 'Pede avaliação de pertinência entre perfil de caso e material de julgado.',
     input: z.object({ caseId: uuid, materialVersionId: uuid, idempotencyKey }), output: z.object({ assessment }),
   },
   k5_research_get_assessment: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Lê o estado e as dimensões de uma avaliação já solicitada.',
     input: z.object({ assessmentId: uuid }), output: z.object({ assessment }),
   },
   k5_research_list_references: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Lista as referências públicas escolhidas para um caso do Cofre. Não inicia coleta ou avaliação.',
     input: z.object({ caseId: uuid }), output: z.object({ references: z.array(reference) }),
   },
   k5_research_add_reference: {
-    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'write', publish: ['agent', 'webmcp'],
     description: 'Vincula uma versão de material a um caso após revisão humana.',
     input: z.object({ caseId: uuid, materialVersionId: uuid, purpose, assessmentId: uuid, bypassEvaluation: z.boolean().default(false), notes: z.string().trim().max(4000).default(''), idempotencyKey, approvalId: z.uuid().optional() }),
     output: z.object({ reference }),
   },
   k5_research_update_reference: {
-    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'write', publish: ['agent', 'webmcp'],
     description: 'Edita finalidade ou anotação de uma referência do caso.',
     input: z.object({ referenceId: uuid, expectedVersion: z.number().int().positive(), materialVersionId: uuid.optional(), assessmentId: uuid.optional(), bypassEvaluation: z.boolean().optional(), purpose: purpose.optional(), notes: z.string().trim().max(4000).optional(), idempotencyKey, approvalId: z.uuid().optional() }),
     output: z.object({ reference }),
   },
   k5_research_remove_reference: {
-    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'write', publish: ['agent', 'webmcp'],
     description: 'Remove um vínculo de referência sem apagar o julgado do acervo.',
     input: z.object({ referenceId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey, approvalId: z.uuid().optional() }), output: z.object({ success: z.boolean() }),
   },

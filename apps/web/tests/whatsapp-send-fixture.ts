@@ -21,15 +21,14 @@ export async function whatsappSession(userId: string) {
   return sessionId;
 }
 
-export async function whatsappIdentity(options: { role?: WorkspaceContext['role']; officeId?: string } = {}) {
-  const officeId = options.officeId ?? randomUUID();
+export async function whatsappIdentity() {
+  const officeId = randomUUID();
   const userId = randomUUID();
-  if (!options.officeId) await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório WhatsApp');
+  await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório WhatsApp');
   await testDb.prepare('INSERT INTO "user"(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@whatsapp.test`, 'Advogada WhatsApp');
-  const role = options.role ?? 'administrator';
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role);
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   const sessionId = await whatsappSession(userId);
-  const context: WorkspaceContext = { officeId, userId, sessionId, role };
+  const context: WorkspaceContext = { officeId, userId, sessionId };
   return { officeId, userId, sessionId, context };
 }
 
@@ -53,9 +52,9 @@ export async function whatsappThread(fixture: Pick<WhatsAppFixture, 'officeId' |
 }
 
 export async function whatsappFixture(options: {
-  connected?: boolean; role?: WorkspaceContext['role']; lastCustomerMessageAt?: string | null;
+  connected?: boolean; lastCustomerMessageAt?: string | null;
 } = {}): Promise<WhatsAppFixture> {
-  const identity = await whatsappIdentity({ role: options.role });
+  const identity = await whatsappIdentity();
   const ids = {
     connectionId: randomUUID(), profileId: `profile-${randomUUID()}`, accountId: `account-${randomUUID()}`,
     profileKey: `profile-key-${randomUUID()}`, apiKeyId: `key-${randomUUID()}`,

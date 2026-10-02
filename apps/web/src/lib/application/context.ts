@@ -1,8 +1,7 @@
 import 'server-only';
 import { database } from '@/lib/database';
-import type { OfficeRole } from '@/lib/offices';
 import { CapabilityError } from '@/lib/capabilities/errors';
-import { capabilities, type CapabilityName } from '@/lib/capabilities/contracts';
+import type { CapabilityName } from '@/lib/capabilities/contracts';
 import { caseAccess } from '@/lib/collaboration/access';
 import { sharedCaseCapabilities } from '@/lib/collaboration/capability-access';
 
@@ -10,7 +9,6 @@ import { sharedCaseCapabilities } from '@/lib/collaboration/capability-access';
 export type WorkspaceContext = {
   userId: string;
   officeId: string;
-  role: OfficeRole;
   /** Server-resolved guest scope; never accepted from a browser or model. */
   caseScope?: { caseId: string; homeOfficeId: string };
   sessionId?: string;
@@ -29,24 +27,22 @@ export type WorkspaceContext = {
 
 export function workspaceContext(workspace: {
   user: { id: string };
-  office: { officeId: string; role: OfficeRole };
+  office: { officeId: string };
   session?: { id?: string };
 }): WorkspaceContext {
   return {
     userId: workspace.user.id,
     officeId: workspace.office.officeId,
-    role: workspace.office.role,
     sessionId: workspace.session?.id,
   };
 }
 
 /**
  * Re-reads the membership and the session before a privileged step. A context built at the start
- * of a long conversation must not keep authorizing writes after the role changed, the member was
- * removed, or the person signed out everywhere mid-turn.
+ * of a long conversation must not keep authorizing writes after the person lost access to the
+ * office or the case, or signed out everywhere mid-turn.
  */
 export async function assertCapabilityAllowed(context: WorkspaceContext, name: CapabilityName) {
-  const capability = capabilities[name];
   if (context.sessionId) {
     const live = await database.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>CURRENT_TIMESTAMP')
       .get(context.sessionId,context.userId);
@@ -56,17 +52,10 @@ export async function assertCapabilityAllowed(context: WorkspaceContext, name: C
   if (context.caseScope) {
     if (!sharedCaseCapabilities.has(name)) throw new CapabilityError('FORBIDDEN', 'Esta operação exige acesso ao escritório.');
     const access = await caseAccess(context.userId, context.caseScope.caseId);
-    if (access.officeId !== context.officeId || !(capability.roles as readonly OfficeRole[]).includes(access.role))
-      throw new CapabilityError('FORBIDDEN', 'Sua participação não permite esta operação.');
-    return { ...context, role: access.role };
+    if (access.officeId !== context.officeId) throw new CapabilityError('FORBIDDEN', 'Sua participação não permite esta operação.');
+    return context;
   }
-  const current = await database.prepare('SELECT role FROM office_member WHERE user_id=? AND office_id=?')
-    .get(context.userId, context.officeId) as { role: OfficeRole } | undefined;
+  const current = await database.prepare('SELECT 1 FROM office_member WHERE user_id=? AND office_id=?').get(context.userId, context.officeId);
   if (!current) throw new CapabilityError('FORBIDDEN', 'Seu acesso a este escritório foi removido.');
-  if (!(capability.roles as readonly OfficeRole[]).includes(current.role)) {
-    throw new CapabilityError('FORBIDDEN', capability.effect === 'write'
-      ? 'Seu papel permite apenas consultas.'
-      : 'Esta operação não está disponível para o seu papel.');
-  }
-  return { ...context, role: current.role };
+  return context;
 }

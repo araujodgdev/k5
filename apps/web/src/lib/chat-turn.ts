@@ -43,10 +43,10 @@ import { citationMarkdown, type WebReference } from '@/lib/citations/web-referen
  * stores it and locks the conversation; this runs the agent to the end and stores the answer, in a
  * Durable Object on Cloudflare (see chat-run.ts), so closing the page no longer stops the Lume.
  * Everything here is serializable: the workspace comes from the session the route checked, and
- * the tools re-check the role on every call.
+ * the tools re-check access on every call.
  */
 export type ChatTurn = {
-  workspace: Pick<WorkspaceContext, 'userId' | 'officeId' | 'role' | 'sessionId'>;
+  workspace: Pick<WorkspaceContext, 'userId' | 'officeId' | 'sessionId'>;
   conversationId: string;
   request: Pick<z.output<typeof chatRequestSchema>, 'documentIds' | 'caseId' | 'researchReferenceIds' | 'attachments' | 'timeZone' | 'openDocumentId' | 'selection'>;
 };
@@ -124,9 +124,9 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     const scopeDocuments = body.documentIds.length
       ? (await Promise.all(body.documentIds.map(async documentId => {
           const access = await assertCapabilityAllowed(await documentAccess(knowledgeContext, documentId), 'k5_vault_get_document');
-          return findVaultDocument(access.officeId, documentId);
+          return findVaultDocument(access.officeId, documentId, access.userId);
         }))).filter((doc): doc is NonNullable<typeof doc> => Boolean(doc))
-      : body.caseId ? await listVaultDocuments(knowledgeContext.officeId, { caseId: body.caseId }) : [];
+      : body.caseId ? await listVaultDocuments(knowledgeContext.officeId, knowledgeContext.userId, { caseId: body.caseId }) : [];
     const pending = scopeDocuments.filter((doc) => doc.status === 'queued' || doc.status === 'processing');
     const scope = scopeDocuments.length
       ? `Fontes do Cofre selecionadas nesta conversa (use estes identificadores nas ferramentas):\n${scopeDocuments.map((doc) => `${doc.id} — ${doc.name} (${doc.status})`).join('\n')}${pending.length
@@ -232,7 +232,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
           // Bounded on purpose: three images is a readable exhibit, thirty is a bill.
           for (const document of scopeDocuments.filter((doc) => doc.mimeType.startsWith('image/')).slice(0, 3)) {
             const access = await assertCapabilityAllowed(await documentAccess(knowledgeContext, document.id), 'k5_vault_get_document');
-            const row = await findVaultDocument(access.officeId, document.id);
+            const row = await findVaultDocument(access.officeId, document.id, access.userId);
             if (!row) continue;
             try {
               const bytes = await readVaultOriginal(row);
@@ -250,7 +250,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
           let pdfBytes = 0;
           for (const document of pending.filter((doc) => doc.mimeType === 'application/pdf').slice(0, 2)) {
             const access = await assertCapabilityAllowed(await documentAccess(knowledgeContext, document.id), 'k5_vault_get_document');
-            const row = await findVaultDocument(access.officeId, document.id);
+            const row = await findVaultDocument(access.officeId, document.id, access.userId);
             if (!row) continue;
             try {
               const bytes = await readVaultOriginal(row);

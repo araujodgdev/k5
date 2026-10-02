@@ -18,7 +18,7 @@ function mergeThreads(current: Thread[], incoming: Thread[]) {
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || b.id.localeCompare(a.id));
 }
 
-export function MessagesInbox({ canShareDocuments }: { canShareDocuments: boolean }) {
+export function MessagesInbox() {
   const router = useRouter();
   const selectedId = useSearchParams().get('thread');
   const [threads, setThreads] = useState<ThreadPage | null>(null);
@@ -119,7 +119,7 @@ export function MessagesInbox({ canShareDocuments }: { canShareDocuments: boolea
         {!threads && !error && <p role="status" className="px-5 py-6 text-sm text-muted-foreground">Carregando conversas…</p>}
         {error && <div className="space-y-2 border-b px-5 py-4"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={refresh} className="min-h-11 md:min-h-9">Tentar novamente</Button></div>}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {threads?.threads.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">Inicie uma conversa com alguém da equipe, um associado ou pelo e-mail.</p>}
+          {threads?.threads.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">Inicie uma conversa com um associado ou alguém pelo e-mail.</p>}
           {threads?.threads.map(thread => <button type="button" key={thread.id} id={`message-thread-${thread.id}`} aria-current={selectedId === thread.id ? 'true' : undefined} onClick={() => openThread(thread)} className={cn('group hover-rise block w-full border-b border-l-2 px-5 py-4 text-left outline-none hover:text-brand-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand', selectedId === thread.id ? 'border-l-foreground bg-brand-soft' : 'border-l-transparent')}>
             <span className="flex items-baseline justify-between gap-3"><span className="min-w-0 truncate text-sm font-medium">{thread.channel === 'in_app' ? thread.peer.name : thread.peer.email}</span><time dateTime={thread.updatedAt} className="shrink-0 text-[11px] text-muted-foreground group-hover:text-brand-foreground">{messageDate(thread.updatedAt)}</time></span>
             <span className="mt-1 block truncate text-sm text-muted-foreground group-hover:text-brand-foreground">{thread.lastMessage?.preview || 'Conversa iniciada'}</span>
@@ -134,6 +134,6 @@ export function MessagesInbox({ canShareDocuments }: { canShareDocuments: boolea
           : <div className="hidden items-center justify-center p-10 text-sm text-muted-foreground md:flex">Escolha uma conversa para ler as mensagens.</div>}
     </div>
     <NewConversation open={newOpen} onOpenChange={setNewOpen} onCreated={openThread} />
-    {share && <SharePicker thread={share.thread} open={share.open} canShareDocuments={canShareDocuments} onClose={keepAttempt => setShare(current => keepAttempt && current ? { ...current, open: false } : null)} onShared={() => { setShare(null); refresh(); }} />}
+    {share && <SharePicker thread={share.thread} open={share.open} onClose={keepAttempt => setShare(current => keepAttempt && current ? { ...current, open: false } : null)} onShared={() => { setShare(null); refresh(); }} />}
   </div>;
 }

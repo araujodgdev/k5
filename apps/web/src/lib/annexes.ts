@@ -64,7 +64,7 @@ export function orderAnnexPlan(raw: AnnexModelOutput, pageCount: number, petitio
 }
 
 async function scannedPdf(owner: Owner, caseId: string, documentId: string) {
-  const document = await findVaultDocument(owner.officeId, documentId);
+  const document = await findVaultDocument(owner.officeId, documentId, owner.userId);
   if (!document || document.caseId !== caseId) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado neste caso.');
   if (document.mimeType !== 'application/pdf') throw new CapabilityError('INVALID', 'Escolha o PDF digitalizado com os documentos.');
   const bytes = await readVaultOriginal(document);
@@ -83,7 +83,7 @@ async function petitionText(owner: Owner, caseId: string, input: { petitionDocum
     return String(artifact.content).slice(0, PETITION_LIMIT);
   }
   if (!input.petitionDocumentId) throw new CapabilityError('INVALID', 'Escolha a petição ou cole o texto dela.');
-  const document = await findVaultDocument(owner.officeId, input.petitionDocumentId);
+  const document = await findVaultDocument(owner.officeId, input.petitionDocumentId, owner.userId);
   if (!document || document.caseId !== caseId) throw new CapabilityError('NOT_FOUND', 'Petição não encontrada neste caso.');
   if (document.status !== 'ready') throw new CapabilityError('NOT_READY', 'A petição ainda está sendo processada. Tente em instantes.');
   const rows = await database.prepare('SELECT content FROM vault_document_chunk WHERE document_id=? AND office_id=? ORDER BY ordinal')

@@ -35,12 +35,12 @@ export const knowledgeBody = z.object({
 const select = `SELECT k.id, k.document_id AS "documentId", d.original_name AS name, d.status,
   d.extracted_characters AS characters, k.mode, k.note, k.version
   FROM agent_knowledge k JOIN vault_document d ON d.id = k.document_id AND d.office_id = k.office_id
-  WHERE k.office_id = ? AND d.deleted_at IS NULL`;
+  WHERE k.office_id = ? AND d.deleted_at IS NULL AND vault_folder_visible(d.folder_id, ?)`;
 
 async function scopeRows(owner: Owner, scope: KnowledgeScope) {
   return scope === 'office'
-    ? await database.prepare(`${select} AND k.user_id IS NULL ORDER BY k.created_at, k.id`).all(owner.officeId) as Knowledge[]
-    : await database.prepare(`${select} AND k.user_id = ? ORDER BY k.created_at, k.id`).all(owner.officeId, owner.userId) as Knowledge[];
+    ? await database.prepare(`${select} AND k.user_id IS NULL ORDER BY k.created_at, k.id`).all(owner.officeId, owner.userId) as Knowledge[]
+    : await database.prepare(`${select} AND k.user_id = ? ORDER BY k.created_at, k.id`).all(owner.officeId, owner.userId, owner.userId) as Knowledge[];
 }
 
 export async function listKnowledge(owner: Owner) {
@@ -48,23 +48,15 @@ export async function listKnowledge(owner: Owner) {
   return { office, personal };
 }
 
-export function canEditKnowledge(role: WorkspaceContext['role'], scope: KnowledgeScope) {
-  return scope === 'personal' || role === 'administrator';
-}
-
-function requireEditor(context: WorkspaceContext, scope: KnowledgeScope) {
-  if (!canEditKnowledge(context.role, scope)) throw new CapabilityError('FORBIDDEN', 'Somente administradores alteram o conhecimento do escritório.');
-}
 
 const ownerId = (context: WorkspaceContext, scope: KnowledgeScope) => scope === 'office' ? null : context.userId;
 
 export async function addKnowledge(context: WorkspaceContext, scope: KnowledgeScope, documentId: string, mode: KnowledgeMode, note = '') {
-  requireEditor(context, scope);
   const existing = await scopeRows(context, scope);
   if (existing.length >= MAX_KNOWLEDGE) throw new CapabilityError('INVALID', `Use no máximo ${MAX_KNOWLEDGE} documentos. Remova algum antes de adicionar.`);
   if (existing.some(item => item.documentId === documentId)) throw new CapabilityError('CONFLICT', 'Este documento já está no conhecimento.');
   // The office comes from the session: a document of another office is simply not found.
-  const document = await database.prepare('SELECT 1 FROM vault_document WHERE id = ? AND office_id = ? AND deleted_at IS NULL').get(documentId, context.officeId);
+  const document = await database.prepare('SELECT 1 FROM vault_document WHERE id = ? AND office_id = ? AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?)').get(documentId, context.officeId, context.userId);
   if (!document) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado no Cofre.');
   const id = randomUUID();
   await database.prepare(`INSERT INTO agent_knowledge (id, office_id, user_id, document_id, mode, note, created_by)
@@ -73,7 +65,6 @@ export async function addKnowledge(context: WorkspaceContext, scope: KnowledgeSc
 }
 
 export async function updateKnowledge(context: WorkspaceContext, scope: KnowledgeScope, id: string, version: number, mode: KnowledgeMode, note = '') {
-  requireEditor(context, scope);
   if (!(await scopeRows(context, scope)).some(item => item.id === id)) throw new CapabilityError('NOT_FOUND', 'Documento de conhecimento não encontrado.');
   const result = await database.prepare(`UPDATE agent_knowledge SET mode = ?, note = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
     WHERE id = ? AND office_id = ? AND user_id IS NOT DISTINCT FROM ? AND version = ?`)
@@ -83,15 +74,16 @@ export async function updateKnowledge(context: WorkspaceContext, scope: Knowledg
 }
 
 export async function removeKnowledge(context: WorkspaceContext, scope: KnowledgeScope, id: string) {
-  requireEditor(context, scope);
   const result = await database.prepare('DELETE FROM agent_knowledge WHERE id = ? AND office_id = ? AND user_id IS NOT DISTINCT FROM ?')
     .run(id, context.officeId, ownerId(context, scope));
   if (!result.changes) throw new CapabilityError('NOT_FOUND', 'Documento de conhecimento não encontrado.');
 }
 
-async function documentText(officeId: string, documentId: string) {
-  const chunks = await database.prepare('SELECT content FROM vault_document_chunk WHERE office_id = ? AND document_id = ? ORDER BY ordinal')
-    .all(officeId, documentId) as Array<{ content: string }>;
+async function documentText(owner: Owner, documentId: string) {
+  const chunks = await database.prepare(`SELECT c.content FROM vault_document_chunk c
+    JOIN vault_document d ON d.id = c.document_id AND d.office_id = c.office_id
+    WHERE c.office_id = ? AND c.document_id = ? AND d.deleted_at IS NULL AND vault_folder_visible(d.folder_id, ?) ORDER BY c.ordinal`)
+    .all(owner.officeId, documentId, owner.userId) as Array<{ content: string }>;
   return chunks.map(chunk => chunk.content).join('\n');
 }
 
@@ -119,7 +111,7 @@ export async function knowledgePrompt(owner: Owner, options: { budget?: number; 
     // Ingestion sums the persisted, trimmed chunks; documentText only adds separators.
     // This lower bound avoids reading a document that cannot fit, even before joining it.
     if (item.characters > budget - used) { search.push(item); continue; }
-    const text = (await documentText(owner.officeId, item.documentId)).trim();
+    const text = (await documentText(owner, item.documentId)).trim();
     if (!text) continue;
     if (used + text.length > budget) { search.push(item); continue; }
     used += text.length;
@@ -137,8 +129,8 @@ export async function knowledgePrompt(owner: Owner, options: { budget?: number; 
 export type KnowledgeCandidate = { id: string; name: string; status: string; characters: number; caseName: string | null };
 
 /** Cofre documents that can become knowledge, newest first. */
-export async function knowledgeCandidates(officeId: string): Promise<KnowledgeCandidate[]> {
+export async function knowledgeCandidates(owner: Owner): Promise<KnowledgeCandidate[]> {
   return await database.prepare(`SELECT d.id, d.original_name AS name, d.status, d.extracted_characters AS characters, c.name AS "caseName"
     FROM vault_document d LEFT JOIN vault_case c ON c.id = d.case_id AND c.office_id = d.office_id
-    WHERE d.office_id = ? AND d.deleted_at IS NULL ORDER BY d.created_at DESC LIMIT 200`).all(officeId) as KnowledgeCandidate[];
+    WHERE d.office_id = ? AND d.deleted_at IS NULL AND vault_folder_visible(d.folder_id, ?) ORDER BY d.created_at DESC LIMIT 200`).all(owner.officeId, owner.userId) as KnowledgeCandidate[];
 }

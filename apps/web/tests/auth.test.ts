@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { createAuth } from "../src/lib/auth-core";
-import { ensureOfficeForUser, findOfficeForUser, selectedOfficeForUser, listOfficesForUser } from "../src/lib/offices";
+import { ensureOfficeForUser, findOfficeForUser } from "../src/lib/offices";
 import { withClientRegistration } from '../src/lib/client-portal/registration';
 import { invitationHash } from '../src/lib/client-portal/invitations';
 
@@ -23,7 +23,6 @@ test('portal registration binds the invitation through Better Auth without offic
   assert.equal(session.user.accountKind, 'client');
   assert.equal(await findOfficeForUser(db, result.data.user.id), undefined);
   await assert.rejects(ensureOfficeForUser(database, { id: result.data.user.id, officeName: 'Escritório indevido' }), { code: 'FORBIDDEN' });
-  await assert.rejects(selectedOfficeForUser(database, session.user, office.officeId), { code: 'FORBIDDEN' });
   assert.equal((await db.prepare('SELECT user_id FROM client_portal_access WHERE id=?').get(accessId))?.user_id, result.data.user.id);
   assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM office').get())?.n, 1);
   const second = await request('/sign-in/email', { email: 'client@portal.test', password });
@@ -57,18 +56,15 @@ test('disabled password delivery does not disclose whether an address is registe
   for (const email of ['ana@example.test','unknown@example.test']) assert.equal((await request('/request-password-reset', { email, redirectTo: `${origin}/client/reset-password` })).response.status, 503);
 });
 
-test('sessão autenticada seleciona apenas vínculos atuais e preserva o escritório original', async () => {
-  const { db, request, signup } = await fixture();
+test('cada advogado tem um único escritório, e ninguém entra no escritório de outro', async () => {
+  const { db, database, request, signup } = await fixture();
   const first = await signup('first@multi.test');
   const second = await signup('second@multi.test');
   const user = (await request('/get-session', undefined, first.cookie)).data.user;
   const original = (await findOfficeForUser(db, user.id))!;
-  const invited = (await findOfficeForUser(db, second.data.user.id))!;
-  await db.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), invited.officeId, user.id, 'reviewer');
-  assert.equal((await listOfficesForUser(db, user.id)).length, 2);
-  assert.equal((await selectedOfficeForUser(db, user, invited.officeId)).role, 'reviewer');
-  await db.prepare('DELETE FROM office_member WHERE office_id=? AND user_id=?').run(invited.officeId, user.id);
-  assert.equal((await selectedOfficeForUser(db, user, invited.officeId)).officeId, original.officeId);
+  const other = (await findOfficeForUser(db, second.data.user.id))!;
+  await assert.rejects(async () => db.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), other.officeId, user.id));
+  assert.equal((await ensureOfficeForUser(database, user)).officeId, original.officeId);
   assert.ok((await request('/get-session', undefined, first.cookie)).data.user);
   await request('/sign-out', {}, first.cookie);
   assert.equal((await request('/get-session', undefined, first.cookie)).data, null);
@@ -99,7 +95,7 @@ async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof c
   return { db, database, auth, request, signup };
 }
 
-test("cadastro cria sessão, hash forte e escritório com administrador", async (t) => {
+test("cadastro cria sessão, hash forte e escritório do advogado", async (t) => {
   const { db, database, request, signup } = await fixture();
   t.after(async () => (await db.close()));
   const result = await signup();
@@ -113,7 +109,6 @@ test("cadastro cria sessão, hash forte e escritório com administrador", async 
   assert.ok(String(account.password).length > 80);
   const office = await findOfficeForUser(database, result.data.user.id);
   assert.equal(office?.officeName, "Silva Advocacia");
-  assert.equal(office?.role, "administrator");
   await ensureOfficeForUser(database, { id: result.data.user.id, officeName: "Não deve duplicar" });
   assert.equal((await db.prepare("SELECT count(*) AS total FROM office").get())?.total, 1);
 });
@@ -153,11 +148,9 @@ test("escritório A não acessa B e cadastro não aceita escritório ou papel fo
   const b = await signup("bruno@example.test", { officeName: "Bruno Advocacia", officeId: officeA.officeId, role: "reviewer" });
   const officeB = (await findOfficeForUser(database, b.data.user.id))!;
   assert.notEqual(officeA.officeId, officeB.officeId);
-  assert.equal(officeB.role, "administrator");
-  assert.equal(await findOfficeForUser(database, a.data.user.id, officeB.officeId), undefined);
-  assert.equal(await findOfficeForUser(database, b.data.user.id, officeA.officeId), undefined);
-  assert.equal(await findOfficeForUser(database, "usuario-inexistente", officeA.officeId), undefined);
-  await assert.rejects(async () => (await db.prepare("UPDATE office_member SET role = 'superadmin'").run()));
+  assert.equal(await findOfficeForUser(database, "usuario-inexistente"), undefined);
+  assert.equal((await db.prepare("SELECT count(*) AS total FROM office_member WHERE office_id=?").get(officeA.officeId))?.total, 1);
+  await assert.rejects(async () => (await db.prepare("UPDATE office_member SET office_id = ? WHERE office_id = ?").run(officeA.officeId, officeB.officeId)));
 });
 
 test("logout invalida todos os dispositivos do usuário e preserva outras contas", async (t) => {

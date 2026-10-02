@@ -2,8 +2,7 @@ import 'server-only';
 import { captureOperationalError } from './observability/report';
 import { getSession, requireWorkspace } from './session';
 import { auth } from './auth';
-import { ACTIVE_OFFICE_COOKIE, selectedOfficeForUser, findOfficeForUser } from './offices';
-import { cookies } from 'next/headers';
+import { ensureOfficeForUser, findOfficeForUser } from './offices';
 import { database } from './database';
 import { ZodError } from 'zod';
 import { VaultHttpError } from './vault';
@@ -23,10 +22,7 @@ export async function apiWorkspace(request: Request, write = false) {
   if (!session) throw new ApiError(401, 'Entre novamente para continuar.');
   if (session.user.accountKind === 'client' && !await findOfficeForUser(database, session.user.id)) throw new ApiError(403, 'Esta conta tem acesso ao portal do cliente.');
   const workspace = await requireWorkspace();
-  if (write) {
-    if (!isTrustedOrigin(request.headers.get('origin'))) throw new ApiError(403, 'Origem não autorizada.');
-    if ((workspace.office).role === 'reviewer') throw new ApiError(403, 'Seu papel permite apenas consultas.');
-  }
+  if (write && !isTrustedOrigin(request.headers.get('origin'))) throw new ApiError(403, 'Origem não autorizada.');
   return workspace;
 }
 
@@ -60,9 +56,8 @@ export function apiError(error: unknown) {
 }
 
 /**
- * Personal settings and inbox writes are available to every current member, including reviewers.
  * Automatic reads explicitly disable Better Auth's sliding refresh so polling never keeps an idle
- * session alive. Business writes continue to use apiWorkspace and its role gate.
+ * session alive.
  */
 export async function apiPersonalWorkspace(request: Request, write = false) {
   const session = await auth.api.getSession({
@@ -71,7 +66,7 @@ export async function apiPersonalWorkspace(request: Request, write = false) {
   });
   if (!session) throw new ApiError(401, 'Entre novamente para continuar.');
   if (write && !isTrustedOrigin(request.headers.get('origin'))) throw new ApiError(403, 'Origem não autorizada.');
-  const office = await selectedOfficeForUser(database, session.user, (await cookies()).get(ACTIVE_OFFICE_COOKIE)?.value);
+  const office = await ensureOfficeForUser(database, session.user);
   return { user: session.user, office, session: { id: session.session?.id } };
 }
 

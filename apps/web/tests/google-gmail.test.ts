@@ -67,7 +67,7 @@ test('References malformadas são ignoradas sem impedir resposta; In-Reply-To co
 
 test('lista paginada e leitura pessoal sem HTML remoto', async () => {
   const owner = await googleFixture();
-  const other = await googleFixture({ officeId: owner.officeId });
+  const other = await googleFixture({});
   const fake = installFakeGoogle();
   const message = { id: 'msg1', threadId: 'thread1', internalDate: '1700000000000', labelIds: ['UNREAD'],
     payload: { headers: headers(['From', 'Pessoa <pessoa@example.com>'], ['Subject', 'Tema']),
@@ -83,7 +83,7 @@ test('lista paginada e leitura pessoal sem HTML remoto', async () => {
   assert.equal(read.thread.messages[0].remoteContentBlocked, true);
   await getThread(other.context, { threadId: 'thread1' });
   assert.equal(fake.calls.filter(c => c.path.endsWith('/threads/thread1')).length, 3);
-  const admin = await googleFixture({ officeId: owner.officeId, role: 'administrator' });
+  const admin = await googleFixture({});
   await assert.rejects(() => getThread({ ...admin.context, userId: 'missing' }, { threadId: 'thread1' }), /acesso/);
 });
 
@@ -183,7 +183,7 @@ test('anexo importado exige parte existente na mensagem e caso explícito', asyn
 
 test('upload de e-mail pertence apenas ao titular, inclusive dentro do mesmo escritório', async () => {
   const owner = await googleFixture();
-  const other = await googleFixture({ officeId: owner.officeId });
+  const other = await googleFixture({});
   await setRule(owner.officeId, 'gmail.send', { mode: 'automatic' });
   await setRule(owner.officeId, 'gmail.send_attachments', { mode: 'automatic' });
   const upload = await createMailUpload(owner.context, new File([new Uint8Array([1, 2, 3])], 'documento.pdf',

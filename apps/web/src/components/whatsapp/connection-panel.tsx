@@ -87,7 +87,7 @@ export function WhatsAppConnectionPanel({ initialStatus }: { initialStatus?: Con
   return <section aria-labelledby="whatsapp-connection-title" className="space-y-4 border-t border-line pt-8 [&_button]:min-h-11 md:[&_button]:min-h-9">
     <div>
       <h2 id="whatsapp-connection-title" className="text-lg font-medium">WhatsApp Business</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Uma conta compartilhada pelo escritório. As conversas ficam disponíveis para a equipe.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Conecte a conta do seu escritório para consultar e responder às conversas.</p>
     </div>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {notice && <p role="status" className="text-sm">{notice}</p>}

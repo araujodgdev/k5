@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CaseDelete } from "@/components/vault-case-delete";
-import type { OfficeRole } from "@/lib/offices";
 import type { VaultCase } from "@/lib/vault";
 
 type View = "cards" | "list";
@@ -27,7 +26,7 @@ function countLabel(count: number) {
  * The office drive. A case is a folder with its own page; the library is where documents that
  * belong to no case live. Nothing here decides what will be done with a file.
  */
-export function VaultBrowser({ initialCases, libraryCount, role, ownCaseIds }: { initialCases: VaultCase[]; libraryCount: number; role: OfficeRole; ownCaseIds?: string[] }) {
+export function VaultBrowser({ initialCases, libraryCount, ownCaseIds }: { initialCases: VaultCase[]; libraryCount: number; ownCaseIds?: string[] }) {
   const [cases, setCases] = useState(initialCases);
   const [ownedIds, setOwnedIds] = useState(ownCaseIds);
   const isShared = (id: string) => Boolean(ownedIds && !ownedIds.includes(id));
@@ -39,7 +38,6 @@ export function VaultBrowser({ initialCases, libraryCount, role, ownCaseIds }: {
   const [client, setClient] = useState({ name: "", document: "", email: "", phone: "", notes: "" });
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState("");
-  const canWrite = role !== "reviewer";
   const drop = (caseId: string) => setCases((current) => current.filter((item) => item.id !== caseId));
 
   async function submitCase(event: FormEvent) {
@@ -71,12 +69,12 @@ export function VaultBrowser({ initialCases, libraryCount, role, ownCaseIds }: {
           <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "cards"} onClick={() => setView("cards")} aria-label="Ver em cartões"><LayoutGrid aria-hidden="true" /></Button>
           <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "list"} onClick={() => setView("list")} aria-label="Ver em lista"><List aria-hidden="true" /></Button>
         </div>
-        <Button variant="outline" asChild className="max-md:order-last max-md:h-11 max-md:w-full"><Link href="/app/vault/library?import=drive">{canWrite ? "Importar do Google Drive" : "Ver Google Drive"}</Link></Button>
-        {canWrite && <Button type="button" className="max-md:ml-auto max-md:h-11" aria-expanded={creating} variant={creating ? "outline" : "default"} onClick={() => { setCreating((value) => !value); setFailure(""); }}>{creating ? "Cancelar" : <><Plus aria-hidden="true" />Novo caso</>}</Button>}
+        <Button variant="outline" asChild className="max-md:order-last max-md:h-11 max-md:w-full"><Link href="/app/vault/library?import=drive">Importar do Google Drive</Link></Button>
+        <Button type="button" className="max-md:ml-auto max-md:h-11" aria-expanded={creating} variant={creating ? "outline" : "default"} onClick={() => { setCreating((value) => !value); setFailure(""); }}>{creating ? "Cancelar" : <><Plus aria-hidden="true" />Novo caso</>}</Button>
       </div>
     </div>
 
-    {creating && canWrite && <form data-reveal onSubmit={submitCase} className="grid gap-4 border-b py-5">
+    {creating && <form data-reveal onSubmit={submitCase} className="grid gap-4 border-b py-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5"><Label htmlFor="case-name">Título</Label><Input id="case-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Silva vs. Construtora Horizonte" maxLength={180} required /></div>
       </div>
@@ -113,7 +111,7 @@ export function VaultBrowser({ initialCases, libraryCount, role, ownCaseIds }: {
                 <span className="line-clamp-2 text-sm break-words text-muted-foreground">{item.description || item.client.name || "Sem descrição"}</span>
                 <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(item.documentCount)} · {formatDate(item.updatedAt)}{isShared(item.id) ? ' · Compartilhado comigo' : ''}</span>
               </Link>
-              {canWrite && !isShared(item.id) && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} className="absolute top-2 right-2" />}
+              {!isShared(item.id) && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} className="absolute top-2 right-2" />}
             </div>
           ))}
         </div>
@@ -132,7 +130,7 @@ export function VaultBrowser({ initialCases, libraryCount, role, ownCaseIds }: {
                 <span className="hidden text-muted-foreground md:block">{item.documentCount}</span>
                 <span className="hidden text-muted-foreground md:block">{formatDate(item.updatedAt)}</span>
               </Link>
-              {canWrite && !isShared(item.id) && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} />}
+              {!isShared(item.id) && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} />}
             </div>
           ))}
         </div>

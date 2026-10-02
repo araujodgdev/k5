@@ -22,7 +22,7 @@ const blankFilters: Filters = { query: '', clientId: '', caseId: '', dueFrom: ''
 const views: { value: View; label: string }[] = [{ value: 'pending', label: 'A receber' }, { value: 'received', label: 'Recebidas' }, { value: 'cancelled', label: 'Canceladas' }];
 const pageSize = 30;
 
-export function HonorariosPanel({ canCreate }: { canCreate: boolean }) {
+export function HonorariosPanel() {
   const params = useSearchParams();
   const initialClientId = params.get('clientId') ?? '';
   const initialCaseId = params.get('caseId') ?? '';
@@ -52,7 +52,7 @@ export function HonorariosPanel({ canCreate }: { canCreate: boolean }) {
   }
   function editFilter(name: keyof Filters, value: string) { setDraft(current => ({ ...current, [name]: value })); }
   return <Reveal className="min-w-0 flex-1 px-5 py-6 md:px-10 md:py-10">
-    <header data-reveal className="flex flex-wrap items-center justify-between gap-4 pb-6 max-md:justify-end"><h1 ref={titleRef} tabIndex={-1} className="page-title outline-none max-md:sr-only">Honorários</h1>{canCreate && <Button className="min-h-11 md:min-h-9" onClick={event => { opener.current = event.currentTarget; setDialog({ kind: 'create' }); }}><Plus aria-hidden="true" />Novo honorário</Button>}</header>
+    <header data-reveal className="flex flex-wrap items-center justify-between gap-4 pb-6 max-md:justify-end"><h1 ref={titleRef} tabIndex={-1} className="page-title outline-none max-md:sr-only">Honorários</h1><Button className="min-h-11 md:min-h-9" onClick={event => { opener.current = event.currentTarget; setDialog({ kind: 'create' }); }}><Plus aria-hidden="true" />Novo honorário</Button></header>
     {notice && <p role="status" className="mb-4 text-sm">{notice}</p>}
     {/* Until there is room for three columns each total is a row (label, then the value at the end),
         so a large amount never breaks in the middle. */}

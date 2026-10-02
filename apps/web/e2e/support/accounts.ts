@@ -3,7 +3,7 @@
 
 export type Account = { name: string; officeName: string; email: string; password: string };
 
-// The shared office administrator every signed-in test restores (see auth.setup.e2e.ts).
+// The lawyer account every signed-in test restores, in its own office (see auth.setup.e2e.ts).
 // E2E_EMAIL and E2E_PASSWORD select an account that already exists, such as verify-k5's.
 export const admin: Account = {
   name: 'Administração E2E',

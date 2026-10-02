@@ -33,9 +33,6 @@ export const MAX_INSTRUCTIONS = 20;
 
 const columns = `id, title, content, applies_to AS "appliesTo", enabled, version, updated_at AS "updatedAt"`;
 
-export function canEditInstructions(role: WorkspaceContext['role'], scope: InstructionScope) {
-  return scope === 'personal' || role === 'administrator';
-}
 
 async function scopeRows(owner: Owner, scope: InstructionScope) {
   return scope === 'office'
@@ -57,13 +54,8 @@ function clean(input: InstructionInput): InstructionInput {
   return { ...input, title, content };
 }
 
-function requireEditor(context: WorkspaceContext, scope: InstructionScope) {
-  if (!canEditInstructions(context.role, scope)) throw new CapabilityError('FORBIDDEN', 'Somente administradores alteram as regras do escritório.');
-}
-
 /** Creates a rule, or updates it when `id` is given; `version` guards against overwriting a newer edit. */
 export async function saveInstruction(context: WorkspaceContext, scope: InstructionScope, raw: InstructionInput, existing?: { id: string; version: number }) {
-  requireEditor(context, scope);
   const input = clean(raw);
   const rules = await scopeRows(context, scope);
   const others = rules.filter(rule => rule.id !== existing?.id);
@@ -89,7 +81,6 @@ export async function saveInstruction(context: WorkspaceContext, scope: Instruct
 }
 
 export async function deleteInstruction(context: WorkspaceContext, scope: InstructionScope, id: string) {
-  requireEditor(context, scope);
   const owner = scope === 'office' ? null : context.userId;
   const result = await database.prepare('DELETE FROM agent_instruction WHERE id = ? AND office_id = ? AND user_id IS NOT DISTINCT FROM ?').run(id, context.officeId, owner);
   if (!result.changes) throw new CapabilityError('NOT_FOUND', 'Regra não encontrada.');

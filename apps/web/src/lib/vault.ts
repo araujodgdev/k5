@@ -5,6 +5,16 @@ import { readFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { database } from "@/lib/database";
 import { type OfficeMembership } from "@/lib/offices";
+
+/**
+ * Every read of a case's contents names its viewer. Folders inside a case can be private or
+ * restricted, so "same office" is not enough to see a document: the folder path has to admit the
+ * person too. `null` is reserved for server work that acts on behalf of no one (extraction,
+ * indexing, cleanup), never for a request made by a person.
+ */
+export type Viewer = string | null;
+const visibleTo = (column: string, viewer: Viewer) => viewer === null ? { sql: "TRUE", values: [] as string[] }
+  : { sql: `vault_folder_visible(${column}, ?)`, values: [viewer] };
 import { assertStorageKey, objectStorage, StorageError } from "@/lib/storage";
 import { isTrustedOrigin } from "@/lib/trusted-origins";
 import type { UploadRef } from "@/lib/application/uploads-service";
@@ -24,7 +34,15 @@ export type VaultCase = {
   client: { name: string | null; document: string | null; email: string | null; phone: string | null; notes: string | null };
   documentCount: number;
 };
-export type VaultFolder = { id: string; caseId: string; parentId: string | null; name: string; createdAt: string; documentCount: number; folderCount: number };
+export type FolderVisibility = "public" | "private" | "restricted";
+/**
+ * `owned` is whether the viewer created the folder, which is what lets them change its access.
+ * `memberIds` is only filled for its creator: who else may see a folder is the creator's business.
+ */
+export type VaultFolder = {
+  id: string; caseId: string; parentId: string | null; name: string; createdAt: string; documentCount: number; folderCount: number;
+  visibility: FolderVisibility; owned: boolean; memberIds: string[];
+};
 export type DocumentChunk = { id: string; documentId: string; stableReference: string; sourceLabel: string; content: string; ordinal: number };
 type DocumentRow = VaultDocument & { storedName: string; officeId: string; leaseOwner: string | null; leaseExpiresAt: string | null; deletedAt: string | null };
 
@@ -60,10 +78,6 @@ export async function requireVaultWorkspace(): Promise<{ user: { id: string }; o
   return requireWorkspace();
 }
 
-export function requireVaultWriteRole(role: OfficeMembership["role"]) {
-  if (role === "reviewer") throw new VaultHttpError(403, "Seu papel permite apenas consultar o Cofre.");
-}
-
 export function assertSameOrigin(request: Request) {
   // Same list, same reading as the rest of the app: see src/lib/trusted-origins.ts.
   if (!isTrustedOrigin(request.headers.get("origin"))) throw new VaultHttpError(403, "Origem da requisição não autorizada.");
@@ -74,12 +88,16 @@ export type CaseDetails = {
   client?: { name?: string | null; document?: string | null; email?: string | null; phone?: string | null; notes?: string | null } | null;
 };
 
-const caseSelect = `
+// The count only includes what the viewer can open, so a hidden folder does not show up as a number.
+function caseSelect(viewer: Viewer) {
+  const visible = visibleTo("d.folder_id", viewer);
+  return { values: visible.values, sql: `
   SELECT k.id, k.name, k.description, k.created_at AS createdAt, k.updated_at AS updatedAt,
     k.client_name AS clientName, k.client_document AS clientDocument, k.client_email AS clientEmail,
     k.client_phone AS clientPhone, k.client_notes AS clientNotes,
-    (SELECT count(*) FROM vault_document d WHERE d.case_id = k.id AND d.office_id = k.office_id AND d.deleted_at IS NULL) AS documentCount
-  FROM vault_case k`;
+    (SELECT count(*) FROM vault_document d WHERE d.case_id = k.id AND d.office_id = k.office_id AND d.deleted_at IS NULL AND ${visible.sql}) AS documentCount
+  FROM vault_case k` };
+}
 
 // Build a plain DTO so only the case fields cross into Client Components.
 function mapCase(row: Record<string, unknown>): VaultCase {
@@ -95,13 +113,15 @@ function mapCase(row: Record<string, unknown>): VaultCase {
   };
 }
 
-export async function listVaultCases(officeId: string): Promise<VaultCase[]> {
-  return (await database.prepare(`${caseSelect} WHERE k.office_id = ? AND k.deleted_at IS NULL ORDER BY k.updated_at DESC, k.created_at DESC`)
-    .all(officeId)).map((row) => mapCase(row as Record<string, unknown>));
+export async function listVaultCases(officeId: string, viewer: Viewer): Promise<VaultCase[]> {
+  const select = caseSelect(viewer);
+  return (await database.prepare(`${select.sql} WHERE k.office_id = ? AND k.deleted_at IS NULL ORDER BY k.updated_at DESC, k.created_at DESC`)
+    .all(...select.values, officeId)).map((row) => mapCase(row as Record<string, unknown>));
 }
 
-export async function findVaultCase(officeId: string, caseId: string): Promise<VaultCase | undefined> {
-  const row = await database.prepare(`${caseSelect} WHERE k.office_id = ? AND k.id = ? AND k.deleted_at IS NULL`).get(officeId, caseId) as Record<string, unknown> | undefined;
+export async function findVaultCase(officeId: string, caseId: string, viewer: Viewer): Promise<VaultCase | undefined> {
+  const select = caseSelect(viewer);
+  const row = await database.prepare(`${select.sql} WHERE k.office_id = ? AND k.id = ? AND k.deleted_at IS NULL`).get(...select.values, officeId, caseId) as Record<string, unknown> | undefined;
   return row ? mapCase(row) : undefined;
 }
 
@@ -123,12 +143,12 @@ export async function createVaultCase(officeId: string, userId: string, name: st
     .run(id, officeId, clean, cleanText(details.description, 4000, "A descrição"), cleanText(client.name, 180, "O nome do cliente"),
       cleanText(client.document, 40, "O documento do cliente"), cleanText(client.email, 200, "O e-mail do cliente"),
       cleanText(client.phone, 40, "O telefone do cliente"), cleanText(client.notes, 4000, "As observações"), userId);
-  return (await findVaultCase(officeId, id))!;
+  return (await findVaultCase(officeId, id, userId))!;
 }
 
 /** Partial update: a field left out keeps its stored value, and an empty string clears it. */
-export async function updateVaultCase(officeId: string, caseId: string, patch: { name?: string } & CaseDetails) {
-  const current = await findVaultCase(officeId, caseId);
+export async function updateVaultCase(officeId: string, caseId: string, viewer: Viewer, patch: { name?: string } & CaseDetails) {
+  const current = await findVaultCase(officeId, caseId, viewer);
   if (!current) throw new VaultHttpError(404, "Caso não encontrado.");
   const name = patch.name === undefined ? current.name : patch.name.trim();
   if (name.length < 2 || name.length > 180) throw new VaultHttpError(400, "Informe um nome de caso entre 2 e 180 caracteres.");
@@ -141,42 +161,57 @@ export async function updateVaultCase(officeId: string, caseId: string, patch: {
     .run(name, patch.description === undefined ? current.description : cleanText(patch.description, 4000, "A descrição"),
       pick("name", 180, "O nome do cliente"), pick("document", 40, "O documento do cliente"), pick("email", 200, "O e-mail do cliente"),
       pick("phone", 40, "O telefone do cliente"), pick("notes", 4000, "As observações"), caseId, officeId);
-  return (await findVaultCase(officeId, caseId))!;
+  return (await findVaultCase(officeId, caseId, viewer))!;
 }
 
-const folderSelect = `
-  SELECT f.id, f.case_id AS caseId, f.parent_id AS parentId, f.name, f.created_at AS createdAt,
+// Counts and the access fields are computed for the viewer: a hidden subfolder adds nothing to
+// its parent's count, and the member list of a folder only reaches the person who created it.
+function folderSelect(viewer: Viewer) {
+  const visible = visibleTo("c.id", viewer);
+  return { values: [...visible.values, viewer ?? "", viewer ?? ""], sql: `
+  SELECT f.id, f.case_id AS caseId, f.parent_id AS parentId, f.name, f.created_at AS createdAt, f.visibility,
     (SELECT count(*) FROM vault_document d WHERE d.folder_id = f.id AND d.office_id = f.office_id AND d.deleted_at IS NULL) AS documentCount,
-    (SELECT count(*) FROM vault_folder c WHERE c.parent_id = f.id AND c.deleted_at IS NULL) AS folderCount
-  FROM vault_folder f`;
+    (SELECT count(*) FROM vault_folder c WHERE c.parent_id = f.id AND c.deleted_at IS NULL AND ${visible.sql}) AS folderCount,
+    f.created_by = ? AS owned,
+    CASE WHEN f.created_by = ? THEN (SELECT coalesce(array_agg(m.user_id ORDER BY m.user_id), '{}') FROM vault_folder_member m WHERE m.folder_id = f.id) ELSE '{}' END AS memberIds
+  FROM vault_folder f` };
+}
 
 function mapFolder(row: Record<string, unknown>): VaultFolder {
   return {
     id: String(row.id), caseId: String(row.caseId), parentId: row.parentId === null || row.parentId === undefined ? null : String(row.parentId),
     name: String(row.name), createdAt: String(row.createdAt),
     documentCount: Number(row.documentCount ?? 0), folderCount: Number(row.folderCount ?? 0),
+    visibility: row.visibility as FolderVisibility, owned: row.owned === true,
+    memberIds: Array.isArray(row.memberIds) ? row.memberIds.map(String) : [],
   };
 }
 
-/** Direct children of a level. `parentId` null is the case root. */
-export async function listVaultFolders(officeId: string, caseId: string, parentId: string | null = null): Promise<VaultFolder[]> {
+/** Direct children of a level that the viewer can see. `parentId` null is the case root. */
+export async function listVaultFolders(officeId: string, viewer: Viewer, caseId: string, parentId: string | null = null): Promise<VaultFolder[]> {
+  const select = folderSelect(viewer);
+  const visible = visibleTo("f.id", viewer);
   const clause = parentId ? "f.parent_id = ?" : "f.parent_id IS NULL";
   const values = parentId ? [officeId, caseId, parentId] : [officeId, caseId];
-  return (await database.prepare(`${folderSelect} WHERE f.office_id = ? AND f.case_id = ? AND ${clause} AND f.deleted_at IS NULL ORDER BY lower(f.name)`)
-    .all(...values)).map((row) => mapFolder(row as Record<string, unknown>));
+  return (await database.prepare(`${select.sql} WHERE f.office_id = ? AND f.case_id = ? AND ${clause} AND f.deleted_at IS NULL AND ${visible.sql} ORDER BY lower(f.name)`)
+    .all(...select.values, ...values, ...visible.values)).map((row) => mapFolder(row as Record<string, unknown>));
 }
 
-export async function findVaultFolder(officeId: string, folderId: string): Promise<VaultFolder | undefined> {
-  const row = await database.prepare(`${folderSelect} WHERE f.office_id = ? AND f.id = ? AND f.deleted_at IS NULL`).get(officeId, folderId) as Record<string, unknown> | undefined;
+/** A folder the viewer cannot see is reported exactly like one that does not exist. */
+export async function findVaultFolder(officeId: string, folderId: string, viewer: Viewer): Promise<VaultFolder | undefined> {
+  const select = folderSelect(viewer);
+  const visible = visibleTo("f.id", viewer);
+  const row = await database.prepare(`${select.sql} WHERE f.office_id = ? AND f.id = ? AND f.deleted_at IS NULL AND ${visible.sql}`)
+    .get(...select.values, officeId, folderId, ...visible.values) as Record<string, unknown> | undefined;
   return row ? mapFolder(row) : undefined;
 }
 
 /** Root-to-folder path, for breadcrumbs. Depth is bounded so a cycle cannot loop the request. */
-export async function vaultFolderPath(officeId: string, folderId: string): Promise<VaultFolder[]> {
+export async function vaultFolderPath(officeId: string, folderId: string, viewer: Viewer): Promise<VaultFolder[]> {
   const path: VaultFolder[] = [];
   let current: string | null = folderId;
   for (let depth = 0; current && depth < 12; depth += 1) {
-    const folder: VaultFolder | undefined = await findVaultFolder(officeId, current);
+    const folder: VaultFolder | undefined = await findVaultFolder(officeId, current, viewer);
     if (!folder) break;
     path.unshift(folder);
     current = folder.parentId;
@@ -184,32 +219,80 @@ export async function vaultFolderPath(officeId: string, folderId: string): Promi
   return path;
 }
 
-export async function createVaultFolder(officeId: string, userId: string, caseId: string, name: string, parentId: string | null = null) {
-  const clean = name.trim();
-  if (clean.length < 1 || clean.length > 120) throw new VaultHttpError(400, "Informe um nome de pasta de até 120 caracteres.");
-  if (!await findVaultCase(officeId, caseId)) throw new VaultHttpError(404, "Caso não encontrado.");
-  // The parent has to belong to the same case of the same office; otherwise a valid id from
-  // elsewhere would graft a subtree across cases.
-  if (parentId) {
-    const parent = await findVaultFolder(officeId, parentId);
-    if (!parent || parent.caseId !== caseId) throw new VaultHttpError(404, "Pasta de destino não encontrada.");
-    if ((await vaultFolderPath(officeId, parentId)).length >= 8) throw new VaultHttpError(409, "Limite de subpastas atingido neste caminho.");
-  }
-  const id = randomUUID();
-  try {
-    await database.prepare("INSERT INTO vault_folder (id, office_id, case_id, parent_id, name, created_by) VALUES (?, ?, ?, ?, ?, ?)")
-      .run(id, officeId, caseId, parentId, clean, userId);
-  } catch (error) {
-    if ((error as { code?: string })?.code === '23505') throw new VaultHttpError(409, "Já existe uma pasta com esse nome neste nível.");
-    throw error;
-  }
-  return (await findVaultFolder(officeId, id))!;
+export type FolderAccess = { visibility: FolderVisibility; memberIds?: string[] };
+
+/** The people a restricted folder can name: the case owner and its current participants. */
+export async function vaultCasePeople(officeId: string, caseId: string) {
+  return database.prepare(`SELECT u.id, u.name, u.email FROM "user" u WHERE u.id IN (
+      SELECT user_id FROM office_member WHERE office_id = ?
+      UNION SELECT user_id FROM case_participant WHERE office_id = ? AND case_id = ? AND revoked_at IS NULL)
+    ORDER BY u.name, u.id`).all<{ id: string; name: string; email: string }>(officeId, officeId, caseId);
 }
 
-/** Soft-deletes a folder. Its documents move up to the parent level instead of disappearing. */
-export async function deleteVaultFolder(officeId: string, folderId: string) {
-  const folder = await findVaultFolder(officeId, folderId);
+async function cleanAccess(officeId: string, caseId: string, creator: string, access: FolderAccess) {
+  if (!["public", "private", "restricted"].includes(access.visibility)) throw new VaultHttpError(400, "Escolha quem pode ver a pasta.");
+  if (access.visibility !== "restricted") return { visibility: access.visibility, memberIds: [] };
+  const memberIds = [...new Set(access.memberIds ?? [])].filter((id) => id !== creator);
+  if (!memberIds.length) throw new VaultHttpError(400, "Escolha ao menos uma pessoa do caso para ver a pasta.");
+  const people = new Set((await vaultCasePeople(officeId, caseId)).map((person) => person.id));
+  if (memberIds.some((id) => !people.has(id))) throw new VaultHttpError(400, "Escolha apenas pessoas que participam deste caso.");
+  return { visibility: access.visibility, memberIds };
+}
+
+export async function createVaultFolder(officeId: string, userId: string, caseId: string, name: string, parentId: string | null = null, access: FolderAccess = { visibility: "public" }) {
+  const clean = name.trim();
+  if (clean.length < 1 || clean.length > 120) throw new VaultHttpError(400, "Informe um nome de pasta de até 120 caracteres.");
+  if (!await findVaultCase(officeId, caseId, userId)) throw new VaultHttpError(404, "Caso não encontrado.");
+  // The parent has to belong to the same case of the same office, and be one the person can see;
+  // otherwise a valid id from elsewhere would graft a subtree across cases or into a hidden folder.
+  if (parentId) {
+    const parent = await findVaultFolder(officeId, parentId, userId);
+    if (!parent || parent.caseId !== caseId) throw new VaultHttpError(404, "Pasta de destino não encontrada.");
+    if ((await vaultFolderPath(officeId, parentId, userId)).length >= 8) throw new VaultHttpError(409, "Limite de subpastas atingido neste caminho.");
+  }
+  const { visibility, memberIds } = await cleanAccess(officeId, caseId, userId, access);
+  const id = randomUUID();
+  try {
+    await database.batch([
+      database.prepare("INSERT INTO vault_folder (id, office_id, case_id, parent_id, name, created_by, visibility) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(id, officeId, caseId, parentId, clean, userId, visibility),
+      ...memberIds.map((memberId) => database.prepare("INSERT INTO vault_folder_member (folder_id, user_id) VALUES (?, ?)").bind(id, memberId)),
+    ]);
+  } catch (error) {
+    if ((error as { code?: string })?.code === '23505') throw new VaultHttpError(409, "Você já tem uma pasta com esse nome neste nível.");
+    throw error;
+  }
+  return (await findVaultFolder(officeId, id, userId))!;
+}
+
+/** Only whoever created a folder decides who sees it; nobody else, including the case owner. */
+export async function updateVaultFolderAccess(officeId: string, folderId: string, userId: string, access: FolderAccess) {
+  const folder = await findVaultFolder(officeId, folderId, userId);
   if (!folder) throw new VaultHttpError(404, "Pasta não encontrada.");
+  if (!folder.owned) throw new VaultHttpError(403, "Só quem criou a pasta altera quem pode vê-la.");
+  const { visibility, memberIds } = await cleanAccess(officeId, folder.caseId, userId, access);
+  await database.batch([
+    database.prepare("UPDATE vault_folder SET visibility = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND created_by = ?").bind(visibility, folderId, officeId, userId),
+    database.prepare("DELETE FROM vault_folder_member WHERE folder_id = ?").bind(folderId),
+    ...memberIds.map((memberId) => database.prepare("INSERT INTO vault_folder_member (folder_id, user_id) VALUES (?, ?)").bind(folderId, memberId)),
+  ]);
+  return (await findVaultFolder(officeId, folderId, userId))!;
+}
+
+/**
+ * Soft-deletes a folder. Its documents and subfolders move up to the parent level instead of
+ * disappearing; subfolders keep their own access. Its creator or the case owner may delete it.
+ */
+export async function deleteVaultFolder(officeId: string, folderId: string, userId: string) {
+  const folder = await findVaultFolder(officeId, folderId, userId);
+  if (!folder) throw new VaultHttpError(404, "Pasta não encontrada.");
+  const owner = await database.prepare("SELECT 1 FROM office_member WHERE office_id = ? AND user_id = ?").get(officeId, userId);
+  if (!folder.owned && !owner) throw new VaultHttpError(403, "Só quem criou a pasta ou o responsável pelo caso pode removê-la.");
+  if (folder.visibility !== "public" && await database.prepare(`SELECT 1 WHERE
+    EXISTS(SELECT 1 FROM vault_document WHERE folder_id=? AND office_id=? AND deleted_at IS NULL)
+    OR EXISTS(SELECT 1 FROM vault_folder WHERE parent_id=? AND office_id=? AND deleted_at IS NULL)`)
+    .get(folderId, officeId, folderId, officeId))
+    throw new VaultHttpError(409, "Mova o conteúdo ou altere o acesso antes de remover esta pasta. Removê-la liberaria o conteúdo para outras pessoas.");
   // One batch: reparenting the children and tombstoning the folder land together, so no document
   // is left pointing at a folder that no longer exists.
   await database.batch([
@@ -217,6 +300,19 @@ export async function deleteVaultFolder(officeId: string, folderId: string) {
     database.prepare("UPDATE vault_folder SET parent_id = ?, updated_at = CURRENT_TIMESTAMP WHERE parent_id = ? AND office_id = ? AND deleted_at IS NULL").bind(folder.parentId, folderId, officeId),
     database.prepare("UPDATE vault_folder SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ?").bind(folderId, officeId),
   ]);
+}
+
+/** A move cannot discard another creator's access rule. Staying below that rule is safe. */
+export async function assertVaultDocumentMove(officeId: string, userId: string, sourceFolderId: string | null, targetFolderId: string | null) {
+  if (!sourceFolderId || sourceFolderId === targetFolderId) return;
+  const [source, target] = await Promise.all([
+    vaultFolderPath(officeId, sourceFolderId, userId),
+    targetFolderId ? vaultFolderPath(officeId, targetFolderId, userId) : Promise.resolve([]),
+  ]);
+  if (!source.length) throw new VaultHttpError(404, "Pasta de origem não encontrada.");
+  const retained = new Set(target.map(folder => folder.id));
+  if (source.some(folder => folder.visibility !== "public" && !folder.owned && !retained.has(folder.id)))
+    throw new VaultHttpError(403, "Só quem definiu o acesso da pasta pode mover arquivos para fora dela.");
 }
 
 // Stored name, office and lease data stay on the server.
@@ -231,12 +327,15 @@ export function publicDocument(row: DocumentRow): VaultDocument {
 
 export async function listVaultDocuments(
   officeId: string,
+  viewer: Viewer,
   filters: { scope?: string | null; caseId?: string | null; folderId?: string | null; limit?: number; offset?: number } = {},
 ): Promise<VaultDocument[]> {
   // A tombstoned document is invisible here, not merely marked: this list feeds the UI, the
   // agent catalog and the run scope, and each of them would otherwise keep offering deleted files.
-  const where = ["d.office_id = ?", "d.deleted_at IS NULL"];
-  const values: (string | number | null)[] = [officeId];
+  // The same goes for a document in a folder the viewer cannot see.
+  const visible = visibleTo("d.folder_id", viewer);
+  const where = ["d.office_id = ?", "d.deleted_at IS NULL", visible.sql];
+  const values: (string | number | null)[] = [officeId, ...visible.values];
   if (filters.scope === "library" || filters.scope === "case") { where.push("d.scope = ?"); values.push(filters.scope); }
   if (filters.caseId) { where.push("d.case_id = ?"); values.push(filters.caseId); }
   // `null` means the case root, which is a different question from "any folder".
@@ -248,9 +347,10 @@ export async function listVaultDocuments(
     .all(...values, limit, offset)).map((row) => publicDocument(mapDocument(row)));
 }
 
-export async function countVaultDocuments(officeId: string, filters: { scope?: string | null; caseId?: string | null; folderId?: string | null } = {}): Promise<number> {
-  const where = ["office_id = ?", "deleted_at IS NULL"];
-  const values: (string | null)[] = [officeId];
+export async function countVaultDocuments(officeId: string, viewer: Viewer, filters: { scope?: string | null; caseId?: string | null; folderId?: string | null } = {}): Promise<number> {
+  const visible = visibleTo("folder_id", viewer);
+  const where = ["office_id = ?", "deleted_at IS NULL", visible.sql];
+  const values: (string | null)[] = [officeId, ...visible.values];
   if (filters.scope === "library" || filters.scope === "case") { where.push("scope = ?"); values.push(filters.scope); }
   if (filters.caseId) { where.push("case_id = ?"); values.push(filters.caseId); }
   if (filters.folderId === null) where.push("folder_id IS NULL");
@@ -262,9 +362,10 @@ export async function countVaultDocuments(officeId: string, filters: { scope?: s
  * Live documents only. Deletion has to stop every read path at once, so the default lookup
  * excludes tombstones and the cleanup worker asks for them explicitly.
  */
-export async function findVaultDocument(officeId: string, documentId: string): Promise<DocumentRow | undefined> {
-  const row = await database.prepare(`${documentSelect} WHERE d.office_id = ? AND d.id = ? AND d.deleted_at IS NULL`)
-    .get(officeId, documentId) as Record<string, unknown> | undefined;
+export async function findVaultDocument(officeId: string, documentId: string, viewer: Viewer): Promise<DocumentRow | undefined> {
+  const visible = visibleTo("d.folder_id", viewer);
+  const row = await database.prepare(`${documentSelect} WHERE d.office_id = ? AND d.id = ? AND d.deleted_at IS NULL AND ${visible.sql}`)
+    .get(officeId, documentId, ...visible.values) as Record<string, unknown> | undefined;
   return row ? mapDocument(row) : undefined;
 }
 
@@ -292,7 +393,7 @@ export async function createVaultDocument(
   // A folder only exists inside a case, and only inside this one.
   const folderId = caseId ? options.folderId?.trim() || null : null;
   if (folderId) {
-    const folder = await findVaultFolder(officeId, folderId);
+    const folder = await findVaultFolder(officeId, folderId, userId);
     if (!folder || folder.caseId !== caseId) throw new VaultHttpError(404, "Pasta não encontrada.");
   }
   const id = randomUUID();
@@ -308,7 +409,7 @@ export async function createVaultDocument(
       VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 1)`)
       .bind(randomUUID(), officeId, id, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, userId),
   ]);
-  return (await findVaultDocument(officeId, id))!;
+  return (await findVaultDocument(officeId, id, userId))!;
 }
 
 const LEGACY_UPLOAD_DIRECTORY = resolve(process.cwd(), ".data", "uploads");
@@ -338,9 +439,9 @@ export async function readVaultOriginal(document: Pick<DocumentRow, "storedName"
   }
 }
 
-/** Server-only original-file access for the export workflow. Office ownership is checked first. */
-export async function readVaultDocumentFile(officeId: string, documentId: string) {
-  const document = await findVaultDocument(officeId, documentId);
+/** Server-only original-file access for the export workflow. Office ownership and folder access are checked first. */
+export async function readVaultDocumentFile(officeId: string, documentId: string, viewer: Viewer) {
+  const document = await findVaultDocument(officeId, documentId, viewer);
   if (!document) throw new VaultHttpError(404, "Documento não encontrado.");
   return { buffer: await readVaultOriginal(document), name: document.name, mimeType: document.mimeType };
 }
@@ -358,11 +459,12 @@ export async function retryVaultDocument(officeId: string, documentId: string) {
   if (!result.changes) throw new VaultHttpError(409, "Somente documentos com falha ou na fila podem ser reenviados.");
 }
 
-export async function getDocumentChunks(officeId: string, documentIds: string[], query?: string): Promise<DocumentChunk[]> {
+export async function getDocumentChunks(officeId: string, viewer: Viewer, documentIds: string[], query?: string): Promise<DocumentChunk[]> {
   const ids = [...new Set(documentIds.filter((id) => /^[0-9a-f-]{36}$/i.test(id)))];
   if (!ids.length) return [];
   const marks = ids.map(() => "?").join(", ");
-  const allowed = await database.prepare(`SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND id IN (${marks})`).all(officeId, ...ids) as Array<{ id: string; name: string; status: VaultStatus }>;
+  const visible = visibleTo("folder_id", viewer);
+  const allowed = await database.prepare(`SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND ${visible.sql} AND id IN (${marks})`).all(officeId, ...visible.values, ...ids) as Array<{ id: string; name: string; status: VaultStatus }>;
   if (allowed.length !== ids.length) throw new VaultHttpError(404, "Um dos documentos selecionados não está disponível neste escritório.");
   const unavailable = allowed.find((document) => document.status !== "ready");
   if (unavailable) throw new VaultHttpError(409, `O documento “${unavailable.name}” ainda não está pronto para uso.`, 'NOT_READY');
@@ -400,7 +502,7 @@ export async function claimQueuedDocument() {
         AND ${CLAIMABLE}
       RETURNING id, office_id AS officeId`).get<{ id: string; officeId: string }>(owner);
   if (!claimed) return undefined;
-  return { document: (await findVaultDocument(claimed.officeId, claimed.id))!, owner };
+  return { document: (await findVaultDocument(claimed.officeId, claimed.id, null))!, owner };
 }
 
 export async function checkpointVaultDocument(documentId: string, owner: string, progress: number) {
@@ -409,7 +511,7 @@ export async function checkpointVaultDocument(documentId: string, owner: string,
 }
 
 export async function processDocument(documentId: string, officeId: string, leaseOwner?: string) {
-  const document = await findVaultDocument(officeId, documentId);
+  const document = await findVaultDocument(officeId, documentId, null);
   if (!document) throw new VaultHttpError(404, "Documento não encontrado.");
   const notificationOwner = await database.prepare('SELECT created_by FROM vault_document WHERE id=? AND office_id=?')
     .get<{ created_by: string }>(documentId, officeId);

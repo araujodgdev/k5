@@ -21,7 +21,7 @@ const officeId = randomUUID(); const userId = randomUUID();
 const context = { officeId, userId, role: 'lawyer' as const };
 (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Avaliação sintética'));
 (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Avaliador'));
-(await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, 'lawyer'));
+(await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId));
 (await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId));
 await saveConnection(userId, connectionSettings.parse({ apiKey, version: 0, enabled: true, rag: 'enabled', documents: 'enabled', agenda: 'enabled', dailyTokens: 5000000 }));
 const rows: Array<Record<string, unknown>> = [];

@@ -12,8 +12,8 @@ const columns = [
   { status: 'cancelled', title: 'Canceladas' },
 ] as const;
 
-export function TaskBoard({ activities, members, clients, canWrite, busy, inspect, move, delegate }: {
-  activities: AgendaActivity[]; members: Choice[]; clients: Choice[]; canWrite: boolean; busy: boolean;
+export function TaskBoard({ activities, members, clients, busy, inspect, move, delegate }: {
+  activities: AgendaActivity[]; members: Choice[]; clients: Choice[]; busy: boolean;
   inspect: (activity: AgendaActivity) => void;
   move: (activity: AgendaActivity, status: AgendaActivity['status']) => void;
   delegate: (activity: AgendaActivity) => void;
@@ -28,14 +28,14 @@ export function TaskBoard({ activities, members, clients, canWrite, busy, inspec
           {activity.notes && <p className="line-clamp-3 break-words text-xs text-muted-foreground">{activity.notes}</p>}
           <p className="text-xs text-muted-foreground">{activity.dueOn ? new Date(`${activity.dueOn}T12:00:00`).toLocaleDateString('pt-BR') : 'Sem data'}</p>
           {(activity.clientId || activity.assigneeId) && <p className="break-words text-xs text-muted-foreground">{[clients.find(item => item.id === activity.clientId)?.name, members.find(item => item.id === activity.assigneeId)?.name].filter(Boolean).join(' · ')}</p>}
-          {canWrite && <select aria-label={`Mover ${activity.title}`} className={`${selectStyle} w-full`} value={activity.status} disabled={busy}
+          <select aria-label={`Mover ${activity.title}`} className={`${selectStyle} w-full`} value={activity.status} disabled={busy}
             onChange={event => move(activity, activityDto.shape.status.parse(event.target.value))}>
             {columns.map(target => <option key={target.status} value={target.status}>{target.title}</option>)}
-          </select>}
-          {activity.agentConversationId ? canWrite && (activity.status === 'pending' || activity.status === 'in_progress')
+          </select>
+          {activity.agentConversationId ? (activity.status === 'pending' || activity.status === 'in_progress')
             ? <Button variant="ghost" className="w-full justify-start px-0 text-brand-ink" disabled={busy} onClick={() => delegate(activity)}>Abrir sessão do Lume</Button>
             : <Link className="flex min-h-11 items-center text-sm text-brand-ink underline underline-offset-4" href={`/app/agents?conversationId=${encodeURIComponent(activity.agentConversationId)}${activity.caseId ? `&caseId=${encodeURIComponent(activity.caseId)}` : ''}`}>Abrir sessão do Lume</Link>
-            : canWrite && (activity.status === 'pending' || activity.status === 'in_progress') && <Button variant="ghost" className="w-full justify-start px-0 text-brand-ink" disabled={busy} onClick={() => delegate(activity)}>Delegar ao Lume</Button>}
+            : (activity.status === 'pending' || activity.status === 'in_progress') && <Button variant="ghost" className="w-full justify-start px-0 text-brand-ink" disabled={busy} onClick={() => delegate(activity)}>Delegar ao Lume</Button>}
         </article>) : <p className="py-4 text-sm text-muted-foreground">Nenhuma tarefa.</p>}</div>
       </section>;
     })}

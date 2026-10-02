@@ -21,17 +21,19 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
 const file = () => new File([new Uint8Array(png)], 'foto.png', { type: 'image/png' });
 afterEach(async () => { await testDb.prepare("UPDATE whatsapp_job SET status='done',locked_until=NULL WHERE status IN ('queued','running')").run(); });
 
-test('private upload is author-only until sent; office, role, account, generation and session are checked', async () => {
+test('private upload is author-only until sent; office, account, generation and session are checked', async () => {
   const fixture = await whatsappFixture(), other = await whatsappFixture();
-  const colleague = await whatsappIdentity({ officeId: fixture.officeId, role: 'reviewer' });
+  const disconnected = await whatsappIdentity();
   const provider = new FakeWhatsApp(fixture);
   await provider.run(async () => {
     const uploaded = await uploadWhatsAppAttachment(fixture.context, fixture.threadId, file());
     assert.ok(uploaded.id); assert.equal(uploaded.state, 'ready'); assert.equal(uploaded.byteLength, png.length);
     assert.equal('storageKey' in uploaded, false);
     await assert.rejects(readWhatsAppAttachment(other.context, uploaded.id), { code: 'NOT_FOUND' });
-    await assert.rejects(readWhatsAppAttachment(colleague.context, uploaded.id), { code: 'NOT_FOUND' });
-    await assert.rejects(uploadWhatsAppAttachment(colleague.context, fixture.threadId, file()), { code: 'FORBIDDEN' });
+    await assert.rejects(readWhatsAppAttachment(disconnected.context, uploaded.id), { code: 'NOT_READY' });
+    await assert.rejects(uploadWhatsAppAttachment(disconnected.context, fixture.threadId, file()), { code: 'NOT_READY' });
+    await assert.rejects(readWhatsAppAttachment({ ...other.context, officeId: fixture.officeId }, uploaded.id), { code: 'FORBIDDEN' });
+    await assert.rejects(uploadWhatsAppAttachment(other.context, fixture.threadId, file()), { code: 'NOT_FOUND' });
     const range = await readWhatsAppAttachment(fixture.context, uploaded.id, { range: 'bytes=0-7' });
     assert.equal(range.status, 206); assert.equal(range.headers.get('content-range'), `bytes 0-7/${png.length}`);
     assert.deepEqual(Buffer.from(await range.arrayBuffer()), png.subarray(0, 8));
@@ -49,7 +51,9 @@ test('private upload is author-only until sent; office, role, account, generatio
 
 test('multipart sends exact immutable bytes once and keeps authorized local preview before provider echo', async () => {
   const fixture = await whatsappFixture(), provider = new FakeWhatsApp(fixture);
-  const colleague = await whatsappIdentity({ officeId: fixture.officeId, role: 'reviewer' });
+  const colleague = await whatsappFixture();
+  await testDb.prepare('INSERT INTO office_associate(office_id,user_id,created_by) VALUES(?,?,?),(?,?,?)')
+    .run(fixture.officeId, colleague.userId, fixture.userId, colleague.officeId, fixture.userId, fixture.userId);
   let uploads = 0;
   await provider.run(() => withWhatsAppTransport(async (url, init) => {
     if (init?.body instanceof FormData) {
@@ -63,11 +67,14 @@ test('multipart sends exact immutable bytes once and keeps authorized local prev
     return provider.fetch(url, init);
   }, async () => {
     const uploaded = await uploadWhatsAppAttachment(fixture.context, fixture.threadId, file()); assert.ok(uploaded.id);
+    await assert.rejects(readWhatsAppAttachment(colleague.context, uploaded.id), { code: 'NOT_FOUND' });
     const input = { threadId: fixture.threadId, text: 'Documento recebido.', attachmentId: uploaded.id, idempotencyKey: randomUUID() };
     const results = await Promise.all(Array.from({ length: 4 }, () => sendWhatsAppText(fixture.context, input)));
     assert.equal(new Set(results.map(result => result.id)).size, 1); assert.equal(uploads, 1);
     assert.equal((await sendWhatsAppText(fixture.context, input)).status, 'accepted');
-    assert.deepEqual(Buffer.from(await (await readWhatsAppAttachment(colleague.context, uploaded.id)).arrayBuffer()), png);
+    assert.deepEqual(Buffer.from(await (await readWhatsAppAttachment(fixture.context, uploaded.id)).arrayBuffer()), png);
+    await assert.rejects(readWhatsAppAttachment(colleague.context, uploaded.id), { code: 'NOT_FOUND' });
+    await assert.rejects(readThread(colleague.context, { threadId: fixture.threadId, limit: 10 }), { code: 'NOT_FOUND' });
     const page = await readThread(fixture.context, { threadId: fixture.threadId, limit: 10 });
     assert.equal(page.items[0]?.attachments[0]?.id, uploaded.id);
     await assert.rejects(sendWhatsAppText(fixture.context, { ...input, idempotencyKey: randomUUID() }), { code: 'CONFLICT' });
@@ -81,6 +88,7 @@ test('multipart sends exact immutable bytes once and keeps authorized local prev
       attachments: [{ kind: 'image', filename: 'foto.png', mimeType: 'image/png' }], unread: false, createdAt: at, contentUpdatedAt: at }));
     assert.equal((await sendWhatsAppText(fixture.context, input)).status, 'sent');
     assert.equal((await readThread(fixture.context, { threadId: fixture.threadId, limit: 10 })).items[0]?.attachments[0]?.id, uploaded.id);
+    assert.deepEqual(Buffer.from(await (await readWhatsAppAttachment(fixture.context, uploaded.id)).arrayBuffer()), png);
   }));
 });
 

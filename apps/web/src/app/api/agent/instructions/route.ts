@@ -1,14 +1,13 @@
 import { apiPersonalWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
-import { canEditInstructions, instructionBody, listInstructions, saveInstruction, INSTRUCTION_BUDGET } from '@/lib/agent-instructions';
+import { instructionBody, listInstructions, saveInstruction, INSTRUCTION_BUDGET } from '@/lib/agent-instructions';
 
 export const runtime = 'nodejs';
 
-// Personal rules are personal settings, so reviewers write their own; office rules stay with administrators.
 export async function GET(request: Request) {
   try {
     const context = workspaceContext(await apiPersonalWorkspace(request));
-    return Response.json({ ...await listInstructions(context), budget: INSTRUCTION_BUDGET, canEditOffice: canEditInstructions(context.role, 'office') });
+    return Response.json({ ...await listInstructions(context), budget: INSTRUCTION_BUDGET });
   } catch (error) { return apiError(error); }
 }
 

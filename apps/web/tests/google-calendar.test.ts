@@ -32,7 +32,7 @@ function remote(id:string,summary='Original',etag='"1"') {
 }
 test('private calendars and events cannot cross owner, even when the other owner is administrator',async()=>{
   const first=await fixture();
-  const second=await googleFixture({officeId:first.officeId,role:'administrator',modules:['calendar'],grantedModules:['calendar']});
+  const second=await googleFixture({modules:['calendar'],grantedModules:['calendar']});
   const third=await googleFixture({modules:['calendar'],grantedModules:['calendar']});
   const id=await event(first);
   assert.equal((await listCalendars(second.context,{})).calendars.length,0);
@@ -41,14 +41,15 @@ test('private calendars and events cannot cross owner, even when the other owner
   await assert.rejects(getEvent(third.context,{eventId:id}),{code:'NOT_FOUND'});
   await assert.rejects(selectCalendars(second.context,{calendarIds:[first.calendarId]}),{code:'NOT_FOUND'});
 });
-test('shared event projects only owner reviewed fields and is visible to office',async()=>{
+test('shared event projects only reviewed fields within the lawyer office',async()=>{
   const first=await fixture();
-  const second=await googleFixture({officeId:first.officeId,role:'administrator',modules:['calendar'],grantedModules:['calendar']});
+  const second=await googleFixture({modules:['calendar'],grantedModules:['calendar']});
   const id=await event(first,{title:'Segredo pessoal'});
   const share=await shareEvent(first.context,{eventId:id,title:'Compromisso externo',notes:'Disponibilidade',location:'Centro'});
   assert.equal(share.share.title,'Compromisso externo');
-  const others=await listShared(second.context,{from:'2026-09-23T00:00:00Z',to:'2026-09-24T00:00:00Z',limit:20});
+  const others=await listShared(first.context,{from:'2026-09-23T00:00:00Z',to:'2026-09-24T00:00:00Z',limit:20});
   assert.equal(others.events.length,1);
+  assert.equal((await listShared(second.context,{from:'2026-09-23T00:00:00Z',to:'2026-09-24T00:00:00Z',limit:20})).events.length,0);
   assert.equal(others.events[0].notes,'Disponibilidade');
   assert.ok(!JSON.stringify(others).includes('Segredo pessoal'));
   const privateResult=await getEvent(second.context,{eventId:id}).catch(error=>error.code);
@@ -57,7 +58,6 @@ test('shared event projects only owner reviewed fields and is visible to office'
 
 test('re-sharing refreshes the reviewed time and hides cancelled or remotely deleted events',async()=>{
   const owner=await fixture();
-  const colleague=await googleFixture({officeId:owner.officeId,role:'administrator',modules:['calendar'],grantedModules:['calendar']});
   const id=await event(owner);
   const first=await shareEvent(owner.context,{eventId:id,title:'Disponível',notes:'',location:''});
   await testDb.prepare('UPDATE personal_event SET all_day=1,start_at=NULL,end_at=NULL,start_date=?,end_date=? WHERE id=?')
@@ -69,12 +69,12 @@ test('re-sharing refreshes the reviewed time and hides cancelled or remotely del
     startDate:second.share.startDate,endDate:second.share.endDate},
     {allDay:true,startsAt:null,endsAt:null,startDate:'2026-09-25',endDate:'2026-09-26'});
   const range={from:'2026-09-25T00:00:00Z',to:'2026-09-26T00:00:00Z',limit:20};
-  assert.equal((await listShared(colleague.context,range)).events[0].title,'Fora do escritório');
-  assert.equal((await listShared(colleague.context,{from:'2026-09-23T00:00:00Z',to:'2026-09-24T00:00:00Z',limit:20})).events.length,0);
+  assert.equal((await listShared(owner.context,range)).events[0].title,'Fora do escritório');
+  assert.equal((await listShared(owner.context,{from:'2026-09-23T00:00:00Z',to:'2026-09-24T00:00:00Z',limit:20})).events.length,0);
   await testDb.prepare("UPDATE personal_event SET status='cancelled' WHERE id=?").run(id);
-  assert.equal((await listShared(colleague.context,range)).events.length,0);
+  assert.equal((await listShared(owner.context,range)).events.length,0);
   await testDb.prepare("UPDATE personal_event SET status='confirmed',sync_state='remote_deleted' WHERE id=?").run(id);
-  assert.equal((await listShared(colleague.context,range)).events.length,0);
+  assert.equal((await listShared(owner.context,range)).events.length,0);
 });
 test('all-day recurrence expands for the requested window and reader calendars refuse writes',async()=>{
   const owner=await fixture();

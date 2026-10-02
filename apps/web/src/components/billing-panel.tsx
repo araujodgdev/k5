@@ -16,7 +16,7 @@ const statuses: Record<BillingCheckoutRow['status'], string> = {
 };
 
 /** The office's plan: its state in one sentence, the one action that pays for a month, and the history. */
-export function BillingPanel({ overview, canPay, returned, hasSubscription = false }: { overview: Overview; canPay: boolean; returned: boolean; hasSubscription?: boolean }) {
+export function BillingPanel({ overview, returned, hasSubscription = false }: { overview: Overview; returned: boolean; hasSubscription?: boolean }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const { configured, price, paidUntil, active, checkouts } = overview;
@@ -61,7 +61,7 @@ export function BillingPanel({ overview, canPay, returned, hasSubscription = fal
         </div>
         {!configured ? (
           <p className="text-sm text-subtle-foreground">Os pagamentos ainda não foram configurados neste ambiente.</p>
-        ) : canPay ? (
+        ) : (
           <div className="grid gap-2 md:w-80">
             <Button size="lg" className="h-12 w-full justify-between px-4 text-[15px] md:h-12" disabled={pending} onClick={() => void pay()}>
               {pending ? 'Abrindo pagamento…' : active ? 'Adicionar um mês' : 'Pagar um mês'}
@@ -70,8 +70,6 @@ export function BillingPanel({ overview, canPay, returned, hasSubscription = fal
             <p className="text-[13px] text-subtle-foreground">PIX ou cartão, na página segura da AbacatePay.</p>
             {error && <p role="alert" className="flex items-center gap-2 text-[13px] text-destructive"><CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />{error}</p>}
           </div>
-        ) : (
-          <p className="text-sm text-subtle-foreground">Só administradores podem pagar o plano do escritório.</p>
         )}
       </section>
 
@@ -98,7 +96,7 @@ export function BillingPanel({ overview, canPay, returned, hasSubscription = fal
                   </td>
                   <td className="py-3 text-right whitespace-nowrap">
                     {checkout.status === 'PAID' && checkout.receiptUrl && <RowLink href={checkout.receiptUrl}>Comprovante</RowLink>}
-                    {checkout.status === 'PENDING' && canPay && <RowLink href={checkout.url}>Continuar</RowLink>}
+                    {checkout.status === 'PENDING' && <RowLink href={checkout.url}>Continuar</RowLink>}
                   </td>
                 </tr>
               ))}

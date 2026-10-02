@@ -15,7 +15,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     const workspace = await requireVaultWorkspace();
     const id = (await params).id;
     const context = await assertCapabilityAllowed(await documentAccess(workspaceContext(workspace), id), 'k5_vault_download_document');
-    const document = await findVaultDocument(context.officeId, id);
+    const document = await findVaultDocument(context.officeId, id, context.userId);
     if (!document || (context.caseScope && document.caseId !== context.caseScope.caseId)) throw new VaultHttpError(404, "Documento não encontrado.");
     const file = await readVaultOriginal(document);
     await assertCapabilityAllowed(await documentAccess(context, id), 'k5_vault_download_document');

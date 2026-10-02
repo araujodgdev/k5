@@ -7,7 +7,7 @@ import test from "node:test";
 import type { WorkspaceContext } from "../src/lib/application/context";
 import { CapabilityError } from "../src/lib/capabilities/errors";
 import { ConnectorError } from "../src/lib/judicial/contracts";
-import { capabilityNames, publishedCapabilitiesForRole } from "../src/lib/capabilities/contracts";
+import { capabilityNames, publishedCapabilities } from "../src/lib/capabilities/contracts";
 import { runCapability } from "../src/lib/agent-tools";
 import * as judicial from "../src/lib/application/judicial-service";
 import { upsertInstallation } from "../src/lib/judicial/repositories/installations";
@@ -47,10 +47,9 @@ async function seed(): Promise<Seed> {
     lawyerB, `b-${randomUUID()}@beta.test`, "Advogado Beta",
   ));
   (await testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?)").run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia"));
-  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)").run(
-    randomUUID(), officeA, lawyerA, "lawyer",
-    randomUUID(), officeA, reviewerA, "reviewer",
-    randomUUID(), officeB, lawyerB, "lawyer",
+  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id) VALUES (?, ?, ?), (?, ?, ?)").run(
+    randomUUID(), officeA, lawyerA,
+    randomUUID(), officeB, lawyerB,
   ));
 
   const caseA = randomUUID();
@@ -63,8 +62,8 @@ async function seed(): Promise<Seed> {
   return { officeA, officeB, lawyerA, reviewerA, lawyerB, caseA, caseB };
 }
 
-function context(officeId: string, userId: string, role: "lawyer" | "reviewer" = "lawyer"): WorkspaceContext {
-  return { officeId, userId, role };
+function context(officeId: string, userId: string): WorkspaceContext {
+  return { officeId, userId };
 }
 
 /**
@@ -130,19 +129,16 @@ test("catalog: every judicial capability has an executor and a sane publication 
   const judicialNames = capabilityNames.filter((name) => name.startsWith("k5_judicial_"));
   assert.equal(judicialNames.length, 12);
 
-  const lawyerTools = publishedCapabilitiesForRole("lawyer", "agent");
+  const lawyerTools = publishedCapabilities("agent");
   // Confirming a link authorizes recurring queries to a court: the agent may propose it, and it
   // only runs after the person presses Confirmar in the chat (tests/agent-approvals.test.ts).
   assert.equal(lawyerTools.includes("k5_judicial_confirm_link"), true);
-  assert.equal(publishedCapabilitiesForRole("lawyer", "webmcp").includes("k5_judicial_confirm_link"), false);
+  assert.equal(publishedCapabilities("webmcp").includes("k5_judicial_confirm_link"), false);
   assert.equal(lawyerTools.includes("k5_judicial_link_case"), true);
 
-  // A reviewer reads and never writes, and this plan grants no new write permissions.
-  const reviewerTools = publishedCapabilitiesForRole("reviewer", "agent").filter((name) => name.startsWith("k5_judicial_"));
-  assert.deepEqual(reviewerTools.sort(), [
-    "k5_judicial_get_job", "k5_judicial_get_publication", "k5_judicial_list_alerts",
-    "k5_judicial_list_links", "k5_judicial_list_publications", "k5_judicial_list_sources",
-  ]);
+  assert.equal(lawyerTools.includes("k5_judicial_request_refresh"), true);
+  assert.equal(lawyerTools.includes("k5_judicial_unlink_case"), true);
+  assert.equal(lawyerTools.includes("k5_judicial_list_jobs"), false);
 });
 
 test("linking: a proposed link never starts confirmed, whoever proposed it", async () => {
@@ -699,13 +695,12 @@ test("unlinking: collection stops and the evidence already gathered is kept", as
   assert.equal(kept.n, 3);
 });
 
-test("authorization: a reviewer reads judicial data and writes none of it", async () => {
+test("authorization: an unrelated lawyer cannot read or write another office judicial data", async () => {
   const { officeA, lawyerA, reviewerA, caseA } = (await seed());
   const installation = await source();
   const { link } = await createCaseLink({ officeId: officeA, userId: lawyerA, caseId: caseA, installationId: installation.id, cnjNumber: VALID, nativeNumber: null, degree: "first", confirmed: true });
 
-  const read = await runCapability(context(officeA, reviewerA, "reviewer"), "k5_judicial_list_links", {}) as { links: unknown[] };
-  assert.equal(Array.isArray(read.links), true);
+  await assert.rejects(runCapability(context(officeA, reviewerA), "k5_judicial_list_links", {}), { code: "FORBIDDEN" });
 
   for (const [name, input] of [
     ["k5_judicial_link_case", { caseId: caseA, installationId: installation.id, number: VALID_OTHER, degree: "first" }],
@@ -713,7 +708,7 @@ test("authorization: a reviewer reads judicial data and writes none of it", asyn
     ["k5_judicial_unlink_case", { linkId: link.id }],
   ] as const) {
     await assert.rejects(
-      () => runCapability(context(officeA, reviewerA, "reviewer"), name, input),
+      () => runCapability(context(officeA, reviewerA), name, input),
       (error: unknown) => error instanceof CapabilityError && error.code === "FORBIDDEN",
       `${name} deveria ser negada ao revisor`,
     );

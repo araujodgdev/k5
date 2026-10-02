@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Temporal } from '@js-temporal/polyfill';
-import type { OfficeRole } from '@/lib/offices';
 import type { CapabilityOutput } from '@/lib/capabilities/contracts';
 import { selectStyle } from '@/lib/agenda-client';
 import { Button } from '@/components/ui/button';
@@ -60,8 +59,7 @@ const syncLabels:Record<Event['syncState'],string>={
   remote_deleted:'Removido no Google',permission_lost:'Permissão removida',failed:'Falha de sincronização',
 };
 
-export function CalendarPanel({role,day,initialEventId}:{role:OfficeRole;day:string;initialEventId?:string}) {
-  const canWrite=role!=='reviewer';
+export function CalendarPanel({day,initialEventId}:{day:string;initialEventId?:string}) {
   const {run,approvalDialog}=useGoogleAction();
   const [status,setStatus]=useState<GoogleStatus|null>(null);
   const [calendars,setCalendars]=useState<Calendar[]>([]);
@@ -157,7 +155,7 @@ export function CalendarPanel({role,day,initialEventId}:{role:OfficeRole;day:str
   async function save(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if(!edit)return;
-    if(!canWrite||edit.event?.readOnly){setFailure('Este evento permite somente leitura.');return;}
+    if(edit.event?.readOnly){setFailure('Este evento permite somente leitura.');return;}
     const {draft}=edit;
     let startsAt:string|null=null,endsAt:string|null=null;
     try{
@@ -230,7 +228,7 @@ export function CalendarPanel({role,day,initialEventId}:{role:OfficeRole;day:str
       </nav>
       <div className="flex flex-wrap gap-2"><Button variant="ghost" disabled={busy} onClick={refresh}>Atualizar</Button>
         {section==='mine'&&enabled&&<Button variant="outline" disabled={busy} onClick={()=>void sync()}>Sincronizar</Button>}
-        {section==='mine'&&enabled&&canWrite&&calendars.some(c=>c.selected&&!c.readOnly)&&<Button disabled={busy} onClick={startNew}>Novo evento</Button>}</div>
+        {section==='mine'&&enabled&&calendars.some(c=>c.selected&&!c.readOnly)&&<Button disabled={busy} onClick={startNew}>Novo evento</Button>}</div>
     </div>
     {failure&&<p role="alert" className="text-sm text-destructive">{failure}</p>}
     {notice&&<p role="status" className="text-sm text-muted-foreground">{notice}</p>}
@@ -251,7 +249,7 @@ export function CalendarPanel({role,day,initialEventId}:{role:OfficeRole;day:str
           :<div className="divide-y border-y">{shared.map(item=><article key={item.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
             <div><p className="text-sm font-medium">{item.title}</p><p className="mt-1 text-[13px] text-muted-foreground">{item.ownerName}{item.location?` · ${item.location}`:''}</p>
               {item.notes&&<p className="mt-2 whitespace-pre-wrap text-sm">{item.notes}</p>}</div>
-            {item.mine&&canWrite&&<Button variant="ghost" disabled={busy} onClick={()=>void unshare(item.id)}>Remover compartilhamento</Button>}
+            {item.mine&&<Button variant="ghost" disabled={busy} onClick={()=>void unshare(item.id)}>Remover compartilhamento</Button>}
           </article>)}</div>
         :events.length===0?<p className="py-8 text-sm text-muted-foreground">Nenhum evento pessoal para este dia.</p>
           :<div className="divide-y border-y">{events.map(event=><article key={event.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
@@ -263,13 +261,13 @@ export function CalendarPanel({role,day,initialEventId}:{role:OfficeRole;day:str
               {event.meetingUrl&&<a href={event.meetingUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[13px] underline">Abrir reunião</a>}
             </div>
             <div className="flex flex-wrap gap-2">
-              {canWrite&&event.selfResponse&&<select aria-label={`Responder a ${event.title}`} value={event.selfResponse}
+              {event.selfResponse&&<select aria-label={`Responder a ${event.title}`} value={event.selfResponse}
                 onChange={e=>void respond(event,e.target.value as 'accepted'|'declined'|'tentative')} disabled={busy} className={selectStyle}>
                 <option value="needsAction">Responder</option><option value="accepted">Aceitar</option><option value="tentative">Talvez</option><option value="declined">Recusar</option>
               </select>}
-              {canWrite&&<Button variant="ghost" disabled={busy} onClick={()=>openShare(event)}>{event.shareId?'Revisar cópia':'Compartilhar'}</Button>}
-              {canWrite&&event.shareId&&<Button variant="ghost" disabled={busy} onClick={()=>void unshare(event.shareId!)}>Deixar de compartilhar</Button>}
-              {canWrite&&['remote_deleted','permission_lost','conflict','failed'].includes(event.syncState)&&
+              {<Button variant="ghost" disabled={busy} onClick={()=>openShare(event)}>{event.shareId?'Revisar cópia':'Compartilhar'}</Button>}
+              {event.shareId&&<Button variant="ghost" disabled={busy} onClick={()=>void unshare(event.shareId!)}>Deixar de compartilhar</Button>}
+              {['remote_deleted','permission_lost','conflict','failed'].includes(event.syncState)&&
                 <Button variant="ghost" disabled={busy} onClick={()=>void discard(event)}>Descartar pendência</Button>}
             </div>
           </article>)}</div>}
@@ -310,8 +308,8 @@ export function CalendarPanel({role,day,initialEventId}:{role:OfficeRole;day:str
         </select></label>}
         {edit.event?.htmlLink&&<Link href={edit.event.htmlLink} target="_blank" rel="noopener noreferrer" className="text-sm underline">Abrir no Google Calendar</Link>}
         <DialogFooter><Button type="button" variant="outline" onClick={()=>setEdit(null)}>Fechar</Button>
-          {edit.event&&canWrite&&!edit.event.readOnly&&<Button type="button" variant="ghost" disabled={busy} onClick={()=>void cancel()}>Cancelar evento</Button>}
-          {canWrite&&!edit.event?.readOnly&&<Button type="submit" disabled={busy}>{busy?'Salvando…':edit.event?'Salvar alterações':'Criar evento'}</Button>}
+          {edit.event&&!edit.event.readOnly&&<Button type="button" variant="ghost" disabled={busy} onClick={()=>void cancel()}>Cancelar evento</Button>}
+          {!edit.event?.readOnly&&<Button type="submit" disabled={busy}>{busy?'Salvando…':edit.event?'Salvar alterações':'Criar evento'}</Button>}
         </DialogFooter>
       </form>
     </DialogContent></Dialog>}

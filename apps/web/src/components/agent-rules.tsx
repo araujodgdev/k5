@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { AppliesTo, Instruction, InstructionScope } from "@/lib/agent-instructions";
 
-export type RulesState = { office: Instruction[]; personal: Instruction[]; budget: number; canEditOffice: boolean };
+export type RulesState = { office: Instruction[]; personal: Instruction[]; budget: number };
 
 const appliesLabel: Record<AppliesTo, string> = { all: "Conversas e documentos", chat: "Só conversas", documents: "Só documentos" };
 const placeholders = [
@@ -25,57 +25,39 @@ const used = (rules: Instruction[]) => rules.reduce((sum, rule) => sum + (rule.e
 
 export function AgentRules({ initial }: { initial: RulesState }) {
   const [state, setState] = useState(initial);
+  const [editing, setEditing] = useState<string | "new" | null>(null);
   const replace = (scope: InstructionScope, update: (rules: Instruction[]) => Instruction[]) =>
     setState((current) => ({ ...current, [scope]: update(current[scope]) }));
+  const entries = [
+    ...state.office.map(rule => ({ rule, scope: "office" as const })),
+    ...state.personal.map(rule => ({ rule, scope: "personal" as const })),
+  ];
 
   return (
     <section aria-labelledby="rules-heading" className="mt-8">
       <h2 id="rules-heading" className="font-medium">Regras de escrita</h2>
       <p className="mt-1 text-sm text-muted-foreground">Como o Lume escreve: tom, forma, vocabulário. As regras não mudam o cuidado com fontes e citações jurídicas.</p>
-      <RuleGroup scope="office" title="Do escritório" rules={state.office} budget={state.budget} editable={state.canEditOffice}
-        emptyText="Nenhuma regra do escritório." readOnlyNote="Definidas pela administração do escritório." onChange={replace} />
-      <RuleGroup scope="personal" title="Minhas regras" rules={state.personal} budget={state.budget} editable
-        emptyText="Nenhuma regra sua. O Lume segue as do escritório." note="Valem só para você e prevalecem sobre as do escritório." onChange={replace} />
-    </section>
-  );
-}
-
-function RuleGroup({ scope, title, note, readOnlyNote, emptyText, rules, budget, editable, onChange }: {
-  scope: InstructionScope; title: string; note?: string; readOnlyNote?: string; emptyText: string;
-  rules: Instruction[]; budget: number; editable: boolean;
-  onChange: (scope: InstructionScope, update: (rules: Instruction[]) => Instruction[]) => void;
-}) {
-  const [editing, setEditing] = useState<string | "new" | null>(null);
-  const headingId = useId();
-
-  return (
-    <div className="mt-6" role="group" aria-labelledby={headingId}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h3 id={headingId} className="text-sm font-medium">{title}</h3>
-        {editable && <p className="text-[13px] text-muted-foreground">Ativas: {used(rules).toLocaleString("pt-BR")} de {budget.toLocaleString("pt-BR")} caracteres</p>}
-      </div>
-      {(note || (!editable && readOnlyNote)) && <p className="mt-1 text-[13px] text-muted-foreground">{editable ? note : readOnlyNote}</p>}
-
+      <p className="mt-2 text-[13px] text-muted-foreground" aria-live="polite">Ativas: {used(entries.map(entry => entry.rule)).toLocaleString("pt-BR")} caracteres</p>
       <div className="mt-3 divide-y border-y">
-        {rules.length === 0 && editing !== "new" && <p className="py-4 text-sm text-subtle-foreground">{emptyText}</p>}
-        {rules.map((rule) => editing === rule.id
+        {entries.length === 0 && editing !== "new" && <p className="py-4 text-sm text-subtle-foreground">Nenhuma regra definida.</p>}
+        {entries.map(({ rule, scope }) => editing === rule.id
           ? <RuleForm key={rule.id} scope={scope} rule={rule} placeholder={placeholders[0]} onDone={(next) => {
               setEditing(null);
-              if (next === "deleted") onChange(scope, (list) => list.filter((item) => item.id !== rule.id));
-              else if (next) onChange(scope, (list) => list.map((item) => item.id === rule.id ? next : item));
+              if (next === "deleted") replace(scope, (list) => list.filter((item) => item.id !== rule.id));
+              else if (next) replace(scope, (list) => list.map((item) => item.id === rule.id ? next : item));
             }} />
-          : <RuleRow key={rule.id} scope={scope} rule={rule} editable={editable} onEdit={() => setEditing(rule.id)}
-              onSaved={(next) => onChange(scope, (list) => list.map((item) => item.id === next.id ? next : item))} />)}
-        {editing === "new" && <RuleForm scope={scope} placeholder={placeholders[scope === "office" ? 0 : 1]} onDone={(next) => {
+          : <RuleRow key={rule.id} scope={scope} rule={rule} editable onEdit={() => setEditing(rule.id)}
+              onSaved={(next) => replace(scope, (list) => list.map((item) => item.id === next.id ? next : item))} />)}
+        {editing === "new" && <RuleForm scope="personal" placeholder={placeholders[1]} onDone={(next) => {
           setEditing(null);
-          if (next && next !== "deleted") onChange(scope, (list) => [...list, next]);
+          if (next && next !== "deleted") replace("personal", (list) => [...list, next]);
         }} />}
       </div>
 
-      {editable && editing !== "new" && (
+      {editing !== "new" && (
         <Button type="button" variant="ghost" className="mt-2 min-h-11 md:min-h-9" onClick={() => setEditing("new")}><Plus aria-hidden="true" />Nova regra</Button>
       )}
-    </div>
+    </section>
   );
 }
 

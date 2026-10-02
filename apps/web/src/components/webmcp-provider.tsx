@@ -2,20 +2,17 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import type { OfficeRole } from '@/lib/offices';
 import { isWebMCPSupported } from '@/lib/webmcp/browser';
 
 /**
  * Publishes the authorized catalog while the authenticated shell is mounted. The set is rebuilt
- * when the role or the route changes, and torn down on unmount, so a tool never outlives the
+ * when the route changes, and torn down on unmount, so a tool never outlives the
  * context that justified registering it.
  */
 export function WebMCPProvider({
-  role,
   whatsappEnabled = false,
   children,
 }: {
-  role: OfficeRole;
   whatsappEnabled?: boolean;
   children: React.ReactNode;
 }) {
@@ -26,10 +23,10 @@ export function WebMCPProvider({
     let disposed = false;
     let unregister: (() => void) | undefined;
     void import('@/lib/webmcp/adapter').then(({ registerWebMCPCapabilities }) => {
-      if (!disposed) unregister = registerWebMCPCapabilities(role, { whatsappEnabled });
+      if (!disposed) unregister = registerWebMCPCapabilities({ whatsappEnabled });
     }).catch(() => { /* The interface remains available if the optional catalog cannot load. */ });
     return () => { disposed = true; unregister?.(); };
-  }, [role, pathname, whatsappEnabled]);
+  }, [pathname, whatsappEnabled]);
 
   return <>{children}</>;
 }

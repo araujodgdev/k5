@@ -17,9 +17,9 @@ async function seedOffice() {
   const officeId = randomUUID();
   (await testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?)").run(userId, `user-${randomUUID()}@k5.test`, "Pessoa"));
   (await testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?)").run(officeId, "Escritório"));
-  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?)")
-    .run(randomUUID(), officeId, userId, "lawyer"));
-  return { officeId, userId, context: { officeId, userId, role: "lawyer" } as WorkspaceContext };
+  (await testDb.prepare("INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)")
+    .run(randomUUID(), officeId, userId));
+  return { officeId, userId, context: { officeId, userId } as WorkspaceContext };
 }
 
 async function seedGeneration(officeId: string) {

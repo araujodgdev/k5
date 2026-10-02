@@ -2,33 +2,32 @@ import { testDb } from './test-setup';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
-import { capabilities, capabilitiesForRole, publishedCapabilitiesForRole } from '../src/lib/capabilities/contracts';
+import { capabilities, publishedCapabilities } from '../src/lib/capabilities/contracts';
 import { requestCapability } from '../src/lib/capabilities/http-client';
 import { agentTools, runCapability } from '../src/lib/agent-tools';
 import type { WorkspaceContext } from '../src/lib/application/context';
 
-async function actor(role: WorkspaceContext['role'] = 'lawyer', officeId: string = randomUUID()): Promise<WorkspaceContext> {
+async function actor(): Promise<WorkspaceContext> {
+  const officeId = randomUUID();
   const userId = randomUUID();
   (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?) ON CONFLICT DO NOTHING').run(officeId, 'Escritório de teste'));
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.invalid`, 'Pesquisador'));
-  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role));
-  return { officeId, userId, role };
+  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId));
+  return { officeId, userId };
 }
 
 test('pesquisa publica operações autorizadas de leitura e escrita', async () => {
-  const names = capabilitiesForRole('lawyer').filter(name => capabilities[name].module === 'research');
-  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'agent').filter(name => capabilities[name].module === 'research'), names);
-  assert.deepEqual(publishedCapabilitiesForRole('lawyer', 'webmcp').filter(name => capabilities[name].module === 'research'), names.filter(name => name !== 'k5_research_score_jurisprudence'));
-  assert.ok(capabilitiesForRole('reviewer').filter(name => capabilities[name].module === 'research')
-    .every(name => capabilities[name].effect === 'read'));
+  const names = publishedCapabilities('agent').filter(name => capabilities[name].module === 'research');
+  assert.deepEqual(publishedCapabilities('agent').filter(name => capabilities[name].module === 'research'), names);
+  assert.deepEqual(publishedCapabilities('webmcp').filter(name => capabilities[name].module === 'research'), names.filter(name => name !== 'k5_research_score_jurisprudence'));
   const tools = agentTools((await actor()));
   assert.ok(tools.k5_research_search_corpus);
   assert.ok(tools.k5_research_start_search);
   assert.ok(tools.k5_research_add_reference);
-  assert.ok(publishedCapabilitiesForRole('reviewer', 'agent').includes('k5_research_score_jurisprudence'));
+  assert.ok(publishedCapabilities('agent').includes('k5_research_score_jurisprudence'));
 });
 
-test('agente solicita confirmação para pesquisa externa e revisor não inicia pesquisa', async () => {
+test('agente solicita confirmação para pesquisa externa e operação exige vínculo ativo', async () => {
   const lawyer = (await actor());
   await assert.rejects(
     runCapability({ ...lawyer, invocation: 'agent' }, 'k5_research_start_search', { theme: 'guarda da avó', includeSources: false }),
@@ -38,16 +37,17 @@ test('agente solicita confirmação para pesquisa externa e revisor não inicia 
     runCapability({ ...lawyer, invocation: 'webmcp' }, 'k5_research_assess_material', { caseId: randomUUID(), materialVersionId: randomUUID() }),
     { code: 'NOT_FOUND' },
   );
-  const reviewer = (await actor('reviewer'));
+  const removed = await actor();
+  await testDb.prepare('DELETE FROM office_member WHERE user_id=?').run(removed.userId);
   await assert.rejects(
-    runCapability(reviewer, 'k5_research_start_search', { theme: 'guarda da avó', includeSources: false }),
+    runCapability(removed, 'k5_research_start_search', { theme: 'guarda da avó', includeSources: false }),
     { code: 'FORBIDDEN' },
   );
 });
 
 test('pesquisa fica no autor e chave idempotente não aceita outro tema', async () => {
   const a = (await actor());
-  const colleague = (await actor('lawyer', a.officeId));
+  const colleague = await actor();
   const otherOffice = (await actor());
   const idempotencyKey = randomUUID();
   const input = { theme: `guarda da avó ${randomUUID()}`, includeSources: false, idempotencyKey };
@@ -60,8 +60,8 @@ test('pesquisa fica no autor e chave idempotente não aceita outro tema', async 
 });
 
 test('pesquisa na web usa o modo escolhido, fica no histórico e só o autor a reabre', async (t) => {
-  const a = (await actor('reviewer'));
-  const colleague = (await actor('lawyer', a.officeId));
+  const a = await actor();
+  const colleague = await actor();
   const sent: Array<Record<string, unknown>> = [];
   const originalKey = process.env.EXA_API_KEY;
   process.env.EXA_API_KEY = 'exa-test';

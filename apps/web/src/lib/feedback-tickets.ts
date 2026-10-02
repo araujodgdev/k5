@@ -23,7 +23,7 @@ type TicketRow = {
 };
 
 async function assertMember(db: Database, author: FeedbackAuthor) {
-  const member = await db.prepare('SELECT role FROM office_member WHERE office_id = ? AND user_id = ?').get<{ role: string }>(author.officeId, author.userId);
+  const member = await db.prepare('SELECT 1 FROM office_member WHERE office_id = ? AND user_id = ?').get(author.officeId, author.userId);
   if (!member) throw new PlatformRequestError(403, 'Seu acesso ao escritório não está disponível.');
 }
 

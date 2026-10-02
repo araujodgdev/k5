@@ -27,8 +27,8 @@ async function actor():Promise<WorkspaceContext> {
   const officeId=randomUUID(),userId=randomUUID();
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Escritório');
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@test.invalid`,'Pessoa');
-  await testDb.prepare("INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,'lawyer')").run(randomUUID(),officeId,userId);
-  return {officeId,userId,role:'lawyer'};
+  await testDb.prepare("INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)").run(randomUUID(),officeId,userId);
+  return {officeId,userId};
 }
 
 async function legacySearch(context: WorkspaceContext, input: StoredTrademarkSearchInput) {
@@ -97,6 +97,8 @@ test('importação atômica, repetível e esparsa mantém acervo; pesquisa INPI 
     await client.query('DELETE FROM inpi_trademark_event');
     await client.query('DELETE FROM inpi_trademark');
     await client.query('DELETE FROM inpi_import');
+    // Windows retains dropped relation files until a checkpoint; capacity scans include them.
+    await client.query('CHECKPOINT');
     const base=randomUUID();
     await client.query("INSERT INTO inpi_import(id,kind,published_on,source_url,state) VALUES($1,'baseline','2026-09-26','https://dadosabertos.inpi.gov.br/','completed')",[base]);
     await client.query("INSERT INTO inpi_trademark(process_number,name,normalized_name,owners,nice_classes,vienna_codes,fields,published_on,import_id) VALUES('905046595','LUME','LUME',ARRAY['Titular anterior'],ARRAY[35],ARRAY['27.5.1'],'{\"Apostila\":\"Campo preservado\"}','2026-09-26',$1)",[base]);

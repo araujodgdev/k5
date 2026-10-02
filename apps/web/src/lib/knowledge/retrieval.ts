@@ -61,16 +61,17 @@ export async function searchKnowledgeEngine(
   /**
    * Without an explicit list the scope is the office's own Cofre — every case and the library —
    * because that is what the assistant is expected to know. It is still an office-scoped read:
-   * the ids are selected here, from this office's ready documents, never taken from the caller.
+   * the ids are selected here, from this office's ready documents the person can see (a folder
+   * of a case may be private to someone else), never taken from the caller.
    */
   const documentIds = input.documentIds?.length
     ? input.documentIds
     : researchReferenceIds.length ? []
     : (await database.prepare(
         `SELECT id FROM vault_document
-         WHERE office_id = ? AND deleted_at IS NULL AND status = 'ready'${input.caseId ? ' AND case_id = ?' : ''}
+         WHERE office_id = ? AND deleted_at IS NULL AND status = 'ready' AND vault_folder_visible(folder_id, ?)${input.caseId ? ' AND case_id = ?' : ''}
          ORDER BY updated_at DESC LIMIT 400`,
-      ).all(...(input.caseId ? [context.officeId, input.caseId] : [context.officeId])) as Array<{ id: string }>).map((row) => String(row.id));
+      ).all(context.officeId, context.userId, ...(input.caseId ? [input.caseId] : [])) as Array<{ id: string }>).map((row) => String(row.id));
 
   if (!documentIds.length) {
     if (researchDto.length) {
@@ -87,8 +88,8 @@ export async function searchKnowledgeEngine(
   const unique = [...new Set(documentIds)];
   const marks = unique.map(() => '?').join(',');
   const validDocs = await database.prepare(
-    `SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND id IN (${marks})${input.caseId ? ' AND case_id=?' : ''}`,
-  ).all(context.officeId, ...unique, ...(input.caseId ? [input.caseId] : [])) as Array<{ id: string; name: string; status: string }>;
+    `SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?) AND id IN (${marks})${input.caseId ? ' AND case_id=?' : ''}`,
+  ).all(context.officeId, context.userId, ...unique, ...(input.caseId ? [input.caseId] : [])) as Array<{ id: string; name: string; status: string }>;
 
   if (validDocs.length !== unique.length) {
     throw new CapabilityError('NOT_FOUND', 'Um ou mais documentos selecionados não pertencem a este escritório ou foram excluídos.');
@@ -105,7 +106,7 @@ export async function searchKnowledgeEngine(
   // 1. Lexical (FTS5/BM25).
   let lexicalChunks: Awaited<ReturnType<typeof getDocumentChunks>> = [];
   try {
-    lexicalChunks = await getDocumentChunks(context.officeId, readyIds, query);
+    lexicalChunks = await getDocumentChunks(context.officeId, context.userId, readyIds, query);
   } catch (error) {
     throw new CapabilityError('INVALID', error instanceof Error ? error.message : 'Falha na recuperação lexical.');
   }
@@ -186,8 +187,8 @@ export async function searchKnowledgeEngine(
     if (!candidates.length) return new Map<string, string>();
     const ids = candidates.map(source => source.sourceId);
     const fresh = await database.prepare(`SELECT c.id,c.content FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
-      WHERE d.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND c.id IN (${ids.map(() => '?').join(',')})${input.caseId ? ' AND d.case_id=?' : ''}`)
-      .all<{ id: string; content: string }>(context.officeId, ...ids, ...(input.caseId ? [input.caseId] : []));
+      WHERE d.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND vault_folder_visible(d.folder_id, ?) AND c.id IN (${ids.map(() => '?').join(',')})${input.caseId ? ' AND d.case_id=?' : ''}`)
+      .all<{ id: string; content: string }>(context.officeId, context.userId, ...ids, ...(input.caseId ? [input.caseId] : []));
     return new Map(fresh.map(row => [row.id, row.content.slice(0, MAX_TEXT)]));
   };
   const current = await currentCandidates();

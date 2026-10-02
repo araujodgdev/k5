@@ -59,7 +59,7 @@ export async function analyzeTrademarkLogo(context:WorkspaceContext,raw:unknown)
     if(!['image/png','image/jpeg','image/webp'].includes(attachment.media_type) || attachment.byte_size>5*1024*1024) throw new CapabilityError('INVALID','Escolha uma imagem PNG, JPG ou WebP de até 5 MB.');
     return {analysis:await analyzeLogoBytes(context,{bytes:await(await objectStorage()).get(attachment.storage_key),mimeType:attachment.media_type},context.signal)};
   }
-  const document=await findVaultDocument(context.officeId,input.documentId);
+  const document=await findVaultDocument(context.officeId,input.documentId,context.userId);
   if (!document || context.caseScope && document.caseId!==context.caseScope.caseId) throw new CapabilityError('NOT_FOUND','Imagem não encontrada no Cofre deste escritório.');
   if (!['image/png','image/jpeg','image/webp'].includes(document.mimeType) || document.byteSize>5*1024*1024) throw new CapabilityError('INVALID','Escolha uma imagem PNG, JPG ou WebP de até 5 MB.');
   return {analysis:await analyzeLogoBytes(context,{bytes:await readVaultOriginal(document),mimeType:document.mimeType})};

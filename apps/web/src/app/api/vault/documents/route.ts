@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { assertSameOrigin, createVaultDocument, drainQueuedDocument, publicDocument, requireVaultWorkspace, requireVaultWriteRole, VaultHttpError } from "@/lib/vault";
+import { assertSameOrigin, createVaultDocument, drainQueuedDocument, publicDocument, requireVaultWorkspace, VaultHttpError } from "@/lib/vault";
 import { vaultErrorResponse } from "@/lib/vault-api";
 import { workspaceContext } from "@/lib/application/context";
 import { consumeUploadRef, createUploadRef } from "@/lib/application/uploads-service";
@@ -45,7 +45,6 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) throw new VaultHttpError(400, "Escolha um arquivo para enviar.");
     const caseId = form.get('scope') === 'case' && typeof form.get('caseId') === 'string' ? String(form.get('caseId')) : null;
     const context = await assertCapabilityAllowed(caseId ? await contextForCase(workspaceContext(workspace), caseId) : workspaceContext(workspace), 'k5_vault_ingest_upload');
-    requireVaultWriteRole(context.role);
     const upload = await createUploadRef(context, file);
     // Consumed here, in the same request that created it: an unclaimed reference is garbage the
     // sweeper is entitled to delete, and it would take this document's bytes with it.

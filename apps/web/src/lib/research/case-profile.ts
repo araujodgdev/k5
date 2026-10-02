@@ -39,38 +39,42 @@ const view = (row: ProfileRow): ResearchCaseProfile => ({
 });
 
 /** Re-checks live membership, session and case ownership at every private case operation. */
-export async function assertResearchCaseAccess(context: WorkspaceContext, caseId: string, write = false, db: Database = database) {
+export async function assertResearchCaseAccess(context: WorkspaceContext, caseId: string, db: Database = database) {
   if (context.sessionId && !await db.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>?').get(context.sessionId, context.userId, new Date().toISOString()))
     throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente.');
   if (context.caseScope) {
     const access = await caseAccess(context.userId, caseId, db);
-    if (context.caseScope.caseId !== caseId || access.officeId !== context.officeId || (write && access.role === 'reviewer'))
+    if (context.caseScope.caseId !== caseId || access.officeId !== context.officeId)
       throw new CapabilityError('FORBIDDEN', 'Seu acesso não permite esta operação.');
     return;
   }
-  const member = await db.prepare('SELECT role FROM office_member WHERE user_id=? AND office_id=?')
-    .get<{ role: string }>(context.userId, context.officeId);
-  if (!member || (write && member.role === 'reviewer')) throw new CapabilityError('FORBIDDEN', 'Seu papel permite apenas consultas.');
+  const member = await db.prepare('SELECT 1 FROM office_member WHERE user_id=? AND office_id=?').get(context.userId, context.officeId);
+  if (!member) throw new CapabilityError('FORBIDDEN', 'Seu acesso a este escritório foi removido.');
   const owned = await db.prepare('SELECT id FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL')
     .get(caseId, context.officeId);
   if (!owned) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
 }
 
 export async function getResearchCaseProfile(context: WorkspaceContext, caseId: string, db: Database = database): Promise<ResearchCaseProfile | null> {
-  await assertResearchCaseAccess(context, caseId, false, db);
+  await assertResearchCaseAccess(context, caseId, db);
   const row = await db.prepare('SELECT * FROM research_case_profile WHERE case_id=? AND office_id=?').get<ProfileRow>(caseId, context.officeId);
-  return row ? view(row) : null;
+  if (!row) return null;
+  const profile = view(row);
+  const visible = new Set((await db.prepare('SELECT id FROM vault_document WHERE office_id=? AND case_id=? AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?)')
+    .all<{ id: string }>(context.officeId, caseId, context.userId)).map(document => document.id));
+  return { ...profile, documentIds: profile.documentIds.filter(id => visible.has(id)),
+    documentedFacts: profile.documentedFacts.filter(fact => fact.documentIds.every(id => visible.has(id))) };
 }
 
 export async function saveResearchCaseProfile(context: WorkspaceContext, raw: SaveResearchCaseProfileInput, db: Database = database): Promise<ResearchCaseProfile> {
   const input = researchCaseProfileInput.parse(raw);
-  await assertResearchCaseAccess(context, input.caseId, true, db);
+  await assertResearchCaseAccess(context, input.caseId, db);
   const ids = [...new Set(input.documentIds)];
   if (input.documentedFacts.some(fact => fact.documentIds.some(id => !ids.includes(id))))
     throw new CapabilityError('INVALID', 'Cada fato documentado precisa apontar documentos selecionados no perfil.');
   if (ids.length) {
-    const found = await db.prepare(`SELECT id FROM vault_document WHERE office_id=? AND case_id=? AND deleted_at IS NULL AND id IN (${ids.map(() => '?').join(',')})`)
-      .all<{ id: string }>(context.officeId, input.caseId, ...ids);
+    const found = await db.prepare(`SELECT id FROM vault_document WHERE office_id=? AND case_id=? AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?) AND id IN (${ids.map(() => '?').join(',')})`)
+      .all<{ id: string }>(context.officeId, input.caseId, context.userId, ...ids);
     if (found.length !== ids.length) throw new CapabilityError('NOT_FOUND', 'Um documento do perfil não pertence a este caso.');
   }
   if (input.documentedFacts.length && !ids.length)
@@ -112,13 +116,14 @@ export async function saveResearchCaseProfile(context: WorkspaceContext, raw: Sa
   return (await getResearchCaseProfile(context, input.caseId, db))!;
 }
 
-export async function researchCaseSnapshot(officeId: string, caseId: string, db: Database = database) {
+export async function researchCaseSnapshot(context: Pick<WorkspaceContext, 'officeId' | 'userId'>, caseId: string, db: Database = database) {
+  const { officeId, userId } = context;
   const caseRow = await db.prepare('SELECT id,name,description,updated_at,deleted_at FROM vault_case WHERE id=? AND office_id=?')
     .get<{ id: string; name: string; description: string | null; updated_at: string; deleted_at: string | null }>(caseId, officeId);
   const row = await db.prepare('SELECT * FROM research_case_profile WHERE case_id=? AND office_id=?').get<ProfileRow>(caseId, officeId);
   if (!caseRow || caseRow.deleted_at) return null;
   const profile = row ? view(row) : null;
-  const docs = profile?.documentIds.length ? await db.prepare(`SELECT id,sha256,status,updated_at,deleted_at FROM vault_document WHERE office_id=? AND case_id=? AND id IN (${profile.documentIds.map(() => '?').join(',')})`)
-    .all<{ id: string; sha256: string; status: string; updated_at: string; deleted_at: string | null }>(officeId, caseId, ...profile.documentIds) : [];
+  const docs = profile?.documentIds.length ? await db.prepare(`SELECT id,sha256,status,updated_at,deleted_at FROM vault_document WHERE office_id=? AND case_id=? AND vault_folder_visible(folder_id, ?) AND id IN (${profile.documentIds.map(() => '?').join(',')})`)
+    .all<{ id: string; sha256: string; status: string; updated_at: string; deleted_at: string | null }>(officeId, caseId, userId, ...profile.documentIds) : [];
   return { caseRow, profile, docs };
 }

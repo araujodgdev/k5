@@ -13,8 +13,8 @@ import type { generateStructured } from '../src/lib/ai-runtime';
 
 const b64 = (value: string) => Buffer.from(value, 'utf8').toString('base64url');
 
-async function setup(mode: 'off' | 'enabled' = 'enabled', role?: 'reviewer') {
-  const fixture = await googleFixture(role ? { role } : {});
+async function setup(mode: 'off' | 'enabled' = 'enabled') {
+  const fixture = await googleFixture();
   await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(fixture.userId);
   await saveConnection(fixture.userId, connectionSettings.parse({ apiKey: 'synthetic-typesafe-key', enabled: true, email: mode, version: (await connectionView()).version }));
   const google = installFakeGoogle();
@@ -132,14 +132,13 @@ test('thread insight: Jev picks the kinds of reply and the writer drafts only th
   assert.deepEqual(insight.replies.map(reply => reply.intent), ['confirm', 'schedule']);
 });
 
-test('thread insight: reviewers get the overview without replies; own messages only get a follow-up', async () => {
-  const reviewer = await setup('enabled', 'reviewer');
+test('thread insight: lawyers get reply suggestions; own messages only get a follow-up', async () => {
+  const reviewer = await setup('enabled');
   const calls: Call[] = [];
   const read = await emailInsight(reviewer.context, { kind: 'thread', threadId: 't1' }, { send: jev, generate: writer({
     overview: 'Resumo.', points: [], replies: [{ intent: 'confirm', label: 'Confirmar', body: 'Ok.' }] }, calls) });
   assert.ok('insight' in read);
-  assert.deepEqual(read.insight.replies, []);
-  assert.match(calls[0].prompt, /replies: lista vazia/);
+  assert.deepEqual(read.insight.replies.map(reply => reply.intent), ['confirm']);
 
   const own = await setup();
   own.threads.t1 = { ...own.threads.t1, from: `Eu <${own.email}>`, sent: true };
@@ -202,9 +201,9 @@ test('thread cache: read labels do not regenerate, new messages use the old over
   await emailInsight(a.context, { kind: 'thread', threadId: 't1' }, options);
   assert.equal(calls.length, 2); assert.match(calls[1].prompt, /Resumo anterior/);
   assert.match(calls[1].prompt, /Documentos enviados agora/); assert.doesNotMatch(calls[1].prompt, /Pode confirmar o envio até sexta/);
-  await testDb.prepare("UPDATE office_member SET role='reviewer' WHERE office_id=? AND user_id=?").run(a.officeId, a.userId);
-  const read = await emailInsight(a.context, { kind: 'thread', threadId: 't1' }, options);
-  assert.ok('insight' in read); assert.deepEqual(read.insight.replies, []); assert.equal(calls.length, 3);
+  await testDb.prepare("DELETE FROM office_member WHERE office_id=? AND user_id=?").run(a.officeId, a.userId);
+  await assert.rejects(emailInsight(a.context, { kind: 'thread', threadId: 't1' }, options), { code: 'FORBIDDEN' });
+  assert.equal(calls.length, 2);
 });
 
 test('email cache: concurrent requests do not duplicate generation; failures release the lease', async () => {

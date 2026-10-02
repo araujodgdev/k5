@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import { apiPersonalWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
-import { addKnowledge, canEditKnowledge, knowledgeBody, listKnowledge, ALWAYS_BUDGET } from '@/lib/agent-knowledge';
+import { addKnowledge, knowledgeBody, listKnowledge, ALWAYS_BUDGET } from '@/lib/agent-knowledge';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {
     const context = workspaceContext(await apiPersonalWorkspace(request));
-    return Response.json({ ...await listKnowledge(context), budget: ALWAYS_BUDGET, canEditOffice: canEditKnowledge(context.role, 'office') });
+    return Response.json({ ...await listKnowledge(context), budget: ALWAYS_BUDGET });
   } catch (error) { return apiError(error); }
 }
 

@@ -10,7 +10,7 @@ export async function getAgentSettings(context: WorkspaceContext) {
   return { instructions, knowledge, templates };
 }
 
-export async function changeAgentSettings(context: WorkspaceContext, { scope, change }: CapabilityInput<'k5_agent_settings_change'>) {
+export async function changeAgentSettings(context: WorkspaceContext, { scope = 'personal', change }: CapabilityInput<'k5_agent_settings_change'>) {
   switch (change.action) {
     case 'create_instruction': await saveInstruction(context, scope, change); break;
     case 'update_instruction': await saveInstruction(context, scope, change, { id: change.id, version: change.version }); break;

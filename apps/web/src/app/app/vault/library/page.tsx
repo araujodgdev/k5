@@ -6,15 +6,15 @@ import { countVaultDocuments, listVaultDocuments } from "@/lib/vault";
 export const metadata = { title: "Biblioteca" };
 
 export default async function VaultLibraryPage({ searchParams }: { searchParams: Promise<{ import?: string }> }) {
-  const { office } = await requireWorkspace();
+  const { office, user } = await requireWorkspace();
   const query = await searchParams;
   const [initialDocuments, initialTotal] = await Promise.all([
-    listVaultDocuments(office.officeId, { scope: 'library', limit: 50 }),
-    countVaultDocuments(office.officeId, { scope: 'library' }),
+    listVaultDocuments(office.officeId, user.id, { scope: 'library', limit: 50 }),
+    countVaultDocuments(office.officeId, user.id, { scope: 'library' }),
   ]);
   return (
     <Reveal className="flex min-h-0 flex-1 flex-col">
-      <VaultLibrary initialDocuments={initialDocuments} initialTotal={initialTotal} role={office.role}
+      <VaultLibrary initialDocuments={initialDocuments} initialTotal={initialTotal}
         initialDriveOpen={query.import === 'drive'} />
     </Reveal>
   );

@@ -8,17 +8,17 @@ import pilot from '../src/data/feedback-pilot.json';
 import { feedbackPair } from '../src/lib/feedback-campaigns';
 import { feedbackDataset } from '../src/lib/feedback-dataset';
 
-async function fixture(role = 'reviewer') {
+async function fixture() {
   const userId = randomUUID(), officeId = randomUUID();
   (await testDb.prepare('INSERT INTO user (id,email,name) VALUES (?,?,?)').run(userId, `${userId}@test.local`, 'Pessoa'));
   (await testDb.prepare('INSERT INTO office (id,name) VALUES (?,?)').run(officeId, 'Escritório'));
-  (await testDb.prepare('INSERT INTO office_member (id,office_id,user_id,role) VALUES (?,?,?,?)').run(randomUUID(), officeId, userId, role));
+  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId));
   return { userId, officeId };
 }
 const assessment = { clarity: 4, accuracy: null, completeness: 3, usefulness: 5, comment: 'Bem organizado.' };
 const input = { campaignId: pilot.id, a: assessment, b: { ...assessment, comment: '' }, preference: 'a', comment: 'Mais prático.', reviewedBoth: true };
 
-test('feedback hides names/metrics before voting, keeps order and allows reviewer personal feedback', async () => {
+test('feedback hides names/metrics before voting, keeps order and allows lawyer personal feedback', async () => {
   const context = (await fixture());
   const before = await feedbackView(db, context);
   assert.ok(before.responses.every(response => response.identity === null));
@@ -29,7 +29,7 @@ test('feedback hides names/metrics before voting, keeps order and allows reviewe
   assert.deepEqual(view.responses.map(r => r.memo), before.responses.map(r => r.memo));
   assert.ok(view.responses.every(r => r.identity?.inputTokens));
   assert.equal(view.vote?.a.accuracy, null);
-  const admin = (await fixture('administrator'));
+  const admin = (await fixture());
   await assert.rejects(platformFeedback(db, admin.userId), { status: 403 });
   (await testDb.prepare('INSERT INTO platform_admin (user_id) VALUES (?)').run(admin.userId));
   const row = (await platformFeedback(db, admin.userId)).votes.find(v => v.userId === context.userId)!;

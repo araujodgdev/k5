@@ -2,8 +2,6 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { database, withTransaction, type Transaction } from '@/lib/database';
-import { caseAccess } from '@/lib/collaboration/access';
-import { CapabilityError } from '@/lib/capabilities/errors';
 import { decryptCredential, parseCredentialKeyring } from '@/lib/platform-crypto';
 import { personalChatEnvironment } from './environment';
 import { personalEmailSettings, sendPersonalEmail } from './email-transport';
@@ -70,22 +68,13 @@ async function authorized(tx: Transaction, row: ClaimedEmail) {
     return Boolean(await tx.prepare(`SELECT 1 FROM vault_document_share s
       JOIN vault_document d ON d.id=s.document_id AND d.office_id=s.office_id AND d.deleted_at IS NULL
       JOIN vault_document_version v ON v.id=s.document_version_id AND v.document_id=d.id AND v.office_id=d.office_id
-      JOIN office_member m ON m.office_id=s.office_id AND m.user_id=s.granted_by AND m.role IN ('administrator','lawyer')
-      WHERE s.id=? AND s.invitation_id=? AND s.conversation_id=? AND s.granted_by=? AND s.state='pending'
+      JOIN office_member m ON m.office_id=s.office_id AND m.user_id=s.granted_by
+      WHERE s.id=? AND s.invitation_id=? AND vault_folder_visible(d.folder_id, s.granted_by) AND s.conversation_id=? AND s.granted_by=? AND s.state='pending'
         AND s.expires_at>CURRENT_TIMESTAMP AND s.revoked_at IS NULL AND d.case_id IS NOT DISTINCT FROM s.source_case_id
         AND (s.source_case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case c WHERE c.id=s.source_case_id AND c.deleted_at IS NULL))`)
       .get(body.shareId, row.invitation_id, row.thread_id, row.sender_user_id));
   }
-  if (row.action_kind === 'case_invite' && body.kind === 'case_invitation') {
-    const invite = await tx.prepare(`SELECT case_id,office_id,role,can_invite FROM collaboration_invitation
-      WHERE id=? AND invited_by=? AND email=? AND kind='case' AND status='pending' AND expires_at>CURRENT_TIMESTAMP`)
-      .get<{ case_id: string; office_id: string; role: string; can_invite: boolean }>(body.invitationId, row.sender_user_id, row.recipient_email);
-    if (!invite) return false;
-    try {
-      const access = await caseAccess(row.sender_user_id, invite.case_id, tx);
-      return access.officeId === invite.office_id && access.canManage && !(access.external && (invite.can_invite || (access.role === 'reviewer' && invite.role === 'editor')));
-    } catch (error) { if (error instanceof CapabilityError) return false; throw error; }
-  }
+  // Case invitations by e-mail no longer exist: one still queued from before is never sent.
   return false;
 }
 

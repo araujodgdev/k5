@@ -80,8 +80,8 @@ Referências: [SDK JavaScript](https://docs.typesafe.ai/sdk/javascript),
 
 Os nomes abreviados acima têm prefixo `https://www.googleapis.com/auth/`. Docs edita somente
 arquivos escolhidos no Picker. O consentimento é incremental e recusas parciais deixam o
-recurso correspondente indisponível. Uma pessoa pode ter uma conta ativa por escritório;
-uma mesma identidade Google não é compartilhada entre integrantes do mesmo escritório.
+recurso correspondente indisponível. Cada advogado pode ter uma conta ativa em seu escritório;
+a conexão Google permanece pessoal mesmo quando ele compartilha um caso com associados.
 
 Consulte as exigências atuais de [verificação de escopos Gmail](https://developers.google.com/workspace/gmail/api/auth/scopes)
 e [publicação OAuth](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification).
@@ -216,8 +216,9 @@ respostas perdidas, Gmail, recorrências/sync e importações. Esses testes não
 
 1. Gmail pessoal e Workspace: consentimento integral/parcial/negado, incremento de módulos,
    reconexão, revogação externa, logout versus desconexão e troca de conta recusada.
-2. Dois integrantes e dois escritórios: nenhum acesso à conta do outro, inclusive administrador,
-   papel revisor sem escrita externa e remoção do integrante enquanto há trabalho pendente.
+2. Dois advogados, cada um com seu escritório: nenhum acesso à conta Google do outro,
+   mesmo entre associados ou participantes de um caso; remoção do vínculo com o escritório
+   enquanto há trabalho pendente.
 3. Gmail: recebido/enviado/rascunho, reply/thread, anexos pequenos e teto, edição do rascunho
    durante revisão, resposta perdida depois do envio e nenhuma repetição enquanto incerto.
 4. Calendar: agenda principal/secundária/read-only, dia inteiro, DST/fuso IANA, Meet/RSVP,

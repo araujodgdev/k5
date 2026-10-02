@@ -3,6 +3,7 @@ import type { CapabilityName } from '../src/lib/capabilities/contracts';
 
 const id = randomUUID();
 export const workspaceCapabilityInputs: Partial<Record<CapabilityName, Record<string, unknown>>> = {
+  k5_vault_update_folder_access: { folderId: id, visibility: 'private', memberIds: [] },
   k5_research_analyze_trademark_logo: {kind:'upload',uploadId:id},
   k5_research_start_trademark_search: { query: { kind: 'name', name: 'Lume' } },
   k5_research_get_trademark_search: { searchId: id }, k5_research_list_trademark_searches: {},
@@ -13,12 +14,12 @@ export const workspaceCapabilityInputs: Partial<Record<CapabilityName, Record<st
   k5_agent_settings_get: {},
   k5_agent_settings_change: { scope: 'personal', idempotencyKey: id, change: { action: 'create_instruction', title: 'Tom', content: 'Use frases curtas.', appliesTo: 'chat', enabled: true } },
   k5_collaboration_get: {},
-  k5_collaboration_change: { change: { action: 'invite', invitation: { kind: 'associate', email: 'pessoa@example.test' } } },
+  k5_collaboration_change: { change: { action: 'invite', invitation: { email: 'pessoa@example.test' } } },
   k5_messages_contacts: {}, k5_messages_list: {}, k5_messages_read: { threadId: id },
   k5_messages_start: { requestId: id, recipient: { kind: 'exact_email', email: 'pessoa@example.test' } },
   k5_messages_send: { threadId: id, clientMessageId: id, body: { kind: 'text', text: 'Olá.' } },
   k5_messages_mark_read: { threadId: id, throughMessageId: id },
-  k5_messages_document_options: {}, k5_messages_case_options: {},
+  k5_messages_document_options: {},
   k5_messages_share: { threadId: id, share: { kind: 'document', documentId: id, version: 1, clientMessageId: id, idempotencyKey: id } },
   k5_messages_revoke_share: { shareId: id },
   k5_notifications_list: {}, k5_notifications_read: { notificationId: id }, k5_notifications_archive: { notificationId: id },

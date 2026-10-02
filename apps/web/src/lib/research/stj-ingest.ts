@@ -47,7 +47,7 @@ function stjInstallation(source: InstallationRef | null | undefined): Installati
 async function operator(actorEmail: string, officeId?: string): Promise<{ userId: string; officeId: string }> {
   const rows = await database.prepare(`SELECT u.id AS user_id,m.office_id FROM user u
     JOIN platform_admin p ON p.user_id=u.id JOIN office_member m ON m.user_id=u.id
-    WHERE lower(u.email)=lower(?) AND m.role='administrator' ORDER BY m.office_id`)
+    WHERE lower(u.email)=lower(?) ORDER BY m.office_id`)
     .all<{ user_id: string; office_id: string }>(actorEmail);
   const permitted = officeId ? rows.filter(row => row.office_id === officeId) : rows;
   if (permitted.length !== 1) throw new ResearchError('forbidden',
@@ -55,9 +55,9 @@ async function operator(actorEmail: string, officeId?: string): Promise<{ userId
   return { userId: permitted[0].user_id, officeId: permitted[0].office_id };
 }
 async function assertActor(officeId: string, userId: string): Promise<void> {
-  const row = await database.prepare(`SELECT m.role FROM platform_admin p JOIN office_member m ON m.user_id=p.user_id
-    WHERE p.user_id=? AND m.office_id=?`).get<{ role: string }>(userId, officeId);
-  if (row?.role !== 'administrator') throw new ResearchError('forbidden', 'Operador perdeu a administração do escritório ou da plataforma.');
+  const row = await database.prepare(`SELECT 1 FROM platform_admin p JOIN office_member m ON m.user_id=p.user_id
+    WHERE p.user_id=? AND m.office_id=?`).get(userId, officeId);
+  if (!row) throw new ResearchError('forbidden', 'Operador perdeu o escritório ou a administração da plataforma.');
 }
 function permission(source: InstallationRef, kind: StjResourceKind, action: 'read' | 'store'): void {
   const required = action === 'read' ? (isDocument(kind) ? 'fetch_document' : 'search_source') :

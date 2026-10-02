@@ -223,8 +223,8 @@ async function assertExecution(context: WorkspaceContext, row: OperationRecord, 
   if (context.sessionId && !await database.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>CURRENT_TIMESTAMP').get(context.sessionId, context.userId)) {
     throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente.');
   }
-  const member = await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?').get<{ role: string }>(context.officeId, context.userId);
-  if (!member || !['administrator', 'lawyer'].includes(member.role)) throw new CapabilityError('FORBIDDEN', 'Seu acesso de escrita foi removido.');
+  const member = await database.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(context.officeId, context.userId);
+  if (!member) throw new CapabilityError('FORBIDDEN', 'Seu acesso a este escritório foi removido.');
   const live = await requireConnection(context, spec.module);
   if (live.id !== row.connection_id) throw new CapabilityError('CONFLICT', 'A conexão Google mudou. Prepare a operação novamente.');
   const policy = await readPolicy(context.officeId);
@@ -301,7 +301,6 @@ export type OperationOutcome<T> = { operation: OperationDto; result: T | null };
  * Order: ownership and scopes, idempotent replay, office rules and approval, durable record, effect.
  */
 export async function runGoogleOperation<T>(context: WorkspaceContext, spec: OperationSpec<T>): Promise<OperationOutcome<T>> {
-  if (context.role === 'reviewer') throw new CapabilityError('FORBIDDEN', 'Seu papel permite apenas consultas.');
   const connection = await requireConnection(context, spec.module);
   const { approvalId: rawApproval, idempotencyKey: rawKey, ...args } = spec.input;
   const approvalId = typeof rawApproval === 'string' && rawApproval ? rawApproval : null;

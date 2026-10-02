@@ -11,7 +11,7 @@ async function person(name: string) {
   await db.prepare('INSERT INTO "user"(id,name,email,"emailVerified","createdAt","updatedAt","officeName") VALUES(?,?,?,false,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?)')
     .run(id, name, email, `${name} Advocacia`);
   const office = await ensureOfficeForUser(db, { id, officeName: `${name} Advocacia` });
-  return { id, email, context: { userId: id, officeId: office.officeId, role: 'administrator' as const } };
+  return { id, email, context: { userId: id, officeId: office.officeId } };
 }
 
 const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13]);
@@ -55,12 +55,13 @@ test('consultas de e-mail têm limite por pessoa', async () => {
   assert.equal((await profileCardForEmail(ana.id, bia.email))?.id, bia.id);
 });
 
-test('listas de equipe e associados trazem a versão da foto de cada pessoa', async () => {
+test('listas de associados trazem a versão da foto de cada pessoa', async () => {
   const ana = await person('Ana'); const bia = await person('Bia');
   await setAvatar(bia.id, png, 'image/png');
-  const invitation = await invite(ana.context, { kind: 'associate', email: bia.email });
+  const invitation = await invite(ana.context, { email: bia.email });
   await respond(bia.context, invitation.id, true);
   const overview = await collaborationOverview(ana.context);
   assert.ok(overview.associates.find(item => item.id === bia.id)?.avatarVersion);
-  assert.equal(overview.members.find(item => item.id === ana.id)?.avatarVersion, null);
+  const mutual = await collaborationOverview(bia.context);
+  assert.equal(mutual.associates.find(item => item.id === ana.id)?.avatarVersion, null);
 });

@@ -88,7 +88,7 @@ Recursos, configuração privada e escopo estão em [docs/previews.md](docs/prev
 | `/app/command-center` | Início: resumo do escritório e ações rápidas |
 | `/app/agents` | Lume, assistente do escritório |
 | `/app/vault` | Cofre |
-| `/app/agenda` | Escritório: tarefas, agenda, clientes, equipe, associados e convites |
+| `/app/agenda` | Escritório: tarefas, agenda, clientes, associados e convites |
 | `/invite/[token]` | Aceitar ou recusar um convite com a conta destinatária |
 | `/app/agenda/clients/[id]` | Detalhes do cliente, contato, casos e atividades |
 | `/client` | Portal do cliente: documentos publicados, cobranças e envio de arquivos |
@@ -137,7 +137,7 @@ Veja [configuração e homologação](apps/web/docs/integracao-whatsapp.md) e
 [verificação local](apps/web/docs/whatsapp-verificacao.md).
 
 O módulo [Mensagens](docs/mensagens.md) permite conversar com outras pessoas no Lume
-e compartilhar documentos e casos do Cofre. Destinatários externos recebem e-mail;
+e compartilhar versões de documentos do Cofre. Destinatários externos recebem e-mail;
 respostas por e-mail não são importadas nesta versão. O envio externo exige a
 configuração do Cloudflare Email Service e o worker de integrações.
 
@@ -152,11 +152,10 @@ O [tutorial e primeiros passos](docs/onboarding.md) apresenta o tour interativo 
 Consulte o [Manual do Lume](docs/manual-lume.md) para o funcionamento de cada módulo e os limites do assistente. A [operação do agente e da ajuda](docs/agente-modulos-e-ajuda.md) descreve ferramentas, confirmações e publicação da base de conhecimento na Cloudflare.
 
 Veja [o guia do frontend](apps/web/README.md) e [as variáveis de exemplo](apps/web/.env.example).
-O cadastro cria um escritório e um vínculo de administrador. Em **Escritório → Equipe**,
-administradores convidam membros e gerenciam os papéis de administrador, advogado e revisor.
-Uma pessoa pode participar de vários escritórios e alternar o escritório ativo.
-**Associados** reúne parceiros; a aba **Participantes** de cada caso permite compartilhar
-somente aquele caso. Veja [colaboração e convites](docs/colaboracao.md).
+O cadastro cria o escritório pessoal do advogado. Cada advogado tem um único escritório.
+**Escritório → Associados** permite convidar parceiros e formar associações mútuas.
+O dono inclui associados em **Participantes** do caso. A raiz é compartilhada; cada criador
+controla suas subpastas públicas, privadas ou restritas. Veja [colaboração e convites](docs/colaboracao.md).
 
 O logout encerra todas as sessões do usuário. As senhas ficam sob responsabilidade
 do Better Auth, com hash scrypt; os cookies de sessão são HttpOnly. O acesso ao

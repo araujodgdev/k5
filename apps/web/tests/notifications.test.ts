@@ -17,19 +17,17 @@ import {
 import type { PushSender } from '../src/lib/notifications/push-contract';
 import type { Database } from '../src/lib/database';
 
-async function notificationFixture(role: WorkspaceContext['role'] = 'lawyer') {
+async function notificationFixture() {
   const officeId = randomUUID();
   const actorId = randomUUID();
-  const recipientId = randomUUID();
+  const recipientId = actorId;
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(actorId, `${actorId}@test.local`, 'Autora'));
-  (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(recipientId, `${recipientId}@test.local`, 'Responsável'));
   (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório de notificações'));
-  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, actorId, role));
-  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, recipientId, role));
+  (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, actorId));
   return {
     officeId, actorId, recipientId,
-    actor: { officeId, userId: actorId, role } satisfies WorkspaceContext,
-    recipient: { officeId, userId: recipientId, role } satisfies WorkspaceContext,
+    actor: { officeId, userId: actorId } satisfies WorkspaceContext,
+    recipient: { officeId, userId: recipientId } satisfies WorkspaceContext,
   };
 }
 
@@ -76,24 +74,17 @@ test('notifications: reconciliation advances beyond its limit and revisits timez
   (await testDb.prepare("UPDATE notification_reminder SET state='cancelled' WHERE office_id=?").run(value.officeId));
 });
 
-test('notifications: an accepted agenda mutation emits once and projects only to the intended person', async () => {
-  const value = (await notificationFixture());
+test('notifications: assigning the lawyer own task is idempotent and creates no self-notification', async () => {
+  const value = await notificationFixture();
   const key = randomUUID();
-  const first = await createActivity(value.actor, { kind: 'task', title: 'Revisar contrato', assigneeId: value.recipientId, idempotencyKey: key });
-  const replay = await createActivity(value.actor, { kind: 'task', title: 'Revisar contrato', assigneeId: value.recipientId, idempotencyKey: key });
+  const input = { kind: 'task' as const, title: 'Revisar contrato', assigneeId: value.recipientId, idempotencyKey: key };
+  const first = await createActivity(value.actor, input);
+  const replay = await createActivity(value.actor, input);
   assert.equal(replay.activity.id, first.activity.id);
-  assert.equal((await testDb.prepare('SELECT count(*) AS total FROM notification_event WHERE office_id=?').get(value.officeId))!.total, 1);
-
-  assert.equal(await projectNextNotification(testDatabase, '2026-09-21T15:00:00.000Z'), true);
-  const recipient = await listNotifications(value.recipient, { unreadOnly: false, limit: 25 }, testDatabase);
-  const actor = await listNotifications(value.actor, { unreadOnly: false, limit: 25 }, testDatabase);
-  assert.equal(recipient.notifications.length, 1);
-  assert.equal(recipient.notifications[0].eventType, 'agenda.activity.assigned');
-  assert.equal(actor.notifications.length, 0);
-
-  const cutoff = recipient.notifications[0];
-  assert.equal(await markAllNotificationsRead(value.recipient, { createdAt: cutoff.createdAt, id: cutoff.id }, testDatabase), 1);
-  assert.equal(await unreadCount(value.recipient, testDatabase), 0);
+  assert.equal((await testDb.prepare('SELECT count(*) AS total FROM notification_event WHERE office_id=?').get(value.officeId))!.total, 0);
+  assert.deepEqual((await listNotifications(value.actor, { unreadOnly: false, limit: 25 }, testDatabase)).notifications, []);
+  const outsider = await notificationFixture();
+  await assert.rejects(createActivity(value.actor, { ...input, idempotencyKey: randomUUID(), assigneeId: outsider.actorId }), { code: 'NOT_FOUND' });
 });
 
 test('notifications: civil-date reminders use the saved timezone and recover without duplicating', async () => {
@@ -115,7 +106,7 @@ test('notifications: civil-date reminders use the saved timezone and recover wit
 });
 
 test('notifications: subscriptions are encrypted, delivery is generic, and logout generation blocks stale reactivation', async () => {
-  const value = (await notificationFixture('reviewer'));
+  const value = (await notificationFixture());
   process.env.K5_VAPID_KEY_ID = 'test-key';
   process.env.K5_VAPID_PUBLIC_KEY = 'test-public';
   const endpoint = `https://fcm.googleapis.com/fcm/send/${randomUUID()}`;
@@ -167,17 +158,17 @@ test('notifications: read or archived items leave the inbox for the archived lis
   const archived = await listNotifications(value.recipient, { unreadOnly: false, archived: true, limit: 25 }, testDatabase);
   assert.deepEqual(inbox.notifications.map(({ id }) => id), [ids[2]]);
   assert.deepEqual(archived.notifications.map(({ id }) => id).sort(), [ids[0], ids[1]].sort());
-  assert.deepEqual((await listNotifications(value.actor, { unreadOnly: false, archived: true, limit: 25 }, testDatabase)).notifications, []);
+  assert.deepEqual((await listNotifications((await notificationFixture()).actor, { unreadOnly: false, archived: true, limit: 25 }, testDatabase)).notifications, []);
 });
 
 test('notifications: case following is personal and the inbox rollout switch hides projected rows', async () => {
-  const value = (await notificationFixture('reviewer'));
+  const value = (await notificationFixture());
   const caseId = randomUUID();
   (await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)')
     .run(caseId, value.officeId, 'Caso acompanhado', value.actorId));
   assert.equal(await getCaseFollowState(value.recipient, caseId, testDatabase), false);
   assert.deepEqual(await setCaseFollowState(value.recipient, caseId, true, testDatabase), { following: true });
-  assert.equal(await getCaseFollowState(value.actor, caseId, testDatabase), false);
+  assert.equal(await getCaseFollowState(value.actor, caseId, testDatabase), true);
 
   const now = '2026-09-21T16:00:00.000Z';
   await testDatabase.batch([eventInsertStatement(testDatabase, {
@@ -248,5 +239,5 @@ test('notifications: mark-all cancels only eligible deliveries in a two-statemen
   assert.equal(statementCount, 2);
   const states = (await testDb.prepare('SELECT state FROM notification_delivery WHERE office_id=? ORDER BY event_id').all(value.officeId)).map((row) => row.state);
   assert.deepEqual(states, ['cancelled', 'pending', 'pending', 'cancelled', 'pending']);
-  assert.equal((await testDb.prepare('SELECT count(*) AS total FROM notification_recipient WHERE office_id=? AND user_id=? AND read_at IS NULL').get(value.officeId, value.actorId))!.total, 5);
+  assert.equal((await testDb.prepare('SELECT count(*) AS total FROM notification_recipient WHERE office_id=? AND user_id=? AND read_at IS NULL').get(value.officeId, value.actorId))!.total, 2);
 });

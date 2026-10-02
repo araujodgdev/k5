@@ -103,13 +103,13 @@ export async function readThread(context: WorkspaceContext, input: { threadId: s
     const syncState = connection.status === 'reconnect_required' || jobs?.status === 'failed' ? 'error'
       : jobs && ['queued', 'running'].includes(jobs.status) ? 'pending' : 'idle';
     await tx.prepare(`UPDATE whatsapp_thread SET unread_count=0 WHERE id=? AND office_id=?`).run(thread.id, context.officeId);
-    const member = await tx.prepare(`SELECT role FROM office_member WHERE office_id=? AND user_id=?`)
-      .get<{ role: string }>(context.officeId, context.userId);
+    const member = await tx.prepare(`SELECT 1 FROM office_member WHERE office_id=? AND user_id=?`)
+      .get(context.officeId, context.userId);
     const nextCursor = last && (!exhausted || !thread.history_complete)
       ? encodeCursor(scope, last.created_at, last.id) : !thread.history_complete && cursor ? values.cursor ?? null : null;
     return { thread: threadView({ ...thread, unread_count: 0 }, replyWindow(thread.last_customer_message_at)),
       items: views.reverse(), nextCursor,
-      canSend: connection.status === 'connected' && (member?.role === 'administrator' || member?.role === 'lawyer')
+      canSend: connection.status === 'connected' && Boolean(member)
         && isReplyWindowOpen(thread.last_customer_message_at), syncState };
   });
   if (result.syncState === 'pending') await wakeWhatsAppWorker();

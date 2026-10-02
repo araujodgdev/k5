@@ -30,13 +30,13 @@ type Job = {
   mode: string; checked: number; total: number; model: string | null; question_version: string; lease_token: string; attempts: number;
 };
 type Evidence = { id: string; documentId: string; sourceLabel: string; content: string; sha256: string; context: string };
-async function evidenceFor(officeId: string, units: VerificationUnit[]) {
+async function evidenceFor(owner: Owner, units: VerificationUnit[]) {
   const ids = [...new Set(units.flatMap(unit => unit.evidence.map(e => e.sourceId)))];
   if (!ids.length) return [];
   return database.prepare(`SELECT c.id,c.document_id AS documentId,d.original_name || ' — ' || c.stable_reference AS sourceLabel,c.content,d.sha256,
     coalesce((SELECT string_agg(n.content,chr(10) ORDER BY n.ordinal) FROM vault_document_chunk n WHERE n.office_id=c.office_id AND n.document_id=c.document_id AND n.ordinal BETWEEN c.ordinal-1 AND c.ordinal+1),'') AS context
     FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
-    WHERE c.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND c.id IN (${ids.map(() => '?').join(',')}) ORDER BY c.id`).all<Evidence>(officeId, ...ids);
+    WHERE c.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND vault_folder_visible(d.folder_id, ?) AND c.id IN (${ids.map(() => '?').join(',')}) ORDER BY c.id`).all<Evidence>(owner.officeId, owner.userId, ...ids);
 }
 const snapshot = (evidence: Evidence[]) => fingerprint(evidence.map(e => [e.id, e.documentId, e.sha256, e.content, e.context]));
 async function artifactFor(owner: Owner, id: string) {
@@ -48,7 +48,7 @@ export async function enqueueVerification(owner: Owner, artifact: ArtifactRow, u
   const config = await getConnection();
   if (!config?.enabled || config.documents_mode === 'off') return null;
   units = units.map(unit => verificationUnit.parse(unit));
-  const evidence = await evidenceFor(owner.officeId, units);
+  const evidence = await evidenceFor(owner, units);
   const hash = fingerprint([artifact.title, artifact.content]);
   const id = randomUUID();
   // The partial unique index keeps one active job per version: a concurrent enqueue waits and joins it.
@@ -77,7 +77,7 @@ export async function requestVerification(context: WorkspaceContext, input: { ar
 async function isCurrent(job: Job, units: VerificationUnit[]) {
   const artifact = await ownedArtifact(database, { officeId: job.office_id, userId: job.user_id }, job.artifact_id);
   return Boolean(artifact && artifact.version === job.artifact_version && fingerprint([artifact.title, artifact.content]) === job.content_hash
-    && snapshot(await evidenceFor(job.office_id, units)) === job.source_fingerprint);
+    && snapshot(await evidenceFor({ officeId: job.office_id, userId: job.user_id }, units)) === job.source_fingerprint);
 }
 export async function getVerification(context: WorkspaceContext, input: { artifactId: string }): Promise<{ verification: VerificationReport | null }> {
   await artifactFor(context, input.artifactId);
@@ -85,8 +85,10 @@ export async function getVerification(context: WorkspaceContext, input: { artifa
     .get<Job>(context.officeId, context.userId, input.artifactId);
   if (!job) return { verification: null };
   const current = await isCurrent(job, verificationUnit.array().parse(JSON.parse(job.units)));
+  const sources = new Set((await evidenceFor(context, verificationUnit.array().parse(JSON.parse(job.units)))).map(source => source.documentId));
   return { verification: { id: job.id, artifactVersion: job.artifact_version, status: current ? job.status : 'stale', mode: job.mode,
-    checked: job.checked, total: job.total, model: job.model, items: job.mode === 'shadow' ? [] : verificationItem.array().parse(JSON.parse(job.results)) } };
+    checked: job.checked, total: job.total, model: job.model, items: job.mode === 'shadow' ? [] : verificationItem.array().parse(JSON.parse(job.results))
+      .filter(item => item.sources.every(source => sources.has(source.documentId))) } };
 }
 export async function processNextVerification(options: { send?: DecisionTransport } = {}): Promise<boolean> {
   const now = Date.now(); const token = randomUUID();
@@ -98,7 +100,7 @@ export async function processNextVerification(options: { send?: DecisionTranspor
   const results = verificationItem.array().parse(JSON.parse(job.results));
   const owner = { officeId: job.office_id, userId: job.user_id };
   const allowed = async () => {
-    const member = await database.prepare("SELECT 1 FROM office_member WHERE office_id=? AND user_id=? AND role IN ('administrator','lawyer')").get(owner.officeId, owner.userId);
+    const member = await database.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(owner.officeId, owner.userId);
     const lease = await database.prepare("SELECT 1 FROM artifact_verification WHERE id=? AND lease_token=? AND status='running' AND lease_until>?").get(job.id, token, Date.now());
     return Boolean(member && lease && await isCurrent(job, units));
   };
@@ -128,7 +130,7 @@ export async function processNextVerification(options: { send?: DecisionTranspor
     if (!config?.enabled || config.documents_mode === 'off') { await finish('disabled'); return true; }
     if (config.model !== job.model || config.documents_mode !== job.mode || job.question_version !== supportVersion) { await finish('stale'); return true; }
     const batch = units.slice(results.length, results.length + 4);
-    const evidence = await evidenceFor(owner.officeId, batch);
+    const evidence = await evidenceFor(owner, batch);
     const valid = batch.filter(unit => unit.evidence.length && unit.evidence.every(e => evidence.some(source => source.id === e.sourceId && quoteIsPresent(e.quote, source.content))));
     const state = { units: valid.map(unit => ({ text: unit.text, evidence: unit.evidence.map(e => {
       const source = evidence.find(source => source.id === e.sourceId)!;

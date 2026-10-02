@@ -2,19 +2,17 @@ import { testDb } from './test-setup';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
-import { addKnowledge, knowledgePrompt, listKnowledge, removeKnowledge, updateKnowledge } from '../src/lib/agent-knowledge';
+import { addKnowledge, knowledgeCandidates, knowledgePrompt, listKnowledge, removeKnowledge, updateKnowledge } from '../src/lib/agent-knowledge';
+import { createVaultFolder, updateVaultFolderAccess } from '../src/lib/vault';
 import type { WorkspaceContext } from '../src/lib/application/context';
 
 async function office() {
   const officeId = randomUUID();
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
-  const member = async (role: WorkspaceContext['role']): Promise<WorkspaceContext> => {
-    const userId = randomUUID();
-    await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, role);
-    await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, role);
-    return { officeId, userId, role };
-  };
-  const admin = await member('administrator');
+  const userId = randomUUID();
+  await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, 'Advogada');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
+  const admin: WorkspaceContext = { officeId, userId };
   /** A Cofre document with its extracted text split in chunks, as ingestion leaves it. */
   const document = async (name: string, chunks: string[], status = 'ready') => {
     const id = randomUUID();
@@ -27,12 +25,12 @@ async function office() {
     }
     return id;
   };
-  return { officeId, admin, member, document };
+  return { officeId, admin, document };
 }
 
 test('agent knowledge: always-read text reaches the prompt as data; search documents are only named', async () => {
-  const { admin, member, document } = await office();
-  const lawyer = await member('lawyer');
+  const { admin, document } = await office();
+  const lawyer = admin;
   const manual = await document('manual-de-estilo.txt', ['Use caixa alta nos pedidos.', 'Datas por extenso.']);
   const tables = await document('tabela-honorarios.pdf', ['Consulta: R$ 500.']);
   const pending = await document('em-processamento.pdf', ['ainda não'], 'processing');
@@ -75,16 +73,14 @@ test('agent knowledge: quoted text cannot close its block, and a shared document
   assert.match(prompt, /Rodapé\[conhecimento>/);
 });
 
-test('agent knowledge: scopes, roles and offices are enforced', async () => {
+test('agent knowledge: scopes and offices are enforced', async () => {
   const a = await office();
   const b = await office();
-  const lawyer = await a.member('lawyer');
-  const reviewer = await a.member('reviewer');
-  const colleague = await a.member('lawyer');
+  const reviewer = a.admin;
+  const colleague = b.admin;
   const own = await a.document('meu.txt', ['texto pessoal']);
   const foreign = await b.document('outro.txt', ['de outro escritório']);
 
-  await assert.rejects(addKnowledge(lawyer, 'office', own, 'always'), { code: 'FORBIDDEN' });
   await assert.rejects(addKnowledge(a.admin, 'office', foreign, 'always'), { code: 'NOT_FOUND' });
   const personal = await addKnowledge(reviewer, 'personal', own, 'always');
   await assert.rejects(addKnowledge(reviewer, 'personal', own, 'search'), { code: 'CONFLICT' });
@@ -92,7 +88,7 @@ test('agent knowledge: scopes, roles and offices are enforced', async () => {
   assert.match(await knowledgePrompt(reviewer), /texto pessoal/);
   assert.equal(await knowledgePrompt(colleague), '');
   assert.deepEqual(await listKnowledge(colleague), { office: [], personal: [] });
-  // A colleague naming the id changes nothing.
+  // Another lawyer naming the id changes nothing.
   await assert.rejects(updateKnowledge(colleague, 'personal', personal.id, personal.version, 'search'), { code: 'NOT_FOUND' });
   await assert.rejects(removeKnowledge(colleague, 'personal', personal.id), { code: 'NOT_FOUND' });
 
@@ -104,4 +100,39 @@ test('agent knowledge: scopes, roles and offices are enforced', async () => {
   await testDb.prepare('UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP WHERE id=?').run(own);
   assert.equal(await knowledgePrompt(reviewer), '');
   assert.deepEqual((await listKnowledge(reviewer)).personal, []);
+});
+
+test('agent knowledge: associate folder access applies to candidates, settings and prompts after revocation', async () => {
+  const owner = await office();
+  const associate = await office();
+  const caseId = randomUUID();
+  await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)')
+    .run(caseId, owner.officeId, 'Caso compartilhado', owner.admin.userId);
+  await testDb.prepare('INSERT INTO case_participant(office_id,case_id,user_id,invited_by) VALUES(?,?,?,?)')
+    .run(owner.officeId, caseId, associate.admin.userId, owner.admin.userId);
+  const parent = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Reservado', null, { visibility: 'private' });
+  const child = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Pública', parent.id);
+  const documentId = await owner.document('segredo-do-associado.txt', ['conteúdo confidencial do associado']);
+  await testDb.prepare("UPDATE vault_document SET scope='case',case_id=?,folder_id=?,created_by=? WHERE id=?")
+    .run(caseId, child.id, associate.admin.userId, documentId);
+
+  assert.deepEqual(await knowledgeCandidates(owner.admin), []);
+  for (const scope of ['office', 'personal'] as const)
+    await assert.rejects(addKnowledge(owner.admin, scope, documentId, 'always'), { code: 'NOT_FOUND' });
+  assert.deepEqual((await knowledgeCandidates({ officeId: owner.officeId, userId: associate.admin.userId })).map(item => item.id), [documentId]);
+
+  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'restricted', memberIds: [owner.admin.userId] });
+  assert.deepEqual((await knowledgeCandidates(owner.admin)).map(item => item.id), [documentId]);
+  const saved = await addKnowledge(owner.admin, 'office', documentId, 'always');
+  await addKnowledge(owner.admin, 'personal', documentId, 'search');
+  assert.match(await knowledgePrompt(owner.admin), /conteúdo confidencial do associado/);
+
+  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'private' });
+  assert.deepEqual(await listKnowledge(owner.admin), { office: [], personal: [] });
+  assert.deepEqual(await knowledgeCandidates(owner.admin), []);
+  assert.equal(await knowledgePrompt(owner.admin), '');
+  await assert.rejects(updateKnowledge(owner.admin, 'office', saved.id, saved.version, 'always'), { code: 'NOT_FOUND' });
+
+  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'public' });
+  assert.match(await knowledgePrompt(owner.admin), /conteúdo confidencial do associado/);
 });

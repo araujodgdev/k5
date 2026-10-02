@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronRight, CircleAlert, ExternalLink, LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { requestCapability } from '@/lib/capabilities/http-client';
-import type { OfficeRole } from '@/lib/offices';
 import type { JudgmentDetail, ResearchMaterial, ResearchMaterialStatus } from '@/lib/research/contracts';
 import { researchSourceMessage } from '@/lib/research/messages';
 import { ResearchCaseLinker } from './research-case-linker';
@@ -33,11 +32,11 @@ function officialUrl(value: string | null) {
   catch { return null; }
 }
 
-export function ResearchReader({ judgmentId, searchId, role }: { judgmentId: string; searchId: string | null; role: OfficeRole }) {
-  return <ResearchReaderContent key={judgmentId} judgmentId={judgmentId} searchId={searchId} role={role} />;
+export function ResearchReader({ judgmentId, searchId }: { judgmentId: string; searchId: string | null }) {
+  return <ResearchReaderContent key={judgmentId} judgmentId={judgmentId} searchId={searchId} />;
 }
 
-function ResearchReaderContent({ judgmentId, searchId, role }: { judgmentId: string; searchId: string | null; role: OfficeRole }) {
+function ResearchReaderContent({ judgmentId, searchId }: { judgmentId: string; searchId: string | null }) {
   const [judgment, setJudgment] = useState<JudgmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -106,25 +105,25 @@ function ResearchReaderContent({ judgmentId, searchId, role }: { judgmentId: str
     {!loading && judgment && <>
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4 border-b pb-5">
         <div className="min-w-0"><h1 className="page-title leading-tight">{judgment.title || 'Julgado'}</h1><p className="mt-2 text-sm text-muted-foreground">{judgment.tribunal}{judgment.courtUnit ? ` · ${judgment.courtUnit}` : ''} · {dateLabel(judgment.decisionDate)}</p>{judgment.caseNumber && <p className="mt-1 text-[13px] text-muted-foreground">Processo {judgment.caseNumber}</p>}</div>
-        <div className="flex flex-wrap gap-2"><Button type="button" variant="ghost" onClick={() => void load()} className="min-h-11 md:min-h-9">Atualizar estado</Button>{source && <Button asChild variant="outline" className="min-h-11 md:min-h-9"><a href={source} target="_blank" rel="noopener noreferrer">Abrir fonte oficial <ExternalLink className="size-4" aria-hidden="true" /></a></Button>}{role !== 'reviewer' && (judgment.ementaVersionId || judgment.fullTextVersionId) && <ResearchCaseLinker judgment={judgment} />}</div>
+        <div className="flex flex-wrap gap-2"><Button type="button" variant="ghost" onClick={() => void load()} className="min-h-11 md:min-h-9">Atualizar estado</Button>{source && <Button asChild variant="outline" className="min-h-11 md:min-h-9"><a href={source} target="_blank" rel="noopener noreferrer">Abrir fonte oficial <ExternalLink className="size-4" aria-hidden="true" /></a></Button>}{(judgment.ementaVersionId || judgment.fullTextVersionId) && <ResearchCaseLinker judgment={judgment} />}</div>
       </div>
       <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <MaterialSection kind="ementa" material={ementa} fallback={judgment.ementa} canWrite={role !== 'reviewer' && judgment.sourceStatus === 'active'} busy={busy} onRequest={() => void requestMaterial('ementa')} />
-        <MaterialSection kind="full_text" material={full} fallback={null} canWrite={role !== 'reviewer' && judgment.sourceStatus === 'active'} busy={busy} onRequest={() => void requestMaterial('full_text')} />
+        <MaterialSection kind="ementa" material={ementa} fallback={judgment.ementa} busy={busy} onRequest={() => void requestMaterial('ementa')} />
+        <MaterialSection kind="full_text" material={full} fallback={null} busy={busy} onRequest={() => void requestMaterial('full_text')} />
       </div>
       <div className="border-t py-4 text-[13px] text-muted-foreground"><p>Origem: {judgment.tribunal}. Consultado em {dateLabel(judgment.collectedAt)}.</p>{judgment.sourceStatus === 'restricted' && <p className="mt-1">A fonte restringiu o acesso ao conteúdo.</p>}{judgment.sourceStatus === 'unavailable' && <p className="mt-1">A fonte está indisponível neste momento.</p>}</div>
     </>}
   </div>;
 }
 
-function MaterialSection({ kind, material, fallback, canWrite, busy, onRequest }: {
+function MaterialSection({ kind, material, fallback, busy, onRequest }: {
   kind: 'ementa' | 'full_text'; material: (ResearchMaterial & JudgmentDetail['materials'][number]) | undefined;
-  fallback: string | null; canWrite: boolean; busy: boolean; onRequest: () => void;
+  fallback: string | null; busy: boolean; onRequest: () => void;
 }) {
   const name = kind === 'ementa' ? 'Ementa' : 'Inteiro teor';
   const text = material?.version?.textContent || material?.chunks.map(chunk => chunk.textContent).join('\n\n') || fallback;
   const status = material?.status ?? (fallback ? 'ready' : 'unavailable');
-  const retry = canWrite && !text && ['pending', 'failed'].includes(status);
+  const retry = !text && ['pending', 'failed'].includes(status);
   return <section aria-label={name} className="min-w-0"><div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3"><h2 className="text-base font-medium">{name}</h2><span className="text-[13px] text-muted-foreground">{statusText(status, kind)}</span></div>
     {text ? <div className="whitespace-pre-wrap break-words py-5 text-sm leading-7">{text}</div> : <p className="py-5 text-sm text-subtle-foreground">{statusText(status, kind)}.</p>}
     {material?.unavailableReason && !text && <p className="text-[13px] text-muted-foreground">{researchSourceMessage(material.unavailableReason)}</p>}

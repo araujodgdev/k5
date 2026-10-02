@@ -28,7 +28,7 @@ async function fixture() {
   }
   const attorney = await signup(`${randomUUID()}@office.test`);
   const office = await findOfficeForUser(testDb, attorney.user.id); assert.ok(office);
-  const context: WorkspaceContext = { ...attorney.context, officeId: office.officeId, role: office.role };
+  const context: WorkspaceContext = { ...attorney.context, officeId: office.officeId };
   const clientId = randomUUID(), email = `${randomUUID()}@client.test`;
   await testDb.prepare("INSERT INTO crm_client(id,office_id,name,email,stage,created_at,updated_at) VALUES(?,?,?,?, 'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)").run(clientId, context.officeId, 'Cliente Maria', email);
   const invited = await portal.invitePortal(context, { clientId, email, version: 0 });

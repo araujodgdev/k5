@@ -2,9 +2,9 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import {
-  countVaultDocuments, createVaultDocument, createVaultCase, createVaultFolder, deleteVaultFolder, findVaultCase,
+  assertVaultDocumentMove, countVaultDocuments, createVaultDocument, createVaultCase, createVaultFolder, deleteVaultFolder, findVaultCase,
   findVaultDocument, findVaultDocumentIncludingDeleted, findVaultFolder, listVaultCases, listVaultDocuments,
-  listVaultFolders, retryVaultDocument, updateVaultCase, vaultFolderPath, VaultHttpError,
+  listVaultFolders, retryVaultDocument, updateVaultCase, updateVaultFolderAccess, vaultFolderPath, VaultHttpError,
 } from '@/lib/vault';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
@@ -24,24 +24,24 @@ export function asCapabilityError(error: unknown): unknown {
   return new CapabilityError('INVALID', error.message);
 }
 
-/** `findVaultDocument` already excludes tombstones, so one lookup settles both office and liveness. */
+/** `findVaultDocument` already excludes tombstones and hidden folders, so one lookup settles office, liveness and access. */
 async function requireDocument(context: WorkspaceContext, documentId: string) {
-  const document = await findVaultDocument(context.officeId, documentId);
+  const document = await findVaultDocument(context.officeId, documentId, context.userId);
   if (!document || (context.caseScope && document.caseId !== context.caseScope.caseId)) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado no Cofre deste escritório.');
   return document;
 }
 
 export async function listCases(context: WorkspaceContext): Promise<CapabilityOutput<'k5_vault_list_cases'>> {
-  const cases = await listVaultCases(context.officeId);
+  const cases = await listVaultCases(context.officeId, context.userId);
   const shared = await database.prepare(`SELECT c.id,c.office_id FROM case_participant p JOIN vault_case c ON c.id=p.case_id AND c.office_id=p.office_id
     WHERE p.user_id=? AND p.revoked_at IS NULL AND c.deleted_at IS NULL AND c.office_id<>? ORDER BY c.updated_at DESC`).all<{ id: string; office_id: string }>(context.userId, context.officeId);
-  for (const item of shared) { const record = await findVaultCase(item.office_id, item.id); if (record) cases.push(record); }
+  for (const item of shared) { const record = await findVaultCase(item.office_id, item.id, context.userId); if (record) cases.push(record); }
   return { cases };
 }
 
 export async function createCase(context: WorkspaceContext, input: CapabilityInput<'k5_vault_create_case'>): Promise<CapabilityOutput<'k5_vault_create_case'>> {
   // Idempotent by natural key: a retried tool call must not leave two identical cases behind.
-  const existing = (await listVaultCases(context.officeId)).find((item) => item.name.toLowerCase() === input.name.toLowerCase());
+  const existing = (await listVaultCases(context.officeId, context.userId)).find((item) => item.name.toLowerCase() === input.name.toLowerCase());
   if (existing) return { case: existing, created: false };
   try {
     return { case: await createVaultCase(context.officeId, context.userId, input.name, { description: input.description, client: input.client }), created: true };
@@ -49,35 +49,42 @@ export async function createCase(context: WorkspaceContext, input: CapabilityInp
 }
 
 export async function updateCase(context: WorkspaceContext, input: CapabilityInput<'k5_vault_update_case'>): Promise<CapabilityOutput<'k5_vault_update_case'>> {
-  if (!await findVaultCase(context.officeId, input.caseId)) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
+  if (!await findVaultCase(context.officeId, input.caseId, context.userId)) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
   try {
-    return { case: await updateVaultCase(context.officeId, input.caseId, { name: input.name, description: input.description, client: input.client }) };
+    return { case: await updateVaultCase(context.officeId, input.caseId, context.userId, { name: input.name, description: input.description, client: input.client }) };
   } catch (error) { throw asCapabilityError(error); }
 }
 
 export async function listFolders(context: WorkspaceContext, input: CapabilityInput<'k5_vault_list_folders'>): Promise<CapabilityOutput<'k5_vault_list_folders'>> {
-  if (!await findVaultCase(context.officeId, input.caseId)) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
+  if (!await findVaultCase(context.officeId, input.caseId, context.userId)) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
   const parentId = input.parentId ?? null;
   if (parentId) {
-    const parent = await findVaultFolder(context.officeId, parentId);
+    const parent = await findVaultFolder(context.officeId, parentId, context.userId);
     if (!parent || parent.caseId !== input.caseId) throw new CapabilityError('NOT_FOUND', 'Pasta não encontrada.');
   }
   return {
-    folders: await listVaultFolders(context.officeId, input.caseId, parentId),
-    path: parentId ? await vaultFolderPath(context.officeId, parentId) : [],
+    folders: await listVaultFolders(context.officeId, context.userId, input.caseId, parentId),
+    path: parentId ? await vaultFolderPath(context.officeId, parentId, context.userId) : [],
   };
 }
 
 export async function createFolder(context: WorkspaceContext, input: CapabilityInput<'k5_vault_create_folder'>): Promise<CapabilityOutput<'k5_vault_create_folder'>> {
   try {
-    return { folder: await createVaultFolder(context.officeId, context.userId, input.caseId, input.name, input.parentId ?? null) };
+    return { folder: await createVaultFolder(context.officeId, context.userId, input.caseId, input.name, input.parentId ?? null,
+      { visibility: input.visibility ?? 'public', memberIds: input.memberIds }) };
+  } catch (error) { throw asCapabilityError(error); }
+}
+
+export async function updateFolderAccess(context: WorkspaceContext, input: CapabilityInput<'k5_vault_update_folder_access'>): Promise<CapabilityOutput<'k5_vault_update_folder_access'>> {
+  try {
+    return { folder: await updateVaultFolderAccess(context.officeId, input.folderId, context.userId, { visibility: input.visibility, memberIds: input.memberIds }) };
   } catch (error) { throw asCapabilityError(error); }
 }
 
 export async function deleteFolder(context: WorkspaceContext, input: CapabilityInput<'k5_vault_delete_folder'>): Promise<CapabilityOutput<'k5_vault_delete_folder'>> {
-  if (!await findVaultFolder(context.officeId, input.folderId)) throw new CapabilityError('NOT_FOUND', 'Pasta não encontrada.');
+  if (!await findVaultFolder(context.officeId, input.folderId, context.userId)) throw new CapabilityError('NOT_FOUND', 'Pasta não encontrada.');
   await requireAgentApproval(context, 'k5_vault_delete_folder', input.approvalId, { folderId: input.folderId }, input.folderId, 'Remover uma pasta pede confirmação.');
-  try { await deleteVaultFolder(context.officeId, input.folderId); }
+  try { await deleteVaultFolder(context.officeId, input.folderId, context.userId); }
   catch (error) { throw asCapabilityError(error); }
   return { success: true };
 }
@@ -99,9 +106,12 @@ export async function deleteCase(context: WorkspaceContext, input: CapabilityInp
   );
 
   if (input.targetCaseId) {
+    if (input.targetCaseId === input.caseId) throw new CapabilityError('INVALID', 'Escolha outro caso como destino.');
     const target = await database.prepare('SELECT id FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL')
       .get(input.targetCaseId, context.officeId);
     if (!target) throw new CapabilityError('NOT_FOUND', 'Caso de destino não encontrado.');
+    if (await database.prepare("SELECT 1 FROM vault_folder WHERE case_id=? AND office_id=? AND deleted_at IS NULL AND visibility<>'public'").get(input.caseId, context.officeId))
+      throw new CapabilityError('CONFLICT', 'Este caso contém pastas com acesso reservado. Preserve ou remova essas pastas antes de mover o conteúdo para outro caso.');
   }
 
   // Deleting a case deletes what is filed in it. `targetCaseId` is the way to keep the documents:
@@ -156,8 +166,8 @@ export async function listDocuments(context: WorkspaceContext, input: Capability
   const filters = { scope: input.scope ?? null, caseId: input.caseId ?? null, ...(input.folderId === undefined ? {} : { folderId: input.folderId }) };
   // Tombstones are excluded in SQL and the page is taken in SQL: no per-row liveness query, and
   // no loading the whole office to slice twenty rows off the front of it.
-  const documents = await listVaultDocuments(context.officeId, { ...filters, limit: input.limit ?? 20, offset: input.offset ?? 0 });
-  return { documents, total: await countVaultDocuments(context.officeId, filters) };
+  const documents = await listVaultDocuments(context.officeId, context.userId, { ...filters, limit: input.limit ?? 20, offset: input.offset ?? 0 });
+  return { documents, total: await countVaultDocuments(context.officeId, context.userId, filters) };
 }
 
 export async function getDocument(context: WorkspaceContext, input: CapabilityInput<'k5_vault_get_document'>): Promise<CapabilityOutput<'k5_vault_get_document'>> {
@@ -172,41 +182,26 @@ export async function getDocument(context: WorkspaceContext, input: CapabilityIn
 }
 
 export async function updateDocument(context: WorkspaceContext, input: CapabilityInput<'k5_vault_update_document'>): Promise<CapabilityOutput<'k5_vault_update_document'>> {
-  await requireDocument(context, input.documentId);
-
-  if (input.name !== undefined) {
-    await database.prepare('UPDATE vault_document SET original_name=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL')
-      .run(input.name, input.documentId, context.officeId);
+  const current = await requireDocument(context, input.documentId);
+  const caseId = input.caseId === undefined ? current.caseId : input.caseId;
+  const folderId = input.folderId === undefined ? (input.caseId === undefined ? current.folderId : null) : input.folderId;
+  if (caseId && !await database.prepare('SELECT 1 FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL').get(caseId, context.officeId))
+    throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
+  if (folderId) {
+    const folder = await findVaultFolder(context.officeId, folderId, context.userId);
+    if (!folder || folder.caseId !== caseId) throw new CapabilityError('NOT_FOUND', 'Pasta não encontrada neste caso.');
   }
-
+  try { await assertVaultDocumentMove(context.officeId, context.userId, current.folderId, folderId); }
+  catch (error) { throw asCapabilityError(error); }
+  const changes: string[] = [];
+  const values: (string | null)[] = [];
+  if (input.name !== undefined) { changes.push('original_name=?'); values.push(input.name); }
   if (input.caseId !== undefined) {
-    if (input.caseId === null) {
-      // Out of every case means out of every folder of that case.
-      await database.prepare("UPDATE vault_document SET case_id=NULL, folder_id=NULL, scope='library', updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL")
-        .run(input.documentId, context.officeId);
-    } else {
-      const caseExists = await database.prepare('SELECT 1 FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL').get(input.caseId, context.officeId);
-      if (!caseExists) throw new CapabilityError('NOT_FOUND', 'Caso não encontrado.');
-      await database.prepare("UPDATE vault_document SET case_id=?, folder_id=NULL, scope='case', updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL")
-        .run(input.caseId, input.documentId, context.officeId);
-    }
+    changes.push('case_id=?', 'scope=?'); values.push(caseId, caseId ? 'case' : 'library');
   }
-
-  if (input.folderId !== undefined) {
-    const current = await requireDocument(context, input.documentId);
-    if (input.folderId === null) {
-      await database.prepare('UPDATE vault_document SET folder_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL')
-        .run(input.documentId, context.officeId);
-    } else {
-      // The folder has to belong to the case this document is in, so a move cannot relocate it
-      // into another case's tree while leaving case_id behind.
-      const folder = await findVaultFolder(context.officeId, input.folderId);
-      if (!folder || folder.caseId !== current.caseId) throw new CapabilityError('NOT_FOUND', 'Pasta não encontrada neste caso.');
-      await database.prepare('UPDATE vault_document SET folder_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL')
-        .run(input.folderId, input.documentId, context.officeId);
-    }
-  }
-
+  if (input.caseId !== undefined || input.folderId !== undefined) { changes.push('folder_id=?'); values.push(folderId); }
+  if (changes.length) await database.prepare(`UPDATE vault_document SET ${changes.join(',')},updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL`)
+    .run(...values, input.documentId, context.officeId);
   return getDocument(context, { documentId: input.documentId });
 }
 
@@ -327,8 +322,8 @@ export async function searchKnowledge(context: WorkspaceContext, input: Capabili
 export async function readyDocumentIds(context: WorkspaceContext, documentIds: string[]) {
   if (!documentIds.length) return [];
   const marks = documentIds.map(() => '?').join(',');
-  return (await database.prepare(`SELECT id FROM vault_document WHERE office_id=? AND status='ready' AND deleted_at IS NULL AND id IN (${marks})`)
-    .all(context.officeId, ...documentIds) as Array<{ id: string }>).map((row) => String(row.id));
+  return (await database.prepare(`SELECT id FROM vault_document WHERE office_id=? AND status='ready' AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?) AND id IN (${marks})`)
+    .all(context.officeId, context.userId, ...documentIds) as Array<{ id: string }>).map((row) => String(row.id));
 }
 
 /** The cleanup worker is the only caller that may look at a tombstoned row. */

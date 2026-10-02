@@ -10,12 +10,16 @@ import { processTrademarkTask } from '../src/lib/research/trademarks/worker';
 import type { WipoBrowser } from '../src/lib/research/trademarks/wipo';
 import { sourcesFromTool } from '../src/lib/citations/sources';
 
-async function actor(officeId: string = randomUUID()): Promise<WorkspaceContext> {
-  const userId = randomUUID();
-  await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?) ON CONFLICT DO NOTHING').run(officeId, 'Escritório');
+async function actor(): Promise<WorkspaceContext> {
+  const officeId = randomUUID(), userId = randomUUID();
+  await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.invalid`, 'Pessoa');
-  await testDb.prepare("INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,'reviewer')").run(randomUUID(), officeId, userId);
-  return { userId, officeId, role: 'reviewer' };
+  await testDb.prepare("INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)").run(randomUUID(), officeId, userId);
+  return { userId, officeId };
+}
+async function associate(a: WorkspaceContext, b: WorkspaceContext) {
+  await testDb.prepare('INSERT INTO office_associate(office_id,user_id,created_by) VALUES(?,?,?),(?,?,?)')
+    .run(a.officeId, b.userId, a.userId, b.officeId, a.userId, a.userId);
 }
 const query = (idempotencyKey = randomUUID()) => trademarkSearchInput.parse({ query: { kind: 'name', name: 'LUME' }, idempotencyKey });
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZLsAAAAASUVORK5CYII=', 'base64');
@@ -80,8 +84,9 @@ test('repetir a chave de uma pesquisa INPI anterior preserva sua fonte; outra pe
   assert.equal((await testDb.prepare('SELECT provider FROM research_trademark_search WHERE id=?').get<{provider:string}>(fresh.search.id))?.provider, 'wipo');
 });
 
-test('histórico, resultados e imagens ficam no autor e no escritório; repetição é idempotente', async () => {
-  const owner = await actor(), colleague = await actor(owner.officeId), outsider = await actor();
+test('histórico, resultados e imagens ficam no autor, inclusive entre associados; repetição é idempotente', async () => {
+  const owner = await actor(), colleague = await actor(), outsider = await actor();
+  await associate(owner, colleague);
   const input = query();
   const [a, b] = await Promise.all([start(owner, input), start(owner, input)]);
   assert.equal(a.search.id, b.search.id);
@@ -102,7 +107,8 @@ test('histórico, resultados e imagens ficam no autor e no escritório; repetiç
 });
 
 test('upload privado valida bytes e a busca envia apenas a imagem do autor', async () => {
-  const owner = await actor(), colleague = await actor(owner.officeId);
+  const owner = await actor(), colleague = await actor();
+  await associate(owner, colleague);
   const { upload } = await saveTrademarkUpload(owner, new File([png], 'marca.png', { type: 'image/png' }));
   await assert.rejects(saveTrademarkUpload(owner, new File(['texto'], 'falso.png', { type: 'image/png' })), { code: 'INVALID' });
   await assert.rejects(readTrademarkUpload(colleague, upload.id), { code: 'NOT_FOUND' });

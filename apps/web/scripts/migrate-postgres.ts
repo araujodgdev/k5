@@ -1,17 +1,29 @@
 import { existsSync } from 'node:fs';
 import { createPostgresPool } from '../src/lib/db/postgres';
-import { checkPostgresMigrations, migratePostgres } from '../src/lib/db/migrate';
+import { checkAssociateMemberships, checkPostgresMigrations, migratePostgres } from '../src/lib/db/migrate';
 
 let connectionVariable = 'DATABASE_URL_UNPOOLED';
 
 async function main() {
   const args = process.argv.slice(2);
-  if (args.some(arg => !['--deploy', '--check'].includes(arg))) throw new Error('Argumento desconhecido. Use --deploy ou --check; não é permitido pular a validação do esquema.');
+  if (args.some(arg => !['--deploy', '--check', '--check-associates'].includes(arg))) throw new Error('Argumento desconhecido. Use --deploy, --check ou --check-associates; não é permitido pular a validação do esquema.');
   const envFile = process.env.K5_ENV_FILE ?? '.env.postgres.local';
   if (existsSync(envFile)) process.loadEnvFile(envFile);
   const adminUrl = process.env.DATABASE_URL_UNPOOLED;
   const runtimeUrl = process.env.PROCESSOR_DATABASE_URL;
   const directory = new URL('../db/postgres/', import.meta.url);
+
+  if (args.includes('--check-associates')) {
+    connectionVariable = runtimeUrl ? 'PROCESSOR_DATABASE_URL' : 'DATABASE_URL_UNPOOLED';
+    const checkUrl = runtimeUrl || adminUrl;
+    if (!checkUrl) throw new Error('Configure PROCESSOR_DATABASE_URL ou DATABASE_URL_UNPOOLED do destino para verificar os vínculos.');
+    const pool = createPostgresPool(checkUrl, { max: 1 });
+    try {
+      await checkAssociateMemberships(pool);
+      console.log('Vínculos compatíveis com um advogado por escritório. Verificação somente de leitura; nenhuma migração aplicada.');
+    } finally { await pool.end(); }
+    return;
+  }
 
   if (args.includes('--deploy') || args.includes('--check')) {
     connectionVariable = runtimeUrl ? 'PROCESSOR_DATABASE_URL' : 'DATABASE_URL_UNPOOLED';

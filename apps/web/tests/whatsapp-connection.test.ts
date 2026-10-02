@@ -50,7 +50,7 @@ test('WhatsApp connection: an administrator connects the office through a single
 test('WhatsApp connection: callback state is bound to its office, person and live session', async () => {
   const fixture = await whatsappFixture({ connected: false });
   const otherOffice = await whatsappIdentity();
-  const colleague = await whatsappIdentity({ officeId: fixture.officeId });
+  const colleague = await whatsappIdentity();
   const anotherSession = await whatsappSession(fixture.userId);
   const provider = new FakeWhatsApp(fixture);
   await provider.run(async () => {
@@ -114,23 +114,23 @@ test('WhatsApp connection: expired or revoked sessions and expired state cannot 
   });
 });
 
-test('WhatsApp connection: reviewers can read and only current administrators can manage the connection', async () => {
-  const reviewer = await whatsappFixture({ role: 'reviewer' });
-  const provider = new FakeWhatsApp(reviewer);
+test('WhatsApp connection: the lawyer manages their connection and outsiders are denied', async () => {
+  const lawyer = await whatsappFixture();
+  const provider = new FakeWhatsApp(lawyer);
   await provider.run(async () => {
-    assert.equal((await whatsappStatus(reviewer.context)).canManage, false);
-    assert.equal((await requireWhatsApp(reviewer.context)).account_id, reviewer.accountId);
-    await assert.rejects(beginWhatsAppConnect({ ...reviewer.context, role: 'administrator' }), { code: 'FORBIDDEN' });
-    await assert.rejects(disconnectWhatsApp(reviewer.context), { code: 'FORBIDDEN' });
+    assert.equal((await whatsappStatus(lawyer.context)).canManage, true);
+    assert.equal((await requireWhatsApp(lawyer.context)).account_id, lawyer.accountId);
+    const outsider = { ...lawyer.context, userId: 'another-lawyer', sessionId: undefined };
+    await assert.rejects(beginWhatsAppConnect(outsider), { code: 'FORBIDDEN' });
+    await assert.rejects(disconnectWhatsApp(outsider), { code: 'FORBIDDEN' });
     assert.equal(provider.calls.length, 0);
-    await testDb.prepare("UPDATE office_member SET role='administrator' WHERE user_id=? AND office_id=?").run(reviewer.userId, reviewer.officeId);
-    assert.deepEqual(await disconnectWhatsApp(reviewer.context), { status: 'disconnecting' });
-    assert.equal((await whatsappStatus(reviewer.context)).connection?.status, 'disconnecting');
+    assert.deepEqual(await disconnectWhatsApp(lawyer.context), { status: 'disconnecting' });
+    assert.equal((await whatsappStatus(lawyer.context)).connection?.status, 'disconnecting');
   });
-  const lawyer = await whatsappFixture({ connected: false, role: 'lawyer' });
-  await new FakeWhatsApp(lawyer).run(async () => {
-    await assert.rejects(beginWhatsAppConnect(lawyer.context), { code: 'FORBIDDEN' });
-    assert.equal((await whatsappStatus(lawyer.context)).connection, null);
+  const fresh = await whatsappFixture({ connected: false });
+  await new FakeWhatsApp(fresh).run(async () => {
+    assert.deepEqual(await beginWhatsAppConnect(fresh.context), { url: 'https://zernio.com/connect/whatsapp-test' });
+    assert.equal((await whatsappStatus(fresh.context)).connection?.status, 'pending');
   });
 });
 

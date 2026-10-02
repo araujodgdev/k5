@@ -3,7 +3,7 @@ import { createTool } from '@mastra/core/tools';
 import {
   capabilities,
   platformCapabilities,
-  publishedCapabilitiesForRole,
+  publishedCapabilities,
   type Capability,
   type CapabilityName,
 } from '@/lib/capabilities/contracts';
@@ -66,7 +66,6 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_messages_send: workspace.sendMessage,
   k5_messages_mark_read: workspace.markMessagesRead,
   k5_messages_document_options: workspace.documentOptions,
-  k5_messages_case_options: workspace.caseOptions,
   k5_messages_share: workspace.shareMessage,
   k5_messages_revoke_share: workspace.revokeMessageShare,
   k5_notifications_list: workspace.listNotifications,
@@ -129,6 +128,7 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_vault_delete_case: vault.deleteCase,
   k5_vault_list_folders: vault.listFolders,
   k5_vault_create_folder: vault.createFolder,
+  k5_vault_update_folder_access: vault.updateFolderAccess,
   k5_vault_plan_annexes: annexes.planAnnexes,
   k5_vault_generate_annexes: annexes.createAnnexFiles,
   k5_vault_delete_folder: vault.deleteFolder,
@@ -223,7 +223,7 @@ const executors: { [N in CapabilityName]: Executor } = {
 export type ToolEvent = { name: CapabilityName; state: 'completed' | 'failed'; summary: string };
 
 import { withIdempotency } from '@/lib/application/idempotency-service';
-import { scopeCapability, sharedCaseCapabilities } from '@/lib/collaboration/capability-access';
+import { scopeCapability } from '@/lib/collaboration/capability-access';
 
 /**
  * Single execution path for a capability, whatever called it. The Mastra tool and the HTTP route
@@ -240,21 +240,13 @@ export async function runCapability<N extends CapabilityName>(
       !capability.publish?.includes(context.invocation)) {
     throw new CapabilityError('FORBIDDEN', 'Esta ação da Pesquisa precisa ser feita na interface.');
   }
-  let officeDenial: CapabilityError | undefined;
-  // A viewer in their active office may be an editor of a case shared by another office.
-  // Session failures never fall through; only a case grant can replace the office role gate.
-  try { await assertCapabilityAllowed(context, name); }
-  catch (error) {
-    if (!(error instanceof CapabilityError) || error.code !== 'FORBIDDEN' || !sharedCaseCapabilities.has(name) || context.caseScope) throw error;
-    officeDenial = error;
-  }
+  await assertCapabilityAllowed(context, name);
   const parsed = capability.input.safeParse(rawInput);
-  if (!parsed.success) throw officeDenial ?? parsed.error;
+  if (!parsed.success) throw parsed.error;
   const input = parsed.data as Record<string, unknown>;
   if (name === 'k5_knowledge_search' && !input.caseId && context.allowedResearchCaseId) input.caseId = context.allowedResearchCaseId;
-  let scoped: WorkspaceContext;
-  try { scoped = await scopeCapability(context, name, input); }
-  catch (error) { throw officeDenial ?? error; }
+  // A case shared by another lawyer moves the data office to the case owner's, bounded to that case.
+  const scoped = await scopeCapability(context, name, input);
   const authorized = await assertCapabilityAllowed(scoped, name);
 
   const execute = async () => {
@@ -276,7 +268,7 @@ export async function runCapability<N extends CapabilityName>(
 }
 
 /**
- * Builds the tools for one authenticated request. The office, the user and the role come from the
+ * Builds the tools for one authenticated request. The office and the user come from the
  * session and are re-checked inside every call, so a revoked membership stops the next step.
  * Capabilities marked unpublished are absent from the catalog entirely.
  */
@@ -284,7 +276,7 @@ export type ApprovalRequest = { toolCallId?: string; capability: CapabilityName;
 
 export function agentTools(context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void, options: { whatsappEnabled?: boolean } = {}) {
   const reads = new ToolReadGuard();
-  return Object.fromEntries(publishedCapabilitiesForRole(context.role, 'agent')
+  return Object.fromEntries(publishedCapabilities('agent')
     .filter(name => capabilities[name].module !== 'whatsapp' || options.whatsappEnabled)
     .map((name) => [name, toolFor(name, context, reads, onApproval)]));
 }
@@ -377,7 +369,7 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_help_search: 'Consultou o manual do Lume',
     k5_agent_settings_get: 'Consultou as preferências do Lume',
     k5_agent_settings_change: 'Atualizou as preferências do Lume',
-    k5_collaboration_get: 'Consultou equipe, associados e convites',
+    k5_collaboration_get: 'Consultou associados, participantes e convites',
     k5_collaboration_change: 'Atualizou a colaboração',
     k5_messages_contacts: 'Consultou os contatos',
     k5_messages_list: 'Consultou as conversas de Mensagens',
@@ -386,7 +378,6 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_messages_send: 'Enviou a mensagem',
     k5_messages_mark_read: 'Marcou as mensagens como lidas',
     k5_messages_document_options: 'Consultou documentos para compartilhar',
-    k5_messages_case_options: 'Consultou casos para compartilhar',
     k5_messages_share: 'Compartilhou pelo módulo Mensagens',
     k5_messages_revoke_share: 'Revogou o compartilhamento',
     k5_notifications_list: 'Consultou as notificações',
@@ -427,6 +418,7 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_vault_delete_case: 'Removeu um caso do Cofre',
     k5_vault_list_folders: 'Consultou as pastas do caso',
     k5_vault_create_folder: 'Criou uma pasta no caso',
+    k5_vault_update_folder_access: 'Alterou quem pode ver uma pasta',
     k5_vault_plan_annexes: 'Propôs a separação dos anexos',
     k5_vault_generate_annexes: 'Gerou os anexos da petição',
     k5_vault_delete_folder: 'Removeu uma pasta do caso',

@@ -3,8 +3,6 @@ import { foundDecision, MAX_DECISIONS, reliabilityLevels } from '@/lib/research/
 import { trademarkLogoAnalysis, trademarkSearchInput, trademarkSearchView, trademarkHistoryItem, trademarkDetail } from '@/lib/research/trademarks/contracts';
 
 const identifier = z.string().min(1).max(128);
-const readers = ['administrator', 'lawyer', 'reviewer'] as const;
-const writers = ['administrator', 'lawyer'] as const;
 const filters = z.object({
   court: z.string().trim().max(40).optional(),
   fromDate: z.iso.date().optional(),
@@ -58,60 +56,60 @@ const webSearchView = webSearchItem.extend({
 
 export const researchCapabilities = {
   k5_research_analyze_trademark_logo: {
-    module:'research',effect:'read',roles:readers,publish:['agent','webmcp'],
+    module:'research',effect:'read',publish:['agent','webmcp'],
     description:'Analisa uma imagem de logotipo enviada na Pesquisa (kind upload, uploadId), no Cofre (kind document, documentId) ou anexada à conversa atual (kind attachment, attachmentId). Sugere códigos de Viena validados no catálogo e explica os elementos visuais. A sugestão não é classificação oficial nem prova de conflito e não executa uma pesquisa de marcas. Para pesquisar a imagem no Brand DB, use start_trademark_search com query.kind=logo e o uploadId de uma imagem enviada na Pesquisa; attachmentId e documentId não são uploadId.',
     input:z.object({kind:z.enum(['upload','document','attachment']),uploadId:z.uuid().optional(),documentId:identifier.optional(),attachmentId:z.uuid().optional()})
       .refine(input=>input.kind==='upload'?Boolean(input.uploadId):input.kind==='document'?Boolean(input.documentId):Boolean(input.attachmentId),'Informe a referência da imagem escolhida.'),
     output:z.object({analysis:trademarkLogoAnalysis}),
   },
   k5_research_start_trademark_search: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Pesquisa marcas por nome (contains/exact/fuzzy/phonetic) ou logotipo enviado na Pesquisa (query.kind=logo, uploadId) no WIPO Global Brand Database, inclusive para o Brasil. Brasil e todos os status são padrões. A automação executa em segundo plano; acompanhe com get_trademark_search. Retorna fontes individuais e permite paginação. Não pesquisa diretamente por códigos de Viena. Ausência de resultados não comprova disponibilidade.',
     input: trademarkSearchInput, output: z.object({ search: trademarkSearchView }),
   },
   k5_research_get_trademark_search: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Lê a própria pesquisa de marcas neste escritório, seu progresso e resultados com fontes. Históricos antigos preservam metadados e resultados do INPI quando usados. State completed cobre as páginas solicitadas. Falha ou carga parcial não significa ausência de marcas.',
     input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
   },
   k5_research_list_trademark_searches: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Lista o histórico privado de pesquisas de marcas da pessoa neste escritório.',
     input: z.object({}), output: z.object({ searches: z.array(trademarkHistoryItem) }),
   },
   k5_research_next_trademark_page: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Carrega outra página da pesquisa INPI/WIPO ou repete uma página que falhou, preservando os resultados anteriores.',
     input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
   },
   k5_research_get_trademark: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Lê os detalhes publicados de uma marca encontrada, códigos de Viena, despachos da RPI, versão e link direto INPI ou WIPO. O último despacho não equivale necessariamente ao estado completo do processo. Detalhes INPI vêm da nossa base; detalhes WIPO pending são consultados em segundo plano.',
     input: z.object({ resultId: z.uuid(), retry: z.boolean().default(false) }), output: z.object({ trademark: trademarkDetail }),
   },
   k5_research_cancel_trademark_search: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Interrompe tarefas pendentes da própria pesquisa de marcas, preservando os resultados obtidos.',
     input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
   },
   k5_research_web_search: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Pesquisa na web pela Exa, no modo escolhido, e guarda a pesquisa no histórico da pessoa.',
     input: z.object({ query: z.string().trim().min(2).max(400), mode: webSearchMode.default('auto') }),
     output: z.object({ search: webSearchView }),
   },
   k5_research_list_web_searches: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Lista as pesquisas na web feitas pela pessoa neste escritório.',
     input: z.object({}), output: z.object({ searches: z.array(webSearchItem) }),
   },
   k5_research_get_web_search: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Reabre uma pesquisa na web do histórico, sem pesquisar de novo.',
     input: z.object({ searchId: identifier }), output: z.object({ search: webSearchView }),
   },
   k5_research_score_jurisprudence: {
-    module: 'research', effect: 'read', roles: readers,
+    module: 'research', effect: 'read',
     description: 'Avalia a confiabilidade dos julgados que você encontrou com web_search para o caso da pessoa. Envie a questão jurídica, os fatos relevantes do caso e cada julgado com o link exato da página da busca e a ementa fiel. O Jev mede a aderência de cada julgado ao caso (0 a 4) e se a página é uma decisão judicial; o sistema confere se o link veio de uma busca desta conversa. Devolve a confiabilidade (alta, média, baixa ou não avaliada) e o motivo de cada um.',
     input: z.object({
       question: z.string().trim().min(5).max(500).describe('A questão jurídica do caso, em português.'),
@@ -122,48 +120,48 @@ export const researchCapabilities = {
     publish: ['agent'],
   },
   k5_research_search_corpus: {
-    module: 'research', effect: 'read', roles: readers,
+    module: 'research', effect: 'read',
     description: 'Pesquisa o acervo público de julgados admitidos usando um tema e filtros. Não inicia consulta externa.',
     input: z.object({ theme: z.string().trim().min(2).max(300), filters, cursor: z.string().max(200).optional() }),
     output: z.object({ results: z.array(judgment), nextCursor: z.string().nullable(), total: z.number() }),
     publish: ['agent', 'webmcp'],
   },
   k5_research_get_judgment: {
-    module: 'research', effect: 'read', roles: readers,
+    module: 'research', effect: 'read',
     description: 'Lê um julgado público do acervo, seus materiais, versões e origem oficial. Material ausente fica indicado como ausente.',
     input: z.object({ judgmentId: identifier }), output: z.object({ judgment: detail }),
     publish: ['agent', 'webmcp'],
   },
   k5_research_list_history: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Lista as pesquisas feitas pela pessoa neste escritório.',
     input: z.object({}), output: z.object({ searches: z.array(historyItem) }),
   },
   k5_research_get_search: {
-    module: 'research', effect: 'read', roles: readers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
     description: 'Lê uma pesquisa e seu progresso sem consultar fontes externas.',
     input: z.object({ searchId: identifier }), output: z.object({ search: searchView }),
   },
   k5_research_start_search: {
-    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'write', publish: ['agent', 'webmcp'],
     description: 'Inicia pesquisa por tema no acervo e, quando solicitado, nas fontes habilitadas.',
     input: z.object({ theme: z.string().trim().min(2).max(300), filters, includeSources: z.boolean().default(false), refreshSources: z.boolean().optional(), idempotencyKey, approvalId: z.uuid().optional() }),
     output: z.object({ search: searchView }),
   },
   k5_research_request_page: {
-    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'write', publish: ['agent', 'webmcp'],
     description: 'Solicita uma página adicional de uma pesquisa já criada.',
     input: z.object({ searchId: identifier, cursor: z.string().max(200).optional(), idempotencyKey, approvalId: z.uuid().optional() }),
     output: z.object({ page }),
   },
   k5_research_request_material: {
-    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'write', publish: ['agent', 'webmcp'],
     description: 'Solicita obtenção de material oficial de um julgado.',
     input: z.object({ judgmentId: identifier, kind: z.enum(['ementa', 'full_text']), searchId: identifier.optional(), idempotencyKey, approvalId: z.uuid().optional() }),
     output: z.object({ jobId: z.string().nullable(), status: materialStatus }),
   },
   k5_research_cancel_downloads: {
-    module: 'research', effect: 'write', roles: writers, publish: ['agent', 'webmcp'],
+    module: 'research', effect: 'write', publish: ['agent', 'webmcp'],
     description: 'Para obtenções pendentes desta pesquisa sem eliminar material já coletado.',
     input: z.object({ searchId: identifier, idempotencyKey }), output: z.object({ cancelled: z.number() }),
   },

@@ -28,7 +28,7 @@ const errorNames = new Set(['Error', 'TimeoutError', 'ProtocolError', 'TargetClo
 
 async function authorized(run: Run) {
   return Boolean(await database.prepare(`SELECT 1 FROM office_member m WHERE m.office_id=? AND m.user_id=?
-    AND m.role IN ('administrator','lawyer','reviewer') AND (?::text IS NULL OR EXISTS
+    AND (?::text IS NULL OR EXISTS
     (SELECT 1 FROM session s WHERE s.id=? AND s.userId=? AND s.expiresAt>CURRENT_TIMESTAMP))`)
     .get(run.office_id, run.user_id, run.session_id, run.session_id, run.user_id));
 }

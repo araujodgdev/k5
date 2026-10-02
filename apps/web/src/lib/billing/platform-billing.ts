@@ -35,8 +35,8 @@ export async function platformClientBilling(officeId: string, page = 1) {
   const office = await database.prepare('SELECT id,name,created_at AS "createdAt" FROM office WHERE id = ?').get<{ id: string; name: string; createdAt: string }>(officeId);
   if (!office) throw new BillingError(404, 'Cliente não encontrado.');
   const [members, overview, subscriptions, payments, count, actions] = await Promise.all([
-    database.prepare(`SELECT u.id,u.name,u.email,m.role FROM office_member m JOIN "user" u ON u.id=m.user_id WHERE m.office_id=? ORDER BY u.name`)
-      .all<{ id: string; name: string; email: string; role: string }>(officeId),
+    database.prepare(`SELECT u.id,u.name,u.email FROM office_member m JOIN "user" u ON u.id=m.user_id WHERE m.office_id=? ORDER BY u.name`)
+      .all<{ id: string; name: string; email: string }>(officeId),
     billingOverview(officeId), subscriptionsForOffice(officeId),
     database.prepare(`SELECT ${paymentFields} FROM billing_checkout c JOIN office o ON o.id=c.office_id WHERE c.office_id=? ORDER BY c.created_at DESC,c.id LIMIT 25 OFFSET ?`).all<FinancePayment>(officeId,(page-1)*25),
     database.prepare('SELECT count(*)::int AS total FROM billing_checkout WHERE office_id=?').get<{ total: number }>(officeId),
@@ -49,9 +49,9 @@ export type ClientBilling = Awaited<ReturnType<typeof platformClientBilling>>;
 
 export async function createClientCheckout(actorId: string, officeId: string, memberId: string, recurring: boolean, client: AbacatePayClient = billingClient()) {
   await assertPlatformAdmin(database, actorId);
-  const member = await database.prepare(`SELECT u.id AS "userId",u.name,u.email FROM office_member m JOIN "user" u ON u.id=m.user_id WHERE m.office_id=? AND m.user_id=? AND m.role='administrator'`)
+  const member = await database.prepare(`SELECT u.id AS "userId",u.name,u.email FROM office_member m JOIN "user" u ON u.id=m.user_id WHERE m.office_id=? AND m.user_id=?`)
     .get<{ userId: string; name: string; email: string }>(officeId,memberId);
-  if (!member) throw new BillingError(400, 'Selecione um administrador deste cliente como responsável pela cobrança.');
+  if (!member) throw new BillingError(400, 'Selecione o advogado deste cliente como responsável pela cobrança.');
   if (recurring && !billingSettings().webhookSecret) throw new BillingError(503, 'Configure o webhook de assinaturas antes de criar uma assinatura.');
   return startPlanCheckout({ ...member, officeId },client,{ recurring, actorUserId: actorId });
 }

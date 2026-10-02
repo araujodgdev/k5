@@ -11,7 +11,6 @@ type MailUpload = { id: string; name: string; mimeType: string; byteSize: number
 
 /** An upload is private to its owner and lives only long enough to compose an e-mail. */
 export async function createMailUpload(context: WorkspaceContext, file: File): Promise<MailUpload> {
-  if (context.role === 'reviewer') throw new CapabilityError('FORBIDDEN', 'Seu papel permite apenas consultas.');
   const name = basename(file.name).replace(/[\r\n\x00-\x1f\x7f<>:"/\\|?*]/g, '_').trim().slice(0, 255);
   if (!name || file.size < 1 || file.size > MAX_FILE) throw new CapabilityError('INVALID', 'Escolha um arquivo de até 25 MB.');
   const mimeType = /^[\w.+-]+\/[\w.+-]+$/.test(file.type) ? file.type : 'application/octet-stream';

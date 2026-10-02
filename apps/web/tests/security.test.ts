@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 
 import { CapabilityError } from "../src/lib/capabilities/errors";
-import { publishedCapabilitiesForRole } from "../src/lib/capabilities/contracts";
+import { publishedCapabilities } from "../src/lib/capabilities/contracts";
 import type { WorkspaceContext } from "../src/lib/application/context";
 import * as vaultService from "../src/lib/application/vault-service";
 import * as approvalsService from "../src/lib/application/approvals-service";
@@ -21,23 +21,24 @@ async function seedOffices() {
   const userOfficeB = randomUUID();
   const officeA = randomUUID();
   const officeB = randomUUID();
+  const officeAdmin = randomUUID();
 
   (await testDb.prepare("INSERT INTO user (id, email, name) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)").run(
     userLawyer, `lawyer-${randomUUID()}@alfa.test`, "Lawyer Alfa",
     userAdmin, `admin-${randomUUID()}@alfa.test`, "Admin Alfa",
     userOfficeB, `user-${randomUUID()}@beta.test`, "User Beta",
   ));
-  (await testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?)").run(officeA, "Alfa", officeB, "Beta"));
-  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id, role) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)").run(
-    randomUUID(), officeA, userLawyer, "lawyer",
-    randomUUID(), officeA, userAdmin, "administrator",
-    randomUUID(), officeB, userOfficeB, "lawyer",
+  (await testDb.prepare("INSERT INTO office (id, name) VALUES (?, ?), (?, ?), (?, ?)").run(officeA, "Alfa", officeB, "Beta", officeAdmin, "Associado"));
+  (await testDb.prepare("INSERT INTO office_member (id, office_id, user_id) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)").run(
+    randomUUID(), officeA, userLawyer,
+    randomUUID(), officeAdmin, userAdmin,
+    randomUUID(), officeB, userOfficeB,
   ));
 
   return {
-    lawyer: { officeId: officeA, userId: userLawyer, role: "lawyer" } as WorkspaceContext,
-    admin: { officeId: officeA, userId: userAdmin, role: "administrator" } as WorkspaceContext,
-    beta: { officeId: officeB, userId: userOfficeB, role: "lawyer" } as WorkspaceContext,
+    lawyer: { officeId: officeA, userId: userLawyer } as WorkspaceContext,
+    admin: { officeId: officeAdmin, userId: userAdmin } satisfies WorkspaceContext,
+    beta: { officeId: officeB, userId: userOfficeB } as WorkspaceContext,
     officeA,
   };
 }
@@ -147,9 +148,9 @@ test("tombstone: a deleted document cannot be resurrected through retry", async 
     () => retryVaultDocument(officeA, documentId),
     (error: unknown) => error instanceof VaultHttpError && error.status === 409,
   );
-  assert.equal(await findVaultDocument(officeA, documentId), undefined, "gone from every live lookup");
+  assert.equal(await findVaultDocument(officeA, documentId, null), undefined, "gone from every live lookup");
   assert.equal(
-    (await listVaultDocuments(officeA, {})).some((document) => document.id === documentId),
+    (await listVaultDocuments(officeA, null, {})).some((document) => document.id === documentId),
     false,
     "and from the list the interface renders",
   );
@@ -168,9 +169,9 @@ test("retry: a document left in the queue can be requeued, a live one cannot", a
   // Ingestion on Workers is kicked by the request that queues the document. When that kick never
   // lands the row sits in `queued`, and rejecting it here would leave the interface with a stuck
   // document and no button that does anything about it.
-  assert.equal((await findVaultDocument(officeA, documentId))?.status, "queued");
+  assert.equal((await findVaultDocument(officeA, documentId, null))?.status, "queued");
   await retryVaultDocument(officeA, documentId);
-  assert.equal((await findVaultDocument(officeA, documentId))?.status, "queued", "still claimable");
+  assert.equal((await findVaultDocument(officeA, documentId, null))?.status, "queued", "still claimable");
 
   // `processing` is someone else's lease, and `ready` is work that is done. Neither is stuck.
   (await testDb.prepare("UPDATE vault_document SET status='processing' WHERE id=?").run(documentId));
@@ -198,8 +199,8 @@ test("case deletion: the documents filed in a case go with it", async () => {
   await vaultService.deleteCase(lawyer, { caseId: created.id, approvalId: await approved(lawyer, "k5_vault_delete_case", { caseId: created.id }) });
 
   // Not reassigned to the library: a case that is gone does not leave its filings behind.
-  assert.equal(await findVaultDocument(officeA, documentId), undefined, "gone from every live lookup");
-  assert.equal((await listVaultDocuments(officeA, {})).length, 0, "and from the list the interface renders");
+  assert.equal(await findVaultDocument(officeA, documentId, null), undefined, "gone from every live lookup");
+  assert.equal((await listVaultDocuments(officeA, null, {})).length, 0, "and from the list the interface renders");
   const chunks = (await testDb.prepare("SELECT count(*) AS n FROM vault_document_chunk WHERE document_id=?").get(documentId)) as { n: number };
   assert.equal(Number(chunks.n), 0, "searchability is lost in the same batch as the tombstone");
 
@@ -220,7 +221,7 @@ test("case deletion: targetCaseId moves the documents instead of deleting them",
   const input = { caseId: source.id, targetCaseId: target.id };
   await vaultService.deleteCase(lawyer, { ...input, approvalId: await approved(lawyer, "k5_vault_delete_case", input) });
 
-  const moved = await findVaultDocument(officeA, documentId);
+  const moved = await findVaultDocument(officeA, documentId, null);
   assert.equal(moved?.caseId, target.id, "the escape hatch is what keeps the documents");
   const queued = (await testDb.prepare("SELECT count(*) AS n FROM vault_deletion_queue WHERE office_id=?").get(officeA)) as { n: number };
   assert.equal(Number(queued.n), 0, "and nothing is queued for physical removal");
@@ -237,7 +238,7 @@ test("case deletion: no approval, no deletion", async () => {
     () => vaultService.deleteCase(lawyer, { caseId: created.id }),
     (error: unknown) => error instanceof CapabilityError && error.code === "APPROVAL_REQUIRED",
   );
-  assert.ok(await findVaultDocument(officeA, documentId), "the documents are untouched");
+  assert.ok(await findVaultDocument(officeA, documentId, null), "the documents are untouched");
 });
 
 test("idempotency: a reused key with different arguments conflicts instead of replaying", async () => {
@@ -330,8 +331,8 @@ test("approval: concurrent decisions cannot overwrite the first transition", asy
 });
 
 test("publication: no adapter may offer a capability marked unpublished", () => {
-  const agentNames = publishedCapabilitiesForRole("administrator", "agent");
-  const browserNames = publishedCapabilitiesForRole("administrator", "webmcp");
+  const agentNames = publishedCapabilities("agent");
+  const browserNames = publishedCapabilities("webmcp");
 
   // Terminal, irreversible, and triggerable from text the agent is reading. The interface keeps
   // the button; neither adapter gets a tool for it.
@@ -339,8 +340,8 @@ test("publication: no adapter may offer a capability marked unpublished", () => 
   assert.ok(!browserNames.includes("k5_session_end_global"));
   assert.ok(agentNames.includes("k5_knowledge_search"));
 
-  // Role still decides the rest.
-  assert.ok(!publishedCapabilitiesForRole("reviewer", "agent").includes("k5_vault_delete_document"));
+  // Destructive tools remain available to the lawyer, with confirmation checked on execution.
+  assert.ok(agentNames.includes("k5_vault_delete_document"));
 });
 
 test("origins: the wildcard the tunnel default declares is honoured, and nothing wider", () => {

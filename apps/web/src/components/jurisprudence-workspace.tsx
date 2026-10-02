@@ -8,10 +8,9 @@ import { Label } from '@/components/ui/label';
 import { sectionTab, sectionTabRow } from '@/components/section-tabs';
 import { requestCapability } from '@/lib/capabilities/http-client';
 import { researchCapabilities } from '@/lib/capabilities/research';
-import type { OfficeRole } from '@/lib/offices';
 import type { JudgmentSummary, ResearchSearchView, SearchHistoryItem } from '@/lib/research/contracts';
 
-export function JurisprudenceWorkspace({ initialSearchId, role }: { initialSearchId: string | null; role: OfficeRole }) {
+export function JurisprudenceWorkspace({ initialSearchId }: { initialSearchId: string | null }) {
   const [tab, setTab] = useState<'search' | 'history'>('search');
   const [theme, setTheme] = useState('');
   const [court, setCourt] = useState('');
@@ -21,7 +20,6 @@ export function JurisprudenceWorkspace({ initialSearchId, role }: { initialSearc
   const [history, setHistory] = useState<SearchHistoryItem[] | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const canStart = role === 'administrator' || role === 'lawyer';
   const searchId = view?.id;
   const pending = view?.pages.some(page => page.status === 'queued' || page.status === 'running' || page.progress.pending > 0);
   useEffect(() => {
@@ -50,17 +48,11 @@ export function JurisprudenceWorkspace({ initialSearchId, role }: { initialSearc
     event.preventDefault(); setBusy(true); setError('');
     const filters = court.trim() ? { court: court.trim() } : {};
     try {
-      if (canStart) {
-        const response = await requestCapability('k5_research_start_search', { theme, filters, includeSources, idempotencyKey: crypto.randomUUID() });
-        if (!response.ok) throw new Error(response.error);
-        const search = researchCapabilities.k5_research_start_search.output.parse(response.data).search;
-        setView(search); setLocalResults(null);
-        window.history.replaceState(window.history.state, '', `/app/research?mode=jurisprudence&search=${encodeURIComponent(search.id)}`);
-      } else {
-        const response = await requestCapability('k5_research_search_corpus', { theme, filters });
-        if (!response.ok) throw new Error(response.error);
-        setLocalResults(researchCapabilities.k5_research_search_corpus.output.parse(response.data).results); setView(null);
-      }
+      const response = await requestCapability('k5_research_start_search', { theme, filters, includeSources, idempotencyKey: crypto.randomUUID() });
+      if (!response.ok) throw new Error(response.error);
+      const search = researchCapabilities.k5_research_start_search.output.parse(response.data).search;
+      setView(search); setLocalResults(null);
+      window.history.replaceState(window.history.state, '', `/app/research?mode=jurisprudence&search=${encodeURIComponent(search.id)}`);
     } catch (error) { setError(error instanceof Error ? error.message : 'Não foi possível pesquisar.'); }
     finally { setBusy(false); }
   }
@@ -81,7 +73,7 @@ export function JurisprudenceWorkspace({ initialSearchId, role }: { initialSearc
         <form onSubmit={submit} className="grid gap-4 border-b py-5">
           <div className="grid gap-1.5"><Label htmlFor="judicial-theme">Tema ou questão jurídica</Label><Input id="judicial-theme" value={theme} onChange={event => setTheme(event.target.value)} required minLength={2} maxLength={300} placeholder="Ex.: responsabilidade civil por atraso de voo" /></div>
           <div className="grid max-w-sm gap-1.5"><Label htmlFor="judicial-court">Tribunal (opcional)</Label><Input id="judicial-court" value={court} onChange={event => setCourt(event.target.value)} maxLength={40} placeholder="Ex.: STJ" /></div>
-          {canStart && <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={includeSources} onChange={event => setIncludeSources(event.target.checked)} className="size-4" />Consultar também fontes oficiais habilitadas</label>}
+          {<label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={includeSources} onChange={event => setIncludeSources(event.target.checked)} className="size-4" />Consultar também fontes oficiais habilitadas</label>}
           <Button className="min-h-11 justify-self-start" disabled={busy || theme.trim().length < 2}>{busy ? <LoaderCircle className="animate-spin" /> : <Search />}Pesquisar jurisprudência</Button>
         </form>
         {pending && <p role="status" className="py-4 text-sm text-muted-foreground">Consultando fontes e obtendo materiais…</p>}
@@ -93,7 +85,7 @@ export function JurisprudenceWorkspace({ initialSearchId, role }: { initialSearc
           {result.ementa && <p className="mt-3 line-clamp-5 text-sm leading-6 text-muted-foreground">{result.ementa}</p>}
           {result.sourceUrl && <a href={result.sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm underline">Fonte oficial<ArrowUpRight className="size-3.5" /><span className="sr-only">, abre em nova aba</span></a>}
         </article>)}
-        {canStart && view?.pages.at(-1)?.nextCursor && <Button variant="outline" className="mt-4" disabled={busy || pending} onClick={async () => {
+        {view?.pages.at(-1)?.nextCursor && <Button variant="outline" className="mt-4" disabled={busy || pending} onClick={async () => {
           setBusy(true); const response = await requestCapability('k5_research_request_page', { searchId: view.id, cursor: view.pages.at(-1)?.nextCursor, idempotencyKey: crypto.randomUUID() });
           if (!response.ok) setError(response.error);
           else { const loaded = await requestCapability('k5_research_get_search', { searchId: view.id }); if (loaded.ok) setView(researchCapabilities.k5_research_get_search.output.parse(loaded.data).search); }

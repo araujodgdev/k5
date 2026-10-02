@@ -54,10 +54,10 @@ test('mail triage: bounds input, fetches metadata, caches judgments and invalida
 test('mail triage: same thread ids never share judgments across users; uncertainty is explicit', async () => {
   const a = await setup();
   await triageMail(a.context, { threadIds: ['abc'] }, { send });
-  const b = await googleFixture({ officeId: a.officeId }); let calls = 0;
+  const b = await googleFixture({}); let calls = 0;
   const result = await triageMail(b.context, { threadIds: ['abc'] }, { send: async (_key, request) => { calls++; return answer(request, true); } });
   assert.equal(calls, 1); assert.equal(result.items[0].uncertain, true); assert.equal(result.items[0].needsReply, null);
-  assert.equal((await testDb.prepare('SELECT * FROM google_email_triage WHERE office_id=?').all(a.officeId)).length, 2);
+  assert.equal((await testDb.prepare('SELECT * FROM google_email_triage WHERE office_id=?').all(a.officeId)).length, 1);
 });
 
 test('mail triage: disabled and shadow never apply suggestions; outages do not fabricate labels', async () => {

@@ -12,8 +12,8 @@ export default async function VaultPage() {
   const { office } = workspace;
   const [result, libraryCount, ownCases] = await Promise.all([
     listCases(workspaceContext(workspace)),
-    countVaultDocuments(office.officeId, { scope: "library" }),
-    listVaultCases(office.officeId),
+    countVaultDocuments(office.officeId, workspace.user.id, { scope: "library" }),
+    listVaultCases(office.officeId, workspace.user.id),
   ]);
   return (
     <Reveal className="flex min-h-0 flex-1 flex-col">
@@ -21,7 +21,6 @@ export default async function VaultPage() {
         initialCases={result.cases}
         ownCaseIds={ownCases.map(item => item.id)}
         libraryCount={libraryCount}
-        role={office.role}
       />
     </Reveal>
   );

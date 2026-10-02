@@ -14,7 +14,7 @@ async function fixture() {
   await db.prepare('INSERT INTO "user"(id,email,name) VALUES(?,?,?),(?,?,?)')
     .run(actor, `${actor}@example.test`, 'Admin', outsider, `${outsider}@example.test`, 'Pessoa');
   await db.prepare('INSERT INTO office(id,name) VALUES(?,?),(?,?)').run(a, 'Alfa', b, 'Beta');
-  await db.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), a, outsider, 'administrator');
+  await db.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), a, outsider);
   await grantPlatformAdmin(db, actor);
   type Rule = { priority: number; conditions: { attribute: string; operator: string; value: string }[]; serve_variation: string };
   let flag = { key: 'whatsapp-integration', enabled: true, default_variation: 'off', variations: { on: true, off: false },

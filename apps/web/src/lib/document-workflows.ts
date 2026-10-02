@@ -55,8 +55,8 @@ const reviewSchema = z.object({ divergences: z.array(z.object({ kind: z.enum(div
 type Review = { divergences: Divergence[] };
 
 async function stillAuthorized(run: RunRow) {
-  const member = await database.prepare('SELECT role FROM office_member WHERE user_id=? AND office_id=?').get(run.user_id, run.office_id);
-  if (!member || member.role === 'reviewer') throw new Error('Acesso de escrita ao escritório foi revogado.');
+  const member = await database.prepare('SELECT 1 FROM office_member WHERE user_id=? AND office_id=?').get(run.user_id, run.office_id);
+  if (!member) throw new Error('Acesso ao escritório foi revogado.');
   const owned = await database.prepare("SELECT id FROM ai_run WHERE id=? AND status='running' AND lease_token=?").get(run.id, run.lease_token);
   if (!owned) throw new Error('Execução cancelada ou retomada por outro worker.');
 }
@@ -75,7 +75,7 @@ async function progress(run: RunRow, value: number) {
 
 export async function validateRunSources(context: WorkspaceContext, input: RunInput) {
   const officeId = context.officeId;
-  const sources = await selectedSources(officeId, [...new Set(input.documentIds)]);
+  const sources = await selectedSources(officeId, context.userId, [...new Set(input.documentIds)]);
   if (input.documentIds.length && !sources.length) throw new Error('Selecione documentos já processados.');
   for (const id of input.documentIds) if (!sources.some(s => s.documentId === id)) throw new Error('Há documentos indisponíveis ou ainda em processamento.');
   const researchSources = input.researchReferenceIds.length ? input.pinnedResearchReferences
@@ -83,7 +83,7 @@ export async function validateRunSources(context: WorkspaceContext, input: RunIn
     : await selectedResearchSources(context, input.caseId!, input.researchReferenceIds) : [];
   const pinnedResearchReferences = [...new Map(researchSources.map(source => [source.researchReferenceId!,
     { referenceId: source.researchReferenceId!, materialVersionId: source.materialVersionId! }])).values()];
-  const template = input.templateId ? await selectedSources(officeId, [input.templateId]) : [];
+  const template = input.templateId ? await selectedSources(officeId, context.userId, [input.templateId]) : [];
   if (input.kind === 'draft' && !template.length) throw new Error(input.templateId ? 'O modelo de documento ainda está em processamento no Cofre.' : 'Selecione um modelo ou defina o modelo padrão em Personalizar Lume.');
   const candidates = citationCandidates([...sources, ...researchSources, ...template]);
   const approved = input.approvedCitationIds.map(id => {
@@ -156,12 +156,12 @@ async function draft(run: RunRow, input: RunInput, template: SourceChunk[], sour
     const section = outline.sections[i];
     let result = await checkpoint<z.infer<typeof paragraphSchema>>(run, `draft:${i}`);
     if (!result) {
-      const member = await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?').get<{ role: 'administrator' | 'lawyer' }>(run.office_id, run.user_id);
-      const retrieved = input.documentIds.length ? (await searchKnowledgeEngine({ officeId: run.office_id, userId: run.user_id, role: member!.role }, { query: section.search.slice(0, 500), documentIds: input.documentIds, limit: 24 })).sources
+      const owner = { officeId: run.office_id, userId: run.user_id };
+      const retrieved = input.documentIds.length ? (await searchKnowledgeEngine(owner, { query: section.search.slice(0, 500), documentIds: input.documentIds, limit: 24 })).sources
         .map(source => ({ id: source.sourceId, sourceLabel: source.sourceLabel, text: source.text })) : [];
       const legalSources = input.researchReferenceIds.length ? input.pinnedResearchReferences
-        ? await selectedPinnedResearchSources({ officeId: run.office_id, userId: run.user_id, role: member!.role }, input.caseId!, input.pinnedResearchReferences, section.search)
-        : await selectedResearchSources({ officeId: run.office_id, userId: run.user_id, role: member!.role }, input.caseId!, input.researchReferenceIds, section.search) : [];
+        ? await selectedPinnedResearchSources(owner, input.caseId!, input.pinnedResearchReferences, section.search)
+        : await selectedResearchSources(owner, input.caseId!, input.researchReferenceIds, section.search) : [];
       result = await generateStructured(run.office_id, run.user_id, await runModel(run, 'drafting.section'), `${rulesBlock(input)}Redija a seção '${section.heading}': ${section.purpose}. Pedido: ${input.instructions}\nNão inclua NENHUMA citação ou referência jurídica; os textos autorizados serão anexados pelo sistema depois de seleção humana. Cada parágrafo factual precisa de evidence com sourceId de FONTES FACTUAIS DO CASO e citação literal de pelo menos 12 caracteres. Os fatos de JULGADOS DE OUTROS PROCESSOS jamais são fatos do cliente e não sustentam parágrafos factuais. Não escreva identificadores nem referências de fonte no texto; o sistema as adiciona. Sem evidência factual, escreva [PENDENTE DE INFORMAÇÃO], não invente nomes, datas, números ou pedidos específicos. Use escrita formal coerente com o modelo.\nEstilo (não fatos): ${template.map(t => t.text).join('\n').slice(0, 12000)}\nFONTES FACTUAIS DO CASO:\n${retrieved.map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 65000)}\nJULGADOS DE OUTROS PROCESSOS (somente contexto jurídico; citações dependem de aprovação humana):\n${legalSources.slice(0, 20).map(s => `[${s.id}] ${s.sourceLabel}\n${s.text}`).join('\n\n').slice(0, 18000)}`, paragraphSchema);
       await saveCheckpoint(run, `draft:${i}`, result);
     }
@@ -178,9 +178,9 @@ async function executeRun(run: RunRow) {
   const input = runInputSchema.parse(JSON.parse(run.input));
   // A pinned connection that was disabled or deleted stops the run before any work, with its reason.
   for (const task of RUN_TASKS[run.kind]) await runModel(run, task);
-  const member = await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?').get<{ role: WorkspaceContext['role'] }>(run.office_id, run.user_id);
+  const member = await database.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(run.office_id, run.user_id);
   if (!member) throw new Error('Acesso ao escritório revogado.');
-  const { sources, template, approved: revalidatedApprovals } = await validateRunSources({ officeId: run.office_id, userId: run.user_id, role: member.role }, input);
+  const { sources, template, approved: revalidatedApprovals } = await validateRunSources({ officeId: run.office_id, userId: run.user_id }, input);
   const approvedRows = await database.prepare(`SELECT citation_id AS id,source_text AS text,source_label AS sourceLabel,source_type AS sourceType,
     document_id AS documentId,research_reference_id AS researchReferenceId,material_version_id AS materialVersionId,
     judgment_id AS judgmentId,research_chunk_id AS researchChunkId FROM ai_citation_approval WHERE run_id=?`).all(run.id) as CitationCandidate[];

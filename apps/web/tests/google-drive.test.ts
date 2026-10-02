@@ -38,7 +38,7 @@ function fakeDrive(mimeType = 'application/pdf', content = new TextEncoder().enc
 
 test('seleção é verificada no Google e fica privada até para administrador do mesmo escritório', async () => {
   const owner = await googleFixture();
-  const other = await googleFixture({ officeId: owner.officeId, role: 'administrator' });
+  const other = await googleFixture({});
   const alien = await googleFixture();
   const { fake } = fakeDrive();
   const file = (await registerFiles(owner.context, { googleFileIds: [fileId] })).files[0];
@@ -162,9 +162,9 @@ test('Biblioteca importa sem caso e reimporta como versão distinta do destino c
   assert.notEqual(caseCopy?.vault_document_id, first.id);
 });
 
-test('Biblioteca rejeita pasta, destino de outro escritório e papel somente leitura', async () => {
+test('Biblioteca rejeita pasta, destino de outro escritório e arquivo pessoal de outro advogado', async () => {
   const owner = await googleFixture();
-  const reviewer = await googleFixture({ officeId: owner.officeId, role: 'reviewer' });
+  const reviewer = await googleFixture({});
   const alien = await googleFixture();
   const alienCase = await caseFor(alien.officeId, alien.userId);
   fakeDrive();
@@ -174,7 +174,7 @@ test('Biblioteca rejeita pasta, destino de outro escritório e papel somente lei
   await assert.rejects(importFile(owner.context, { fileId: file.id, caseId: alienCase,
     idempotencyKey: 'other-office' }), /não encontrado/i);
   await assert.rejects(importFile(reviewer.context, { fileId: file.id, scope: 'library', caseId: null,
-    idempotencyKey: 'reader-library' }), /consultas/i);
+    idempotencyKey: 'reader-library' }), /não encontrado/i);
   assert.equal((await testDb.prepare('SELECT count(*) AS n FROM google_drive_import WHERE office_id=?')
     .get<{ n: number }>(owner.officeId))?.n, 0);
 });
@@ -292,7 +292,7 @@ test('limite de 50 MB é aplicado antes de criar job ou baixar arquivo', async (
 
 test('não revoga acesso herdado ou arquivo de outra pessoa', async () => {
   const owner = await googleFixture();
-  const other = await googleFixture({ officeId: owner.officeId, role: 'administrator' });
+  const other = await googleFixture({});
   const { fake } = fakeDrive();
   const file = (await registerFiles(owner.context, { googleFileIds: [fileId] })).files[0];
   await assert.rejects(revokePermission(owner.context, { fileId: file.id, permissionId: 'inherited', idempotencyKey: 'inherited' }), /herdado/i);

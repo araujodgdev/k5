@@ -14,11 +14,11 @@ const view = z.object({
   templates: z.object({ office: template, personal: template }),
 });
 export const agentSettingsCapabilities = {
-  k5_agent_settings_get: { module: 'agent_settings', effect: 'read', roles: ['administrator', 'lawyer', 'reviewer'],
-    description: 'Consulta regras de escrita, documentos de conhecimento e modelo Word do Lume, nos escopos pessoal e escritório.', input: z.object({}), output: view },
-  k5_agent_settings_change: { module: 'agent_settings', effect: 'write', roles: ['administrator', 'lawyer'],
-    description: 'Cria, atualiza ou remove regra/conhecimento e define/remove modelo Word. Alterações exigem confirmação; escopo office exige administrador. Conhecimento e modelo referenciam documentos já enviados ao Cofre; nunca alteram políticas de segurança.',
-    input: z.object({ scope, approvalId: z.uuid().optional(), idempotencyKey: z.string().min(8).max(128), change: z.discriminatedUnion('action', [
+  k5_agent_settings_get: { module: 'agent_settings', effect: 'read',
+    description: 'Consulta as regras de escrita, documentos de conhecimento e modelo Word do Lume da pessoa. Registros antigos podem aparecer no campo office; o modelo efetivo é personal ou, na ausência dele, office.', input: z.object({}), output: view },
+  k5_agent_settings_change: { module: 'agent_settings', effect: 'write',
+    description: 'Cria, atualiza ou remove regra/conhecimento e define/remove o único modelo Word. Use personal para novos itens e o escopo de origem para editar/remover registros antigos. Remover o modelo limpa também o legado. Alterações exigem confirmação. Conhecimento e modelo referenciam documentos autorizados no Cofre; nunca alteram políticas de segurança.',
+    input: z.object({ scope: scope.default('personal'), approvalId: z.uuid().optional(), idempotencyKey: z.string().min(8).max(128), change: z.discriminatedUnion('action', [
       z.object({ action: z.literal('create_instruction'), ...instruction }),
       z.object({ action: z.literal('update_instruction'), id, version: z.number().int().positive(), ...instruction }),
       z.object({ action: z.literal('delete_instruction'), id }),

@@ -29,7 +29,7 @@ const moduleCriteria: Record<TicketModule, string> = {
   email: 'E-mails: caixa de entrada, leitura, resumo e resposta de mensagens.',
   integracoes: 'Integrações com Google (Agenda, Drive, Gmail) e outros serviços conectados.',
   notificacoes: 'Notificações e avisos no aplicativo ou no celular.',
-  conta: 'Login, senha, sessão, convites e permissões da equipe.',
+  conta: 'Login, senha, sessão, convites e acesso aos casos.',
   instalacao: 'Instalar o aplicativo no computador ou celular, tela inicial e funcionamento offline.',
   nao_identificado: 'O texto não permite identificar a parte do produto.',
 };

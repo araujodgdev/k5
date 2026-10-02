@@ -17,9 +17,7 @@ import { assertResearchLease, claimResearchJob, claimResearchMaterial, completeR
 const processWorkerId = `research-${randomUUID()}`;
 
 async function stillAuthorized(job: ResearchJobRow): Promise<boolean> {
-  const member = await database.prepare(`SELECT role FROM office_member WHERE office_id=? AND user_id=?`)
-    .get<{ role: string }>(job.office_id,job.user_id);
-  return member?.role === 'administrator' || member?.role === 'lawyer';
+  return Boolean(await database.prepare(`SELECT 1 FROM office_member WHERE office_id=? AND user_id=?`).get(job.office_id,job.user_id));
 }
 function filterSourceRecord(record: { tribunal:string;decisionDate:string|null }, filters: SearchFilters): boolean {
   if (filters.court && filters.court !== record.tribunal) return false;

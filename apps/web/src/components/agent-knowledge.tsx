@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { DOCUMENT_ACCEPT } from "@/lib/ai-modalities";
 import type { Knowledge, KnowledgeCandidate, KnowledgeMode, KnowledgeScope } from "@/lib/agent-knowledge";
 
-export type KnowledgeState = { office: Knowledge[]; personal: Knowledge[]; budget: number; canEditOffice: boolean };
+export type KnowledgeState = { office: Knowledge[]; personal: Knowledge[]; budget: number };
+type KnowledgeEntry = { item: Knowledge; scope: KnowledgeScope; copies: { item: Knowledge; scope: KnowledgeScope }[] };
 
 const modeLabel: Record<KnowledgeMode, string> = { always: "Ler sempre", search: "Buscar quando precisar" };
 const statusLabel: Record<string, string> = { queued: "Na fila", processing: "Processando", ready: "Pronto", failed: "Falhou no processamento" };
@@ -20,17 +21,23 @@ async function errorMessage(response: Response, fallback: string) {
 }
 
 /** Mirrors the prompt: ready always-read documents, office first, each document once. */
-function alwaysUsed(state: KnowledgeState) {
-  const seen = new Set<string>();
-  return [...state.office, ...state.personal]
-    .filter((item) => item.mode === "always" && item.status === "ready" && !seen.has(item.documentId) && seen.add(item.documentId))
-    .reduce((sum, item) => sum + item.characters, 0);
+function knowledgeEntries(state: KnowledgeState) {
+  const byDocument = new Map<string, KnowledgeEntry>();
+  for (const scope of ["office", "personal"] as const) {
+    for (const item of state[scope]) {
+      const existing = byDocument.get(item.documentId);
+      if (existing) existing.copies.push({ item, scope });
+      else byDocument.set(item.documentId, { item, scope, copies: [{ item, scope }] });
+    }
+  }
+  return [...byDocument.values()];
 }
 
 export function AgentKnowledge({ initial, initialCandidates }: { initial: KnowledgeState; initialCandidates: KnowledgeCandidate[] }) {
   const [state, setState] = useState(initial);
   const [candidates, setCandidates] = useState(initialCandidates);
-  const used = alwaysUsed(state);
+  const entries = knowledgeEntries(state);
+  const used = entries.filter(({ item }) => item.mode === "always" && item.status === "ready").reduce((sum, { item }) => sum + item.characters, 0);
   const update = (scope: KnowledgeScope, change: (items: Knowledge[]) => Knowledge[]) => setState((current) => ({ ...current, [scope]: change(current[scope]) }));
 
   return (
@@ -41,38 +48,32 @@ export function AgentKnowledge({ initial, initialCandidates }: { initial: Knowle
         Leitura fixa: {thousands(used)} de {thousands(state.budget)} caracteres.
         {used > state.budget && " Os que passarem do limite serão buscados quando precisar."}
       </p>
-      <KnowledgeGroup scope="office" title="Do escritório" items={state.office} editable={state.canEditOffice} candidates={candidates}
-        emptyText="Nenhum documento do escritório." readOnlyNote="Definido pela administração do escritório."
-        onChange={update} onUploaded={(item) => setCandidates((list) => [item, ...list])} />
-      <KnowledgeGroup scope="personal" title="Meus documentos" items={state.personal} editable candidates={candidates}
-        emptyText="Nenhum documento seu." note="Consultados só nas suas conversas e minutas."
+      <KnowledgeGroup entries={entries} candidates={candidates}
         onChange={update} onUploaded={(item) => setCandidates((list) => [item, ...list])} />
     </section>
   );
 }
 
-function KnowledgeGroup({ scope, title, note, readOnlyNote, emptyText, items, editable, candidates, onChange, onUploaded }: {
-  scope: KnowledgeScope; title: string; note?: string; readOnlyNote?: string; emptyText: string;
-  items: Knowledge[]; editable: boolean; candidates: KnowledgeCandidate[];
+function KnowledgeGroup({ entries, candidates, onChange, onUploaded }: {
+  entries: KnowledgeEntry[]; candidates: KnowledgeCandidate[];
   onChange: (scope: KnowledgeScope, change: (items: Knowledge[]) => Knowledge[]) => void;
   onUploaded: (item: KnowledgeCandidate) => void;
 }) {
   const [busy, setBusy] = useState<"" | "add" | "upload">("");
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const headingId = useId();
   const selectId = useId();
-  const available = candidates.filter((candidate) => !items.some((item) => item.documentId === candidate.id));
+  const available = candidates.filter((candidate) => !entries.some(({ item }) => item.documentId === candidate.id));
 
   async function add(documentId: string, mode: KnowledgeMode) {
     setError("");
     const response = await fetch("/api/agent/knowledge", {
       method: "POST", headers: { "content-type": "application/json" }, cache: "no-store",
-      body: JSON.stringify({ scope, documentId, mode, note: "" }),
+      body: JSON.stringify({ scope: "personal", documentId, mode, note: "" }),
     });
     if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível adicionar o documento."));
     const { knowledge } = await response.json() as { knowledge: Knowledge };
-    onChange(scope, (list) => [...list, knowledge]);
+    onChange("personal", (list) => [...list, knowledge]);
   }
 
   async function choose(documentId: string) {
@@ -105,19 +106,16 @@ function KnowledgeGroup({ scope, title, note, readOnlyNote, emptyText, items, ed
   }
 
   return (
-    <div className="mt-6" role="group" aria-labelledby={headingId}>
-      <h3 id={headingId} className="text-sm font-medium">{title}</h3>
-      {(editable ? note : readOnlyNote) && <p className="mt-1 text-[13px] text-muted-foreground">{editable ? note : readOnlyNote}</p>}
+    <div className="mt-4">
       <div className="mt-3 divide-y border-y">
-        {items.length === 0 && <p className="py-4 text-sm text-subtle-foreground">{emptyText}</p>}
-        {items.map((item) => (
-          <KnowledgeRow key={item.id} scope={scope} item={item} editable={editable}
-            onSaved={(next) => onChange(scope, (list) => list.map((entry) => entry.id === next.id ? next : entry))}
-            onRemoved={() => onChange(scope, (list) => list.filter((entry) => entry.id !== item.id))} />
+        {entries.length === 0 && <p className="py-4 text-sm text-subtle-foreground">Nenhum documento definido.</p>}
+        {entries.map(({ item, copies }) => (
+          <KnowledgeRow key={item.documentId} copies={copies} item={item} editable
+            onSaved={(scope, next) => onChange(scope, (list) => list.map((entry) => entry.id === next.id ? next : entry))}
+            onRemoved={(scope, id) => onChange(scope, (list) => list.filter((entry) => entry.id !== id))} />
         ))}
       </div>
-      {editable && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
           <label htmlFor={selectId} className="sr-only">Adicionar do Cofre</label>
           <select id={selectId} value="" disabled={Boolean(busy) || available.length === 0}
             onChange={(event) => { if (event.target.value) void choose(event.target.value); }}
@@ -131,15 +129,15 @@ function KnowledgeGroup({ scope, title, note, readOnlyNote, emptyText, items, ed
             {busy === "upload" ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload aria-hidden="true" />}Enviar arquivo
           </Button>
           {busy === "add" && <span role="status" className="text-[13px] text-muted-foreground">Adicionando…</span>}
-        </div>
-      )}
+      </div>
       {error && <p role="alert" className="mt-2 flex items-start gap-2 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
     </div>
   );
 }
 
-function KnowledgeRow({ scope, item, editable, onSaved, onRemoved }: {
-  scope: KnowledgeScope; item: Knowledge; editable: boolean; onSaved: (item: Knowledge) => void; onRemoved: () => void;
+function KnowledgeRow({ copies, item, editable, onSaved, onRemoved }: {
+  copies: KnowledgeEntry['copies']; item: Knowledge; editable: boolean;
+  onSaved: (scope: KnowledgeScope, item: Knowledge) => void; onRemoved: (scope: KnowledgeScope, id: string) => void;
 }) {
   const [note, setNote] = useState(item.note);
   const [busy, setBusy] = useState(false);
@@ -150,14 +148,16 @@ function KnowledgeRow({ scope, item, editable, onSaved, onRemoved }: {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`/api/agent/knowledge/${encodeURIComponent(item.id)}`, {
-        method: "PUT", headers: { "content-type": "application/json" }, cache: "no-store",
-        body: JSON.stringify({ scope, mode, note: nextNote, version: item.version }),
-      });
-      if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível salvar."));
-      const saved = (await response.json() as { knowledge: Knowledge }).knowledge;
-      setNote(saved.note);
-      onSaved(saved);
+      for (const { item: copy, scope } of copies) {
+        const response = await fetch(`/api/agent/knowledge/${encodeURIComponent(copy.id)}`, {
+          method: "PUT", headers: { "content-type": "application/json" }, cache: "no-store",
+          body: JSON.stringify({ scope, mode, note: nextNote, version: copy.version }),
+        });
+        if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível salvar."));
+        const saved = (await response.json() as { knowledge: Knowledge }).knowledge;
+        setNote(saved.note);
+        onSaved(scope, saved);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar.");
     } finally { setBusy(false); }
@@ -167,9 +167,11 @@ function KnowledgeRow({ scope, item, editable, onSaved, onRemoved }: {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`/api/agent/knowledge/${encodeURIComponent(item.id)}?scope=${scope}`, { method: "DELETE", cache: "no-store" });
-      if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível remover."));
-      onRemoved();
+      for (const { item: copy, scope } of copies) {
+        const response = await fetch(`/api/agent/knowledge/${encodeURIComponent(copy.id)}?scope=${scope}`, { method: "DELETE", cache: "no-store" });
+        if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível remover."));
+        onRemoved(scope, copy.id);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível remover.");
       setBusy(false);

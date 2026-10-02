@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import type { OfficeRole } from '@/lib/offices';
-import { capabilities, publishedCapabilitiesForRole, type CapabilityName } from '@/lib/capabilities/contracts';
+import { capabilities, publishedCapabilities, type CapabilityName } from '@/lib/capabilities/contracts';
 import type { WebMCPToolDefinition, WebMCPToolRegistration } from './types';
 
 import { getModelContext } from './browser';
@@ -26,7 +25,7 @@ export async function executeViaHttp(
  * an async `registerTool` settles - React's double mount does exactly that, and a registration
  * that lands after unmount would otherwise leak a live tool into the next mount.
  */
-export function registerWebMCPCapabilities(role: OfficeRole, options: { whatsappEnabled?: boolean } = {}): () => void {
+export function registerWebMCPCapabilities(options: { whatsappEnabled?: boolean } = {}): () => void {
   const context = getModelContext();
   if (!context) return () => {};
 
@@ -34,7 +33,7 @@ export function registerWebMCPCapabilities(role: OfficeRole, options: { whatsapp
   const registrations: WebMCPToolRegistration[] = [];
   let disposed = false;
 
-  for (const name of publishedCapabilitiesForRole(role, 'webmcp')) {
+  for (const name of publishedCapabilities('webmcp')) {
     const capability = capabilities[name];
     if (capability.module === 'whatsapp' && !options.whatsappEnabled) continue;
     const definition: WebMCPToolDefinition = {

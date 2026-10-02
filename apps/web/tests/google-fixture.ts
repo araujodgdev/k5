@@ -59,14 +59,14 @@ export type GoogleFixture = { context: WorkspaceContext; officeId: string; userI
 
 /** Office, member, rollout for every module and an active connection whose access token is valid. */
 export async function googleFixture(options: {
-  role?: WorkspaceContext['role']; officeId?: string; modules?: GoogleModule[]; grantedModules?: GoogleModule[]; connect?: boolean; accessValid?: boolean;
+  modules?: GoogleModule[]; grantedModules?: GoogleModule[]; connect?: boolean; accessValid?: boolean;
 } = {}): Promise<GoogleFixture> {
-  const officeId = options.officeId ?? randomUUID();
+  const officeId = randomUUID();
   const userId = randomUUID();
   const email = `${userId.slice(0, 8)}@example.com`;
-  if (!options.officeId) await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
+  await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
   await testDb.prepare('INSERT INTO "user"(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, `Pessoa ${userId.slice(0, 4)}`);
-  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id,role) VALUES(?,?,?,?)').run(randomUUID(), officeId, userId, options.role ?? 'lawyer');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   for (const feature of options.modules ?? ['gmail', 'calendar', 'drive', 'docs']) {
     await testDb.prepare('INSERT INTO google_rollout(office_id,module,enabled) VALUES(?,?,1) ON CONFLICT DO NOTHING').run(officeId, feature);
   }
@@ -79,7 +79,7 @@ export async function googleFixture(options: {
       encryptCredential(`refresh-${userId}`, ring), encryptCredential(`access-initial-${userId}`, ring),
       new Date(Date.now() + (options.accessValid === false ? -60_000 : 3_600_000)).toISOString());
   }
-  return { context: { officeId, userId, role: options.role ?? 'lawyer' }, officeId, userId, connectionId, email };
+  return { context: { officeId, userId }, officeId, userId, connectionId, email };
 }
 
 /** Saves office rules directly (as an administrator would through the interface). */

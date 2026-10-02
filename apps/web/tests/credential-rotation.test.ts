@@ -26,7 +26,7 @@ async function fixture() {
   };
   await insert('user', { id: actor, email: 'rotation@example.test', name: 'Rotation' });
   await insert('office', { id: office, name: 'Rotation test' });
-  await insert('office_member', { id: randomUUID(), office_id: office, user_id: actor, role: 'administrator' });
+  await insert('office_member', { id: randomUUID(), office_id: office, user_id: actor });
   await insert('platform_admin', { user_id: actor });
   const personalThread = randomUUID(), invitation = randomUUID(), message = randomUUID(), document = randomUUID(), version = randomUUID();
   await insert('personal_thread', { id: personalThread, created_by: actor });

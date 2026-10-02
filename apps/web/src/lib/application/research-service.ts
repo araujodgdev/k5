@@ -24,12 +24,8 @@ async function authorize(context: WorkspaceContext, write = false): Promise<void
       throw new ResearchError('forbidden', 'Sessão encerrada.');
     }
   }
-  const membership = await database.prepare('SELECT role FROM office_member WHERE office_id=? AND user_id=?')
-    .get<{ role: string }>(context.officeId,context.userId);
+  const membership = await database.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(context.officeId,context.userId);
   if (!membership) throw new ResearchError('forbidden', 'Acesso ao escritório removido.');
-  if (write && !['administrator','lawyer'].includes(membership.role)) {
-    throw new ResearchError('forbidden', 'Seu papel permite apenas consultar o acervo.');
-  }
   if (write && context.invocation) throw new ResearchError('forbidden', 'Esta ação exige a interface humana.');
 }
 

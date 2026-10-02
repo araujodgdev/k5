@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SmartOptions, type SmartOption } from '@/components/smart-options';
-import type { OfficeRole } from '@/lib/offices';
 import type { CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { EmailTriageItem, EmailTriageResult } from '@/lib/google/gmail/triage-contracts';
 import type { DigestPeriod, EmailDigest, ThreadInsight } from '@/lib/google/gmail/insights-contracts';
@@ -62,8 +61,7 @@ async function fetchThread(threadId: string): Promise<Thread> {
   return result.thread;
 }
 
-export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: OfficeRole; initialThreadId?: string; initialDraftId?: string }) {
-  const canWrite = role !== 'reviewer';
+export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadId?: string; initialDraftId?: string }) {
   const { run, approvalDialog } = useGoogleAction();
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [folder, setFolder] = useState<Folder>('INBOX');
@@ -157,12 +155,12 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
     return () => { active = false; };
   }, [enabled, folder, search, pageToken, revision]);
   useEffect(() => {
-    if (!enabled || !canWrite) return;
+    if (!enabled) return;
     fetch('/api/vault/cases', { cache: 'no-store' }).then(async response => {
       if (!response.ok) throw new Error('Não foi possível listar os casos do Cofre.');
       return response.json() as Promise<{ cases: VaultCase[] }>;
     }).then(value => setCases(value.cases ?? [])).catch(() => undefined);
-  }, [enabled, canWrite]);
+  }, [enabled]);
 
   const invalidateTriage = () => { triageRequest.current += 1; setTriageBusy(false); setTriageMessage(''); setCategoryFilter('all'); setPriorityFilter('all'); setSortOrder('recent'); };
   const refresh = () => { invalidateTriage(); setListLoading(true); setRevision(value => value + 1); };
@@ -274,8 +272,8 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
     else openDigest(id.replace('digest-', '') as DigestPeriod);
   };
   const threadBusy = thread ? insights[thread.id]?.status === 'loading' : false;
-  const threadOptions: SmartOption[] = thread ? [{ id: 'insight', label: canWrite ? 'Resumo e respostas rápidas' : 'Resumo da conversa',
-    description: canWrite ? 'O essencial da conversa e respostas prontas para revisar.' : 'O essencial da conversa e o que ela pede.' }] : [];
+  const threadOptions: SmartOption[] = thread ? [{ id: 'insight', label: 'Resumo e respostas rápidas',
+    description: 'O essencial da conversa e respostas prontas para revisar.' }] : [];
 
   async function upload(file: File) {
     if (!editor) return;
@@ -388,7 +386,7 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
       <h1 className="page-title leading-none max-md:sr-only">E-mails</h1>
       {enabled && <div className="flex items-center gap-1 lg:hidden">
         <SmartOptions options={mailboxOptions} onSelect={onMailboxOption} busy={digestBusy || triageBusy} align="end" />
-        {canWrite && <Button type="button" onClick={compose}><PenLine aria-hidden="true" />Escrever</Button>}
+        <Button type="button" onClick={compose}><PenLine aria-hidden="true" />Escrever</Button>
       </div>}
     </div>
     {status && !enabled ? <div className="px-5 md:px-10"><GoogleConnectionNotice status={status} module="gmail" /></div> : null}
@@ -399,9 +397,9 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
       {/* Gmail-like folder column: labels from xl, an icon rail on narrower desktops, a strip on phones. */}
       <TooltipProvider delayDuration={300}><aside aria-label="Caixa de e-mail" className="hidden w-14 shrink-0 flex-col border-r border-line lg:flex xl:w-56">
         <div className="flex items-center gap-1 border-b p-2 max-xl:flex-col">
-          {canWrite && <><Tooltip><TooltipTrigger asChild><Button type="button" size="icon" aria-label="Escrever" className="xl:hidden" onClick={compose}><PenLine aria-hidden="true" /></Button></TooltipTrigger>
+          <><Tooltip><TooltipTrigger asChild><Button type="button" size="icon" aria-label="Escrever" className="xl:hidden" onClick={compose}><PenLine aria-hidden="true" /></Button></TooltipTrigger>
             <TooltipContent side="right">Escrever</TooltipContent></Tooltip>
-            <Button type="button" className="hidden flex-1 justify-start xl:flex" onClick={compose}><PenLine aria-hidden="true" />Escrever</Button></>}
+            <Button type="button" className="hidden flex-1 justify-start xl:flex" onClick={compose}><PenLine aria-hidden="true" />Escrever</Button></>
           <SmartOptions options={mailboxOptions} onSelect={onMailboxOption} busy={digestBusy || triageBusy} />
         </div>
         <nav aria-label="Pastas de e-mail" className="py-2">
@@ -481,7 +479,7 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
           onPeriod={period => { setDigestPeriod(period); loadDigest(period); }} onRetry={() => loadDigest(digestPeriod, true)}
           onOpenThread={id => void openThread(id)} onClose={resetDetail} />}
         {thread && <div className="pb-10">
-          {insightOpen === thread.id && insights[thread.id] && <ThreadInsightView state={insights[thread.id]} canWrite={canWrite}
+          {insightOpen === thread.id && insights[thread.id] && <ThreadInsightView state={insights[thread.id]}
             onRetry={() => loadInsight(thread.id, true)} onClose={() => setInsightOpen(null)}
             onUseReply={body => { const latest = thread.messages.at(-1); if (latest) reply(latest, body); }} />}
           {thread.messages.map(mail => <article key={mail.id} className="border-b py-5">
@@ -491,21 +489,21 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
               : <div className="mt-5 whitespace-pre-wrap break-words text-sm leading-6">{mail.text || 'Esta mensagem não tem texto legível.'}</div>}
             {!!mail.attachments.length && <div className="mt-5 border-t pt-4">
               <p className="mb-2 text-sm font-medium">Anexos</p>
-              {canWrite && <div className="mb-3 grid max-w-sm gap-1.5"><Label htmlFor={`email-case-${mail.id}`}>Importar para o caso</Label>
+              <div className="mb-3 grid max-w-sm gap-1.5"><Label htmlFor={`email-case-${mail.id}`}>Importar para o caso</Label>
                 <select id={`email-case-${mail.id}`} value={selectedCase} onChange={event => setSelectedCase(event.target.value)}
                   className="h-11 border border-input bg-background px-3 text-sm md:h-9">
                   <option value="">Escolha um caso</option>{cases.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                <p className="text-xs text-muted-foreground">A cópia passa a seguir as permissões e a retenção do Cofre.</p></div>}
+                <p className="text-xs text-muted-foreground">A cópia passa a seguir as permissões e a retenção do Cofre.</p></div>
               {mail.attachments.map(file => <div key={file.partId} className="flex min-h-11 items-center justify-between gap-3 border-b py-2 text-sm">
                 <span className="min-w-0 truncate"><Paperclip aria-hidden="true" className="mr-2 inline size-4" />{file.filename} · {Math.ceil(file.size / 1024)} KB</span>
-                {canWrite && file.importable && <Button type="button" variant="outline" disabled={busy || !selectedCase}
+                {file.importable && <Button type="button" variant="outline" disabled={busy || !selectedCase}
                   onClick={() => void importPart(mail.id, file.partId)}>Importar</Button>}
               </div>)}
             </div>}
-            {canWrite && <Button type="button" variant="outline" className="mt-5" onClick={() => reply(mail)}>Responder</Button>}
+            <Button type="button" variant="outline" className="mt-5" onClick={() => reply(mail)}>Responder</Button>
           </article>)}
         </div>}
-        {editor && canWrite && <div className="pb-10">
+        {editor && <div className="pb-10">
           <fieldset disabled={busy} className="grid gap-4 py-5">
             {(['to', 'cc', 'bcc'] as const).map(field => <div key={field} className="grid gap-1.5">
               <Label htmlFor={`mail-${field}`}>{field === 'to' ? 'Para' : field === 'cc' ? 'Cc' : 'Cco'}</Label>
@@ -552,6 +550,6 @@ export function GmailPanel({ role, initialThreadId, initialDraftId }: { role: Of
       </section>
     </div>}
     {approvalDialog}
-    {enabled && !cases.length && canWrite && <p className="sr-only">Nenhum caso do Cofre disponível para importar anexos. <Link href="/app/vault">Abrir Cofre</Link></p>}
+    {enabled && !cases.length && <p className="sr-only">Nenhum caso do Cofre disponível para importar anexos. <Link href="/app/vault">Abrir Cofre</Link></p>}
   </div>;
 }
