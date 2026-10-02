@@ -104,7 +104,8 @@ test('honorários pela interface: parcelamento, baixas integral e parcial, corre
     await route.fulfill({ status: 503, json: { error: 'Falha de consulta simulada para validação.' } });
   });
   await browser.goto('/app/honorarios', { waitUntil: 'domcontentloaded' });
-  await expect(screen.getByText('Carregando honorários…')).toBeVisible();
+  // The route's loading screen and the list's own state can show the text at the same time.
+  await expect(screen.getByText('Carregando honorários…').first()).toBeVisible();
   release();
   await expect(screen.getByRole('alert').filter({ hasText: 'Falha de consulta simulada' })).toBeVisible();
   await browser.unroute('**/api/honorarios/list');
