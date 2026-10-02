@@ -17,7 +17,9 @@ A member of the office creates a task, sees it in the open list grouped by due d
 - Início (`/app/command-center`) → link "Nova atividade", and the "Concluir …" checkboxes on today's tasks.
 - On mobile: the bottom tab "Escritório".
 
-## Driving it with Playwright (session.mts)
+## Driving it with e2e
+
+Test: `apps/web/e2e/office-tasks.e2e.ts`
 
 Preconditions:
 
@@ -34,7 +36,7 @@ Preconditions:
 
 ## Gotchas
 
-- The checkbox is controlled by server state: use `click()`, not `check()`. Playwright's `check()` fails with "Clicking the checkbox did not change its state" because the row disappears instead of toggling.
+- The checkbox is controlled by server state: use `tap()`, not `check()`. `check()` waits for the box to become checked, but the row disappears instead of toggling.
 - "Nova atividade" stays disabled until the case/client/member options load. Wait for it to be enabled, which `click()` does.
 - The `h1 "Escritório"` is `sr-only` on mobile. Assert it with `toBeAttached()`, not `toBeVisible()`.
 - The default due date is today, so a new task lands in "Hoje", which shows no date line.

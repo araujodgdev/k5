@@ -1,4 +1,5 @@
-import { chromium, expect } from '@playwright/test';
+import { chromium } from 'playwright';
+import { visible } from './browser-wait';
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
@@ -27,7 +28,7 @@ try {
       await page.getByRole('button', { name: 'Convidar para equipe', exact: true }).click();
       await page.getByLabel('E-mail da pessoa').fill(peer.email);
       await page.getByRole('button', { name: 'Criar convite', exact: true }).click();
-      await expect(page.getByLabel('Link do convite')).toBeVisible({ timeout: 60_000 });
+      await visible(page.getByLabel('Link do convite'), 60_000);
     }
     const peerPage = await peerContext.newPage();
     await peerPage.goto(`${baseURL}/sign-in`);
@@ -38,7 +39,7 @@ try {
     await peerPage.getByRole('button', { name: 'Agora não', exact: true }).click();
     await peerPage.goto(`${baseURL}/app/agenda?view=invites`);
     await peerPage.getByRole('button', { name: 'Aceitar convite', exact: true }).click();
-    await expect(peerPage.getByText('Convite aceito.', { exact: true })).toBeVisible({ timeout: 60_000 });
+    await visible(peerPage.getByText('Convite aceito.', { exact: true }), 60_000);
     await peerContext.storageState({ path: '.data/tutorial/colleague-session.json' });
     console.log('Colega fictício criado e convite aceito pela interface.');
   }

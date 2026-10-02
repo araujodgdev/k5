@@ -1,6 +1,6 @@
 ---
 name: verify-k5
-description: Launch an isolated K5 (Lume) web app, drive it in a real browser as the office user, and capture proof (Playwright traces, screenshots, read-only DB checks). Use to confirm a change to apps/web works end to end, such as a screen, form, route or office-scoped data, without touching the developer's `pnpm dev` or database.
+description: Launch an isolated K5 (Lume) web app, drive it in a real browser as the office user, and capture proof with the e2e suite (traces, screenshots, read-only DB checks). Use to confirm a change to apps/web works end to end, such as a screen, form, route or office-scoped data, without touching the developer's `pnpm dev` or database.
 ---
 
 # Verify K5
@@ -32,34 +32,30 @@ Every command prints one JSON object on stdout: `{ "ok": true, ... }` or `{ "ok"
 
 ## Drive
 
-`$K features` lists the map (`features/*.md`): each feature's `id`, recipe path, and driver script (or `null`). Read the recipe before driving it. When a feature has several entry points, a proof that drives only one is incomplete.
+`$K features` lists the map (`features/*.md`): each feature's `id`, recipe path, and the e2e tests its `Test:` lines name. Read the recipe before driving it. When a feature has several entry points, a proof that drives only one is incomplete.
 
-`$K drive <id>` runs `scripts/drive-<id>.mts` against the ready instance and returns `passed`, the `checks` (the driver's `PASS` lines), `pageErrors` and `artifacts`. On failure it returns `DRIVE_FAILED` with the assertion in `error.details.failure` and the trace path in `fix`.
+`$K drive <id>` runs those tests from `apps/web/e2e/` with the e2e runner, against the ready instance instead of a server of its own (`K5_E2E_URL`), with the instance's database (`DATABASE_URL`) and account (`E2E_EMAIL`, `E2E_PASSWORD`). It returns `passed` and one entry per test with its `status`, `error` and artifact paths. On failure it returns `DRIVE_FAILED`, the runner's last lines in `error.details.failure`, and the summary to read in `fix`. Tests under `e2e/agent/` drive the UI with a model and need `OPENAI_API_KEY` in your environment (the runner's, not the instance's).
 
-To cover a feature without a driver (`NO_DRIVER`), write `scripts/drive-<id>.mts`, copying `drive-office-tasks.mts`. Drivers import `openApp(feature, { mobile?, signIn? })` and `expect` from `scripts/session.mts`. `openApp` signs in through the real `/sign-in` form and returns:
+These are the same tests CI runs on every pull request. To cover a feature without tests (`NO_TESTS`), load the `e2e` skill, write `apps/web/e2e/<name>.e2e.ts` and add a `Test:` line for it to the recipe. Follow the existing files:
 
-- `page`: a Playwright page. `baseURL` is the instance, so use relative paths such as `page.goto('/app/agenda')`.
-- `shot(name)`: a numbered full-page screenshot.
-- `sql(query, params)`: a query inside a `READ ONLY` transaction.
-- `log(line)`: records a `PASS …` line in `checks.txt`.
-- `errors`: the page and console errors collected so far.
-- `close()`: writes `trace.zip`, `errors.json` and `checks.txt`. Always call it, in `finally`.
+- `{ session: 'admin' }` restores the signed-in account from `e2e/auth.setup.e2e.ts`, which signs in once through the real `/sign-in` form. A test that changes credentials signs up its own account with `uniqueAccount()` and `ApiSession` from `e2e/support/accounts.ts`.
+- `test` from `e2e/support/fixtures.ts` adds `sql(query, params)`, a query inside a `READ ONLY` transaction.
+- Use roles and accessible names from the pt-BR UI (`screen.getByRole('button', 'Nova atividade')`, `screen.getByLabel('Título')`), not CSS classes or coordinates. Names match exactly by default.
+- Assertions wait 10 s against the instance; a route's first compile in `next dev` can take longer, so a cold first drive may need a rerun.
 
-`expect` waits up to 30 s, because `next dev` compiles each route on first use. Use roles and accessible names from the pt-BR UI (`getByRole('button', { name: 'Nova atividade', exact: true })`, `getByLabel('Título')`), not CSS classes or coordinates.
-
-`$K sql "<query>" --params '<json array>'` runs one read-only query, for checks outside a driver. Writes are rejected on purpose: create state through the UI.
+`$K sql "<query>" --params '<json array>'` runs one read-only query, for checks outside a test. Writes are rejected on purpose: create state through the UI.
 
 ## Evidence
 
-Everything goes to `apps/web/playwright-report/verify/<runId>/<feature>/` (git-ignored, kept by `down`): numbered PNGs, `trace.zip` (open it with `pnpm --dir apps/web exec playwright show-trace <path>`), `checks.txt` and `errors.json`.
+Each drive writes to `apps/web/.e2e/verify/<runId>/<feature>/` (git-ignored, kept by `down`): `report.json`, `summary.md` with a page per failed test under `failures/`, and `artifacts/` with a Playwright trace per test (open it with `pnpm --dir apps/web exec playwright show-trace <path>`), failure screenshots and any `app.screenshot()` images.
 
 Proof standards:
 
-- Exercise the real user path: UI controls and the same API calls the UI makes. Do not use `page.route` mocks, internal setters or direct DB writes to create state. Mocks are acceptable only for external systems that production already isolates behind a boundary.
-- Capture the action and the resulting state: a screenshot before, one of the filled form, and one of the result, plus the trace.
+- Exercise the real user path: UI controls and the same API calls the UI makes. Do not use `browser.route` mocks, internal setters or direct DB writes to create the state you are proving. Mocks are acceptable only for external systems that production already isolates behind a boundary.
+- Capture the action and the resulting state: the trace shows both; add `app.screenshot()` where a reviewer needs the before and after.
 - Verify side effects, not only the screen: read the row back with `sql`, scoped to the verification office, then reload the page to prove persistence.
 - Cover the mobile width (390px) for UI changes, as `apps/web/DESIGN.md` requires. Check for no horizontal scroll and that the primary action is reachable.
-- `pageErrors` must be empty, or you must explain each entry. Hydration reports include the page URL and the differing attribute.
+- e2e does not collect console errors. When a page error matters, open the trace's console tab and explain each entry.
 - Report which entry points you drove and which you could not, with the reason, such as a worker or external key the instance lacks.
 
 ## Cleanup
@@ -71,7 +67,7 @@ Proof standards:
 | File | Role |
 | --- | --- |
 | `scripts/k5-verify.mts` | The CLI above: `up`, `doctor`, `features`, `drive`, `sql`, `status`, `down`. |
-| `scripts/session.mts` | Browser session and evidence for drivers (`openApp`, `expect`). |
-| `scripts/drive-office-tasks.mts` | Driver for [`features/office-tasks.md`](features/office-tasks.md), run with `$K drive office-tasks`. |
+| `apps/web/e2e.config.ts` | The e2e config `drive` uses; `K5_E2E_URL` points it at the instance. |
+| `apps/web/e2e/support/` | Accounts and HTTP sessions, the `sql` fixture, form sign-in, and seeding for AI-made records. |
 
-Files keep the `.mts` extension, because the skill folder has no `package.json` and `.ts` would load as CommonJS without top-level await. Scripts resolve `@playwright/test`, `pg` and `embedded-postgres` from `apps/web`.
+The CLI keeps the `.mts` extension, because the skill folder has no `package.json` and `.ts` would load as CommonJS without top-level await. It resolves `pg`, `embedded-postgres` and the `e2e` runner from `apps/web`.

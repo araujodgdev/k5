@@ -17,7 +17,7 @@
  * 5. Functional API validations for RAG RRF, Source Inspection, Approvals Anti-Tampering, and Untrusted Origin 403.
  */
 
-import { chromium } from '@playwright/test';
+import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';

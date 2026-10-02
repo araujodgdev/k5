@@ -49,4 +49,4 @@ pnpm db:setup
 pnpm build
 ```
 
-Com o servidor local em execução, `pnpm --filter @k5/web exec tsx scripts/verify-honorarios-ui.ts` verifica o fluxo no navegador e grava evidências em `apps/web/playwright-report/honorarios/`. O script cria dados sintéticos em um escritório de validação. Ele só aceita servidor e banco locais.
+`apps/web/e2e/honorarios.e2e.ts` verifica o fluxo no navegador (parcelamento, baixas, correção, abas, cancelamento, erro e celular) e `apps/web/e2e/honorario-charge.e2e.ts`, a cobrança com PIX, boleto e PDF. Ambos criam um escritório sintético por execução e rodam no CI com a [suíte e2e](../apps/web/README.md#testes-end-to-end).

@@ -20,14 +20,13 @@ em [apps/tutorials](../apps/tutorials/README.md).
 
 ## Verificação
 
-Com o servidor local iniciado e a conta demo provisionada:
+`apps/web/e2e/onboarding.e2e.ts` usa desktop e celular, percorre as etapas, volta, pausa,
+recarrega, retoma, confere o foco por teclado e conclui, e segue do tutorial até a página do
+vídeo. Roda no CI com a [suíte e2e](../apps/web/README.md#testes-end-to-end); para repeti-lo:
 
 ```sh
-pnpm --filter @k5/web exec tsx scripts/verify-onboarding.ts --video
+pnpm --filter @k5/web exec e2e run e2e/onboarding.e2e.ts
 ```
-
-O script usa desktop e celular, percorre as etapas, volta, pausa, recarrega, retoma, confere
-o foco por teclado e conclui. Capturas ficam em `apps/web/.data/tutorial/verification/`.
 Também execute lint, typecheck, testes e build a partir da raiz.
 
 ## Reprodução na Cloudflare

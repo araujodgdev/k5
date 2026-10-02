@@ -10,7 +10,7 @@ const eslintConfig = defineConfig([
   // that may never land — and TypeScript stays silent when the result is discarded. This rule is
   // the only thing that catches it.
   {
-    files: ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "tests/**/*.ts"],
+    files: ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "tests/**/*.ts", "e2e/**/*.ts", "e2e.config.ts"],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },

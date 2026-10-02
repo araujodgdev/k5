@@ -12,6 +12,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:e2e": "pnpm --filter @k5/web test:e2e",
     "db:setup": "pnpm --filter @k5/web db:setup",
     "preview:deploy": "pnpm --filter @k5/web preview:deploy",
     "worker": "pnpm --filter @k5/web worker",

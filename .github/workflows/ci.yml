@@ -10,12 +10,47 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  E2E_TELEMETRY_DISABLED: '1'
+
+# The jobs run in parallel; the slowest one (e2e) sets the wall-clock time instead of their sum.
 jobs:
-  verify:
+  static:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+  test:
+    # scripts/test-postgres.ts starts its own embedded PostgreSQL; no service container needed.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install PDF converter
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-liberation fonts-dejavu-core
+      - run: pnpm test
+
+  e2e:
+    # Builds Next.js once, then runs the e2e suite against `next start` on that build.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
-      # Throwaway database so db:setup can apply migrations before the build.
+      # Throwaway database for db:setup, the build's page collection and the e2e server.
       postgres:
         image: postgres:18
         env:
@@ -26,60 +61,126 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U k5 -d k5_ci"
           --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Compilation and test-server values only; staging secrets stay out of PR builds.
+      DATABASE_URL: postgresql://k5:ci-build-only@127.0.0.1:5432/k5_ci
+      BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
+      BETTER_AUTH_URL: http://localhost:3000
+      K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnQ=
+      SENTRY_ENABLED: 'false'
+      NEXT_PUBLIC_SENTRY_ENABLED: 'false'
+      SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
+      SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
+      SENTRY_RELEASE: ${{ github.sha }}
+      NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v5
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v6
         with:
           node-version-file: package.json
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
 
       - name: Install PDF converter
+        # Document and charge PDFs are converted by LibreOffice on the server.
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-liberation fonts-dejavu-core
-
-      - run: pnpm lint
-
-      - run: pnpm typecheck
-
-      - run: pnpm test
 
       - name: Build Next.js
         # Migrate the service database before parallel page collection.
-        # These values are for compilation only; staging secrets stay out of PR builds.
-        env:
-          DATABASE_URL: postgresql://k5:ci-build-only@127.0.0.1:5432/k5_ci
-          BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
-          BETTER_AUTH_URL: http://localhost:3000
-          K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnQ=
-          SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
-          SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          SENTRY_RELEASE: ${{ github.sha }}
-          NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
-          SENTRY_ENABLED: 'false'
-          NEXT_PUBLIC_SENTRY_ENABLED: 'false'
         run: |
           pnpm db:setup
           pnpm build
 
-      - name: Build Cloudflare
-        # Compile the deployed runtime without deploying or accessing Cloudflare resources.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Chromium
+        # Its own step, so the download stays out of the runner's launch timeout.
+        run: pnpm --filter @k5/web exec playwright install --with-deps chromium
+
+      - name: Restore agent replay cache
+        # Verified agent steps replay without model calls; a run only records what it re-verified.
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.e2e/cache
+          key: e2e-replay-${{ github.run_id }}
+          restore-keys: e2e-replay-
+
+      - name: Run e2e
         env:
-          DATABASE_URL: postgresql://k5:ci-build-only@127.0.0.1:5432/k5_ci
-          BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
-          BETTER_AUTH_URL: http://localhost:3000
-          K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnQ=
-          SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
-          SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          SENTRY_RELEASE: ${{ github.sha }}
-          NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
-          SENTRY_ENABLED: 'false'
-          NEXT_PUBLIC_SENTRY_ENABLED: 'false'
-          WRANGLER_SEND_METRICS: 'false'
-        run: pnpm --filter @k5/web build:vinext
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Agent tests need the model key; forks and repositories without the secret skip them.
+          filter=$([ -n "$OPENAI_API_KEY" ] || echo "--exclude-tag agent")
+          pnpm --filter @k5/web exec e2e run --workers 4 --reporter list,junit,markdown $filter
+
+      - name: Publish e2e summary
+        if: ${{ !cancelled() }}
+        run: '[ -f apps/web/.e2e/summary.md ] && cat apps/web/.e2e/summary.md >> "$GITHUB_STEP_SUMMARY" || true'
+      - name: Upload e2e report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            apps/web/.e2e/report.json
+            apps/web/.e2e/junit.xml
+            apps/web/.e2e/summary.md
+            apps/web/.e2e/failures
+            apps/web/.e2e/logs
+          if-no-files-found: warn
+      - name: Upload e2e artifacts
+        # Traces and screenshots of failed and retried attempts.
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: apps/web/.e2e/artifacts
+          if-no-files-found: warn
+          retention-days: 7
+
+  cloudflare:
+    # Compile the deployed runtime without deploying or accessing Cloudflare resources.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      # Throwaway database for db:setup, the build's page collection and the e2e server.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: k5
+          POSTGRES_PASSWORD: ci-build-only
+          POSTGRES_DB: k5_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U k5 -d k5_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Compilation and test-server values only; staging secrets stay out of PR builds.
+      DATABASE_URL: postgresql://k5:ci-build-only@127.0.0.1:5432/k5_ci
+      BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
+      BETTER_AUTH_URL: http://localhost:3000
+      K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnQ=
+      SENTRY_ENABLED: 'false'
+      NEXT_PUBLIC_SENTRY_ENABLED: 'false'
+      WRANGLER_SEND_METRICS: 'false'
+      SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
+      SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
+      SENTRY_RELEASE: ${{ github.sha }}
+      NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:setup
+      - run: pnpm --filter @k5/web build:vinext
 
   migrations:
     # Migrations are append-only: editing a file that already ran leaves every existing database

@@ -15,7 +15,9 @@ A member registers a client in the office CRM, finds it in the Clientes list, op
 - Sidebar "Escritório" → tab "Clientes" (`/app/agenda?view=clients`), then the "Novo cliente" button.
 - From a case in Cofre, through its client data.
 
-## Driving it with Playwright (session.mts)
+## Driving it with e2e
+
+Test: `apps/web/e2e/agent/office-clients.e2e.ts`
 
 Preconditions:
 

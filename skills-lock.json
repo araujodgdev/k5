@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "e2e": {
+      "source": "tester-army/e2e",
+      "sourceType": "github",
+      "skillPath": "skills/e2e/SKILL.md",
+      "computedHash": "afe72437fe580a8adf67e81ec601bcaaa40c42853f35a3a091fe8edd5aa75c82"
+    },
     "neon": {
       "source": "neondatabase/agent-skills",
       "sourceType": "github",

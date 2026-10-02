@@ -66,13 +66,13 @@ evitar aceite duplo, conflitos com revogação e perda do último administrador.
 `tests/auth.test.ts`: isolamento, consulta/edição, revogação, associação, múltiplos
 escritórios, aceite concorrente, tokens, expiração e delegação.
 
-Para repetir a validação de interface em um servidor **local**, execute na raiz:
+A validação de interface é `apps/web/e2e/collaboration.e2e.ts`, parte da
+[suíte e2e](../apps/web/README.md#testes-end-to-end) que roda no CI. Para repeti-la na raiz:
 
 ```sh
-pnpm --filter @k5/web exec tsx scripts/validate-collaboration.ts
+pnpm --filter @k5/web exec e2e run e2e/collaboration.e2e.ts
 ```
 
-`BASE_URL` pode apontar para outra porta local. O script reutiliza as contas de validação
-`admin@advocacia.test` e `parceiro.colaboracao@advocacia.test`, um caso de teste estável,
-e grava capturas de desktop e celular em `apps/web/.data/collaboration-qa/`. Ele cria e
-revoga vínculos de teste e envia um documento de teste; não usa contas reais nem envia mensagens.
+O teste cria duas contas descartáveis (dona e parceira), um caso de teste e um documento de
+teste; concede e revoga acesso ao caso, associação e equipe, e confere troca de escritório,
+CSRF e recuperação de erro no celular. Não usa contas reais nem envia mensagens.

@@ -33,14 +33,13 @@ A numeração dos módulos e o copyright usavam texto com opacidade insuficiente
 
 ## Verificação
 
-Com um servidor de produção local iniciado, execute na raiz:
+`apps/web/e2e/public-site.e2e.ts` verifica respostas HTTP, metadados no `head` do HTML do servidor, user agent do Googlebot, canonical, sitemap, robots, bloqueio de indexação das telas de autenticação, redirecionamento da área privada, 404, temas claro e escuro, teclado e navegação em 390 e 1440 pixels. No CI ele roda contra `next start`; para repeti-lo contra um build local:
 
-```powershell
-$env:BASE_URL = 'http://localhost:3106'
-pnpm --filter @k5/web exec tsx scripts/verify-public-site.ts
+```sh
+pnpm --filter @k5/web exec e2e run e2e/public-site.e2e.ts
 ```
 
-O script verifica respostas HTTP, metadados no `head` sem JavaScript, user agent do Googlebot, canonical, sitemap, robots, bloqueio de indexação das telas de autenticação, redirecionamento da área privada, 404, temas claro e escuro, teclado, movimento reduzido e navegação em 390 e 1440 pixels. As capturas ficam em `apps/web/playwright-report/public-site/`.
+O movimento reduzido não é emulado pelo e2e; confira-o manualmente quando a animação da página mudar.
 
 Execute `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`. Execute também `pnpm --filter @k5/web build:vinext` para validar o runtime da Cloudflare. Faça os builds em sequência: vinext e Next.js escrevem tipos de rotas em `.next/types`.
 
