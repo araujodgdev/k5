@@ -61,15 +61,15 @@ test('perfil, foto, credenciais e convite de associado com o card do perfil', as
 
   await app.open('/app/agenda?view=associates');
   await screen.getByRole('button', 'Convidar associado').tap();
-  await screen.getByLabel('E-mail da pessoa').fill(partner.email);
+  await screen.getByLabel('E-mail do advogado').fill(partner.email);
   await expect(screen.getByText('já usa o Lume', { exact: false })).toBeVisible();
   await screen.getByRole('button', `Ver perfil de ${partner.email}`).hover();
   const card = browser.locator('[data-slot=hover-card-content]');
   await expect(card.getByText('OAB MG 98.765 · Belo Horizonte, MG')).toBeVisible();
   await expect(card.getByText('Direito previdenciário')).toBeVisible();
-  await screen.getByLabel('E-mail da pessoa').fill(`ninguem-${Date.now().toString(36)}@k5.test`);
+  await screen.getByLabel('E-mail do advogado').fill(`ninguem-${Date.now().toString(36)}@k5.test`);
   await expect(screen.getByText('Ainda não tem conta no Lume.', { exact: false })).toBeVisible();
-  await screen.getByLabel('E-mail da pessoa').fill(partner.email);
+  await screen.getByLabel('E-mail do advogado').fill(partner.email);
   await screen.getByRole('button', 'Criar convite').tap();
   await expect(screen.getByText('Convite disponível na conta da pessoa.', { exact: false })).toBeVisible();
 
