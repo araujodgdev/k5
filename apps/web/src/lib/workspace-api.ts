@@ -12,10 +12,9 @@ import { NotificationRequestError } from './notifications/contracts';
 
 import { CapabilityError, statusForCapabilityError } from './capabilities/errors';
 import { isTrustedOrigin } from './trusted-origins';
+import { ApiError } from './api-error';
 
-export class ApiError extends Error {
-  constructor(public status: number, message: string) { super(message); }
-}
+export { ApiError } from './api-error';
 
 export async function apiWorkspace(request: Request, write = false) {
   const session = await getSession();

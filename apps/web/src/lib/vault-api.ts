@@ -3,7 +3,7 @@ import "server-only";
 import { CapabilityError, statusForCapabilityError } from "@/lib/capabilities/errors";
 import { VaultHttpError } from "@/lib/vault";
 import { captureOperationalError } from "@/lib/observability/report";
-import { ApiError } from '@/lib/workspace-api';
+import { ApiError } from '@/lib/api-error';
 
 export function vaultErrorResponse(error: unknown) {
   if (error instanceof VaultHttpError || error instanceof ApiError) {

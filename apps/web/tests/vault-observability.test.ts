@@ -5,6 +5,7 @@ import { getCurrentScope } from '@sentry/core';
 import { vaultErrorResponse } from '../src/lib/vault-api';
 import { VaultHttpError } from '../src/lib/vault';
 import { CapabilityError } from '../src/lib/capabilities/errors';
+import { ApiError } from '../src/lib/api-error';
 
 test('vault failures reach Sentry without exposing private error messages; expected validation stays quiet', async t => {
   const captured: unknown[] = [];
@@ -16,6 +17,7 @@ test('vault failures reach Sentry without exposing private error messages; expec
   assert.doesNotMatch((captured[0] as Error).stack!, /private document|credential/);
   assert.doesNotMatch(await response.text(), /private document|credential/);
   assert.equal(vaultErrorResponse(new VaultHttpError(400, 'Arquivo inválido.')).status, 400);
+  assert.equal(vaultErrorResponse(new ApiError(413, 'Solicitação muito grande.')).status, 413);
   const validation = vaultErrorResponse(new CapabilityError('INVALID', 'O arquivo está vazio.'));
   assert.equal(validation.status, 400);
   assert.deepEqual(await validation.json(), { error: 'O arquivo está vazio.', code: 'INVALID' });
