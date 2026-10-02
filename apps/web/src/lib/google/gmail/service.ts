@@ -11,7 +11,7 @@ import { runGoogleOperation, markOperationEffect, digest, operationDto, operatio
   type OperationRecord, type Reconciler, type ReconcileOutcome, type RunningOperation } from '../operations';
 import type { GoogleAction } from '../policy';
 import { technicalLimits } from '../policy';
-import { importFormatFor } from '../drive/formats';
+import { importFormatFor, MAX_IMPORT_BYTES } from '../drive/formats';
 import { attachmentParts, decodeBase64Url, gmailHeader, messageHtml, messageText, mimeMessage, safeAddress, safeMessageId,
   type GmailMessage, type MailFile } from './mime';
 
@@ -34,7 +34,7 @@ function messageDto(message: GmailMessage): Output<'k5_gmail_get_thread'>['threa
     date: dateOf(message), subject: gmailHeader(message.payload, 'Subject'), text: messageText(message),
     html: null, remoteContentBlocked: true,
     attachments: attachmentParts(message).map(p => ({ partId: p.partId, filename: p.filename, mimeType: p.mimeType,
-      size: p.size, importable: p.size > 0 && p.size <= 50 * 1024 * 1024 && Boolean(importFormatFor(p.mimeType)) })) };
+      size: p.size, importable: p.size > 0 && p.size <= MAX_IMPORT_BYTES && Boolean(importFormatFor(p.mimeType)) })) };
 }
 export async function listThreads(context: WorkspaceContext, input: Input<'k5_gmail_list_threads'>): Promise<Output<'k5_gmail_list_threads'>> {
   const connection = await requireConnection(context, 'gmail');
@@ -333,7 +333,7 @@ export async function importAttachment(context: WorkspaceContext, input: Input<'
   const message = await googleJson<GmailMessage>(connection, { service: 'gmail', path: `${root}/messages/${idPath(input.messageId)}`,
     query: { format: 'full' }, maxBytes: 12_000_000 });
   const part = attachmentParts(message).find(p => p.partId === input.partId);
-  if (!part || part.size <= 0 || part.size > 50 * 1024 * 1024) throw new CapabilityError('NOT_FOUND', 'Anexo não encontrado ou incompatível.');
+  if (!part || part.size <= 0 || part.size > MAX_IMPORT_BYTES) throw new CapabilityError('NOT_FOUND', 'Anexo não encontrado ou incompatível.');
   const { queueGmailAttachmentImport } = await import('../drive/import');
   return queueGmailAttachmentImport(context, { ...input, sourceName: part.filename, sourceMimeType: part.mimeType,
     sourceVersion: message.internalDate ?? null });

@@ -195,7 +195,7 @@ estados; não registre corpos, mensagens, destinatários ou credenciais nos logs
   seleção explícita de um caso. Rascunhos/respostas mantêm a identidade da conta e da conversa.
 - **Drive:** somente arquivos escolhidos no Picker. Importar cria cópia independente no Cofre;
   importação posterior cria uma versão, mantendo conta/origem/revisão/hash. Docs vira DOCX,
-  Sheets XLSX e Slides PDF. Limite da cópia: 50 MB; exportações Google: 10 MB. Envios/anexos
+  Sheets XLSX e Slides PDF. Limite da cópia: 100 MB; exportações Google: 10 MB. Envios/anexos
   continuam sujeitos ao teto técnico de 25 MB. Não há sincronização bidirecional do Cofre.
 - **Docs:** substituições de trechos exatos, únicos, usando revisão exigida. Revisão alterada
   exige releitura e nova operação. Acesso herdado de Drive compartilhado não é revogado aqui.
@@ -225,7 +225,7 @@ respostas perdidas, Gmail, recorrências/sync e importações. Esses testes não
    séries COUNT/UNTIL, exceções, alterações Google/Lume simultâneas, `410`, push duplicado,
    canal expirado e compartilhamento explícito sem vazamento de convidados.
 5. Drive: Picker em ambas as contas, arquivo privado/Shared Drive, acesso herdado/removido,
-   Docs/Sheets/Slides/PDF, limites 10/50 MB, nova versão e OCR/indexação no Cofre.
+   Docs/Sheets/Slides/PDF, limites 10/100 MB, nova versão e OCR/indexação no Cofre.
 6. Docs: texto único/ambíguo, edição concorrente/revisão obsoleta e mudança após aprovação.
 7. Operação: reinício do Worker/Node, reserva expirada, Queue duplicada, mudança de política
    antes da escrita, rotação das chaves e liberação/reversão por módulo.

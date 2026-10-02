@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import type { CapabilityInput as Input } from '@/lib/capabilities/contracts';
 import { CapabilityError } from '@/lib/capabilities/errors';
+import { UPLOAD_SIZE_ERROR } from '@/lib/vault-upload-contract';
 import type { WorkspaceContext } from '@/lib/application/context';
 import { findVaultDocument, readVaultOriginal } from '@/lib/vault';
 import { googleJson, googleRequest, requireConnection, type ConnectionRow } from '../connections';
@@ -120,7 +121,7 @@ export async function uploadVersion(c: WorkspaceContext, i: Input<'k5_drive_uplo
   need(meta, 'canModifyContent');
   const doc = await findVaultDocument(c.officeId, i.documentId, c.userId);
   if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado no Cofre.');
-  if (doc.byteSize > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', 'Documento acima de 50 MB.');
+  if (doc.byteSize > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
   const vault = await vaultSnapshot(c.officeId, doc.id);
   const bound = { driveVersion: meta.version, documentSha256: vault.sha256, documentVersion: vault.version, documentByteSize: vault.byteSize,
     review: [{ label: 'Arquivo Google', value: meta.name }, { label: 'Versão Google', value: meta.version ?? 'não informada' },

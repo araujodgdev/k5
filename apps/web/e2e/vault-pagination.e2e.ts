@@ -73,7 +73,8 @@ test('arquivos antigos continuam selecionáveis em anexos, e-mail e Drive em 128
     if (failNextPage && offset === 50) return route.fulfill({ status: 503, headers: { 'content-type': 'text/html' }, body: 'Unavailable' });
     return route.fulfill({ json: { total: 201, documents: Array.from({ length: Math.min(50, 201 - offset) }, (_, i) => ({
       id: `option-${offset + i}`, name: `Anexo ${offset + i + 1}.pdf`, scope: params.get('caseId') ? 'case' : 'library',
-      caseId: params.get('caseId'), caseName: null, folderId: null, mimeType: 'application/pdf', byteSize: 100,
+      caseId: params.get('caseId'), caseName: null, folderId: null, mimeType: 'application/pdf',
+      byteSize: offset + i === 200 ? 75 * 1024 * 1024 : 100,
       status: 'ready', progress: 100, errorMessage: null, extractedCharacters: 1, sourceCount: 0, createdAt: '2026-01-01T00:00:00Z',
     })) } });
   });

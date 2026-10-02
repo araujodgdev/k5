@@ -48,6 +48,27 @@ function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
   return uploadsService.createUploadRef(context, file);
 }
 
+test('uploads: aceita 100 MB e recusa um byte a mais antes de armazenar', async () => {
+  const { lawyer } = await seedOffices();
+  const bytes = Buffer.alloc(100 * 1024 * 1024, 32);
+  const oversized = new File([bytes, new Uint8Array([32])], 'grande.txt');
+  await assert.rejects(uploadsService.createUploadRef(lawyer, oversized), /100 MB/);
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM vault_upload_ref WHERE office_id=?')
+    .get<{ n: number }>(lawyer.officeId))?.n, 0);
+
+  const file = new File([bytes], 'limite.txt');
+  const upload = await uploadsService.createUploadRef(lawyer, file);
+  try {
+    assert.equal(upload.byteSize, bytes.length);
+    const stored = await (await objectStorage()).get(upload.storageKey);
+    assert.equal(stored.length, bytes.length);
+    assert.equal(stored.compare(bytes), 0);
+  } finally {
+    await (await objectStorage()).delete(upload.storageKey);
+    await testDb.prepare('DELETE FROM vault_upload_ref WHERE id=?').run(upload.id);
+  }
+});
+
 test("storage: a caller-supplied key cannot escape the vault root", async () => {
   const { lawyer, officeA } = (await seedOffices());
 

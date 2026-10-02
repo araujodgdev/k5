@@ -58,6 +58,8 @@ Conhecimento referencia documentos existentes no Cofre e respeita o acesso às p
 
 O Cofre fica em `/app/vault`. Nele você cria casos, mantém a Biblioteca, organiza pastas e envia documentos. Cada caso reúne seus próprios arquivos e participantes. Os dados do cliente no caso não substituem o cadastro de Clientes do módulo Escritório. Vínculos entre um cliente e seus casos precisam ser preservados ao organizar esses registros.
 
+Cada arquivo enviado ao Cofre pode ter até 100 MB. O mesmo limite vale para cópias importadas do Google Drive e anexos do Gmail. Exportações de documentos nativos do Google continuam limitadas a 10 MB pelo Google.
+
 O Cofre processa PDF, inclusive digitalizado com OCR, DOCX, EML, XLSX, CSV e TXT. As fontes podem apontar páginas, parágrafos, mensagens ou células, conforme o formato. O processamento mostra fila, progresso, sucesso ou falha. Se houver falha, o reprocessamento usa a operação específica; não envie cópias repetidas sem necessidade.
 
 Você pode mover e renomear documentos, adicionar versões e baixar os originais autorizados. Excluir um documento retira seu acesso e sua presença nas buscas. A exclusão de uma pasta faz o conteúdo subir um nível. Excluir um caso pode excluir seu conteúdo ou mover os documentos para um caso de destino, conforme a ação escolhida e confirmada. Participantes externos ficam limitados ao caso compartilhado.

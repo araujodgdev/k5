@@ -5,6 +5,9 @@ import { database } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { objectStorage, storageKey } from '@/lib/storage';
 import type { WorkspaceContext } from './context';
+import { MAX_UPLOAD_BYTES, UPLOAD_SIZE_ERROR } from '@/lib/vault-upload-contract';
+
+export { MAX_UPLOAD_BYTES } from '@/lib/vault-upload-contract';
 
 export const ALLOWED_EXTENSIONS: Record<string, string> = {
   '.pdf': 'application/pdf',
@@ -23,7 +26,6 @@ export const ALLOWED_EXTENSIONS: Record<string, string> = {
 
 export const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
-export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const UPLOAD_REF_TTL_MS = 30 * 60 * 1000;
 
 export type UploadRef = {
@@ -52,10 +54,10 @@ export function validatedFileName(fileName: string) {
 export async function createUploadRef(context: WorkspaceContext, file: File): Promise<UploadRef> {
   const { file: name, extension, mimeType } = validatedFileName(file.name);
   if (file.size <= 0) throw new CapabilityError('INVALID', 'O arquivo está vazio.');
-  if (file.size > MAX_UPLOAD_BYTES) throw new CapabilityError('INVALID', 'O arquivo excede o limite de 50 MB.');
+  if (file.size > MAX_UPLOAD_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
 
   const data = Buffer.from(await file.arrayBuffer());
-  if (data.byteLength > MAX_UPLOAD_BYTES) throw new CapabilityError('INVALID', 'O arquivo excede o limite de 50 MB.');
+  if (data.byteLength > MAX_UPLOAD_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
 
   const id = randomUUID();
   const key = storageKey(context.officeId, id, extension);

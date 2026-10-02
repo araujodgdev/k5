@@ -1,4 +1,4 @@
-import { MAX_UPLOAD_BYTES } from '@/lib/application/uploads-service';
+import { MAX_UPLOAD_BYTES } from '@/lib/vault-upload-contract';
 
 /**
  * Which Drive files can become a Cofre copy, and how. Google-native files are exported (Docs as

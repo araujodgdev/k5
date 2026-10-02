@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { approveAndRun } from "@/lib/approve-and-run";
 import type { VaultDocument } from "@/lib/vault";
 import { documentPageSize, fetchVaultDocumentPage } from '@/lib/vault-document-page';
+import { MAX_UPLOAD_BYTES, UPLOAD_SIZE_ERROR } from '@/lib/vault-upload-contract';
 
 // 44px on touch, compact from md up.
 export const touchIcon = "size-11 md:size-8";
@@ -95,6 +96,7 @@ export function UploadControl({ scope, caseId, folderId, disabled, onUploaded, o
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
 
   async function sendOne(file: File): Promise<string | null> {
+    if (file.size > MAX_UPLOAD_BYTES) return UPLOAD_SIZE_ERROR;
     const body = new FormData();
     body.set("file", file);
     body.set("scope", scope);

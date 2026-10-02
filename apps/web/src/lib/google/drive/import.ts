@@ -6,6 +6,7 @@ import type { CapabilityInput as Input } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from '@/lib/application/context';
 import { objectStorage, storageKey } from '@/lib/storage';
 import { validatedFileName } from '@/lib/application/uploads-service';
+import { MAX_UPLOAD_MB, UPLOAD_SIZE_ERROR } from '@/lib/vault-upload-contract';
 import { requireConnection, googleJson, googleRequest } from '../connections';
 import type { GoogleJob } from '../jobs';
 import { findVaultCase, findVaultFolder } from '@/lib/vault';
@@ -84,7 +85,7 @@ export async function queueDriveImport(c: WorkspaceContext, i: Input<'k5_drive_i
   if (!meta.capabilities?.canDownload) throw new CapabilityError('FORBIDDEN', 'A conta Google não pode baixar este arquivo.');
   const format = importFormatFor(meta.mimeType);
   if (!format) throw new CapabilityError('INVALID', 'Este formato ainda não pode ser copiado para o Cofre.');
-  if (meta.size && Number(meta.size) > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', 'O arquivo excede o limite de 50 MB do Cofre.');
+  if (meta.size && Number(meta.size) > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
   return queue(c, { sourceKind: 'drive', connectionId: connection.id, email: connection.email, driveFileId: file.id,
     googleFileId: meta.id, name: importFileName(meta.name, format), mimeType: meta.mimeType, version: meta.version ?? null,
     modifiedTime: meta.modifiedTime ?? null, exportMimeType: format.exportMimeType, scope: i.scope ?? 'case', caseId: i.caseId ?? null,
@@ -113,7 +114,7 @@ export async function listOwnImports(c: WorkspaceContext, i: Input<'k5_drive_lis
 }
 function fileBytes(bytes: Uint8Array, limit: number) {
   if (bytes.byteLength > limit) throw new CapabilityError('INVALID', limit === GOOGLE_EXPORT_LIMIT_BYTES
-    ? 'A exportação excede o limite de 10 MB do Google.' : 'O arquivo excede o limite de 50 MB do Cofre.');
+    ? 'A exportação excede o limite de 10 MB do Google.' : UPLOAD_SIZE_ERROR);
   if (!bytes.byteLength) throw new CapabilityError('INVALID', 'O arquivo está vazio.');
   return Buffer.from(bytes);
 }
@@ -127,7 +128,7 @@ async function driveBytes(job: GoogleJob, row: ImportRow, file: FileRow) {
   const format = importFormatFor(meta.mimeType);
   if (!format || format.exportMimeType !== row.export_mime_type) throw new CapabilityError('CONFLICT', 'O formato do arquivo mudou.');
   const limit = format.exportMimeType ? GOOGLE_EXPORT_LIMIT_BYTES : MAX_IMPORT_BYTES;
-  if (meta.size && Number(meta.size) > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', 'O arquivo excede 50 MB.');
+  if (meta.size && Number(meta.size) > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
   let response;
   try {
     response = await googleRequest(connection, { service: 'drive', path: format.exportMimeType
@@ -154,11 +155,11 @@ async function gmailBytes(job: GoogleJob, row: ImportRow) {
   const part = walk(message.payload as Part);
   if (!part?.body?.attachmentId || part.mimeType !== row.source_mime_type || importFileName(part.filename ?? '', importFormatFor(row.source_mime_type)!) !== row.source_name)
     throw new CapabilityError('CONFLICT', 'O anexo do e-mail mudou ou não existe.');
-  if (part.body.size && part.body.size > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', 'O anexo excede 50 MB.');
+  if (part.body.size && part.body.size > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
   const data = await googleJson<{ data?: string; size?: number }>(conn,
     { service: 'gmail', path: `/users/me/messages/${encodeURIComponent(row.gmail_message_id)}/attachments/${encodeURIComponent(part.body.attachmentId)}`,
       maxBytes: Math.ceil(MAX_IMPORT_BYTES * 4 / 3) + 4096, timeoutMs: 120_000 });
-  if (!data.data || (data.size && data.size > MAX_IMPORT_BYTES)) throw new CapabilityError('INVALID', 'O anexo está vazio ou excede 50 MB.');
+  if (!data.data || (data.size && data.size > MAX_IMPORT_BYTES)) throw new CapabilityError('INVALID', `O anexo está vazio ou excede ${MAX_UPLOAD_MB} MB.`);
   return fileBytes(Buffer.from(data.data, 'base64url'), MAX_IMPORT_BYTES);
 }
 /** The import row and Vault version commit atomically. Retried jobs see completed before downloading again. */

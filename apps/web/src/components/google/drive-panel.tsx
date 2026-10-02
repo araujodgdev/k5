@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { DrivePicker } from './drive-picker';
 import { GoogleConnectionNotice, googleCall, useGoogleAction, type GoogleStatus } from './client';
 import { useVaultDocumentOptions, VaultDocumentOptionsMore } from '@/components/vault-document-options';
+import { MAX_UPLOAD_BYTES } from '@/lib/vault-upload-contract';
 
 type DriveFile = z.infer<typeof driveFileDto>;
 type Import = z.infer<typeof driveImportDto>;
@@ -57,7 +58,7 @@ export function DrivePanel({ initialCaseId, initialFolderId, onImported }: {
     !!status.modules.find(module => module.module === 'drive' && module.granted && module.rolledOut && module.enabledByOffice);
   const vaultOptions = useVaultDocumentOptions(available ? initialCaseId ? `caseId=${encodeURIComponent(initialCaseId)}` : 'scope=library' : null,
     imports.map(item => `${item.id}:${item.status}`).join(','));
-  const vaultDocs = vaultOptions.documents.filter(doc => doc.status === 'ready' && doc.byteSize <= 50 * 1024 * 1024);
+  const vaultDocs = vaultOptions.documents.filter(doc => doc.status === 'ready' && doc.byteSize <= MAX_UPLOAD_BYTES);
 
   const refresh = useCallback(async () => {
     const [filePage, imported] = await Promise.all([

@@ -277,7 +277,7 @@ test('Google Docs escolhido exporta DOCX e recusa exportação acima de 10 MB se
   assert.equal(result?.vault_document_id, null);
 });
 
-test('limite de 50 MB é aplicado antes de criar job ou baixar arquivo', async () => {
+test('limite de 100 MB é aplicado antes de criar job ou baixar arquivo', async () => {
   const owner = await googleFixture();
   const caseId = await caseFor(owner.officeId, owner.userId);
   const { fake } = fakeDrive();
@@ -285,9 +285,32 @@ test('limite de 50 MB é aplicado antes de criar job ou baixar arquivo', async (
     ? respond(200, new Uint8Array([1])) : respond(200, { id: fileId, name: 'Grande.pdf', mimeType: 'application/pdf',
       size: String(MAX_IMPORT_BYTES + 1), version: '1', modifiedTime: '2026-09-23T00:00:01Z', capabilities: { canDownload: true } }));
   const file = (await registerFiles(owner.context, { googleFileIds: [fileId] })).files[0];
-  await assert.rejects(importFile(owner.context, { fileId: file.id, caseId, idempotencyKey: 'too-large' }), /50 MB/);
+  await assert.rejects(importFile(owner.context, { fileId: file.id, caseId, idempotencyKey: 'too-large' }), /100 MB/);
   assert.equal(fake.count('GET', /\/drive\/v3\/files\/drive-file-123456789$/), 2);
   assert.equal((await testDb.prepare('SELECT count(*) AS n FROM google_drive_import WHERE office_id=?').get<{ n: number }>(owner.officeId))?.n, 0);
+});
+
+test('arquivo do Drive entre 50 e 100 MB pode ser importado no Cofre', async () => {
+  const owner = await googleFixture();
+  const caseId = await caseFor(owner.officeId, owner.userId);
+  const bytes = new Uint8Array(75 * 1024 * 1024);
+  const { fake } = fakeDrive('application/pdf', bytes);
+  fake.on('GET', /\/drive\/v3\/files\/drive-file-123456789$/, r => r.query.get('alt') === 'media'
+    ? respond(200, bytes) : respond(200, {
+    id: fileId, name: 'Grande.pdf', mimeType: 'application/pdf', size: String(75 * 1024 * 1024),
+    version: '1', modifiedTime: '2026-09-23T00:00:01Z', capabilities: { canDownload: true },
+  }));
+  const file = (await registerFiles(owner.context, { googleFileIds: [fileId] })).files[0];
+  const queued = await importFile(owner.context, { fileId: file.id, caseId, idempotencyKey: 'large-import' });
+  assert.equal(queued.import.status, 'queued');
+  const job = await claimGoogleJob('node', testDb);
+  assert.ok(job);
+  assert.equal(job.subject_id, queued.import.id);
+  await processDriveImport(job, testDb);
+  assert.deepEqual(await testDb.prepare('SELECT status,byte_size FROM google_drive_import WHERE id=?')
+    .get(queued.import.id), { status: 'completed', byte_size: bytes.byteLength });
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM google_drive_import WHERE office_id=?')
+    .get<{ n: number }>(owner.officeId))?.n, 1);
 });
 
 test('não revoga acesso herdado ou arquivo de outra pessoa', async () => {
