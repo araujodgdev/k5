@@ -10,6 +10,7 @@ import { Avatar } from './profile/avatar';
 import { lookupProfile, PersonHoverCard } from './profile/person-card';
 import { avatarUrl, type ProfileCard } from '@/lib/profile-contract';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { collaborationLine as historyLine } from '@/lib/audit-format';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 type Person = { id: string; name: string; email: string; avatarVersion?: string | null };
@@ -17,17 +18,6 @@ type Invitation = { id: string; email: string; status: string; expiresAt: string
 type Overview = { associates: Person[]; participants: Person[]; owner: Person | null; incoming: Invitation[]; outgoing: Invitation[];
   history: { id: string; action: string; createdAt: string; actorName: string; targetName: string | null }[];
   isOwner: boolean; viewerId: string };
-// A history line reads as a sentence after the actor's name: "criou um convite para Rafael", "incluiu Rafael no caso".
-const historyActions: Record<string, (target: string | null) => string> = {
-  'invitation.created': target => target ? `criou um convite para ${target}` : 'criou um convite',
-  'invitation.accepted': () => 'aceitou o convite',
-  'invitation.declined': () => 'recusou o convite',
-  'invitation.revoked': target => target ? `cancelou o convite de ${target}` : 'cancelou um convite',
-  'associate.removed': target => `removeu ${target ?? 'uma pessoa'} dos associados`,
-  'participant.added': target => `incluiu ${target ?? 'uma pessoa'} no caso`,
-  'participant.removed': target => `removeu ${target ?? 'uma pessoa'} do caso`,
-};
-const historyLine = (action: string, target: string | null) => historyActions[action]?.(target) ?? `${action} ${target ?? ''}`;
 const selectClass = 'min-h-11 min-w-0 max-w-full flex-1 border border-input bg-background px-3 text-sm md:min-h-9 md:flex-none';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

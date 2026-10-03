@@ -2,7 +2,7 @@
 
 Next.js App Router com Better Auth, PostgreSQL, TypeScript e Tailwind CSS.
 
-Pesquisa tem as modalidades Marcas e Jurisprudência. Novas pesquisas de marcas usam a automação do WIPO Global Brand Database por nome ou logotipo, inclusive no Brasil. A busca Web continua disponível ao agente. O carregamento automático do INPI está desativado; seus dados e históricos anteriores foram preservados. A execução e os limites estão em [Pesquisa de marcas](../../docs/implementacao-pesquisa-marcas.md).
+Pesquisa tem as modalidades Marcas e Jurisprudência. Novas pesquisas de marcas usam a automação do WIPO Global Brand Database por nome ou logotipo, inclusive no Brasil. A busca Web continua disponível ao agente. O acervo importado do INPI foi removido, junto com as pesquisas feitas nele (migração 0063). A execução e os limites estão em [Pesquisa de marcas](../../docs/implementacao-pesquisa-marcas.md).
 
 O produto se chama **Lume**. Identificadores técnicos existentes — como o pacote
 `@k5/web`, variáveis `K5_*`, capabilities `k5_*` e nomes de recursos de infraestrutura —
@@ -64,7 +64,7 @@ O Better Auth mantém contas e sessões. `user.officeName` preserva o nome infor
 
 `requireWorkspace()` deriva o escritório da sessão. Dados de negócio usam `office_id` e acesso ao recurso, sem confiar em IDs do navegador. Administração da plataforma é separada.
 
-**Associados** e **Convites** ficam em Escritório. O aceite cria associação mútua sem liberar arquivos. Só o dono inclui associados em **Participantes** de um caso. Todos colaboram na raiz; subpastas são públicas, privadas ou restritas. Só o criador muda seu acesso. Listas, busca, downloads, Lume e Pesquisa respeitam também as pastas acima. Encerrar a associação retira cada advogado dos casos do outro, preservando o conteúdo.
+**Associados**, **Convites** e **Atividade** ficam em Escritório. **Atividade** (`/app/agenda?view=activity`) junta as auditorias do escritório (processos, acessos a casos, Google, anúncios e buscas no Cofre), das mais recentes às mais antigas; a consulta fica em `src/lib/audit.ts` e lê cada tabela de origem, filtrada pelo escritório da sessão. O aceite cria associação mútua sem liberar arquivos. Só o dono inclui associados em **Participantes** de um caso. Todos colaboram na raiz; subpastas são públicas, privadas ou restritas. Só o criador muda seu acesso. Listas, busca, downloads, Lume e Pesquisa respeitam também as pastas acima. Encerrar a associação retira cada advogado dos casos do outro, preservando o conteúdo.
 
 `0059_associate_access.sql` substitui os papéis e convites antigos. Antes de aplicá-la em ambiente existente, execute `pnpm --filter @k5/web db:migrate --check-associates`. Vínculos incompatíveis impedem a migração sem remoção automática de dados. Veja [colaboração e convites](../../docs/colaboracao.md).
 
@@ -166,7 +166,8 @@ escolhe continuar editando ou descartar os rascunhos e encerrar todas as sessõe
 aplicativo continua exigindo salvar antes: rascunhos privados não são gravados no navegador.
 
 - **Administração:** módulo `/app/admin`, visível só para administradores da plataforma, com
-  as abas Feedback, Clientes, IA e Credenciais. A aba IA (`/app/admin/ai`) configura uma vez,
+  as abas Feedback, Clientes, Financeiro, IA, Execuções, Credenciais e Auditoria. A aba Auditoria
+  (`/app/admin/audit`) lista `platform_audit_log`, com filtros por grupo de ação e por escritório. A aba IA (`/app/admin/ai`) configura uma vez,
   para todos os escritórios, as conexões de IA da plataforma (OpenAI, Anthropic, Google,
   DeepSeek, Inception, OpenRouter e AI Gateway) e a TypeSafe. Em **Modelos por tarefa** o
   administrador escolhe conexão, modelo e esforço de raciocínio por grupo (Agente, Redação
