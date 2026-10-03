@@ -6,7 +6,7 @@ const bytes = new TextEncoder().encode('0123456789');
 const assets = { fetch: async () => new Response(bytes, { headers: { 'Content-Type': 'video/mp4', ETag: '"video-v1"' } }) };
 for (const [range, expected, contentRange] of [['bytes=2-4', '234', 'bytes 2-4/10'], ['bytes=7-', '789', 'bytes 7-9/10'], ['bytes=-3', '789', 'bytes 7-9/10']]) {
   test(`tutorial delivers the requested segment ${range}`, async () => {
-    const response = await tutorialVideoResponse(new Request('https://lume.test/tutorial/tutorial-lume.mp4', { headers: { Range: range } }), assets);
+    const response = await tutorialVideoResponse(new Request('https://lume.test/tutorial/videos/clientes/video.mp4', { headers: { Range: range } }), assets);
     assert.equal(response.status, 206);
     assert.equal(response.headers.get('Content-Range'), contentRange);
     assert.equal(await response.text(), expected);

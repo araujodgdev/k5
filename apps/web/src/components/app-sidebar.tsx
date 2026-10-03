@@ -230,13 +230,14 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
   }
 
   const adminActive = pathname === adminNavigation.href || pathname.startsWith(`${adminNavigation.href}/`);
+  const tutorialActive = pathname === tutorialNavigation.href || pathname.startsWith(`${tutorialNavigation.href}/`);
   const profileActive = pathname === profileNavigation.href;
   const visibleNavigation = appNavigation.filter((item) => (item.slug !== "whatsapp" || whatsappEnabled) && (item.slug !== "ads" || adsEnabled));
   const overflow = visibleNavigation.filter((item) => !mobileTabs.includes(item.slug));
-  const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`) || adminActive || profileActive;
+  const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`) || adminActive || profileActive || tutorialActive;
   const currentModule = pathname.startsWith("/app/documents/")
     ? "Cofre"
-    : pathname === tutorialNavigation.href ? tutorialNavigation.label : profileActive ? profileNavigation.label : adminActive ? adminNavigation.label : visibleNavigation.find((item) => {
+    : tutorialActive ? tutorialNavigation.label : profileActive ? profileNavigation.label : adminActive ? adminNavigation.label : visibleNavigation.find((item) => {
         const href = `/app/${item.slug}`;
         return pathname === href || pathname.startsWith(`${href}/`);
       })?.label ?? "Início";

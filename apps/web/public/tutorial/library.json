@@ -1,0 +1,77 @@
+[
+  {
+    "id": "administracao-da-plataforma",
+    "durationSeconds": 22.554687,
+    "revision": "af3a0be6ff66"
+  },
+  {
+    "id": "assistente",
+    "durationSeconds": 20.054687,
+    "revision": "60e4670a625b"
+  },
+  {
+    "id": "busca-e-historico",
+    "durationSeconds": 22.854687,
+    "revision": "312652638929"
+  },
+  {
+    "id": "casos-e-documentos",
+    "durationSeconds": 25.454687,
+    "revision": "fdca0a2afa6b"
+  },
+  {
+    "id": "clientes",
+    "durationSeconds": 21.388021,
+    "revision": "f22273301f8b"
+  },
+  {
+    "id": "conversas-e-compartilhamentos",
+    "durationSeconds": 17.521354,
+    "revision": "c180795b1164"
+  },
+  {
+    "id": "equipe-e-convites",
+    "durationSeconds": 15.121354,
+    "revision": "0863ffc6d3c2"
+  },
+  {
+    "id": "gmail",
+    "durationSeconds": 20.988021,
+    "revision": "43339ec51072"
+  },
+  {
+    "id": "google-e-whatsapp",
+    "durationSeconds": 18.788021,
+    "revision": "90001ce41ef4"
+  },
+  {
+    "id": "inicio-e-navegacao",
+    "durationSeconds": 19.454687,
+    "revision": "f9d4acc8e6d0"
+  },
+  {
+    "id": "parcelas-e-recebimentos",
+    "durationSeconds": 27.354687,
+    "revision": "7a7c07d8464b"
+  },
+  {
+    "id": "plano-e-preferencias",
+    "durationSeconds": 14.054687,
+    "revision": "8d82c022b211"
+  },
+  {
+    "id": "retomar-o-tutorial",
+    "durationSeconds": 12.988021,
+    "revision": "1d904c22da12"
+  },
+  {
+    "id": "revisao-e-exportacao",
+    "durationSeconds": 12.854687,
+    "revision": "3420dc41e6aa"
+  },
+  {
+    "id": "tarefas-e-agenda",
+    "durationSeconds": 24.821354,
+    "revision": "26dbbd74b968"
+  }
+]

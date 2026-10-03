@@ -147,7 +147,7 @@ Criação e gestão de campanhas dependem da próxima etapa de implementação e
 
 ## Configuração e dados
 
-O [tutorial e primeiros passos](docs/onboarding.md) apresenta o tour interativo e o vídeo em português.
+O [tutorial e primeiros passos](docs/onboarding.md) apresenta o tour interativo e a biblioteca de vídeos em português, organizada por módulo.
 
 Consulte o [Manual do Lume](docs/manual-lume.md) para o funcionamento de cada módulo e os limites do assistente. A [operação do agente e da ajuda](docs/agente-modulos-e-ajuda.md) descreve ferramentas, confirmações e publicação da base de conhecimento na Cloudflare.
 

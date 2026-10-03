@@ -123,7 +123,7 @@ export function OnboardingTour({ children, userId, officeId, whatsappEnabled, ad
           {view === 'welcome' ? <div className="grid gap-2">
             <Button className="min-h-11" onClick={() => go(index)}>{index > 0 ? 'Continuar tutorial' : 'Começar tutorial'}</Button>
             {index > 0 && <Button variant="outline" className="min-h-11" onClick={() => go(0)}>Recomeçar</Button>}
-            <Button asChild variant="outline" className="min-h-11"><Link href={tutorialNavigation.href} onClick={() => close()}>Assistir ao vídeo</Link></Button>
+            <Button asChild variant="outline" className="min-h-11"><Link href={tutorialNavigation.href} onClick={() => close()}>Ver vídeos por módulo</Link></Button>
             <Button variant="ghost" className="min-h-11" onClick={() => close()}>Agora não</Button>
           </div> : <>
             <div role="progressbar" aria-label="Progresso do tutorial" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={index + 1} className="h-0.5 bg-muted"><div className="h-full bg-brand" style={{ width: `${(index + 1) / steps.length * 100}%` }} /></div>

@@ -16,7 +16,7 @@ export async function tutorialVideoResponse(request: Request, assets: { fetch(re
   if (!range || (!range[1] && !range[2])) return new Response(source.body, { headers });
   let size = Number(headers.get('Content-Length'));
   if (!size) {
-    // This handler only serves the bundled tutorial, bounded by the static asset size limit.
+    // Tutorial videos are bundled assets, bounded by the static asset size limit.
     const bytes = await source.arrayBuffer();
     size = bytes.byteLength;
     source = new Response(bytes);

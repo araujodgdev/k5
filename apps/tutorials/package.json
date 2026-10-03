@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "studio": "remotion studio src/index.tsx --props ../../output/tutorial-lume/roteiro.json",
+    "studio": "remotion studio src/index.tsx --props ../../output/tutorial-library/clientes/roteiro.json",
     "render": "tsx scripts/render.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@k5/tutorial-library": "workspace:*",
     "@remotion/bundler": "4.0.529",
     "@remotion/cli": "4.0.529",
     "@remotion/renderer": "4.0.529",

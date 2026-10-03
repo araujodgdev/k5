@@ -13,7 +13,7 @@ import { tutorialVideoResponse } from '../lib/tutorial-video-response';
 import { withTrademarkEnvironment } from '../lib/research/trademarks/environment';
 import { pendingTrademarkTasks } from '../lib/research/trademarks/worker';
 
-export { LumeProcessor, LumeInpiProcessor, ContainerProxy } from './processors';
+export { LumeProcessor, ContainerProxy } from './processors';
 export { LumeChatRun } from './chat-runs';
 export { LumeTrademarkRun } from './trademark-runs';
 
@@ -43,7 +43,7 @@ export default withSentry<WebEnv>(env => serverOptions('web', env), {
     });
   },
   async fetch(request: Request, env: CloudflareEnv & WhatsAppEnvironment & PersonalChatEnvironment & { HYPERDRIVE: { connectionString:string } }, ctx: { waitUntil(promise:Promise<unknown>):void }) {
-    if (new URL(request.url).pathname === '/tutorial/tutorial-lume.mp4') return tutorialVideoResponse(request, env.ASSETS);
+    if (/^\/tutorial\/videos\/[a-z0-9-]+\/video\.mp4$/.test(new URL(request.url).pathname)) return tutorialVideoResponse(request, env.ASSETS);
     const pool = createPostgresPool(env.HYPERDRIVE.connectionString, { max:5, idleTimeoutMillis:0 });
     return withPostgres(pool, () => withTrademarkEnvironment(env, () => withAdsEnvironment(env, () => withWhatsAppEnvironment(env, () => withPersonalChatEnvironment(env, async () => {
       try {

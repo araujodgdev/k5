@@ -22,3 +22,4 @@ apps/web/public/sw.js
 !.agents/skills/
 /tmp/
 /output/jurisprudencia/
+/output/tutorial-library/

@@ -1,6 +1,16 @@
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 import { tutorialSteps } from '../src/lib/onboarding';
+import { tutorialModules, tutorialMedia } from '@k5/tutorial-library';
+import { admin, ApiSession } from './support/accounts';
+import { signInWithSession } from './support/sign-in';
+
+test.setup('leitor dos tutoriais entra com sessão autenticada', { sessions: ['tutorial-reader'] }, async ({ app, screen, browser, session }) => {
+  const api = new ApiSession(app.baseUrl!);
+  await api.signIn(admin);
+  await signInWithSession({ app, screen, browser }, api);
+  await session.save('tutorial-reader');
+});
 
 // The tour as a first visit sees it: every step on its page and inside the screen, a pause with
 // Escape that survives a reload, resuming from the menu, keyboard focus and going back.
@@ -45,16 +55,66 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
   });
 }
 
-// Playwright's Chromium has no H.264 decoder, so playback and length are not checked here (range
-// requests are in tests/tutorial-video.test.ts); this proves the path to the video and its files.
-test('o tutorial leva ao vídeo, com legenda e capa publicadas', { session: 'admin' }, async ({ app, screen, browser }) => {
+test('o tour leva à biblioteca de vídeos por módulo', { session: 'tutorial-reader' }, async ({ app, screen, browser }) => {
   await app.open('/app/command-center');
   await screen.getByRole('button', 'Tutorial do Lume', { visible: true }).tap();
-  await screen.getByRole('link', 'Assistir ao vídeo').tap();
+  await screen.getByRole('link', 'Ver vídeos por módulo').tap();
   await expect(browser).toHaveURL(/\/app\/tutorial$/);
-  await expect(screen.getByLabel('Tutorial completo do Lume em português')).toBeVisible();
-  for (const [path, type] of [['/tutorial/tutorial-lume.mp4', 'video/mp4'], ['/tutorial/tutorial-lume.pt-BR.vtt', 'text/vtt'], ['/tutorial/capa.jpg', 'image/jpeg']]) {
-    const response = await fetch(new URL(path, app.baseUrl), { method: 'HEAD' });
-    expect({ path, status: response.status, type: response.headers.get('content-type')?.split(';')[0] }).toEqual({ path, status: 200, type });
+  await expect(screen.getByRole('heading', 'Tutoriais do Lume')).toBeVisible();
+});
+
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  test(`a biblioteca filtra módulos e abre vídeos independentes em ${viewport.width}px`, { session: 'tutorial-reader' }, async ({ app, screen, browser }) => {
+    await browser.setViewport(viewport);
+    await app.open('/app/tutorial');
+    await screen.getByRole('navigation', 'Módulos dos tutoriais').getByRole('link', 'Escritório', { exact: true }).tap();
+    await expect(browser).toHaveURL(/modulo=escritorio/);
+    await expect(screen.getByRole('link', /^Assistir:/)).toHaveCount(3);
+    await expect(screen.getByRole('link', 'Assistir: Organizar casos e documentos')).toHaveCount(0);
+    await app.screenshot(`biblioteca-${viewport.width}`);
+    const lesson = screen.getByRole('link', 'Assistir: Cadastrar e consultar clientes');
+    await lesson.focus();
+    await expect(lesson).toBeFocused();
+    await browser.keyboard.press('Enter');
+    await expect(browser).toHaveURL(/\/app\/tutorial\/clientes$/, { timeout: 60_000 });
+    await expect(screen.getByLabel('Tutorial: Cadastrar e consultar clientes')).toBeVisible();
+    await app.screenshot(`video-${viewport.width}`);
+    await expect(screen.getByRole('link', 'Baixar legendas')).toHaveAttribute('href', /clientes\/legendas\.pt-BR\.vtt/);
+    expect(await browser.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await screen.getByRole('link', 'Organizar tarefas e agenda', { exact: true }).tap();
+    await expect(screen.getByLabel('Tutorial: Organizar tarefas e agenda')).toHaveAttribute('src', /tarefas-e-agenda\/video\.mp4/);
+    await screen.getByRole('link', 'Voltar aos tutoriais de Escritório').tap();
+    await expect(screen.getByRole('link', /^Assistir:/)).toHaveCount(3);
+    await app.open('/app/tutorial?modulo=inexistente');
+    await expect(screen.getByText('Nenhum tutorial disponível neste módulo.')).toBeVisible();
+    await screen.getByRole('link', 'Ver todos os módulos').tap();
+    await expect(screen.getByRole('link', 'Assistir: Organizar casos e documentos')).toBeVisible();
+  });
+}
+
+test('cada tutorial tem vídeo, legenda e capa publicados', async ({ app }) => {
+  for (const video of tutorialModules.flatMap(module => module.videos)) {
+    const media = tutorialMedia(video.id);
+    for (const [path, type] of [[media.video, 'video/mp4'], [media.captions, 'text/vtt'], [media.poster, 'image/jpeg']]) {
+      const response = await fetch(new URL(path, app.baseUrl), { method: 'HEAD' });
+      expect({ path, status: response.status, type: response.headers.get('content-type')?.split(';')[0] }).toEqual({ path, status: 200, type });
+    }
   }
+});
+
+test('falha de carregamento oferece tentar novamente e download', { session: 'tutorial-reader' }, async ({ app, screen, browser }) => {
+  await browser.route('**/tutorial/videos/clientes/video.mp4*', route => route.abort());
+  await app.open('/app/tutorial/clientes');
+  await expect(screen.getByRole('alert', 'Falha no vídeo')).toContainText('Não foi possível carregar o vídeo.');
+  await expect(screen.getByRole('link', 'Baixar vídeo')).toBeVisible();
+  await browser.unroute('**/tutorial/videos/clientes/video.mp4*');
+  const loaded = browser.waitForResponse('**/tutorial/videos/clientes/video.mp4*');
+  await screen.getByRole('button', 'Tentar novamente').tap();
+  expect([200, 206]).toContain((await loaded).status);
+  await expect(screen.getByLabel('Tutorial: Cadastrar e consultar clientes')).toBeVisible();
+});
+
+test('um endereço de vídeo desconhecido retorna página não encontrada', { session: 'tutorial-reader' }, async ({ app, screen }) => {
+  await app.open('/app/tutorial/inexistente');
+  await expect(screen.getByRole('heading', 'Página não encontrada')).toBeVisible();
 });

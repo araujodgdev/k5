@@ -12,18 +12,18 @@ export const speechSettings = {
 
 export async function narrateOpenAI(texts: string[], directory: string) {
   mkdirSync(directory, { recursive: true });
-  const fromEnvironment = process.env.OPENAI_API_KEY;
-  const keyFile = process.env.OPENAI_API_KEY_FILE;
-  const candidates = fromEnvironment ? [fromEnvironment] : keyFile
-    ? [...new Set(readFileSync(keyFile, 'utf8').match(/sk-proj-[A-Za-z0-9_-]{20,}/g) ?? [])] : [];
-  if (candidates.length !== 1 || !candidates[0]) throw new Error('Configure OPENAI_API_KEY ou OPENAI_API_KEY_FILE com uma única chave OpenAI.');
-  const apiKey = candidates[0];
   async function generate(index: number, input: string) {
     const payload = JSON.stringify({ ...speechSettings, input });
     const hash = createHash('sha256').update(payload).digest('hex');
     const audio = resolve(directory, `${index}.wav`);
     const receipt = resolve(directory, `${index}.sha256`);
     if (existsSync(audio) && existsSync(receipt) && readFileSync(receipt, 'utf8') === hash) return;
+    const fromEnvironment = process.env.OPENAI_API_KEY;
+    const keyFile = process.env.OPENAI_API_KEY_FILE;
+    const candidates = fromEnvironment ? [fromEnvironment] : keyFile
+      ? [...new Set(readFileSync(keyFile, 'utf8').match(/sk-proj-[A-Za-z0-9_-]{20,}/g) ?? [])] : [];
+    if (candidates.length !== 1 || !candidates[0]) throw new Error('Configure OPENAI_API_KEY ou OPENAI_API_KEY_FILE com uma única chave OpenAI.');
+    const apiKey = candidates[0];
     for (let attempt = 0; attempt < 3; attempt++) {
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },

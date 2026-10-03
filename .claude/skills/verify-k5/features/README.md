@@ -32,10 +32,12 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 
 ## Features
 
+- [Tutorial library](./tutorials.md): videos by module, filters, keyboard access and desktop/mobile playback pages. Test: `e2e/onboarding.e2e.ts`.
 - [Office tasks](./office-tasks.md): create, persist, complete and archive tasks in Escritório → Tarefas. Test: `e2e/office-tasks.e2e.ts`.
 - [Vault cases](./vault-cases.md): create a case in Cofre and open its page. Test: `e2e/agent/vault-cases.e2e.ts` (agent steps, needs `OPENAI_API_KEY`).
 - [Office clients](./office-clients.md): create and edit a client in Escritório → Clientes. Test: `e2e/agent/office-clients.e2e.ts` (agent steps, needs `OPENAI_API_KEY`).
 - [Profile](./profile.md): edit the profile, photo and credentials, and see a user's card while inviting. Test: `e2e/profile.e2e.ts`.
 - [Authentication](./authentication.md): sign up a new office, sign in, and sign out everywhere. Tests: `e2e/auth.setup.e2e.ts`, `e2e/password-recovery.e2e.ts`.
 - [Brand shell](./brand-shell.md): the Lume identity across the signed-in shell, desktop and mobile. Test: `e2e/app-shell.e2e.ts`.
+- [Office activity](./office-activity.md): the office's audit trail in Escritório → Atividade, with filters, desktop and mobile. Test: `e2e/office-activity.e2e.ts`.
 - [Credits](./credits.md): the office's credit balance, statement and packages on Plano, desktop and mobile. Test: `e2e/credits.e2e.ts`.
