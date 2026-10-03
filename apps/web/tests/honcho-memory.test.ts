@@ -12,6 +12,8 @@ const calls: Call[] = [];
 const messages = new Map<string, Array<{ peer_id: string; content: string; metadata: Record<string, unknown> }>>();
 let failNextMessage: 'lose-answer' | 'reject' | null = null;
 let contextDelay = 0;
+// Holds the next message write until released, to forget while a send is on its way.
+let messageGate: Promise<void> | null = null;
 const server = createServer(async (request: IncomingMessage, response: ServerResponse) => {
   const chunks: Buffer[] = [];
   for await (const chunk of request) chunks.push(chunk as Buffer);
@@ -27,6 +29,7 @@ const server = createServer(async (request: IncomingMessage, response: ServerRes
   }
   if (session && request.method === 'POST') {
     if (failNextMessage === 'reject') { failNextMessage = null; return json({ detail: 'invalid' }, 422); }
+    if (messageGate) { const gate = messageGate; messageGate = null; await gate; }
     messages.set(session[2], [...(messages.get(session[2]) ?? []), ...(body as { messages: [] }).messages]);
     // Accepted remotely, but the answer never reaches the Lume.
     if (failNextMessage === 'lose-answer') { failNextMessage = null; request.socket.destroy(); return; }
@@ -138,4 +141,38 @@ test('forgetting starts a new generation, drops what was queued and deletes the 
   assert.ok(calls.some(call => call.method === 'DELETE' && call.path === `/v3/workspaces/${honchoWorkspace(config, context, 2)}/sessions/${honchoSession(context, conversationId)}`));
   const states = await db.prepare('SELECT state FROM honcho_deletion WHERE office_id=? AND user_id=?').all<{ state: string }>(context.officeId, context.userId);
   assert.deepEqual(states.map(row => row.state), ['accepted', 'accepted']);
+});
+
+test('a send that did not go through does not hold up the scheduled run for other people', async () => {
+  const first = await owner(), second = await owner();
+  await queueMemoryChange(first, randomUUID(), memory('- Prefere prazos em dias úteis.'));
+  await queueMemoryChange(second, randomUUID(), memory('- Atua em direito trabalhista.'));
+  failNextMessage = 'reject';
+  const result = await drainHonchoOutbox();
+  assert.equal(result.pending, 1);
+  assert.equal(result.delivered, 1);
+  assert.equal((await outbox(first))[0].state, 'pending');
+  assert.equal((await outbox(second))[0].state, 'delivered');
+});
+
+test('forgetting during a send waits for it before deleting the workspace, and the send stays discarded', async () => {
+  const context = await owner(), conversationId = randomUUID();
+  await queueMemoryChange(context, conversationId, memory('- Prefere audiências pela manhã.'));
+  let release!: () => void;
+  messageGate = new Promise(resolve => { release = resolve; });
+  const session = honchoSession(context, conversationId), workspace = honchoWorkspace(honchoConfig()!, context, 1);
+  const messagePath = `/v3/workspaces/${workspace}/sessions/${session}/messages`;
+  const draining = drainHonchoOutbox({ owner: context });
+  while (!calls.some(call => call.path === messagePath)) await new Promise(resolve => setTimeout(resolve, 10));
+
+  await clearMemory(context);
+  assert.equal((await outbox(context))[0].state, 'discarded');
+  assert.equal((await drainHonchoOutbox({ owner: context })).deletions, 0);
+  assert.ok(!calls.some(call => call.method === 'DELETE' && call.path === `/v3/workspaces/${workspace}`));
+
+  release();
+  assert.equal((await draining).deletions, 1);
+  assert.deepEqual((await outbox(context)).map(row => [row.state, row.content]), [['discarded', '']]);
+  const written = calls.findIndex(call => call.path === messagePath), deleted = calls.findIndex(call => call.method === 'DELETE' && call.path === `/v3/workspaces/${workspace}`);
+  assert.ok(written >= 0 && deleted > written);
 });

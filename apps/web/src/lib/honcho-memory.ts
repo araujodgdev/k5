@@ -22,6 +22,9 @@ const CONTEXT_TIMEOUT_MS = 1_500;
 const WRITE_TIMEOUT_MS = 10_000;
 const MAX_CONTEXT_CHARACTERS = 2_500;
 const MAX_ATTEMPTS = 8;
+// Longer than a whole delivery (six calls of at most WRITE_TIMEOUT_MS), so a live lease means a send
+// may still be on its way.
+const LEASE = "interval '2 minutes'";
 
 export type HonchoConfig = { apiKey: string; baseURL: string; environment: string };
 
@@ -153,6 +156,17 @@ async function alreadyDelivered(config: HonchoConfig, workspace: string, session
   }
 }
 
+/**
+ * Ends a send. A row forgotten meanwhile stays discarded: only its lease is released, which tells
+ * the pending deletions that nothing more is on its way.
+ */
+async function finish(id: string, state: 'delivered' | 'pending' | 'uncertain' | 'discarded', error: string | null = null) {
+  const result = await database.prepare(`UPDATE honcho_outbox SET state=CASE WHEN state='sending' THEN ? ELSE state END,
+      delivered_at=CASE WHEN state='sending' AND ?='delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END, lease_until=NULL, last_error=?
+    WHERE id=? RETURNING state`).get<{ state: typeof state }>(state, state, error, id);
+  return result?.state ?? 'discarded';
+}
+
 async function deliver(config: HonchoConfig, row: OutboxRow) {
   const owner = { officeId: row.office_id, userId: row.user_id };
   if (await generationOf(owner) !== row.generation) {
@@ -162,23 +176,17 @@ async function deliver(config: HonchoConfig, row: OutboxRow) {
   const workspace = honchoWorkspace(config, owner, row.generation), session = honchoSession(owner, row.conversation_id);
   try {
     // A row seen before may already be in Honcho: look for its id before sending it again.
-    if (row.attempts > 1 && await alreadyDelivered(config, workspace, session, row.id)) {
-      await database.prepare("UPDATE honcho_outbox SET state='delivered', delivered_at=CURRENT_TIMESTAMP, lease_until=NULL, last_error=NULL WHERE id=?").run(row.id);
-      return 'delivered' as const;
-    }
+    if (row.attempts > 1 && await alreadyDelivered(config, workspace, session, row.id)) return finish(row.id, 'delivered');
     await ensureSession(config, workspace, session);
     await honcho(config, 'POST', `/workspaces/${workspace}/sessions/${session}/messages`, {
       messages: [{ peer_id: USER_PEER, content: row.content, metadata: { event_id: row.id, source: 'lume_working_memory' } }],
     });
-    await database.prepare("UPDATE honcho_outbox SET state='delivered', delivered_at=CURRENT_TIMESTAMP, lease_until=NULL, last_error=NULL WHERE id=?").run(row.id);
-    return 'delivered' as const;
+    return finish(row.id, 'delivered');
   } catch (error) {
     const ambiguous = error instanceof HonchoError ? error.ambiguous : true;
     const state = !ambiguous && row.attempts >= MAX_ATTEMPTS ? 'discarded' : ambiguous ? 'uncertain' : 'pending';
-    await database.prepare('UPDATE honcho_outbox SET state=?, lease_until=NULL, last_error=? WHERE id=?')
-      .run(state, (error instanceof Error ? error.message : 'Falha desconhecida').slice(0, 300), row.id);
     if (state === 'discarded') captureOperationalError(error, 'honcho.outbox.discarded');
-    return state;
+    return finish(row.id, state, (error instanceof Error ? error.message : 'Falha desconhecida').slice(0, 300));
   }
 }
 
@@ -196,6 +204,8 @@ async function requestDeletion(config: HonchoConfig, row: { id: string; workspac
   } catch (error) {
     if (!(error instanceof HonchoError && error.status === 404)) {
       await database.prepare('UPDATE honcho_deletion SET attempts=attempts+1, last_error=? WHERE id=?').run((error instanceof Error ? error.message : 'Falha').slice(0, 300), row.id);
+      // The drain stops trying here; the row stays pending for a manual retry.
+      if (row.attempts + 1 >= MAX_ATTEMPTS * 3) captureOperationalError(error, 'honcho.deletion.exhausted');
       return false;
     }
   }
@@ -205,7 +215,10 @@ async function requestDeletion(config: HonchoConfig, row: { id: string; workspac
 
 /**
  * Sends what is due, oldest first, and requests the owed deletions. Rows are leased, so the chat
- * and the scheduled run can drain at the same time without sending one row twice.
+ * and the scheduled run can drain at the same time without sending one row twice. A person whose
+ * row did not go through is skipped for the rest of the run, keeping their order without holding up
+ * everyone else. A deletion waits while a send of that person may still be on its way, so a late
+ * write never lands after it.
  */
 export async function drainHonchoOutbox(options: { owner?: Owner; limit?: number } = {}) {
   const config = honchoConfig();
@@ -213,18 +226,27 @@ export async function drainHonchoOutbox(options: { owner?: Owner; limit?: number
   const limit = options.limit ?? 20;
   const scope = options.owner ? 'AND office_id=? AND user_id=?' : '';
   const scopeValues = options.owner ? [options.owner.officeId, options.owner.userId] : [];
+  const skipped: Owner[] = [];
   let delivered = 0, pending = 0;
   for (let index = 0; index < limit; index++) {
-    const row = await database.prepare(`UPDATE honcho_outbox SET state='sending', attempts=attempts+1, lease_until=CURRENT_TIMESTAMP + interval '1 minute'
-      WHERE id=(SELECT id FROM honcho_outbox WHERE (state IN ('pending','uncertain') OR (state='sending' AND lease_until<CURRENT_TIMESTAMP)) AND attempts<${MAX_ATTEMPTS * 3} ${scope}
+    const skip = skipped.map(() => 'AND NOT (office_id=? AND user_id=?)').join(' ');
+    const row = await database.prepare(`UPDATE honcho_outbox SET state='sending', attempts=attempts+1, lease_until=CURRENT_TIMESTAMP + ${LEASE}
+      WHERE id=(SELECT id FROM honcho_outbox WHERE (state IN ('pending','uncertain') OR (state='sending' AND lease_until<CURRENT_TIMESTAMP)) AND attempts<${MAX_ATTEMPTS * 3} ${scope} ${skip}
         ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED)
-      RETURNING id, office_id, user_id, generation, conversation_id, content, state, attempts`).get<OutboxRow>(...scopeValues);
+      RETURNING id, office_id, user_id, generation, conversation_id, content, state, attempts`)
+      .get<OutboxRow>(...scopeValues, ...skipped.flatMap(owner => [owner.officeId, owner.userId]));
     if (!row) break;
     const result = await deliver(config, row);
     if (result === 'delivered') delivered++;
-    else if (result !== 'discarded') { pending++; break; }
+    else if (result !== 'discarded') {
+      pending++;
+      if (options.owner) break;
+      skipped.push({ officeId: row.office_id, userId: row.user_id });
+    }
   }
-  const deletions = await database.prepare(`SELECT id, workspace_id, session_id, attempts FROM honcho_deletion WHERE state='pending' AND attempts<? ${scope} ORDER BY created_at LIMIT ?`)
+  const deletions = await database.prepare(`SELECT id, workspace_id, session_id, attempts FROM honcho_deletion d WHERE state='pending' AND attempts<? ${scope}
+      AND NOT EXISTS (SELECT 1 FROM honcho_outbox o WHERE o.office_id=d.office_id AND o.user_id=d.user_id AND o.lease_until>=CURRENT_TIMESTAMP)
+    ORDER BY created_at LIMIT ?`)
     .all<{ id: string; workspace_id: string; session_id: string | null; attempts: number }>(MAX_ATTEMPTS * 3, ...scopeValues, limit);
   let accepted = 0;
   for (const row of deletions) if (await requestDeletion(config, row)) accepted++;
@@ -241,7 +263,8 @@ export async function forgetHoncho(owner: Owner) {
   if (!state) return;
   await database.batch([
     database.prepare("UPDATE honcho_memory SET generation=generation+1, synced_memory='', updated_at=CURRENT_TIMESTAMP WHERE office_id=? AND user_id=?").bind(owner.officeId, owner.userId),
-    database.prepare("UPDATE honcho_outbox SET state='discarded', content='', lease_until=NULL WHERE office_id=? AND user_id=? AND state<>'delivered'").bind(owner.officeId, owner.userId),
+    // A send already on its way keeps its lease, and the deletion below waits for it to end.
+    database.prepare("UPDATE honcho_outbox SET state='discarded', content='' WHERE office_id=? AND user_id=? AND state<>'delivered'").bind(owner.officeId, owner.userId),
     ...(config ? [database.prepare('INSERT INTO honcho_deletion(id,office_id,user_id,workspace_id) VALUES(?,?,?,?)')
       .bind(randomUUID(), owner.officeId, owner.userId, honchoWorkspace(config, owner, state.generation))] : []),
   ]);
@@ -253,7 +276,7 @@ export async function forgetHonchoConversation(owner: Owner, conversationId: str
   const state = await database.prepare('SELECT generation FROM honcho_memory WHERE office_id=? AND user_id=?').get<{ generation: number }>(owner.officeId, owner.userId);
   if (!state) return;
   await database.batch([
-    database.prepare("UPDATE honcho_outbox SET state='discarded', content='', lease_until=NULL WHERE office_id=? AND user_id=? AND conversation_id=? AND state<>'delivered'")
+    database.prepare("UPDATE honcho_outbox SET state='discarded', content='' WHERE office_id=? AND user_id=? AND conversation_id=? AND state<>'delivered'")
       .bind(owner.officeId, owner.userId, conversationId),
     ...(config ? [database.prepare('INSERT INTO honcho_deletion(id,office_id,user_id,workspace_id,session_id) VALUES(?,?,?,?,?)')
       .bind(randomUUID(), owner.officeId, owner.userId, honchoWorkspace(config, owner, state.generation), honchoSession(owner, conversationId))] : []),

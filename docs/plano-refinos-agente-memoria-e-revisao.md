@@ -164,7 +164,7 @@ O painel "Fontes desta conversa" serve só para escolher documentos do Cofre e r
 
 ### Pendente
 
-- Escolher subpastas além do primeiro nível no formulário (hoje: raiz do caso e pastas de primeiro nível; o agente aceita qualquer pasta acessível).
+- Escolher subpastas além do primeiro nível no formulário (hoje: raiz do caso e pastas de primeiro nível; o agente aceita qualquer pasta acessível). Se a lista de pastas falhar, o formulário mostra o erro e mantém a raiz do caso.
 
 ### Decisões
 
@@ -187,9 +187,9 @@ Autoaprendizado com memória persistente desde já. O Honcho acrescenta inferên
 - Adaptador server-only por REST v3, sem SDK, para rodar igual em Node e no Worker. Sem `HONCHO_API_KEY` tudo é no-op e vale só a memória de trabalho. [Adaptador](../apps/web/src/lib/honcho-memory.ts).
 - **O que é enviado:** depois de cada turno, só as linhas novas da memória de trabalho Mastra, como declarações do peer `pessoa`. Essa memória já é restrita, pelas instruções do agente, ao que a pessoa disse sobre si e ao que pediu para lembrar. Documentos, anexos, resultados de ferramentas, e-mails e o transcript não saem do Lume.
 - **Identidade:** um workspace por ambiente, escritório, pessoa e geração, com nome opaco (hash), e uma sessão por conversa, também opaca. O peer `pessoa` é observado; o peer `lume` não é, e ninguém observa terceiros.
-- **Entrega:** outbox no PostgreSQL (`honcho_outbox`), com lease para o chat e o cron drenarem ao mesmo tempo sem duplicar. O `event_id` vai em metadata; um envio cuja resposta se perdeu fica `uncertain` e é reconciliado consultando o Honcho antes de reenviar. Erros definitivos voltam a `pending` e são descartados após 8 tentativas. O turno do chat drena ao terminar, depois que a resposta já foi entregue; o cron de cada minuto drena o restante.
+- **Entrega:** outbox no PostgreSQL (`honcho_outbox`), com lease para o chat e o cron drenarem ao mesmo tempo sem duplicar. O `event_id` vai em metadata; um envio cuja resposta se perdeu fica `uncertain` e é reconciliado consultando o Honcho antes de reenviar. Erros definitivos voltam a `pending` e são descartados após 8 tentativas. O turno do chat drena ao terminar, depois que a resposta já foi entregue; o cron de cada minuto drena o restante. No cron, uma pessoa cujo envio falhou é pulada até o fim da rodada, sem segurar a fila das outras.
 - **Leitura:** antes da resposta, o Lume lê o card e a representação do peer (até 1,5 s e 2.500 caracteres) e os inclui nas instruções como inferência falível, que não autoriza ações. Timeout ou falha seguem sem esse contexto.
-- **Esquecer:** `k5_memory_clear` apaga a memória de trabalho e incrementa a geração. Leitura e envio passam ao novo workspace na hora, a outbox pendente é descartada e a exclusão do workspace antigo (sessões e workspace) entra em `honcho_deletion`. Excluir uma conversa pede a exclusão da sessão dela. `accepted` registra que o Honcho aceitou o pedido, não que a exclusão terminou.
+- **Esquecer:** `k5_memory_clear` apaga a memória de trabalho e incrementa a geração. Leitura e envio passam ao novo workspace na hora, a outbox pendente é descartada e a exclusão do workspace antigo (sessões e workspace) entra em `honcho_deletion`. Excluir uma conversa pede a exclusão da sessão dela. `accepted` registra que o Honcho aceitou o pedido, não que a exclusão terminou. Um envio já em andamento mantém o lease: a exclusão espera ele terminar, e a linha continua descartada, para que nenhuma escrita chegue depois da exclusão.
 - `k5_memory_get` devolve também `inferred`, o card do Honcho, para "o que você lembra de mim".
 - Migração aditiva `0066_honcho_memory.sql`. Configuração documentada em `apps/web/.env.example` e `apps/web/README.md`.
 
@@ -199,6 +199,7 @@ Autoaprendizado com memória persistente desde já. O Honcho acrescenta inferên
 - Medir em uso real: p50/p95 da leitura de contexto, tempo até uma memória aparecer, custo por pessoa e qualidade em pt-BR comparada à memória de trabalho.
 - Confirmar com o fornecedor a exclusão das inferências derivadas e dos backups. A API v3 só aceita a exclusão de forma assíncrona.
 - Tela para a pessoa ver e apagar o que o Lume aprendeu (hoje: pelo chat, com `k5_memory_get` e `k5_memory_clear`).
+- Exclusões que esgotam as tentativas ficam `pending` e geram alerta `honcho.deletion.exhausted`; a nova tentativa ainda é manual.
 
 ### Decisões
 
@@ -241,3 +242,4 @@ As duas primeiras páginas de um PDF sintético foram renderizadas e inspecionad
 | `pnpm test` (suíte completa, `K5_TEST_CONCURRENCY=2`) | 750 de 750 passaram, com as migrações 0065 e 0066 aplicadas do zero. |
 | `pnpm lint`, `pnpm typecheck` | Passaram; resta o aviso antigo em `judicial/connectors/transport.ts`. |
 | `pnpm --filter @k5/web build:vinext` | Passou com as duas frentes. |
+| Revisão do CodeRabbit no PR #30 | Cinco apontamentos corrigidos: erro ao listar pastas, fila global travada por uma pessoa, envio em andamento contra esquecer, âncora da ajuda e texto do manual. Dois casos novos em `tests/honcho-memory.test.ts`, que falham no código anterior. |
