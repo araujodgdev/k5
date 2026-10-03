@@ -44,11 +44,13 @@ O botão de anexar permite enviar documentos e imagens à conversa, inclusive fo
 
 Quando você pedir, o agente pode copiar os anexos enviados para a Biblioteca ou para um caso e pasta do Cofre aos quais você tenha acesso. A cópia preserva o arquivo original e continua disponível mesmo se a conversa for excluída. Repetir o pedido para o mesmo destino não cria duplicatas.
 
+O botão **Artefatos**, no topo do chat, reúne o que a conversa produziu ou recebeu: os documentos do Lume e os anexos enviados, com as cópias já salvas no Cofre. Em **Salvar no Cofre**, escolha o formato do documento (PDF ou DOCX), a Biblioteca ou um caso e, se houver, a pasta. O agente faz o mesmo quando você pede para guardar um documento dele no Cofre. Cada combinação de versão, formato e destino gera uma cópia própria; só salvar de novo a mesma versão, no mesmo formato e no mesmo destino devolve a cópia existente. Abaixo, **Do Cofre nesta conversa** seleciona documentos já guardados e referências do caso como contexto.
+
 O microfone, quando disponível, transcreve a gravação para o campo de mensagem. A gravação de voz não fica armazenada. Revise a transcrição antes de enviar. A câmera exige HTTPS ou ambiente local e permissão do navegador. Se uma fotografia estiver ilegível, o assistente deve pedir esclarecimento. Datas e horários em listas fotografadas não devem ser inventados.
 
-## Fontes, memória e conhecimento do assistente
+## Artefatos, memória e conhecimento do assistente
 
-Fontes seleciona documentos do Cofre e referências vinculadas ao caso para a conversa. O assistente consulta trechos e indica as fontes usadas. Um documento ainda em processamento pode não estar disponível para pesquisa. A pesquisa semântica encontra trechos por significado; quando indisponível, o aplicativo pode usar busca textual e informar a limitação.
+Em Artefatos, **Do Cofre nesta conversa** seleciona documentos do Cofre e referências vinculadas ao caso para a conversa. O assistente consulta trechos e indica as fontes usadas. Um documento ainda em processamento pode não estar disponível para pesquisa. A pesquisa semântica encontra trechos por significado; quando indisponível, o aplicativo pode usar busca textual e informar a limitação.
 
 A memória do Lume guarda preferências e informações que a pessoa pediu para lembrar, por pessoa e escritório, entre conversas. É possível consultar e limpar essa memória. Apagar memória não é o mesmo que excluir conversas ou documentos.
 

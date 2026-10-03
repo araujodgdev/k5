@@ -276,6 +276,13 @@ export const capabilities = {
     input: z.object({ attachmentId: uuid, scope: z.enum(['library', 'case']), caseId: identifier.optional(), folderId: identifier.nullish() }),
     output: z.object({ document: documentDto }),
   },
+  k5_vault_save_artifact: {
+    module: 'vault', effect: 'write', publish: ['agent'],
+    description: 'Salva no Cofre a versão atual de um documento do Lume, em PDF (layout A4 do Lume) ou DOCX (com o modelo Word), na Biblioteca ou num caso e pasta. Use quando a pessoa pedir para guardar o documento no Cofre. Repetir a mesma versão, formato e destino devolve a cópia existente; uma nova versão vira outro arquivo.',
+    input: z.object({ artifactId: identifier, version: z.number().int().positive(), format: z.enum(['pdf', 'docx']).default('pdf'),
+      scope: z.enum(['library', 'case']), caseId: identifier.optional(), folderId: identifier.nullish() }),
+    output: z.object({ document: documentDto }),
+  },
   k5_vault_list_folders: {
     module: 'vault', effect: 'read',
     description: 'Lista as subpastas de um caso. Sem parentId, devolve as pastas da raiz do caso.',
@@ -493,14 +500,14 @@ export const capabilities = {
   // Only the chat has a memory, so neither is published to the browser adapter.
   k5_memory_get: {
     module: 'memory', effect: 'read',
-    description: 'Mostra o que o Lume guardou na memória de trabalho sobre a pessoa neste escritório (preferências e pedidos para lembrar).',
+    description: 'Mostra o que o Lume guardou na memória de trabalho sobre a pessoa neste escritório (preferências e pedidos para lembrar) e, em inferred, o que aprendeu sobre ela ao longo das conversas. inferred são inferências e podem estar erradas.',
     input: z.object({}),
-    output: z.object({ memory: z.string(), updatedAt: z.string().nullable() }),
+    output: z.object({ memory: z.string(), updatedAt: z.string().nullable(), inferred: z.array(z.string()) }),
     publish: ['agent'],
   },
   k5_memory_clear: {
     module: 'memory', effect: 'write',
-    description: 'Apaga a memória de trabalho do Lume sobre a pessoa neste escritório. Use quando ela pedir para o Lume esquecer.',
+    description: 'Apaga a memória de trabalho do Lume sobre a pessoa neste escritório e o que ele aprendeu sobre ela ao longo das conversas. Use quando ela pedir para o Lume esquecer.',
     input: z.object({}),
     output: z.object({ cleared: z.boolean() }),
     publish: ['agent'],

@@ -82,8 +82,8 @@ const DocumentWorkspace = dynamic(() => import("./document/document-workspace").
 });
 /** Tool calls that leave a document the person should see: created, edited, rewritten or restored. */
 const DOCUMENT_WRITES = new Set(["k5_artifacts_create", "k5_artifacts_edit", "k5_artifacts_update", "k5_artifacts_restore_version"]);
-const AgentSourcesPanel = dynamic(() => import("./agent-sources-panel").then(module => module.AgentSourcesPanel), {
-  loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Carregando fontes…</p>,
+const AgentArtifactsPanel = dynamic(() => import("./agent-artifacts-panel").then(module => module.AgentArtifactsPanel), {
+  loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Carregando artefatos…</p>,
 });
 type Conversation = { id: string; title: string; updatedAt: string };
 
@@ -954,10 +954,11 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
               <TooltipContent>Personalizar Lume</TooltipContent>
             </Tooltip>
             <Sheet open={contextOpen} onOpenChange={setContextOpen}>
-              <SheetTrigger asChild><Button variant="outline"><FileStack />Fontes{selectedCount > 0 ? ` (${selectedCount})` : ""}</Button></SheetTrigger>
+              <SheetTrigger asChild><Button variant="outline"><FileStack />Artefatos{selectedCount > 0 ? ` (${selectedCount} do Cofre)` : ""}</Button></SheetTrigger>
               <SheetContent side="right" showCloseButton={false} className="min-w-0 overflow-x-hidden gap-0 bg-background sm:max-w-md">
-                <SheetHeader className="sr-only"><SheetTitle>Fontes desta conversa</SheetTitle></SheetHeader>
-                {contextOpen && <AgentSourcesPanel context={context} onChange={setContext} onClose={() => setContextOpen(false)} />}
+                <SheetHeader className="sr-only"><SheetTitle>Artefatos desta conversa</SheetTitle></SheetHeader>
+                {contextOpen && <AgentArtifactsPanel conversationId={selectedId} context={context} onChange={setContext}
+                  onOpenDocument={id => { setContextOpen(false); openDocument(id); }} onClose={() => setContextOpen(false)} />}
               </SheetContent>
             </Sheet>
           </div>

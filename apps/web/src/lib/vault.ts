@@ -24,6 +24,8 @@ import { captureOperationalError } from "@/lib/observability/report";
 
 export type VaultStatus = "queued" | "processing" | "ready" | "failed";
 export type VaultScope = "library" | "case";
+/** What a Vault copy made from the chat came from (migration 0065). */
+export type VaultOriginKind = "chat_attachment" | "artifact_pdf" | "artifact_docx";
 export type VaultDocument = {
   id: string; name: string; caseId: string | null; caseName: string | null; folderId: string | null; scope: VaultScope;
   mimeType: string; byteSize: number; status: VaultStatus; progress: number; errorMessage: string | null;
@@ -383,7 +385,7 @@ export async function createVaultDocument(
   officeId: string,
   userId: string,
   upload: UploadRef,
-  options: { scope: string; caseId?: string | null; folderId?: string | null; documentId?: string; origin?: { kind: 'chat_attachment' | 'artifact_pdf'; id: string; version?: number } },
+  options: { scope: string; caseId?: string | null; folderId?: string | null; documentId?: string; origin?: { kind: VaultOriginKind; id: string; version?: number } },
 ) {
   const scope: VaultScope = options.scope === "case" ? "case" : options.scope === "library" ? "library" : (() => { throw new VaultHttpError(400, "Escolha o destino do documento."); })();
   const caseId = scope === "case" ? options.caseId?.trim() : null;

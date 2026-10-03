@@ -41,3 +41,4 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 - [Brand shell](./brand-shell.md): the Lume identity across the signed-in shell, desktop and mobile. Test: `e2e/app-shell.e2e.ts`.
 - [Office activity](./office-activity.md): the office's audit trail in Escritório → Atividade, with filters, desktop and mobile. Test: `e2e/office-activity.e2e.ts`.
 - [Credits](./credits.md): the office's credit balance, statement and packages on Plano, desktop and mobile. Test: `e2e/credits.e2e.ts`.
+- [Conversation artifacts](./conversation-artifacts.md): the Lume chat's Artefatos panel and saving its documents and attachments to the Cofre, desktop and mobile. Test: `e2e/conversation-artifacts.e2e.ts`.

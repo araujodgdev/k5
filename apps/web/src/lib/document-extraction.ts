@@ -8,7 +8,7 @@ export type ExtractedSection = { reference: string; content: string };
 /** A PDF without a text layer where no OCR is available: a known limitation, not a failure. */
 export class OcrRequiredError extends Error {
   constructor() {
-    super('Este PDF precisa de OCR. Adicione-o ao Cofre para processar e depois selecione-o em Fontes.');
+    super('Este PDF precisa de OCR. Adicione-o ao Cofre para processar e depois selecione-o em Artefatos.');
     this.name = 'OcrRequiredError';
   }
 }

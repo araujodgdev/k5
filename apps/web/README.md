@@ -139,6 +139,13 @@ O Lume tem uma memória de trabalho por pessoa e escritório (Mastra Memory, tab
 migração 0023, sem criar tabelas em tempo de execução). Ela guarda preferências e o que a pessoa
 pediu para lembrar, e acompanha as conversas seguintes. `k5_memory_get` mostra e `k5_memory_clear`
 apaga a memória (`/api/agent/memory`). O histórico das conversas continua só em `ai_conversation`.
+Com `HONCHO_API_KEY`, o Lume também aprende com essa memória (`src/lib/honcho-memory.ts`, migração 0066).
+Depois de cada turno, só as linhas novas da memória de trabalho vão para o Honcho, como declarações da
+pessoa, por uma outbox com reconciliação por `event_id`; documentos, anexos, resultados de ferramentas e
+a conversa não são enviados. Antes da resposta, o Lume lê o que o Honcho concluiu (até 1,5 s; sem
+resposta, segue sem) e trata como contexto falível. `k5_memory_clear` também troca a geração da memória
+e pede a exclusão do workspace antigo; excluir uma conversa pede a exclusão da sessão dela. O cron
+reenvia o que ficou pendente. Sem a chave, nada é enviado e vale só a memória de trabalho.
 Resultados de ferramentas com texto de terceiros (Gmail, Google Docs, publicações judiciais,
 jurisprudência e busca na web) passam pelo `PromptInjectionDetector` do Mastra, com o modelo da
 tarefa `classification.injection_guard`, antes de o modelo lê-los. Se houver instruções dirigidas ao assistente, o conteúdo é

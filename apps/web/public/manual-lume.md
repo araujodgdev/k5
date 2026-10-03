@@ -42,11 +42,15 @@ O botão Confirmar executa a ação proposta, com aqueles dados. Cancelar descar
 
 O botão de anexar permite enviar documentos e imagens à conversa, inclusive fotos da câmera quando o navegador autoriza. Os anexos são privados daquela conversa e não entram automaticamente no Cofre. A mensagem aceita até seis anexos; documentos podem ter até 25 MB e imagens até 10 MB. Um modelo com leitura de imagens precisa estar configurado para interpretar fotos.
 
+Quando você pedir, o agente pode copiar os anexos enviados para a Biblioteca ou para um caso e pasta do Cofre aos quais você tenha acesso. A cópia preserva o arquivo original e continua disponível mesmo se a conversa for excluída. Repetir o pedido para o mesmo destino não cria duplicatas.
+
+O botão **Artefatos**, no topo do chat, reúne o que a conversa produziu ou recebeu: os documentos do Lume e os anexos enviados, com as cópias já salvas no Cofre. Em **Salvar no Cofre**, escolha o formato do documento (PDF ou DOCX), a Biblioteca ou um caso e, se houver, a pasta. O agente faz o mesmo quando você pede para guardar um documento dele no Cofre. Cada combinação de versão, formato e destino gera uma cópia própria; só salvar de novo a mesma versão, no mesmo formato e no mesmo destino devolve a cópia existente. Abaixo, **Do Cofre nesta conversa** seleciona documentos já guardados e referências do caso como contexto.
+
 O microfone, quando disponível, transcreve a gravação para o campo de mensagem. A gravação de voz não fica armazenada. Revise a transcrição antes de enviar. A câmera exige HTTPS ou ambiente local e permissão do navegador. Se uma fotografia estiver ilegível, o assistente deve pedir esclarecimento. Datas e horários em listas fotografadas não devem ser inventados.
 
-## Fontes, memória e conhecimento do assistente
+## Artefatos, memória e conhecimento do assistente
 
-Fontes seleciona documentos do Cofre e referências vinculadas ao caso para a conversa. O assistente consulta trechos e indica as fontes usadas. Um documento ainda em processamento pode não estar disponível para pesquisa. A pesquisa semântica encontra trechos por significado; quando indisponível, o aplicativo pode usar busca textual e informar a limitação.
+Em Artefatos, **Do Cofre nesta conversa** seleciona documentos do Cofre e referências vinculadas ao caso para a conversa. O assistente consulta trechos e indica as fontes usadas. Um documento ainda em processamento pode não estar disponível para pesquisa. A pesquisa semântica encontra trechos por significado; quando indisponível, o aplicativo pode usar busca textual e informar a limitação.
 
 A memória do Lume guarda preferências e informações que a pessoa pediu para lembrar, por pessoa e escritório, entre conversas. É possível consultar e limpar essa memória. Apagar memória não é o mesmo que excluir conversas ou documentos.
 
@@ -164,7 +168,7 @@ Uma publicação coletada não equivale automaticamente a intimação válida pa
 
 O Lume cria textos para uso fora da conversa como documentos no editor, em `/app/documents/[id]`. Isso inclui minutas, petições, contratos, pareceres e outros textos. Cronologias e minutas baseadas em fontes podem rodar em segundo plano. O chat informa a tarefa e permite acompanhar seu estado, cancelar ou tentar novamente quando a operação permitir.
 
-O editor permite alterar texto, salvar versões, consultar o histórico, restaurar versão e exportar PDF ou DOCX. Exportar salva a edição atual antes de gerar o arquivo. O PDF é convertido a partir do mesmo DOCX, incluindo o timbrado, tabelas e margens do modelo. Quando você pede ajustes, o assistente deve consultar a versão atual e editar os trechos necessários. Conflitos de versão exigem nova leitura, sem sobrescrever uma edição recente silenciosamente. Alterações em documentos existentes podem exigir confirmação no chat.
+O editor permite alterar texto, salvar versões, consultar o histórico, restaurar versão e exportar PDF ou DOCX. Exportar salva a edição atual antes de gerar o arquivo. Sem um modelo Word, o PDF usa o layout A4 do Lume com PDFcn. Quando há um modelo Word aplicado no editor, a exportação PDF preserva o timbrado pela conversão do DOCX. O agente também oferece a exportação PDFcn da versão salva, com layout próprio, sem aplicar o timbrado Word. Quando você pede ajustes, o assistente deve consultar a versão atual e editar os trechos necessários. Conflitos de versão exigem nova leitura, sem sobrescrever uma edição recente silenciosamente. Alterações em documentos existentes podem exigir confirmação no chat.
 
 O modelo Word define o timbrado e o formato de exportação. A seleção pessoal prevalece sobre a do escritório quando o documento não tem modelo próprio. Exportar não protocola o documento nem o envia a um tribunal ou destinatário.
 
@@ -172,7 +176,9 @@ O modelo Word define o timbrado e o formato de exportação. A seleção pessoal
 
 O assistente deve sustentar fatos de um caso nos documentos consultados e indicar as fontes. Citações de leis e julgados precisam corresponder ao material disponível. O Lume distingue fatos, inferências e informações ausentes. Um trecho gerado não é prova de que um documento original contém aquela afirmação.
 
-A revisão de citações identifica pontos sem fonte consultada, fontes fracas, contrárias ou ainda não verificadas. O documento mostra essas questões na aba Revisão. O agente deve avisar quando existem citações a conferir. A verificação documental depende da configuração e dos materiais disponíveis e pode ser parcial ou indisponível.
+A revisão de citações identifica fontes correspondentes não encontradas, fontes fracas, contrárias ou ainda não verificadas. Um link disponível não comprova que seu conteúdo foi consultado nem que sustenta a afirmação. O documento mostra essas questões na aba Revisão. O agente deve avisar quando existem citações a conferir. A verificação documental depende da configuração e dos materiais disponíveis e pode ser parcial ou indisponível.
+
+O checklist de Revisão humana registra sua decisão por item: Pendente, Confirmado ou Precisa de ajuste, com observação e instante do registro. Confirmar não muda o resultado automático nem certifica juridicamente o documento. Salve as alterações antes de decidir. Uma nova versão exige nova revisão; decisões concorrentes em abas diferentes precisam ser atualizadas antes de salvar.
 
 A pessoa continua responsável pela revisão do texto e das fontes antes de usar o documento. O sistema não garante resultado processual, completude do caso ou validade automática de uma citação.
 

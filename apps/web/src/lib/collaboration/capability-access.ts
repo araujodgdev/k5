@@ -12,7 +12,7 @@ export const sharedCaseCapabilities = new Set<CapabilityName>([
   'k5_vault_add_document_version', 'k5_vault_download_document', 'k5_vault_retry_ingestion', 'k5_vault_ingest_upload',
   'k5_knowledge_search', 'k5_knowledge_get_source', 'k5_knowledge_get_index_status', 'k5_knowledge_reindex',
   'k5_vault_plan_annexes', 'k5_vault_generate_annexes',
-  'k5_vault_import_chat_attachment',
+  'k5_vault_import_chat_attachment', 'k5_vault_save_artifact',
   'k5_research_get_profile', 'k5_research_save_profile', 'k5_research_list_references',
   'k5_research_assess_material', 'k5_research_get_assessment',
   'k5_research_add_reference', 'k5_research_update_reference', 'k5_research_remove_reference',

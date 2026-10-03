@@ -28,7 +28,8 @@ import { capabilities, type Capability } from '@/lib/capabilities/contracts';
 import { clockContext } from '@/lib/chat-clock';
 import { instructionsPrompt } from '@/lib/agent-instructions';
 import { knowledgePrompt } from '@/lib/agent-knowledge';
-import { agentMemory, memoryInstructions, memoryResource } from '@/lib/agent-memory';
+import { agentMemory, memoryInstructions, memoryResource, readMemory } from '@/lib/agent-memory';
+import { drainHonchoOutbox, honchoContext, queueMemoryChange } from '@/lib/honcho-memory';
 import { injectionDetector, isWithheld, UntrustedToolResultGuard } from '@/lib/agent-guard';
 import { webSearchFor, type WebPage } from '@/lib/agent-web-search';
 import { resolveTaskModel } from '@/lib/ai-connections';
@@ -67,7 +68,7 @@ Use as ferramentas para consultar e agir; não descreva uma ação como feita se
 Execute sem pedir revisão: criar, editar, concluir, cancelar ou reagendar tarefas e reuniões; criar e atualizar casos, clientes e pastas; mover e renomear documentos; separar e gerar anexos; iniciar cronologias e minutas. Pergunte apenas quando faltar um dado necessário (horário ambíguo, qual caso, qual cliente), com uma pergunta objetiva.
 Exclusões, consultas e vínculos com tribunais e a alteração de um documento que você não criou nesta conversa pedem confirmação: chame a ferramenta normalmente; quando ela responder que aguarda confirmação, a pessoa verá abaixo da sua resposta um botão Confirmar que executa exatamente essa ação. Diga em uma frase o que será feito ao confirmar. Não peça confirmação em texto, não repita a chamada e não diga que a ação foi feita.
 Fotos e arquivos enviados na mensagem pertencem ao chat. Leia-os diretamente. Quando a pessoa pedir para agendar uma lista fotografada, crie uma atividade por item com k5_agenda_create_activity, usando a transcrição fiel do item. Não invente datas, horários ou trechos ilegíveis: pergunte sobre eles no fim.
-Quando a pessoa pedir para salvar arquivos desta conversa no Cofre, use k5_vault_import_chat_attachment com o attachmentId informado no manifesto e o destino escolhido. Não use attachmentId como uploadRef e não peça reenvio de um original disponível. Só anuncie a cópia após o sucesso da ferramenta.
+Quando a pessoa pedir para salvar arquivos desta conversa no Cofre, use k5_vault_import_chat_attachment com o attachmentId informado no manifesto e o destino escolhido. Não use attachmentId como uploadRef e não peça reenvio de um original disponível. Para guardar no Cofre um documento do Lume, use k5_vault_save_artifact com a versão atual, em PDF salvo pedido de DOCX. Só anuncie a cópia após o sucesso da ferramenta.
 Para gerar PDF de uma minuta, leia a versão salva e use k5_artifacts_export_pdf. Entregue o downloadUrl devolvido pela ferramenta. A revisão humana fica no checklist da aba Revisão; você não pode confirmar itens em nome da pessoa.
 Para separar os anexos de uma petição a partir de um PDF digitalizado do caso, chame k5_vault_plan_annexes e em seguida k5_vault_generate_annexes com os documentos incluídos, na ordem proposta; informe a pasta criada e lembre que a aba Anexos do caso permite refazer com ajustes.
 Tarefas humanas e reuniões usam k5_agenda_*; clientes usam k5_crm_*. k5_runs_* são apenas jobs de documentos.
@@ -149,7 +150,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     // (Gemini does not mix Google Search with function calling). See agent-web-search.ts.
     const chatModel = await resolveTaskModel('agent.chat');
     const provider = chatModel.provider;
-    const [writingRules, knowledge] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner)]);
+    const [writingRules, knowledge, learned] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner), honchoContext(owner)]);
     // Only the person's own document is named; an id they do not own is ignored, not an error.
     const focusedId = body.selection?.artifactId ?? body.openDocumentId;
     const focused = focusedId ? await ownedArtifact(database, owner, focusedId) : undefined;
@@ -166,7 +167,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
       chatModel,
       [
         // Rules shape the voice; the policies after them keep the last word.
-        conversationStyle, ...[writingRules, knowledge].filter(Boolean), chatGrounding, toolInstructions, memoryInstructions, clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
+        conversationStyle, ...[writingRules, knowledge].filter(Boolean), chatGrounding, toolInstructions, memoryInstructions, ...(learned ? [learned] : []), clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
         scope,
         researchScope,
         ...(documentFocus ? [documentFocus] : []),
@@ -408,6 +409,11 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
       writer.write({ type: 'text-end', id: partId });
       writer.write({ type: 'finish' });
     }, { root: true });
+    // The answer is already with the person. What the turn added to the working memory goes to
+    // the learning memory; a failure here leaves it queued for the scheduled run.
+    try {
+      if (await queueMemoryChange(owner, id, (await readMemory(owner)).memory)) await drainHonchoOutbox({ owner, limit: 5 });
+    } catch (error) { captureOperationalError(error, 'honcho.queue'); }
   } finally {
     // A turn that failed before the agent started must not keep the conversation locked.
     if (!released) await release().catch(error => captureOperationalError(error, 'chat.release'));

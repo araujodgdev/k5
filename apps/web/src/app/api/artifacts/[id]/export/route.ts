@@ -2,8 +2,7 @@ import { database } from '@/lib/database';
 import { apiWorkspace, apiError, ApiError } from '@/lib/workspace-api';
 import { ownedArtifact } from '@/lib/ai-store';
 import { exportDocument } from '@/lib/document-export';
-import { readVaultDocumentFile } from '@/lib/vault';
-import { resolveDocumentTemplateId } from '@/lib/agent-profile';
+import { artifactTemplate } from '@/lib/artifact-file';
 import { exportPdf } from '@/lib/document-pdf';
 import { exportPdfcn } from '@/lib/document-pdfcn';
 import { DocumentPdfError } from '@/lib/document-pdf-contract';
@@ -20,12 +19,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (!artifact) throw new ApiError(404, 'Documento não encontrado.');
     const version = url.searchParams.get('version');
     if (version !== null && version !== String(artifact.version)) throw new ApiError(409, 'O documento foi alterado. Reabra a versão atual para exportar.');
-    // A template picked for this document wins; otherwise the current letterhead applies, so a new
-    // letterhead reaches documents written before it was set.
-    const owner = { officeId: office.officeId, userId: user.id };
-    const templateId = artifact.template_id ?? await resolveDocumentTemplateId(owner);
-    const file = templateId ? await readVaultDocumentFile(office.officeId, templateId, user.id).catch(() => undefined) : undefined;
-    const template = file?.name.toLowerCase().endsWith('.docx') ? file.buffer : undefined;
+    const template = await artifactTemplate({ officeId: office.officeId, userId: user.id }, artifact);
     const usePdfcn = format === 'pdf' && (engine === 'pdfcn' || !template);
     const bytes = usePdfcn ? await exportPdfcn({ title: artifact.title, content: artifact.content })
       : format === 'pdf' ? await exportPdf(await exportDocument(artifact.content, template)) : new Uint8Array(await exportDocument(artifact.content, template));

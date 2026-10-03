@@ -134,6 +134,7 @@ const routes: Record<CapabilityName, Route> = {
   k5_vault_retry_ingestion: { method: 'POST', path: (i) => `/api/vault/documents/${id(i.documentId)}/retry`, body: (i) => i },
   k5_vault_ingest_upload: { method: 'POST', path: () => '/api/vault/documents/ingest', body: (i) => i },
   k5_vault_import_chat_attachment: { method: 'POST', path: () => '/api/capabilities/k5_vault_import_chat_attachment', body: i => i },
+  k5_vault_save_artifact: { method: 'POST', path: () => '/api/capabilities/k5_vault_save_artifact', body: i => i },
   k5_knowledge_search: { method: 'POST', path: () => '/api/knowledge/search', body: (i) => i },
   k5_knowledge_get_source: { method: 'POST', path: () => '/api/knowledge/source', body: (i) => i },
   k5_knowledge_get_index_status: { method: 'GET', path: (i) => `/api/knowledge/status?documentId=${id(i.documentId)}` },

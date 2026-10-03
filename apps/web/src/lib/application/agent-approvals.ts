@@ -168,7 +168,7 @@ export function resourceHref(name: string, result: unknown): string | undefined 
   if (name.startsWith('k5_vault_') && document && typeof document === 'object' && document.caseId) return `/app/vault/cases/${encodeURIComponent(document.caseId)}`;
   if (name.startsWith('k5_artifacts_') && id('artifact')) return `/app/documents/${encodeURIComponent(id('artifact')!)}`;
   if ((name === 'k5_artifacts_export_pdf' || name === 'k5_artifacts_export_docx') && typeof value.downloadUrl === 'string') return value.downloadUrl;
-  if (name === 'k5_vault_import_chat_attachment' && document && typeof document === 'object') return '/app/vault/library';
+  if ((name === 'k5_vault_import_chat_attachment' || name === 'k5_vault_save_artifact') && document && typeof document === 'object') return '/app/vault/library';
   if (name.startsWith('k5_calendar_') && id('event')) return `/app/agenda?view=calendar&personalEventId=${encodeURIComponent(id('event')!)}`;
   if (name.startsWith('k5_whatsapp_') && typeof value.threadId === 'string') return `/app/whatsapp?thread=${encodeURIComponent(value.threadId)}`;
   if (name.startsWith('k5_gmail_') && typeof value.threadId === 'string') return `/app/email?thread=${encodeURIComponent(value.threadId)}`;
