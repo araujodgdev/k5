@@ -36,12 +36,11 @@ interface __BaseEnv_CloudflareEnv {
 	PROCESSORS: DurableObjectNamespace<import("./src/workers/web").LumeProcessor>;
 	CHAT_RUNS: DurableObjectNamespace<import("./src/workers/web").LumeChatRun>;
 	TRADEMARK_RUNS: DurableObjectNamespace<import("./src/workers/web").LumeTrademarkRun>;
-	INPI_PROCESSOR: DurableObjectNamespace<import("./src/workers/web").LumeInpiProcessor>;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./src/workers/web");
-		durableNamespaces: "LumeProcessor" | "LumeChatRun" | "LumeTrademarkRun" | "LumeInpiProcessor";
+		durableNamespaces: "LumeProcessor" | "LumeChatRun" | "LumeTrademarkRun";
 	}
 	interface Env extends __BaseEnv_CloudflareEnv {}
 }

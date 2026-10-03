@@ -15,7 +15,7 @@ async function main() {
   const { runPersonalEmailPass } = await import('../src/lib/personal-chat/email-worker');
   const { purgeExpiredWhatsAppUploads } = await import('../src/lib/whatsapp/media');
   const { runIntegrationPass, IntegrationPassError } = await import('../src/lib/integration-pass');
-  const { databaseFailure } = await import('../src/lib/research/trademarks/inpi-errors');
+  const { databaseFailure } = await import('../src/lib/db/failure');
   if (!googleOAuthConfig()) console.log('[integrations] Google OAuth não configurado; o worker só executa manutenção.');
   do {
     try {

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { viennaCode } from './inpi-contracts';
 
 export const trademarkCountries = [
   { code: 'BR', name: 'Brasil' }, { code: 'AR', name: 'Argentina' }, { code: 'CL', name: 'Chile' },
@@ -8,14 +7,15 @@ export const trademarkCountries = [
   { code: 'FR', name: 'França' }, { code: 'DE', name: 'Alemanha' }, { code: 'GB', name: 'Reino Unido' },
   { code: 'CN', name: 'China' }, { code: 'JP', name: 'Japão' }, { code: 'AU', name: 'Austrália' },
 ] as const;
+/** A Vienna classification code ("26.4.2"), normalized without leading zeros. */
+export const viennaCode = z.string().trim().regex(/^\d{1,2}\.\d{1,2}(?:\.\d{1,2})?$/)
+  .transform(value => value.split('.').map(Number).join('.'))
+  .refine(value => { const [category, division, section] = value.split('.').map(Number); return category >= 1 && category <= 29 && division >= 1 && division <= 99 && (section===undefined || section >= 1 && section <= 99); })
+  .pipe(z.string().regex(/^\d{1,2}\.\d{1,2}(?:\.\d{1,2})?$/));
 export const trademarkSituation = z.enum(['all', 'active', 'pending', 'ended']);
-const browserTrademarkQuery = z.union([
+export const trademarkQuery = z.union([
   z.object({ kind: z.literal('name'), name: z.string().trim().min(2).max(200), strategy: z.enum(['contains', 'exact', 'fuzzy', 'phonetic']).default('contains') }),
   z.object({ kind: z.literal('logo'), uploadId: z.uuid(), strategy: z.literal('concept').default('concept') }),
-]);
-export const trademarkQuery = z.union([
-  ...browserTrademarkQuery.options,
-  z.object({ kind: z.literal('vienna'), codes: z.array(viennaCode).min(1).max(12), match: z.enum(['any','all']).default('any') }),
 ]);
 export const storedTrademarkSearchInput = z.object({
   query: trademarkQuery,
@@ -24,13 +24,12 @@ export const storedTrademarkSearchInput = z.object({
   niceClass: z.number().int().min(1).max(45).nullable().default(null),
   idempotencyKey: z.string().min(8).max(128).optional(),
 });
-export const trademarkSearchInput = storedTrademarkSearchInput.extend({ query: browserTrademarkQuery });
+export const trademarkSearchInput = storedTrademarkSearchInput;
 export type TrademarkSearchInput = z.infer<typeof trademarkSearchInput>;
 export type StoredTrademarkSearchInput = z.infer<typeof storedTrademarkSearchInput>;
 export const trademarkRunStates = z.enum(['queued', 'running', 'completed', 'partial', 'blocked', 'failed', 'cancelled']);
 export const trademarkSource = z.object({
-  provider: z.enum(['wipo','inpi']), url: z.url(), originUrl: z.url().nullable(), capturedAt: z.string(),
-  publicationUrl: z.url().nullable().default(null), edition: z.number().nullable().default(null), publishedOn: z.string().nullable().default(null),
+  provider: z.literal('wipo'), url: z.url(), originUrl: z.url().nullable(), capturedAt: z.string(),
 });
 export const trademarkSummary = z.object({
   id: z.uuid(), nativeId: z.string(), name: z.string(), representationUrl: z.string().nullable(),
@@ -52,16 +51,11 @@ export const trademarkLogoAnalysis = z.object({
   catalogSourceUrl: z.url().nullable().default(null),
 });
 export type TrademarkLogoAnalysis = z.infer<typeof trademarkLogoAnalysis>;
-export const trademarkCorpus = z.object({
-  baselineDate: z.string().nullable(), latestEdition: z.number().nullable(), publishedOn: z.string().nullable(),
-  checkedAt: z.string().nullable(), note: z.string(),
-});
 export const trademarkSearchView = z.object({
   id: z.uuid(), input: storedTrademarkSearchInput.omit({ idempotencyKey: true }), title: z.string(),
   state: trademarkRunStates, step: z.string(), error: z.string().nullable(), createdAt: z.string(),
   results: z.array(trademarkSummary), totalReported: z.number().int().nonnegative().nullable(),
   pagesLoaded: z.number().int().nonnegative(), hasMore: z.boolean(), sourceUrl: z.url().nullable(),
-  analysis: trademarkLogoAnalysis.nullable().default(null), corpus: trademarkCorpus.nullable().default(null),
 });
 export type TrademarkSearchView = z.infer<typeof trademarkSearchView>;
 export const trademarkHistoryItem = trademarkSearchView.omit({ results: true }).extend({ resultCount: z.number() });

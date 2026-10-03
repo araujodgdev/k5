@@ -1,5 +1,5 @@
 import type { Database } from './database';
-import { databaseFailure } from './research/trademarks/inpi-errors';
+import { databaseFailure } from './db/failure';
 import { captureOperationalError } from './observability/report';
 
 type Task = { name: string; run: () => Promise<unknown> };

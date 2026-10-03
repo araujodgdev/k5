@@ -39,7 +39,7 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
 
   useEffect(() => () => { if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview); }, [preview]);
   const show = useCallback((search: TrademarkSearchView) => {
-    setView(search); setKind(search.input.query.kind === 'vienna' ? 'name' : search.input.query.kind); setCountry(search.input.country); setSituation(search.input.situation);
+    setView(search); setKind(search.input.query.kind); setCountry(search.input.country); setSituation(search.input.situation);
     setNiceClass(search.input.niceClass ? String(search.input.niceClass) : '');
     if (search.input.query.kind === 'name') { setName(search.input.query.name); setStrategy(search.input.query.strategy); }
     else if (search.input.query.kind==='logo') { setUploadId(search.input.query.uploadId); setPreview(`/api/research/trademarks/uploads/${search.input.query.uploadId}`); }
@@ -175,8 +175,6 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
       {loading ? <p role="status" className="py-8 text-sm text-muted-foreground">Carregando pesquisa…</p> : view ? <section className="py-5" aria-labelledby="trademark-results-heading">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="trademark-results-heading" tabIndex={-1} ref={heading} className="text-base font-medium outline-none">Resultados</h2>
           <p role="status" className="text-[13px] text-muted-foreground">{running ? view.step : `${view.results.length} resultados obtidos${view.totalReported !== null ? ` de ${view.totalReported}` : ''}`}</p></div>
-        {view.corpus && <p className="border-b py-3 text-[13px] leading-5 text-muted-foreground">Pesquisa anterior na base INPI. {view.corpus.note}{view.corpus.latestEdition ? ` Última RPI importada: ${view.corpus.latestEdition}, de ${view.corpus.publishedOn}.` : ''}</p>}
-        {view.analysis && <div className="border-b py-4"><h3 className="text-sm font-medium">Elementos do logotipo</h3><p className="mt-2 text-sm">{view.analysis.description}</p><dl className="mt-3">{view.analysis.codes.map(item => <div key={item.code} className="border-t py-2 text-[13px]"><dt>{item.code} · {item.description}</dt><dd className="mt-1 text-muted-foreground">{item.reason}</dd></div>)}</dl><p className="mt-2 text-[13px] leading-5 text-muted-foreground">{view.analysis.note}</p>{view.analysis.catalogSourceUrl && <a className="mt-2 inline-block text-[13px] underline underline-offset-4" href={view.analysis.catalogSourceUrl} target="_blank" rel="noopener noreferrer">Classificação de Viena · OMPI/WIPO e INPI<span className="sr-only">, abre em nova aba</span></a>}</div>}
         {view.error && <div role="alert" className="flex flex-wrap items-center gap-3 border-b py-4"><p className="text-sm text-destructive">{view.error}</p><Button variant="outline" className="min-h-11 md:min-h-9" disabled={busy} onClick={() => void action('k5_research_next_trademark_page')}>Tentar novamente</Button></div>}
         {!view.results.length && view.state === 'completed' ? <p className="py-8 text-sm text-muted-foreground">Nenhuma marca encontrada para estes critérios. Tente outro nome, imagem ou filtro.</p>
           : running && !view.results.length ? <p className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />{view.step}… Você pode sair e acompanhar pelo histórico.</p> : null}
@@ -186,7 +184,7 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
             <p className="mt-1 text-[13px] text-muted-foreground">{trademarkSituationLabel(result.situation)}{result.office || result.territory ? ` · ${result.office ?? result.territory}` : ''}{result.niceClasses.length ? ` · Nice ${result.niceClasses.join(', ')}` : ''}</p>
             {!!result.viennaCodes.length && <p className="mt-1 text-[13px] text-muted-foreground">Viena {result.viennaCodes.join(', ')}</p>}
             {result.owner && <p className="mt-1 break-words text-sm text-muted-foreground">{result.owner}</p>}
-            <a href={result.source.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground underline-offset-4 hover:underline">{result.source.provider==='inpi' ? 'Ver processo no INPI' : 'WIPO Global Brand Database'} <ArrowUpRight className="size-3.5" /><span className="sr-only">, abre em nova aba</span></a>
+            <a href={result.source.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground underline-offset-4 hover:underline">WIPO Global Brand Database <ArrowUpRight className="size-3.5" /><span className="sr-only">, abre em nova aba</span></a>
           </div>
         </div>)}</div>
         {view.hasMore && <Button variant="outline" className="mt-4 min-h-11 md:min-h-9" disabled={busy || running} onClick={() => void action('k5_research_next_trademark_page')}>{busy || running ? 'Consultando…' : 'Carregar mais resultados'}</Button>}

@@ -1,3 +1,5 @@
+> Atualização em 03/10/2026: o importador e o acervo do INPI foram removidos. A migração `0063_remove_inpi.sql` apaga as tabelas `inpi_*` e as pesquisas feitas no acervo, e o Durable Object `LumeInpiProcessor` sai pela migração `v5-remove-inpi-processor` do `wrangler.jsonc`. As seções abaixo descrevem o estado anterior.
+
 > Atualização em 01/10/2026: novas pesquisas voltam à automação WIPO para todos os territórios, inclusive o Brasil. A carga automática do INPI foi desativada. Históricos INPI permanecem acessíveis com suas fontes originais.
 
 # Pesquisa de marcas com WIPO Global Brand Database
@@ -50,7 +52,7 @@ O commit `c157227` introduziu a automação do Brand DB; `00280ce` passou as pes
 
 Novas consultas usam `provider=wipo` e tarefas assíncronas para nome e logotipo. O contrato público não oferece mais consulta por códigos de Viena; o contrato dos históricos continua aceitando esse formato. Repetir a chave de uma consulta antiga conserva sua identidade e fonte. A classificação visual de anexos continua disponível como análise, sem iniciar pesquisa por códigos.
 
-O cron deixa de despachar `INPI_PROCESSOR`, e `/run/trademarks` responde HTTP 410. Os bindings/classes existentes são mantidos para compatibilidade de infraestrutura; não há remoção de recursos nem migração destrutiva. A CLI do INPI permanece uma ferramenta manual com os limites documentados em [Importação INPI](inpi-importacao-segura.md). Não há carga automática para sustentar novas pesquisas.
+O cron deixa de despachar `INPI_PROCESSOR`, e `/run/trademarks` responde HTTP 410. Os bindings/classes existentes são mantidos para compatibilidade de infraestrutura; não há remoção de recursos nem migração destrutiva. Não há carga automática para sustentar novas pesquisas.
 
 O rollback desta troca de fonte é uma alteração coordenada de contrato, interface e serviço. Não reativar o importador antigo como parte de um rollback: a capacidade de 10 GB continua insuficiente para o modelo de duas versões. Dados INPI existentes não são apagados por esta mudança e continuam ocupando disco.
 

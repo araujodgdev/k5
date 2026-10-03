@@ -69,7 +69,7 @@ export const researchCapabilities = {
   },
   k5_research_get_trademark_search: {
     module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
-    description: 'Lê a própria pesquisa de marcas neste escritório, seu progresso e resultados com fontes. Históricos antigos preservam metadados e resultados do INPI quando usados. State completed cobre as páginas solicitadas. Falha ou carga parcial não significa ausência de marcas.',
+    description: 'Lê a própria pesquisa de marcas neste escritório, seu progresso e resultados com fontes. State completed cobre as páginas solicitadas. Falha ou carga parcial não significa ausência de marcas.',
     input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
   },
   k5_research_list_trademark_searches: {
@@ -79,12 +79,12 @@ export const researchCapabilities = {
   },
   k5_research_next_trademark_page: {
     module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
-    description: 'Carrega outra página da pesquisa INPI/WIPO ou repete uma página que falhou, preservando os resultados anteriores.',
+    description: 'Carrega outra página da pesquisa na WIPO ou repete uma página que falhou, preservando os resultados anteriores.',
     input: z.object({ searchId: z.uuid() }), output: z.object({ search: trademarkSearchView }),
   },
   k5_research_get_trademark: {
     module: 'research', effect: 'read', publish: ['agent', 'webmcp'],
-    description: 'Lê os detalhes publicados de uma marca encontrada, códigos de Viena, despachos da RPI, versão e link direto INPI ou WIPO. O último despacho não equivale necessariamente ao estado completo do processo. Detalhes INPI vêm da nossa base; detalhes WIPO pending são consultados em segundo plano.',
+    description: 'Lê os detalhes publicados de uma marca encontrada na WIPO, códigos de Viena, versão e link direto. O status da base pode diferir do registro no escritório de origem. Detalhes pending são consultados em segundo plano.',
     input: z.object({ resultId: z.uuid(), retry: z.boolean().default(false) }), output: z.object({ trademark: trademarkDetail }),
   },
   k5_research_cancel_trademark_search: {

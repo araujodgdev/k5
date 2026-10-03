@@ -4,11 +4,9 @@ import { z } from 'zod';
 import { database, withTransaction } from '@/lib/database';
 import { objectStorage, storageKey } from '@/lib/storage';
 import { captureOperationalError } from '@/lib/observability/report';
-import { trademarkLogoAnalysis, trademarkSearchInput, storedTrademarkSearchInput, trademarkSummary, safeSourceUrl, wipoRecordUrl, TrademarkError } from './contracts';
+import { trademarkSearchInput, storedTrademarkSearchInput, trademarkSummary, safeSourceUrl, wipoRecordUrl, TrademarkError } from './contracts';
 import { imageMime } from './service';
 import type { WipoBrowser } from './wipo';
-import { runInpiSearchPage } from './inpi-search';
-import { analyzeLogoBytes } from './logo-analysis';
 import { CapabilityError } from '@/lib/capabilities/errors';
 
 const taskBase = z.object({ id: z.string(), search_id: z.string(), lease_owner: z.string(), attempts: z.number() });
@@ -19,7 +17,6 @@ const taskSchema = z.discriminatedUnion('kind', [
 type Task = z.infer<typeof taskSchema>;
 const runSchema = z.object({
   id: z.string(), office_id: z.string(), user_id: z.string(), session_id: z.string().nullable(),
-  provider: z.enum(['inpi','wipo']),
   input_json: z.preprocess(value => typeof value === 'string' ? JSON.parse(value) : value, storedTrademarkSearchInput.omit({ idempotencyKey: true })),
 });
 type Run = z.infer<typeof runSchema>;
@@ -167,30 +164,15 @@ export async function processTrademarkTask(searchId: string, createBrowser: () =
   }, 25_000);
   try {
     await guard(task, run);
-    if (run.provider==='inpi' && task.kind==='page') {
-      let analysis: z.infer<typeof trademarkLogoAnalysis> | null = null;
-      if (run.input_json.query.kind==='logo') {
-        stage='upload';
-        const raw=await database.prepare('SELECT storage_key,mime_type,analysis_json FROM research_trademark_upload WHERE id=? AND office_id=? AND user_id=?').get(run.input_json.query.uploadId,run.office_id,run.user_id);
-        const upload=z.object({storage_key:z.string(),mime_type:z.string(),analysis_json:trademarkLogoAnalysis.nullable()}).parse(raw);
-        analysis=upload.analysis_json ?? await analyzeLogoBytes({officeId:run.office_id,userId:run.user_id},{bytes:await (await objectStorage()).get(upload.storage_key),mimeType:upload.mime_type},signal);
-        await guard(task,run);
-        await database.prepare('UPDATE research_trademark_upload SET analysis_json=? WHERE id=?').run(JSON.stringify(analysis),run.input_json.query.uploadId);
-      }
-      stage='search'; await guard(task,run);
-      await runInpiSearchPage(run.id,run.input_json,task.page_number,analysis,{id:task.id,owner:task.lease_owner});
-      await database.prepare(`UPDATE research_trademark_task SET state='completed',lease_owner=NULL,lease_until=NULL WHERE id=? AND lease_owner=?`).run(task.id,task.lease_owner);
-    } else {
-      stage = 'browser'; browser = await createBrowser();
-      if (task.kind === 'page') await page(task, run, browser, signal, value => { stage = value; });
-      else await detail(task, run, browser, signal, value => { stage = value; });
-    }
+    stage = 'browser'; browser = await createBrowser();
+    if (task.kind === 'page') await page(task, run, browser, signal, value => { stage = value; });
+    else await detail(task, run, browser, signal, value => { stage = value; });
   } catch (error) {
     const blocked = error instanceof TrademarkError && error.code === 'blocked';
     const revoked = error instanceof TrademarkError && error.code === 'forbidden';
     const message = error instanceof TrademarkError || error instanceof CapabilityError ? error.message : signal.aborted
       ? 'A consulta demorou mais que o previsto. Os resultados já encontrados foram preservados.'
-      : run.provider==='inpi' ? 'Não foi possível analisar o logotipo ou consultar a base INPI. Tente pesquisar pelos códigos de Viena.' : 'A WIPO não respondeu à consulta. Tente novamente mais tarde.';
+      : 'A WIPO não respondeu à consulta. Tente novamente mais tarde.';
     if (!revoked) captureOperationalError(error, 'research.trademarks.execute', { searchId, kind: task.kind, stage,
       error_type: error instanceof Error && errorNames.has(error.name) ? error.name : 'unknown' });
     await withTransaction(async tx => {

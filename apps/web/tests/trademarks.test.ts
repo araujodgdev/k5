@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import type { WorkspaceContext } from '../src/lib/application/context';
-import { trademarkSearchInput, storedTrademarkSearchInput, TrademarkError } from '../src/lib/research/trademarks/contracts';
+import { trademarkSearchInput, TrademarkError } from '../src/lib/research/trademarks/contracts';
 import { startTrademarkSearch, getTrademarkSearch, listTrademarkSearches, nextTrademarkPage, cancelTrademarkSearch,
   getTrademarkDetail, saveTrademarkUpload, readTrademarkUpload, readTrademarkImage } from '../src/lib/research/trademarks/service';
 import { processTrademarkTask } from '../src/lib/research/trademarks/worker';
 import type { WipoBrowser } from '../src/lib/research/trademarks/wipo';
 import { sourcesFromTool } from '../src/lib/citations/sources';
+import { analyzeTrademarkLogo } from '../src/lib/research/trademarks/logo-analysis';
+import { createConversation } from '../src/lib/ai-store';
+import { createChatAttachment, resolveChatAttachments, claimChatAttachments } from '../src/lib/chat-attachments';
 
 async function actor(): Promise<WorkspaceContext> {
   const officeId = randomUUID(), userId = randomUUID();
@@ -46,16 +49,13 @@ test('nome/logotipo: Brasil e todos os status são padrão, filtros inválidos s
   assert.equal(trademarkSearchInput.safeParse({ ...query(), niceClass: 46 }).success, false);
   assert.equal(trademarkSearchInput.safeParse({ query: { kind: 'logo', uploadId: randomUUID(), strategy: 'shape' } }).success, false);
   assert.equal(trademarkSearchInput.safeParse({ query: { kind: 'vienna', codes: ['27.5.1'] } }).success, false);
-  assert.equal(storedTrademarkSearchInput.safeParse({ query: { kind: 'vienna', codes: ['27.5.1'] } }).success, true);
 });
 
-test('nova pesquisa brasileira usa o navegador, inclusive fonética, sem depender de carga INPI', async () => {
+test('nova pesquisa brasileira usa o navegador da WIPO, inclusive fonética', async () => {
   const owner = await actor();
   const input = trademarkSearchInput.parse({ query: { kind: 'name', name: 'LUME', strategy: 'phonetic' }, situation: 'pending', niceClass: 35 });
   const { search } = await start(owner, input);
   assert.equal(search.state, 'queued');
-  assert.equal(search.corpus, null);
-  assert.equal((await testDb.prepare('SELECT provider FROM research_trademark_search WHERE id=?').get<{provider:string}>(search.id))?.provider, 'wipo');
   let consulted = false;
   await processTrademarkTask(search.id, async () => browser({ async search(request) {
     consulted = true;
@@ -67,21 +67,6 @@ test('nova pesquisa brasileira usa o navegador, inclusive fonética, sem depende
   assert.equal(consulted, true);
   assert.equal(completed.state, 'completed');
   assert.equal(completed.results[0].source.provider, 'wipo');
-  assert.equal(completed.corpus, null);
-});
-
-test('repetir a chave de uma pesquisa INPI anterior preserva sua fonte; outra pesquisa usa WIPO', async () => {
-  const owner = await actor(), input = query();
-  const { idempotencyKey, ...saved } = input;
-  const id = randomUUID();
-  await testDb.prepare(`INSERT INTO research_trademark_search(id,office_id,user_id,input_json,title,idempotency_key,provider,state,pages_loaded,has_more)
-    VALUES(?,?,?,?,?,?,'inpi','completed',1,false)`).run(id, owner.officeId, owner.userId, JSON.stringify(saved), 'LUME', idempotencyKey);
-  assert.equal((await start(owner, input)).search.id, id);
-  assert.equal((await testDb.prepare('SELECT provider FROM research_trademark_search WHERE id=?').get<{provider:string}>(id))?.provider, 'inpi');
-  assert.equal((await testDb.prepare('SELECT count(*)::int AS n FROM research_trademark_task WHERE search_id=?').get<{n:number}>(id))?.n, 0);
-  const fresh = await start(owner);
-  assert.notEqual(fresh.search.id, id);
-  assert.equal((await testDb.prepare('SELECT provider FROM research_trademark_search WHERE id=?').get<{provider:string}>(fresh.search.id))?.provider, 'wipo');
 });
 
 test('histórico, resultados e imagens ficam no autor, inclusive entre associados; repetição é idempotente', async () => {
@@ -213,4 +198,18 @@ test('duas solicitações concorrentes criam uma única próxima página', async
   assert.equal(tasks?.count, 1);
   await processTrademarkTask(search.id, async () => browser());
   assert.equal((await getTrademarkSearch(owner, { searchId: search.id })).search.state, 'completed');
+});
+
+test('análise de anexo exige a pessoa, o escritório, a conversa atual e uma imagem publicada na mensagem', async () => {
+  const owner = await actor(), other = await actor();
+  const one = await createConversation(testDb, owner), two = await createConversation(testDb, owner);
+  const attachment = await createChatAttachment(owner, one.id, new File(['LUME'], 'marca.txt', { type: 'text/plain' }));
+  const input = { kind: 'attachment' as const, attachmentId: attachment.id };
+  await assert.rejects(analyzeTrademarkLogo({ ...owner, conversationId: one.id }, input), { code: 'NOT_FOUND' });
+  const rows = await resolveChatAttachments(owner, one.id, 'message-logo', [attachment.id]);
+  await claimChatAttachments(owner, one.id, 'message-logo', rows);
+  await assert.rejects(analyzeTrademarkLogo({ ...other, conversationId: one.id }, input), { code: 'NOT_FOUND' });
+  await assert.rejects(analyzeTrademarkLogo({ ...owner, conversationId: two.id }, input), { code: 'NOT_FOUND' });
+  await assert.rejects(analyzeTrademarkLogo(owner, input), { code: 'NOT_FOUND' });
+  await assert.rejects(analyzeTrademarkLogo({ ...owner, conversationId: one.id }, input), { code: 'INVALID' });
 });

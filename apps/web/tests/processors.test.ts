@@ -12,7 +12,7 @@ test('SDK proxy routes private storage for both processor classes without DNS',a
     return specifier==='cloudflare:workers' ? {url:`data:text/javascript,${encodeURIComponent(shim)}`,shortCircuit:true} : next(specifier,context);
   }});
   try {
-    const {ContainerProxy,LumeProcessor,LumeInpiProcessor}=await import('../src/workers/processors');
+    const {ContainerProxy,LumeProcessor}=await import('../src/workers/processors');
     t.mock.method(globalThis,'fetch',async()=>{throw new Error('O endereço privado não deve sair para DNS ou internet.');});
     const objects=new Map<string,Uint8Array>();
     const env:ProcessorBindings={
@@ -21,7 +21,7 @@ test('SDK proxy routes private storage for both processor classes without DNS',a
         async delete(key){objects.delete(key);}},
       KNOWLEDGE:{async upsert(){},async query(){return {matches:[]};},async deleteByIds(){}},
     };
-    for(const processor of [LumeProcessor,LumeInpiProcessor]) {
+    for(const processor of [LumeProcessor]) {
       const ctx={props:{className:processor.name,containerId:'fixture',enableInternet:true},waitUntil(){},passThroughOnException(){},exports:{}};
       const proxy=new ContainerProxy();
       Object.assign(proxy,{ctx,env});
