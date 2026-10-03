@@ -13,6 +13,7 @@ import { attachmentPart } from '@/lib/chat-attachment-contract';
 import { planTaskModel } from '@/lib/ai-connections';
 import { transcribeVoiceNote, TranscriptionError } from '@/lib/audio-transcription';
 import { chatRunResponse, followChatRun, startChatRun } from '@/lib/chat-run';
+import { assertCredits } from '@/lib/billing/credits';
 
 export const runtime = 'nodejs';
 
@@ -51,6 +52,8 @@ export async function POST(request: Request) {
     if (body.researchReferenceIds.length) await selectedResearchSources(context, body.caseId!, body.researchReferenceIds);
     const config = await planTaskModel('agent.chat');
     if (config.status !== 'ready') throw new ApiError(503, 'O Lume está indisponível no momento. Peça ao administrador para conferir a configuração de IA.');
+    // Checked before the message is stored, so a refused turn leaves no unanswered message behind.
+    await assertCredits(owner.officeId, owner.userId);
 
     const locked = await database.prepare('UPDATE ai_conversation SET busy_until=? WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(Date.now() + TURN_LOCK_MS, id, (office).officeId, user.id, Date.now());
     if (!locked.changes) throw new ApiError(409, 'Aguarde a resposta atual.');
@@ -66,6 +69,7 @@ export async function POST(request: Request) {
             if (error instanceof TranscriptionError && error.reason === 'unsupported') throw new ApiError(400, 'O Lume não aceita áudio nesta configuração.');
             // A configuration problem: retrying cannot help and it is not an operational failure.
             if (error instanceof TranscriptionError && error.reason === 'unavailable') throw new ApiError(503, 'A transcrição está indisponível no momento. Escreva a mensagem ou tente mais tarde.');
+            if (error instanceof ApiError) throw error;
             captureOperationalError(error, 'chat.audio.transcription');
             throw new ApiError(502, 'Não foi possível transcrever o áudio. Tente de novo ou escreva a mensagem.');
           })))).filter(Boolean);

@@ -17,6 +17,7 @@ import { searchKnowledgeEngine } from './knowledge/retrieval';
 import { enqueueVerification } from './typesafe/verification';
 import type { VerificationUnit } from './typesafe/verification-contracts';
 import { ownedArtifact } from './ai-store';
+import { assertCredits, InsufficientCreditsError } from './billing/credits';
 
 /** The tasks of each kind of run; their models are pinned when the run is queued (runs-service.ts). */
 export const RUN_TASKS: Record<RunRow['kind'], AiTaskKey[]> = {
@@ -27,11 +28,15 @@ export const RUN_TASKS: Record<RunRow['kind'], AiTaskKey[]> = {
  * A run's configuration failures, kept outside the workflow: Mastra reports a failed step with its
  * own error, and the person must see why the run stopped rather than a generic failure.
  */
-const configurationFailures = new WeakMap<RunRow, AiConnectionError>();
+const configurationFailures = new WeakMap<RunRow, AiConnectionError | InsufficientCreditsError>();
 async function runModel(run: RunRow, task: AiTaskKey) {
-  try { return await resolveRunTaskModel(run, task); }
-  catch (error) {
-    if (error instanceof AiConnectionError) configurationFailures.set(run, error);
+  try {
+    // Checked before each call, so a run that used up the credits stops saying so; its checkpoints
+    // let it resume where it stopped once more credits are bought.
+    await assertCredits(run.office_id, run.user_id);
+    return await resolveRunTaskModel(run, task);
+  } catch (error) {
+    if (error instanceof AiConnectionError || error instanceof InsufficientCreditsError) configurationFailures.set(run, error);
     throw error;
   }
 }
@@ -246,13 +251,14 @@ async function executeRun(run: RunRow) {
   const result = await instance.start({ inputData: { runId: run.id } });
   if (result.status !== 'success') {
     const cause = configurationFailures.get(run) ?? (result as { error?: unknown }).error;
-    if (cause instanceof AiConnectionError) throw cause;
+    if (cause instanceof AiConnectionError || cause instanceof InsufficientCreditsError) throw cause;
     throw new Error('Não foi possível concluir o documento. Confira a conexão e as fontes.');
   }
 }
 
 /** The person sees why a run stopped when the cause is the AI configuration; other failures stay generic. */
 function runFailureMessage(error: unknown) {
+  if (error instanceof InsufficientCreditsError) return error.message;
   return error instanceof AiConnectionError && (error.code === 'unavailable' || error.code === 'task_disabled')
     ? error.message
     : 'Não foi possível concluir. Confira fontes, permissões e conexão de IA antes de tentar novamente.';

@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { database } from "@/lib/database";
+import { chargeOcrPage } from "@/lib/billing/credits";
 import { type OfficeMembership } from "@/lib/offices";
 
 /**
@@ -542,7 +543,9 @@ export async function processDocument(documentId: string, officeId: string, leas
       progress = next;
       await checkpointVaultDocument(documentId, owner, progress);
     };
-    const sections = await extractDocumentSections(await readVaultOriginal(document), document.mimeType, document.name, document.id, { ocrImages: true, onProgress });
+    // Each page read by OCR is charged to the office, as the person who added the document.
+    const onOcrPage = (page: string) => chargeOcrPage({ officeId, userId: notificationOwner?.created_by ?? null }, documentId, page);
+    const sections = await extractDocumentSections(await readVaultOriginal(document), document.mimeType, document.name, document.id, { ocrImages: true, onProgress, onOcrPage });
     const insert = database.prepare("INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, ?, ?, ?)");
     let ordinal = 0;
     let characters = 0;

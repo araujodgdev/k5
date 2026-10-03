@@ -8,6 +8,7 @@ import {
   type CapabilityName,
 } from '@/lib/capabilities/contracts';
 import { CapabilityError } from '@/lib/capabilities/errors';
+import { InsufficientCreditsError } from '@/lib/billing/credits';
 import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/application/context';
 import { approvalIdFromMessage } from '@/lib/application/approvals-service';
 import * as vault from '@/lib/application/vault-service';
@@ -586,5 +587,7 @@ function describe(name: string, result: unknown): string {
 /** Failures reach the model as a short, stable domain message; never a stack or a provider error. */
 export function toolFailureMessage(error: unknown) {
   if (error instanceof CapabilityError) return `${error.code}: ${error.message}`;
+  // The person needs to know the credits ran out, not that something broke.
+  if (error instanceof InsufficientCreditsError) return `NO_CREDITS: ${error.message}`;
   return 'INTERNAL: a operação não pôde ser concluída.';
 }

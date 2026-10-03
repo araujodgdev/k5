@@ -23,17 +23,23 @@ export type ExtractionOptions = {
   ocrImages?: boolean;
   /** Called after each page of a PDF with the share of pages done, from 0 to 1. */
   onProgress?: (done: number) => Promise<void> | void;
+  /**
+   * Called before a page or picture is read by OCR, with its reference (`página:3`, `imagem:1`).
+   * It charges the page, and throwing stops the extraction. A page restored from a checkpoint
+   * was already read and is not reported again.
+   */
+  onOcrPage?: (reference: string) => Promise<void>;
 };
 
 export async function extractDocumentSections(data: Buffer, mimeType: string, name: string, documentId: string, options: ExtractionOptions = {}): Promise<ExtractedSection[]> {
   switch (mimeType) {
-    case "application/pdf": return extractPdf(data, documentId, options.onProgress);
-    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return extractDocx(data, documentId, options.ocrImages === true);
+    case "application/pdf": return extractPdf(data, documentId, options);
+    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return extractDocx(data, documentId, options);
     case "message/rfc822": return extractEmail(data);
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": return extractXlsx(data);
     case "text/csv": return extractDelimited(decoder.decode(data), "linha");
     case "text/plain": return extractText(decoder.decode(data));
-    case "image/png": case "image/jpeg": case "image/webp": return extractImage(data, name);
+    case "image/png": case "image/jpeg": case "image/webp": return extractImage(data, name, options);
     default: throw new Error(`O formato de ${name} não é compatível.`);
   }
 }
@@ -42,10 +48,10 @@ export async function extractDocumentSections(data: Buffer, mimeType: string, na
  * Workers use unpdf for text-only attachments. Node processors use one PDF.js version for
  * both text and scanned pages; mixing unpdf's worker with pdfjs-dist breaks native OCR.
  */
-async function extractPdf(data: Buffer, documentId: string, onProgress?: ExtractionOptions["onProgress"]): Promise<ExtractedSection[]> {
+async function extractPdf(data: Buffer, documentId: string, options: ExtractionOptions): Promise<ExtractedSection[]> {
   // unpdf bundles a different PDF.js worker. Loading it in the OCR process poisons PDF.js's
   // shared fake-worker global and makes rendering fail with an API/worker version mismatch.
-  if (process.env.K5_RUNTIME !== 'cloudflare') return extractPdfLocally(data, documentId, onProgress);
+  if (process.env.K5_RUNTIME !== 'cloudflare') return extractPdfLocally(data, documentId, options);
   const { extractText: extractPdfText } = await import("unpdf");
   // A fresh copy per call: PDF.js takes ownership of the buffer it is handed, and the OCR
   // fallback below still needs the original bytes.
@@ -56,13 +62,13 @@ async function extractPdf(data: Buffer, documentId: string, onProgress?: Extract
     if (content) sections.push({ reference: `página:${pageNumber}`, content });
   }
   if (sections.length) return sections;
-  if (process.env.VAULT_OCR_URL) return extractPdfOcr(data, documentId);
+  if (process.env.VAULT_OCR_URL) return extractPdfOcr(data, documentId, options);
   throw new OcrRequiredError();
 }
 
-async function extractPdfOcr(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
+async function extractPdfOcr(data: Buffer, documentId: string, options: ExtractionOptions): Promise<ExtractedSection[]> {
   const endpoint = process.env.VAULT_OCR_URL;
-  if (!endpoint) return extractPdfLocally(data, documentId);
+  if (!endpoint) return extractPdfLocally(data, documentId, options);
   let url: URL;
   try { url = new URL(endpoint); } catch { throw new Error("VAULT_OCR_URL não é uma URL válida."); }
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("VAULT_OCR_URL deve usar HTTP ou HTTPS.");
@@ -80,6 +86,8 @@ async function extractPdfOcr(data: Buffer, documentId: string): Promise<Extracte
       return text ? [{ reference: `página:${number}`, content: text }] : [];
     });
     if (!sections.length) throw new Error("O OCR não devolveu texto utilizável.");
+    // The service reads the whole file at once, so its pages are charged as they come back.
+    for (const section of sections) await options.onOcrPage?.(section.reference);
     return sections;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw new Error("O serviço de OCR excedeu o tempo limite.");
@@ -87,7 +95,7 @@ async function extractPdfOcr(data: Buffer, documentId: string): Promise<Extracte
   } finally { clearTimeout(timer); }
 }
 
-async function extractPdfLocally(data: Buffer, documentId: string, onProgress?: ExtractionOptions["onProgress"]): Promise<ExtractedSection[]> {
+async function extractPdfLocally(data: Buffer, documentId: string, { onProgress, onOcrPage }: ExtractionOptions = {}): Promise<ExtractedSection[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const task = pdfjs.getDocument({ data: new Uint8Array(data) });
   const { createOcrWorker, ocrViewport } = await import('./ocr-worker');
@@ -106,6 +114,7 @@ async function extractPdfLocally(data: Buffer, documentId: string, onProgress?: 
       const layer = await page.getTextContent();
       const plain = layer.items.map(item => 'str' in item ? item.str : '').join(' ').replace(/\s+/g, ' ').trim();
       if (plain) { sections.push({ reference, content: plain }); page.cleanup(); await onProgress?.(pageNumber / pdf.numPages); continue; }
+      await onOcrPage?.(reference);
       worker ??= await createOcrWorker();
       // Phone scans have pages far larger than A4; they are rendered smaller rather than refused.
       const viewport = ocrViewport(page);
@@ -128,7 +137,8 @@ async function extractPdfLocally(data: Buffer, documentId: string, onProgress?: 
  * An image is treated as a single scanned page. Recognising it here is what lets an image answer
  * a search at all — a model with vision sees the picture, but the index only holds text.
  */
-async function extractImage(data: Buffer, name: string): Promise<ExtractedSection[]> {
+async function extractImage(data: Buffer, name: string, options: ExtractionOptions): Promise<ExtractedSection[]> {
+  await options.onOcrPage?.("imagem:1");
   const { createOcrWorker } = await import('./ocr-worker');
   const worker = await createOcrWorker();
   try {
@@ -139,13 +149,13 @@ async function extractImage(data: Buffer, name: string): Promise<ExtractedSectio
   } finally { await worker.terminate(); }
 }
 
-async function extractDocx(data: Buffer, documentId: string, ocrImages: boolean): Promise<ExtractedSection[]> {
+async function extractDocx(data: Buffer, documentId: string, options: ExtractionOptions): Promise<ExtractedSection[]> {
   const mammoth = await import("mammoth") as unknown as { extractRawText: (input: { buffer: Buffer }) => Promise<{ value: string }> };
   const text = (await mammoth.extractRawText({ buffer: data })).value;
   const sections = paragraphSections(text);
   // Workers have no local OCR; there the pictures stay unread, as before.
-  if (!ocrImages || process.env.K5_RUNTIME === 'cloudflare') return sections;
-  return [...sections, ...await recognizeDocxImages(data, documentId)];
+  if (options.ocrImages !== true || process.env.K5_RUNTIME === 'cloudflare') return sections;
+  return [...sections, ...await recognizeDocxImages(data, documentId, options.onOcrPage)];
 }
 
 /**
@@ -153,7 +163,7 @@ async function extractDocx(data: Buffer, documentId: string, ocrImages: boolean)
  * `imagem:N` section after the text, and its result is checkpointed like a scanned PDF page, so a
  * retried or reindexed document is not recognised twice.
  */
-async function recognizeDocxImages(data: Buffer, documentId: string): Promise<ExtractedSection[]> {
+async function recognizeDocxImages(data: Buffer, documentId: string, onOcrPage?: ExtractionOptions["onOcrPage"]): Promise<ExtractedSection[]> {
   const { images } = docxImages(data);
   if (!images.length) return [];
   const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
@@ -165,6 +175,7 @@ async function recognizeDocxImages(data: Buffer, documentId: string): Promise<Ex
       const reference = `imagem:${index + 1}`;
       const saved = completed.get(reference);
       if (saved) { sections.push({ reference, content: saved }); continue; }
+      await onOcrPage?.(reference);
       worker ??= await createOcrWorker();
       // A picture the engine cannot decode (an odd GIF, a damaged file) is skipped, not fatal:
       // the rest of the document is still worth indexing.

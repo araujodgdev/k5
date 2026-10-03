@@ -9,12 +9,14 @@ import { Input } from './ui/input';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from './ui/alert-dialog';
 import { PlatformPayments, PaymentPagination, formatMoney, formatDate } from './platform-payments';
 import { PlatformClientWhatsApp } from './platform-client-whatsapp';
+import { PlatformClientCredits } from './platform-client-credits';
+import type { CreditOverview } from '@/lib/billing/credits';
 
-type Confirmation = { action: 'refund' | 'cancel'; targetId: string; amount: number; sandbox: boolean };
+type Confirmation = { action: 'refund' | 'cancel'; targetId: string; amount: number; sandbox: boolean; credits?: boolean };
 const subscriptionStatuses: Record<string,string> = { PENDING: 'Aguardando adesão', ACTIVE: 'Ativa', CANCELLED: 'Cancelada', EXPIRED: 'Expirada' };
 const actionStatuses: Record<string,string> = { REQUESTED: 'Solicitada', SUCCEEDED: 'Confirmada', FAILED: 'Recusada', UNCERTAIN: 'Aguardando confirmação' };
 
-export function PlatformClientBilling({ data }: { data: ClientBilling }) {
+export function PlatformClientBilling({ data, credits }: { data: ClientBilling; credits: CreditOverview }) {
   const router = useRouter();
   const [memberId,setMemberId] = useState(data.members[0]?.id ?? '');
   const [recurring,setRecurring] = useState(false);
@@ -44,13 +46,14 @@ export function PlatformClientBilling({ data }: { data: ClientBilling }) {
   function actions(payment: FinancePayment) {
     return <>
       {payment.status === 'PENDING' && <Button variant="ghost" className="h-11 px-0 md:h-9" onClick={()=>void copy(payment.url)}>Copiar link</Button>}
-      {payment.status === 'PAID' && payment.kind === 'ONE_TIME' && !payment.actionStatus && <Button variant="ghost" disabled={busy} className="h-11 px-0 md:h-9" onClick={()=>setConfirmation({ action: 'refund',targetId: payment.id,amount: payment.amount,sandbox: payment.devMode })}>Reembolsar</Button>}
+      {payment.status === 'PAID' && payment.kind !== 'SUBSCRIPTION' && !payment.actionStatus && <Button variant="ghost" disabled={busy} className="h-11 px-0 md:h-9" onClick={()=>setConfirmation({ action: 'refund',targetId: payment.id,amount: payment.amount,sandbox: payment.devMode,credits: payment.kind === 'CREDITS' })}>Reembolsar</Button>}
     </>;
   }
   return <section className="space-y-8">
     <div><Link className="text-sm underline underline-offset-4" href="/app/admin/clients">Voltar para clientes</Link><h2 className="mt-4 break-words text-3xl tracking-tight">{data.office.name}</h2><p className="mt-2 text-sm text-muted-foreground">Cliente desde {formatDate(data.office.createdAt)} · {data.members.length} {data.members.length === 1 ? 'pessoa' : 'pessoas'}</p></div>
     <PlatformClientWhatsApp key={data.office.id} officeId={data.office.id} />
     <div className="flex flex-wrap items-end justify-between gap-4 border-y border-line py-5"><div><p className="label-mono text-muted-foreground">Plano Lume</p><p className="mt-2 text-xl">{data.overview.paidUntil ? `${data.overview.active ? 'Pago até' : 'Venceu em'} ${formatDate(data.overview.paidUntil)}` : 'Sem período pago'}</p></div><Button variant="outline" disabled={busy || !data.overview.configured} className="h-11 md:h-9" onClick={()=>void command({ action: 'refresh' })}>{busy ? 'Aguarde…' : 'Atualizar pagamentos'}</Button></div>
+    <PlatformClientCredits officeId={data.office.id} credits={credits} />
     <section aria-labelledby="new-payment" className="space-y-4">
       <h3 id="new-payment" className="label-mono">Gerar cobrança</h3>
       {!data.overview.configured && <p className="text-sm text-muted-foreground">Os pagamentos ainda não foram configurados neste ambiente.</p>}
@@ -73,7 +76,7 @@ export function PlatformClientBilling({ data }: { data: ClientBilling }) {
     <section aria-labelledby="payments"><h3 id="payments" className="label-mono mb-4">Pagamentos</h3><PlatformPayments payments={data.payments} actions={actions} /><PaymentPagination page={data.page} total={data.total} href={page=>`/app/admin/clients/${data.office.id}?page=${page}`} /></section>
     {data.actions.length>0 && <section aria-labelledby="activity"><h3 id="activity" className="label-mono mb-4">Últimas ações</h3><div className="divide-y">{data.actions.map(action=><p className="py-3 text-sm" key={action.id}>{action.action === 'refund' ? 'Reembolso' : 'Cancelamento'} · {actionStatuses[action.status]}<span className="mt-1 block text-xs text-muted-foreground">{action.actorName ?? 'Administrador removido'} · {formatDate(action.createdAt)}</span></p>)}</div></section>}
     <AlertDialog open={Boolean(confirmation)} onOpenChange={open=>{ if (!open && !busy) { setConfirmation(null);setError(''); } }}><AlertDialogContent>
-      <AlertDialogHeader><AlertDialogTitle>{confirmation?.action === 'refund' ? 'Confirmar reembolso integral' : 'Cancelar renovação mensal'}</AlertDialogTitle><AlertDialogDescription>{data.office.name} · {formatMoney(confirmation?.amount ?? 0)}{confirmation?.sandbox ? ' · Pagamento de teste' : ''}. {confirmation?.action === 'refund' ? 'O valor integral será devolvido e o mês correspondente será removido do prazo pago. Esta ação não pode ser desfeita.' : 'Nenhuma nova cobrança será feita nesta assinatura. O período já pago será preservado. Para voltar, o cliente precisará concluir uma nova adesão.'}</AlertDialogDescription></AlertDialogHeader>
+      <AlertDialogHeader><AlertDialogTitle>{confirmation?.action === 'refund' ? 'Confirmar reembolso integral' : 'Cancelar renovação mensal'}</AlertDialogTitle><AlertDialogDescription>{data.office.name} · {formatMoney(confirmation?.amount ?? 0)}{confirmation?.sandbox ? ' · Pagamento de teste' : ''}. {confirmation?.action === 'refund' ? (confirmation.credits ? 'O valor integral será devolvido e os créditos do pacote serão retirados do saldo, mesmo que já tenham sido usados. Esta ação não pode ser desfeita.' : 'O valor integral será devolvido, e o mês correspondente e seus créditos serão retirados. Esta ação não pode ser desfeita.') : 'Nenhuma nova cobrança será feita nesta assinatura. O período já pago será preservado. Para voltar, o cliente precisará concluir uma nova adesão.'}</AlertDialogDescription></AlertDialogHeader>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <AlertDialogFooter><AlertDialogCancel disabled={busy}>Voltar</AlertDialogCancel><Button disabled={busy} onClick={()=>confirmation && void command({ action: confirmation.action,targetId: confirmation.targetId })}>{busy ? 'Aguarde…' : confirmation?.action === 'refund' ? 'Confirmar reembolso' : 'Confirmar cancelamento'}</Button></AlertDialogFooter>
     </AlertDialogContent></AlertDialog>

@@ -4,6 +4,7 @@ import { database } from './database';
 import { objectStorage, storageKey } from './storage';
 import { validatedFileName } from './application/uploads-service';
 import { extractDocumentSections, OcrRequiredError } from './document-extraction';
+import { chargeOcrPage, InsufficientCreditsError } from './billing/credits';
 import { CapabilityError } from './capabilities/errors';
 import { captureOperationalError } from './observability/report';
 import { imageMatchesType } from './image-signature';
@@ -34,8 +35,11 @@ export async function createChatAttachment(owner: Owner, conversationId: string,
   const id=randomUUID();
   let extracted='';
   if (!mimeType.startsWith('image/')) {
-    try { extracted=(await extractDocumentSections(bytes,mimeType,name,id)).map(part=>`${part.reference}: ${part.content}`).join('\n\n'); }
+    // A scanned page read here by OCR is charged like one in the Cofre.
+    const onOcrPage=(page:string)=>chargeOcrPage(owner,id,page);
+    try { extracted=(await extractDocumentSections(bytes,mimeType,name,id,{onOcrPage})).map(part=>`${part.reference}: ${part.content}`).join('\n\n'); }
     catch(error) {
+      if (error instanceof InsufficientCreditsError) throw error;
       if (error instanceof OcrRequiredError) throw new CapabilityError('INVALID',`${error.message} Para uma página, envie uma foto ou imagem.`);
       captureOperationalError(error,'chat.attachment.extract');
       throw new CapabilityError('INVALID','Não foi possível ler este arquivo. Para uma página escaneada, envie uma foto ou imagem.');

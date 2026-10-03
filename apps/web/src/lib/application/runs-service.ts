@@ -11,6 +11,7 @@ import { resolveDocumentTemplateId } from '@/lib/agent-profile';
 import { instructionsPrompt } from '@/lib/agent-instructions';
 import { knowledgePrompt, DRAFT_ALWAYS_BUDGET } from '@/lib/agent-knowledge';
 import type { WorkspaceContext } from './context';
+import { assertCredits } from '@/lib/billing/credits';
 
 const owner = (context: WorkspaceContext) => ({ officeId: context.officeId, userId: context.userId });
 
@@ -65,6 +66,7 @@ export async function startRun(context: WorkspaceContext, raw: StartRunInput) {
   const input = runInputSchema.parse({ ...raw, templateId, writingRules, knowledge, pinnedResearchReferences: undefined, approvedCitationIds: raw.approvedCitationIds ?? [] });
   const running = Number(await (await database.prepare("SELECT count(*) AS n FROM ai_run WHERE office_id=? AND status IN ('queued','running')").get(context.officeId))?.n);
   if (running >= 5) throw new CapabilityError('RATE_LIMITED', 'Seu escritório já tem cinco tarefas em andamento.');
+  await assertCredits(context.officeId, context.userId);
   // Fail here, not three minutes into the worker: every task of the run must resolve before queueing,
   // and the run keeps these models even if the administration changes them meanwhile.
   let plan;

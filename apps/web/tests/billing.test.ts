@@ -3,11 +3,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { abacatePayClient, AbacatePayError, signWebhookBody, verifyWebhook, type AbacatePayClient, type CheckoutStatus } from '../src/lib/billing/abacatepay';
-import { billingOverview, handleBillingWebhook, settleCheckout, startPlanCheckout, syncPendingCheckouts } from '../src/lib/billing/office-billing';
+import { billingOverview, handleBillingWebhook, settleCheckout, startCreditsCheckout, startPlanCheckout, syncPendingCheckouts } from '../src/lib/billing/office-billing';
 import { POST as webhookPost } from '../src/app/api/billing/webhook/route';
 import { createClientCheckout, clientBillingAction, platformFinance, refreshClientBilling } from '../src/lib/billing/platform-billing';
 import { handleSubscriptionWebhook, subscriptionsForOffice } from '../src/lib/billing/subscriptions';
 import { withTransaction } from '../src/lib/database';
+import { creditBalance } from '../src/lib/billing/credits';
 
 process.env.BILLING_PLAN_PRICE_CENTS = '19900';
 process.env.BETTER_AUTH_URL = 'https://tises.example.test/';
@@ -43,7 +44,9 @@ function fakeAbacate() {
     async createCheckout(input) {
       calls.push({ name: 'createCheckout', input });
       const id = `bill_${randomUUID()}`;
-      const checkout = { id, externalId: input.externalId, url: `https://app.abacatepay.com/pay/${id}`, amount: 19_900, status: 'PENDING' as const, devMode: true, receiptUrl: null };
+      // Charged at the product's price, as AbacatePay does; credit packages have their own.
+      const amount = [...products.values()].find(product => product.id === input.items[0]?.id)?.price ?? 19_900;
+      const checkout = { id, externalId: input.externalId, url: `https://app.abacatepay.com/pay/${id}`, amount, status: 'PENDING' as const, devMode: true, receiptUrl: null };
       checkouts.set(id, checkout);
       return checkout;
     },
@@ -264,6 +267,8 @@ test('a payment credits one month once, early renewals stack and a refund remove
   const before = new Date();
   assert.equal(await settleCheckout(firstId, 'PAID', 'https://app.abacatepay.com/receipt/1'), true);
   assert.equal(await settleCheckout(firstId, 'PAID'), false, 'a second confirmation is a no-op');
+  // The initial credits, then the month's: each paid month adds the plan's credits once.
+  assert.equal(await creditBalance(payer.officeId), 1_700_000);
   const afterFirst = new Date((await paidUntil(payer.officeId))!);
   assert.ok(Math.abs(afterFirst.getTime() - monthFrom(before).getTime()) < 60_000);
 
@@ -278,12 +283,38 @@ test('a payment credits one month once, early renewals stack and a refund remove
   assert.equal(await settleCheckout(second, 'REFUNDED'), true);
   assert.equal(await settleCheckout(second, 'REFUNDED'), false);
   assert.equal(new Date((await paidUntil(payer.officeId))!).getTime(), afterFirst.getTime());
+  assert.equal(await creditBalance(payer.officeId), 1_700_000, 'a refunded month takes its credits back');
   assert.equal(await settleCheckout(second, 'PAID'), false, 'a refunded checkout is never credited again');
 
   const overview = await billingOverview(payer.officeId);
   assert.equal(overview.active, true);
   assert.deepEqual(overview.checkouts.map(row => row.status), ['REFUNDED', 'PAID']);
   assert.equal(overview.checkouts[1].receiptUrl, 'https://app.abacatepay.com/receipt/1');
+});
+
+test('a credit package is a one-time checkout that adds its credits once, without a month, and a refund takes them back', async () => {
+  const actor = await platformActor(), payer = await office(), fake = fakeAbacate();
+  const { url } = await startCreditsCheckout(payer, 1000, fake.client);
+  const id = url.split('/').pop()!;
+  assert.deepEqual(fake.calls.find(call => call.name === 'createProduct')?.input,
+    { externalId: 'lume-creditos-1000-10000', name: '1000 créditos Lume', price: 10_000, description: '1000 créditos para a IA do Lume.' });
+  // A different package is a different payment; the same one is reused while pending.
+  assert.equal((await startCreditsCheckout(payer, 1000, fake.client)).url, url);
+  assert.notEqual((await startCreditsCheckout(payer, 500, fake.client)).url, url);
+
+  fake.checkouts.get(id)!.status = 'PAID';
+  const event = { id: `log_${randomUUID()}`, event: 'checkout.completed', data: { checkout: { id, status: 'PAID' } } };
+  assert.equal(await handleBillingWebhook(event, undefined, fake.client), 'applied');
+  assert.equal(await settleCheckout(id, 'PAID'), false);
+  assert.equal(await creditBalance(payer.officeId), 1_850_000);
+  const overview = await billingOverview(payer.officeId);
+  assert.equal(overview.paidUntil, null, 'credits never extend the plan');
+  const row = overview.checkouts.find(checkout => checkout.id === id)!;
+  assert.deepEqual([row.kind, row.credits, row.amount, row.status], ['CREDITS', 1000, 10_000, 'PAID']);
+
+  fake.client.refundCheckout = async target => { fake.checkouts.get(target)!.status = 'REFUNDED'; return { id: 'refund_1', status: 'COMPLETE' }; };
+  await clientBillingAction(actor, payer.officeId, id, 'refund', fake.client);
+  assert.equal(await creditBalance(payer.officeId), 850_000);
 });
 
 test('webhooks are applied once per delivery id and ignore checkouts this app did not open', async () => {

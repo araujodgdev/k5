@@ -5,6 +5,8 @@ import { ArrowRight, ArrowUpRight, CircleAlert, LoaderCircle } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Reveal } from '@/components/reveal';
 import type { BillingCheckoutRow } from '@/lib/billing/office-billing';
+import type { CreditOverview } from '@/lib/billing/credits';
+import { CreditsSection } from '@/components/credits-section';
 
 type Overview = { configured: boolean; price: number; paidUntil: string | null; active: boolean; checkouts: BillingCheckoutRow[] };
 
@@ -16,7 +18,7 @@ const statuses: Record<BillingCheckoutRow['status'], string> = {
 };
 
 /** The office's plan: its state in one sentence, the one action that pays for a month, and the history. */
-export function BillingPanel({ overview, returned, hasSubscription = false }: { overview: Overview; returned: boolean; hasSubscription?: boolean }) {
+export function BillingPanel({ overview, credits, exempt = false, returned, hasSubscription = false }: { overview: Overview; credits: CreditOverview; exempt?: boolean; returned: boolean; hasSubscription?: boolean }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const { configured, price, paidUntil, active, checkouts } = overview;
@@ -43,7 +45,7 @@ export function BillingPanel({ overview, returned, hasSubscription = false }: { 
       {returned && (
         <p role="status" className="border-l-2 border-brand pl-3 text-sm" data-reveal>
           {latestStatus === 'PAID' ? 'Pagamento confirmado. Obrigado!' : latestStatus === 'PENDING'
-            ? 'Aguardando a confirmação do pagamento. Atualize a página para conferir o novo prazo.'
+            ? 'Aguardando a confirmação do pagamento. Atualize a página para conferir o novo prazo e os créditos.'
             : 'Nenhum novo pagamento confirmado. Confira a situação no histórico abaixo.'}
         </p>
       )}
@@ -56,7 +58,7 @@ export function BillingPanel({ overview, returned, hasSubscription = false }: { 
           <h2 id="plan-state" className="display text-4xl md:text-5xl">
             {active && paidUntil ? `Ativo até ${longDay(paidUntil)}` : paidUntil ? `Venceu em ${longDay(paidUntil)}` : 'Sem plano ativo'}
           </h2>
-          <p className="text-sm text-muted-foreground">{money(price)} por mês, por escritório. Cada pagamento soma um mês ao prazo.</p>
+          <p className="text-sm text-muted-foreground">{money(price)} por mês, por escritório. Cada pagamento soma um mês ao prazo e {credits.planMonthlyCredits.toLocaleString('pt-BR')} créditos ao saldo.</p>
           {hasSubscription && <p className="text-sm">Assinatura mensal ativa, com renovação automática. Para gerenciar ou cancelar, fale com a administração do Lume. Um pagamento avulso adiciona um mês além da assinatura.</p>}
         </div>
         {!configured ? (
@@ -72,6 +74,8 @@ export function BillingPanel({ overview, returned, hasSubscription = false }: { 
           </div>
         )}
       </section>
+
+      <CreditsSection credits={credits} configured={configured} exempt={exempt} />
 
       <section aria-labelledby="payments" className="space-y-4" data-reveal>
         <h2 id="payments" className="label-mono flex items-center gap-2.5 text-muted-foreground"><span className="square-dot" aria-hidden="true" />Pagamentos</h2>
@@ -92,6 +96,7 @@ export function BillingPanel({ overview, returned, hasSubscription = false }: { 
                   <td className="py-3 pr-4 whitespace-nowrap">{money(checkout.amount)}</td>
                   <td className="py-3 pr-4">
                     {statuses[checkout.status]}
+                    {checkout.kind === 'CREDITS' && <span className="block text-[13px] text-muted-foreground">{checkout.credits?.toLocaleString('pt-BR')} créditos</span>}
                     {checkout.status === 'PAID' && checkout.periodEnd && <span className="block text-[13px] text-muted-foreground">Até {shortDay(checkout.periodEnd)}</span>}
                   </td>
                   <td className="py-3 text-right whitespace-nowrap">

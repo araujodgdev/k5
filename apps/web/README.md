@@ -447,6 +447,28 @@ Referências: [assinaturas](https://docs.abacatepay.com/pages/subscriptions/get)
 [eventos](https://docs.abacatepay.com/pages/webhooks/events/subscriptions),
 [limites do reembolso](https://docs.abacatepay.com/pages/payment/refund).
 
+### Créditos
+
+IA e OCR consomem créditos do escritório (`src/lib/billing/credits.ts`, migração
+`0061_credits.sql`). Cada chamada de modelo concluída é cobrada em `recordUsage`, na mesma
+transação que grava `ai_usage`, pelo custo real: entrada, cache lido e escrito, saída (com
+raciocínio), contexto longo por chamada e buscas web do provedor. Chamadas que falham são
+registradas sem cobrança. Cada página lida por OCR custa 0,1 crédito, uma vez por documento e
+página. Sem saldo, chat, tarefas em segundo plano, transcrição e OCR são recusados (HTTP 402); a
+última chamada pode deixar o saldo um pouco negativo.
+
+- Preço: `credit_settings` guarda o preço do crédito (R$ 0,10), a margem (30%), imposto (6%),
+  taxa de pagamento (3%) e o dólar (R$ 5,50). Um crédito cobre R$ 0,061 de custo.
+  `ai_model_price` guarda os preços oficiais por modelo; a linha `*` cobra modelos sem preço
+  próprio. Ajuste os valores por SQL; não há tela.
+- Saldo: escritório novo recebe 850 créditos uma vez. Cada mês pago do plano soma 850, e o saldo
+  passa para o mês seguinte. Pacotes de 500, 1.000 e 2.500 créditos são checkouts avulsos
+  (`kind = 'CREDITS'`); créditos comprados valem mesmo sem plano ativo. Um reembolso retira os
+  créditos do pagamento.
+- Administração: Clientes → escritório → Créditos adiciona créditos com motivo, auditado e
+  idempotente. Administradores da plataforma usam a IA sem consumir créditos; o custo continua
+  em `ai_usage`.
+
 ## Observabilidade (Sentry)
 
 Erros de navegador, Next.js, Workers Cloudflare e filas Node são enviados ao projeto

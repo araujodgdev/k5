@@ -2,6 +2,8 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database as defaultDatabase, withTransaction, type Database, type Transaction } from '../database';
 import { abacatePayClient, AbacatePayError, type AbacateCheckout, type AbacatePayClient, type CheckoutStatus } from './abacatepay';
+import { creditSettings, postCredits } from './credits';
+import { MILLI, type CreditPackage } from './credit-pricing';
 
 /*
  * The office's monthly plan. A payment is a one-time AbacatePay checkout for the plan product; once
@@ -52,15 +54,22 @@ export function billingClient(): AbacatePayClient {
 // The product is found by its externalId, which carries the price: a new price is a new product,
 // and checkouts already opened keep the price they were opened with.
 const productIds = new Map<string, Promise<string>>();
-async function planProduct(client: AbacatePayClient, price: number, recurring = false) {
-  const externalId = `tises-${recurring ? 'assinatura' : 'plano'}-mensal-${price}`;
+type ProductSpec = { externalId: string; name: string; price: number; description: string; cycle?: 'MONTHLY' };
+function productFor(price: number, kind: CheckoutKind, credits: number | null): ProductSpec {
+  if (kind === 'CREDITS') return { externalId: `lume-creditos-${credits}-${price}`, name: `${credits} créditos Lume`, price, description: `${credits} créditos para a IA do Lume.` };
+  const recurring = kind === 'SUBSCRIPTION';
+  return { externalId: `tises-${recurring ? 'assinatura' : 'plano'}-mensal-${price}`, name: PLAN_NAME, price,
+    description: recurring ? 'Assinatura mensal do Lume.' : 'Um mês do Lume para o escritório.', ...(recurring ? { cycle: 'MONTHLY' as const } : {}) };
+}
+async function planProduct(client: AbacatePayClient, spec: ProductSpec) {
+  const { externalId } = spec;
   const products = client === cachedClient ? productIds : new Map<string, Promise<string>>();
   let pending = products.get(externalId);
   if (!pending) {
     pending = client.getProduct(externalId).then(product => product.id, async (error) => {
       // v2 currently returns 400 with this message for a missing product.
       if (!(error instanceof AbacatePayError) || !(error.status === 404 || (error.status === 400 && error.message === 'Product not found'))) throw error;
-      const product = await client.createProduct({ externalId, name: PLAN_NAME, price, description: recurring ? 'Assinatura mensal do Lume.' : 'Um mês do Lume para o escritório.', ...(recurring ? { cycle: 'MONTHLY' as const } : {}) });
+      const product = await client.createProduct(spec);
       return product.id;
     });
     products.set(externalId, pending);
@@ -71,8 +80,9 @@ async function planProduct(client: AbacatePayClient, price: number, recurring = 
 
 type Payer = { officeId: string; userId: string; email: string; name: string };
 
-type CheckoutReservation = { id: string; officeId: string; userId: string | null; actorUserId: string | null; kind: string; amount: number; productId: string | null; state: string };
-const reservationFields = `id, office_id AS "officeId", user_id AS "userId", actor_user_id AS "actorUserId", kind, amount, product_id AS "productId", state`;
+type CheckoutKind = 'ONE_TIME' | 'SUBSCRIPTION' | 'CREDITS';
+type CheckoutReservation = { id: string; officeId: string; userId: string | null; actorUserId: string | null; kind: string; amount: number; productId: string | null; state: string; credits: number | null };
+const reservationFields = `id, office_id AS "officeId", user_id AS "userId", actor_user_id AS "actorUserId", kind, amount, product_id AS "productId", state, credits`;
 const creationPending = () => new BillingError(409, 'Uma cobrança está sendo preparada ou aguardando confirmação. Atualize os pagamentos antes de tentar novamente.');
 
 /** This transaction contains only local writes; externalId survives an insert/commit failure. */
@@ -82,8 +92,8 @@ async function attachReservedCheckout(reservation: CheckoutReservation, checkout
     const current = await tx.prepare('SELECT state FROM billing_checkout_reservation WHERE id=? FOR UPDATE').get<{ state: string }>(reservation.id);
     if (current?.state === 'COMPLETED') return;
     if (current?.state !== 'CREATING') throw new Error('Checkout reservation is not dispatched');
-    await tx.prepare(`INSERT INTO billing_checkout(id,office_id,user_id,product_id,amount,status,url,dev_mode,kind)
-      VALUES(?,?,?,?,?,'PENDING',?,?,?)`).run(checkout.id,reservation.officeId,reservation.userId,reservation.productId,checkout.amount || reservation.amount,checkout.url,checkout.devMode,reservation.kind);
+    await tx.prepare(`INSERT INTO billing_checkout(id,office_id,user_id,product_id,amount,status,url,dev_mode,kind,credits)
+      VALUES(?,?,?,?,?,'PENDING',?,?,?,?)`).run(checkout.id,reservation.officeId,reservation.userId,reservation.productId,checkout.amount || reservation.amount,checkout.url,checkout.devMode,reservation.kind,reservation.credits);
     if (reservation.kind === 'SUBSCRIPTION') await tx.prepare(`INSERT INTO billing_subscription(id,checkout_id,office_id,amount,dev_mode) VALUES(?,?,?,?,?)`)
       .run(randomUUID(),checkout.id,reservation.officeId,checkout.amount || reservation.amount,checkout.devMode);
     if (reservation.kind === 'SUBSCRIPTION' && ['CANCELLED','EXPIRED'].includes(checkout.status)) {
@@ -113,21 +123,29 @@ async function recoverCheckoutReservations(officeId: string, client: AbacatePayC
 /** Verified webhooks can restore the local association before applying a payment. */
 export async function recoverReservedCheckout(id: string, recurring: boolean, client?: AbacatePayClient) {
   if (await defaultDatabase.prepare('SELECT 1 FROM billing_checkout WHERE id=?').get(id)) return;
-  const kind = recurring ? 'SUBSCRIPTION' : 'ONE_TIME';
-  if (!await defaultDatabase.prepare("SELECT 1 FROM billing_checkout_reservation WHERE state='CREATING' AND kind=? LIMIT 1").get(kind)) return;
+  // One-time payments are a month or a credit package; both open a plain checkout.
+  const kinds = recurring ? ['SUBSCRIPTION'] : ['ONE_TIME','CREDITS'];
+  if (!await defaultDatabase.prepare("SELECT 1 FROM billing_checkout_reservation WHERE state='CREATING' AND kind = ANY(?::text[]) LIMIT 1").get(kinds)) return;
   client ??= billingClient();
   const checkout = await (recurring ? client.getSubscriptionCheckout : client.getCheckout)(id);
   if (!checkout.externalId) return;
-  const reservation = await defaultDatabase.prepare(`SELECT ${reservationFields} FROM billing_checkout_reservation WHERE id=? AND kind=? AND state='CREATING'`).get<CheckoutReservation>(checkout.externalId,kind);
+  const reservation = await defaultDatabase.prepare(`SELECT ${reservationFields} FROM billing_checkout_reservation WHERE id=? AND kind = ANY(?::text[]) AND state='CREATING'`).get<CheckoutReservation>(checkout.externalId,kinds);
   if (reservation) await attachReservedCheckout(reservation,checkout);
 }
 
+/** Opens (or reuses) a checkout for a package of credits and returns the page to send the person to. */
+export async function startCreditsCheckout(payer: Payer, credits: CreditPackage, client: AbacatePayClient = billingClient()) {
+  return startPlanCheckout(payer, client, { credits });
+}
+
 /** Opens (or reuses) a checkout for one month of the plan and returns the page to send the person to. */
-export async function startPlanCheckout(payer: Payer, client: AbacatePayClient = billingClient(), options: { recurring?: boolean; actorUserId?: string } = {}) {
+export async function startPlanCheckout(payer: Payer, client: AbacatePayClient = billingClient(), options: { recurring?: boolean; actorUserId?: string; credits?: CreditPackage } = {}) {
   if (options.recurring) await syncPendingCheckouts(payer.officeId,client);
   else await recoverCheckoutReservations(payer.officeId,client);
-  const { price, appUrl } = billingSettings();
-  const kind = options.recurring ? 'SUBSCRIPTION' : 'ONE_TIME';
+  const credits = options.credits ?? null;
+  const { appUrl } = billingSettings();
+  const price = credits ? credits * (await creditSettings()).creditPriceCents : billingSettings().price;
+  const kind: CheckoutKind = credits ? 'CREDITS' : options.recurring ? 'SUBSCRIPTION' : 'ONE_TIME';
   const ownerToken = randomUUID();
   const selected = await withTransaction(async db => {
     await db.prepare('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))').get(`billing-checkout:${payer.officeId}`);
@@ -148,16 +166,16 @@ export async function startPlanCheckout(payer: Payer, client: AbacatePayClient =
     await db.prepare("UPDATE billing_checkout_reservation SET state='FAILED' WHERE office_id=? AND state='PREPARING' AND lease_until < CURRENT_TIMESTAMP").run(payer.officeId);
     if (await db.prepare("SELECT 1 FROM billing_checkout_reservation WHERE office_id=? AND state IN ('PREPARING','CREATING')").get(payer.officeId)) throw creationPending();
     const id = randomUUID();
-    await db.prepare(`INSERT INTO billing_checkout_reservation(id,office_id,user_id,actor_user_id,kind,amount,state,owner_token,lease_until)
-      VALUES(?,?,?,?,?,?,'PREPARING',?,CURRENT_TIMESTAMP + interval '5 minutes')`).run(id,payer.officeId,payer.userId,options.actorUserId ?? null,kind,price,ownerToken);
-    return { reservation: { id, officeId: payer.officeId, userId: payer.userId, actorUserId: options.actorUserId ?? null, kind, amount: price, productId: null, state: 'PREPARING' } as CheckoutReservation };
+    await db.prepare(`INSERT INTO billing_checkout_reservation(id,office_id,user_id,actor_user_id,kind,amount,state,owner_token,lease_until,credits)
+      VALUES(?,?,?,?,?,?,'PREPARING',?,CURRENT_TIMESTAMP + interval '5 minutes',?)`).run(id,payer.officeId,payer.userId,options.actorUserId ?? null,kind,price,ownerToken,credits);
+    return { reservation: { id, officeId: payer.officeId, userId: payer.userId, actorUserId: options.actorUserId ?? null, kind, amount: price, productId: null, state: 'PREPARING', credits } as CheckoutReservation };
   });
   if ('url' in selected) return { url: selected.url! };
   const reservation = selected.reservation;
   let dispatched = false;
   let accepted = false;
   try {
-      const productId = await planProduct(client, price, options.recurring);
+      const productId = await planProduct(client, productFor(price, kind, credits));
       const billing = await defaultDatabase.prepare('SELECT customer_id AS "customerId" FROM office_billing WHERE office_id = ?').get<{ customerId: string | null }>(payer.officeId);
       let customerId = billing?.customerId ?? undefined;
       if (!customerId) {
@@ -195,8 +213,17 @@ export async function startPlanCheckout(payer: Payer, client: AbacatePayClient =
 }
 
 export async function credit(tx: Transaction, id: string, receiptUrl: string | null) {
-  const row = await tx.prepare('SELECT office_id AS "officeId", status FROM billing_checkout WHERE id = ? FOR UPDATE').get<{ officeId: string; status: CheckoutStatus }>(id);
+  const row = await tx.prepare('SELECT office_id AS "officeId", status, kind, credits, user_id AS "userId" FROM billing_checkout WHERE id = ? FOR UPDATE')
+    .get<{ officeId: string; status: CheckoutStatus; kind: CheckoutKind; credits: number | null; userId: string | null }>(id);
   if (!row || row.status === 'PAID' || row.status === 'REFUNDED') return false;
+  if (row.kind === 'CREDITS') {
+    await tx.prepare(`UPDATE billing_checkout SET status = 'PAID', paid_at = CURRENT_TIMESTAMP, receipt_url = COALESCE(?, receipt_url) WHERE id = ?`).run(receiptUrl, id);
+    await postCredits(tx, { officeId: row.officeId, userId: row.userId, kind: 'purchase', amount: row.credits! * MILLI, reference: `purchase:${id}`, description: `Pacote de ${row.credits} créditos` });
+    return true;
+  }
+  // Every paid month, one-time or renewed, brings the plan's credits; unused credits carry over.
+  const { planMonthlyCredits } = await creditSettings(tx);
+  if (planMonthlyCredits) await postCredits(tx, { officeId: row.officeId, userId: row.userId, kind: 'plan', amount: planMonthlyCredits * MILLI, reference: `plan:${id}`, description: 'Créditos do mês do plano' });
   await tx.prepare('INSERT INTO office_billing (office_id) VALUES (?) ON CONFLICT (office_id) DO NOTHING').run(row.officeId);
   const period = await tx.prepare(`
     SELECT GREATEST(COALESCE(paid_until, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) AS start
@@ -220,6 +247,9 @@ async function refund(tx: Transaction, id: string) {
   const row = await tx.prepare('SELECT office_id AS "officeId", status FROM billing_checkout WHERE id = ? FOR UPDATE').get<{ officeId: string; status: CheckoutStatus }>(id);
   if (!row || row.status === 'REFUNDED') return false;
   if (row.status === 'PAID') {
+    // The credits the payment brought go back with it, even when that leaves the balance negative.
+    const granted = await tx.prepare(`SELECT amount::float8 AS amount FROM credit_entry WHERE reference IN (?, ?)`).get<{ amount: number }>(`plan:${id}`, `purchase:${id}`);
+    if (granted) await postCredits(tx, { officeId: row.officeId, kind: 'refund', amount: -granted.amount, reference: `refund:${id}`, description: 'Créditos do pagamento reembolsado' });
     await tx.prepare(`
       UPDATE office_billing SET paid_until = paid_until - (c.period_end - c.period_start), updated_at = CURRENT_TIMESTAMP
       FROM billing_checkout c WHERE c.id = ? AND office_billing.office_id = c.office_id AND c.period_end IS NOT NULL
@@ -290,7 +320,7 @@ export async function handleBillingWebhook(payload: WebhookPayload, db: Database
 
 export type BillingCheckoutRow = {
   id: string; amount: number; status: CheckoutStatus; createdAt: string; paidAt: string | null;
-  receiptUrl: string | null; url: string; periodEnd: string | null; kind: 'ONE_TIME' | 'SUBSCRIPTION'; devMode: boolean;
+  receiptUrl: string | null; url: string; periodEnd: string | null; kind: CheckoutKind; devMode: boolean; credits: number | null;
 };
 
 export async function billingOverview(officeId: string, db: Database = defaultDatabase) {
@@ -298,7 +328,7 @@ export async function billingOverview(officeId: string, db: Database = defaultDa
   const [billing, checkouts] = await Promise.all([
     db.prepare('SELECT paid_until AS "paidUntil" FROM office_billing WHERE office_id = ?').get<{ paidUntil: string | null }>(officeId),
     db.prepare(`
-      SELECT id, amount, status, created_at AS "createdAt", paid_at AS "paidAt", receipt_url AS "receiptUrl", url, period_end AS "periodEnd", kind, dev_mode AS "devMode"
+      SELECT id, amount, status, created_at AS "createdAt", paid_at AS "paidAt", receipt_url AS "receiptUrl", url, period_end AS "periodEnd", kind, dev_mode AS "devMode", credits
       FROM billing_checkout WHERE office_id = ? ORDER BY created_at DESC LIMIT 12
     `).all<BillingCheckoutRow>(officeId),
   ]);

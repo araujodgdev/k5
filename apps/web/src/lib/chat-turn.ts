@@ -291,16 +291,21 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         // Repeats and the number of calls are bounded per turn (agent-budget.ts).
         const budget = new ToolBudget();
         let halted = '';
+        // What each step used and how often the provider searched the web: both are priced per call.
+        const stepUsages: unknown[] = [];
+        let webSearches = 0;
 
         for await (const chunk of response.fullStream) {
           if (chunk.type === 'error') throw chunk.payload.error;
           if (chunk.type === 'step-start') { trace.stepStarted(); continue; }
           if (chunk.type === 'step-finish') {
             trace.stepFinished({ reason: chunk.payload.stepResult.reason, usage: chunk.payload.output.usage, text: chunk.payload.output.text });
+            stepUsages.push(chunk.payload.output.usage);
             continue;
           }
           if (chunk.type === 'tool-call') {
             budget.called(chunk.payload.toolCallId, chunk.payload.args, Boolean(chunk.payload.providerExecuted));
+            if (chunk.payload.providerExecuted && chunk.payload.toolName === 'web_search') webSearches += 1;
             trace.toolCall(chunk.payload.toolCallId, chunk.payload.toolName, chunk.payload.args, Boolean(chunk.payload.providerExecuted));
             announce(toolStatus(chunk.payload.toolName, (capabilities as Partial<Record<string, Capability>>)[chunk.payload.toolName]?.effect));
             continue;
@@ -356,7 +361,8 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         }
         if (halted) { emit(halted); status = 'halted'; }
         usage = await response.usage;
-        await recordUsage(owner.officeId, owner.userId, config, config.task, 'completed', usage, { durationMs: performance.now() - started });
+        await recordUsage(owner.officeId, owner.userId, config, config.task, 'completed', usage,
+          { durationMs: performance.now() - started, calls: stepUsages, webSearchCalls: webSearches });
         span.setAttributes({
           'gen_ai.usage.input_tokens': usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': usage?.outputTokens ?? 0,
           'lume.tool_calls': budget.total, 'lume.guard.withheld': guard.withheld.size, 'lume.outcome': status,

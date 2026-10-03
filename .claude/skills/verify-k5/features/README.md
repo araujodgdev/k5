@@ -38,3 +38,4 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 - [Profile](./profile.md): edit the profile, photo and credentials, and see a user's card while inviting. Test: `e2e/profile.e2e.ts`.
 - [Authentication](./authentication.md): sign up a new office, sign in, and sign out everywhere. Tests: `e2e/auth.setup.e2e.ts`, `e2e/password-recovery.e2e.ts`.
 - [Brand shell](./brand-shell.md): the Lume identity across the signed-in shell, desktop and mobile. Test: `e2e/app-shell.e2e.ts`.
+- [Credits](./credits.md): the office's credit balance, statement and packages on Plano, desktop and mobile. Test: `e2e/credits.e2e.ts`.

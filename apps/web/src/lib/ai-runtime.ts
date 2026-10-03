@@ -8,7 +8,9 @@ import type { MastraMemory } from '@mastra/core/memory';
 import type { OutputProcessor } from '@mastra/core/processors';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { database } from './database';
+import { withTransaction } from './database';
+import { assertCredits, chargeUsage } from './billing/credits';
+import { callUsage, totalUsage, type CallUsage } from './billing/credit-pricing';
 import { resolveTaskModel } from './ai-connections';
 import { AiConnectionError, type AiProvider } from './ai-connections-core';
 import type { ResolvedTaskModel } from './ai-assignments-core';
@@ -144,17 +146,39 @@ export function errorClass(error: unknown): string {
   return code ? `http_${code}` : 'error';
 }
 
-export type UsageDetails = { durationMs?: number; errorClass?: string; signals?: Record<string, unknown> };
+export type UsageDetails = {
+  durationMs?: number; errorClass?: string; signals?: Record<string, unknown>;
+  /** Each model call of a turn of several steps, so the long-context rate is applied per call. */
+  calls?: unknown[];
+  /** Searches run by the provider's own web search tool, billed per call. */
+  webSearchCalls?: number;
+};
 type UsageConfig = ModelCredential & { connectionId: string; effort?: ReasoningEffort | null; modelSource?: string; effortSource?: string };
 
+/**
+ * Records a model call and, when it completed, charges its cost to the office in the same
+ * transaction. A failed call is recorded but not charged.
+ */
 export async function recordUsage(officeId: string, userId: string | null, config: UsageConfig, task: string, status: string,
-  usage?: { inputTokens?: number; outputTokens?: number }, details: UsageDetails = {}) {
-  await database.prepare(`INSERT INTO ai_usage(id,office_id,user_id,connection_id,provider,model_id,task,status,input_tokens,output_tokens,
-      reasoning_effort,model_source,effort_source,duration_ms,error_class,signals) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(randomUUID(), officeId, userId, config.connectionId, config.provider, config.modelId, task, status, usage?.inputTokens ?? null, usage?.outputTokens ?? null,
-      config.effort ?? null, config.modelSource ?? null, config.effortSource ?? null,
-      details.durationMs === undefined ? null : Math.round(details.durationMs), details.errorClass ?? null,
-      details.signals ? JSON.stringify(details.signals) : null);
+  usage?: unknown, details: UsageDetails = {}) {
+  const calls: CallUsage[] = details.calls?.length ? details.calls.map(callUsage) : usage ? [callUsage(usage)] : [];
+  const total = totalUsage(calls);
+  const id = randomUUID();
+  await withTransaction(async tx => {
+    const charged = status === 'completed' && (calls.length || details.webSearchCalls)
+      ? await chargeUsage(tx, { officeId, userId }, id, { modelId: config.modelId, calls, webSearchCalls: details.webSearchCalls })
+      : null;
+    await tx.prepare(`INSERT INTO ai_usage(id,office_id,user_id,connection_id,provider,model_id,task,status,input_tokens,output_tokens,
+        reasoning_effort,model_source,effort_source,duration_ms,error_class,signals,cached_input_tokens,cache_write_tokens,reasoning_tokens,
+        web_search_calls,cost_usd,credits) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(id, officeId, userId, config.connectionId, config.provider, config.modelId, task, status,
+        usage ? total.inputTokens : null, usage ? total.outputTokens : null,
+        config.effort ?? null, config.modelSource ?? null, config.effortSource ?? null,
+        details.durationMs === undefined ? null : Math.round(details.durationMs), details.errorClass ?? null,
+        details.signals ? JSON.stringify(details.signals) : null,
+        usage ? total.cachedInputTokens : null, usage ? total.cacheWriteTokens : null, usage ? total.reasoningTokens : null,
+        details.webSearchCalls ?? null, charged?.costUsd ?? null, charged?.millicredits ?? null);
+  });
 }
 
 /** Quick features (e-mail summaries, reply suggestions) pass their own instructions; the default keeps the grounded legal ones. */
@@ -167,13 +191,14 @@ export type StructuredOptions<T = unknown> = {
 
 export async function generateStructured<T extends z.ZodType>(officeId: string, userId: string, task: AiTaskKey | ResolvedTaskModel, prompt: string, schema: T,
   options: StructuredOptions<z.output<T>> = {}): Promise<z.output<T>> {
+  await assertCredits(officeId, userId);
   const { agent, config } = await createAgent(task, options.instructions);
   const timeout = AbortSignal.timeout(options.timeoutMs ?? 180_000);
   const started = performance.now();
   return traceAgentTurn({ task: config.task, provider: config.provider, modelId: config.modelId }, async span => {
     span.setAttribute('lume.reasoning_effort', config.effort ?? 'provider_default');
     // Kept outside the try: an answer that fails the schema was still billed, so its usage is recorded.
-    let usage: { inputTokens?: number; outputTokens?: number } | undefined;
+    let usage: unknown;
     try {
       const message = options.image ? [{ role: 'user' as const, content: [
         { type: 'text' as const, text: prompt },

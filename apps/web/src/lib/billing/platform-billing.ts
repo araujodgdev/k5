@@ -8,7 +8,7 @@ import { subscriptionsForOffice, syncOfficeSubscriptions } from './subscriptions
 
 export type FinancePayment = BillingCheckoutRow & { officeId: string; officeName: string; actionStatus: string | null };
 export type FinanceFilters = { sandbox: boolean; days: 30 | 90 | 0; status: string; query: string; page: number };
-const paymentFields = `c.id,c.amount,c.status,c.kind,c.url,c.receipt_url AS "receiptUrl",c.dev_mode AS "devMode",c.created_at AS "createdAt",c.paid_at AS "paidAt",c.period_end AS "periodEnd",c.office_id AS "officeId",o.name AS "officeName",
+const paymentFields = `c.id,c.amount,c.status,c.kind,c.url,c.receipt_url AS "receiptUrl",c.dev_mode AS "devMode",c.created_at AS "createdAt",c.paid_at AS "paidAt",c.period_end AS "periodEnd",c.credits,c.office_id AS "officeId",o.name AS "officeName",
   (SELECT a.status FROM billing_action a WHERE a.target_id = c.id AND a.action = 'refund' AND a.status <> 'FAILED' LIMIT 1) AS "actionStatus"`;
 
 export async function platformFinance(filters: FinanceFilters) {
@@ -68,7 +68,7 @@ export async function clientBillingAction(actorId: string, officeId: string, tar
     if (previous?.status === 'SUCCEEDED') return null;
     if (previous?.status === 'REQUESTED' && !previous.dispatchedAt) return previous.id;
     if (previous) throw new BillingError(409, 'A operação já foi solicitada. Atualize os pagamentos para conferir a confirmação antes de tentar novamente.');
-    if (action === 'refund' && (target.status !== 'PAID' || target.kind !== 'ONE_TIME')) throw new BillingError(409, 'Somente pagamentos avulsos confirmados podem ser reembolsados pela API.');
+    if (action === 'refund' && (target.status !== 'PAID' || target.kind === 'SUBSCRIPTION')) throw new BillingError(409, 'Somente pagamentos avulsos confirmados podem ser reembolsados pela API.');
     if (action === 'cancel' && target.status !== 'ACTIVE') throw new BillingError(409, 'Esta assinatura não está ativa.');
     const id = randomUUID();
     await tx.prepare('INSERT INTO billing_action(id,office_id,actor_user_id,target_id,action,status) VALUES(?,?,?,?,?,?)').run(id,officeId,actorId,targetId,action,'REQUESTED');

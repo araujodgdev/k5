@@ -4,6 +4,7 @@ import { AiConnectionError } from './ai-connections-core';
 import { chatHearsAudio } from './ai-modalities';
 import { isTranscriptionModel } from './ai-tasks';
 import { createAgent, errorClass, recordUsage, requestContextFor } from './ai-runtime';
+import { assertCredits } from './billing/credits';
 
 type Audio = { mediaType: string; bytes: Buffer };
 
@@ -38,6 +39,7 @@ const MAX_VOICE_BYTES = 20 * 1024 * 1024;
  */
 export async function transcribeVoiceNote(owner: { officeId: string; userId: string }, audio: Audio, signal?: AbortSignal) {
   if (!audio.bytes.length || audio.bytes.length > MAX_VOICE_BYTES) throw new TranscriptionError('size');
+  await assertCredits(owner.officeId, owner.userId);
   let config;
   try { config = await resolveTaskModel('transcription.voice_note'); } catch (error) {
     if (error instanceof AiConnectionError && (error.code === 'task_disabled' || error.code === 'not_found')) throw new TranscriptionError('unsupported');
@@ -46,7 +48,7 @@ export async function transcribeVoiceNote(owner: { officeId: string; userId: str
   }
   const started = performance.now();
   try {
-    let text: string, usage: { inputTokens?: number; outputTokens?: number } | undefined;
+    let text: string, usage: unknown;
     if (isTranscriptionModel(config.provider, config.modelId)) {
       ({ text, usage } = await transcribeWithEndpoint(config.apiKey, config.modelId, audio, signal));
     } else if (chatHearsAudio(config.provider, config.modelId)) {

@@ -10,7 +10,7 @@ export function PlatformPayments({ payments, showClient = false, actions }: { pa
   return <div className="divide-y border-y border-line">{payments.map(payment => <div key={payment.id} className="grid gap-3 py-4 md:grid-cols-[1fr_9rem_11rem] md:items-start">
     <div className="min-w-0">
       {showClient && <Link className="font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring" href={`/app/admin/clients/${payment.officeId}`}>{payment.officeName}</Link>}
-      <p className="text-sm">{payment.kind === 'SUBSCRIPTION' ? 'Assinatura mensal' : 'Um mês avulso'}{payment.devMode ? ' · Teste' : ''}</p>
+      <p className="text-sm">{payment.kind === 'SUBSCRIPTION' ? 'Assinatura mensal' : payment.kind === 'CREDITS' ? `Pacote de ${payment.credits} créditos` : 'Um mês avulso'}{payment.devMode ? ' · Teste' : ''}</p>
       <p className="mt-1 text-xs text-muted-foreground">{formatDate(payment.paidAt ?? payment.createdAt)} · <span className="break-all">{payment.id}</span></p>
     </div>
     <div className="text-sm md:text-right"><p className="tabular-nums">{formatMoney(payment.amount)}</p><p className="mt-1 text-muted-foreground">{paymentStatuses[payment.status]}</p>{payment.actionStatus && payment.actionStatus !== 'SUCCEEDED' && <p className="mt-1">Reembolso em confirmação</p>}</div>
