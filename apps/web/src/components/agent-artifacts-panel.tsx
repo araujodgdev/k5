@@ -59,6 +59,7 @@ function SaveForm({ conversationId, source, onSaved, onCancel }: {
   const [cases, setCases] = useState<Array<{ id: string; name: string }> | null>(null);
   const [folders, setFolders] = useState<Array<{ id: string; name: string }>>([]);
   const [loadError, setLoadError] = useState("");
+  const [foldersError, setFoldersError] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -77,13 +78,16 @@ function SaveForm({ conversationId, source, onSaved, onCancel }: {
     setTarget(value);
     setFolder(CASE_ROOT);
     setFolders([]);
+    setFoldersError("");
   }
 
   useEffect(() => {
     if (target === LIBRARY) return;
     let live = true;
     void requestCapability("k5_vault_list_folders", { caseId: target }).then(result => {
-      if (live && result.ok) setFolders((result.data as { folders: Array<{ id: string; name: string }> }).folders);
+      if (!live) return;
+      if (result.ok) setFolders((result.data as { folders: Array<{ id: string; name: string }> }).folders);
+      else setFoldersError(result.error);
     });
     return () => { live = false; };
   }, [target]);
@@ -148,6 +152,7 @@ function SaveForm({ conversationId, source, onSaved, onCancel }: {
           </Select>
         </div>
       )}
+      {target !== LIBRARY && foldersError && <p className="text-[13px] text-destructive" role="alert">{foldersError} O documento pode ser salvo na raiz do caso.</p>}
       {error && <p className="flex gap-2 text-sm text-destructive" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
       <div className="flex gap-2">
         <Button type="submit" disabled={saving || cases === null}>{saving ? "Salvando…" : error ? "Tentar de novo" : "Salvar"}</Button>
