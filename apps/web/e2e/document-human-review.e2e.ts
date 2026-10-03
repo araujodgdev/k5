@@ -1,0 +1,36 @@
+import { test } from '@e2e-dev/web';
+import { expect } from 'e2e';
+import { ApiSession, uniqueAccount } from './support/accounts';
+import { seedArtifact } from './support/seed';
+import { signInWithSession } from './support/sign-in';
+import { overflowsHorizontally } from './support/fixtures';
+
+test('decisão humana persiste, permite correção e pede nova revisão quando o texto muda', async ({ app, screen, browser }) => {
+  const account=uniqueAccount('Revisor');
+  const api=await new ApiSession(app.baseUrl!).signIn(account);
+  const id=await seedArtifact(account.email,'Contrato para conferir','# Contrato\n\nConferir percentuais e aportes.');
+  await signInWithSession({app,screen,browser},api);
+  await app.open(`/app/documents/${id}`);
+  await screen.getByRole('tab',/^Revisão/).tap();
+  const decision=screen.getByRole('combobox','Decisão para Conferir conteúdo e condições do documento');
+  await expect(decision).toHaveValue('pending');
+  await decision.selectOption('Confirmado');
+  await screen.getByRole('textbox','Observação para Conferir conteúdo e condições do documento').fill('Dados confirmados pelo responsável.');
+  await screen.getByRole('button','Salvar decisão').tap();
+  await expect(screen.getByText('1 de 1 confirmados na versão 1.')).toBeVisible();
+  await app.open(`/app/documents/${id}`);
+  await screen.getByRole('tab',/^Revisão/).tap();
+  await expect(decision).toHaveValue('confirmed');
+  await browser.setViewport({width:390,height:844});
+  expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
+  await decision.selectOption('Precisa de ajuste');
+  await screen.getByRole('button','Salvar decisão').tap();
+  await expect(screen.getByText('0 de 1 confirmados na versão 1.')).toBeVisible();
+  await screen.getByRole('tab','Editar').tap();
+  await screen.getByRole('textbox','Texto do documento').fill('Percentuais atualizados para nova revisão.');
+  await expect.poll(async()=> (await api.json<{artifact:{version:number}}>(`/api/artifacts/${id}`)).artifact.version).toBeGreaterThan(1);
+  await screen.getByRole('tab',/^Revisão/).tap();
+  await expect(decision).toHaveValue('pending');
+  const denied=await new ApiSession(app.baseUrl!).request(`/api/artifacts/${id}/human-review`);
+  expect(denied.status).toBe(401);
+});

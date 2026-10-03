@@ -15,7 +15,7 @@ export async function recordSources(owner: Owner, conversationId: string, source
     SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?)
     ON CONFLICT (conversation_id,kind,ref) DO UPDATE SET text=CASE WHEN length(excluded.text)>length(conversation_source.text) THEN excluded.text ELSE conversation_source.text END`)
     .bind(randomUUID(), owner.officeId, owner.userId, conversationId, source.kind, source.ref.slice(0, 1000), source.title.slice(0, 500),
-      source.url ?? null, source.court ?? null, source.caseNumber ?? null, source.text.slice(0, 4000), conversationId, owner.officeId, owner.userId)));
+      source.url ?? null, source.court ?? null, source.caseNumber ?? null, source.text.slice(0, 64_000), conversationId, owner.officeId, owner.userId)));
 }
 
 export async function conversationSources(owner: Owner, conversationId: string | null | undefined): Promise<CitationSource[]> {
@@ -33,7 +33,7 @@ export function sourcesFromTool(name: string, result: unknown): RecordedSource[]
     const search = trademarkSearchView.safeParse(value.search);
     const items = detail.success ? [detail.data] : search.success ? search.data.results : [];
     return items.map(item => ({ kind: 'web', ref: item.source.url, title: item.name || item.nativeId, url: item.source.url,
-      text: [item.name, item.owner, item.situation, `Nice: ${item.niceClasses.join(', ')}`, `Viena: ${item.viennaCodes.join(', ')}`, `Fonte: ${item.source.provider}`,item.source.edition ? `RPI ${item.source.edition}, ${item.source.publishedOn}` : null, `Coletado: ${item.source.capturedAt}`,
+      text: [item.name, item.owner, item.situation, `Nice: ${item.niceClasses.join(', ')}`, `Viena: ${item.viennaCodes.join(', ')}`, `Fonte: ${item.source.provider}`, `Coletado: ${item.source.capturedAt}`,
         ...(detail.success ? detail.data.fields.map(field => `${field.label}: ${field.value}`) : [])].filter(Boolean).join('\n') }));
   }
   // Scored case law backs citations only when its link came back from a search.

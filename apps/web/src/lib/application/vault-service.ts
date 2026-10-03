@@ -1,6 +1,10 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
+import { createHash } from 'node:crypto';
+import { extname } from 'node:path';
+import { ownedChatAttachment } from '@/lib/chat-attachments';
+import { objectStorage, storageKey } from '@/lib/storage';
 import {
   assertVaultDocumentMove, countVaultDocuments, createVaultDocument, createVaultCase, createVaultFolder, deleteVaultFolder, findVaultCase,
   findVaultDocument, findVaultDocumentIncludingDeleted, findVaultFolder, listVaultCases, listVaultDocuments,
@@ -312,6 +316,49 @@ export async function ingestUpload(context: WorkspaceContext, input: CapabilityI
     await releaseUploadRef(uploadContext, input.uploadRef);
     throw asCapabilityError(error);
   }
+}
+
+export async function importChatAttachment(context: WorkspaceContext, input: CapabilityInput<'k5_vault_import_chat_attachment'>): Promise<CapabilityOutput<'k5_vault_import_chat_attachment'>> {
+  const sourceOffice = context.caseScope?.homeOfficeId ?? context.officeId;
+  const attachment = await ownedChatAttachment({ officeId: sourceOffice, userId: context.userId }, input.attachmentId);
+  if (!context.conversationId || !attachment || attachment.conversation_id !== context.conversationId || !attachment.message_id)
+    throw new CapabilityError('NOT_FOUND', 'Anexo indisponível nesta conversa.');
+  if (input.scope === 'case' && (!input.caseId || !await findVaultCase(context.officeId, input.caseId, context.userId)))
+    throw new CapabilityError('NOT_FOUND', 'Escolha um caso disponível para o documento.');
+  if (input.scope === 'library' && (input.caseId || input.folderId)) throw new CapabilityError('INVALID', 'Uma pasta de caso não pertence à Biblioteca.');
+  if (input.folderId) {
+    const folder = await findVaultFolder(context.officeId, input.folderId, context.userId);
+    if (!folder || folder.caseId !== input.caseId) throw new CapabilityError('NOT_FOUND', 'Pasta indisponível neste caso.');
+  }
+  const identity = JSON.stringify([sourceOffice, context.userId, attachment.id, context.officeId, input.scope, input.caseId ?? null, input.folderId ?? null]);
+  const digest = createHash('sha256').update(identity).digest('hex');
+  const documentId = `${digest.slice(0,8)}-${digest.slice(8,12)}-5${digest.slice(13,16)}-a${digest.slice(17,20)}-${digest.slice(20,32)}`;
+  const reuse = async (existing: NonNullable<Awaited<ReturnType<typeof findVaultDocumentIncludingDeleted>>>) => {
+    if (existing.deletedAt) throw new CapabilityError('CONFLICT', 'A cópia anterior foi excluída do Cofre. Envie o arquivo novamente para criar outra cópia.');
+    if (existing.scope !== input.scope || existing.caseId !== (input.caseId ?? null) || existing.folderId !== (input.folderId ?? null))
+      throw new CapabilityError('CONFLICT', 'A cópia anterior foi movida. Abra o documento para ajustar o destino.');
+    return getDocument(context, { documentId });
+  };
+  const existing = await findVaultDocumentIncludingDeleted(context.officeId, documentId);
+  if (existing) return reuse(existing);
+  const storage = await objectStorage();
+  const bytes = await storage.get(attachment.storage_key);
+  const key = storageKey(context.officeId, randomUUID(), extname(attachment.name).toLowerCase());
+  await storage.put(key, bytes);
+  try {
+    await createVaultDocument(context.officeId, context.userId, {
+      id: documentId, storageKey: key, originalName: attachment.name, mimeType: attachment.media_type,
+      byteSize: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
+    }, { ...input, documentId, origin: { kind: 'chat_attachment', id: attachment.id } });
+  } catch (error) {
+    // The deterministic primary key serializes competing inserts. A retry also reconciles a
+    // committed batch whose response was lost, without deleting that batch's stored original.
+    const committed = await findVaultDocumentIncludingDeleted(context.officeId, documentId);
+    if (committed?.storedName !== key) await storage.delete(key).catch(() => undefined);
+    if (committed) return reuse(committed);
+    throw asCapabilityError(error);
+  }
+  return getDocument(context, { documentId });
 }
 
 export async function searchKnowledge(context: WorkspaceContext, input: CapabilityInput<'k5_knowledge_search'>): Promise<CapabilityOutput<'k5_knowledge_search'>> {

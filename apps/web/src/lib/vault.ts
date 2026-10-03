@@ -383,7 +383,7 @@ export async function createVaultDocument(
   officeId: string,
   userId: string,
   upload: UploadRef,
-  options: { scope: string; caseId?: string | null; folderId?: string | null },
+  options: { scope: string; caseId?: string | null; folderId?: string | null; documentId?: string; origin?: { kind: 'chat_attachment' | 'artifact_pdf'; id: string; version?: number } },
 ) {
   const scope: VaultScope = options.scope === "case" ? "case" : options.scope === "library" ? "library" : (() => { throw new VaultHttpError(400, "Escolha o destino do documento."); })();
   const caseId = scope === "case" ? options.caseId?.trim() : null;
@@ -397,7 +397,7 @@ export async function createVaultDocument(
     const folder = await findVaultFolder(officeId, folderId, userId);
     if (!folder || folder.caseId !== caseId) throw new VaultHttpError(404, "Pasta não encontrada.");
   }
-  const id = randomUUID();
+  const id = options.documentId ?? randomUUID();
   // The document and its first version are written together: a document with no active version
   // cannot be downloaded, and a version pointing at no document cannot be reached at all.
   await database.batch([
@@ -409,6 +409,8 @@ export async function createVaultDocument(
       (id, office_id, document_id, version, original_name, stored_name, mime_type, byte_size, sha256, created_by, is_active)
       VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, 1)`)
       .bind(randomUUID(), officeId, id, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, userId),
+    ...(options.origin ? [database.prepare('INSERT INTO vault_agent_origin(document_id,source_kind,source_id,source_version,user_id) VALUES(?,?,?,?,?)')
+      .bind(id, options.origin.kind, options.origin.id, options.origin.version ?? null, userId)] : []),
   ]);
   return (await findVaultDocument(officeId, id, userId))!;
 }

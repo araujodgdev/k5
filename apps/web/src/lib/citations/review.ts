@@ -32,12 +32,18 @@ const supportCriteria = {
 
 type Unit = { span: CitationSpan; candidates: CitationSource[] };
 
+function relevantText(source: CitationSource, span: CitationSpan) {
+  const number = /\d[\d.]*/.exec(span.text)?.[0];
+  const index = number ? source.text.search(new RegExp(`\\b(?:arts?\\.?|artigo)\\s*${number.replaceAll('.', '\\.')}\\b`, 'i')) : -1;
+  return source.text.slice(Math.max(0, index - 150), index < 0 ? 1500 : index + 1350);
+}
+
 function unitState(unit: Unit) {
   return {
     text: unit.span.text,
     paragraph: unit.span.paragraph.slice(0, 1200),
     sources: unit.candidates.map(source => ({
-      title: source.title, court: source.court ?? null, caseNumber: source.caseNumber ?? null, text: source.text.slice(0, 1500),
+      title: source.title, court: source.court ?? null, caseNumber: source.caseNumber ?? null, text: relevantText(source, unit.span),
     })),
   };
 }

@@ -175,6 +175,9 @@ importers:
 
   apps/tutorials:
     dependencies:
+      '@k5/tutorial-library':
+        specifier: workspace:*
+        version: link:../../packages/tutorial-library
       '@remotion/bundler':
         specifier: 4.0.529
         version: 4.0.529(@swc/helpers@0.5.23)(lightningcss@1.33.0)(postcss@8.5.28)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -233,12 +236,21 @@ importers:
       '@cloudflare/containers':
         specifier: ^0.3.7
         version: 0.3.7
+      '@formepdf/core':
+        specifier: ^0.27.0
+        version: 0.27.0(react@19.2.8)
+      '@formepdf/react':
+        specifier: ^0.27.0
+        version: 0.27.0(react@19.2.8)
       '@gsap/react':
         specifier: ^2.1.2
         version: 2.1.2(gsap@3.15.0)(react@19.2.8)
       '@js-temporal/polyfill':
         specifier: ^0.5.1
         version: 0.5.1
+      '@k5/tutorial-library':
+        specifier: workspace:*
+        version: link:../../packages/tutorial-library
       '@mastra/ai-sdk':
         specifier: ^1.10.3
         version: 1.10.3(@mastra/core@1.67.0(ai@7.0.102(zod@4.6.5))(express@5.2.1(supports-color@7.2.0))(supports-color@7.2.0)(zod@4.6.5))(zod@4.6.5)
@@ -504,6 +516,8 @@ importers:
       wrangler:
         specifier: ^4.135.0
         version: 4.135.0(@cloudflare/workers-types@5.20260928.1)(@types/node@26.5.1)
+
+  packages/tutorial-library: {}
 
 packages:
 
@@ -1498,6 +1512,19 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@formepdf/core@0.27.0':
+    resolution: {integrity: sha512-FjeJKTwKMevvJo9lmXH9ciRS/RiAWQ1ww5Ce7XB29FZgw44yuAwpCUzLF+kueMdtM/7Shf9VVk+jpSKzxlmpzQ==}
+    peerDependencies:
+      react: ^18 || ^19
+
+  '@formepdf/react@0.27.0':
+    resolution: {integrity: sha512-S9IPzigmIjNDu/+Wwi9uV29iqu8YQUK4nnKOce4YUm+3zaKSORtTie7/47RZkfE5nFt3zqumzuq1A51l5tCAvQ==}
+    peerDependencies:
+      react: ^18 || ^19
+
+  '@formepdf/shared@0.27.0':
+    resolution: {integrity: sha512-1wgE/yogCAiRGit1Vt62DOjvmjStsYN5rzNVg7sdKQenTMVtQ+ssoO7UX7eRprJFA4Se8GfRo7M0acZy1rb1cw==}
 
   '@gsap/react@2.1.2':
     resolution: {integrity: sha512-JqliybO1837UcgH2hVOM4VO+38APk3ECNrsuSM4MuXp+rbf+/2IG2K1YJiqfTcXQHH7XlA0m3ykniFYstfq0Iw==}
@@ -5369,6 +5396,10 @@ packages:
     resolution: {integrity: sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==}
     engines: {node: '>=0.12'}
 
+  entities@6.0.1:
+    resolution: {integrity: sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g==}
+    engines: {node: '>=0.12'}
+
   entities@7.0.1:
     resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
     engines: {node: '>=0.12'}
@@ -7204,6 +7235,9 @@ packages:
   parse-ms@4.0.0:
     resolution: {integrity: sha512-TXfryirbmq34y8QBwgqCVLi+8oA3oWx2eAnSn62ITyEhEYaWRlVZ2DvMM9eZbMs/RfxPu/PK/aBLyGj4IrqMHw==}
     engines: {node: '>=18'}
+
+  parse5@7.3.0:
+    resolution: {integrity: sha512-IInvU7fabl34qmi9gY8XOVxhYyMyuH2xUNpb2q8/Y+7552KlejkRvqvD19nMoUW/uQGGbqNpA6Tufu5FL5BZgw==}
 
   parseley@0.13.1:
     resolution: {integrity: sha512-uNBJZzmb60l6p6VWLTmevizNAGnE0xoSf1n0B4q3ntegDNzcS68NRCcBDZTcyXHxt2XhBChsCuqj4M+nChvE/A==}
@@ -9757,6 +9791,20 @@ snapshots:
       react-dom: 19.2.8(react@19.2.8)
 
   '@floating-ui/utils@0.2.12': {}
+
+  '@formepdf/core@0.27.0(react@19.2.8)':
+    dependencies:
+      '@formepdf/react': 0.27.0(react@19.2.8)
+      react: 19.2.8
+
+  '@formepdf/react@0.27.0(react@19.2.8)':
+    dependencies:
+      '@formepdf/shared': 0.27.0
+      react: 19.2.8
+
+  '@formepdf/shared@0.27.0':
+    dependencies:
+      parse5: 7.3.0
 
   '@gsap/react@2.1.2(gsap@3.15.0)(react@19.2.8)':
     dependencies:
@@ -13594,6 +13642,8 @@ snapshots:
 
   entities@4.5.0: {}
 
+  entities@6.0.1: {}
+
   entities@7.0.1: {}
 
   env-paths@2.2.1: {}
@@ -15732,6 +15782,10 @@ snapshots:
       lines-and-columns: 1.2.4
 
   parse-ms@4.0.0: {}
+
+  parse5@7.3.0:
+    dependencies:
+      entities: 6.0.1
 
   parseley@0.13.1:
     dependencies:

@@ -94,6 +94,8 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   // The previous version's blocks, when a reload came from the Lume, so its changes can be marked.
   const [highlightAgainst, setHighlightAgainst] = useState<string[] | null>(null);
   const [citations, setCitations] = useState<StoredCitations | null>(null);
+  const [humanPending, setHumanPending] = useState<{ version: number; count: number } | null>(null);
+  const onHumanPendingChange = useCallback((count: number) => setHumanPending({ version: artifact?.version ?? 0, count }), [artifact?.version]);
   const [rechecking, setRechecking] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
   const [exportError, setExportError] = useState("");
@@ -300,7 +302,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
 
   const issues = artifact.validationIssues ?? [];
   const pendingCitations = citations?.review ? toReview(citations.review.items).length : 0;
-  const reviewCount = issues.length + pendingCitations;
+  const reviewCount = humanPending?.version === artifact.version ? humanPending.count : issues.length + pendingCitations;
   const status = saveState === "saving" ? "Salvando…" : saveState === "dirty" ? "Alterações não salvas" : saveState === "conflict" ? "Conflito de versão"
     : saveState === "error" ? "Não salvo" : "Salvo";
   const backHref = artifact.conversationId ? `/app/agents?conversationId=${encodeURIComponent(artifact.conversationId)}` : "/app/agents";
@@ -375,7 +377,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
       {tab === "review" && (
         <div id="document-review" role="tabpanel" aria-labelledby="document-tab-review" className="flex min-h-0 flex-1 flex-col">
           <DocumentReview artifactId={artifact.id} version={artifact.version} dirty={saveState !== "saved"} status={artifact.status} issues={issues} references={artifact.references ?? []}
-            citations={citations} rechecking={rechecking} onRecheck={() => void recheckCitations()} />
+            citations={citations} rechecking={rechecking} onRecheck={() => void recheckCitations()} onPendingChange={onHumanPendingChange} />
         </div>
       )}
     </div>

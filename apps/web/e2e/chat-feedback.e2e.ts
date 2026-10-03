@@ -9,6 +9,8 @@ for (const width of [1280, 390]) {
       data: { approvalId, capability: 'k5_vault_delete_folder', summary: `Remover pasta ${approvalId}`, state: 'pending', result: '' } }));
     const messages = [{ id: 'answer-fixture', role: 'assistant', parts: [
       { type: 'text', text: 'Fundamento consultado. citeturn0search2 Outra referência. citeturn3view0' },
+      { type: 'data-tool', data: { name: 'web_search', callId: 'search-1', summary: 'Pesquisou na web: primeiro resultado', state: 'completed' } },
+      { type: 'data-tool', data: { name: 'web_search', callId: 'search-2', summary: 'Pesquisou na web: segundo resultado', state: 'completed' } },
       { type: 'data-web-sources', data: { sources: [{ id: 'turn0search2', url: 'https://example.test/fonte', title: 'Fonte oficial' }] } },
       ...approvals,
     ] }];
@@ -50,6 +52,14 @@ for (const width of [1280, 390]) {
     await openChat();
     const groups = screen.getByRole('group', 'Confirmação');
     await expect(groups).toHaveCount(2);
+    await expect(screen.getByText('Pesquisou na web · 2 chamadas')).toBeVisible();
+    expect(await browser.evaluate(() => {
+      const activity=document.querySelector('[aria-label="Atividade do Lume"]');
+      return !!activity && !!activity.parentElement?.textContent?.trim().startsWith('Pesquisou na web');
+    })).toBe(true);
+    await screen.getByText('Pesquisou na web · 2 chamadas').focus();
+    await browser.keyboard.press('Enter');
+    await expect(screen.getByText('Pesquisou na web: segundo resultado')).toBeVisible();
     await expect(screen.getByRole('link', 'Fonte 1')).toHaveAttribute('href', 'https://example.test/fonte');
     await expect(screen.getByText('(fonte não vinculada)', { exact: false })).toBeVisible();
     await expect(screen.getByText(/turn0search2|turn3view0/)).toHaveCount(0);

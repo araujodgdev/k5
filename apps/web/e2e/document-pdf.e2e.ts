@@ -6,7 +6,7 @@ import { overflowsHorizontally } from './support/fixtures';
 import { seedArtifact } from './support/seed';
 import { signInWithSession } from './support/sign-in';
 
-// The PDF comes from LibreOffice on the server (soffice), as in production containers.
+// Documents without a Word template use PDFcn on the server.
 test('exportar PDF baixa o texto salvo, recusa versão antiga e sessão ausente, e mostra a falha de conversão', { tags: ['pdf'] }, async ({ app, screen, browser }) => {
   const account = uniqueAccount('Paulo');
   const api = await new ApiSession(app.baseUrl!).signIn(account);

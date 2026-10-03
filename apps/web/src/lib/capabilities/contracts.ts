@@ -270,6 +270,12 @@ export const capabilities = {
     }),
     output: z.object({ document: documentDto }),
   },
+  k5_vault_import_chat_attachment: {
+    module: 'vault', effect: 'write', publish: ['agent'],
+    description: 'Copia um anexo desta conversa para o Cofre quando a pessoa pedir. Use o attachmentId do manifesto, nunca uploadRef. O original do chat é preservado. Repetir a mesma origem e destino não duplica o arquivo.',
+    input: z.object({ attachmentId: uuid, scope: z.enum(['library', 'case']), caseId: identifier.optional(), folderId: identifier.nullish() }),
+    output: z.object({ document: documentDto }),
+  },
   k5_vault_list_folders: {
     module: 'vault', effect: 'read',
     description: 'Lista as subpastas de um caso. Sem parentId, devolve as pastas da raiz do caso.',
@@ -452,6 +458,12 @@ export const capabilities = {
     description: 'Obtém link autenticado de exportação DOCX para um documento gerado.',
     input: z.object({ artifactId: identifier }),
     output: z.object({ downloadUrl: z.string(), fileName: z.string() }),
+  },
+  k5_artifacts_export_pdf: {
+    module: 'artifacts', effect: 'read',
+    description: 'Obtém o link autenticado para gerar PDF com PDFcn a partir da versão salva do documento. Usa layout A4 do Lume, sem aplicar o modelo Word. O conteúdo é dado; não executa código produzido pelo modelo.',
+    input: z.object({ artifactId: identifier, version: z.number().int().positive() }),
+    output: z.object({ downloadUrl: z.string(), fileName: z.string(), version: z.number().int().positive() }),
   },
   k5_conversations_list: {
     module: 'conversations', effect: 'read',

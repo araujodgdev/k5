@@ -67,7 +67,7 @@ import { useVoiceRecorder, VoiceLevel } from './voice-recorder';
 import type { DocumentAsk, DocumentWorkspaceHandle } from "./document/document-workspace";
 import { DocumentPanel } from "./document/document-panel";
 import type { CitationItem } from "@/lib/citations/verdict";
-import { citationStatusLabel, sourceHref, toReview } from "@/lib/citations/labels";
+import { citationLabel, sourceHref, toReview } from "@/lib/citations/labels";
 import { SmartWorking } from "@/components/smart-options";
 import { THINKING, type ChatStatus } from "@/lib/chat-status";
 import { applyApprovalDecisions, approvalDecision, type ApprovalDecision } from "@/lib/chat-approval-state";
@@ -185,6 +185,7 @@ const documentIdFrom = (href?: string) => href?.startsWith(DOCUMENT_PREFIX) ? de
 function OpenLink({ href }: { href: string }) {
   const documents = useContext(DocumentLinksContext);
   const documentId = documentIdFrom(href);
+  if (href.startsWith('/api/')) return <a href={href} download className="text-brand-ink underline-offset-4 hover:underline focus-visible:underline">Baixar</a>;
   if (documentId && documents) {
     return <button type="button" onClick={() => documents.open(documentId)} className="text-brand-ink underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none">Abrir</button>;
   }
@@ -310,7 +311,7 @@ function CitationsList({ data }: { data: { items?: CitationItem[] } }) {
             <li key={item.id} className="grid gap-0.5 py-2.5">
               <p className="text-sm font-medium leading-6">{item.text}</p>
               <p className="text-[13px] leading-5 text-subtle-foreground">
-                {citationStatusLabel[item.status]}
+                {citationLabel(item)}
                 {item.source && <> · {sourceHref(item.source.url)
                   ? <a href={sourceHref(item.source.url)!} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline-offset-4 hover:underline">{item.source.title || "fonte"}<span className="sr-only"> (abre em nova aba)</span></a>
                   : item.source.title}</>}
@@ -334,7 +335,38 @@ function WebSources({ data }: { data: unknown }) {
   </details>;
 }
 
-const assistantParts = { Text: AssistantText, data: { by_name: { tool: ToolStep, approval: ApprovalStep, jurisprudence: JurisprudenceList, citations: CitationsList, 'web-sources': WebSources } } };
+function ToolActivity() {
+  const content = useAuiState(state => state.message.content);
+  const groups = new Map<string, StepData[]>();
+  for (const [index, part] of content.entries()) {
+    if (part.type !== 'data' || part.name !== 'tool' || !part.data || typeof part.data !== 'object') continue;
+    const data = part.data;
+    if (!('summary' in data) || typeof data.summary !== 'string') continue;
+    const step: StepData = {
+      summary: data.summary,
+      name: 'name' in data && typeof data.name === 'string' ? data.name : undefined,
+      callId: 'callId' in data && typeof data.callId === 'string' ? data.callId : undefined,
+      href: 'href' in data && typeof data.href === 'string' ? data.href : undefined,
+      state: 'state' in data && typeof data.state === 'string' ? data.state : undefined,
+    };
+    const key = step.name ?? step.callId ?? `unknown-${index}`;
+    const group = groups.get(key) ?? [];
+    group.push(step);
+    groups.set(key, group);
+  }
+  if (!groups.size) return null;
+  return <div aria-label="Atividade do Lume" className="mb-4">
+    {[...groups].map(([key, steps]) => steps.length === 1 ? <ToolStep key={key} data={steps[0]} /> :
+      <details key={key} className="mb-2 text-[13px] leading-5 text-subtle-foreground">
+        <summary className="min-h-11 cursor-pointer py-2 focus-visible:outline focus-visible:outline-ring md:min-h-0 md:py-0">
+          {steps[0].summary?.split(':')[0]} · {steps.length} chamadas{steps.some(step => step.state === 'failed') ? ' · Há falhas' : ''}
+        </summary>
+        <div className="mt-2 border-l pl-3">{steps.map((step, index) => <ToolStep key={step.callId ?? index} data={step} />)}</div>
+      </details>)}
+  </div>;
+}
+
+const assistantParts = { Text: AssistantText, data: { by_name: { tool: () => null, approval: ApprovalStep, jurisprudence: JurisprudenceList, citations: CitationsList, 'web-sources': WebSources } } };
 
 /** What Lume is doing in the running turn ("Consultando o Cofre…"), sent by the server as it goes. */
 const WorkingContext = createContext("");
@@ -344,6 +376,7 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="group mx-auto w-full max-w-3xl px-4 py-4 md:px-8">
       <div className="max-w-[72ch] text-sm leading-7 text-foreground">
+        <ToolActivity />
         <MessagePrimitive.Parts components={assistantParts} />
         <MessagePrimitive.If last>
           <AuiIf condition={(state) => state.thread.isRunning}>

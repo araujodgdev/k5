@@ -4,8 +4,9 @@ import { sentryBuildOptions } from './scripts/sentry-build';
 
 const nextConfig: NextConfig = {
   // Keep isolated QA and verification servers from sharing Next's output and dev lock with the main app.
-  distDir: ['.next-research-qa', '.next-verify'].find(dir => dir === process.env.K5_NEXT_DIST_DIR) ?? '.next',
+  distDir: ['.next-research-qa', '.next-verify', '.next-agent-verify'].find(dir => dir === process.env.K5_NEXT_DIST_DIR) ?? '.next',
   devIndicators: false,
+  transpilePackages: ['@k5/tutorial-library'],
   // Keep SEO metadata in <head> for all user agents in both runtimes.
   htmlLimitedBots: /.*/,
   // Administration moved into the app shell; keep bookmarks to the old area working.
@@ -26,7 +27,7 @@ const nextConfig: NextConfig = {
       ],
     }];
   },
-  serverExternalPackages: ['@mastra/core', '@mastra/ai-sdk', '@mastra/memory', '@mastra/pg', 'pdfjs-dist', 'unpdf', 'tesseract.js', '@napi-rs/canvas', 'mammoth', 'mailparser', 'exceljs', 'pizzip', 'docx'],
+  serverExternalPackages: ['@mastra/core', '@mastra/ai-sdk', '@mastra/memory', '@mastra/pg', '@formepdf/core', '@formepdf/react', '@formepdf/shared', 'pdfjs-dist', 'unpdf', 'tesseract.js', '@napi-rs/canvas', 'mammoth', 'mailparser', 'exceljs', 'pizzip', 'docx'],
   allowedDevOrigins: ["*.trycloudflare.com"],
   outputFileTracingExcludes: {
     "/*": ["./.data/**/*", "./.env", "./.env.*"],

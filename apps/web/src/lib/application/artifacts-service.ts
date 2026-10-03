@@ -130,3 +130,9 @@ export async function exportArtifactDocx(context: WorkspaceContext, input: Capab
     fileName: `${artifact.title || 'documento'}.docx`,
   };
 }
+
+export async function exportArtifactPdf(context: WorkspaceContext, input: CapabilityInput<'k5_artifacts_export_pdf'>): Promise<CapabilityOutput<'k5_artifacts_export_pdf'>> {
+  const artifact = await requireArtifact(context, input.artifactId);
+  if (artifact.version !== input.version) throw new CapabilityError('CONFLICT', 'O documento mudou. Leia a versão atual antes de exportar.');
+  return { downloadUrl: `/api/artifacts/${encodeURIComponent(artifact.id)}/export?format=pdf&engine=pdfcn&version=${artifact.version}`, fileName: `${artifact.title || 'documento'}.pdf`, version: artifact.version };
+}

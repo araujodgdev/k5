@@ -17,7 +17,7 @@ export type CitationKind = 'statute' | 'precedent';
 export type CitationStatus = 'verified' | 'weak' | 'contradicted' | 'no_source' | 'unchecked';
 export type CitationItem = {
   id: string; text: string; paragraph: string; kind: CitationKind | null; status: CitationStatus; confidence: number | null;
-  source: { title: string; url: string | null; kind: CitationSource['kind'] } | null;
+  source: { title: string; url: string | null; kind: CitationSource['kind']; hasContent?: boolean } | null;
 };
 export type CitationReview = { status: 'evaluated' | 'partial' | 'disabled' | 'unavailable'; items: CitationItem[]; mentions: number };
 
@@ -35,8 +35,8 @@ export function composeCitation(span: CitationSpan, candidates: CitationSource[]
   // A confident "not a citation" drops the span; an unsure one stays, since missing a citation costs more.
   if (kindAnswer?.choice === 'mention' && kindAnswer.confidence >= MENTION_CONFIDENCE) return null;
   const kind = kindAnswer && kindAnswer.choice !== 'mention' ? kindAnswer.choice as CitationKind : null;
-  const base = { id: span.id, text: span.text, paragraph: span.paragraph.slice(0, 300), kind };
-  const describe = (source: CitationSource) => ({ title: source.title, url: source.url ?? null, kind: source.kind });
+  const base = { id: span.id, text: span.text, paragraph: span.paragraph, kind };
+  const describe = (source: CitationSource) => ({ title: source.title, url: source.url ?? null, kind: source.kind, hasContent: !!source.text.trim() });
 
   if (!candidates.length) return { ...base, status: 'no_source', confidence: null, source: null };
   if (!answers) return { ...base, status: 'unchecked', confidence: null, source: describe(candidates[0]) };
@@ -49,6 +49,7 @@ export function composeCitation(span: CitationSpan, candidates: CitationSource[]
 
   const support = best.support?.type === 'choice' ? best.support : undefined;
   const source = describe(candidates[best.index]);
+  if (!source.hasContent) return { ...base, status: 'unchecked', confidence: null, source };
   if (!support) return { ...base, status: 'unchecked', confidence: null, source };
   const status: CitationStatus = support.choice === 'supports' && support.confidence >= ACCEPT_CONFIDENCE ? 'verified'
     : support.choice === 'contradicts' && support.confidence >= MATCH_PROBABILITY ? 'contradicted'

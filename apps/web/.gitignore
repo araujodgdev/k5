@@ -17,6 +17,7 @@
 /.next/
 /.next-research-qa/
 /.next-verify/
+/.next-agent-verify/
 /out/
 
 # production

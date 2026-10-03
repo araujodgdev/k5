@@ -4,7 +4,8 @@ import { CircleAlert, LoaderCircle } from "lucide-react";
 import { DocumentVerification } from "@/components/document-verification";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/markdown";
-import { citationKindLabel, citationStatusLabel, sourceHref, toReview } from "@/lib/citations/labels";
+import { citationKindLabel, citationLabel, sourceHref, toReview } from "@/lib/citations/labels";
+import { HumanChecklist } from './human-checklist';
 import type { CitationItem, CitationReview } from "@/lib/citations/verdict";
 
 export type StoredCitations = { review: (CitationReview & { artifactVersion: number }) | null; version: number };
@@ -15,12 +16,14 @@ export type ValidationIssue = string | { message?: string; text?: string };
 export const issueText = (issue: ValidationIssue) => typeof issue === "string" ? issue : issue.message ?? issue.text ?? "Verificação pendente";
 
 /** Open issues, the evidence check and the sources behind the text: what to confirm before use. */
-export function DocumentReview({ artifactId, version, dirty, status, issues, references, citations, rechecking, onRecheck }: {
+export function DocumentReview({ artifactId, version, dirty, status, issues, references, citations, rechecking, onRecheck, onPendingChange }: {
   artifactId: string; version: number; dirty: boolean; status: string; issues: ValidationIssue[]; references: ArtifactReference[];
   citations: StoredCitations | null; rechecking: boolean; onRecheck: () => void;
+  onPendingChange: (count: number) => void;
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-8">
+      <HumanChecklist key={`${artifactId}:${version}`} artifactId={artifactId} version={version} dirty={dirty} refresh={rechecking} onPendingChange={onPendingChange} />
       <Citations citations={citations} version={version} rechecking={rechecking} onRecheck={onRecheck} />
       <section className="mt-8 border-t pt-5">
         <h2 className="font-medium">Verificações</h2>
@@ -90,12 +93,12 @@ function CitationRow({ item }: { item: CitationItem }) {
     <div className="grid gap-1 py-3 text-sm">
       <p className="font-medium">{item.text}</p>
       <p className={ok ? "text-[13px] text-muted-foreground" : "text-[13px] text-foreground"}>
-        {item.kind ? `${citationKindLabel[item.kind]} · ` : ""}{citationStatusLabel[item.status]}
+        {item.kind ? `${citationKindLabel[item.kind]} · ` : ""}{citationLabel(item)}
         {item.source && <> · {sourceHref(item.source.url)
           ? <a href={sourceHref(item.source.url)!} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline-offset-4 hover:underline">{item.source.title || "fonte"}<span className="sr-only"> (abre em nova aba)</span></a>
           : item.source.title}</>}
       </p>
-      {!ok && <div className="line-clamp-2 text-[13px] leading-5 text-subtle-foreground"><Markdown text={item.paragraph} /></div>}
+      {!ok && <div className="text-[13px] leading-5 text-subtle-foreground"><Markdown text={item.paragraph} /></div>}
     </div>
   );
 }

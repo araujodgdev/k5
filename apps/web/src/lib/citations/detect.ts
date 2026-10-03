@@ -80,7 +80,7 @@ export function candidateSources(span: string, sources: CitationSource[]) {
   const names = CODE_TOKENS.filter(token => new RegExp(`\\b${token}\\b`).test(folded));
   const whole = (number: string, digits: string) => new RegExp(`(?<!\\d)${number}(?!\\d)`).test(digits);
   return sources.flatMap(source => {
-    const haystack = fold([source.title, source.court, source.caseNumber, source.text].filter(Boolean).join(' '));
+    const haystack = fold([source.title, source.court, source.caseNumber, source.text, source.url].filter(Boolean).join(' '));
     const digits = haystack.replace(/(\d)\.(?=\d{3}\b)/g, '$1');
     if (!whole(numbers[0], digits)) return [];
     const hits = numbers.filter(number => whole(number, digits)).length;

@@ -58,10 +58,6 @@ async function judicialPass() {
 
 const server = createServer(async (request, response) => {
   if (request.method === 'GET' && request.url === '/health') { response.writeHead(200).end('ok'); return; }
-  if(request.method==='POST' && request.url==='/run/trademarks') {
-    response.writeHead(410, { 'Content-Type': 'text/plain; charset=utf-8' }).end('A importação automática do INPI foi desativada.');
-    return;
-  }
   if (request.method === 'POST' && request.url === '/convert/pdf') {
     try {
       const { MAX_DOCX_BYTES, DocumentPdfError } = await import('../src/lib/document-pdf-contract');
@@ -77,6 +73,23 @@ const server = createServer(async (request, response) => {
         const pdf = await convertDocxToPdf(Buffer.concat(chunks));
         response.writeHead(200, { 'Content-Type': 'application/pdf', 'Cache-Control': 'no-store' }).end(pdf);
       } catch (error) { response.writeHead(error instanceof DocumentPdfError ? error.status : 500).end(); }
+    } catch { response.writeHead(500).end(); }
+    return;
+  }
+  if (request.method === 'POST' && request.url === '/render/pdfcn') {
+    try {
+      const { z } = await import('zod');
+      const chunks: Buffer[] = [];
+      let size = 0;
+      for await (const chunk of request) {
+        size += chunk.length;
+        if (size > 2_100_000) { response.writeHead(413).end(); return; }
+        chunks.push(chunk);
+      }
+      const input = z.object({ title: z.string().max(500), content: z.string().max(500_000) }).parse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      const { renderPdfcnDocument } = await import('../src/lib/document-pdfcn-node');
+      const pdf = await renderPdfcnDocument(input);
+      response.writeHead(200, { 'Content-Type': 'application/pdf', 'Cache-Control': 'no-store' }).end(pdf);
     } catch { response.writeHead(500).end(); }
     return;
   }

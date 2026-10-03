@@ -47,6 +47,16 @@ export class LumeProcessor extends Container<ProcessorEnv> {
     } finally { clearInterval(heartbeat); this.renewActivityTimeout(); }
   }
 
+  async renderPdfcn(input: { title: string; content: string }): Promise<Uint8Array> {
+    if (input.content.length > 500_000 || input.title.length > 500) throw new Error('Documento excede o limite de exportação.');
+    const heartbeat = setInterval(() => this.renewActivityTimeout(), 15_000);
+    try {
+      const response = await this.containerFetch('http://container/render/pdfcn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) });
+      if (!response.ok) throw new Error('Geração PDF indisponível.');
+      return new Uint8Array(await response.arrayBuffer());
+    } finally { clearInterval(heartbeat); this.renewActivityTimeout(); }
+  }
+
   async run(role: ProcessorRole): Promise<void> {
     if (role !== 'documents' && role !== 'judicial' && role !== 'trademarks') throw new Error('Processador inválido.');
     if (!this.env.PROCESSOR_DATABASE_URL || (!this.env.K5_CREDENTIALS_KEY && !this.env.K5_CREDENTIALS_NEXT_KEY)) throw new Error('Processador sem configuração de banco ou credenciais.');
@@ -66,14 +76,8 @@ export class LumeProcessor extends Container<ProcessorEnv> {
   }
 }
 
-/** Retained for existing Durable Object bindings; automatic INPI dispatch is disabled. */
-export class LumeInpiProcessor extends LumeProcessor {
-  sleepAfter='5m';
-}
-
 // The SDK setter registers handlers by class name; a static field bypasses it.
 const bindingHosts: Record<string, OutboundHandler> = {
   'k5-bindings': (request, env) => processorBindingRequest(request, env as ProcessorBindings),
 };
 LumeProcessor.outboundByHost = bindingHosts;
-LumeInpiProcessor.outboundByHost = bindingHosts;
