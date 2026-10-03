@@ -21,7 +21,7 @@ O documento é atualizado à medida que as frentes avançam.
 | Revisão humana | Feito | `main` (bdbea4b) |
 | PDF pelo agente com PDFcn | Feito em Node/Container; PDFcn no Worker adiado | `main` (bdbea4b) |
 | Painel de Artefatos e salvar no Cofre | Feito | `main` (PR #30) |
-| Memória persistente com Honcho | Feito no código; ativação depende da chave | `main` (PR #30) |
+| Memória persistente com Honcho | Feito; ativo em produção desde 03/10/2026 | `main` (PR #30) |
 
 Publicação: todas as frentes estão em `main` e no deploy de produção (https://lume.software). A primeira implementação saiu na versão `96324c4d`, com as migrações 0062–0064. As frentes Artefatos e Honcho entraram pelo PR #30, com um commit por frente, e saíram na versão `ce4317ba`, com as migrações 0065 e 0066.
 
@@ -195,7 +195,6 @@ Autoaprendizado com memória persistente desde já. O Honcho acrescenta inferên
 
 ### Pendente
 
-- **Ativar em produção:** criar a conta e a chave no Honcho e cadastrar o secret (`npx wrangler secret put HONCHO_API_KEY` em `apps/web`). Opcionalmente `HONCHO_URL` (self-host) e `HONCHO_ENVIRONMENT`.
 - Medir em uso real: p50/p95 da leitura de contexto, tempo até uma memória aparecer, custo por pessoa e qualidade em pt-BR comparada à memória de trabalho.
 - Confirmar com o fornecedor a exclusão das inferências derivadas e dos backups. A API v3 só aceita a exclusão de forma assíncrona.
 - Tela para a pessoa ver e apagar o que o Lume aprendeu (hoje: pelo chat, com `k5_memory_get` e `k5_memory_clear`).
@@ -243,4 +242,5 @@ As duas primeiras páginas de um PDF sintético foram renderizadas e inspecionad
 | `pnpm lint`, `pnpm typecheck` | Passaram; resta o aviso antigo em `judicial/connectors/transport.ts`. |
 | `pnpm --filter @k5/web build:vinext` | Passou com as duas frentes. |
 | Revisão do CodeRabbit no PR #30 | Cinco apontamentos corrigidos: erro ao listar pastas, fila global travada por uma pessoa, envio em andamento contra esquecer, âncora da ajuda e texto do manual. Dois casos novos em `tests/honcho-memory.test.ts`, que falham no código anterior. |
-| Deploy de produção do PR #30 (03/10/2026) | Versão `ce4317ba` publicada em https://lume.software; migrações 0065 e 0066 aplicadas; container atualizado. Honcho segue desligado até o secret `HONCHO_API_KEY` existir; o índice da ajuda ainda não foi republicado (`pnpm help:publish`). |
+| Deploy de produção do PR #30 (03/10/2026) | Versão `ce4317ba` publicada em https://lume.software; migrações 0065 e 0066 aplicadas; container atualizado. o índice da ajuda ainda não foi republicado (`pnpm help:publish`). |
+| Ativação do Honcho (03/10/2026) | Chave validada na API v3 (200) e secret `HONCHO_API_KEY` cadastrado no Worker `lume`; serviço gerenciado em https://api.honcho.dev, ambiente `production`. |
