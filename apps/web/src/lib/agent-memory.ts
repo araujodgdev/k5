@@ -4,6 +4,7 @@ import { PostgresStore } from '@mastra/pg';
 import type { Pool } from 'pg';
 import { authStore, database } from './database';
 import type { Owner } from './ai-store';
+import { forgetHoncho, forgetHonchoConversation, honchoCard } from './honcho-memory';
 
 /**
  * The Lume's working memory: what the person told it about themselves and how they work, carried
@@ -75,12 +76,21 @@ export async function readMemory(owner: Owner) {
   };
 }
 
+/** The working memory and what the learning memory (Honcho) concluded from it, when enabled. */
+export async function describeMemory(owner: Owner) {
+  const [memory, inferred] = await Promise.all([readMemory(owner), honchoCard(owner)]);
+  return { ...memory, inferred };
+}
+
+/** Forgetting reaches both memories: the working memory row and the Honcho generation. */
 export async function clearMemory(owner: Owner) {
   const result = await database.prepare('DELETE FROM mastra_resources WHERE id=?').run(memoryResource(owner));
+  await forgetHoncho(owner);
   return { cleared: result.changes > 0 };
 }
 
 /** A deleted conversation leaves no thread behind; the thread row names the person and office. */
 export async function forgetThread(owner: Owner, conversationId: string) {
   await database.prepare('DELETE FROM mastra_threads WHERE id=? AND "resourceId"=?').run(conversationId, memoryResource(owner));
+  await forgetHonchoConversation(owner, conversationId);
 }

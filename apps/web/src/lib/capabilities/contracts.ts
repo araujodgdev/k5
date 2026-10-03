@@ -500,14 +500,14 @@ export const capabilities = {
   // Only the chat has a memory, so neither is published to the browser adapter.
   k5_memory_get: {
     module: 'memory', effect: 'read',
-    description: 'Mostra o que o Lume guardou na memória de trabalho sobre a pessoa neste escritório (preferências e pedidos para lembrar).',
+    description: 'Mostra o que o Lume guardou na memória de trabalho sobre a pessoa neste escritório (preferências e pedidos para lembrar) e, em inferred, o que aprendeu sobre ela ao longo das conversas. inferred são inferências e podem estar erradas.',
     input: z.object({}),
-    output: z.object({ memory: z.string(), updatedAt: z.string().nullable() }),
+    output: z.object({ memory: z.string(), updatedAt: z.string().nullable(), inferred: z.array(z.string()) }),
     publish: ['agent'],
   },
   k5_memory_clear: {
     module: 'memory', effect: 'write',
-    description: 'Apaga a memória de trabalho do Lume sobre a pessoa neste escritório. Use quando ela pedir para o Lume esquecer.',
+    description: 'Apaga a memória de trabalho do Lume sobre a pessoa neste escritório e o que ele aprendeu sobre ela ao longo das conversas. Use quando ela pedir para o Lume esquecer.',
     input: z.object({}),
     output: z.object({ cleared: z.boolean() }),
     publish: ['agent'],

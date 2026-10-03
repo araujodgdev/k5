@@ -28,7 +28,8 @@ import { capabilities, type Capability } from '@/lib/capabilities/contracts';
 import { clockContext } from '@/lib/chat-clock';
 import { instructionsPrompt } from '@/lib/agent-instructions';
 import { knowledgePrompt } from '@/lib/agent-knowledge';
-import { agentMemory, memoryInstructions, memoryResource } from '@/lib/agent-memory';
+import { agentMemory, memoryInstructions, memoryResource, readMemory } from '@/lib/agent-memory';
+import { drainHonchoOutbox, honchoContext, queueMemoryChange } from '@/lib/honcho-memory';
 import { injectionDetector, isWithheld, UntrustedToolResultGuard } from '@/lib/agent-guard';
 import { webSearchFor, type WebPage } from '@/lib/agent-web-search';
 import { resolveTaskModel } from '@/lib/ai-connections';
@@ -149,7 +150,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     // (Gemini does not mix Google Search with function calling). See agent-web-search.ts.
     const chatModel = await resolveTaskModel('agent.chat');
     const provider = chatModel.provider;
-    const [writingRules, knowledge] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner)]);
+    const [writingRules, knowledge, learned] = await Promise.all([instructionsPrompt(owner, 'chat'), knowledgePrompt(owner), honchoContext(owner)]);
     // Only the person's own document is named; an id they do not own is ignored, not an error.
     const focusedId = body.selection?.artifactId ?? body.openDocumentId;
     const focused = focusedId ? await ownedArtifact(database, owner, focusedId) : undefined;
@@ -166,7 +167,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
       chatModel,
       [
         // Rules shape the voice; the policies after them keep the last word.
-        conversationStyle, ...[writingRules, knowledge].filter(Boolean), chatGrounding, toolInstructions, memoryInstructions, clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
+        conversationStyle, ...[writingRules, knowledge].filter(Boolean), chatGrounding, toolInstructions, memoryInstructions, ...(learned ? [learned] : []), clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
         scope,
         researchScope,
         ...(documentFocus ? [documentFocus] : []),
@@ -408,6 +409,11 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
       writer.write({ type: 'text-end', id: partId });
       writer.write({ type: 'finish' });
     }, { root: true });
+    // The answer is already with the person. What the turn added to the working memory goes to
+    // the learning memory; a failure here leaves it queued for the scheduled run.
+    try {
+      if (await queueMemoryChange(owner, id, (await readMemory(owner)).memory)) await drainHonchoOutbox({ owner, limit: 5 });
+    } catch (error) { captureOperationalError(error, 'honcho.queue'); }
   } finally {
     // A turn that failed before the agent started must not keep the conversation locked.
     if (!released) await release().catch(error => captureOperationalError(error, 'chat.release'));

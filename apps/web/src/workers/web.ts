@@ -12,6 +12,7 @@ import { captureOperationalError, observeSchedule } from '../lib/observability/r
 import { tutorialVideoResponse } from '../lib/tutorial-video-response';
 import { withTrademarkEnvironment } from '../lib/research/trademarks/environment';
 import { pendingTrademarkTasks } from '../lib/research/trademarks/worker';
+import { drainHonchoOutbox } from '../lib/honcho-memory';
 
 export { LumeProcessor, ContainerProxy } from './processors';
 export { LumeChatRun } from './chat-runs';
@@ -29,6 +30,8 @@ export default withSentry<WebEnv>(env => serverOptions('web', env), {
     return observeSchedule('lume-processors-dispatch', async () => {
     const pool = createPostgresPool(env.HYPERDRIVE.connectionString, { max: 1, idleTimeoutMillis: 0 });
     try {
+      // The learning memory's sends and deletions left over by chat turns (honcho-memory.ts).
+      await withPostgres(pool, () => drainHonchoOutbox({ limit: 50 })).catch(error => captureOperationalError(error, 'honcho.drain'));
       const searches = await withPostgres(pool, () => pendingTrademarkTasks());
       await Promise.allSettled(searches.map(id => env.TRADEMARK_RUNS.getByName(id).start(id)));
       if (env.PROCESSORS_ENABLED !== 'true') return;

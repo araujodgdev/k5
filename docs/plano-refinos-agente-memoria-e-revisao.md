@@ -21,7 +21,7 @@ O documento é atualizado à medida que as frentes avançam.
 | Revisão humana | Feito | `main` (bdbea4b) |
 | PDF pelo agente com PDFcn | Feito em Node/Container; PDFcn no Worker adiado | `main` (bdbea4b) |
 | Painel de Artefatos e salvar no Cofre | Feito | branch `feat/lume-artefatos-memoria` |
-| Memória persistente com Honcho | Em andamento | branch `feat/lume-artefatos-memoria` |
+| Memória persistente com Honcho | Feito no código; ativação depende da chave | branch `feat/lume-artefatos-memoria` |
 
 Publicação: os commits do diagnóstico e da primeira implementação estão em `main` e no deploy de produção (https://lume.software, versão `96324c4d`, com as migrações 0062–0064). As frentes novas sobem num único PR, com um commit por frente.
 
@@ -184,18 +184,27 @@ Autoaprendizado com memória persistente desde já. O Honcho acrescenta inferên
 
 ### Feito
 
-- Nada ainda.
+- Adaptador server-only por REST v3, sem SDK, para rodar igual em Node e no Worker. Sem `HONCHO_API_KEY` tudo é no-op e vale só a memória de trabalho. [Adaptador](../apps/web/src/lib/honcho-memory.ts).
+- **O que é enviado:** depois de cada turno, só as linhas novas da memória de trabalho Mastra, como declarações do peer `pessoa`. Essa memória já é restrita, pelas instruções do agente, ao que a pessoa disse sobre si e ao que pediu para lembrar. Documentos, anexos, resultados de ferramentas, e-mails e o transcript não saem do Lume.
+- **Identidade:** um workspace por ambiente, escritório, pessoa e geração, com nome opaco (hash), e uma sessão por conversa, também opaca. O peer `pessoa` é observado; o peer `lume` não é, e ninguém observa terceiros.
+- **Entrega:** outbox no PostgreSQL (`honcho_outbox`), com lease para o chat e o cron drenarem ao mesmo tempo sem duplicar. O `event_id` vai em metadata; um envio cuja resposta se perdeu fica `uncertain` e é reconciliado consultando o Honcho antes de reenviar. Erros definitivos voltam a `pending` e são descartados após 8 tentativas. O turno do chat drena ao terminar, depois que a resposta já foi entregue; o cron de cada minuto drena o restante.
+- **Leitura:** antes da resposta, o Lume lê o card e a representação do peer (até 1,5 s e 2.500 caracteres) e os inclui nas instruções como inferência falível, que não autoriza ações. Timeout ou falha seguem sem esse contexto.
+- **Esquecer:** `k5_memory_clear` apaga a memória de trabalho e incrementa a geração. Leitura e envio passam ao novo workspace na hora, a outbox pendente é descartada e a exclusão do workspace antigo (sessões e workspace) entra em `honcho_deletion`. Excluir uma conversa pede a exclusão da sessão dela. `accepted` registra que o Honcho aceitou o pedido, não que a exclusão terminou.
+- `k5_memory_get` devolve também `inferred`, o card do Honcho, para "o que você lembra de mim".
+- Migração aditiva `0066_honcho_memory.sql`. Configuração documentada em `apps/web/.env.example` e `apps/web/README.md`.
 
 ### Pendente
 
-- Adaptador server-only com feature flag por configuração. Sem chave, o Lume usa só a memória atual.
-- Envio somente de declarações pessoais aceitas pela política, por outbox com reconciliação. Documentos, clientes e resultados de ferramentas não entram no perfil.
-- Leitura do contexto pessoal antes da resposta, com prazo curto e fallback.
-- "Esquecer" interrompe leitura e envio imediatamente e solicita a exclusão remota.
+- **Ativar em produção:** criar a conta e a chave no Honcho e cadastrar o secret (`npx wrangler secret put HONCHO_API_KEY` em `apps/web`). Opcionalmente `HONCHO_URL` (self-host) e `HONCHO_ENVIRONMENT`.
+- Medir em uso real: p50/p95 da leitura de contexto, tempo até uma memória aparecer, custo por pessoa e qualidade em pt-BR comparada à memória de trabalho.
+- Confirmar com o fornecedor a exclusão das inferências derivadas e dos backups. A API v3 só aceita a exclusão de forma assíncrona.
+- Tela para a pessoa ver e apagar o que o Lume aprendeu (hoje: pelo chat, com `k5_memory_get` e `k5_memory_clear`).
 
 ### Decisões
 
-- Abertas: serviço gerenciado ou self-host; contrato de privacidade, retenção e exclusão de inferências derivadas. Os detalhes estão na [pesquisa](research/honcho-lume-2026-10-03.md).
+- A memória de aprendizado entra já, por decisão do produto, desligada até a chave existir. A pesquisa recomendava piloto com dados sintéticos; o risco fica reduzido porque só sobem as declarações pessoais já filtradas pela memória de trabalho, nunca conteúdo de clientes ou documentos.
+- A memória Mastra continua como fonte e fallback; o Honcho não substitui nada.
+- Abertas: serviço gerenciado ou self-host; contrato de privacidade (treino, região, retenção).
 
 ## Validação
 
@@ -228,4 +237,6 @@ As duas primeiras páginas de um PDF sintético foram renderizadas e inspecionad
 | `tests/agent-files-review.test.ts`, `tests/chat-attachments.test.ts` | Passaram depois da extração do caminho de cópia. |
 | E2e `conversation-artifacts.e2e.ts` (instância isolada) | Passou: lista, salvar DOCX com falha e "Tentar de novo", anexo pelo teclado em 390px sem rolagem horizontal, procedência conferida no banco, acesso anônimo negado. |
 | E2e `chat-feedback`, `document-pdf`, `document-human-review` | Passaram depois da troca do painel e da refatoração da exportação. |
+| `tests/honcho-memory.test.ts` (servidor Honcho falso) | Quatro casos passaram: só linhas novas enviadas, uma vez, para sessão opaca que observa só a pessoa; resposta perdida reconciliada por `event_id` sem reenvio; erro definitivo retentado; contexto falível, limitado a 1,5 s e ausente sem chave; esquecer troca a geração, descarta a fila e exclui o workspace antigo e a sessão da conversa excluída. |
+| `pnpm test` (suíte completa, `K5_TEST_CONCURRENCY=2`) | 750 de 750 passaram, com as migrações 0065 e 0066 aplicadas do zero. |
 | `pnpm lint`, `pnpm typecheck` | Passaram; resta o aviso antigo em `judicial/connectors/transport.ts`. |

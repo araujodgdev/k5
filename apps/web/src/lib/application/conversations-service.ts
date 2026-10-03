@@ -2,7 +2,7 @@ import 'server-only';
 import { database } from '@/lib/database';
 import { createConversation, conversation } from '@/lib/ai-store';
 import { requireAgentApproval } from './approvals-service';
-import { forgetThread, readMemory, clearMemory } from '@/lib/agent-memory';
+import { forgetThread, describeMemory, clearMemory } from '@/lib/agent-memory';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
@@ -47,7 +47,7 @@ export async function deleteConversation(context: WorkspaceContext, input: Capab
 }
 
 export async function getMemory(context: WorkspaceContext): Promise<CapabilityOutput<'k5_memory_get'>> {
-  return readMemory(context);
+  return describeMemory(context);
 }
 
 export async function clearAgentMemory(context: WorkspaceContext): Promise<CapabilityOutput<'k5_memory_clear'>> {
