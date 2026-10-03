@@ -240,3 +240,4 @@ As duas primeiras páginas de um PDF sintético foram renderizadas e inspecionad
 | `tests/honcho-memory.test.ts` (servidor Honcho falso) | Quatro casos passaram: só linhas novas enviadas, uma vez, para sessão opaca que observa só a pessoa; resposta perdida reconciliada por `event_id` sem reenvio; erro definitivo retentado; contexto falível, limitado a 1,5 s e ausente sem chave; esquecer troca a geração, descarta a fila e exclui o workspace antigo e a sessão da conversa excluída. |
 | `pnpm test` (suíte completa, `K5_TEST_CONCURRENCY=2`) | 750 de 750 passaram, com as migrações 0065 e 0066 aplicadas do zero. |
 | `pnpm lint`, `pnpm typecheck` | Passaram; resta o aviso antigo em `judicial/connectors/transport.ts`. |
+| `pnpm --filter @k5/web build:vinext` | Passou com as duas frentes. |
