@@ -20,7 +20,7 @@ O documento é atualizado à medida que as frentes avançam.
 | Conferência de fontes | Parcial: leitura dedicada da norma pendente | `main` (bdbea4b) |
 | Revisão humana | Feito | `main` (bdbea4b) |
 | PDF pelo agente com PDFcn | Feito em Node/Container; PDFcn no Worker adiado | `main` (bdbea4b) |
-| Painel de Artefatos e salvar no Cofre | Em andamento | branch `feat/lume-artefatos-memoria` |
+| Painel de Artefatos e salvar no Cofre | Feito | branch `feat/lume-artefatos-memoria` |
 | Memória persistente com Honcho | Em andamento | branch `feat/lume-artefatos-memoria` |
 
 Publicação: os commits do diagnóstico e da primeira implementação estão em `main` e no deploy de produção (https://lume.software, versão `96324c4d`, com as migrações 0062–0064). As frentes novas sobem num único PR, com um commit por frente.
@@ -155,18 +155,22 @@ O painel "Fontes desta conversa" serve só para escolher documentos do Cofre e r
 
 ### Feito
 
-- Nada ainda.
+- Ferramenta `k5_vault_save_artifact`, para o agente e para a interface. Grava a versão atual de um documento do Lume no Cofre em PDF (PDFcn) ou DOCX (biblioteca `docx`, com o modelo Word). A identidade é determinística por documento, versão, formato e destino, e a procedência fica em `vault_agent_origin`. Uma versão antiga é recusada; uma nova versão vira outro arquivo. [Serviço](../apps/web/src/lib/application/vault-service.ts), [arquivo](../apps/web/src/lib/artifact-file.ts).
+- A cópia para o Cofre (destino, deduplicação, reconciliação) foi extraída para um caminho único, usado pelos anexos e pelos documentos.
+- Migração aditiva `0065_artifact_vault_copies.sql`: origem `artifact_docx` e índice por origem.
+- `GET /api/conversations/[id]/artifacts` lista documentos da conversa, anexos já enviados e as cópias no Cofre ainda acessíveis. `POST` na mesma rota salva pela interface, pelas mesmas ferramentas do agente. [Rota](../apps/web/src/app/api/conversations/[id]/artifacts/route.ts), [consulta](../apps/web/src/lib/conversation-artifacts.ts).
+- Painel **Artefatos** no lugar de Fontes: Documentos do Lume (o título abre o documento ao lado do chat), Anexos enviados, cópias no Cofre com link e "Salvar no Cofre" com formulário sob a linha. A seleção de contexto continua como "Do Cofre nesta conversa". [Painel](../apps/web/src/components/agent-artifacts-panel.tsx).
+- O prompt orienta o agente a usar `k5_vault_save_artifact` para guardar documentos dele. Os textos da ajuda, do manual e do `DESIGN.md` foram atualizados.
 
 ### Pendente
 
-- Ferramenta `k5_vault_save_artifact`: grava a versão atual de um documento do Lume no Cofre como PDF (PDFcn) ou DOCX, com identidade determinística por documento, versão, formato e destino, e procedência em `vault_agent_origin`.
-- Rotas da conversa para listar artefatos e salvar no Cofre, com a conversa conferida pela sessão.
-- Painel Artefatos com estados de carregamento, vazio e erro; seleção de contexto do Cofre preservada no mesmo painel.
-- Testes de serviço e e2e em desktop e celular.
+- Escolher subpastas além do primeiro nível no formulário (hoje: raiz do caso e pastas de primeiro nível; o agente aceita qualquer pasta acessível).
 
 ### Decisões
 
 - Os dois formatos usam caminhos sem LibreOffice: PDF por PDFcn e DOCX pela biblioteca `docx`.
+- O PDF salvo usa o layout A4 do Lume, sem o timbrado Word; quem precisa do timbrado salva em DOCX.
+- Cópias em caso compartilhado aparecem só enquanto a pessoa continua participante do caso; cópias excluídas do Cofre somem da lista.
 
 ## Memória persistente com Honcho
 
@@ -218,4 +222,10 @@ As duas primeiras páginas de um PDF sintético foram renderizadas e inspecionad
 
 ### Evidências das frentes novas
 
-Preenchidas à medida que cada frente for concluída.
+| Verificação | Resultado |
+| --- | --- |
+| `tests/conversation-artifacts.test.ts` | Dois casos passaram: salvamento concorrente sem duplicação, PDF com texto em pt-BR, DOCX, versão antiga recusada, nova versão como outro arquivo, outra pessoa e caso inexistente negados; lista de artefatos com cópias, sem anexos não enviados, sem acesso de outra pessoa ou escritório, sem cópias excluídas. |
+| `tests/agent-files-review.test.ts`, `tests/chat-attachments.test.ts` | Passaram depois da extração do caminho de cópia. |
+| E2e `conversation-artifacts.e2e.ts` (instância isolada) | Passou: lista, salvar DOCX com falha e "Tentar de novo", anexo pelo teclado em 390px sem rolagem horizontal, procedência conferida no banco, acesso anônimo negado. |
+| E2e `chat-feedback`, `document-pdf`, `document-human-review` | Passaram depois da troca do painel e da refatoração da exportação. |
+| `pnpm lint`, `pnpm typecheck` | Passaram; resta o aviso antigo em `judicial/connectors/transport.ts`. |

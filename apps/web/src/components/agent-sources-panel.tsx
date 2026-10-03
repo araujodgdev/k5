@@ -40,13 +40,12 @@ async function responseError(response: Response, fallback: string) {
 }
 
 /**
- * Existing Vault material selected for this conversation. Chat uploads live with their messages.
+ * Existing Vault material selected as context for this conversation, inside the Artefatos panel.
  * It does not decide what the person is here to do: work is asked for in the conversation.
  */
-export function AgentSourcesPanel({ context, onChange, onClose }: {
+export function VaultContextSection({ context, onChange }: {
   context: AgentContext;
   onChange: (context: AgentContext) => void;
-  onClose?: () => void;
 }) {
   const [documents, setDocuments] = useState<VaultDocumentSummary[]>([]);
   const [cases, setCases] = useState<Array<{ id: string; name: string }>>([]);
@@ -132,16 +131,11 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
-        <h2 className="text-base font-medium">Fontes desta conversa</h2>
-        {onClose && <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar fontes"><X /></Button>}
-      </div>
-
-      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-5 [&>*]:min-w-0">
+    <section aria-labelledby="vault-context-title" className="min-w-0 border-t pt-5 [&>*]:min-w-0">
+        <h3 id="vault-context-title" className="text-sm font-medium">Do Cofre nesta conversa</h3>
         {attached.length === 0 && context.researchReferenceIds.length === 0 && (
-          <p className="text-sm text-subtle-foreground">
-            {context.caseId ? 'O assistente pode consultar os arquivos deste caso. Escolha arquivos ou referências para limitar as fontes da conversa.' : 'Nenhuma fonte selecionada. O assistente ainda pode procurar no Cofre; escolha arquivos ou referências para esta conversa.'}
+          <p className="py-3 text-sm text-subtle-foreground">
+            {context.caseId ? 'O Lume pode consultar os arquivos deste caso. Escolha arquivos ou referências para limitar o contexto da conversa.' : 'Nenhum arquivo do Cofre selecionado. O Lume ainda pode procurar no Cofre; escolha arquivos ou referências para esta conversa.'}
           </p>
         )}
         {attached.map((document) => (
@@ -161,7 +155,7 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
         })}
 
         <div className="mt-7 flex min-w-0 flex-col gap-3">
-          <h3 className="text-sm font-medium">Adicionar do Cofre</h3>
+          <h4 className="text-sm font-medium">Adicionar do Cofre</h4>
           <div className="flex min-w-0 flex-col gap-3">
             <div className="flex min-w-0 flex-col gap-1.5">
               <Label htmlFor="sources-case">Caso</Label>
@@ -206,7 +200,7 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
               </button>
             ))}
           </div>
-          <div className="mt-5 border-t pt-5"><h3 className="text-sm font-medium">Referências do caso</h3>
+          <div className="mt-5 border-t pt-5"><h4 className="text-sm font-medium">Referências do caso</h4>
             {!context.caseId && <p className="py-3 text-sm text-subtle-foreground">Escolha um caso para selecionar julgados vinculados.</p>}
             {referencesLoading && <p className="py-3 text-sm text-muted-foreground">Carregando referências…</p>}
             {referencesError && <p role="alert" className="py-3 text-sm text-destructive">{referencesError}</p>}
@@ -214,7 +208,6 @@ export function AgentSourcesPanel({ context, onChange, onClose }: {
             {context.caseId && references.filter(item => !context.researchReferenceIds.includes(item.id)).map(reference => <button key={reference.id} type="button" disabled={!reference.material?.localAllowed || reference.material.materialStatus !== 'ready'} onClick={() => toggleReference(reference.id)} className="flex min-h-12 min-w-0 w-full items-center justify-between gap-3 border-b py-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"><span className="min-w-0"><span className="block truncate">{reference.material?.title ?? 'Material indisponível'}</span><span className="block text-xs text-muted-foreground">{reference.material?.kind === 'full_text' ? 'Inteiro teor' : 'Ementa'} · {reference.material?.tribunal ?? 'Fonte indisponível'}</span></span><span className="shrink-0 text-xs text-subtle-foreground">{reference.material?.localAllowed && reference.material.materialStatus === 'ready' ? 'Selecionar' : 'Indisponível'}</span></button>)}
           </div>
         </div>
-      </div>
-    </div>
+    </section>
   );
 }

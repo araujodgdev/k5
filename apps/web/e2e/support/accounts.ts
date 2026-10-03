@@ -29,12 +29,12 @@ export class ApiSession {
   /** The session cookies, for handing this sign-in to the browser. */
   get cookieList() { return [...this.cookies].map(([name, value]) => ({ name, value })); }
 
-  async request(path: string, init: { method?: string; json?: unknown; origin?: string } = {}) {
+  async request(path: string, init: { method?: string; json?: unknown; form?: FormData; origin?: string } = {}) {
     const response = await fetch(new URL(path, this.baseUrl), {
-      method: init.method ?? (init.json === undefined ? 'GET' : 'POST'),
+      method: init.method ?? (init.json === undefined && init.form === undefined ? 'GET' : 'POST'),
       // State-changing calls need a trusted Origin; `origin` overrides it to prove that check.
       headers: { origin: init.origin ?? new URL(this.baseUrl).origin, 'x-e2e-client': this.client, ...(init.json === undefined ? {} : { 'content-type': 'application/json' }), ...(this.cookies.size ? { cookie: [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; ') } : {}) },
-      body: init.json === undefined ? undefined : JSON.stringify(init.json),
+      body: init.form ?? (init.json === undefined ? undefined : JSON.stringify(init.json)),
       redirect: 'manual',
     });
     for (const header of response.headers.getSetCookie()) {

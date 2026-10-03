@@ -8,13 +8,16 @@ import { objectStorage, storageKey } from '@/lib/storage';
 import {
   assertVaultDocumentMove, countVaultDocuments, createVaultDocument, createVaultCase, createVaultFolder, deleteVaultFolder, findVaultCase,
   findVaultDocument, findVaultDocumentIncludingDeleted, findVaultFolder, listVaultCases, listVaultDocuments,
-  listVaultFolders, retryVaultDocument, updateVaultCase, updateVaultFolderAccess, vaultFolderPath, VaultHttpError,
+  listVaultFolders, retryVaultDocument, updateVaultCase, updateVaultFolderAccess, vaultFolderPath, VaultHttpError, type VaultOriginKind,
 } from '@/lib/vault';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
 import { requireAgentApproval, requireAndConsumeApproval } from './approvals-service';
-import { consumeUploadRef, releaseUploadRef } from './uploads-service';
+import { consumeUploadRef, releaseUploadRef, validatedFileName } from './uploads-service';
+import { ownedArtifact } from '@/lib/ai-store';
+import { artifactVaultFile, DOCX_FILE_MIME, PDF_MIME } from '@/lib/artifact-file';
+import { DocumentPdfError } from '@/lib/document-pdf-contract';
 import { enqueueDeletion } from '@/lib/knowledge/indexing';
 import { searchKnowledgeEngine } from '@/lib/knowledge/retrieval';
 
@@ -318,11 +321,10 @@ export async function ingestUpload(context: WorkspaceContext, input: CapabilityI
   }
 }
 
-export async function importChatAttachment(context: WorkspaceContext, input: CapabilityInput<'k5_vault_import_chat_attachment'>): Promise<CapabilityOutput<'k5_vault_import_chat_attachment'>> {
-  const sourceOffice = context.caseScope?.homeOfficeId ?? context.officeId;
-  const attachment = await ownedChatAttachment({ officeId: sourceOffice, userId: context.userId }, input.attachmentId);
-  if (!context.conversationId || !attachment || attachment.conversation_id !== context.conversationId || !attachment.message_id)
-    throw new CapabilityError('NOT_FOUND', 'Anexo indisponível nesta conversa.');
+type VaultDestination = { scope: 'library' | 'case'; caseId?: string; folderId?: string | null };
+
+/** The destination is checked against the person's access; a folder only exists inside its case. */
+async function requireDestination(context: WorkspaceContext, input: VaultDestination) {
   if (input.scope === 'case' && (!input.caseId || !await findVaultCase(context.officeId, input.caseId, context.userId)))
     throw new CapabilityError('NOT_FOUND', 'Escolha um caso disponível para o documento.');
   if (input.scope === 'library' && (input.caseId || input.folderId)) throw new CapabilityError('INVALID', 'Uma pasta de caso não pertence à Biblioteca.');
@@ -330,7 +332,18 @@ export async function importChatAttachment(context: WorkspaceContext, input: Cap
     const folder = await findVaultFolder(context.officeId, input.folderId, context.userId);
     if (!folder || folder.caseId !== input.caseId) throw new CapabilityError('NOT_FOUND', 'Pasta indisponível neste caso.');
   }
-  const identity = JSON.stringify([sourceOffice, context.userId, attachment.id, context.officeId, input.scope, input.caseId ?? null, input.folderId ?? null]);
+}
+
+/**
+ * Copies a file the chat holds into the Vault under its own storage key. The document id derives
+ * from the source and the destination, so a repeated request returns the same copy.
+ */
+async function copyIntoVault(context: WorkspaceContext, input: VaultDestination, source: {
+  identity: unknown[]; origin: { kind: VaultOriginKind; id: string; version?: number };
+  name: string; mimeType: string; extension: string; bytes: () => Promise<Uint8Array>;
+}) {
+  await requireDestination(context, input);
+  const identity = JSON.stringify([...source.identity, context.officeId, input.scope, input.caseId ?? null, input.folderId ?? null]);
   const digest = createHash('sha256').update(identity).digest('hex');
   const documentId = `${digest.slice(0,8)}-${digest.slice(8,12)}-5${digest.slice(13,16)}-a${digest.slice(17,20)}-${digest.slice(20,32)}`;
   const reuse = async (existing: NonNullable<Awaited<ReturnType<typeof findVaultDocumentIncludingDeleted>>>) => {
@@ -341,15 +354,15 @@ export async function importChatAttachment(context: WorkspaceContext, input: Cap
   };
   const existing = await findVaultDocumentIncludingDeleted(context.officeId, documentId);
   if (existing) return reuse(existing);
+  const bytes = Buffer.from(await source.bytes());
   const storage = await objectStorage();
-  const bytes = await storage.get(attachment.storage_key);
-  const key = storageKey(context.officeId, randomUUID(), extname(attachment.name).toLowerCase());
+  const key = storageKey(context.officeId, randomUUID(), source.extension);
   await storage.put(key, bytes);
   try {
     await createVaultDocument(context.officeId, context.userId, {
-      id: documentId, storageKey: key, originalName: attachment.name, mimeType: attachment.media_type,
+      id: documentId, storageKey: key, originalName: source.name, mimeType: source.mimeType,
       byteSize: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
-    }, { ...input, documentId, origin: { kind: 'chat_attachment', id: attachment.id } });
+    }, { ...input, documentId, origin: source.origin });
   } catch (error) {
     // The deterministic primary key serializes competing inserts. A retry also reconciles a
     // committed batch whose response was lost, without deleting that batch's stored original.
@@ -359,6 +372,42 @@ export async function importChatAttachment(context: WorkspaceContext, input: Cap
     throw asCapabilityError(error);
   }
   return getDocument(context, { documentId });
+}
+
+export async function importChatAttachment(context: WorkspaceContext, input: CapabilityInput<'k5_vault_import_chat_attachment'>): Promise<CapabilityOutput<'k5_vault_import_chat_attachment'>> {
+  const sourceOffice = context.caseScope?.homeOfficeId ?? context.officeId;
+  const attachment = await ownedChatAttachment({ officeId: sourceOffice, userId: context.userId }, input.attachmentId);
+  if (!context.conversationId || !attachment || attachment.conversation_id !== context.conversationId || !attachment.message_id)
+    throw new CapabilityError('NOT_FOUND', 'Anexo indisponível nesta conversa.');
+  return copyIntoVault(context, input, {
+    identity: [sourceOffice, context.userId, attachment.id], origin: { kind: 'chat_attachment', id: attachment.id },
+    name: attachment.name, mimeType: attachment.media_type, extension: extname(attachment.name).toLowerCase(),
+    bytes: async () => (await objectStorage()).get(attachment.storage_key),
+  });
+}
+
+/**
+ * Saves the current version of a Lume document to the Vault as PDF or DOCX. Each version, format
+ * and destination is one copy; a later version becomes a new document, never a silent overwrite.
+ */
+export async function saveArtifactToVault(context: WorkspaceContext, input: CapabilityInput<'k5_vault_save_artifact'>): Promise<CapabilityOutput<'k5_vault_save_artifact'>> {
+  const owner = { officeId: context.caseScope?.homeOfficeId ?? context.officeId, userId: context.userId };
+  const artifact = await ownedArtifact(database, owner, input.artifactId);
+  if (!artifact) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
+  if (artifact.version !== input.version) throw new CapabilityError('CONFLICT', 'O documento mudou. Leia a versão atual antes de salvar no Cofre.');
+  const format = input.format ?? 'pdf';
+  // A slash in a title is text, not a path: validatedFileName keeps only the last path segment.
+  const file = validatedFileName(`${artifact.title.replace(/[\\/]/g, '_').trim() || 'Documento'}.${format}`).file;
+  const name = file.length > 200 ? `${file.slice(0, 195)}.${format}` : file;
+  return copyIntoVault(context, input, {
+    identity: [owner.officeId, context.userId, 'artifact', artifact.id, artifact.version, format],
+    origin: { kind: format === 'pdf' ? 'artifact_pdf' : 'artifact_docx', id: artifact.id, version: artifact.version },
+    name, mimeType: format === 'pdf' ? PDF_MIME : DOCX_FILE_MIME, extension: `.${format}`,
+    bytes: async () => {
+      try { return (await artifactVaultFile(owner, artifact, format)).bytes; }
+      catch (error) { throw error instanceof DocumentPdfError ? new CapabilityError('NOT_READY', error.message) : error; }
+    },
+  });
 }
 
 export async function searchKnowledge(context: WorkspaceContext, input: CapabilityInput<'k5_knowledge_search'>): Promise<CapabilityOutput<'k5_knowledge_search'>> {

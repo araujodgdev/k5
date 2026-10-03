@@ -276,6 +276,13 @@ export const capabilities = {
     input: z.object({ attachmentId: uuid, scope: z.enum(['library', 'case']), caseId: identifier.optional(), folderId: identifier.nullish() }),
     output: z.object({ document: documentDto }),
   },
+  k5_vault_save_artifact: {
+    module: 'vault', effect: 'write', publish: ['agent'],
+    description: 'Salva no Cofre a versão atual de um documento do Lume, em PDF (layout A4 do Lume) ou DOCX (com o modelo Word), na Biblioteca ou num caso e pasta. Use quando a pessoa pedir para guardar o documento no Cofre. Repetir a mesma versão, formato e destino devolve a cópia existente; uma nova versão vira outro arquivo.',
+    input: z.object({ artifactId: identifier, version: z.number().int().positive(), format: z.enum(['pdf', 'docx']).default('pdf'),
+      scope: z.enum(['library', 'case']), caseId: identifier.optional(), folderId: identifier.nullish() }),
+    output: z.object({ document: documentDto }),
+  },
   k5_vault_list_folders: {
     module: 'vault', effect: 'read',
     description: 'Lista as subpastas de um caso. Sem parentId, devolve as pastas da raiz do caso.',

@@ -35,3 +35,24 @@ export function setConversationMessages(email: string, conversationId: string, m
     if (rowCount !== 1) throw new Error(`Conversa ${conversationId} não encontrada para ${email}.`);
   });
 }
+
+/** A document the Lume wrote in a conversation, as k5_artifacts_create leaves it. */
+export function seedConversationDocument(email: string, conversationId: string, title: string, content: string) {
+  return withClient(async client => {
+    const { user_id, office_id } = await owner(client, email);
+    const artifactId = randomUUID();
+    await client.query(`INSERT INTO ai_artifact(id,office_id,user_id,run_id,title,content,kind,conversation_id,created_by_agent)
+      VALUES($1,$2,$3,NULL,$4,$5,'document',$6,true)`, [artifactId, office_id, user_id, title, content, conversationId]);
+    await client.query('INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id) VALUES($1,1,$2,$3,$4)', [artifactId, title, content, user_id]);
+    return artifactId;
+  });
+}
+
+/** Ties an uploaded chat file to a sent message, as sending the message does. */
+export function claimChatAttachment(email: string, attachmentId: string) {
+  return withClient(async client => {
+    const { user_id } = await owner(client, email);
+    const { rowCount } = await client.query("UPDATE ai_chat_attachment SET message_id='e2e-message' WHERE id=$1 AND user_id=$2", [attachmentId, user_id]);
+    if (rowCount !== 1) throw new Error(`Anexo ${attachmentId} não encontrado para ${email}.`);
+  });
+}

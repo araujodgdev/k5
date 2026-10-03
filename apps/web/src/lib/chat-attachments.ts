@@ -47,7 +47,7 @@ export async function createChatAttachment(owner: Owner, conversationId: string,
     // A Word file of pasted screenshots has no text, but the model reads its pictures (chat-prompt.ts).
     const pictures=mimeType===DOCX_MIME?docxImages(bytes).images.length:0;
     if (!extracted.trim() && !pictures) throw new CapabilityError('INVALID','O arquivo não contém texto legível. Envie uma foto ou outro arquivo.');
-    if (extracted.length>MAX_CHAT_FILE_TEXT) throw new CapabilityError('INVALID','Este arquivo é longo demais para um anexo de chat. Adicione-o ao Cofre e selecione-o em Fontes.');
+    if (extracted.length>MAX_CHAT_FILE_TEXT) throw new CapabilityError('INVALID','Este arquivo é longo demais para um anexo de chat. Adicione-o ao Cofre e selecione-o em Artefatos.');
   }
   const key=storageKey(owner.officeId,id,extension);
   const storage=await objectStorage();
