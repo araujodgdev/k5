@@ -124,8 +124,8 @@ Envio de e-mail e WhatsApp, Mensagens, estornos e exclusões já exigiam confirm
 
 **Situação anterior.** A auditoria listou as lacunas, mas sem desenho nem sequência.
 
-**Feito.** —
+**Feito.** O plano em [plano-competitivo-jusfy-projuris.md](plano-competitivo-jusfy-projuris.md) foi proposto pelo Codex (gpt-6.1-sol, esforço high) e revisado pelo Claude. Ele traz nove lacunas com o que já existe no código, o mínimo viável, o esforço e o critério de aceite, além de ondas de 0–30, 30–90 e 90–180 dias e uma lista do que não fazer.
 
-**Pendente.** Consolidar com o Codex (gpt-6.1-sol, esforço high).
+**Pendente.** Decisão de preço (R$ 199 contra Jusfy Ultimate a R$ 117) e escolha do tribunal piloto pela carteira dos primeiros usuários.
 
-**Decisões.** —
+**Decisões.** A prioridade é fechar o ciclo publicação → revisão → tarefa/prazo → documento → cliente antes de calculadoras, acervo e financeiro. O DJEN começa pela captura por OAB, se a homologação confirmar o filtro. O cálculo de prazo é determinístico, nunca feito por LLM, e sempre confirmado pelo advogado.
