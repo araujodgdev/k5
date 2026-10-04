@@ -48,3 +48,10 @@ export const auth = {
   get api() { return currentAuth().api; },
   handler(request: Request) { return currentAuth().handler(request); },
 };
+
+/** Checks the person's current password with Better Auth's own hashing, for steps that cannot be undone. */
+export async function verifyCurrentPassword(userId: string, password: string) {
+  const context = await currentAuth().$context;
+  const account = await context.internalAdapter.findCredentialAccount(userId);
+  return Boolean(account?.password && password && await context.password.verify({ hash: account.password, password }));
+}

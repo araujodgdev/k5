@@ -12,6 +12,7 @@ import { authClient } from '@/lib/auth-client';
 import { avatarMaxBytes, avatarSize, profileInput, type ProfileCard, type ProfileInput } from '@/lib/profile-contract';
 import { Avatar } from './avatar';
 import { ProfileSummary } from './person-card';
+import { DataSection, type DeletionRequest } from './data-section';
 
 type Fields = ProfileInput;
 const fieldsOf = (profile: ProfileCard): Fields => ({ name: profile.name, headline: profile.headline, oab: profile.oab, location: profile.location, bio: profile.bio });
@@ -73,7 +74,7 @@ function authMessage(error: { status?: number; code?: string } | null | undefine
   return fallback;
 }
 
-export function ProfilePage({ initial }: { initial: ProfileCard }) {
+export function ProfilePage({ initial, deletion }: { initial: ProfileCard; deletion: DeletionRequest | null }) {
   const router = useRouter();
   const [profile, setProfile] = useState(initial);
   const [fields, setFields] = useState<Fields>(() => fieldsOf(initial));
@@ -189,6 +190,7 @@ export function ProfilePage({ initial }: { initial: ProfileCard }) {
       </section>
 
       <Access email={profile.email} onEmailChanged={email => { setProfile(current => ({ ...current, email })); router.refresh(); }} />
+      <DataSection initial={deletion} />
     </Reveal>
   );
 }
