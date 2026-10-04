@@ -6,11 +6,18 @@ Origem: [auditoria de 03/10/2026](auditoria-lancamento-mvp-2026-10-03.md) e deci
 
 **Situação anterior.** A memória Honcho foi ativada em produção em 03/10 (`d5ca2fc`), mas não aparecia em `/politica-privacidade` nem em `/termos-de-uso`. Recebe linhas da memória de trabalho do Lume, que podem conter informações de clientes.
 
-**Feito.** —
+**Feito.** A versão 1.1 dos documentos legais, de 03/10/2026, passou a ficar centralizada em `src/lib/legal-version.ts`. Na política de privacidade, a seção de IA explica:
+- o que a memória guarda;
+- que as linhas novas vão para a Honcho (Plastic Labs, EUA), em espaços com identificadores opacos;
+- que a separação entre memória e dados de clientes depende do modelo;
+- como consultar e apagar a memória;
+- as condições do fornecedor: backups de 90 dias e uso de dados desidentificados.
 
-**Pendente.** Toda a frente.
+A Honcho também entrou na lista de destinatários. Nos termos, a seção de IA orienta a não pedir que a memória guarde dados de clientes.
 
-**Decisões.** O responsável optou por divulgar a Honcho como suboperadora em vez de desligá-la.
+**Pendente.** Contrato/DPA com a Honcho e confirmação do mecanismo de transferência internacional. As versões publicadas exigem aceite, que é feito na frente 7.
+
+**Decisões.** O responsável optou por divulgar a Honcho como suboperadora em vez de desligá-la. Não existe botão para apagar a memória; o texto descreve o caminho real, que é pedir ao Lume na conversa.
 
 ## Frente 2 — Headers de segurança (clickjacking)
 

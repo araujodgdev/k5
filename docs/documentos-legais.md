@@ -1,6 +1,6 @@
 # Documentos legais do Lume
 
-Versão inicial: 29/09/2026. Rotas públicas, independentes de autenticação:
+Versão inicial: 29/09/2026. Versão 1.1: 03/10/2026, com a Honcho (memória do assistente) na política de privacidade e nos termos. A versão e a data vêm de `apps/web/src/lib/legal-version.ts`. Rotas públicas, independentes de autenticação:
 
 - `/termos-de-uso`
 - `/politica-privacidade`

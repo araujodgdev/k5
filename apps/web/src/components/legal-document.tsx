@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { LumeMark } from "@/components/lume-mark";
 import { ThemeSwitch } from "@/components/theme-provider";
+import { LEGAL_UPDATED_AT, LEGAL_UPDATED_LABEL, LEGAL_VERSION } from "@/lib/legal-version";
 
 export type LegalSection = {
   id: string;
@@ -30,10 +31,10 @@ export function LegalDocument({ title, introduction, sections }: {
       </header>
       <main id="documento" tabIndex={-1} className="mx-auto max-w-7xl outline-none">
         <div id="inicio" className="border-b border-line px-5 py-12 md:px-10 md:py-16">
-          <p className="label-mono mb-5 text-muted-foreground">Documentos legais · Versão 1.0</p>
+          <p className="label-mono mb-5 text-muted-foreground">Documentos legais · Versão {LEGAL_VERSION}</p>
           <h1 className="display max-w-4xl text-[clamp(40px,6vw,80px)]">{title}</h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed">{introduction}</p>
-          <p className="mt-6 text-sm text-muted-foreground">Última atualização: <time dateTime="2026-09-29">29 de setembro de 2026</time></p>
+          <p className="mt-6 text-sm text-muted-foreground">Última atualização: <time dateTime={LEGAL_UPDATED_AT}>{LEGAL_UPDATED_LABEL}</time></p>
         </div>
         <div className="grid lg:grid-cols-[280px_minmax(0,1fr)] print:block">
           <nav aria-label="Índice do documento" className="border-b border-line px-5 py-8 lg:border-r lg:border-b-0 lg:px-10 print:hidden">
