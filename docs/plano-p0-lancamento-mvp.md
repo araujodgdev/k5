@@ -68,11 +68,29 @@ Nenhuma outra página pública repetia essas promessas.
 
 **Situação anterior.** Não havia restauração ensaiada de PostgreSQL, R2, chaves e índices.
 
-**Feito.** —
+**Feito.**
+- **Conferência da cópia.** `pnpm --filter @k5/web restore:check` lê uma cópia restaurada, apontada por `K5_ENV_FILE` (padrão `.env.restore`), e confere:
+  - se as migrações aplicadas são as do código, sem pendentes, alteradas ou desconhecidas;
+  - se os originais do Cofre existem no R2 com o mesmo SHA-256 (por amostra ou todos);
+  - se `K5_CREDENTIALS_KEY` abre cada coluna `encrypted_*`;
+  - se cada documento pronto tem trechos indexados.
 
-**Pendente.** Toda a frente.
+  Também informa a escrita mais recente da cópia, que mede o RPO. Só lê, e termina com código 1 se algo falhar (`lib/restore-check.ts`, `scripts/restore-check.ts`). Teste: `tests/restore-check.test.ts`.
+- **Runbook.** [restauracao-ensaiada.md](restauracao-ensaiada.md) explica onde cada parte vive (PlanetScale, R2, chaves, Vectorize, Honcho), como restaurar o backup num branch isolado, o que fazer com o relatório, como medir RPO e RTO e onde registrar cada ensaio.
+- **Ensaio da ferramenta.** Rodou numa instância isolada com as 70 migrações e terminou com `ok: true` em 274 ms.
 
-**Decisões.** Adiada pelo responsável para depois das demais frentes.
+**Pendente.** O ensaio com o backup de produção:
+- restaurar o backup da PlanetScale num branch;
+- rodar `restore:check --sample all` com um token R2 somente leitura;
+- registrar RPO e RTO no runbook.
+
+Antes disso, guardar `K5_CREDENTIALS_KEY` fora da conta Cloudflare.
+
+**Decisões.**
+- Adiada pelo responsável para depois das demais frentes; a ferramenta e o runbook foram feitos no fim desta branch.
+- O ensaio com dados de produção fica com o responsável, como o expurgo da frente 7: exige credenciais da PlanetScale e do R2.
+- A busca semântica não tem backup próprio: os vetores são reconstruídos dos trechos do banco.
+- A memória Honcho não é restaurada, porque deriva da memória de trabalho.
 
 ## Frente 6 — Incidente LUME-1E (ingestão de PDF)
 
