@@ -88,11 +88,16 @@ Nenhuma outra página pública repetia essas promessas.
 - O primeiro uso do Lume não avisava que o conteúdo enviado chega aos provedores de IA sem anonimização.
 - Criptografia do Cofre: os originais ficam no R2 e o texto extraído no PostgreSQL (PlanetScale). Os dois provedores cifram os dados em repouso com chaves que eles mesmos gerenciam. Não existe cifra na aplicação por escritório. As credenciais de integrações usam AES-256-GCM na aplicação.
 
-**Feito.** —
+**Feito.**
+- **7A — aviso de IA.** No primeiro acesso a `/app/agents`, a tela "Antes de usar o Lume" substitui o chat até a pessoa clicar em "Entendi". Ela explica que o que é escrito, anexado e consultado vai aos provedores de IA sem anonimização, pede cuidado com sigilo, base legal e dados sensíveis, e lembra de conferir as respostas (`components/legal-gate.tsx`). A ciência fica registrada com a versão do aviso.
+- **7B — aceite versionado.** A tabela `legal_acceptance` (`0069`) registra pessoa, documento, versão, data, IP (o da borda Cloudflare) e navegador. O cadastro e o convite do portal têm a caixa obrigatória "Li e aceito…", e o servidor grava a versão marcada (`auth-core.ts`). Quem não tem a versão atual vê "Antes de continuar" ou "Atualizamos os termos" antes de `/app` e de `/client`. Basta subir `LEGAL_VERSION` para pedir novo aceite a todos. Testes: `tests/auth.test.ts`; e2e `e2e/legal-acceptance.e2e.ts` (passou no verify-k5, desktop e 390 px).
 
-**Pendente.** Toda a frente.
+**Pendente.** 7C (exportação) e 7D (exclusão), registrados abaixo quando concluídos. O e2e do portal (`client-portal.e2e.ts`) depende de conversão de PDF e não roda no verify-k5; fica para a CI.
 
-**Decisões.** —
+**Decisões.**
+- Aceite dos termos e ciência do aviso de IA ficam na mesma tabela, com documentos distintos.
+- O aviso aparece no módulo Lume e não em outros pontos com IA (e-mails, documentos), conforme pedido. A API do chat não bloqueia quem ainda não deu ciência; a barreira é a tela.
+- Criptografia do Cofre: os originais (R2) e o texto extraído (PostgreSQL) ficam cifrados em repouso pelos provedores, com chaves deles. Cifra por escritório na aplicação protegeria contra acesso indevido ao bucket ou ao banco, mas não contra a própria aplicação. Para o texto extraído, impediria a busca textual no PostgreSQL. A recomendação é cifrar na aplicação só os originais no R2, com chave por escritório (envelope), em frente própria depois da restauração ensaiada, porque perder a chave significa perder os documentos.
 
 ## Frente 8 — Prompt injection: filtro fail-closed
 

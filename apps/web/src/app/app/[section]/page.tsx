@@ -9,6 +9,8 @@ import { conversationBootstrap } from "@/lib/ai-store";
 import { planTaskModel } from "@/lib/ai-connections";
 import { planReadsImages } from "@/lib/ai-assignments-core";
 import { caseAccess } from '@/lib/collaboration/access';
+import { AiDataNotice } from '@/components/legal-gate';
+import { hasAcceptedCurrent } from '@/lib/legal-acceptance';
 
 type Props = { params: Promise<{ section: string }>; searchParams: Promise<{ conversationId?: string; caseId?: string }> };
 
@@ -23,6 +25,8 @@ export default async function SectionPage({ params, searchParams }: Props) {
   const item = appNavigation.find((entry) => entry.slug === section);
   if (!item) notFound();
   if (item.slug === "agents") {
+    // The first visit to the Lume explains, once, what reaches the AI providers and how.
+    if (!await hasAcceptedCurrent(database, user.id, 'ai_notice')) return <AiDataNotice />;
     const { conversationId, caseId } = await searchParams;
     if (caseId) await caseAccess(user.id, caseId);
     const [history, chat, transcription] = await Promise.allSettled([

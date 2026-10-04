@@ -10,11 +10,17 @@ import { isAdsEnabled } from '@/lib/ads/rollout';
 import { avatarUrl } from '@/lib/profile-contract';
 import { OnboardingTour } from '@/components/onboarding-tour';
 import { DocumentDraftsProvider } from '@/components/document/document-drafts-provider';
+import { TermsGate } from '@/components/legal-gate';
+import { hasAcceptedAny, hasAcceptedCurrent } from '@/lib/legal-acceptance';
+import { LEGAL_UPDATED_LABEL, LEGAL_VERSION } from '@/lib/legal-version';
 
 const platformAdminFor = cache((userId: string) => isPlatformAdmin(database, userId));
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { office, user } = await requireWorkspace();
+  // Nothing of the office opens before the current Termos de uso and Política de privacidade are accepted.
+  if (!await hasAcceptedCurrent(database, user.id, 'terms'))
+    return <TermsGate version={LEGAL_VERSION} updatedLabel={LEGAL_UPDATED_LABEL} firstTime={!await hasAcceptedAny(database, user.id, 'terms')} />;
   const [whatsappEnabled, adsEnabled] = await Promise.all([
     isWhatsAppEnabled(office.officeId), isAdsEnabled({ officeId: office.officeId, userId: user.id }),
   ]);

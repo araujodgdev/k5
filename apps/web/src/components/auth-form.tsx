@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage, signInSchema, signUpSchema } from "@/lib/auth-validation";
+import { LEGAL_VERSION } from "@/lib/legal-version";
 
 export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "sign-up"; invite?: string; messageClaim?: string }) {
   const router = useRouter();
@@ -42,6 +43,12 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
       if (input instanceof HTMLElement) input.focus();
       return;
     }
+    if (isSignUp && values.acceptTerms !== "on") {
+      setFieldErrors({ acceptTerms: "Para criar a conta, aceite os Termos de uso e a Política de privacidade." });
+      const input = event.currentTarget.elements.namedItem("acceptTerms");
+      if (input instanceof HTMLElement) input.focus();
+      return;
+    }
     if (isSignUp && values.password !== values.confirmPassword) {
       setFieldErrors({ confirmPassword: "As senhas precisam ser iguais." });
       const input = event.currentTarget.elements.namedItem("confirmPassword");
@@ -52,8 +59,10 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
     const destination = invite ? `/invite/${encodeURIComponent(invite)}` : messageClaim ? `/messages/claim/${encodeURIComponent(messageClaim)}` : '/app';
     try {
       // The confirmation link sent by e-mail returns to the same place the form would have.
+      // The ticked version travels with the sign-up; the server records it with the new account.
+      const signUp = () => ({ ...signUpSchema.parse(values), callbackURL: destination, acceptedLegalVersion: LEGAL_VERSION });
       const result = isSignUp
-        ? await authClient.signUp.email({ ...signUpSchema.parse(values), callbackURL: destination })
+        ? await authClient.signUp.email(signUp())
         : await authClient.signIn.email({ ...signInSchema.parse(values), callbackURL: destination });
       if (result.error) {
         setError(result.error.status === 429 ? authErrorMessage("TOO_MANY_REQUESTS") : authErrorMessage(result.error.code));
@@ -141,11 +150,19 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
                 {fieldError("confirmPassword")}
               </div>}
               {error && <p className="flex items-start gap-2 text-destructive text-sm" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {isSignUp ? "Antes de criar sua conta, leia os " : "Consulte os "}
+              {isSignUp ? <div className="grid gap-1.5">
+                <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-relaxed">
+                  <input id="acceptTerms" name="acceptTerms" type="checkbox" className="mt-1 size-4 shrink-0 accent-foreground"
+                    aria-invalid={!!fieldErrors.acceptTerms} aria-describedby={fieldErrors.acceptTerms ? "acceptTerms-error" : undefined} />
+                  <span>Li e aceito os <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Termos de uso<span className="sr-only"> (abre em nova aba)</span></Link>
+                    {" e a "}<Link href="/politica-privacidade" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Política de privacidade<span className="sr-only"> (abre em nova aba)</span></Link>.</span>
+                </label>
+                {fieldError("acceptTerms")}
+              </div> : <p className="text-sm leading-relaxed text-muted-foreground">
+                {"Consulte os "}
                 <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Termos de uso<span className="sr-only"> (abre em nova aba)</span></Link>
                 {" e a "}<Link href="/politica-privacidade" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Política de privacidade<span className="sr-only"> (abre em nova aba)</span></Link>.
-              </p>
+              </p>}
               <Button type="submit" size="lg" className="mt-3 h-12 w-full justify-between px-4 text-[15px] md:h-12">
                 {pending ? (isSignUp ? "Criando conta…" : "Entrando…") : (isSignUp ? "Criar conta" : "Entrar")}
                 {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />}

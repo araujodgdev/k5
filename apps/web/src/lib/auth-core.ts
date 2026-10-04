@@ -8,6 +8,8 @@ import { ensureOfficeForUser } from "./offices";
 import { revokePushSubscriptionsForUser } from "./notifications/revocation";
 import { clientRegistration } from './client-portal/registration';
 import { portalInvitation, acceptPortalInvitation } from './client-portal/invitations';
+import { recordAcceptance } from './legal-acceptance';
+import { LEGAL_VERSION } from './legal-version';
 
 /** Better Auth uses the same PostgreSQL pool as the business-data adapter. */
 export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
@@ -115,7 +117,10 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       }),
     },
     databaseHooks: {
-      user: { create: { before: async (user) => ({ data: { ...user, accountKind: clientRegistration() ? 'client' : 'office' } }), after: async (user) => {
+      user: { create: { before: async (user) => ({ data: { ...user, accountKind: clientRegistration() ? 'client' : 'office' } }), after: async (user, ctx) => {
+        // The sign-up forms send the version the person ticked; the app asks anyone else on entry.
+        if ((ctx?.body as { acceptedLegalVersion?: unknown } | undefined)?.acceptedLegalVersion === LEGAL_VERSION)
+          await recordAcceptance(db, user.id, 'terms', ctx?.request?.headers ?? ctx?.headers);
         const registration = clientRegistration();
         if (registration) { await acceptPortalInvitation(db, registration.token, user); return; }
         await ensureOfficeForUser(db, { id: user.id, officeName: (user as typeof user & { officeName: string }).officeName });

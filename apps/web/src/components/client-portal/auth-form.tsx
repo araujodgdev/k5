@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Failure, Field } from '@/components/honorarios/fields';
 import { portalCall } from './client';
+import { LEGAL_VERSION } from '@/lib/legal-version';
 
 type Props = { mode: 'sign-in'; invite?: string } | { mode: 'invite'; token: string; email: string; officeName: string; clientName: string; signedInEmail?: string };
 export function PortalAuthForm(props: Props) {
@@ -22,6 +23,7 @@ export function PortalAuthForm(props: Props) {
     event.preventDefault(); if (pending) return;
     const data = new FormData(event.currentTarget);
     if (props.mode === 'invite' && !props.signedInEmail && password !== confirm) { setError('As senhas precisam ser iguais.'); return; }
+    if (props.mode === 'invite' && !props.signedInEmail && data.get('acceptTerms') !== 'on') { setError('Para criar o acesso, aceite os Termos de uso e a Política de privacidade.'); return; }
     setPending(true); setError('');
     try {
       if (props.mode === 'sign-in') {
@@ -29,7 +31,7 @@ export function PortalAuthForm(props: Props) {
         if (result.error) throw new Error(authErrorMessage(result.error.code));
         router.replace(props.invite ? `/client/invite/${encodeURIComponent(props.invite)}` : '/client'); router.refresh();
       } else if (props.mode === 'invite') {
-        const result = await portalCall(`/api/client-portal/invitations/${encodeURIComponent(props.token)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: data.get('name'), password }) });
+        const result = await portalCall(`/api/client-portal/invitations/${encodeURIComponent(props.token)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: data.get('name'), password, acceptedLegalVersion: LEGAL_VERSION }) });
         // A new account waits for the e-mail confirmation where it is required: no session yet.
         if (!props.signedInEmail && result && typeof result === 'object' && 'token' in result && !result.token) { setSentTo(props.email); return; }
         router.replace('/client'); router.refresh();
@@ -54,6 +56,10 @@ export function PortalAuthForm(props: Props) {
         {props.mode === 'sign-in' && <Field label="E-mail">{id => <Input id={id} className="min-h-11" name="email" type="email" required maxLength={254} autoComplete="email" />}</Field>}
         {(props.mode === 'sign-in' || !props.signedInEmail) && <Field label={props.mode === 'sign-in' ? 'Senha' : 'Nova senha'}>{id => <Input id={id} className="min-h-11" name="password" type="password" required minLength={props.mode === 'sign-in' ? 1 : 8} maxLength={128} autoComplete={props.mode === 'sign-in' ? 'current-password' : 'new-password'} value={password} onChange={event => setPassword(event.target.value)} />}</Field>}
         {props.mode === 'invite' && !props.signedInEmail && <Field label="Confirmar nova senha">{id => <Input id={id} className="min-h-11" type="password" required minLength={8} maxLength={128} autoComplete="new-password" value={confirm} onChange={event => setConfirm(event.target.value)} />}</Field>}
+        {props.mode === 'invite' && !props.signedInEmail && <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-relaxed">
+          <input name="acceptTerms" type="checkbox" className="mt-1 size-4 shrink-0 accent-foreground" />
+          <span>Li e aceito os <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Termos de uso<span className="sr-only"> (abre em nova aba)</span></Link> e a <Link href="/politica-privacidade" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Política de privacidade<span className="sr-only"> (abre em nova aba)</span></Link>.</span>
+        </label>}
         <Button type="submit" className="min-h-11 justify-self-start">{pending ? 'Aguarde…' : props.mode === 'sign-in' ? 'Entrar no portal' : props.signedInEmail ? 'Aceitar convite' : 'Criar acesso ao portal'}</Button>
       </fieldset>
     </form>}

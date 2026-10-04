@@ -6,6 +6,8 @@ import { createAuth } from "../src/lib/auth-core";
 import { ensureOfficeForUser, findOfficeForUser } from "../src/lib/offices";
 import { withClientRegistration } from '../src/lib/client-portal/registration';
 import { invitationHash } from '../src/lib/client-portal/invitations';
+import { hasAcceptedCurrent } from '../src/lib/legal-acceptance';
+import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 const origin = "http://localhost:3000";
 const password = "Senha-teste-2026!";
@@ -74,6 +76,17 @@ test('where e-mail can be delivered, an account signs in only after confirming i
   const cookie = confirmed.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
   assert.equal((await request('/get-session', undefined, cookie)).data.user.email, 'confirma@example.test', 'the link signs the person in');
   assert.equal((await request('/sign-in/email', { email: 'confirma@example.test', password })).response.status, 200);
+});
+
+test('sign-up records the accepted version of the terms, and only the version this server publishes', async () => {
+  const { db, signup } = await fixture();
+  const accepted = await signup('aceite@example.test', { acceptedLegalVersion: LEGAL_VERSION });
+  const row = await db.prepare("SELECT version FROM legal_acceptance WHERE user_id=? AND document='terms'").get<{ version: string }>(accepted.data.user.id);
+  assert.equal(row?.version, LEGAL_VERSION);
+  assert.equal(await hasAcceptedCurrent(db, accepted.data.user.id, 'terms'), true);
+  const stale = await signup('antiga@example.test', { acceptedLegalVersion: '0.9' });
+  const plain = await signup('sem-aceite@example.test');
+  for (const user of [stale.data.user.id, plain.data.user.id]) assert.equal(await hasAcceptedCurrent(db, user, 'terms'), false, 'the app asks again on entry');
 });
 
 test('disabled password delivery does not disclose whether an address is registered', async () => {
