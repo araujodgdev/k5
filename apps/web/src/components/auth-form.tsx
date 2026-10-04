@@ -23,6 +23,7 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [passwordFocus, setPasswordFocus] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   // The light answers the form: it gathers while the password is typed, flares on submit, cools on an error.
   const mood = error ? "error" : pending ? "submit" : passwordFocus ? "focus" : "idle";
 
@@ -48,16 +49,24 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
       return;
     }
     setPending(true);
+    const destination = invite ? `/invite/${encodeURIComponent(invite)}` : messageClaim ? `/messages/claim/${encodeURIComponent(messageClaim)}` : '/app';
     try {
+      // The confirmation link sent by e-mail returns to the same place the form would have.
       const result = isSignUp
-        ? await authClient.signUp.email(signUpSchema.parse(values))
-        : await authClient.signIn.email(signInSchema.parse(values));
+        ? await authClient.signUp.email({ ...signUpSchema.parse(values), callbackURL: destination })
+        : await authClient.signIn.email({ ...signInSchema.parse(values), callbackURL: destination });
       if (result.error) {
         setError(result.error.status === 429 ? authErrorMessage("TOO_MANY_REQUESTS") : authErrorMessage(result.error.code));
         setPending(false);
         return;
       }
-      router.replace(invite ? `/invite/${encodeURIComponent(invite)}` : messageClaim ? `/messages/claim/${encodeURIComponent(messageClaim)}` : '/app');
+      // Where e-mail confirmation is required, sign-up creates the account without a session.
+      if (isSignUp && !result.data?.token) {
+        setSentTo(String(values.email));
+        setPending(false);
+        return;
+      }
+      router.replace(destination);
       router.refresh();
     } catch {
       setError("Não foi possível conectar. Confira sua conexão e tente novamente.");
@@ -89,7 +98,12 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
       <section className="w-full max-w-[420px] md:my-auto" aria-labelledby="auth-title">
         <Reveal>
           <p className="label-mono mb-5 flex items-center gap-2.5 text-muted-foreground" data-reveal><span className="square-dot" aria-hidden="true" />{isSignUp ? "Novo escritório" : "Acesso"}</p>
-          <h1 id="auth-title" className="display mb-8 text-[44px] md:mb-10 md:text-[64px]" data-reveal>{isSignUp ? "Crie sua conta" : "Entre no Lume"}</h1>
+          <h1 id="auth-title" className="display mb-8 text-[44px] md:mb-10 md:text-[64px]" data-reveal>{sentTo ? "Confira seu e-mail" : isSignUp ? "Crie sua conta" : "Entre no Lume"}</h1>
+          {sentTo ? <div className="grid gap-4 text-base leading-relaxed" role="status">
+            <p>Enviamos um link de confirmação para <strong className="break-all font-medium">{sentTo}</strong>. Abra o link em até 24 horas para entrar no Lume.</p>
+            <p className="text-sm text-muted-foreground">Se a mensagem não chegar em alguns minutos, confira a caixa de spam. Ao tentar entrar com o e-mail ainda não confirmado, enviamos um novo link.</p>
+            <Link href={`/sign-in${invite ? `?invite=${encodeURIComponent(invite)}` : messageClaim ? `?messageClaim=${encodeURIComponent(messageClaim)}` : ''}`} className="inline-flex min-h-11 w-fit items-center text-sm font-medium underline underline-offset-4">Ir para o acesso</Link>
+          </div> : <>
           <form onSubmit={submit} noValidate aria-busy={pending} data-reveal>
             <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
               {isSignUp && <>
@@ -142,6 +156,7 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
             {isSignUp ? "Já tem uma conta?" : "Ainda não tem uma conta?"}{" "}
             <Link href={`${isSignUp ? '/sign-in' : '/sign-up'}${invite ? `?invite=${encodeURIComponent(invite)}` : messageClaim ? `?messageClaim=${encodeURIComponent(messageClaim)}` : ''}`} className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors duration-300 hover:decoration-brand">{isSignUp ? "Entrar" : "Criar conta"}</Link>
           </p>
+          </>}
         </Reveal>
       </section>
       </div>

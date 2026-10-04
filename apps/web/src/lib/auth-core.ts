@@ -18,7 +18,11 @@ export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
  * Better Auth needs a backend it recognises and Lume needs the async seam in `db/types.ts`.
  */
 export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[]; ipHeaders?: string[];
-  passwordReset?: { enabled: () => boolean; send: (input: { user: { id: string; email: string }; url: string }) => Promise<void> } }) {
+  passwordReset?: { enabled: () => boolean; send: (input: { user: { id: string; email: string }; url: string }) => Promise<void> };
+  emailVerification?: { enabled: () => boolean; send: (input: { user: { id: string; email: string }; url: string }) => Promise<void> } }) {
+  // Verification is required wherever e-mail can actually be delivered. Without a sender (local
+  // development, the e2e runner) nobody could ever confirm, so sign-up keeps working as before.
+  const verifyEmail = settings.emailVerification?.enabled() ?? false;
   return betterAuth({
     appName: "Lume",
     database: store,
@@ -26,7 +30,16 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
     baseURL: settings.baseURL,
     trustedOrigins: [settings.baseURL, ...(settings.extraOrigins ?? [])],
     emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 128, revokeSessionsOnPasswordReset: true,
+      requireEmailVerification: verifyEmail,
       sendResetPassword: settings.passwordReset ? settings.passwordReset.send : undefined },
+    emailVerification: verifyEmail && settings.emailVerification ? {
+      sendVerificationEmail: settings.emailVerification.send,
+      sendOnSignUp: true,
+      // Signing in with an unconfirmed address sends a fresh link instead of a dead end.
+      sendOnSignIn: true,
+      autoSignInAfterVerification: true,
+      expiresIn: 24 * 60 * 60,
+    } : undefined,
     user: {
       // There is no e-mail delivery, so the address changes at once; the hook below asks for the
       // current password first, so a borrowed session cannot move the account to another address.
@@ -56,7 +69,9 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       max: 100,
       customRules: {
         "/sign-in/email": { window: 60, max: 10 },
-        "/sign-up/email": { window: 60, max: 10 },
+        // Each sign-up and each verification request sends an e-mail against a daily sending quota.
+        "/sign-up/email": { window: 60, max: 5 },
+        '/send-verification-email': { window: 60, max: 3 },
         '/request-password-reset': { window: 60, max: 5 },
         '/reset-password': { window: 60, max: 10 },
         // Both check the current password, so they get the sign-in budget.

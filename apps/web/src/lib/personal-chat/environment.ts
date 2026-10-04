@@ -9,7 +9,15 @@ export type PersonalChatEnvironment = Partial<Record<
   | 'K5_CREDENTIALS_PREVIOUS_KEYS'
   | 'K5_CREDENTIALS_NEXT_KEY',
   string
->> & { INTEGRATIONS_QUEUE?: { send(message: { kind: 'sweep' }): Promise<void> } };
+>> & {
+  INTEGRATIONS_QUEUE?: { send(message: { kind: 'sweep' }): Promise<void> };
+  /** Cloudflare Email Service `send_email` binding of the web Worker; no API token involved. */
+  EMAIL?: SendEmailBinding;
+};
+
+export type SendEmailBinding = {
+  send(message: { from: string; to: string; subject: string; text: string; html: string }): Promise<{ messageId?: string }>;
+};
 
 const environment = new AsyncLocalStorage<PersonalChatEnvironment>();
 

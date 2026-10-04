@@ -105,3 +105,20 @@ test('only an explicit recipient outcome is treated as accepted', async () => {
     assert.equal(result.state, item.expected);
   }
 });
+
+test('the web Worker sends through its send_email binding, with only the sender configured', async () => {
+  const sent: unknown[] = [];
+  const binding = { send: async (message: unknown) => { sent.push(message); return { messageId: 'msg-1' }; } };
+  const message = { to: 'ana@example.test', subject: 'Confirme seu e-mail no Lume', text: 'texto', html: '<p>texto</p>' };
+  const accepted = await withPersonalChatEnvironment({ EMAIL: binding, TISES_MESSAGES_FROM: 'nao-responda@notify.lume.software' }, () => sendPersonalEmail(message));
+  assert.deepEqual(accepted, { state: 'accepted', providerRef: 'msg-1' });
+  assert.deepEqual(sent, [{ from: 'nao-responda@notify.lume.software', ...message }]);
+
+  const throttled = { send: async () => { throw Object.assign(new Error('rate'), { code: 'E_RATE_LIMIT_EXCEEDED' }); } };
+  assert.deepEqual(await withPersonalChatEnvironment({ EMAIL: throttled, TISES_MESSAGES_FROM: 'nao-responda@notify.lume.software' }, () => sendPersonalEmail(message)),
+    { state: 'retry', code: 'throttled' });
+  const unverified = { send: async () => { throw Object.assign(new Error('sender'), { code: 'E_SENDER_NOT_VERIFIED' }); } };
+  assert.deepEqual(await withPersonalChatEnvironment({ EMAIL: unverified, TISES_MESSAGES_FROM: 'nao-responda@notify.lume.software' }, () => sendPersonalEmail(message)),
+    { state: 'failed', code: 'e_sender_not_verified' });
+  assert.deepEqual(await withPersonalChatEnvironment({ EMAIL: binding }, () => sendPersonalEmail(message)), { state: 'failed', code: 'not_configured' }, 'no sender, no e-mail');
+});

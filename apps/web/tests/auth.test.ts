@@ -51,6 +51,31 @@ test(`password recovery through ${resetPath} uses one-time tokens and revokes ev
 });
 }
 
+test('where e-mail can be delivered, an account signs in only after confirming its address', async () => {
+  const links: string[] = [];
+  const { auth, db, request } = await fixture(undefined, undefined, { enabled: () => true, send: async input => { links.push(input.url); } });
+  const created = await request('/sign-up/email', { name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'confirma@example.test', password, callbackURL: '/app' });
+  assert.equal(created.response.status, 200);
+  assert.equal(created.data.token, null, 'no session before the address is confirmed');
+  assert.equal(created.cookie.includes('session_token'), false);
+  assert.equal(links.length, 1);
+  assert.ok(await findOfficeForUser(db, created.data.user.id), 'the office exists and waits for its lawyer');
+
+  const refused = await request('/sign-in/email', { email: 'confirma@example.test', password, callbackURL: '/app' });
+  assert.equal(refused.response.status, 403);
+  assert.equal(refused.data.code, 'EMAIL_NOT_VERIFIED');
+  assert.equal(links.length, 2, 'signing in again sends a fresh link');
+
+  const link = new URL(links[1]);
+  assert.equal(link.searchParams.get('callbackURL'), '/app');
+  const confirmed = await auth.handler(new Request(link, { headers: { origin } }));
+  assert.equal(confirmed.status, 302);
+  assert.equal(confirmed.headers.get('location'), '/app');
+  const cookie = confirmed.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
+  assert.equal((await request('/get-session', undefined, cookie)).data.user.email, 'confirma@example.test', 'the link signs the person in');
+  assert.equal((await request('/sign-in/email', { email: 'confirma@example.test', password })).response.status, 200);
+});
+
 test('disabled password delivery does not disclose whether an address is registered', async () => {
   const { request, signup } = await fixture(); await signup();
   for (const email of ['ana@example.test','unknown@example.test']) assert.equal((await request('/request-password-reset', { email, redirectTo: `${origin}/client/reset-password` })).response.status, 503);
@@ -70,9 +95,9 @@ test('cada advogado tem um único escritório, e ninguém entra no escritório d
   assert.equal((await request('/get-session', undefined, first.cookie)).data, null);
 });
 
-async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof createAuth>[2]['passwordReset']) {
+async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof createAuth>[2]['passwordReset'], emailVerification?: Parameters<typeof createAuth>[2]['emailVerification']) {
   const { db, database, pool } = await postgresFixture({seedDefaults:false});
-  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders, passwordReset });
+  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders, passwordReset, emailVerification });
   async function request(path: string, body?: object, cookie = "", requestOrigin = origin, connectingIp?: string) {
     const response = await auth.handler(new Request(`${origin}/api/auth${path}`, {
       method: body ? "POST" : "GET",

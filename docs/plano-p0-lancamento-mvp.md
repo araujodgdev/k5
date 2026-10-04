@@ -49,11 +49,16 @@ Nenhuma outra página pública repetia essas promessas.
 
 **Situação anterior.** O cadastro era aberto, sem verificação de e-mail, e a troca de e-mail também não era verificada (`auth-core.ts:33`). Cada escritório novo recebia 850 créditos (`0061_credits.sql:20`). Pelos parâmetros dessa migração (crédito a R$ 0,10, margem de 30%, impostos de 6%, taxa de 3%, US$ 1 = R$ 5,50), isso equivale a cerca de US$ 9,40 de custo de provedor.
 
-**Feito.** —
+**Feito.**
+- **Envio.** O subdomínio `notify.lume.software` já estava habilitado no Cloudflare Email Service (cota atual: 200 e-mails/dia). Produção não tinha token nem remetente configurados, então nem a recuperação de senha enviava e-mail. O Worker web passou a enviar pelo binding `send_email` `EMAIL`, sem token, restrito ao remetente `nao-responda@notify.lume.software` (`wrangler.jsonc`, `personal-chat/email-transport.ts`).
+- **Verificação.** O Better Auth exige verificação onde há envio (`auth-core.ts`). O cadastro cria a conta e o escritório, mas não abre sessão. O link vale 24 horas, abre a sessão e volta ao destino original (app, convite ou portal). Tentar entrar sem verificar reenvia o link.
+- **Interface.** A tela "Confira seu e-mail" aparece no cadastro e no portal do cliente, e `EMAIL_NOT_VERIFIED` tem mensagem própria.
+- **Limites e créditos.** Os rate limits de cadastro e reenvio ficaram mais baixos para proteger a cota diária. A migração `0068` dá as contas existentes como verificadas e reduz os créditos iniciais para 500.
+- **Testes.** `tests/auth.test.ts` (fluxo completo) e `tests/personal-chat-email.test.ts` (binding).
 
-**Pendente.** Toda a frente.
+**Pendente.** Depois do deploy, criar uma conta real e confirmar a entrega e o link. Avaliar o aumento da cota de 200 e-mails/dia antes de abrir ao público. Turnstile no cadastro. Exigir confirmação também na troca de e-mail.
 
-**Decisões.** Cadastro continua aberto, agora com verificação de e-mail, enviada pela Cloudflare. Créditos iniciais: 500, abaixo do teto de US$ 10 por conta nova.
+**Decisões.** Cadastro continua aberto, agora com verificação de e-mail, enviada pela Cloudflare. Sem remetente configurado (ambiente local e e2e), a verificação fica desligada, para não criar contas que ninguém consegue confirmar. Contas existentes foram consideradas verificadas para não bloquear quem já usa. Com os parâmetros da `0061`, 500 créditos equivalem a cerca de US$ 5,55 de custo de provedor; o teto de US$ 10 corresponderia a cerca de 900 créditos. Créditos iniciais: 500, abaixo do teto de US$ 10 por conta nova.
 
 ## Frente 5 — Restauração ensaiada
 

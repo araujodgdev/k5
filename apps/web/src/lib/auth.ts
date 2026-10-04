@@ -10,7 +10,18 @@ const secret = process.env.BETTER_AUTH_SECRET;
 if (!secret || secret.length < 32) throw new Error('Configure BETTER_AUTH_SECRET com pelo menos 32 caracteres. Em dev, execute pnpm db:setup.');
 const idleSeconds = Number(process.env.SESSION_IDLE_SECONDS ?? 28800);
 if (!Number.isInteger(idleSeconds) || idleSeconds < 60) throw new Error('SESSION_IDLE_SECONDS deve ser um inteiro de pelo menos 60 segundos.');
+const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 const settings = {
+  emailVerification: { enabled: () => Boolean(personalEmailSettings()), send: async ({ user, url }: { user: { id: string; email: string }; url: string }) => {
+    after(async () => {
+      const link = escapeHtml(url);
+      const result = await sendPersonalEmail({ to: user.email, subject: 'Confirme seu e-mail no Lume',
+        text: `Para confirmar seu e-mail e entrar no Lume, abra este link em até 24 horas:\n${url}\n\nSe você não criou uma conta no Lume, ignore esta mensagem.`,
+        html: `<p>Para confirmar seu e-mail e entrar no Lume, use o link abaixo em até 24 horas.</p><p><a href="${link}">Confirmar e-mail</a></p><p>Se o botão não abrir, copie este endereço no navegador:<br>${link}</p><p>Se você não criou uma conta no Lume, ignore esta mensagem.</p>` });
+      if (result.state !== 'accepted') captureOperationalError(new Error('Verification email was not accepted.'), 'auth.email-verification.delivery', { code: result.code });
+    });
+  } },
   passwordReset: { enabled: () => Boolean(personalEmailSettings()), send: async ({ user, url }: { user: { id: string; email: string }; url: string }) => {
     after(async () => {
       const result = await sendPersonalEmail({ to: user.email, subject: 'Redefina sua senha no Lume', text: `Para redefinir sua senha, abra este link: ${url}\nSe não fez o pedido, ignore esta mensagem.`,

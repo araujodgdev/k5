@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     // The response carries Better Auth's signed session cookie; password hashing remains its responsibility.
     const headers = new Headers(request.headers); headers.delete('content-length'); headers.set('content-type', 'application/json');
     const response = await withClientRegistration(token, () => auth.handler(new Request(new URL('/api/auth/sign-up/email', request.url), {
-      method: 'POST', headers, body: JSON.stringify({ ...input, email: invitation.email, officeName: 'Portal do cliente' }),
+      method: 'POST', headers, body: JSON.stringify({ ...input, email: invitation.email, officeName: 'Portal do cliente', callbackURL: '/client' }),
     })));
     if (!response.ok) { const failure = z.object({ code: z.string().optional() }).safeParse(await response.json().catch(() => null));
       return Response.json({ error: authErrorMessage(failure.success ? failure.data.code : undefined) }, { status: response.status }); }

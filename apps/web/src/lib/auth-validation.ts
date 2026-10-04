@@ -23,6 +23,7 @@ export function authErrorMessage(code?: string) {
     INVALID_EMAIL: "Informe um e-mail válido.",
     TOO_MANY_REQUESTS: "Muitas tentativas. Aguarde um minuto e tente novamente.",
     INVALID_SIGN_UP: "Confira o nome, o escritório, o e-mail e a senha informados.",
+    EMAIL_NOT_VERIFIED: "Confirme seu e-mail para entrar. Enviamos um novo link para sua caixa de entrada.",
   };
   return messages[code ?? ""] ?? "Não foi possível continuar. Tente novamente em instantes.";
 }
