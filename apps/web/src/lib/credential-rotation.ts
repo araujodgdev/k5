@@ -8,6 +8,7 @@ const targets = [
   { table: 'ai_connection', pk: 'id', fields: ['encrypted_api_key'] },
   { table: 'whatsapp_connection', pk: 'id', fields: ['encrypted_api_key'] },
   { table: 'ads_connection', pk: 'office_id', fields: ['encrypted_api_key'] },
+  { table: 'asaas_connection', pk: 'office_id', fields: ['encrypted_api_key'] },
   { table: 'signature_connection', pk: 'office_id', fields: ['encrypted_api_key','encrypted_webhook_secret'] },
   { table: 'signature_request', pk: 'id', fields: ['encrypted_sign_url'] },
   { table: 'whatsapp_event', pk: 'id', fields: ['encrypted_payload'] },
