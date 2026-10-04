@@ -23,6 +23,11 @@ export type WorkspaceContext = {
   conversationId?: string;
   /** Pages the web search of this chat turn returned, filled by the chat as each step finishes. */
   consultedLinks?: ReadonlySet<string>;
+  /**
+   * Set by the chat's guard once this turn has read third-party text (e-mail, documents, web).
+   * From then on an action the office allowed to run without confirmation asks for it.
+   */
+  untrustedContent?: { seen: boolean };
 };
 
 export function workspaceContext(workspace: {

@@ -93,11 +93,17 @@ Nenhuma outra página pública repetia essas promessas.
 
 **Situação anterior.** `agent-guard.ts` liberava o resultado da ferramenta quando o detector falhava (`catch { return; }`). Também não examinava `k5_knowledge_search` nem as buscas executadas pelo próprio provedor, e lia só os primeiros 32 mil caracteres.
 
-**Feito.** —
+**Feito.** Mudanças em `src/lib/agent-guard.ts`:
+- **Fail-closed.** Se o detector falhar, o resultado é retido com `UNVERIFIED_NOTICE`.
+- **Texto longo.** São examinados até 128 mil caracteres (16 blocos em paralelo). Acima disso, o resultado é retido inteiro com `TOO_LONG_NOTICE`, para não ser lido pela metade.
+- **Documentos do escritório.** `k5_knowledge_search` e `k5_knowledge_get_source` entraram na verificação, porque a peça da parte contrária também é texto de terceiros.
+- **Turno contaminado.** Qualquer resultado verificado, e qualquer busca executada pelo provedor (que não passa pelo hook), marca `context.untrustedContent.seen`. A partir daí, ações Google em modo `automatic` passam a pedir confirmação (`google/operations.ts`).
 
-**Pendente.** Toda a frente.
+Envio de e-mail e WhatsApp, Mensagens, estornos e exclusões já exigiam confirmação. Testes em `tests/agent-capabilities.test.ts` e `tests/google-foundation.test.ts`. A suíte completa passou: 758 de 758.
 
-**Decisões.** O responsável antecipou esta frente de P1 para P0.
+**Pendente.** Acompanhar a taxa de retenção (`lume.guard.withheld`) nos documentos do Cofre e o custo/latência extra do classificador por turno. As buscas executadas pelo provedor continuam sem verificação de conteúdo; a defesa nelas é a confirmação das ações.
+
+**Decisões.** O responsável antecipou esta frente de P1 para P0. Falso positivo (documento legítimo retido) foi preferido a falso negativo. Registros internos sem efeito externo, como criar cliente ou registrar recebimento, continuam sem confirmação.
 
 ## Frente 9 — Plano competitivo (Jusfy e Projuris)
 
