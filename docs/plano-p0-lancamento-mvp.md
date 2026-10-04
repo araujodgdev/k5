@@ -53,7 +53,7 @@ Nenhuma outra página pública repetia essas promessas.
 - **Envio.** O subdomínio `notify.lume.software` já estava habilitado no Cloudflare Email Service (cota atual: 200 e-mails/dia). Produção não tinha token nem remetente configurados, então nem a recuperação de senha enviava e-mail. O Worker web passou a enviar pelo binding `send_email` `EMAIL`, sem token, restrito ao remetente `nao-responda@notify.lume.software` (`wrangler.jsonc`, `personal-chat/email-transport.ts`).
 - **Verificação.** O Better Auth exige verificação onde há envio (`auth-core.ts`). O cadastro cria a conta e o escritório, mas não abre sessão. O link vale 24 horas, abre a sessão e volta ao destino original (app, convite ou portal). Tentar entrar sem verificar reenvia o link.
 - **Interface.** A tela "Confira seu e-mail" aparece no cadastro e no portal do cliente, e `EMAIL_NOT_VERIFIED` tem mensagem própria.
-- **Limites e créditos.** Os rate limits de cadastro e reenvio ficaram mais baixos para proteger a cota diária. A migração `0068` dá as contas existentes como verificadas e reduz os créditos iniciais para 500.
+- **Limites e créditos.** O reenvio de verificação ficou limitado a 3 por minuto, para proteger a cota diária; o cadastro manteve 10 por minuto, porque 5 barrava fluxos legítimos (o Turnstile, em implementação em outra sessão, cobre o abuso). A migração `0068` dá as contas existentes como verificadas e reduz os créditos iniciais para 500.
 - **Testes.** `tests/auth.test.ts` (fluxo completo) e `tests/personal-chat-email.test.ts` (binding).
 
 **Pendente.** Depois do deploy, criar uma conta real e confirmar a entrega e o link. Avaliar o aumento da cota de 200 e-mails/dia antes de abrir ao público. Turnstile no cadastro. Exigir confirmação também na troca de e-mail.
