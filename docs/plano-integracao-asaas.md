@@ -40,3 +40,38 @@ Escopo decidido em 04/10/2026: conexão, emissão e baixa automática, nas conta
 ### Pendente
 
 - Nada nesta frente.
+
+## Frente 2: cobrança Asaas da parcela
+
+### Feito
+
+- A migração `0072_asaas_charges.sql` cria duas tabelas:
+  - `asaas_customer`: o cliente do escritório na conta conectada, sem CPF ou CNPJ;
+  - `asaas_payment`: cobrança por parcela, com no máximo uma ativa (`creating` ou `open`) por parcela, chave idempotente por pessoa e lease da tentativa em andamento.
+- `src/lib/asaas/charges.ts` consulta, emite, confere e cancela. Só quem criou o honorário age, no escritório ativo, com a sessão e o vínculo revalidados.
+  - **Cliente:** reaproveitado pela referência `lume-cliente:<id>` ou criado com o CPF ou CNPJ informado. O número vai só ao Asaas e fica fora do hash de idempotência.
+  - **Cobrança:** `POST /payments` com `billingType: UNDEFINED`, valor igual ao saldo atual da parcela e `externalReference: lume:<id>`.
+  - **Resposta perdida:** se a criação fica sem resposta, a linha continua `creating` até o lease de 60 s vencer. "Conferir no Asaas", ou repetir a mesma chave, procura a cobrança pela referência e só reenvia se ela não existir.
+  - **Recusa:** a cobrança recusada pelo Asaas (valor mínimo, CPF inválido…) fica `failed`, com o motivo, e libera uma nova emissão.
+- A rota `POST /api/asaas/charges` tem as operações `get`, `create`, `cancel` e `confirm`. As rotas do Asaas usam `apiWorkspace`, que recusa contas do portal do cliente.
+- A seção "Cobrança pelo Asaas" no formulário de cobrança da parcela emite, abre a fatura, copia o link, confere uma resposta perdida, cancela e mostra as cobranças anteriores.
+- O link da cobrança aberta entra na mensagem montada por `src/lib/honorarios/charges.ts`, e com ela no portal do cliente.
+- As cobranças do Asaas entram na exportação do escritório (`honorarios-cobrancas-asaas`).
+- Testes em `tests/asaas.test.ts`, com o Asaas simulado de `tests/asaas-fake.ts`:
+  - cadastro único do cliente e reemissão idempotente;
+  - uma cobrança ativa por parcela;
+  - resposta perdida com e sem criação no Asaas;
+  - recusa e cancelamento;
+  - isolamento entre escritórios.
+
+### Decisões
+
+- **Escolha do meio de pagamento:** `billingType: UNDEFINED` deixa o cliente escolher entre PIX, boleto e cartão na fatura do Asaas. O Lume não escolhe o meio nem replica QR Code ou linha digitável.
+- **Avisos ao cliente:** os avisos do Asaas (e-mail e SMS) seguem a configuração da conta do escritório. O Lume não altera `notificationDisabled`.
+- **Valor da cobrança:** o valor é o saldo da parcela no momento da emissão. Recebimentos manuais posteriores não alteram a cobrança já emitida.
+- **Fora do assistente:** a emissão não foi publicada como capability para o assistente nem para o WebMCP, porque cria cobrança real na conta do escritório.
+
+### Pendente
+
+- Publicar a emissão para o assistente, com confirmação, se fizer sentido depois do uso real.
+- Mostrar o link do Asaas como botão no portal do cliente, que hoje só exibe a mensagem.

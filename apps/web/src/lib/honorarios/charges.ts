@@ -5,6 +5,7 @@ import { withTransaction, type Transaction } from '@/lib/database';
 import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/application/context';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import * as contract from './charges-contract';
+import { openAsaasInvoiceUrl } from '@/lib/asaas/charges';
 
 const missing = () => new CapabilityError('NOT_FOUND', 'Cobrança não encontrada.');
 const conflict = (message: string) => new CapabilityError('CONFLICT', message);
@@ -49,9 +50,10 @@ async function view(tx: Transaction, context: WorkspaceContext, installmentId: s
   const result = contract.chargeDto.parse({ installment, officeName: row.office_name, beneficiaryName: row.beneficiary_name,
     version: 0, pixKey: '', instructions: '', boleto: null, remindersEnabled: true, ...settings, history, portalPublished: Boolean(publication), message: '', pdfUrl: null });
   const i = result.installment;
+  const asaasUrl = await openAsaasInvoiceUrl(tx, context.officeId, installmentId);
   result.message = [result.officeName, `Olá, ${i.clientName}.`, `${i.title} — parcela ${i.number} de ${i.installmentCount}`,
     `Saldo a pagar: ${currency(i.pendingCents)}`, `Vencimento: ${i.dueOn.split('-').reverse().join('/')}`,
-    `Beneficiário informado: ${result.beneficiaryName}`, result.pixKey ? `Chave PIX: ${result.pixKey}` : '', result.instructions,
+    `Beneficiário informado: ${result.beneficiaryName}`, asaasUrl ? `Pague pelo link (PIX, boleto ou cartão): ${asaasUrl}` : '', result.pixKey ? `Chave PIX: ${result.pixKey}` : '', result.instructions,
     result.boleto ? 'Boleto anexado separadamente.' : '', 'Após pagar, envie o comprovante para conferência.'].filter(Boolean).join('\n');
   result.pdfUrl = result.version > 0 && i.status !== 'cancelled' && i.pendingCents > 0 ? `/api/honorarios/charges/${encodeURIComponent(installmentId)}/pdf?version=${result.version}` : null;
   return result;

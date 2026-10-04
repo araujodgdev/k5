@@ -23,6 +23,7 @@ const EXPORTS: Export[] = [
   { file: 'honorarios-parcelas', table: 'honorario_installment', columns: ['id', 'agreement_id', 'number', 'due_on', 'amount_cents'] },
   { file: 'honorarios-recebimentos', table: 'honorario_receipt', columns: ['id', 'installment_id', 'amount_cents', 'received_on', 'method', 'notes', 'created_at'] },
   { file: 'honorarios-estornos', table: 'honorario_receipt_reversal', columns: ['receipt_id', 'reason', 'created_at'], byId: false },
+  { file: 'honorarios-cobrancas-asaas', table: 'asaas_payment', columns: ['id', 'installment_id', 'environment', 'state', 'provider_payment_id', 'provider_status', 'amount_cents', 'due_on', 'invoice_url', 'created_at', 'updated_at'] },
   { file: 'conversas-lume', table: 'ai_conversation', columns: ['id', 'title', 'messages', 'created_at', 'updated_at'] },
   { file: 'documentos-lume', table: 'ai_artifact', columns: ['id', 'title', 'content', 'status', 'version', 'created_at', 'updated_at'] },
   { file: 'instrucoes-lume', table: 'agent_instruction', columns: ['id', 'title', 'content', 'applies_to', 'enabled', 'created_at', 'updated_at'] },
