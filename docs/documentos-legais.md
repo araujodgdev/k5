@@ -27,10 +27,12 @@ exclusivo no Brasil, retenção zero em todos os fornecedores, restauração gar
 exatidão de IA, cálculo de prazo judicial ou protocolo automático. Não criam uma
 renúncia absoluta a reembolso e indenização. Não atribuem um DPO fictício.
 
-Os links no cadastro são informativos. Esta alteração **não implementa registro
-versionado de aceite**, checkbox obrigatório ou consentimento para marketing.
-Um fluxo de aceite auditável exigirá persistência no servidor e tratamento de
-novas versões, inclusive para contas já existentes.
+O aceite é versionado. O cadastro e o convite do portal têm a caixa obrigatória
+"Li e aceito…", e o servidor grava em `legal_acceptance` (migração 0069) a pessoa,
+o documento, a versão, a data, o IP e o navegador. Quem não tem a versão atual
+(`LEGAL_VERSION`, em `src/lib/legal-version.ts`) precisa aceitar de novo antes de
+entrar, o que vale também para as contas já existentes. Não há consentimento para
+marketing.
 
 ## Validação jurídica e operacional necessária
 

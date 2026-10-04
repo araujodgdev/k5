@@ -74,7 +74,11 @@ export function TermsGate({ version, updatedLabel, firstTime, signInHref = "/sig
               {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />}
             </Button>
             <Button variant="ghost" className="min-h-11" disabled={pending}
-              onClick={async () => { await authClient.signOut(); router.replace(signInHref); router.refresh(); }}>Sair</Button>
+              onClick={async () => {
+                // A failed sign-out still leaves the gate; the sign-in page sorts out the session.
+                try { await authClient.signOut(); } catch { /* the redirect below still runs */ }
+                finally { router.replace(signInHref); router.refresh(); }
+              }}>Sair</Button>
           </div>
         </div>
       </section>

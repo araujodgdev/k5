@@ -2,7 +2,8 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database, withTransaction } from './database';
 import type { Transaction } from './db/postgres';
-import { clearMemory, memoryResource } from './agent-memory';
+import { memoryResource } from './agent-memory';
+import { queueHonchoWorkspaceDeletion } from './honcho-memory';
 
 /**
  * Deleting an office and its account. The person asks from Perfil, confirming the password; the
@@ -87,14 +88,6 @@ export async function purgeOffice(requestId: string, options: { dryRun: boolean 
   const { officeId } = request;
   const members = (await database.prepare('SELECT user_id AS "userId" FROM office_member WHERE office_id=?').all<{ userId: string }>(officeId)).map(row => row.userId);
 
-  // Memory lives outside the office's tables: the working memory row, the Honcho generation
-  // (whose remote deletion is queued in honcho_deletion) and the conversation threads.
-  if (!options.dryRun) for (const userId of members) {
-    const owner = { officeId, userId };
-    await clearMemory(owner);
-    await database.prepare('DELETE FROM mastra_threads WHERE "resourceId"=?').run(memoryResource(owner));
-  }
-
   const tables = (await database.prepare(`SELECT table_name AS name FROM information_schema.columns
     WHERE table_schema = current_schema() AND column_name = 'office_id' ORDER BY table_name`).all<{ name: string }>()).map(row => row.name);
   const storage = await database.prepare(`SELECT table_name AS "table", column_name AS "column" FROM information_schema.columns
@@ -110,6 +103,15 @@ export async function purgeOffice(requestId: string, options: { dryRun: boolean 
       }
       const vectors = (await tx.prepare('SELECT id FROM vault_document WHERE office_id=?').all<{ id: string }>(officeId)).map(row => row.id);
 
+      // Memory lives outside the office's tables: the working memory row and the conversation
+      // threads, and the Honcho workspace, whose remote deletion is queued in honcho_deletion
+      // before purgeRows removes honcho_memory. All of it rolls back with the purge.
+      for (const userId of members) {
+        const owner = { officeId, userId };
+        await tx.prepare('DELETE FROM mastra_resources WHERE id=?').run(memoryResource(owner));
+        await tx.prepare('DELETE FROM mastra_threads WHERE "resourceId"=?').run(memoryResource(owner));
+        await queueHonchoWorkspaceDeletion(tx, owner);
+      }
       const deleted = await purgeRows(tx, officeId, tables.filter(table => !kept(table)));
       for (const key of objects) await tx.prepare("INSERT INTO vault_deletion_queue(id,office_id,target_kind,target_ref) VALUES(?,?,'object',?)").run(randomUUID(), officeId, key);
       for (const id of vectors) await tx.prepare("INSERT INTO vault_deletion_queue(id,office_id,target_kind,target_ref) VALUES(?,?,'vector_document',?)").run(randomUUID(), officeId, id);

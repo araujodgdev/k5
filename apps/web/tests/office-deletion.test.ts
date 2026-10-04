@@ -79,3 +79,25 @@ test("deletion: the purge removes everything the office owns, queues its files, 
   assert.equal(untouched?.n, 1);
   assert.ok((await testDb.prepare("SELECT count(*)::int AS n FROM vault_document WHERE office_id=?").get<{ n: number }>(other.officeId))!.n >= 1);
 });
+
+test("deletion: memory leaves with the purge's transaction, and a rolled-back purge keeps it", async () => {
+  const office = await seedOffice("Memoria");
+  const resource = `${office.officeId}:${office.userId}`;
+  await testDb.prepare(`INSERT INTO mastra_resources (id, "workingMemory", "createdAt", "updatedAt") VALUES (?, '- Prefere respostas curtas.', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`).run(resource);
+  await testDb.prepare("INSERT INTO honcho_memory (office_id, user_id, generation) VALUES (?, ?, 3)").run(office.officeId, office.userId);
+  const previous = process.env.HONCHO_API_KEY;
+  process.env.HONCHO_API_KEY = "honcho-test-key";
+  try {
+    const request = await requestOfficeDeletion(office);
+    await purgeOffice(request.id, { dryRun: true });
+    assert.ok(await testDb.prepare("SELECT 1 FROM mastra_resources WHERE id=?").get(resource), "the dry run rolls back and the memory stays");
+    assert.equal(await testDb.prepare("SELECT 1 FROM honcho_deletion WHERE office_id=?").get(office.officeId), undefined, "nothing is asked of Honcho");
+
+    await purgeOffice(request.id, { dryRun: false });
+    assert.equal(await testDb.prepare("SELECT 1 FROM mastra_resources WHERE id=?").get(resource), undefined);
+    const queued = await testDb.prepare("SELECT workspace_id AS workspace FROM honcho_deletion WHERE office_id=? AND user_id=?").all<{ workspace: string }>(office.officeId, office.userId);
+    assert.equal(queued.length, 1, "the current Honcho workspace is queued for deletion, once");
+  } finally {
+    if (previous === undefined) delete process.env.HONCHO_API_KEY; else process.env.HONCHO_API_KEY = previous;
+  }
+});

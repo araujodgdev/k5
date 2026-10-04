@@ -309,6 +309,9 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
             continue;
           }
           if (chunk.type === 'tool-call') {
+            // The provider's own search returns web text the guard never sees: from here on the
+            // turn counts as exposed, so automatic Google actions ask first.
+            if (chunk.payload.providerExecuted) untrustedContent.seen = true;
             budget.called(chunk.payload.toolCallId, chunk.payload.args, Boolean(chunk.payload.providerExecuted));
             if (chunk.payload.providerExecuted && chunk.payload.toolName === 'web_search') webSearches += 1;
             trace.toolCall(chunk.payload.toolCallId, chunk.payload.toolName, chunk.payload.args, Boolean(chunk.payload.providerExecuted));

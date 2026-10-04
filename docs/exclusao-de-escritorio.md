@@ -41,7 +41,7 @@ K5_ENV_FILE=.env.postgres.local pnpm --filter @k5/web office:purge run <pedido>
 
 O que `run` faz (`purgeOffice` em `src/lib/office-deletion.ts`):
 
-- Apaga a memória de trabalho, as threads e a geração da Honcho de cada pessoa do escritório.
+- Na mesma transação, apaga a memória de trabalho e as threads de cada pessoa do escritório e enfileira a exclusão do workspace dela na Honcho (`honcho_deletion`). Se o expurgo for desfeito, a memória continua lá e nada é pedido à Honcho.
 - Apaga as linhas de todas as tabelas com `office_id`, numa ordem que respeita as chaves estrangeiras. Se alguma linha de outra tabela ainda apontar para o escritório, a transação é desfeita e a mensagem diz qual tabela travou.
 - Coloca na fila de exclusão as chaves de armazenamento (`stored_name`, `storage_key`, `signed_storage_key`) e os vetores dos documentos. O material compartilhado de pesquisa (`research/…`) não é do escritório e não entra.
 - Anonimiza a pessoa: o nome vira "Conta excluída", o e-mail vira um endereço `.invalid`, e saem as sessões, as credenciais e o perfil. A conta não é apagada porque mensagens enviadas a outros escritórios também pertencem a eles.

@@ -1,6 +1,7 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import { database } from './database';
+import type { Database } from './db/types';
 import type { Owner } from './ai-store';
 import { captureOperationalError } from './observability/report';
 
@@ -281,4 +282,16 @@ export async function forgetHonchoConversation(owner: Owner, conversationId: str
     ...(config ? [database.prepare('INSERT INTO honcho_deletion(id,office_id,user_id,workspace_id,session_id) VALUES(?,?,?,?,?)')
       .bind(randomUUID(), owner.officeId, owner.userId, honchoWorkspace(config, owner, state.generation), honchoSession(owner, conversationId))] : []),
   ]);
+}
+
+/**
+ * Inside the office purge's transaction: queue the deletion of the person's current Honcho
+ * workspace before the purge removes honcho_memory, so a rollback undoes both together.
+ */
+export async function queueHonchoWorkspaceDeletion(tx: Pick<Database, 'prepare'>, owner: Owner) {
+  const config = honchoConfig();
+  const state = await tx.prepare('SELECT generation FROM honcho_memory WHERE office_id=? AND user_id=?').get<{ generation: number }>(owner.officeId, owner.userId);
+  if (!config || !state) return;
+  await tx.prepare('INSERT INTO honcho_deletion(id,office_id,user_id,workspace_id) VALUES(?,?,?,?)')
+    .run(randomUUID(), owner.officeId, owner.userId, honchoWorkspace(config, owner, state.generation));
 }

@@ -122,3 +122,14 @@ test('the web Worker sends through its send_email binding, with only the sender 
     { state: 'failed', code: 'e_sender_not_verified' });
   assert.deepEqual(await withPersonalChatEnvironment({ EMAIL: binding }, () => sendPersonalEmail(message)), { state: 'failed', code: 'not_configured' }, 'no sender, no e-mail');
 });
+
+test('a send_email binding that never answers ends as unknown after 10 seconds', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const hung = { send: () => new Promise<never>(() => undefined) };
+  const message = { to: 'ana@example.test', subject: 'Confirme seu e-mail no Lume', text: 'texto', html: '<p>texto</p>' };
+  const pending = withPersonalChatEnvironment({ EMAIL: hung, TISES_MESSAGES_FROM: 'nao-responda@notify.lume.software' }, () => sendPersonalEmail(message));
+  // Let the send reach its race before the clock moves.
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  t.mock.timers.tick(10_000);
+  assert.deepEqual(await pending, { state: 'unknown', code: 'timeout' });
+});

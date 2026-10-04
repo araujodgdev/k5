@@ -29,16 +29,20 @@ export function personalEmailSettings() {
 }
 
 async function sendThroughBinding(binding: SendEmailBinding, from: string, input: { to: string; subject: string; text: string; html: string }): Promise<EmailTransportResult> {
+  // Like the HTTP path, a send that does not answer in 10 s is unknown rather than a hung request.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<'timeout'>(resolve => { timer = setTimeout(() => resolve('timeout'), 10_000); });
   try {
-    const { messageId } = await binding.send({ from, ...input });
-    return { state: 'accepted', providerRef: messageId ?? null };
+    const sent = await Promise.race([binding.send({ from, ...input }), timeout]);
+    if (sent === 'timeout') return { state: 'unknown', code: 'timeout' };
+    return { state: 'accepted', providerRef: sent.messageId ?? null };
   } catch (error) {
     // Codes from https://developers.cloudflare.com/email-service/api/send-emails/workers-api/#error-handling
     const code = typeof (error as { code?: unknown })?.code === 'string' ? (error as { code: string }).code : '';
     if (code === 'E_RATE_LIMIT_EXCEEDED') return { state: 'retry', code: 'throttled' };
     if (/^E_[A-Z_]+$/.test(code)) return { state: 'failed', code: code.toLowerCase() };
     return { state: 'unknown', code: 'binding_error' };
-  }
+  } finally { clearTimeout(timer); }
 }
 
 const responseSchema = z.object({
