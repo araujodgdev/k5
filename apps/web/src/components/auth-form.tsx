@@ -174,7 +174,7 @@ export function AuthForm({ mode, invite, messageClaim, challengeKey }: { mode: "
                 <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Termos de uso<span className="sr-only"> (abre em nova aba)</span></Link>
                 {" e a "}<Link href="/politica-privacidade" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Política de privacidade<span className="sr-only"> (abre em nova aba)</span></Link>.
               </p>}
-              {challenge && <TurnstileWidget siteKey={challenge} resetKey={challengeReset} onToken={setChallengeToken} onError={setError} />}
+              {challenge && <TurnstileWidget siteKey={challenge} action="sign-up" resetKey={challengeReset} onToken={setChallengeToken} onError={setError} />}
               <Button type="submit" size="lg" className="mt-3 h-12 w-full justify-between px-4 text-[15px] md:h-12">
                 {pending ? (isSignUp ? "Criando conta…" : "Entrando…") : (isSignUp ? "Criar conta" : "Entrar")}
                 {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />}

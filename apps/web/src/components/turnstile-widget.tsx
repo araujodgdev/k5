@@ -28,8 +28,8 @@ function loadTurnstile() {
  * Cloudflare's human check for the sign-up form. The token it hands back is single use, so the form
  * bumps `resetKey` after every attempt to get a fresh one.
  */
-export function TurnstileWidget({ siteKey, resetKey, onToken, onError }: {
-  siteKey: string; resetKey: number; onToken: (token: string) => void; onError: (message: string) => void;
+export function TurnstileWidget({ siteKey, action, resetKey, onToken, onError }: {
+  siteKey: string; action: string; resetKey: number; onToken: (token: string) => void; onError: (message: string) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const widget = useRef<string | null>(null);
@@ -41,7 +41,7 @@ export function TurnstileWidget({ siteKey, resetKey, onToken, onError }: {
     loadTurnstile().then(api => {
       if (!live || !container.current) return;
       widget.current = api.render(container.current, {
-        sitekey: siteKey, language: "pt-br", appearance: "interaction-only", action: "sign-up",
+        sitekey: siteKey, language: "pt-br", appearance: "interaction-only", action,
         callback: (token: string) => handlers.current.onToken(token),
         "expired-callback": () => handlers.current.onToken(""),
         "error-callback": () => { handlers.current.onToken(""); handlers.current.onError("A verificação não carregou. Recarregue a página e tente de novo."); },
@@ -52,7 +52,7 @@ export function TurnstileWidget({ siteKey, resetKey, onToken, onError }: {
       if (widget.current && window.turnstile) window.turnstile.remove(widget.current);
       widget.current = null;
     };
-  }, [siteKey]);
+  }, [siteKey, action]);
 
   useEffect(() => {
     if (resetKey && widget.current && window.turnstile) { handlers.current.onToken(""); window.turnstile.reset(widget.current); }

@@ -83,6 +83,9 @@
     "SENTRY_ENVIRONMENT": "production",
     "SENTRY_TRACES_SAMPLE_RATE": "0.1",
     "TISES_MESSAGES_FROM": "nao-responda@notify.lume.software",
+    // Turnstile on sign-up: the site key is public; TURNSTILE_SECRET_KEY is a secret.
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFNNcD1dnVJ2n1l-",
+    "TURNSTILE_HOSTNAMES": "lume.software",
     "NODE_ENV": "production",
     "VECTOR_INDEX_BACKEND": "vectorize",
     "VAULT_STORAGE_BACKEND": "r2"
