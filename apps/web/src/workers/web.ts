@@ -7,6 +7,7 @@ import { withAdsEnvironment } from '../lib/ads/environment';
 import { withPersonalChatEnvironment, type PersonalChatEnvironment } from '../lib/personal-chat/environment';
 import { createPostgresPool } from '../lib/db/postgres';
 import { closePoolWithResponse } from '../lib/db/request';
+import { withSecurityHeaders } from '../lib/security-headers';
 import { dueProcessors } from '../lib/processor-schedule';
 import { captureOperationalError, observeSchedule } from '../lib/observability/report';
 import { tutorialVideoResponse } from '../lib/tutorial-video-response';
@@ -46,12 +47,12 @@ export default withSentry<WebEnv>(env => serverOptions('web', env), {
     });
   },
   async fetch(request: Request, env: CloudflareEnv & WhatsAppEnvironment & PersonalChatEnvironment & { HYPERDRIVE: { connectionString:string } }, ctx: { waitUntil(promise:Promise<unknown>):void }) {
-    if (/^\/tutorial\/videos\/[a-z0-9-]+\/video\.mp4$/.test(new URL(request.url).pathname)) return tutorialVideoResponse(request, env.ASSETS);
+    if (/^\/tutorial\/videos\/[a-z0-9-]+\/video\.mp4$/.test(new URL(request.url).pathname)) return withSecurityHeaders(await tutorialVideoResponse(request, env.ASSETS));
     const pool = createPostgresPool(env.HYPERDRIVE.connectionString, { max:5, idleTimeoutMillis:0 });
     return withPostgres(pool, () => withTrademarkEnvironment(env, () => withAdsEnvironment(env, () => withWhatsAppEnvironment(env, () => withPersonalChatEnvironment(env, async () => {
       try {
         const response = await handler.fetch(request,env,ctx);
-        return closePoolWithResponse(response,pool,promise=>ctx.waitUntil(promise));
+        return withSecurityHeaders(closePoolWithResponse(response,pool,promise=>ctx.waitUntil(promise)));
       } catch (error) { await pool.end(); throw error; }
     })))));
   },

@@ -16,11 +16,11 @@ Origem: [auditoria de 03/10/2026](auditoria-lancamento-mvp-2026-10-03.md) e deci
 
 **Situação anterior.** `curl -I https://lume.software/sign-in` voltava sem HSTS, `X-Frame-Options`, CSP/`frame-ancestors`, `X-Content-Type-Options` e `Referrer-Policy`. `next.config.ts` só definia headers para `/sw.js`. As telas de aprovação (envio de e-mail, exclusão) podiam ser emolduradas por outro site.
 
-**Feito.** —
+**Feito.** Ficou comprovado que o `headers()` do `next.config.ts` não chega a produção: o `/sw.js` publicado também saía sem os headers declarados ali. Os headers agora são aplicados em `src/workers/web.ts` por `src/lib/security-headers.ts`: HSTS, `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy`, `Permissions-Policy` e CSP `frame-ancestors 'self'`. Valores próprios das rotas são preservados, e a CSP de sandbox das pré-visualizações passa a conviver com a regra de framing. Os arquivos estáticos recebem os mesmos headers por `public/_headers`, que também passa a entregar os headers do `/sw.js`. Teste: `tests/security-headers.test.ts`.
 
-**Pendente.** Toda a frente.
+**Pendente.** Depois do deploy, `curl -I` em `/sign-in`, `/app` e `/sw.js`. Avaliar uma CSP completa (scripts, conexões), que exige inventário de Sentry, Google Picker e fontes.
 
-**Decisões.** —
+**Decisões.** O framing pela mesma origem continua permitido porque a pré-visualização de PDF usa `<iframe>`. Isso continua impedindo o clickjacking por outros sites. HSTS fica sem `preload`, que é difícil de desfazer.
 
 ## Frente 3 — Landing alinhada ao produto atual
 
