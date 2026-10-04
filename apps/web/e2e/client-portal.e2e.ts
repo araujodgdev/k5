@@ -38,6 +38,7 @@ test('o portal do cliente: convite, conta sem escritório, PDF e cobrança publi
   await app.open(invitation);
   await screen.getByLabel('Nova senha').fill(clientPassword);
   await screen.getByLabel('Confirmar nova senha').fill(clientPassword);
+  await screen.getByRole('checkbox', /Li e aceito os Termos de uso/).check();
   await screen.getByRole('button', 'Criar acesso ao portal').tap();
   await expect(screen.getByRole('heading', 'Portal do cliente')).toBeVisible();
   const clientCookies = await browser.cookies();

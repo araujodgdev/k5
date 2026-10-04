@@ -111,7 +111,8 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     // Pages this turn's web search returned, filled as each step finishes; the case-law scoring
     // checks the links the model sends against them.
     const consultedLinks = new Set<string>();
-    const context: WorkspaceContext = { ...workspace, signal, conversationId: id, consultedLinks,
+    const untrustedContent = { seen: false };
+    const context: WorkspaceContext = { ...workspace, signal, conversationId: id, consultedLinks, untrustedContent,
       allowedResearchCaseId: body.caseId, allowedResearchReferenceIds: body.researchReferenceIds };
     const stored = await conversation(database, owner, id);
     if (!stored) return;
@@ -162,7 +163,8 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     // by the classification task's model: a classifier does not need the chat's.
     const guard = new UntrustedToolResultGuard(injectionDetector(() => resolveTaskModel('classification.injection_guard'),
       (guardModel, call) => recordUsage(owner.officeId, owner.userId, guardModel, guardModel.task, call.status, call.usage,
-        { durationMs: call.durationMs, errorClass: call.error === undefined ? undefined : errorClass(call.error), signals: call.signals })));
+        { durationMs: call.durationMs, errorClass: call.error === undefined ? undefined : errorClass(call.error), signals: call.signals })),
+      () => { untrustedContent.seen = true; });
     const { agent, config } = await createAgent(
       chatModel,
       [
@@ -307,6 +309,9 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
             continue;
           }
           if (chunk.type === 'tool-call') {
+            // The provider's own search returns web text the guard never sees: from here on the
+            // turn counts as exposed, so automatic Google actions ask first.
+            if (chunk.payload.providerExecuted) untrustedContent.seen = true;
             budget.called(chunk.payload.toolCallId, chunk.payload.args, Boolean(chunk.payload.providerExecuted));
             if (chunk.payload.providerExecuted && chunk.payload.toolName === 'web_search') webSearches += 1;
             trace.toolCall(chunk.payload.toolCallId, chunk.payload.toolName, chunk.payload.args, Boolean(chunk.payload.providerExecuted));

@@ -191,3 +191,14 @@ test('the fetch transport never asks Workers for redirect "error" and treats a G
     assert.equal(redirect, 'manual');
   } finally { globalThis.fetch = original; }
 });
+
+test('automático pede confirmação quando a conversa leu conteúdo de terceiros', async () => {
+  const f = await googleFixture(); await setRule(f.officeId, 'gmail.send', { mode: 'automatic' });
+  const untrustedContent = { seen: true };
+  const id = await proposal(() => runGoogleOperation({ ...f.context, untrustedContent }, spec({ idempotencyKey: 'tainted-turn' })));
+  await approveProposal(f.context, id);
+  const confirmed = await runGoogleOperation({ ...f.context, untrustedContent }, spec({ idempotencyKey: 'tainted-turn', approvalId: id }));
+  assert.equal(confirmed.operation.status, 'succeeded', 'the person confirmed; the rule still applies to the rest');
+  const clean = await runGoogleOperation({ ...f.context, untrustedContent: { seen: false } }, spec({ body: 'Outro', idempotencyKey: 'clean-turn' }));
+  assert.equal(clean.operation.status, 'succeeded', 'without third-party text the office rule runs on its own');
+});

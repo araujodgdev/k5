@@ -52,11 +52,24 @@ export class ApiSession {
   }
 
   /** Signs in, creating the account first when it does not exist yet. */
-  async signIn(account: Account) {
+  async signIn(account: Account, options: { acceptLegal?: boolean } = {}) {
     const signIn = await this.request('/api/auth/sign-in/email', { json: { email: account.email, password: account.password } });
-    if (signIn.ok) return this;
-    const signUp = await this.request('/api/auth/sign-up/email', { json: account });
-    if (!signUp.ok) throw new Error(`Não foi possível entrar nem cadastrar ${account.email}: HTTP ${signIn.status} / ${signUp.status} ${await signUp.text()}`);
+    if (!signIn.ok) {
+      const signUp = await this.request('/api/auth/sign-up/email', { json: account });
+      if (!signUp.ok) throw new Error(`Não foi possível entrar nem cadastrar ${account.email}: HTTP ${signIn.status} / ${signUp.status} ${await signUp.text()}`);
+    }
+    if (options.acceptLegal !== false) await this.acceptLegal();
     return this;
+  }
+
+  /**
+   * Accepts the current terms and the Lume's AI notice, which otherwise stand in front of the app
+   * and of the chat. Tests that cover those screens use an account that skipped this.
+   */
+  async acceptLegal() {
+    for (const document of ['terms', 'ai_notice']) {
+      const response = await this.request('/api/legal/acceptance', { json: { document } });
+      if (!response.ok) throw new Error(`Aceite ${document}: HTTP ${response.status} ${await response.text()}`);
+    }
   }
 }

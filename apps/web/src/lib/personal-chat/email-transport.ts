@@ -1,7 +1,7 @@
 import 'server-only';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
-import { personalChatEnvironment } from './environment';
+import { personalChatEnvironment, type SendEmailBinding } from './environment';
 
 export type EmailTransportResult =
   | { state: 'accepted'; providerRef: string | null }
@@ -22,7 +22,27 @@ export function personalEmailSettings() {
   const env = personalChatEnvironment();
   const result = settingsSchema.safeParse({ accountId: env.CLOUDFLARE_ACCOUNT_ID?.trim(),
     token: env.CLOUDFLARE_EMAIL_API_TOKEN?.trim(), from: env.TISES_MESSAGES_FROM?.trim() });
-  return result.success ? result.data : null;
+  if (result.success) return result.data;
+  // The web Worker sends through its `send_email` binding, which needs only the sender.
+  const from = z.email().max(254).safeParse(env.TISES_MESSAGES_FROM?.trim());
+  return env.EMAIL && from.success ? { binding: env.EMAIL, from: from.data } : null;
+}
+
+async function sendThroughBinding(binding: SendEmailBinding, from: string, input: { to: string; subject: string; text: string; html: string }): Promise<EmailTransportResult> {
+  // Like the HTTP path, a send that does not answer in 10 s is unknown rather than a hung request.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<'timeout'>(resolve => { timer = setTimeout(() => resolve('timeout'), 10_000); });
+  try {
+    const sent = await Promise.race([binding.send({ from, ...input }), timeout]);
+    if (sent === 'timeout') return { state: 'unknown', code: 'timeout' };
+    return { state: 'accepted', providerRef: sent.messageId ?? null };
+  } catch (error) {
+    // Codes from https://developers.cloudflare.com/email-service/api/send-emails/workers-api/#error-handling
+    const code = typeof (error as { code?: unknown })?.code === 'string' ? (error as { code: string }).code : '';
+    if (code === 'E_RATE_LIMIT_EXCEEDED') return { state: 'retry', code: 'throttled' };
+    if (/^E_[A-Z_]+$/.test(code)) return { state: 'failed', code: code.toLowerCase() };
+    return { state: 'unknown', code: 'binding_error' };
+  } finally { clearTimeout(timer); }
 }
 
 const responseSchema = z.object({
@@ -61,6 +81,7 @@ export async function sendPersonalEmail(input: { to: string; subject: string; te
     || input.subject.length > 200 || input.text.length > 40_000 || input.html.length > 200_000) {
     return { state: 'failed', code: 'invalid_content' };
   }
+  if ('binding' in settings) return sendThroughBinding(settings.binding, settings.from, input);
   const url = new URL(`https://api.cloudflare.com/client/v4/accounts/${settings.accountId}/email/sending/send`);
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;

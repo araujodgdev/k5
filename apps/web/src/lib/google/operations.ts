@@ -137,6 +137,10 @@ async function admit(context: WorkspaceContext, spec: OperationSpec<unknown>, co
       if (decision.kind === 'blocked') throw new CapabilityError('FORBIDDEN', decision.reason);
       if (decision.kind === 'invalid') throw new CapabilityError('INVALID', decision.reason);
       if (decision.kind === 'needs_confirmation' && !confirmed) return { kind: 'needs_approval', reason: decision.reason };
+      // Text from a third party read in this turn could be steering the agent: what the office
+      // allowed to run on its own waits for the person instead (agent-guard.ts).
+      if (decision.kind === 'automatic' && !confirmed && context.untrustedContent?.seen)
+        return { kind: 'needs_approval', reason: 'Esta conversa leu conteúdo de terceiros; confirme antes de executar.' };
       const mode = decision.kind === 'automatic' && !confirmed ? 'automatic' : 'confirmation';
       if (retryOf) {
         const row = await tx.prepare(`UPDATE google_operation SET status='pending',policy_version=?,policy_mode=?,usage_day=?,error_code=NULL,error_message=NULL,updated_at=CURRENT_TIMESTAMP

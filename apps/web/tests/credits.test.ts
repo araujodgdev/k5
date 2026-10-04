@@ -61,8 +61,8 @@ test('usage reported by Mastra and by the AI SDK reads the same', () => {
 test('an office opens with the initial credits once', async () => {
   const { officeId } = await office();
   const [first, second] = await Promise.all([creditBalance(officeId), creditBalance(officeId)]);
-  assert.equal(first, 850_000);
-  assert.equal(second, 850_000);
+  assert.equal(first, 500_000);
+  assert.equal(second, 500_000);
   const entries = await testDb.prepare("SELECT count(*)::int AS n FROM credit_entry WHERE office_id=? AND kind='initial'").get<{ n: number }>(officeId);
   assert.equal(entries!.n, 1);
 });
@@ -80,7 +80,7 @@ test('a completed call is charged with its usage record; a failed one is recorde
   assert.equal(completed.credits, millicreditsForUsd(0.111, settings));
   assert.equal(completed.cached, 100_000);
   assert.equal(rows.find(row => row.status === 'failed')!.credits, null);
-  assert.equal(await creditBalance(officeId), 850_000 - completed.credits!);
+  assert.equal(await creditBalance(officeId), 500_000 - completed.credits!);
   const entry = await testDb.prepare('SELECT amount::float8 AS amount FROM credit_entry WHERE reference=?').get<{ amount: number }>(`usage:${completed.id}`);
   assert.equal(entry!.amount, -completed.credits!);
 });
@@ -131,10 +131,10 @@ test('concurrent charges are applied one after the other and add up to the balan
     recordUsage(officeId, userId, luna(officeId), 'agent.chat', 'completed', { inputTokens: 100_000, outputTokens: 10_000 })));
   const charged = await testDb.prepare(`SELECT COALESCE(sum(credits),0)::float8 AS total FROM ai_usage WHERE office_id=?`).get<{ total: number }>(officeId);
   const ledger = await testDb.prepare(`SELECT COALESCE(sum(amount),0)::float8 AS total FROM credit_entry WHERE office_id=?`).get<{ total: number }>(officeId);
-  assert.equal(await creditBalance(officeId), 850_000 - charged!.total);
-  assert.equal(ledger!.total, 850_000 - charged!.total);
+  assert.equal(await creditBalance(officeId), 500_000 - charged!.total);
+  assert.equal(ledger!.total, 500_000 - charged!.total);
   const last = await testDb.prepare(`SELECT balance_after::float8 AS "balanceAfter" FROM credit_entry WHERE office_id=? ORDER BY balance_after LIMIT 1`).get<{ balanceAfter: number }>(officeId);
-  assert.equal(last!.balanceAfter, 850_000 - charged!.total);
+  assert.equal(last!.balanceAfter, 500_000 - charged!.total);
 });
 
 test('each OCR page is charged once, and a scanned page is refused without credits', async () => {
@@ -143,7 +143,7 @@ test('each OCR page is charged once, and a scanned page is refused without credi
   await chargeOcrPage({ officeId, userId }, documentId, 'página:1');
   await chargeOcrPage({ officeId, userId }, documentId, 'página:1');
   await chargeOcrPage({ officeId, userId }, documentId, 'página:2');
-  assert.equal(await creditBalance(officeId), 850_000 - 200);
+  assert.equal(await creditBalance(officeId), 500_000 - 200);
   await drain(officeId);
   // A page already paid for is read again for free; a new one is refused.
   await chargeOcrPage({ officeId, userId }, documentId, 'página:2');
@@ -160,7 +160,7 @@ test('an administrator grants credits once per request, with a reason and an aud
   await assert.rejects(grantCreditsByAdmin(adminId, randomUUID(), { credits: 100, reason: 'Cortesia', requestId }), /não encontrado/);
   assert.deepEqual(await grantCreditsByAdmin(adminId, officeId, { credits: 100, reason: 'Cortesia', requestId }), { applied: true });
   assert.deepEqual(await grantCreditsByAdmin(adminId, officeId, { credits: 100, reason: 'Cortesia', requestId }), { applied: false });
-  assert.equal(await creditBalance(officeId), 950_000);
+  assert.equal(await creditBalance(officeId), 600_000);
   const audit = await testDb.prepare(`SELECT count(*)::int AS n FROM platform_audit_log WHERE office_id=? AND action='credits.granted' AND actor_user_id=?`).get<{ n: number }>(officeId, adminId);
   assert.equal(audit!.n, 1);
   const overview = await creditOverview(officeId);

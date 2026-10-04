@@ -12,6 +12,7 @@ import { authClient } from '@/lib/auth-client';
 import { avatarMaxBytes, avatarSize, profileInput, type ProfileCard, type ProfileInput } from '@/lib/profile-contract';
 import { Avatar } from './avatar';
 import { ProfileSummary } from './person-card';
+import { DataSection, type DeletionRequest } from './data-section';
 
 type Fields = ProfileInput;
 const fieldsOf = (profile: ProfileCard): Fields => ({ name: profile.name, headline: profile.headline, oab: profile.oab, location: profile.location, bio: profile.bio });
@@ -73,7 +74,8 @@ function authMessage(error: { status?: number; code?: string } | null | undefine
   return fallback;
 }
 
-export function ProfilePage({ initial }: { initial: ProfileCard }) {
+/** `emailConfirmation`: a new address must open a link before it replaces the current one. */
+export function ProfilePage({ initial, deletion, emailConfirmation = false }: { initial: ProfileCard; deletion: DeletionRequest | null; emailConfirmation?: boolean }) {
   const router = useRouter();
   const [profile, setProfile] = useState(initial);
   const [fields, setFields] = useState<Fields>(() => fieldsOf(initial));
@@ -188,27 +190,28 @@ export function ProfilePage({ initial }: { initial: ProfileCard }) {
         <div className="max-w-sm border border-line p-4"><ProfileSummary profile={preview} /></div>
       </section>
 
-      <Access email={profile.email} onEmailChanged={email => { setProfile(current => ({ ...current, email })); router.refresh(); }} />
+      <Access email={profile.email} emailConfirmation={emailConfirmation} onEmailChanged={email => { setProfile(current => ({ ...current, email })); router.refresh(); }} />
+      <DataSection initial={deletion} />
     </Reveal>
   );
 }
 
-function Access({ email, onEmailChanged }: { email: string; onEmailChanged: (email: string) => void }) {
+function Access({ email, emailConfirmation, onEmailChanged }: { email: string; emailConfirmation: boolean; onEmailChanged: (email: string) => void }) {
   return (
     <section aria-labelledby="profile-access" className="grid gap-8 lg:grid-cols-[16rem_1fr]" data-reveal>
       <div className="grid content-start gap-3">
         <SectionLabel><span id="profile-access">Acesso</span></SectionLabel>
-        <p className="text-sm text-muted-foreground">O e-mail e a senha que você usa para entrar. As duas mudanças pedem a senha atual.</p>
+        <p className="text-sm text-muted-foreground">O e-mail e a senha que você usa para entrar. As duas mudanças pedem a senha atual{emailConfirmation ? ', e um novo e-mail só vale depois de confirmado' : ''}.</p>
       </div>
       <div className="grid gap-10 md:grid-cols-2">
-        <EmailForm email={email} onChanged={onEmailChanged} />
+        <EmailForm email={email} confirmation={emailConfirmation} onChanged={onEmailChanged} />
         <PasswordForm />
       </div>
     </section>
   );
 }
 
-function EmailForm({ email, onChanged }: { email: string; onChanged: (email: string) => void }) {
+function EmailForm({ email, confirmation, onChanged }: { email: string; confirmation: boolean; onChanged: (email: string) => void }) {
   const [newEmail, setNewEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -229,7 +232,13 @@ function EmailForm({ email, onChanged }: { email: string; onChanged: (email: str
       if (result.error) throw result.error;
       // An address that already has an account is answered like a success and left unchanged.
       const session = await authClient.getSession({ query: { disableCookieCache: true } });
-      if (session.data?.user.email.toLowerCase() !== next) throw new Error('Este e-mail já está em uso por outra conta.');
+      if (session.data?.user.email.toLowerCase() !== next) {
+        if (!confirmation) throw new Error('Este e-mail já está em uso por outra conta.');
+        // The new address confirms the change; whether it belongs to another account stays private.
+        setNewEmail(''); setPassword('');
+        setDone(`Se ${next} puder ser usado, enviamos um link para ele. O e-mail muda quando o link for aberto; até lá, continue entrando com ${email}.`);
+        return;
+      }
       setNewEmail(''); setPassword(''); setDone(`Pronto. Agora você entra com ${next}.`);
       onChanged(next);
     } catch (failure) {

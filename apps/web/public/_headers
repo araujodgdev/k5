@@ -1,0 +1,15 @@
+# Static files are served by the assets binding without running src/workers/web.ts, so the
+# security headers of src/lib/security-headers.ts are repeated here. next.config.ts headers()
+# does not reach production.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: frame-ancestors 'self'
+
+/sw.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+  Content-Security-Policy: default-src 'self'; script-src 'self'

@@ -14,8 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage, signInSchema, signUpSchema } from "@/lib/auth-validation";
+import { LEGAL_VERSION } from "@/lib/legal-version";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
-export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "sign-up"; invite?: string; messageClaim?: string }) {
+/** `challengeKey`: the Turnstile site key, when sign-up asks for a human check. */
+export function AuthForm({ mode, invite, messageClaim, challengeKey }: { mode: "sign-in" | "sign-up"; invite?: string; messageClaim?: string; challengeKey?: string }) {
   const router = useRouter();
   const isSignUp = mode === "sign-up";
   const [pending, setPending] = useState(false);
@@ -23,6 +26,10 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [passwordFocus, setPasswordFocus] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [challengeToken, setChallengeToken] = useState("");
+  const [challengeReset, setChallengeReset] = useState(0);
+  const challenge = isSignUp && challengeKey ? challengeKey : undefined;
   // The light answers the form: it gathers while the password is typed, flares on submit, cools on an error.
   const mood = error ? "error" : pending ? "submit" : passwordFocus ? "focus" : "idle";
 
@@ -41,23 +48,45 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
       if (input instanceof HTMLElement) input.focus();
       return;
     }
+    if (isSignUp && values.acceptTerms !== "on") {
+      setFieldErrors({ acceptTerms: "Para criar a conta, aceite os Termos de uso e a Política de privacidade." });
+      const input = event.currentTarget.elements.namedItem("acceptTerms");
+      if (input instanceof HTMLElement) input.focus();
+      return;
+    }
     if (isSignUp && values.password !== values.confirmPassword) {
       setFieldErrors({ confirmPassword: "As senhas precisam ser iguais." });
       const input = event.currentTarget.elements.namedItem("confirmPassword");
       if (input instanceof HTMLElement) input.focus();
       return;
     }
+    if (challenge && !challengeToken) {
+      setError("Aguarde a verificação de segurança terminar e tente de novo.");
+      return;
+    }
     setPending(true);
+    const destination = invite ? `/invite/${encodeURIComponent(invite)}` : messageClaim ? `/messages/claim/${encodeURIComponent(messageClaim)}` : '/app';
     try {
+      // The confirmation link sent by e-mail returns to the same place the form would have.
+      // The ticked version travels with the sign-up; the server records it with the new account.
+      const signUp = () => ({ ...signUpSchema.parse(values), callbackURL: destination, acceptedLegalVersion: LEGAL_VERSION });
       const result = isSignUp
-        ? await authClient.signUp.email(signUpSchema.parse(values))
-        : await authClient.signIn.email(signInSchema.parse(values));
+        ? await authClient.signUp.email(signUp(), challenge ? { headers: { "x-captcha-response": challengeToken } } : undefined)
+        : await authClient.signIn.email({ ...signInSchema.parse(values), callbackURL: destination });
       if (result.error) {
+        // A Turnstile token is good for one attempt.
+        if (challenge) setChallengeReset(value => value + 1);
         setError(result.error.status === 429 ? authErrorMessage("TOO_MANY_REQUESTS") : authErrorMessage(result.error.code));
         setPending(false);
         return;
       }
-      router.replace(invite ? `/invite/${encodeURIComponent(invite)}` : messageClaim ? `/messages/claim/${encodeURIComponent(messageClaim)}` : '/app');
+      // Where e-mail confirmation is required, sign-up creates the account without a session.
+      if (isSignUp && !result.data?.token) {
+        setSentTo(String(values.email));
+        setPending(false);
+        return;
+      }
+      router.replace(destination);
       router.refresh();
     } catch {
       setError("Não foi possível conectar. Confira sua conexão e tente novamente.");
@@ -89,7 +118,12 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
       <section className="w-full max-w-[420px] md:my-auto" aria-labelledby="auth-title">
         <Reveal>
           <p className="label-mono mb-5 flex items-center gap-2.5 text-muted-foreground" data-reveal><span className="square-dot" aria-hidden="true" />{isSignUp ? "Novo escritório" : "Acesso"}</p>
-          <h1 id="auth-title" className="display mb-8 text-[44px] md:mb-10 md:text-[64px]" data-reveal>{isSignUp ? "Crie sua conta" : "Entre no Lume"}</h1>
+          <h1 id="auth-title" className="display mb-8 text-[44px] md:mb-10 md:text-[64px]" data-reveal>{sentTo ? "Confira seu e-mail" : isSignUp ? "Crie sua conta" : "Entre no Lume"}</h1>
+          {sentTo ? <div className="grid gap-4 text-base leading-relaxed" role="status">
+            <p>Enviamos um link de confirmação para <strong className="break-all font-medium">{sentTo}</strong>. Abra o link em até 24 horas para entrar no Lume.</p>
+            <p className="text-sm text-muted-foreground">Se a mensagem não chegar em alguns minutos, confira a caixa de spam. Ao tentar entrar com o e-mail ainda não confirmado, enviamos um novo link.</p>
+            <Link href={`/sign-in${invite ? `?invite=${encodeURIComponent(invite)}` : messageClaim ? `?messageClaim=${encodeURIComponent(messageClaim)}` : ''}`} className="inline-flex min-h-11 w-fit items-center text-sm font-medium underline underline-offset-4">Ir para o acesso</Link>
+          </div> : <>
           <form onSubmit={submit} noValidate aria-busy={pending} data-reveal>
             <fieldset disabled={pending} className="flex min-w-0 flex-col gap-4">
               {isSignUp && <>
@@ -127,11 +161,20 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
                 {fieldError("confirmPassword")}
               </div>}
               {error && <p className="flex items-start gap-2 text-destructive text-sm" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {isSignUp ? "Antes de criar sua conta, leia os " : "Consulte os "}
+              {isSignUp ? <div className="grid gap-1.5">
+                <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-relaxed">
+                  <input id="acceptTerms" name="acceptTerms" type="checkbox" className="mt-1 size-4 shrink-0 accent-foreground"
+                    aria-invalid={!!fieldErrors.acceptTerms} aria-describedby={fieldErrors.acceptTerms ? "acceptTerms-error" : undefined} />
+                  <span>Li e aceito os <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Termos de uso<span className="sr-only"> (abre em nova aba)</span></Link>
+                    {" e a "}<Link href="/politica-privacidade" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Política de privacidade<span className="sr-only"> (abre em nova aba)</span></Link>.</span>
+                </label>
+                {fieldError("acceptTerms")}
+              </div> : <p className="text-sm leading-relaxed text-muted-foreground">
+                {"Consulte os "}
                 <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Termos de uso<span className="sr-only"> (abre em nova aba)</span></Link>
                 {" e a "}<Link href="/politica-privacidade" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Política de privacidade<span className="sr-only"> (abre em nova aba)</span></Link>.
-              </p>
+              </p>}
+              {challenge && <TurnstileWidget siteKey={challenge} action="sign-up" resetKey={challengeReset} onToken={setChallengeToken} onError={setError} />}
               <Button type="submit" size="lg" className="mt-3 h-12 w-full justify-between px-4 text-[15px] md:h-12">
                 {pending ? (isSignUp ? "Criando conta…" : "Entrando…") : (isSignUp ? "Criar conta" : "Entrar")}
                 {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />}
@@ -142,6 +185,7 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
             {isSignUp ? "Já tem uma conta?" : "Ainda não tem uma conta?"}{" "}
             <Link href={`${isSignUp ? '/sign-in' : '/sign-up'}${invite ? `?invite=${encodeURIComponent(invite)}` : messageClaim ? `?messageClaim=${encodeURIComponent(messageClaim)}` : ''}`} className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors duration-300 hover:decoration-brand">{isSignUp ? "Entrar" : "Criar conta"}</Link>
           </p>
+          </>}
         </Reveal>
       </section>
       </div>
