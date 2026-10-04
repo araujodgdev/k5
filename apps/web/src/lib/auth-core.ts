@@ -72,7 +72,7 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       customRules: {
         "/sign-in/email": { window: 60, max: 10 },
         // Each sign-up and each verification request sends an e-mail against a daily sending quota.
-        "/sign-up/email": { window: 60, max: 5 },
+        "/sign-up/email": { window: 60, max: 10 },
         '/send-verification-email': { window: 60, max: 3 },
         '/request-password-reset': { window: 60, max: 5 },
         '/reset-password': { window: 60, max: 10 },

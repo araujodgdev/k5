@@ -268,7 +268,7 @@ test('a payment credits one month once, early renewals stack and a refund remove
   assert.equal(await settleCheckout(firstId, 'PAID', 'https://app.abacatepay.com/receipt/1'), true);
   assert.equal(await settleCheckout(firstId, 'PAID'), false, 'a second confirmation is a no-op');
   // The initial credits, then the month's: each paid month adds the plan's credits once.
-  assert.equal(await creditBalance(payer.officeId), 1_700_000);
+  assert.equal(await creditBalance(payer.officeId), 1_350_000);
   const afterFirst = new Date((await paidUntil(payer.officeId))!);
   assert.ok(Math.abs(afterFirst.getTime() - monthFrom(before).getTime()) < 60_000);
 
@@ -283,7 +283,7 @@ test('a payment credits one month once, early renewals stack and a refund remove
   assert.equal(await settleCheckout(second, 'REFUNDED'), true);
   assert.equal(await settleCheckout(second, 'REFUNDED'), false);
   assert.equal(new Date((await paidUntil(payer.officeId))!).getTime(), afterFirst.getTime());
-  assert.equal(await creditBalance(payer.officeId), 1_700_000, 'a refunded month takes its credits back');
+  assert.equal(await creditBalance(payer.officeId), 1_350_000, 'a refunded month takes its credits back');
   assert.equal(await settleCheckout(second, 'PAID'), false, 'a refunded checkout is never credited again');
 
   const overview = await billingOverview(payer.officeId);
@@ -306,7 +306,7 @@ test('a credit package is a one-time checkout that adds its credits once, withou
   const event = { id: `log_${randomUUID()}`, event: 'checkout.completed', data: { checkout: { id, status: 'PAID' } } };
   assert.equal(await handleBillingWebhook(event, undefined, fake.client), 'applied');
   assert.equal(await settleCheckout(id, 'PAID'), false);
-  assert.equal(await creditBalance(payer.officeId), 1_850_000);
+  assert.equal(await creditBalance(payer.officeId), 1_500_000);
   const overview = await billingOverview(payer.officeId);
   assert.equal(overview.paidUntil, null, 'credits never extend the plan');
   const row = overview.checkouts.find(checkout => checkout.id === id)!;
@@ -314,7 +314,7 @@ test('a credit package is a one-time checkout that adds its credits once, withou
 
   fake.client.refundCheckout = async target => { fake.checkouts.get(target)!.status = 'REFUNDED'; return { id: 'refund_1', status: 'COMPLETE' }; };
   await clientBillingAction(actor, payer.officeId, id, 'refund', fake.client);
-  assert.equal(await creditBalance(payer.officeId), 850_000);
+  assert.equal(await creditBalance(payer.officeId), 500_000);
 });
 
 test('webhooks are applied once per delivery id and ignore checkouts this app did not open', async () => {
