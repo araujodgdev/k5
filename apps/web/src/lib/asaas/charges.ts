@@ -202,7 +202,7 @@ export async function cancelAsaasCharge(context: WorkspaceContext, raw: unknown)
     await asaasRequest(credential.environment, credential.apiKey, 'DELETE', `/payments/${encodeURIComponent(row.providerPaymentId)}`, deleted);
   } catch (error) {
     // Already removed in Asaas: the local record only catches up.
-    if (!(error instanceof AsaasProviderError && error.kind === 'rejected' && /não encontrad|not found/i.test(error.message))) throw error;
+    if (!(error instanceof AsaasProviderError && error.upstream === 404)) throw error;
   }
   await database.prepare(`UPDATE asaas_payment SET state='cancelled',provider_status='DELETED',updated_at=CURRENT_TIMESTAMP WHERE office_id=? AND id=? AND state='open'`)
     .run(context.officeId, input.paymentId);

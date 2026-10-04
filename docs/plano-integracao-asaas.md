@@ -75,3 +75,55 @@ Escopo decidido em 04/10/2026: conexão, emissão e baixa automática, nas conta
 
 - Publicar a emissão para o assistente, com confirmação, se fizer sentido depois do uso real.
 - Mostrar o link do Asaas como botão no portal do cliente, que hoje só exibe a mensagem.
+
+## Frente 3: baixa automática por webhook
+
+### Feito
+
+- A migração `0073_asaas_webhooks.sql` faz quatro mudanças:
+  - em `asaas_connection`: o id do webhook, o hash SHA-256 do token e a situação (`active`, `unavailable` ou `failed`) com o motivo;
+  - nova tabela `asaas_webhook_event`, que impede reprocessar um mesmo evento;
+  - em `asaas_payment`: `receipt_id` e `review`;
+  - o meio de recebimento `boleto`.
+- Ao conectar ou verificar de novo, `syncAsaasWebhook()` cadastra na conta o webhook `<base>/api/asaas/webhook`, com envio sequencial, os eventos de cobrança e um token aleatório de 43 caracteres.
+  - Antes de cadastrar, remove webhooks antigos da conta com o mesmo endereço.
+  - Se o webhook existe, reativa a fila quando ela foi interrompida.
+  - Se o webhook sumiu, cria outro.
+  - Uma falha fica registrada para o painel e não impede a conexão.
+  - Desconectar remove o webhook da conta, sem bloquear a desconexão se a remoção falhar.
+- A rota `POST /api/asaas/webhook` identifica o escritório pelo hash do cabeçalho `asaas-access-token`.
+  - Token desconhecido recebe 401.
+  - Evento repetido, cobrança que não é do Lume ou corpo inválido recebem 200 sem efeito.
+  - Só uma falha do banco responde 500, para o Asaas reenviar.
+- `src/lib/asaas/webhooks.ts` aplica cada evento em uma transação:
+  - **`PAYMENT_CONFIRMED` ou `PAYMENT_RECEIVED`:** lança um único recebimento, no nome de quem criou o honorário. O meio é tirado do `billingType` e a data é a do pagamento pelo cliente. O valor fica limitado ao saldo, e o excesso fica anotado em `review`. O evento gera a notificação `honorarios.charge.paid`.
+  - **Estorno, contestação ou recebimento em dinheiro desfeito:** gera o estorno do recebimento, com o motivo.
+  - **`PAYMENT_DELETED` e `PAYMENT_RESTORED`:** acompanham a cobrança, e a restauração respeita a regra de uma cobrança ativa por parcela.
+  - **`PAYMENT_UPDATED`:** atualiza valor e vencimento.
+  - **Resposta perdida:** uma cobrança ainda `creating` é adotada pela `externalReference`.
+- O painel em Integrações mostra a situação da baixa automática.
+- A variável `ASAAS_WEBHOOK_BASE_URL` fica em `.env.example`. Quando vazia, vale `BETTER_AUTH_URL`; HTTP e localhost deixam a baixa indisponível.
+- O manual (`docs/manual-lume.md`) e `docs/honorarios.md` descrevem o fluxo.
+- Testes em `tests/asaas.test.ts`:
+  - registro, reparo e remoção do webhook, e ambiente local;
+  - token desconhecido e token de outro escritório;
+  - eventos repetidos e cobrança de fora do Lume;
+  - pagamento acima do saldo, boleto e estorno;
+  - notificação;
+  - adoção de uma resposta perdida, exclusão e restauração.
+
+### Decisões
+
+- **Webhook automático:** o Lume cadastra o webhook pela API para que o escritório não precise configurar nada no Asaas. O token só existe na conta do Asaas, e o Lume guarda o hash, suficiente para comparar.
+- **Processamento imediato:** cada evento é aplicado no momento, sem fila. A transação é curta, e o Asaas reenvia o que não recebeu 2xx.
+- **Status das respostas:** eventos sem efeito respondem 200, para não somar falhas na fila do escritório, que o Asaas interrompe após 15 falhas seguidas.
+- **Quando lançar:** o recebimento é lançado no `PAYMENT_CONFIRMED`, quando o cliente pagou, sem esperar a liberação do saldo (`PAYMENT_RECEIVED`). O cartão confirma antes de liberar o valor, e para o honorário vale o pagamento do cliente.
+- **Valor limitado ao saldo:** o lançamento respeita o saldo da parcela, para não superar o devido quando houve baixa manual. A diferença fica registrada para conferência.
+
+### Pendente
+
+- Excluir o escritório não remove o webhook na conta do Asaas. As entregas seguintes recebem 401 até o Asaas interromper a fila.
+- Estornos parciais (`PAYMENT_PARTIALLY_REFUNDED`) não ajustam o recebimento. Corrija pela tela.
+- O e2e da cobrança pelo Asaas precisa de uma conta de sandbox e de uma URL pública. Os testes de integração usam o Asaas simulado.
+- O e2e `e2e/asaas.e2e.ts` cobre as telas sem conta conectada (receita `asaas` do verify-k5), mas ainda não rodou. Também falta concluir `pnpm test` completo: a execução local foi interrompida por falta de memória. `tests/asaas.test.ts` e as suítes de honorários, cobrança, portal e exportação passaram.
+- Validar com uma conta real de sandbox antes de liberar em produção: criação do webhook (regras do `authToken`), fatura com `UNDEFINED`, e eventos de PIX e boleto.

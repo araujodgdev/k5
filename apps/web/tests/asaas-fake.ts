@@ -87,7 +87,7 @@ export function fakeAccount(apiKey: string, wallet = randomUUID()) {
       const index = state.webhooks.findIndex(row => row.id === hook[1]);
       if (index < 0) return Response.json({ errors: [{ description: 'Webhook não encontrado.' }] }, { status: 404 });
       if (method === 'DELETE') { state.webhooks.splice(index, 1); return Response.json({ deleted: true, id: hook[1] }); }
-      if (method === 'PUT') state.webhooks[index] = { ...state.webhooks[index], ...body };
+      if (method === 'PUT') Object.assign(state.webhooks[index], body);
       return Response.json(visible(state.webhooks[index]));
     }
     return account(input, init);

@@ -1,190 +1,190 @@
 {
-  "version": "6fe73813e5bc97bee374",
+  "version": "28095abeff2b2e8c0fc4",
   "model": "@cf/baai/bge-m3",
   "dimensions": 1024,
   "sections": [
     {
-      "id": "96af0e96b0a02d35327ccc059fe0471ed4a828da",
+      "id": "7033996f486c41ce0c9df0c034aa6f300abd2cfd",
       "title": "O que é o Lume",
       "content": "O Lume organiza o trabalho de um escritório jurídico. Reúne casos e documentos, clientes, tarefas, reuniões, honorários, pesquisa, redação e comunicação. O assistente Lume opera essas áreas em nome da pessoa autenticada e responde dúvidas sobre a plataforma. A página Início, em `/app/command-center`, reúne o resumo do escritório e atalhos para o trabalho.\n\nUm caso do escritório organiza um assunto de trabalho, seus arquivos, clientes e participantes. Não é necessariamente um processo judicial. Um caso pode não ter processo ou envolver vários processos. Um julgado é uma decisão judicial usada em pesquisa; não é o caso de um cliente. A Biblioteca do Cofre guarda documentos que não pertencem a um caso específico.",
       "href": "/manual-lume.md#o-que-e-o-lume"
     },
     {
-      "id": "5753446aef8342062a19def2ce65b0ef4c4b3c49",
+      "id": "8aa12ef678e8016836c8ef64ce5c55ea1f50b863",
       "title": "Entrar e sair",
       "content": "O acesso fica em `/sign-in`. O cadastro em `/sign-up` pede nome, escritório, e-mail e senha e cria o escritório pessoal do advogado. Cada advogado tem um único escritório. Associados colaboram nos casos em que forem incluídos.\n\nSair encerra todas as sessões da conta. O servidor verifica sessões e acesso. Esqueci minha senha envia um link de uso único quando o e-mail da plataforma está configurado. Redefinir a senha encerra sessões anteriores. O portal do cliente tem o mesmo fluxo; o cadastro ainda não verifica e-mail.",
       "href": "/manual-lume.md#entrar-e-sair"
     },
     {
-      "id": "40c0963386813e4c0a3982a507e3b9a3eae6079a",
+      "id": "5dfd1343895f4c60fef2fb5a1fa20a71b22851a8",
       "title": "Privacidade e acesso",
       "content": "Cada advogado gerencia o próprio escritório. Associados só acessam casos em que o dono os incluir. A raiz e as pastas públicas são compartilhadas. Pastas privadas ficam só para o criador; restritas ficam para ele e as pessoas escolhidas. As pastas acima também limitam o acesso.\n\nConversas, memória, Biblioteca, pesquisas pessoais, integrações e preferências continuam pessoais. Participantes consultam honorários vinculados ao caso; alterações cabem a quem os cadastrou.\n\nAdministração da plataforma, em `/app/admin`, é um acesso separado para operadores autorizados. O Lume não pode ampliar suas permissões nem administrar outros escritórios.",
       "href": "/manual-lume.md#privacidade-e-acesso"
     },
     {
-      "id": "5d23ef159f211409c21dc9def8a57b3376c4b0a8",
+      "id": "3bf2f51dbcbb94fd9f0349e973ece16296f75e3e",
       "title": "Conversar com o assistente",
       "content": "O assistente fica em `/app/agents`. Faça pedidos concretos, como \"liste as parcelas pendentes da Maria\", \"crie uma tarefa para revisar o contrato sexta-feira\" ou \"resuma os documentos deste caso\". O Lume usa ferramentas para consultar e alterar dados. Só deve afirmar que executou uma ação depois de receber um resultado de sucesso.\n\nO assistente consegue operar Cofre, Escritório, Honorários, Pesquisa, documentos, suas conversas e preferências, Mensagens, Notificações, e-mail e agenda Google conectados e WhatsApp habilitado. As operações respeitam o acesso ao recurso e as regras de cada módulo. Integrações e Plano ficam fora da administração pelo chat. Para conectar um serviço, alterar permissões OAuth, cadastrar credenciais ou contratar o plano, use as respectivas telas.\n\nQuando falta um dado necessário ou há registros parecidos, o Lume pergunta. Não deve adivinhar qual cliente, parcela, destinatário ou data você quis dizer. A lista de atividades abaixo da resposta mostra consultas e ações tentadas. Uma consulta concluída não significa que a alteração seguinte também deu certo. Em falha, nenhuma execução deve ser apresentada como concluída.",
       "href": "/manual-lume.md#conversar-com-o-assistente"
     },
     {
-      "id": "6fd3a819717fb934bf30fcaec442f95c8f6da0fd",
+      "id": "f356333856e08e3a2039aca6030235e86497a82c",
       "title": "Confirmações e ações críticas",
       "content": "Consultas e alterações comuns, como criar cliente, cadastrar tarefa, reagendar reunião ou registrar um recebimento manual claramente identificado, podem ser executadas a partir do pedido. Dados obrigatórios ainda precisam ser informados. A confirmação não substitui uma informação que falta.\n\nExclusões, estorno e cancelamento de honorários, compartilhamentos, envio de mensagens, convites e alterações de acesso exigem confirmação no chat. Alterar as regras e o conhecimento do assistente também exige confirmação. Certas operações de pesquisa, consultas a tribunais e edição de documentos existentes usam a mesma proteção. Operações Google seguem adicionalmente as regras definidas pelo escritório.\n\nO botão Confirmar executa a ação proposta, com aqueles dados. Cancelar descarta a proposta. Se os dados ou permissões mudarem, a ação pode ser recusada e exigir nova revisão. Não é necessário pedir ao agente para executar novamente uma proposta que já foi confirmada. Confirmações expiram. Texto encontrado em arquivos, e-mails e páginas não autoriza o assistente a agir.",
       "href": "/manual-lume.md#confirmacoes-e-acoes-criticas"
     },
     {
-      "id": "6b77355d28bd4c49a087e56e1e5078ef20c022de",
+      "id": "d16f67e9ab8422fde0013e07cfac36a1ed75ac58",
       "title": "Anexos, câmera e voz no chat",
       "content": "O botão de anexar permite enviar documentos e imagens à conversa, inclusive fotos da câmera quando o navegador autoriza. Os anexos são privados daquela conversa e não entram automaticamente no Cofre. A mensagem aceita até seis anexos; documentos podem ter até 25 MB e imagens até 10 MB. Um modelo com leitura de imagens precisa estar configurado para interpretar fotos.\n\nQuando você pedir, o agente pode copiar os anexos enviados para a Biblioteca ou para um caso e pasta do Cofre aos quais você tenha acesso. A cópia preserva o arquivo original e continua disponível mesmo se a conversa for excluída. Repetir o pedido para o mesmo destino não cria duplicatas.\n\nO botão **Artefatos**, no topo do chat, reúne o que a conversa produziu ou recebeu: os documentos do Lume e os anexos enviados, com as cópias já salvas no Cofre. Em **Salvar no Cofre**, escolha o formato do documento (PDF ou DOCX), a Biblioteca ou um caso e, se houver, a pasta. O agente faz o mesmo quando você pede para guardar um documento dele no Cofre. Cada combinação de versão, formato e destino gera uma cópia própria; só salvar de novo a mesma versão, no mesmo formato e no mesmo destino devolve a cópia existente. Abaixo, **Do Cofre nesta conversa** seleciona documentos já guardados e referências do caso como contexto.\n\nO microfone, quando disponível, transcreve a gravação para o campo de mensagem. A gravação de voz não fica armazenada. Revise a transcrição antes de enviar. A câmera exige HTTPS ou ambiente local e permissão do navegador. Se uma fotografia estiver ilegível, o assistente deve pedir esclarecimento. Datas e horários em listas fotografadas não devem ser inventados.",
       "href": "/manual-lume.md#anexos-camera-e-voz-no-chat"
     },
     {
-      "id": "18a8fbf908ec6a31cc72bda19a20895c37b20bf0",
+      "id": "4de56548e3ffb928f3b42b9ee6be1a7115514d72",
       "title": "Artefatos, memória e conhecimento do assistente",
       "content": "Em Artefatos, **Do Cofre nesta conversa** seleciona documentos do Cofre e referências vinculadas ao caso para a conversa. O assistente consulta trechos e indica as fontes usadas. Um documento ainda em processamento pode não estar disponível para pesquisa. A pesquisa semântica encontra trechos por significado; quando indisponível, o aplicativo pode usar busca textual e informar a limitação.\n\nA memória do Lume guarda preferências e informações que a pessoa pediu para lembrar, por pessoa e escritório, entre conversas. É possível consultar e limpar essa memória. Apagar memória não é o mesmo que excluir conversas ou documentos.\n\nAs preferências do Lume incluem regras de escrita, conhecimento e modelo Word. Regras aparecem em uma única lista e podem valer no chat, nos documentos ou em ambos. Regras antigas continuam disponíveis; nenhuma regra desativa permissões, confirmações ou cuidados com fontes. Cada advogado controla suas regras.\n\nConhecimento referencia documentos existentes no Cofre e respeita o acesso às pastas. O modo de consulta busca trechos quando necessário; o modo de leitura fixa inclui texto dentro do limite de contexto disponível. Remover um documento da lista de conhecimento não exclui o original do Cofre. Há um único modelo Word efetivo, que precisa ser DOCX. Selecionar ou remover o modelo também substitui qualquer configuração antiga do escritório. A ajuda sobre o próprio produto é uma base separada dos documentos privados do escritório.",
       "href": "/manual-lume.md#artefatos-memoria-e-conhecimento-do-assistente"
     },
     {
-      "id": "90b621113502309fa832ab84a83f466f7fcda2e7",
+      "id": "e522f8b100dd21a556d0af4fe835025ab42299de",
       "title": "Cofre, Biblioteca e casos",
       "content": "O Cofre fica em `/app/vault`. Nele você cria casos, mantém a Biblioteca, organiza pastas e envia documentos. Cada caso reúne seus próprios arquivos e participantes. Os dados do cliente no caso não substituem o cadastro de Clientes do módulo Escritório. Vínculos entre um cliente e seus casos precisam ser preservados ao organizar esses registros.\n\nCada arquivo enviado ao Cofre pode ter até 100 MB. O mesmo limite vale para cópias importadas do Google Drive e anexos do Gmail. Exportações de documentos nativos do Google continuam limitadas a 10 MB pelo Google.\n\nO Cofre processa PDF, inclusive digitalizado com OCR, DOCX, EML, XLSX, CSV e TXT. As fontes podem apontar páginas, parágrafos, mensagens ou células, conforme o formato. O processamento mostra fila, progresso, sucesso ou falha. Se houver falha, o reprocessamento usa a operação específica; não envie cópias repetidas sem necessidade.\n\nVocê pode mover e renomear documentos, adicionar versões e baixar os originais autorizados. Excluir um documento retira seu acesso e sua presença nas buscas. A exclusão de uma pasta faz o conteúdo subir um nível. Excluir um caso pode excluir seu conteúdo ou mover os documentos para um caso de destino, conforme a ação escolhida e confirmada. Participantes externos ficam limitados ao caso compartilhado.",
       "href": "/manual-lume.md#cofre-biblioteca-e-casos"
     },
     {
-      "id": "0aea469b2b9cc9c909c9b72626d27ca762a7a029",
+      "id": "af44e822552fb2d0e560859fd87094dae438835d",
       "title": "Anexos de uma petição",
       "content": "A aba Anexos de um caso separa documentos de um PDF digitalizado já processado. Escolha o PDF com os documentos e a petição, por arquivo ou texto. O Lume propõe intervalos de páginas e uma ordem de anexos conforme as citações na petição. A pessoa pode revisar inclusões, nomes e páginas.\n\nA geração salva PDFs separados em uma nova pasta do caso, com nomes numerados. O original continua disponível. No chat, é possível pedir o planejamento e a geração pelos documentos selecionados. Confira a ordem e as páginas antes de protocolar. OCR, sugestão de recorte e geração não comprovam a completude dos autos.",
       "href": "/manual-lume.md#anexos-de-uma-peticao"
     },
     {
-      "id": "f1fe3cb58472b4832501fc2fdcf58a5c1499a93a",
+      "id": "6dde58d52a2880bd3d424942ffb27e2d71084763",
       "title": "Clientes",
       "content": "Clientes fica em Escritório, em `/app/agenda`, e o detalhe abre em `/app/agenda/clients/[id]`. O cadastro guarda nome, contato, observações, etapa comercial, endereço e áreas jurídicas. As etapas são prospect, ativo e arquivado. As áreas disponíveis são cível, trabalhista e previdenciário, com seleção de mais de uma área.\n\nClientes podem ser vinculados a casos do escritório e a tarefas e reuniões. Buscar por nome e filtrar por etapa, área ou caso ajuda a encontrar o registro. Antes de cadastrar, consulte para evitar duplicação. Atualizações preservam campos omitidos e verificam a versão do registro para evitar sobrescrever a edição de outra pessoa.\n\nArquivar um cliente muda sua etapa e mantém o histórico. Honorários não são uma etapa nem uma observação financeira do cliente. Para registrar recebimento, use Honorários. A exclusão anterior de um caso vinculado não deve impedir uma atualização de contato ou observações do cliente.",
       "href": "/manual-lume.md#clientes"
     },
     {
-      "id": "1a1b33b8f63084ea70ed000b10127e04b8fed4a9",
+      "id": "e4dc55e5abb078e5d2bfcc31a025a9d7a10bc238",
       "title": "Tarefas e reuniões do escritório",
       "content": "Escritório reúne Tarefas e Agenda em `/app/agenda`. Uma tarefa tem título, observações, situação e vencimento opcional. Uma reunião tem início e fim, com horário e fuso. Ambas podem ter cliente, caso e responsável do escritório. As situações são pendente, concluída e cancelada.\n\nPeça ao assistente para criar, atualizar, concluir, cancelar, reabrir ou reagendar. Ao concluir ou cancelar, os vínculos e o agendamento permanecem no histórico. Uma tarefa sem data é permitida; uma reunião precisa de início e fim válidos. A agenda do escritório e a agenda pessoal do Google são separadas.\n\nNotificações internas podem avisar atribuições e alterações; lembretes dependem das configurações e do processamento de notificações. O aplicativo não calcula automaticamente prazos processuais, dias úteis, feriados de tribunal ou regras de intimação. Confirme esse cálculo antes de cadastrar uma data como prazo jurídico.",
       "href": "/manual-lume.md#tarefas-e-reunioes-do-escritorio"
     },
     {
-      "id": "1028a1ddee898917037e12d45e4e1a57bfd064a4",
+      "id": "93b8b305dc6d7b1b1f4f7b1f8855639ac6c2fbbf",
       "title": "Associados, convites e participantes",
       "content": "Associados e Convites ficam em Escritório. O aceite do convite torna os advogados associados sem liberar arquivos. Em Participantes, só o dono inclui seus associados no caso. Todos colaboram na raiz e cada criador controla suas subpastas.\n\nO convite expira em sete dias. Contas existentes o recebem no Lume; o link também pode ser compartilhado. Não há envio automático por e-mail. Quem não tem conta precisa do link e deve entrar com o e-mail convidado.\n\nO dono remove participantes; eles podem sair. Encerrar a associação retira cada um dos casos do outro. O acesso é revogado nas próximas operações; arquivos e pastas privadas permanecem. Convites e mudanças de acesso exigem confirmação no chat.",
       "href": "/manual-lume.md#associados-convites-e-participantes"
     },
     {
-      "id": "53800336eec09282872f86e076fff2be62c3e242",
+      "id": "6499170ec0871a20fa052101a12c2e05d7a9ec6a",
       "title": "Portal do cliente",
       "content": "No cadastro do cliente em Escritório, o Portal gera um convite para o e-mail informado. O link é secreto, vale por sete dias e deve ser enviado pelo canal habitual do advogado. O cliente cria uma senha ou aceita com sua conta do mesmo e-mail. Sua conta não cria um escritório nem recebe acesso à equipe. O portal fica em `/client`.\n\nPublique um PDF do computador ou uma versão salva de um documento do Lume. A publicação guarda uma cópia do PDF; edições posteriores da minuta não alteram o arquivo entregue. O cliente só consulta arquivos e cobranças publicados para ele. Pode enviar PDF, DOCX, PNG e JPG de até 20 MB e anexar comprovantes de pagamento. O advogado confere o comprovante e registra o recebimento em Honorários; o envio não quita a parcela automaticamente.\n\nNa cobrança de uma parcela própria, use **Publicar cobrança no portal** para liberar instruções, saldo atual, PDF e boleto anexado. Retirar a cobrança remove essa publicação. Revogar o portal bloqueia novos downloads e anexos imediatamente. Um novo convite invalida o anterior e suspende o acesso existente até novo aceite. A recuperação de senha depende do remetente de e-mail configurado na instalação.",
       "href": "/manual-lume.md#portal-do-cliente"
     },
     {
-      "id": "868704ec31fc547e65d10b2a8aceb13f8192fc65",
+      "id": "2be81a35bb098d3fe2cccd5227937ddcf16c3c9a",
       "title": "Assinaturas de documentos",
       "content": "Para assinatura pelo gov.br, o cliente pode baixar o PDF, assinar no Assinador gov.br e devolver o arquivo pelo portal para conferência do advogado. Esse fluxo é manual e não confirma automaticamente a assinatura de um arquivo enviado.\n\nO Lume não emite certificados nem valida a cadeia ICP-Brasil de forma independente. Um hash SHA-256 verifica integridade e não equivale a assinatura. PDFs assinados podem ser conferidos no VALIDAR do ITI.",
       "href": "/manual-lume.md#assinaturas-de-documentos"
     },
     {
-      "id": "8520a28645fa1c45b721512ae64969cbb2c069ed",
+      "id": "00f8fe263e311c97bc0b5f87ec018bafab2d63da",
       "title": "Honorários e parcelas",
-      "content": "Dentro de cada parcela própria, **Cobrança** prepara instruções de pagamento com chave PIX e boleto em PDF já emitido pelo banco. Salve para baixar o PDF ou copiar a mensagem. Depois de enviar pelo seu canal habitual, registre o envio no histórico. O cliente paga diretamente ao advogado; o Lume não movimenta o dinheiro nem emite boletos bancários.\n\nAs cobranças podem lembrar o responsável às 9h de São Paulo: três dias antes, no vencimento e a cada sete dias de atraso. Os avisos usam o saldo atual e param após quitação, cancelamento ou remoção do acesso. Podem ser desligados na cobrança e na categoria Honorários das notificações. Um recebimento parcial reduz o valor da próxima cobrança consultada.\n\nHonorários fica em `/app/honorarios`. Cada honorário tem cliente, título, observações, parcelas e, opcionalmente, um caso. As parcelas guardam valor e vencimento. O cadastro pode distribuir o total em parcelas mensais; confira os valores e datas antes de salvar. Valores são calculados em centavos, sem arredondamento de ponto flutuante.\n\nA lista separa parcelas a receber, recebidas e canceladas. Mostra total, recebido, saldo e atrasado. Os totais respeitam os filtros e o acesso da pessoa, e não apenas a página exibida. Filtrar por vencimento não equivale a filtrar pelo período em que o pagamento entrou. O atraso considera saldo em aberto e a data atual em São Paulo.\n\nO dono dos honorários pode cadastrar e registrar recebimentos enquanto mantiver acesso ao próprio escritório. Participantes explícitos e o criador do caso vinculado podem consultar os valores, inclusive quando pertencem a outro escritório. Esse acesso não permite dar baixa, estornar ou cancelar honorários de outra pessoa. Um honorário sem caso é particular de quem o cadastrou.",
+      "content": "Dentro de cada parcela própria, **Cobrança** prepara instruções de pagamento com chave PIX e boleto em PDF já emitido pelo banco. Salve para baixar o PDF ou copiar a mensagem. Depois de enviar pelo seu canal habitual, registre o envio no histórico. Nesse caso o cliente paga diretamente ao advogado, e o Lume não movimenta o dinheiro.\n\nCom a conta do Asaas do escritório conectada em Integrações (chave de API de produção ou de sandbox), a mesma tela emite a cobrança no Asaas. O cliente paga por um link, com PIX, boleto ou cartão, e o dinheiro entra na conta do Asaas do escritório. Na primeira cobrança de um cliente, informe o CPF ou o CNPJ; o número vai só ao Asaas. O link entra na mensagem de cobrança. Quando o Asaas confirma o pagamento, o Lume lança o recebimento no honorário e avisa o responsável; um estorno ou uma contestação no Asaas desfaz o lançamento. A baixa automática depende de o Asaas alcançar o endereço público do Lume; o painel do Asaas em Integrações mostra se ela está ativa. O assistente não emite cobranças no Asaas.\n\nAs cobranças podem lembrar o responsável às 9h de São Paulo: três dias antes, no vencimento e a cada sete dias de atraso. Os avisos usam o saldo atual e param após quitação, cancelamento ou remoção do acesso. Podem ser desligados na cobrança e na categoria Honorários das notificações. Um recebimento parcial reduz o valor da próxima cobrança consultada.\n\nHonorários fica em `/app/honorarios`. Cada honorário tem cliente, título, observações, parcelas e, opcionalmente, um caso. As parcelas guardam valor e vencimento. O cadastro pode distribuir o total em parcelas mensais; confira os valores e datas antes de salvar. Valores são calculados em centavos, sem arredondamento de ponto flutuante.\n\nA lista separa parcelas a receber, recebidas e canceladas. Mostra total, recebido, saldo e atrasado. Os totais respeitam os filtros e o acesso da pessoa, e não apenas a página exibida. Filtrar por vencimento não equivale a filtrar pelo período em que o pagamento entrou. O atraso considera saldo em aberto e a data atual em São Paulo.\n\nO dono dos honorários pode cadastrar e registrar recebimentos enquanto mantiver acesso ao próprio escritório. Participantes explícitos e o criador do caso vinculado podem consultar os valores, inclusive quando pertencem a outro escritório. Esse acesso não permite dar baixa, estornar ou cancelar honorários de outra pessoa. Um honorário sem caso é particular de quem o cadastrou.",
       "href": "/manual-lume.md#honorarios-e-parcelas"
     },
     {
-      "id": "f3f552220c348d8a8a15fac3a8b890c2f0fe8c9b",
+      "id": "db36488870a846674426b271ff1b171c0bf6636f",
       "title": "Registrar um recebimento de honorários",
       "content": "Recebimentos são manuais e podem ser parciais ou integrais. Informe qual cliente e parcela, o valor recebido, a data real e o meio de pagamento. Os meios são PIX, transferência, dinheiro, cartão ou outro. A data não pode ser futura. Uma baixa integral usa o saldo atual da parcela; recebimentos anteriores válidos já são descontados.\n\nExemplo de pedido completo: \"Recebi hoje por PIX o saldo da segunda parcela dos honorários da Maria; registre o recebimento\". O assistente deve buscar Honorários, localizar o cliente e a parcela número 2 e usar o identificador da parcela. Se houver mais de um contrato ou faltar data ou meio, deve perguntar. Não deve criar uma tarefa nem escrever \"recebido\" nas observações do cliente como substituto da baixa.\n\nO registro altera o controle interno, sem movimentar dinheiro. Uma mesma solicitação repetida com a mesma identificação não cria recebimento duplicado. Duas baixas concorrentes não podem ultrapassar o saldo da parcela. O status passa a parcial ou recebido de acordo com o saldo restante.",
       "href": "/manual-lume.md#registrar-um-recebimento-de-honorarios"
     },
     {
-      "id": "2420982b702dafb8ebef68433cf70b940aae1794",
+      "id": "87dab9a2fb3273363a16e872184eb960663fd340",
       "title": "Estornar ou cancelar honorários",
       "content": "Estornar um recebimento exige motivo, preserva o registro original e cria o histórico da correção. Não transfere dinheiro nem solicita reembolso bancário. Pelo chat, confirme a proposta de estorno antes de executar.\n\nCancelar um honorário exige que não haja recebimentos líquidos válidos. Estorne recebimentos incorretos primeiro. O cancelamento preserva o histórico e retira os valores dos totais ativos. Também exige motivo e confirmação no chat. Não se apagam registros financeiros para esconder baixas ou correções.\n\nValores, vínculos e cronograma não são editados após o cadastro nesta versão. Não há cancelamento isolado de uma parcela nem renegociação de parcelas futuras após recebimento. O módulo não emite PIX de cobrança, boletos ou notas fiscais, nem calcula juros ou correção monetária. Os pagamentos da assinatura Lume pertencem ao módulo Plano, separado dos honorários dos clientes.",
       "href": "/manual-lume.md#estornar-ou-cancelar-honorarios"
     },
     {
-      "id": "73f627170325016d7e5cdfc0254c5c861892a425",
+      "id": "899645a3ca437a767af2da17075749da883e7a0a",
       "title": "Pesquisa jurídica e histórico",
       "content": "Pesquisa fica em `/app/research` e reúne Marcas e Jurisprudência. Cada modalidade tem seu histórico pessoal, que permite reabrir consultas. O assistente também consulta os históricos e pode iniciar pesquisas disponíveis para aquela pessoa. A busca pública na web continua disponível no chat do Lume.\n\nO acervo público reúne julgados e materiais oficiais admitidos. Materiais podem incluir ementa, inteiro teor, voto ou certidão. A existência de uma ementa não significa que o inteiro teor esteja disponível. Algumas obtenções rodam em segundo plano e dependem de fonte habilitada. É possível acompanhar o progresso e cancelar downloads pendentes sem apagar material já coletado.\n\nNo chat, um pedido de jurisprudência pode usar busca na web e avaliação dos julgados encontrados. Os resultados devem trazer fontes e distinguir o que foi verificado do que ainda exige conferência. Ausência de resultados ou indisponibilidade de uma fonte não significa inexistência de jurisprudência. Uma pontuação de confiabilidade não é probabilidade de vitória.",
       "href": "/manual-lume.md#pesquisa-juridica-e-historico"
     },
     {
-      "id": "fb7090704d572a49e6adc3de2bc794a07db967db",
+      "id": "064ebdcd2162f034f2ae506bc0aef6f42d45faa2",
       "title": "Perfil de pesquisa, avaliações e referências",
       "content": "O perfil de um caso para pesquisa reúne questão jurídica, objetivo, tese, fatos documentados, alegações e lacunas. Ele tem versão para evitar sobrescrita concorrente. A avaliação de pertinência compara esse perfil a um material de julgado. Distingue pertinência, relação com a tese e disponibilidade de material.\n\nUma referência vincula ao caso uma versão específica de material, com finalidade e anotações. Adicionar, alterar ou remover referência não apaga o julgado público do acervo. O assistente pode preparar essas alterações e solicitar a confirmação necessária. Julgados de outros processos servem de contexto jurídico; não são fatos do cliente.\n\nA avaliação depende da disponibilidade e da configuração da função correspondente. Resultado parcial ou não avaliado deve continuar identificado assim. Confirme número, tribunal, data, texto e pertinência da decisão antes de usá-la em um documento jurídico.",
       "href": "/manual-lume.md#perfil-de-pesquisa-avaliacoes-e-referencias"
     },
     {
-      "id": "7cce90cfc54320335a32bbd1d5c71996b4908024",
+      "id": "8b134e9009b5d2788b1d0ff19f7b42afaa8cb55f",
       "title": "Processos e publicações judiciais",
       "content": "Casos podem ser vinculados a processos de fontes judiciais habilitadas. O vínculo usa identificadores da fonte, como número CNJ ou número de origem. Fontes têm cobertura e permissões próprias; uma fonte cadastrada não garante consulta real, acesso aos autos ou atualização completa.\n\nO Lume pode consultar fontes disponíveis, vínculos, publicações, alertas e trabalhos de coleta. Confirmar vínculos, desvincular e solicitar atualização pode exigir confirmação humana. A atualização depende do coletor e da disponibilidade da fonte. Leia os resultados e eventuais lacunas; não interprete ausência de alerta como prova de ausência de prazo.\n\nUma publicação coletada não equivale automaticamente a intimação válida para contagem de prazo. O aplicativo não substitui a conferência nos sistemas oficiais. Documentos e regras das fontes limitam o que pode ser obtido e reutilizado.",
       "href": "/manual-lume.md#processos-e-publicacoes-judiciais"
     },
     {
-      "id": "f34b7527271b1737f02bfbd707319fce05086249",
+      "id": "c6103f42e59a70067952123c616fe268895b16be",
       "title": "Redação, cronologias e documentos",
       "content": "O Lume cria textos para uso fora da conversa como documentos no editor, em `/app/documents/[id]`. Isso inclui minutas, petições, contratos, pareceres e outros textos. Cronologias e minutas baseadas em fontes podem rodar em segundo plano. O chat informa a tarefa e permite acompanhar seu estado, cancelar ou tentar novamente quando a operação permitir.\n\nO editor permite alterar texto, salvar versões, consultar o histórico, restaurar versão e exportar PDF ou DOCX. Exportar salva a edição atual antes de gerar o arquivo. Sem um modelo Word, o PDF usa o layout A4 do Lume com PDFcn. Quando há um modelo Word aplicado no editor, a exportação PDF preserva o timbrado pela conversão do DOCX. O agente também oferece a exportação PDFcn da versão salva, com layout próprio, sem aplicar o timbrado Word. Quando você pede ajustes, o assistente deve consultar a versão atual e editar os trechos necessários. Conflitos de versão exigem nova leitura, sem sobrescrever uma edição recente silenciosamente. Alterações em documentos existentes podem exigir confirmação no chat.\n\nO modelo Word define o timbrado e o formato de exportação. A seleção pessoal prevalece sobre a do escritório quando o documento não tem modelo próprio. Exportar não protocola o documento nem o envia a um tribunal ou destinatário.",
       "href": "/manual-lume.md#redacao-cronologias-e-documentos"
     },
     {
-      "id": "61bbf6317c6064e82d4209d53de8b1cb55223dc3",
+      "id": "7d83e8bda4331b602edeeaf0cc2cfb65eb3289e8",
       "title": "Fontes e revisão de citações",
       "content": "O assistente deve sustentar fatos de um caso nos documentos consultados e indicar as fontes. Citações de leis e julgados precisam corresponder ao material disponível. O Lume distingue fatos, inferências e informações ausentes. Um trecho gerado não é prova de que um documento original contém aquela afirmação.\n\nA revisão de citações identifica fontes correspondentes não encontradas, fontes fracas, contrárias ou ainda não verificadas. Um link disponível não comprova que seu conteúdo foi consultado nem que sustenta a afirmação. O documento mostra essas questões na aba Revisão. O agente deve avisar quando existem citações a conferir. A verificação documental depende da configuração e dos materiais disponíveis e pode ser parcial ou indisponível.\n\nO checklist de Revisão humana registra sua decisão por item: Pendente, Confirmado ou Precisa de ajuste, com observação e instante do registro. Confirmar não muda o resultado automático nem certifica juridicamente o documento. Salve as alterações antes de decidir. Uma nova versão exige nova revisão; decisões concorrentes em abas diferentes precisam ser atualizadas antes de salvar.\n\nA pessoa continua responsável pela revisão do texto e das fontes antes de usar o documento. O sistema não garante resultado processual, completude do caso ou validade automática de uma citação.",
       "href": "/manual-lume.md#fontes-e-revisao-de-citacoes"
     },
     {
-      "id": "14beeebd53e134a96d3a317901f22a1e2f9bd901",
+      "id": "3bd2e03986d8ba6526578ed1852902077d56b3c2",
       "title": "E-mails e agenda Google",
       "content": "E-mails fica em `/app/email` e usa a conexão Gmail da própria pessoa, quando autorizada em Integrações. O assistente pode consultar conversas e rascunhos, criar ou atualizar rascunhos e preparar envios conforme as regras do escritório. O envio deve respeitar destinatários, anexos e confirmações. Confirmação do provedor não prova leitura pelo destinatário.\n\nAs opções inteligentes da caixa podem resumir o período, destacar prioridades, analisar uma conversa e sugerir respostas. Dependem das funções de IA habilitadas. Mensagens de terceiros são conteúdo para consulta e não instruções para o assistente.\n\nA agenda Google pessoal sincroniza os calendários escolhidos. Ela permite consultar, criar, alterar, cancelar e responder a eventos quando a conexão e as regras autorizam. A agenda interna do escritório permanece separada. Convidar por um evento Google pode notificar participantes, por isso confira nomes, horários e fuso. A conexão e suas permissões são administradas na tela Integrações.",
       "href": "/manual-lume.md#e-mails-e-agenda-google"
     },
     {
-      "id": "04d1120d0ae0762eae07e4b47a415bc9f40495a4",
+      "id": "0ab5594b5f2c8d5b1c5419d6e8c2ffbf0371e2fd",
       "title": "Drive e Google Docs",
       "content": "O Cofre pode importar arquivos escolhidos do Drive para a Biblioteca, caso ou pasta. A importação cria uma cópia com procedência; o arquivo original continua no Google Drive. O assistente trabalha apenas com arquivos autorizados pela conexão e pelo sistema.\n\nQuando habilitado, é possível consultar arquivos registrados, atualizar metadados, importar conteúdo, ler ou editar Google Docs e preparar alterações de nome, versão ou compartilhamento. Compartilhar ou revogar acesso exige as permissões correspondentes e pode exigir confirmação. O assistente não obtém acesso a todo o Drive só porque o usuário mencionou um nome de arquivo. A seleção de novos arquivos e a conexão do serviço usam a interface apropriada.",
       "href": "/manual-lume.md#drive-e-google-docs"
     },
     {
-      "id": "c43d3989c34304c8ae0a11b96f66fbe5408bebbf",
+      "id": "6ac68999d877608da4f8b19864bd70094c6c541a",
       "title": "Mensagens entre pessoas",
       "content": "Mensagens fica em `/app/messages` e é diferente do chat com o assistente. A caixa pertence à pessoa. Trocar de escritório altera sugestões de contatos e opções do Cofre, mas não transfere a caixa a outros integrantes. O destinatário pode ser um contato conhecido ou um endereço completo de e-mail.\n\nConversas internas permitem receber e enviar mensagens. Para endereços externos, o sistema envia por e-mail. As respostas por e-mail não voltam ao Lume nesta versão. A interface informa o canal antes do envio. Mensagens já enviadas não têm edição ou exclusão implementadas; uma correção deve ser enviada como nova mensagem. O assistente pode consultar conversas, preparar envios e marcar leitura. Envios exigem confirmação.\n\nO envio externo depende de configuração e processamento. Pendente, aceito, falha e não confirmado são estados diferentes. Não confirmado não deve ser repetido automaticamente, pois o destinatário pode já ter recebido. Aceitação pelo serviço de e-mail não garante chegada à caixa de entrada ou leitura.",
       "href": "/manual-lume.md#mensagens-entre-pessoas"
     },
     {
-      "id": "166d62bce9c40ce379b29e6ba0df73a5d24d4087",
+      "id": "0a4bb42a5bd5bad1cd08cc815fa833d9e9cbcd66",
       "title": "Compartilhar documentos por Mensagens",
       "content": "Compartilhar documento concede leitura da versão escolhida. Não libera versões posteriores, arquivos vizinhos ou o caso inteiro. O documento continua no Cofre. O proprietário autorizado pode revogar o compartilhamento. Visualização e download verificam se o acesso continua válido.\n\nPara compartilhar um caso, inclua um associado em Participantes. Mensagens compartilha apenas versões individuais de documentos. Endereços externos exigem os procedimentos de comprovação de acesso ao endereço e aceite previstos no link. Criar uma conta com o mesmo e-mail não importa automaticamente mensagens antigas ou documentos compartilhados.\n\nO assistente solicita confirmação para compartilhamentos e revogações, com destinatário e recurso. Ser associado, conversar com a pessoa ou ter seu e-mail não concede acesso automático aos dados do escritório.",
       "href": "/manual-lume.md#compartilhar-documentos-por-mensagens"
     },
     {
-      "id": "c29970da4fa3d05ef2055a9e0f4205ed95a3569c",
+      "id": "14daaf8e52eef2f5f7d4dd21a33d5309c8728c16",
       "title": "WhatsApp Business",
       "content": "WhatsApp fica em `/app/whatsapp` para escritórios com o recurso habilitado. A caixa é compartilhada pelo escritório e depende de uma conta WhatsApp Business conectada. O agente pode consultar conversas e mensagens e preparar respostas de texto. O envio exige confirmação no chat e obedece às regras e à janela de atendimento do serviço.\n\nAnexos e mídia disponíveis podem ser abertos pela interface; áudio e vídeo dependem dos formatos e codecs suportados pelo navegador. Uma falha de sincronização ou limite do provedor pode impedir a atualização da conversa. Conectar, desconectar ou administrar a integração deve ser feito em Integrações ou na interface de conexão, não pelo assistente.",
       "href": "/manual-lume.md#whatsapp-business"
     },
     {
-      "id": "9747408580f7a6683a7007c877d5450d1db0d812",
+      "id": "c9ac9534b9d23abc706a61a92f2c90eac8eb77be",
       "title": "Notificações",
       "content": "O sino abre a caixa de notificações. Ela pode reunir atribuições e alterações de atividades, lembretes, resultados de processamento, verificações documentais e alertas judiciais. Notificações pertencem à pessoa no escritório. É possível marcar como lidas, arquivar e ajustar as preferências. O assistente também pode fazer essas operações a pedido.\n\nPreferências controlam categorias, fuso, horário de silêncio e ativação de push. Para receber no dispositivo, o navegador precisa autorizar notificações e o serviço precisa estar configurado. O agente não pode conceder essa permissão pelo usuário. Seguir um caso ativa o acompanhamento disponível para aquele acesso; deixar de seguir não exclui o caso.\n\nArquivar remove da caixa ativa e preserva o histórico. Desligar push não apaga notificações internas. Um lembrete depende do processamento e da configuração; não é garantia de cumprimento de prazo.",
       "href": "/manual-lume.md#notificacoes"
     },
     {
-      "id": "903dc08ef6686ef2df2fa36103fb5886e353bfb5",
+      "id": "1ed01ef222e717797e06c01a9065b3464a32704f",
       "title": "Integrações e Plano",
       "content": "Integrações fica em `/app/integrations`. Nela a pessoa conecta serviços e o administrador define políticas. Credenciais, autorização OAuth, conexão e desconexão são operações humanas da interface. O assistente pode explicar o processo e usar funções de trabalho já autorizadas, como e-mail ou agenda, sem modificar a configuração da integração.\n\nPlano fica em `/app/billing`. Ele trata da assinatura do escritório e dos pagamentos da plataforma. Não é o controle de honorários dos clientes. Contratação e pagamentos usam o fluxo da tela; o assistente não cria checkout, cobra, cancela assinatura nem administra meios de pagamento. Valores e condições devem ser conferidos na tela atual, e não inferidos de uma conversa antiga.",
       "href": "/manual-lume.md#integracoes-e-plano"
     },
     {
-      "id": "556f27d2a34e9f0a0f9bd0631b473cc03a4973de",
+      "id": "c1340d90cf15e7c859bc64a5f576f80492d35b39",
       "title": "Aplicativo instalado, celular e temas",
       "content": "O Lume pode ser instalado como aplicativo web quando o navegador oferece essa opção. No celular, a navegação reúne as áreas principais e um menu com as demais. A interface tem temas claro, escuro e conforme o sistema. Câmera, microfone, notificações e downloads dependem das permissões e recursos do dispositivo.\n\nO funcionamento offline é limitado. Não prometa executar chat, consultar dados atualizados, enviar mensagens ou concluir gravações sem conexão. Ao voltar a ficar online, confira o estado da operação antes de repetir uma escrita. Instalar como aplicativo não transforma serviços remotos em funções locais.",
       "href": "/manual-lume.md#aplicativo-instalado-celular-e-temas"
     },
     {
-      "id": "1c506c850a1de60a9ee81b2f6b845f8ec3cc61b7",
+      "id": "4c15fb44bd83aa4cf62ef8100e8982c757fc8fc1",
       "title": "Quando uma operação não funciona",
       "content": "\"Não encontrado\" pode significar que o registro foi excluído, pertence a outro escopo ou não está acessível à pessoa. \"Conflito\" pode indicar versão antiga, saldo alterado ou solicitação repetida com dados diferentes. Leia de novo o registro pertinente antes de tentar corrigir. Não troque para um módulo sem relação com o pedido.\n\nSe o documento ou trabalho permanece na fila, o processamento pode estar indisponível. Falha de IA pode depender da configuração da plataforma. Conexão Google ausente, fonte judicial desabilitada, WhatsApp não habilitado ou envio externo não configurado precisam da ação apropriada na interface ou do suporte.\n\nO chat mantém o turno em processamento no servidor e pode reconectar ao reabrir a conversa. Parar pede interrupção do turno; não desfaz ações já concluídas. Após falha, confira o histórico e o estado do recurso. Em pedidos de baixa, consulte o saldo e os recebimentos antes de registrar outra entrada.",
       "href": "/manual-lume.md#quando-uma-operacao-nao-funciona"

@@ -8,7 +8,7 @@ import type { AsaasAccount, AsaasEnvironment } from './contracts';
  * Asaas refused it, `unavailable` means the request may or may not have taken effect.
  */
 export class AsaasProviderError extends Error {
-  constructor(readonly status: number, message: string, readonly kind: 'rejected' | 'unauthorized' | 'unavailable') { super(message); }
+  constructor(readonly status: number, message: string, readonly kind: 'rejected' | 'unauthorized' | 'unavailable', readonly upstream?: number) { super(message); }
 }
 type AsaasFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
 const transport = new AsyncLocalStorage<AsaasFetch>();
@@ -55,7 +55,7 @@ function failure(status: number, text: string): AsaasProviderError {
     try { parsed = asaasErrors.safeParse(JSON.parse(text)).data; } catch { parsed = undefined; }
     // Asaas writes these validation messages in Portuguese for the account holder (CPF inválido, data no passado…).
     const detail = parsed?.errors.map(error => error.description.trim()).filter(Boolean).join(' ').slice(0, 300);
-    return new AsaasProviderError(422, detail ? `O Asaas recusou a solicitação: ${detail}` : 'O Asaas recusou a solicitação. Confira os dados e tente novamente.', 'rejected');
+    return new AsaasProviderError(422, detail ? `O Asaas recusou a solicitação: ${detail}` : 'O Asaas recusou a solicitação. Confira os dados e tente novamente.', 'rejected', status);
   }
   return new AsaasProviderError(502, 'O Asaas não respondeu como esperado. Tente novamente em instantes.', 'unavailable');
 }

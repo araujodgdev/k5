@@ -9,7 +9,8 @@ import { decryptCredential, parseCredentialKeyring } from '../src/lib/platform-c
 import * as asaasCharges from '../src/lib/asaas/charges';
 import * as charges from '../src/lib/honorarios/charges';
 import * as honorarios from '../src/lib/honorarios/service';
-import { fakeAccount, fakeAsaas, type Call } from './asaas-fake';
+import { fakeAccount, fakeAsaas, type Call, type RemotePayment } from './asaas-fake';
+import * as webhookRoute from '../src/app/api/asaas/webhook/route';
 
 async function office() {
   const officeId = randomUUID(), userId = randomUUID(), sessionId = randomUUID();
@@ -191,3 +192,140 @@ test('Asaas charges stay with the honorário owner in the active office', async 
     assert.equal(other.state.calls.filter(call => call.method !== 'GET').length, 0);
   });
 });
+
+async function withWebhookBase<T>(base: string | undefined, action: () => Promise<T>) {
+  const previous = process.env.ASAAS_WEBHOOK_BASE_URL;
+  if (base === undefined) delete process.env.ASAAS_WEBHOOK_BASE_URL; else process.env.ASAAS_WEBHOOK_BASE_URL = base;
+  try { return await action(); } finally {
+    if (previous === undefined) delete process.env.ASAAS_WEBHOOK_BASE_URL; else process.env.ASAAS_WEBHOOK_BASE_URL = previous;
+  }
+}
+const deliver = (token: string | null, body: unknown) => webhookRoute.POST(new Request('https://lume.test/api/asaas/webhook', {
+  method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { 'asaas-access-token': token } : {}) }, body: JSON.stringify(body),
+}));
+const event = (name: string, payment: Partial<RemotePayment> & Record<string, unknown>) => ({ id: `evt_${randomUUID()}`, event: name, dateCreated: '2035-10-01 10:00:00', payment: { object: 'payment', ...payment } });
+
+test('Asaas registers its webhook on connect, repairs it on refresh and removes it on disconnect', async () => withWebhookBase('https://lume.test', async () => {
+  const context = await office();
+  const apiKey = `$aact_prod_${randomUUID()}`;
+  const remote = fakeAccount(apiKey);
+  remote.state.webhooks.push({ id: 'stale', url: 'https://lume.test/api/asaas/webhook', authToken: 'x'.repeat(40), events: [], enabled: true, interrupted: true, email: '', sendType: 'SEQUENTIALLY' });
+  remote.state.webhooks.push({ id: 'other', url: 'https://erp.example.com/asaas', authToken: 'y'.repeat(40), events: [], enabled: true, interrupted: false, email: '', sendType: 'SEQUENTIALLY' });
+  await withAsaasTransport(remote.handler, async () => {
+    const saved = await connectAsaas(context, { apiKey, expectedVersion: null });
+    assert.equal(saved.connection?.webhook.state, 'active');
+    assert.deepEqual(remote.state.webhooks.map(hook => hook.id).filter(id => id === 'stale' || id === 'other'), ['other']);
+    const hook = remote.state.webhooks.find(row => row.url === 'https://lume.test/api/asaas/webhook');
+    assert.ok(hook);
+    assert.ok(hook.authToken.length >= 32 && !/\s/.test(hook.authToken)); assert.notEqual(hook.authToken, apiKey);
+    assert.equal(hook.sendType, 'SEQUENTIALLY'); assert.equal(hook.email, `${context.userId}@asaas.test`);
+    for (const name of ['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED', 'PAYMENT_REFUNDED', 'PAYMENT_DELETED']) assert.ok(hook.events.includes(name));
+    const stored = await testDb.prepare('SELECT webhook_id,webhook_token_hash FROM asaas_connection WHERE office_id=?').get<{ webhook_id: string; webhook_token_hash: string }>(context.officeId);
+    assert.equal(stored?.webhook_id, hook.id); assert.notEqual(stored?.webhook_token_hash, hook.authToken);
+
+    hook.interrupted = true;
+    const refreshed = await refreshAsaas(context, { expectedVersion: saved.connection?.version });
+    assert.equal(refreshed.connection?.webhook.state, 'active'); assert.equal(hook.interrupted, false);
+    assert.equal(remote.state.webhooks.filter(row => row.url === hook.url).length, 1);
+
+    remote.state.webhooks.splice(remote.state.webhooks.indexOf(hook), 1);
+    const recreated = await refreshAsaas(context, { expectedVersion: refreshed.connection?.version });
+    assert.equal(recreated.connection?.webhook.state, 'active');
+    const replacement = remote.state.webhooks.find(row => row.url === hook.url);
+    assert.ok(replacement); assert.notEqual(replacement.authToken, hook.authToken);
+    assert.equal((await deliver(hook.authToken, event('PAYMENT_RECEIVED', { id: 'pay_x', status: 'RECEIVED', value: 1 }))).status, 401);
+
+    await disconnectAsaas(context, { expectedVersion: recreated.connection?.version });
+    assert.equal(remote.state.webhooks.some(row => row.url === hook.url), false);
+    assert.equal((await deliver(replacement.authToken, event('PAYMENT_RECEIVED', { id: 'pay_x', status: 'RECEIVED', value: 1 }))).status, 401);
+  });
+  await withWebhookBase('http://localhost:3000', async () => {
+    const local = await office();
+    const localKey = `$aact_prod_${randomUUID()}`;
+    const account = fakeAccount(localKey);
+    await withAsaasTransport(account.handler, async () => {
+      assert.equal((await connectAsaas(local, { apiKey: localKey, expectedVersion: null })).connection?.webhook.state, 'unavailable');
+      assert.equal(account.state.webhooks.length, 0);
+    });
+  });
+}));
+
+test('Asaas webhook records a confirmed payment once, within the balance, and undoes it on refund', async () => withWebhookBase('https://lume.test', async () => {
+  const context = await office(), other = await office();
+  const apiKey = `$aact_prod_${randomUUID()}`, otherKey = `$aact_prod_${randomUUID()}`;
+  const remote = fakeAccount(apiKey), foreign = fakeAccount(otherKey);
+  await withAsaasTransport(async (input, init) => new Headers(init?.headers).get('access_token') === otherKey ? foreign.handler(input, init) : remote.handler(input, init), async () => {
+    await connectAsaas(context, { apiKey, expectedVersion: null });
+    await connectAsaas(other, { apiKey: otherKey, expectedVersion: null });
+    const token = remote.state.webhooks[0].authToken, otherToken = foreign.state.webhooks[0].authToken;
+    const { installmentIds: [first, second] } = await honorario(context, [{ amountCents: 10000, dueOn: '2035-10-20' }, { amountCents: 10000, dueOn: '2035-11-20' }]);
+    const issued = await asaasCharges.createAsaasCharge(context, issue(first, { document: '12345678909' }));
+    const payment = remote.state.payments[0];
+    const base = { id: payment.id, customer: payment.customer, value: 100, billingType: 'PIX', externalReference: payment.externalReference, invoiceUrl: payment.invoiceUrl, dueDate: '2035-10-20' };
+
+    assert.equal((await deliver(null, event('PAYMENT_RECEIVED', base))).status, 401);
+    assert.equal((await deliver('z'.repeat(43), event('PAYMENT_RECEIVED', base))).status, 401);
+    assert.equal((await deliver(otherToken, event('PAYMENT_RECEIVED', { ...base, status: 'RECEIVED' }))).status, 200);
+    assert.equal((await asaasCharges.getAsaasCharge(context, { installmentId: first })).active?.state, 'open');
+    assert.equal((await deliver(token, event('PAYMENT_RECEIVED', { id: `pay_${randomUUID()}`, status: 'RECEIVED', value: 50, externalReference: 'pedido-42' }))).status, 200);
+    assert.equal((await deliver(token, { malformed: true })).status, 200);
+
+    const confirmed = event('PAYMENT_CONFIRMED', { ...base, status: 'CONFIRMED', clientPaymentDate: '2026-01-02', confirmedDate: '2026-01-02' });
+    assert.equal((await deliver(token, confirmed)).status, 200);
+    assert.equal((await deliver(token, confirmed)).status, 200);
+    assert.equal((await deliver(token, event('PAYMENT_RECEIVED', { ...base, status: 'RECEIVED', paymentDate: '2026-01-03' }))).status, 200);
+    const owner = await testDb.prepare('SELECT agreement_id FROM honorario_installment WHERE id=?').get<{ agreement_id: string }>(first);
+    const detail = await honorarios.getHonorario(context, { agreementId: owner?.agreement_id ?? '' });
+    assert.equal(detail.receipts.length, 1);
+    const [receipt] = detail.receipts;
+    assert.equal(receipt.amountCents, 10000); assert.equal(receipt.method, 'pix'); assert.equal(receipt.receivedOn, '2026-01-02');
+    assert.match(receipt.notes, new RegExp(payment.id)); assert.equal(receipt.createdByName, 'Ana Advogada');
+    assert.equal(detail.installments.find(row => row.id === first)?.status, 'received');
+    const charge = await asaasCharges.getAsaasCharge(context, { installmentId: first });
+    assert.equal(charge.active, null); assert.equal(charge.history[0].state, 'paid'); assert.equal(charge.chargeable, false);
+    const notices = await testDb.prepare("SELECT event_type,intended_recipients_json FROM notification_event WHERE office_id=? AND source_id=?").all<{ event_type: string; intended_recipients_json: string }>(context.officeId, first);
+    assert.deepEqual(notices.map(row => row.event_type), ['honorarios.charge.paid']);
+    assert.deepEqual(JSON.parse(notices[0].intended_recipients_json), [context.userId]);
+
+    assert.equal((await deliver(token, event('PAYMENT_REFUNDED', { ...base, status: 'REFUNDED' }))).status, 200);
+    const refunded = await honorarios.getHonorario(context, { agreementId: detail.agreement.id });
+    assert.match(refunded.receipts[0].reversal?.reason ?? '', /estornado no Asaas/);
+    assert.equal(refunded.installments.find(row => row.id === first)?.pendingCents, 10000);
+    assert.equal((await asaasCharges.getAsaasCharge(context, { installmentId: first })).history[0].state, 'refunded');
+    assert.equal(issued.active?.id, (await asaasCharges.getAsaasCharge(context, { installmentId: first })).history[0].id);
+
+    // Paid above the balance after a manual receipt: only the balance is recorded, with a note.
+    await asaasCharges.createAsaasCharge(context, issue(second, { dueOn: '2035-11-20' }));
+    await honorarios.receiveHonorario(context, { installmentId: second, amountCents: 3000, receivedOn: '2026-01-01', method: 'cash', idempotencyKey: randomUUID() });
+    const later = remote.state.payments[1];
+    await deliver(token, event('PAYMENT_RECEIVED', { id: later.id, status: 'RECEIVED', value: 100, billingType: 'BOLETO', externalReference: later.externalReference, paymentDate: '2026-01-05' }));
+    const partial = await honorarios.getHonorario(context, { agreementId: detail.agreement.id });
+    const boleto = partial.receipts.find(row => row.installmentId === second && row.method === 'boleto');
+    assert.equal(boleto?.amountCents, 7000);
+    assert.equal(partial.installments.find(row => row.id === second)?.status, 'received');
+    const review = await testDb.prepare('SELECT review FROM asaas_payment WHERE provider_payment_id=?').get<{ review: string }>(later.id);
+    assert.match(review?.review ?? '', /acima do saldo/);
+  });
+}));
+
+test('Asaas webhook adopts a charge whose creation answer was lost and follows deletion', async () => withWebhookBase('https://lume.test', async () => {
+  const context = await office();
+  const apiKey = `$aact_prod_${randomUUID()}`;
+  const remote = fakeAccount(apiKey);
+  await withAsaasTransport(remote.handler, async () => {
+    await connectAsaas(context, { apiKey, expectedVersion: null });
+    const token = remote.state.webhooks[0].authToken;
+    const { installmentIds: [installmentId] } = await honorario(context);
+    remote.state.next = 'lost';
+    await assert.rejects(() => asaasCharges.createAsaasCharge(context, issue(installmentId, { document: '12345678909' })), { kind: 'unavailable' });
+    const created = remote.state.payments[0];
+    await deliver(token, event('PAYMENT_CREATED', { id: created.id, status: 'PENDING', value: 100, externalReference: created.externalReference, invoiceUrl: created.invoiceUrl }));
+    const adopted = await asaasCharges.getAsaasCharge(context, { installmentId });
+    assert.equal(adopted.active?.state, 'open'); assert.equal(adopted.active?.invoiceUrl, created.invoiceUrl);
+    await deliver(token, event('PAYMENT_DELETED', { id: created.id, status: 'PENDING', value: 100, externalReference: created.externalReference, deleted: true }));
+    const removed = await asaasCharges.getAsaasCharge(context, { installmentId });
+    assert.equal(removed.active, null); assert.equal(removed.history[0].state, 'cancelled');
+    await deliver(token, event('PAYMENT_RESTORED', { id: created.id, status: 'PENDING', value: 100, externalReference: created.externalReference }));
+    assert.equal((await asaasCharges.getAsaasCharge(context, { installmentId })).active?.state, 'open');
+  });
+}));

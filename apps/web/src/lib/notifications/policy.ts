@@ -77,6 +77,8 @@ export function eventCopy(type: NotificationEventType, data: Record<string, unkn
       return { title: 'Cobrança vence hoje', summary: 'Confira o pagamento dos honorários ou lembre o cliente.' };
     case 'honorarios.charge.overdue':
       return { title: 'Honorários em atraso', summary: 'Há uma cobrança pendente. Confira o pagamento e entre em contato com o cliente.' };
+    case 'honorarios.charge.paid':
+      return { title: 'Pagamento recebido pelo Asaas', summary: 'O Asaas confirmou o pagamento de uma parcela, já lançado no honorário.' };
     case 'agenda.activity.assigned':
       if (data.previousAssigneeId === userId && data.assigneeId !== userId) {
         return { title: 'Responsabilidade alterada', summary: `Você não é mais responsável por ${activity}.` };

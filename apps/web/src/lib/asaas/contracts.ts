@@ -9,8 +9,11 @@ export const asaasAccount = z.object({
   document: z.string().max(40).nullable(), personType: z.string().max(40).nullable(), status: z.string().max(60).nullable(),
 });
 export type AsaasAccount = z.infer<typeof asaasAccount>;
+export const asaasWebhookState = z.enum(['active', 'unavailable', 'failed']);
+export type AsaasWebhookState = z.infer<typeof asaasWebhookState>;
 export const asaasConnection = z.object({
   environment: asaasEnvironment, walletId: z.string(), account: asaasAccount, version: z.string().uuid(), verifiedAt: z.string(),
+  webhook: z.object({ state: asaasWebhookState, error: z.string().nullable() }),
 });
 export const asaasStatus = z.object({ canManage: z.boolean(), connection: asaasConnection.nullable() });
 export type AsaasStatus = z.infer<typeof asaasStatus>;
@@ -29,6 +32,14 @@ export function asaasAccountStatusLabel(value: string | null): string {
     case 'DENIED': return 'Reprovada no Asaas';
     case 'AWAITING_ACTION_AUTHORIZATION': return 'Aguardando autorização no Asaas';
     default: return 'Não informada';
+  }
+}
+
+export function asaasWebhookLabel(webhook: { state: AsaasWebhookState; error: string | null }): string {
+  switch (webhook.state) {
+    case 'active': return 'Ativa: pagamentos confirmados no Asaas entram como recebimentos do honorário. Se o Asaas avisar que a fila foi interrompida, use Verificar novamente.';
+    case 'unavailable': return 'Indisponível neste ambiente: o Asaas só avisa um endereço HTTPS público. Registre os recebimentos manualmente.';
+    case 'failed': return `Não configurada. ${webhook.error ?? ''} Use Verificar novamente para tentar outra vez.`.replace(/\s+/g, ' ').trim();
   }
 }
 

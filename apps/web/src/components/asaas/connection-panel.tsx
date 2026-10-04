@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { asaasAccountStatusLabel, asaasEnvironmentLabel, asaasStatus, type AsaasStatus } from '@/lib/asaas/contracts';
+import { asaasAccountStatusLabel, asaasEnvironmentLabel, asaasStatus, asaasWebhookLabel, type AsaasStatus } from '@/lib/asaas/contracts';
 
 const apiFailure = z.object({ error: z.string() });
 
@@ -70,6 +70,7 @@ export function AsaasConnectionPanel() {
           ['CPF ou CNPJ', connection.account.document ?? 'Não informado'],
           ['Ambiente', asaasEnvironmentLabel(connection.environment)],
           ['Situação da conta', asaasAccountStatusLabel(connection.account.status)],
+          ['Baixa automática', asaasWebhookLabel(connection.webhook)],
           ['Última verificação', new Date(connection.verifiedAt).toLocaleString('pt-BR')],
         ].map(([label, value]) => <div key={label} className="grid gap-1 border-b border-border py-3 last:border-0 sm:grid-cols-[180px_1fr] sm:gap-4">
           <dt className="text-muted-foreground">{label}</dt><dd className="break-words">{value}</dd>

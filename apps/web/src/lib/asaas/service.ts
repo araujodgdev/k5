@@ -1,13 +1,15 @@
 import 'server-only';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import { database, withTransaction, type Transaction } from '@/lib/database';
 import type { WorkspaceContext } from '@/lib/application/context';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { decryptCredential, encryptCredential, parseCredentialKeyring } from '@/lib/platform-crypto';
-import { asaasAccount, asaasConnectInput, asaasVersionInput, type AsaasEnvironment, type AsaasStatus } from './contracts';
-import { verifyAsaasAccount } from './provider';
+import { asaasAccount, asaasConnectInput, asaasVersionInput, type AsaasEnvironment, type AsaasStatus, type AsaasWebhookState } from './contracts';
+import { AsaasProviderError, asaasRequest, verifyAsaasAccount } from './provider';
 
-type ConnectionRow = { environment: AsaasEnvironment; wallet_id: string; account_json: string; encrypted_api_key: string; version: string; verified_at: string };
+type ConnectionRow = { environment: AsaasEnvironment; wallet_id: string; account_json: string; encrypted_api_key: string; version: string; verified_at: string;
+  webhook_id: string | null; webhook_state: AsaasWebhookState; webhook_error: string | null };
 const changed = () => new CapabilityError('CONFLICT', 'A conexão mudou. Atualize a página antes de continuar.');
 
 export async function authorizeAsaas(context: WorkspaceContext) {
@@ -28,7 +30,7 @@ export async function getAsaasStatus(context: WorkspaceContext): Promise<AsaasSt
   const row = await database.prepare('SELECT * FROM asaas_connection WHERE office_id=?').get<ConnectionRow>(context.officeId);
   return { canManage: true, connection: row ? {
     environment: row.environment, walletId: row.wallet_id, account: asaasAccount.parse(JSON.parse(row.account_json)),
-    version: row.version, verifiedAt: new Date(row.verified_at).toISOString(),
+    version: row.version, verifiedAt: new Date(row.verified_at).toISOString(), webhook: { state: row.webhook_state, error: row.webhook_error },
   } : null };
 }
 
@@ -61,6 +63,7 @@ export async function connectAsaas(context: WorkspaceContext, raw: unknown) {
       .run(context.officeId, verified.environment, verified.walletId, encryptCredential(input.apiKey, ring), JSON.stringify(verified.account), randomUUID());
     await audit(tx, context, 'connected', verified.walletId);
   });
+  await syncAsaasWebhook(context);
   return getAsaasStatus(context);
 }
 
@@ -79,16 +82,81 @@ export async function refreshAsaas(context: WorkspaceContext, raw: unknown) {
     if (!updated) throw changed();
     await audit(tx, context, 'verified', verified.walletId);
   });
+  await syncAsaasWebhook(context);
   return getAsaasStatus(context);
 }
 
 export async function disconnectAsaas(context: WorkspaceContext, raw: unknown) {
   await authorizeAsaas(context);
   const { expectedVersion } = asaasVersionInput.parse(raw);
-  await withTransaction(async tx => {
-    const row = await tx.prepare('DELETE FROM asaas_connection WHERE office_id=? AND version=? RETURNING wallet_id').get<{ wallet_id: string }>(context.officeId, expectedVersion);
+  const removed = await withTransaction(async tx => {
+    const row = await tx.prepare('DELETE FROM asaas_connection WHERE office_id=? AND version=? RETURNING environment,wallet_id,encrypted_api_key,webhook_id')
+      .get<Pick<ConnectionRow, 'environment' | 'wallet_id' | 'encrypted_api_key' | 'webhook_id'>>(context.officeId, expectedVersion);
     if (!row) throw changed();
     await audit(tx, context, 'disconnected', row.wallet_id);
+    return row;
   });
+  // The Lume no longer accepts this webhook's token; removing it spares the account a failing queue.
+  if (removed.webhook_id) {
+    const apiKey = decryptCredential(removed.encrypted_api_key, parseCredentialKeyring());
+    await asaasRequest(removed.environment, apiKey, 'DELETE', `/webhooks/${encodeURIComponent(removed.webhook_id)}`, z.unknown()).catch(() => undefined);
+  }
   return getAsaasStatus(context);
+}
+
+const WEBHOOK_EVENTS = ['PAYMENT_CREATED', 'PAYMENT_UPDATED', 'PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED', 'PAYMENT_OVERDUE', 'PAYMENT_DELETED',
+  'PAYMENT_RESTORED', 'PAYMENT_REFUNDED', 'PAYMENT_RECEIVED_IN_CASH_UNDONE', 'PAYMENT_CHARGEBACK_REQUESTED'];
+const remoteWebhook = z.object({ id: z.string().min(1).max(100), url: z.string().max(2_000), enabled: z.boolean().nullish(), interrupted: z.boolean().nullish() });
+
+export const asaasWebhookTokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
+
+/** The public HTTPS address Asaas can reach; null where the Lume runs locally. */
+export function asaasWebhookUrl(base = process.env.ASAAS_WEBHOOK_BASE_URL || process.env.BETTER_AUTH_URL) {
+  if (!base) return null;
+  let url: URL;
+  try { url = new URL('/api/asaas/webhook', base); } catch { return null; }
+  if (url.protocol !== 'https:' || /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(url.hostname) || url.hostname.endsWith('.local')) return null;
+  return url.toString();
+}
+
+/**
+ * Makes the account notify the Lume: reactivates an interrupted queue, or replaces a missing webhook
+ * after removing stale ones with the same address. A failure is recorded for the panel, never thrown.
+ */
+export async function syncAsaasWebhook(context: WorkspaceContext) {
+  const row = await database.prepare('SELECT environment,wallet_id,encrypted_api_key,webhook_id FROM asaas_connection WHERE office_id=?')
+    .get<Pick<ConnectionRow, 'environment' | 'wallet_id' | 'encrypted_api_key' | 'webhook_id'>>(context.officeId);
+  if (!row) return;
+  const record = (state: AsaasWebhookState, error: string | null, hook?: { id: string; tokenHash: string } | null) => database.prepare(`UPDATE asaas_connection
+    SET webhook_state=?,webhook_error=?,webhook_id=CASE WHEN ? THEN ? ELSE webhook_id END,webhook_token_hash=CASE WHEN ? THEN ? ELSE webhook_token_hash END
+    WHERE office_id=? AND wallet_id=?`).run(state, error, hook !== undefined, hook?.id ?? null, hook !== undefined, hook?.tokenHash ?? null, context.officeId, row.wallet_id);
+  const url = asaasWebhookUrl();
+  if (!url) { await record('unavailable', null, null); return; }
+  const apiKey = decryptCredential(row.encrypted_api_key, parseCredentialKeyring());
+  const call = <T extends z.ZodType>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, schema: T, body?: unknown) => asaasRequest(row.environment, apiKey, method, path, schema, body);
+  try {
+    if (row.webhook_id) {
+      const path = `/webhooks/${encodeURIComponent(row.webhook_id)}`;
+      const current = await call('GET', path, remoteWebhook).catch(error => {
+        if (error instanceof AsaasProviderError && error.upstream === 404) return null;
+        throw error;
+      });
+      if (current?.url === url) {
+        if (current.interrupted || current.enabled === false) await call('PUT', path, remoteWebhook, { enabled: true, interrupted: false });
+        await record('active', null);
+        return;
+      }
+    }
+    const existing = await call('GET', '/webhooks?limit=100', z.object({ data: z.array(remoteWebhook) }));
+    for (const stale of existing.data.filter(hook => hook.url === url)) await call('DELETE', `/webhooks/${encodeURIComponent(stale.id)}`, z.unknown());
+    const user = await database.prepare('SELECT email FROM "user" WHERE id=?').get<{ email: string }>(context.userId);
+    const token = randomBytes(32).toString('base64url');
+    const created = await call('POST', '/webhooks', remoteWebhook, {
+      name: 'Lume - honorários', url, email: user?.email, enabled: true, interrupted: false, apiVersion: 3, authToken: token,
+      sendType: 'SEQUENTIALLY', events: WEBHOOK_EVENTS,
+    });
+    await record('active', null, { id: created.id, tokenHash: asaasWebhookTokenHash(token) });
+  } catch (error) {
+    await record('failed', error instanceof AsaasProviderError ? error.message.slice(0, 500) : 'Não foi possível configurar o aviso de pagamentos no Asaas.');
+  }
 }
