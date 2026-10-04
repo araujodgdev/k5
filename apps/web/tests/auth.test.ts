@@ -78,6 +78,42 @@ test('where e-mail can be delivered, an account signs in only after confirming i
   assert.equal((await request('/sign-in/email', { email: 'confirma@example.test', password })).response.status, 200);
 });
 
+test('where e-mail can be delivered, a new address replaces the current one only after opening its link', async () => {
+  const sent: Array<{ to: string; url: string; previousEmail?: string }> = [];
+  const { auth, request } = await fixture(undefined, undefined, { enabled: () => true, send: async input => { sent.push({ to: input.user.email, url: input.url, previousEmail: input.change?.previousEmail }); } });
+  await request('/sign-up/email', { name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'troca@example.test', password });
+  const confirmed = await auth.handler(new Request(sent[0].url, { headers: { origin } }));
+  const cookie = confirmed.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
+  assert.equal(sent[0].previousEmail, undefined, 'sign-up is not a change of address');
+
+  const requested = await request('/change-email', { newEmail: 'Troca.Nova@example.test', currentPassword: password, callbackURL: '/app/profile' }, cookie);
+  assert.equal(requested.response.status, 200, JSON.stringify(requested.data));
+  assert.equal((await request('/get-session', undefined, cookie)).data.user.email, 'troca@example.test', 'nothing changes before the link');
+  assert.deepEqual({ to: sent[1].to, previousEmail: sent[1].previousEmail }, { to: 'troca.nova@example.test', previousEmail: 'troca@example.test' });
+  assert.equal((await request('/sign-in/email', { email: 'troca@example.test', password })).response.status, 200);
+
+  const opened = await auth.handler(new Request(sent[1].url, { headers: { origin, cookie } }));
+  assert.equal(opened.status, 302);
+  assert.equal((await request('/sign-in/email', { email: 'troca.nova@example.test', password })).response.status, 200);
+  assert.equal((await request('/sign-in/email', { email: 'troca@example.test', password })).response.status, 401);
+});
+
+test('with Turnstile on, sign-up needs a token the challenge accepts', async () => {
+  const checked: Array<{ token: string; ip: string | null }> = [];
+  const { auth, db } = await fixture(['cf-connecting-ip'], undefined, undefined, { enabled: () => true, verify: async (token, ip) => { checked.push({ token, ip }); return token === 'humano'; } });
+  const body = JSON.stringify({ name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'desafio@example.test', password });
+  const attempt = (token?: string) => auth.handler(new Request(`${origin}/api/auth/sign-up/email`, { method: 'POST', body,
+    headers: { 'content-type': 'application/json', origin, 'cf-connecting-ip': '203.0.113.9', ...(token ? { 'x-captcha-response': token } : {}) } }));
+  for (const token of [undefined, 'robo']) {
+    const refused = await attempt(token);
+    assert.equal(refused.status, 400);
+    assert.equal((await refused.json()).code, 'CAPTCHA_FAILED');
+  }
+  assert.equal(await db.prepare("SELECT 1 FROM \"user\" WHERE email='desafio@example.test'").get(), undefined, 'no account without the check');
+  assert.equal((await attempt('humano')).status, 200);
+  assert.deepEqual(checked.at(-1), { token: 'humano', ip: '203.0.113.9' });
+});
+
 test('sign-up records the accepted version of the terms, and only the version this server publishes', async () => {
   const { db, signup } = await fixture();
   const accepted = await signup('aceite@example.test', { acceptedLegalVersion: LEGAL_VERSION });
@@ -108,9 +144,9 @@ test('cada advogado tem um único escritório, e ninguém entra no escritório d
   assert.equal((await request('/get-session', undefined, first.cookie)).data, null);
 });
 
-async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof createAuth>[2]['passwordReset'], emailVerification?: Parameters<typeof createAuth>[2]['emailVerification']) {
+async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof createAuth>[2]['passwordReset'], emailVerification?: Parameters<typeof createAuth>[2]['emailVerification'], signUpChallenge?: Parameters<typeof createAuth>[2]['signUpChallenge']) {
   const { db, database, pool } = await postgresFixture({seedDefaults:false});
-  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders, passwordReset, emailVerification });
+  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders, passwordReset, emailVerification, signUpChallenge });
   async function request(path: string, body?: object, cookie = "", requestOrigin = origin, connectingIp?: string) {
     const response = await auth.handler(new Request(`${origin}/api/auth${path}`, {
       method: body ? "POST" : "GET",

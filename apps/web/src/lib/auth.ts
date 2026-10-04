@@ -5,6 +5,7 @@ import { databaseBackend, database } from './database';
 import { after } from 'next/server';
 import { personalEmailSettings, sendPersonalEmail } from './personal-chat/email-transport';
 import { captureOperationalError } from './observability/report';
+import { turnstileEnabled, verifyTurnstile } from './turnstile';
 
 const secret = process.env.BETTER_AUTH_SECRET;
 if (!secret || secret.length < 32) throw new Error('Configure BETTER_AUTH_SECRET com pelo menos 32 caracteres. Em dev, execute pnpm db:setup.');
@@ -13,13 +14,32 @@ if (!Number.isInteger(idleSeconds) || idleSeconds < 60) throw new Error('SESSION
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const settings = {
-  emailVerification: { enabled: () => Boolean(personalEmailSettings()), send: async ({ user, url }: { user: { id: string; email: string }; url: string }) => {
+  emailVerification: { enabled: () => Boolean(personalEmailSettings()), send: async ({ user, url, change }: { user: { id: string; email: string }; url: string; change?: { previousEmail: string } }) => {
     after(async () => {
       const link = escapeHtml(url);
-      const result = await sendPersonalEmail({ to: user.email, subject: 'Confirme seu e-mail no Lume',
-        text: `Para confirmar seu e-mail e entrar no Lume, abra este link em até 24 horas:\n${url}\n\nSe você não criou uma conta no Lume, ignore esta mensagem.`,
-        html: `<p>Para confirmar seu e-mail e entrar no Lume, use o link abaixo em até 24 horas.</p><p><a href="${link}">Confirmar e-mail</a></p><p>Se o botão não abrir, copie este endereço no navegador:<br>${link}</p><p>Se você não criou uma conta no Lume, ignore esta mensagem.</p>` });
+      const result = change
+        ? await sendPersonalEmail({ to: user.email, subject: 'Confirme seu novo e-mail no Lume',
+          text: `Para passar a entrar no Lume com este endereço, abra este link em até 24 horas:
+${url}
+
+Até lá, a conta continua com o e-mail anterior. Se você não pediu a troca, ignore esta mensagem.`,
+          html: `<p>Para passar a entrar no Lume com este endereço, use o link abaixo em até 24 horas.</p><p><a href="${link}">Confirmar novo e-mail</a></p><p>Se o botão não abrir, copie este endereço no navegador:<br>${link}</p><p>Até lá, a conta continua com o e-mail anterior. Se você não pediu a troca, ignore esta mensagem.</p>` })
+        : await sendPersonalEmail({ to: user.email, subject: 'Confirme seu e-mail no Lume',
+          text: `Para confirmar seu e-mail e entrar no Lume, abra este link em até 24 horas:
+${url}
+
+Se você não criou uma conta no Lume, ignore esta mensagem.`,
+          html: `<p>Para confirmar seu e-mail e entrar no Lume, use o link abaixo em até 24 horas.</p><p><a href="${link}">Confirmar e-mail</a></p><p>Se o botão não abrir, copie este endereço no navegador:<br>${link}</p><p>Se você não criou uma conta no Lume, ignore esta mensagem.</p>` });
       if (result.state !== 'accepted') captureOperationalError(new Error('Verification email was not accepted.'), 'auth.email-verification.delivery', { code: result.code });
+      // The current address hears about the request, so a change nobody asked for is noticed.
+      if (change) {
+        const notice = await sendPersonalEmail({ to: change.previousEmail, subject: 'Pedido de troca do seu e-mail no Lume',
+          text: `Pediram para trocar o e-mail da sua conta no Lume para ${user.email}. Nada muda até esse endereço confirmar a troca.
+
+Se não foi você, troque sua senha em Perfil e encerre as outras sessões.`,
+          html: `<p>Pediram para trocar o e-mail da sua conta no Lume para ${escapeHtml(user.email)}. Nada muda até esse endereço confirmar a troca.</p><p>Se não foi você, troque sua senha em Perfil e encerre as outras sessões.</p>` });
+        if (notice.state !== 'accepted') captureOperationalError(new Error('Email change notice was not accepted.'), 'auth.email-change.notice', { code: notice.code });
+      }
     });
   } },
   passwordReset: { enabled: () => Boolean(personalEmailSettings()), send: async ({ user, url }: { user: { id: string; email: string }; url: string }) => {
@@ -29,6 +49,7 @@ const settings = {
       if (result.state !== 'accepted') captureOperationalError(new Error('Password reset email was not accepted.'), 'auth.password-reset.delivery');
     });
   } },
+  signUpChallenge: { enabled: turnstileEnabled, verify: verifyTurnstile },
   secret, baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000', idleSeconds,
   extraOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(',').map(origin=>origin.trim()).filter(Boolean),
   // Cloudflare overwrites cf-connecting-ip at the edge. Anywhere else a client can send it, so the

@@ -21,7 +21,10 @@ export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
  */
 export function createAuth(store: AuthStore, db: Database, settings: { secret: string; baseURL: string; idleSeconds: number; extraOrigins?: string[]; ipHeaders?: string[];
   passwordReset?: { enabled: () => boolean; send: (input: { user: { id: string; email: string }; url: string }) => Promise<void> };
-  emailVerification?: { enabled: () => boolean; send: (input: { user: { id: string; email: string }; url: string }) => Promise<void> } }) {
+  /** A human check on the sign-up form (Turnstile); the portal invitation is already bound to a token. */
+  signUpChallenge?: { enabled: () => boolean; verify: (token: string, remoteIp: string | null) => Promise<boolean> };
+  /** `change` is set when the link confirms a new address for an existing account. */
+  emailVerification?: { enabled: () => boolean; send: (input: { user: { id: string; email: string }; url: string; change?: { previousEmail: string } }) => Promise<void> } }) {
   // Verification is required wherever e-mail can actually be delivered. Without a sender (local
   // development, the e2e runner) nobody could ever confirm, so sign-up keeps working as before.
   const verifyEmail = settings.emailVerification?.enabled() ?? false;
@@ -35,7 +38,13 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       requireEmailVerification: verifyEmail,
       sendResetPassword: settings.passwordReset ? settings.passwordReset.send : undefined },
     emailVerification: verifyEmail && settings.emailVerification ? {
-      sendVerificationEmail: settings.emailVerification.send,
+      // A change of address reaches here with the new address; the account still has the old one
+      // until the link is opened, which tells the two messages apart.
+      sendVerificationEmail: async ({ user, url }) => {
+        const current = await db.prepare('SELECT email FROM "user" WHERE id=?').get<{ email: string }>(user.id);
+        const change = current && current.email.toLowerCase() !== user.email.toLowerCase() ? { previousEmail: current.email } : undefined;
+        await settings.emailVerification!.send({ user: { id: user.id, email: user.email }, url, ...(change ? { change } : {}) });
+      },
       sendOnSignUp: true,
       // Signing in with an unconfirmed address sends a fresh link instead of a dead end.
       sendOnSignIn: true,
@@ -43,8 +52,9 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       expiresIn: 24 * 60 * 60,
     } : undefined,
     user: {
-      // There is no e-mail delivery, so the address changes at once; the hook below asks for the
-      // current password first, so a borrowed session cannot move the account to another address.
+      // With e-mail delivery, a confirmed account keeps its address until the new one opens the
+      // link sent to it. Without delivery (local, e2e) the address changes at once. Either way the
+      // hook below asks for the current password, so a borrowed session cannot move the account.
       changeEmail: { enabled: true, updateEmailWithoutVerification: true },
       additionalFields: {
         // Retained to recover office provisioning after an interrupted registration.
@@ -89,6 +99,12 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
           const result = signUpSchema.safeParse(ctx.body);
           if (!result.success) throw new APIError("BAD_REQUEST", { code: "INVALID_SIGN_UP", message: "Confira os dados do cadastro." });
           const registration = clientRegistration();
+          if (!registration && settings.signUpChallenge?.enabled()) {
+            const token = ctx.headers?.get('x-captcha-response') ?? '';
+            const ip = settings.ipHeaders?.map(header => ctx.headers?.get(header)).find(Boolean) ?? null;
+            if (!token || !await settings.signUpChallenge.verify(token, ip))
+              throw new APIError('BAD_REQUEST', { code: 'CAPTCHA_FAILED', message: 'Não foi possível confirmar a verificação. Tente de novo.' });
+          }
           if (registration) {
             const invitation = await portalInvitation(db, registration.token);
             if (invitation.email.toLowerCase() !== result.data.email) throw new APIError('FORBIDDEN', { message: 'Use o e-mail do convite.' });

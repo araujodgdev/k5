@@ -15,8 +15,10 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { authErrorMessage, signInSchema, signUpSchema } from "@/lib/auth-validation";
 import { LEGAL_VERSION } from "@/lib/legal-version";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
-export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "sign-up"; invite?: string; messageClaim?: string }) {
+/** `challengeKey`: the Turnstile site key, when sign-up asks for a human check. */
+export function AuthForm({ mode, invite, messageClaim, challengeKey }: { mode: "sign-in" | "sign-up"; invite?: string; messageClaim?: string; challengeKey?: string }) {
   const router = useRouter();
   const isSignUp = mode === "sign-up";
   const [pending, setPending] = useState(false);
@@ -25,6 +27,9 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [passwordFocus, setPasswordFocus] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [challengeToken, setChallengeToken] = useState("");
+  const [challengeReset, setChallengeReset] = useState(0);
+  const challenge = isSignUp && challengeKey ? challengeKey : undefined;
   // The light answers the form: it gathers while the password is typed, flares on submit, cools on an error.
   const mood = error ? "error" : pending ? "submit" : passwordFocus ? "focus" : "idle";
 
@@ -55,6 +60,10 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
       if (input instanceof HTMLElement) input.focus();
       return;
     }
+    if (challenge && !challengeToken) {
+      setError("Aguarde a verificação de segurança terminar e tente de novo.");
+      return;
+    }
     setPending(true);
     const destination = invite ? `/invite/${encodeURIComponent(invite)}` : messageClaim ? `/messages/claim/${encodeURIComponent(messageClaim)}` : '/app';
     try {
@@ -62,9 +71,11 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
       // The ticked version travels with the sign-up; the server records it with the new account.
       const signUp = () => ({ ...signUpSchema.parse(values), callbackURL: destination, acceptedLegalVersion: LEGAL_VERSION });
       const result = isSignUp
-        ? await authClient.signUp.email(signUp())
+        ? await authClient.signUp.email(signUp(), challenge ? { headers: { "x-captcha-response": challengeToken } } : undefined)
         : await authClient.signIn.email({ ...signInSchema.parse(values), callbackURL: destination });
       if (result.error) {
+        // A Turnstile token is good for one attempt.
+        if (challenge) setChallengeReset(value => value + 1);
         setError(result.error.status === 429 ? authErrorMessage("TOO_MANY_REQUESTS") : authErrorMessage(result.error.code));
         setPending(false);
         return;
@@ -163,6 +174,7 @@ export function AuthForm({ mode, invite, messageClaim }: { mode: "sign-in" | "si
                 <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Termos de uso<span className="sr-only"> (abre em nova aba)</span></Link>
                 {" e a "}<Link href="/politica-privacidade" target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">Política de privacidade<span className="sr-only"> (abre em nova aba)</span></Link>.
               </p>}
+              {challenge && <TurnstileWidget siteKey={challenge} resetKey={challengeReset} onToken={setChallengeToken} onError={setError} />}
               <Button type="submit" size="lg" className="mt-3 h-12 w-full justify-between px-4 text-[15px] md:h-12">
                 {pending ? (isSignUp ? "Criando conta…" : "Entrando…") : (isSignUp ? "Criar conta" : "Entrar")}
                 {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />}
