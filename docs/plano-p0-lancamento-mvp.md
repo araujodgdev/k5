@@ -33,11 +33,17 @@ A Honcho também entrou na lista de destinatários. Nos termos, a seção de IA 
 
 **Situação anterior.** `src/app/page.tsx` prometia "Andamentos processuais" e "os andamentos do processo aparecem no mesmo caso". As fontes judiciais estão desabilitadas e o DJEN traz publicações, não andamentos. A página também falava em "prazos" sem indicar que são cadastrados pelo advogado, em "citações conferidas" como garantia e em "escritórios de 2 a 5 advogados", quando o modelo é de um advogado por escritório com associados por caso.
 
-**Feito.** —
+**Feito.** Ajustes em `src/app/page.tsx`:
+- Pesquisa: saíram "Andamentos processuais" e "os andamentos aparecem no mesmo caso"; entraram "Busca rápida ou profunda" e "link da fonte para conferir".
+- Lume: "Citações conferidas" virou "Citações com a fonte".
+- Escritório: agora diz "os prazos que você cadastra" e "Prazos que você define".
+- Público: "escritórios de 2 a 5 advogados" virou "advogados que dividem casos com colegas", e a seção de casos fala em colega que entra no caso e encontra os arquivos liberados.
 
-**Pendente.** Toda a frente.
+Nenhuma outra página pública repetia essas promessas.
 
-**Decisões.** —
+**Pendente.** Voltar a anunciar publicações quando o DJEN for homologado (frente 9).
+
+**Decisões.** A landing só anuncia o que funciona em produção hoje. Andamentos dependem de outra fonte (DataJud ou tribunais) e não voltam junto com o DJEN.
 
 ## Frente 4 — Verificação de e-mail e créditos iniciais
 

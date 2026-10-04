@@ -36,7 +36,7 @@ const modules = [
   {
     name: "Lume", Glyph: GlyphLume,
     text: "Peça uma cronologia dos fatos, uma análise ou uma minuta a partir dos documentos do caso. Você confere as fontes e decide o que usar. Antes de apagar um arquivo, sobrescrever um rascunho ou falar com um tribunal, o Lume pede sua confirmação.",
-    points: ["Peças em DOCX", "Citações conferidas", "Voz e anexos", "Documento ao lado da conversa"],
+    points: ["Peças em DOCX", "Citações com a fonte", "Voz e anexos", "Documento ao lado da conversa"],
   },
   {
     name: "Cofre", Glyph: GlyphVault,
@@ -45,13 +45,13 @@ const modules = [
   },
   {
     name: "Pesquisa", Glyph: GlyphResearch,
-    text: "Descreva a questão, escolha entre uma busca rápida ou profunda e confira as decisões encontradas. Salve uma decisão no caso ou comece uma peça a partir dela. Os andamentos do processo aparecem no mesmo caso.",
-    points: ["Jurisprudência na web", "Andamentos processuais", "Vínculo com o caso", "Rascunho a partir da decisão"],
+    text: "Descreva a questão, escolha entre uma busca rápida ou profunda e confira as decisões encontradas. Salve uma decisão no caso, com o link da fonte para conferir, ou comece uma peça a partir dela.",
+    points: ["Jurisprudência na web", "Busca rápida ou profunda", "Vínculo com o caso", "Rascunho a partir da decisão"],
   },
   {
     name: "Escritório", Glyph: GlyphAgenda,
-    text: "Cada cliente tem contatos, observações, casos e as próximas tarefas. Tarefas, prazos e reuniões entram num só calendário, com responsável e aviso no celular.",
-    points: ["Clientes e casos", "Tarefas com responsável", "Prazos e reuniões", "Avisos no celular"],
+    text: "Cada cliente tem contatos, observações, casos e as próximas tarefas. Tarefas, os prazos que você cadastra e reuniões entram num só calendário, com aviso no celular.",
+    points: ["Clientes e casos", "Tarefas e reuniões", "Prazos que você define", "Avisos no celular"],
   },
   {
     name: "Honorários", Glyph: GlyphFees,
@@ -124,11 +124,11 @@ export default function Landing() {
           <Halftone seed={7} mark={{ x: .56, y: .58, size: .95 }} className="fade-in hidden border-t border-line [--delay:.35s] md:block md:min-h-[46svh]" />
           <div className="grid border-t border-line sm:grid-cols-2 md:border-l">
             <div className="flex min-h-72 flex-col justify-between gap-10 bg-foreground p-5 text-background md:p-6">
-              <p className="text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">O Lume guarda os documentos de cada caso, prepara rascunhos a partir deles e acompanha tarefas, prazos e honorários.</p>
+              <p className="text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">O Lume guarda os documentos de cada caso, prepara rascunhos a partir deles e organiza tarefas, prazos e honorários.</p>
               <ArrowLink href="/sign-up" tone="clear" className="-mx-4 -mb-3">Criar conta</ArrowLink>
             </div>
             <div className="flex min-h-72 flex-col justify-between gap-10 overflow-hidden bg-brand text-brand-foreground">
-              <p className="p-5 text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.55s] md:p-6">Para quem advoga sozinho e para escritórios de 2 a 5 advogados.</p>
+              <p className="p-5 text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.55s] md:p-6">Para quem advoga sozinho e para advogados que dividem casos com colegas.</p>
               <div className="marquee overflow-hidden border-t border-brand-foreground/25 py-4" aria-label="Módulos do Lume">
                 <ul className="marquee-track flex w-max gap-10 pr-10 text-xl font-medium tracking-[-0.04em]">
                   {[...marquee, ...marquee].map((name, index) => (
@@ -150,7 +150,7 @@ export default function Landing() {
           </div>
           <div className="grid min-h-[44svh] grid-rows-[1fr_auto] border-t border-line bg-panel text-panel-foreground md:border-t-0 md:border-l">
             <p className="display self-end px-5 pb-6 text-[clamp(56px,8vw,140px)] md:px-6"><Rise>Com tarefas e prazos.</Rise></p>
-            <div className="border-t border-line px-5 py-5 md:px-6"><p className="max-w-md text-base leading-snug" data-fade>Documentos, clientes, tarefas, prazos e honorários ficam ligados ao caso. Quando outro advogado assume, ele encontra os arquivos e vê o que falta fazer.</p></div>
+            <div className="border-t border-line px-5 py-5 md:px-6"><p className="max-w-md text-base leading-snug" data-fade>Documentos, clientes, tarefas, prazos e honorários ficam ligados ao caso. Quando um colega entra no caso, ele encontra os arquivos que você liberou e vê o que falta fazer.</p></div>
           </div>
         </section>
 
