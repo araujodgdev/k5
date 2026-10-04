@@ -42,7 +42,7 @@ const queues: Queue[] = [
   {
     queue: 'vault.ingestion', from: 'vault_document d',
     stale: { predicate: "d.deleted_at IS NULL AND d.status IN ('queued','processing')",
-      since: 'GREATEST(d.updated_at,d.lease_expires_at)' },
+      since: 'GREATEST(d.updated_at,d.lease_expires_at,d.retry_at)' },
     failed: { predicate: "d.deleted_at IS NULL AND d.status='failed'", since: 'd.updated_at' },
   },
   {

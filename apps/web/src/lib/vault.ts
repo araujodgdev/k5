@@ -53,6 +53,18 @@ export class VaultHttpError extends Error {
   constructor(public readonly status: number, message: string, public readonly code?: CapabilityErrorCode) { super(message); }
 }
 
+/**
+ * The original could not be read for a reason other than its absence. The person sees the same
+ * message as before; `cause` keeps the backend's own error (a binding status, a network code) so
+ * telemetry can name it instead of the static text that left LUME-1E without a diagnosis.
+ */
+export class VaultStorageUnavailableError extends VaultHttpError {
+  constructor(cause: unknown) {
+    super(503, 'Armazenamento de documentos indisponível.');
+    this.cause = cause;
+  }
+}
+
 function mapDocument(row: Record<string, unknown>): DocumentRow {
   return {
     id: String(row.id), name: String(row.name), caseId: row.caseId as string | null, caseName: row.caseName as string | null,
@@ -433,7 +445,7 @@ export async function readVaultOriginalStream(document: Pick<DocumentRow, 'store
   try { return await storage.getStream(document.storedName); }
   catch (error) {
     if (error instanceof StorageError && error.code === 'not_found') throw new VaultHttpError(404, 'Arquivo original não encontrado.');
-    throw new VaultHttpError(503, 'Armazenamento de documentos indisponível.');
+    throw new VaultStorageUnavailableError(error);
   }
 }
 
@@ -452,7 +464,7 @@ export async function readVaultOriginal(document: Pick<DocumentRow, "storedName"
     return await (await objectStorage()).get(key);
   } catch (error) {
     if (error instanceof StorageError && error.code === "not_found") throw new VaultHttpError(404, "Arquivo original não encontrado.");
-    throw new VaultHttpError(503, "Armazenamento de documentos indisponível.");
+    throw new VaultStorageUnavailableError(error);
   }
 }
 
@@ -471,7 +483,8 @@ export async function retryVaultDocument(officeId: string, documentId: string) {
   // `deleted_at IS NULL` is the point of the rest: deletion parks the row in `failed`, which is
   // a state this transition accepts, so without it a tombstone could be reprocessed back into view.
   const result = await database.prepare(`UPDATE vault_document
-    SET status = 'queued', progress = 0, error_message = NULL, lease_owner = NULL, lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP
+    SET status = 'queued', progress = 0, error_message = NULL, lease_owner = NULL, lease_expires_at = NULL,
+      ingestion_attempts = 0, retry_at = NULL, updated_at = CURRENT_TIMESTAMP
     WHERE office_id = ? AND id = ? AND status IN ('failed', 'queued') AND deleted_at IS NULL`).run(officeId, documentId);
   if (!result.changes) throw new VaultHttpError(409, "Somente documentos com falha ou na fila podem ser reenviados.");
 }
@@ -500,7 +513,10 @@ export async function getDocumentChunks(officeId: string, viewer: Viewer, docume
     ORDER BY ts_rank_cd(c.search_vector,q) DESC,c.id LIMIT 100`).all(ftsQuery, officeId, ...ids) as DocumentChunk[];
 }
 
-const CLAIMABLE = "deleted_at IS NULL AND (status = 'queued' OR (status = 'processing' AND lease_expires_at < CURRENT_TIMESTAMP))";
+const CLAIMABLE = "deleted_at IS NULL AND ((status = 'queued' AND (retry_at IS NULL OR retry_at <= CURRENT_TIMESTAMP)) OR (status = 'processing' AND lease_expires_at < CURRENT_TIMESTAMP))";
+
+/** Storage outages are retried this many times, waiting longer each time, before a document fails. */
+export const STORAGE_RETRY_DELAYS_SECONDS = [60, 300, 900] as const;
 
 /**
  * Takes the lease on the oldest claimable document, or returns nothing when there is none.
@@ -573,7 +589,7 @@ export async function processDocument(documentId: string, officeId: string, leas
       }
     }
     writes.push(database.prepare(`UPDATE vault_document SET status = 'ready', progress = 100, error_message = NULL, extracted_characters = ?, source_count = ?,
-      lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND lease_owner = ?`)
+      lease_expires_at = NULL, ingestion_attempts = 0, retry_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND lease_owner = ?`)
       .bind(characters, ordinal, documentId, officeId, owner));
     // What the extractor saw, per run: unit counts and the extractor version, so a later
     // reindex can tell a coverage gap from a retrieval miss.
@@ -607,6 +623,20 @@ export async function processDocument(documentId: string, officeId: string, leas
       // No embedding profile configured, or the index is unavailable: search stays lexical.
     }
   } catch (error) {
+    if (error instanceof VaultStorageUnavailableError) {
+      const row = await database.prepare('SELECT ingestion_attempts AS attempts FROM vault_document WHERE id = ? AND office_id = ?')
+        .get<{ attempts: number }>(documentId, officeId);
+      const attempt = (row?.attempts ?? 0) + 1;
+      captureOperationalError(error.cause ?? error, 'vault.ingestion', { stage: 'storage_read', attempt: String(attempt) });
+      const delay = STORAGE_RETRY_DELAYS_SECONDS[attempt - 1];
+      if (delay !== undefined) {
+        // Back to the queue rather than `failed`: the first claim after `retry_at` reads the original again.
+        const requeued = await database.prepare(`UPDATE vault_document SET status = 'queued', lease_owner = NULL, lease_expires_at = NULL,
+            ingestion_attempts = ?, retry_at = CURRENT_TIMESTAMP + (?::integer * INTERVAL '1 second'), updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND office_id = ? AND lease_owner = ? AND status = 'processing'`).run(attempt, delay, documentId, officeId, owner);
+        if (requeued.changes) return;
+      }
+    }
     const message = error instanceof Error ? error.message.slice(0, 500) : "Não foi possível processar este documento.";
     const failedAt = new Date().toISOString();
     const writes = [database.prepare(`UPDATE vault_document SET status = 'failed', error_message = ?, lease_expires_at = NULL, updated_at = CURRENT_TIMESTAMP
