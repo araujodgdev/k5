@@ -43,9 +43,10 @@ test('o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e
   await expect(cards).toHaveCount(53);
   const inProgress = screen.getByRole('region', 'Em andamento');
   await expect(inProgress).toContainText('Revisar contrato 52');
-  const move = screen.getByRole('combobox', 'Mover Revisar contrato 1');
+  const move = screen.getByRole('button', 'Mover Revisar contrato 1');
   await move.focus();
-  await browser.keyboard.press('ArrowDown');
+  await browser.keyboard.press('Enter');
+  await browser.keyboard.press('ArrowRight');
   await browser.keyboard.press('Enter');
   await expect(inProgress).toContainText('Revisar contrato 1');
   expect(staleUpdates).toEqual([]);
@@ -55,6 +56,10 @@ test('o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e
 
   await browser.setViewport({ width: 390, height: 844 });
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
+  const completed = screen.getByRole('region', 'Concluídas');
+  await screen.getByRole('button', 'Mover Revisar contrato 3').dragTo(completed);
+  await expect(completed).toContainText('Revisar contrato 3');
+  expect(staleUpdates).toEqual([]);
   await screen.getByLabel('Quadro de tarefas').getByRole('button', 'Delegar ao Lume').first().tap();
   await browser.waitForURL(/\/app\/agents\?conversationId=board-session$/);
   expect(delegated).toEqual(['board-1']);

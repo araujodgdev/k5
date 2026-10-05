@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { TaskBoard } from './task-board';
 import { useRouter } from 'next/navigation';
 import { calendarDays } from '@/lib/calendar-days';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,24 @@ const CalendarPanel = dynamic(() => import('./google/calendar-panel').then(modul
 
 type View = 'tasks' | 'calendar' | 'clients';
 type Editor = { mode: 'activity'; activity?: AgendaActivity } | { mode: 'client'; client?: CrmClient };
+type StatusFlight = { activityId: string; version: number; to: AgendaActivity['status'] };
+type MoveError = { activityId: string; message: string };
+
+function projectActivities(rows: AgendaActivity[], flights: Map<string, StatusFlight>) {
+  return rows.map(row => {
+    const flight = flights.get(row.id);
+    if (!flight || row.version !== flight.version || row.status === flight.to) return row;
+    return { ...row, status: flight.to };
+  });
+}
+
+function reconcileLoaded(current: AgendaActivity[], loaded: AgendaActivity[]) {
+  const local = new Map(current.map(row => [row.id, row]));
+  return loaded.map(row => {
+    const kept = local.get(row.id);
+    return kept && kept.version > row.version ? kept : row;
+  });
+}
 function savedNotice(editor: Editor) {
   if (editor.mode === 'client') return editor.client ? 'Cliente atualizado.' : 'Cliente cadastrado.';
   return editor.activity ? 'Atividade atualizada.' : 'Atividade criada.';
@@ -86,6 +104,9 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
   const [clients, setClients] = useState<CrmClient[]>([]);
   const [members, setMembers] = useState<Choice[]>([]);
   const [activities, setActivities] = useState<AgendaActivity[]>([]);
+  const flightsRef = useRef<Map<string, StatusFlight>>(new Map());
+  const [flights, setFlights] = useState<Map<string, StatusFlight>>(new Map());
+  const [moveError, setMoveError] = useState<MoveError | null>(null);
   const [clientRows, setClientRows] = useState<CrmClient[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -160,7 +181,7 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
       try {
         if (view === 'clients') {
           const result = await agendaCall('k5_crm_list_clients', { query: searchQuery, ...(caseId ? { caseId } : {}), ...(status ? { stage: status } : {}), ...(legalArea ? { legalArea: legalArea as LegalArea } : {}), limit: 50, offset });
-          if (!cancelled) { setClientRows(result.clients); setTotal(result.total); }
+          if (!cancelled) { setClientRows(result.clients); setTotal(result.total); setMoveError(null); }
         } else {
           const from = new Date(`${day}T00:00:00`); const to = new Date(from); to.setDate(to.getDate() + 1);
           const result = await agendaCall('k5_agenda_list_activities', {
@@ -177,7 +198,7 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
               if (!page.activities.length) break;
             }
           }
-          if (!cancelled) { setActivities(all); setTotal(result.total); }
+          if (!cancelled) { setActivities(current => reconcileLoaded(current, all)); setTotal(result.total); setMoveError(null); }
         }
       } catch (error) { if (!cancelled) setFailure(error instanceof Error ? error.message : 'Não foi possível carregar.'); }
       finally { if (!cancelled) setLoading(false); }
@@ -189,13 +210,40 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
   function changeView(value: View) { setNotice(''); setView(value); setStatus(''); setArchivedTasks(false); setOffset(0); setQuery(''); setLoading(true); }
   function changeTaskArchive(value: boolean) { if (value === archivedTasks) return; setArchivedTasks(value); setStatus(''); setOffset(0); setLoading(true); }
   function inspect(value: Editor) { if (value.mode === 'client' && value.client) router.push(`/app/agenda/clients/${encodeURIComponent(value.client.id)}`); else setEditor(value); }
+  function dropFlight(flight: StatusFlight) {
+    if (flightsRef.current.get(flight.activityId) !== flight) return;
+    const removed = new Map(flightsRef.current);
+    removed.delete(flight.activityId);
+    flightsRef.current = removed;
+    setFlights(removed);
+  }
   async function move(activity: AgendaActivity, status: AgendaActivity['status']) {
+    if (view === 'tasks' && taskLayout === 'kanban') {
+      const confirmed = activities.find(row => row.id === activity.id);
+      if (!confirmed || flightsRef.current.has(confirmed.id) || confirmed.status === status) return;
+      const flight: StatusFlight = { activityId: confirmed.id, version: confirmed.version, to: status };
+      const added = new Map(flightsRef.current);
+      added.set(flight.activityId, flight);
+      flightsRef.current = added;
+      setFlights(added);
+      try {
+        const result = await agendaCall('k5_agenda_update_activity', { activityId: confirmed.id, version: confirmed.version, status, idempotencyKey: crypto.randomUUID() });
+        setActivities(rows => rows.map(row => row.id === result.activity.id && result.activity.version >= row.version ? result.activity : row));
+        dropFlight(flight);
+        setMoveError(current => current?.activityId === confirmed.id ? null : current);
+      } catch (error) {
+        dropFlight(flight);
+        setMoveError({ activityId: confirmed.id, message: error instanceof Error ? error.message : 'Não foi possível atualizar.' });
+      }
+      return;
+    }
     setBusy(true); setFailure('');
     try { await agendaCall('k5_agenda_update_activity', { activityId: activity.id, version: activity.version, status, idempotencyKey: crypto.randomUUID() }); refresh(); }
     catch (error) { setFailure(error instanceof Error ? error.message : 'Não foi possível atualizar.'); }
     finally { setBusy(false); }
   }
   async function delegate(activity: AgendaActivity) {
+    if (flightsRef.current.has(activity.id)) return;
     setBusy(true); setFailure('');
     try {
       const response = await fetch('/api/agenda/delegate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ activityId: activity.id, timeZone }) });
@@ -250,6 +298,9 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
     </article>;
   };
 
+  const shown = projectActivities(activities, flights);
+  const heldIds = new Set(flights.keys());
+
   return <div className="flex min-w-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10 [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9">
     {/* A tap before the links load still counts: the form opens as soon as they arrive. */}
     <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-5 max-md:justify-end"><h1 className="page-title max-md:sr-only">Escritório</h1><div className="flex gap-2"><Button variant="ghost" onClick={refresh} disabled={loading && !(view === 'calendar' && calendarMode === 'personal')}>Atualizar</Button>{!(view === 'calendar' && calendarMode === 'personal') && <Button className="h-11 md:h-9" aria-busy={opening} onClick={() => { setNotice(''); setEditor({ mode: view === 'clients' ? 'client' : 'activity' }); }}><Plus aria-hidden="true" />{opening ? 'Abrindo…' : view === 'clients' ? 'Novo cliente' : 'Nova atividade'}</Button>}</div></header>
@@ -276,13 +327,14 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
     </div>}
     {optionsReady && view !== 'clients' && !(view === 'calendar' && calendarMode === 'personal') && <AgendaSuggestions cases={cases} clients={clients} members={members} day={day} timeZone={timeZone} initialProposalId={initialProposalId} refreshed={refresh} />}
     {(failure || optionsFailure || detailFailure) && <div className="mb-4 flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-destructive">{failure || optionsFailure || detailFailure}</p><Button variant="outline" onClick={refresh}>Tentar novamente</Button></div>}
+    {moveError && <p role="alert" className="mb-4 text-sm text-destructive">{moveError.message}</p>}
     {clientId && view !== 'clients' && clients.some(c => c.id === clientId) && <div className="mb-4"><Button variant="outline" onClick={() => inspect({ mode: 'client', client: clients.find(c => c.id === clientId)! })}>Dados de {findName(clients, clientId)}</Button></div>}
     <div className={view === 'calendar' ? 'flex flex-col gap-8 md:flex-row' : ''}>
       {view === 'calendar' && day && <div className="md:w-72 md:shrink-0"><Calendar day={day} markers={calendarMode === 'office' ? markers : {}} showMarkers={calendarMode === 'office'} onChange={value => { setDay(value); setOffset(0); setLoading(true); }} />{calendarMode === 'office' && markersLoading && <p role="status" className="mt-3 text-xs text-muted-foreground">Carregando marcadores…</p>}{calendarMode === 'office' && markerFailure && <div className="mt-3 space-y-2"><p role="alert" className="text-xs text-destructive">{markerFailure}</p><Button variant="ghost" onClick={refresh}>Tentar novamente</Button></div>}</div>}
       {view === 'calendar' && calendarMode === 'personal' && day ? <section aria-label="Agenda Google pessoal" className="min-w-0 flex-1"><h2 className="mb-4 text-base font-medium">{dateLabel(day)}</h2><CalendarPanel day={day} initialEventId={initialPersonalEventId} /></section> :
       <section aria-label={view === 'clients' ? 'Clientes' : 'Atividades'} aria-busy={loading} className="min-w-0 flex-1">
         {view === 'calendar' && <div className="mb-4"><h2 className="text-base font-medium">{day && dateLabel(day)}</h2><p className="mt-1 text-xs text-muted-foreground">{timeZoneLabel(timeZone)}</p></div>}
-        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : view === 'tasks' && taskLayout === 'kanban' ? <TaskBoard activities={activities} members={members} clients={clients} busy={busy} inspect={activity => inspect({ mode: 'activity', activity })} move={(activity, status) => void move(activity, status)} delegate={activity => void delegate(activity)} /> : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : archivedTasks ? 'Nenhuma tarefa arquivada.' : 'Nenhuma tarefa aberta.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-[13px] text-muted-foreground">{stageLabels[client.stage]}{client.legalAreas.length ? ` · ${client.legalAreas.map(area => legalAreaLabels[area]).join(', ')}` : ''}{client.city ? ` · ${client.city}${client.state ? `/${client.state}` : ''}` : ''}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : view === 'tasks' ? <div>{taskGroups.map(name => {
+        {loading ? <p role="status" className="py-10 text-sm text-muted-foreground">Carregando…</p> : failure ? null : view === 'tasks' && taskLayout === 'kanban' ? <TaskBoard activities={shown} members={members} clients={clients} busy={busy} held={heldIds} inspect={activity => { const confirmed = activities.find(row => row.id === activity.id); if (confirmed) inspect({ mode: 'activity', activity: confirmed }); }} move={(activity, status) => void move(activity, status)} delegate={activity => { const confirmed = activities.find(row => row.id === activity.id); if (confirmed) void delegate(confirmed); }} /> : total === 0 ? <p className="py-10 text-sm text-muted-foreground">{view === 'clients' ? 'Nenhum cliente encontrado.' : view === 'calendar' ? 'Nenhuma atividade para este dia.' : archivedTasks ? 'Nenhuma tarefa arquivada.' : 'Nenhuma tarefa aberta.'}</p> : view === 'clients' ? <div className="divide-y border-y">{clientRows.map(client => <article key={client.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><Link href={`/app/agenda/clients/${encodeURIComponent(client.id)}`} className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{client.name}</Link><p className="mt-1 break-words text-[13px] text-muted-foreground">{stageLabels[client.stage]}{client.legalAreas.length ? ` · ${client.legalAreas.map(area => legalAreaLabels[area]).join(', ')}` : ''}{client.city ? ` · ${client.city}${client.state ? `/${client.state}` : ''}` : ''}{client.email ? ` · ${client.email}` : ''}{client.phone ? ` · ${client.phone}` : ''}</p></div><Button variant="ghost" onClick={() => { setClientId(client.id); changeView('calendar'); }}>Ver agenda<span className="sr-only"> de {client.name}</span></Button></article>)}</div> : view === 'tasks' ? <div>{taskGroups.map(name => {
           const rows = activities.filter(activity => taskGroup(activity) === name);
           return rows.length ? <section key={name} className="pt-6 first:pt-0"><h2 className="pb-2 text-[13px] text-muted-foreground">{name}</h2><div className="divide-y border-y">{rows.map(activityRow)}</div></section> : null;
         })}</div> : <div className="divide-y border-y">{activities.map(activityRow)}</div>}
