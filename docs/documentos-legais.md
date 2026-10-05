@@ -21,6 +21,7 @@ Contato adotado por instrução do responsável: `info@lume.software`.
 | Cobrança e cancelamento | `apps/web/src/lib/billing/` |
 | Diagnóstico com redução de dados | `apps/web/src/lib/observability/privacy.ts` |
 | Infraestrutura e provedores | `docs/ambientes.md`, `apps/web/.env.example`, configurações Wrangler |
+| Memória enviada à Honcho | `apps/web/src/lib/honcho-memory.ts` |
 
 Os textos não oferecem SLA, certificações, autenticação multifator, armazenamento
 exclusivo no Brasil, retenção zero em todos os fornecedores, restauração garantida,
@@ -170,7 +171,10 @@ anonimizado do art. 5º, III, da LGPD.
 
 Os 90 dias de conteúdo são o padrão publicado. A política diz que o prazo pode
 ser configurado. Esta leitura não abriu o workspace de produção. O hard-delete
-é a frase da Honcho para o purge. Esta leitura não executou um purge.
+é a frase da seção 6 para o purge. `requestDeletion` em `honcho-memory.ts` apaga
+as sessões e depois o workspace com DELETE. Não chama purge. A linha em
+`honcho_deletion` fica `accepted` quando a Honcho aceita esse HTTP, ou responde
+404. `accepted` não prova que a exclusão terminou.
 
 A política publicada, versão 1.1, já descreve os 90 dias e o uso de dados
 desidentificados. `LEGAL_VERSION` fica onde está, e os usuários não recebem novo
@@ -201,7 +205,7 @@ Esta mensagem não é um DPA assinado. Peço resposta por escrito. Por este e-ma
 
 Cópias de segurança. Snapshots cifrados por 90 dias, sobrescritos em rodízio, como na seção 6 da política.
 
-Conteúdo do cliente. Prazo padrão de 90 dias, com hard-delete imediato no purge ou ao apagar o workspace, como na seção 6. No encerramento, a seção 9.2 dos termos guarda os dados por 90 dias para retirada e depois apaga.
+Conteúdo do cliente. A seção 6 publica o prazo padrão de 90 dias e hard-delete imediato no purge ou ao apagar o workspace. O Lume pede DELETE das sessões e do workspace. Não emite a chamada de purge. No encerramento, a seção 9.2 dos termos guarda os dados por 90 dias para retirada e depois apaga.
 
 Dados desidentificados. A seção 2 permite fine-tuning não público sobre dados desidentificados. A mesma seção diz que a Plastic Labs não treina modelos públicos de linguagem com Customer Content sem opt-in explícito. A Web Star Studio não dá esse opt-in.
 
@@ -213,7 +217,7 @@ I am writing for WEB STAR STUDIO DESENVOLVIMENTO DE SOFTWARE LTDA, CNPJ 57.717.7
 
 This email is not a signed DPA. Please reply in writing.
 
-This email accepts three points from https://app.honcho.dev/privacy (effective April 24, 2025, read October 5, 2026) and from the terms sections cited below at https://app.honcho.dev/tos. Backups are encrypted snapshots kept for 90 days and overwritten on a rolling basis. Customer Content defaults to 90 days, with immediate hard-delete on a purge call or workspace deletion. On termination, section 9.2 keeps the data for 90 days for retrieval and then deletes it. Section 2 allows non-public fine-tuning on de-identified data. We do not opt in to training public language models on Customer Content.
+This email accepts three points from https://app.honcho.dev/privacy (effective April 24, 2025, read October 5, 2026) and from the terms sections cited below at https://app.honcho.dev/tos. Backups are encrypted snapshots kept for 90 days and overwritten on a rolling basis. Section 6 sets Customer Content to a 90-day default and describes immediate hard-delete on a purge call or workspace deletion. Lume sends DELETE for the sessions and the workspace. Lume does not send that purge call. On termination, section 9.2 keeps the data for 90 days for retrieval and then deletes it. Section 2 allows non-public fine-tuning on de-identified data. We do not opt in to training public language models on Customer Content.
 
 Please execute, in full and without alteration, the Brazilian standard contractual clauses in Annex II of ANPD Resolution CD/ANPD No. 19 of August 23, 2024. That is the transfer mechanism under article 33, II, "b", of Law No. 13,709/2018. The ANPD page read on October 5, 2026 recognizes the European Union under Resolution No. 32/2026 and does not list the United States.
 
@@ -233,7 +237,7 @@ nenhum comprovante de assinatura ou clique está neste repositório.
 O código em `apps/web/src/lib/ai-connections-core.ts` também admite os provedores
 `deepseek`, `inception` e `vercel`. A política publicada não os nomeia. Ficam
 fora desta tabela. Douglas confirma se alguma chave de produção aponta para um
-deles. Se apontar, a linha entra aqui.
+deles. Se apontar, a linha entra aqui. O Asaas, em `apps/web/src/lib/asaas/charges.ts`, envia nome, CPF ou CNPJ e e-mail do cliente para `/customers` quando a conta está conectada. A política publicada não o nomeia. A mesma confirmação vale para ele.
 
 | Prestador | Papel na política | Instrumento lido em 05/10/2026 | Situação neste repositório | Próximo passo humano |
 | --- | --- | --- | --- | --- |
