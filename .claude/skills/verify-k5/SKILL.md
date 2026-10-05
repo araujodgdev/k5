@@ -19,11 +19,12 @@ Every command prints one JSON object on stdout: `{ "ok": true, ... }` or `{ "ok"
 
 ## Launch
 
-`$K up` creates `%TEMP%/k5-verify-<runId>/`, starts PostgreSQL on a free port, runs `apps/web/scripts/setup.ts` (all migrations) with its own env file, starts `next dev --hostname 127.0.0.1 --port <free>`, waits until `/sign-in` answers 200, and registers the verification account through the real `POST /api/auth/sign-up/email`. That endpoint provisions the office through Better Auth's hook. The command returns `instance` (`baseURL`, `account`, `evidenceDir`, `log`) once ready. The first compile takes about 1 minute, and the command gives up after about 5 minutes. `$K up --dry-run` prints the run id, directories and ports without starting anything.
+`$K up` creates `<os.tmpdir()>/k5-verify-<runId>/` (`/tmp` on Linux and macOS, `%TEMP%` on Windows), starts PostgreSQL on a free port, runs `apps/web/scripts/setup.ts` (all migrations) with its own env file, starts `next dev --hostname 127.0.0.1 --port <free>`, waits until `/sign-in` answers 200, and registers the verification account through the real `POST /api/auth/sign-up/email`. That endpoint provisions the office through Better Auth's hook. The command returns `instance` (`baseURL`, `account`, `evidenceDir`, `log`) once ready. The first compile takes about 1 minute, and the command gives up after about 5 minutes. `$K up --dry-run` prints the run id, directories and ports without starting anything.
 
 - Account: `verify@k5.test` / `VerificaK5!2026#segura`, administrator of office `Escritório de Verificação`.
 - Every variable in `apps/web/.env*` (Exa, Google, AbacatePay…) is blanked for the instance, so external integrations are **off**. The office has no AI connection, so Lume chat and Pesquisa cannot be verified here.
 - Only one instance runs at a time. `up` returns `INSTANCE_ALREADY_RUNNING` while one is alive, and it cleans up a dead one's leftovers before starting.
+- Node: `up` runs the instance on whichever `node` your shell resolves. Anything that meets `engines` (≥ 22.13) serves the app and the e2e suite; `pnpm test` needs the CI version (24), so check `node -v` before reading unit-test failures as regressions.
 - A detached supervisor owns PostgreSQL and `next dev`. Its log is `instance.log`, at the `log` path printed by `up`. `$K status` shows the registered instance without contacting it.
 
 ## Doctor
@@ -34,7 +35,7 @@ Every command prints one JSON object on stdout: `{ "ok": true, ... }` or `{ "ok"
 
 `$K features` lists the map (`features/*.md`): each feature's `id`, recipe path, and the e2e tests its `Test:` lines name. Read the recipe before driving it. When a feature has several entry points, a proof that drives only one is incomplete.
 
-`$K drive <id>` runs those tests from `apps/web/e2e/` with the e2e runner, against the ready instance instead of a server of its own (`K5_E2E_URL`), with the instance's database (`DATABASE_URL`) and account (`E2E_EMAIL`, `E2E_PASSWORD`). It returns `passed` and one entry per test with its `status`, `error` and artifact paths. On failure it returns `DRIVE_FAILED`, the runner's last lines in `error.details.failure`, and the summary to read in `fix`. Tests under `e2e/agent/` drive the UI with a model and need `OPENAI_API_KEY` in your environment (the runner's, not the instance's).
+`$K drive <id> [--video]` runs those tests from `apps/web/e2e/` with the e2e runner, against the ready instance instead of a server of its own (`K5_E2E_URL`), with the instance's database (`DATABASE_URL`) and account (`E2E_EMAIL`, `E2E_PASSWORD`). It returns `passed` and one entry per test with its `status`, `error` and artifact paths. On failure it returns `DRIVE_FAILED`, the runner's last lines in `error.details.failure`, and the summary to read in `fix`. `--video` also records a WebM per test, for a demo or a reviewer who will not open traces. Tests under `e2e/agent/` drive the UI with a model and need `OPENAI_API_KEY` in your environment (the runner's, not the instance's).
 
 These are the same tests CI runs on every pull request. To cover a feature without tests (`NO_TESTS`), load the `e2e` skill, write `apps/web/e2e/<name>.e2e.ts` and add a `Test:` line for it to the recipe. Follow the existing files:
 
@@ -47,7 +48,14 @@ These are the same tests CI runs on every pull request. To cover a feature witho
 
 ## Evidence
 
-Each drive writes to `apps/web/.e2e/verify/<runId>/<feature>/` (git-ignored, kept by `down`): `report.json`, `summary.md` with a page per failed test under `failures/`, and `artifacts/` with a Playwright trace per test (open it with `pnpm --dir apps/web exec playwright show-trace <path>`), failure screenshots and any `app.screenshot()` images.
+Each drive writes to `apps/web/.e2e/verify/<runId>/<feature>/` (git-ignored, kept by `down`): `report.json`, `summary.md` with a page per failed test under `failures/`, and per test `artifacts/web/<test>/default/attempt-0/` with:
+
+- `trace/trace.zip`, always (open it with `pnpm --dir apps/web exec playwright show-trace <path>`);
+- `screenshots/NNN-<label>.png`, one per `app.screenshot(label)` in the test;
+- `video/video.webm`, with `--video`;
+- `failure/screen.txt` (the accessibility tree at the failing step) and a failure screenshot, when it fails.
+
+`drive`'s `tests[].artifacts` lists every path.
 
 Proof standards:
 
@@ -60,7 +68,7 @@ Proof standards:
 
 ## Cleanup
 
-`$K down` asks the supervisor to stop `next dev` (process tree) and PostgreSQL (`pg_ctl stop -m fast`). It kills only the PIDs recorded in the run's state, never processes by name. It then deletes `%TEMP%/k5-verify-<runId>/` (database, secrets, log) and `apps/web/.next-verify/dev/types`, and unregisters the run. `tsconfig.json` includes those generated types, and `next dev` can leave them half-written, which breaks `pnpm typecheck`. Run `pnpm typecheck` after `down`, not while an instance is up. It returns `evidenceKept`, the directory that survives. `$K down --dry-run` lists what would be stopped, deleted and kept. Run `down` after every session, including failed attempts. If it returns `STOP_INCOMPLETE`, stop the listed PIDs as its `fix` says.
+`$K down` asks the supervisor to stop `next dev` (process tree) and PostgreSQL (`pg_ctl stop -m fast`). It kills only the PIDs recorded in the run's state, never processes by name. It then deletes `<os.tmpdir()>/k5-verify-<runId>/` (database, secrets, log) and `apps/web/.next-verify/dev/types`, and unregisters the run. `tsconfig.json` includes those generated types, and `next dev` can leave them half-written, which breaks `pnpm typecheck`. Run `pnpm typecheck` after `down`, not while an instance is up. It returns `evidenceKept`, the directory that survives. `$K down --dry-run` lists what would be stopped, deleted and kept. Run `down` after every session, including failed attempts. If it returns `STOP_INCOMPLETE`, stop the listed PIDs as its `fix` says.
 
 ## Helpers
 

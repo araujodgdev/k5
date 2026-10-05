@@ -14,8 +14,8 @@ K="pnpm --silent --dir apps/web exec tsx ../../.claude/skills/verify-k5/scripts/
 $K up                 # instância isolada: PostgreSQL embutido, next dev em porta livre e conta de verificação
 $K doctor             # confira antes de dirigir
 $K features           # funcionalidades e os testes e2e de cada uma
-$K drive <id>         # roda os testes da funcionalidade contra a instância
+$K drive <id>         # roda os testes da funcionalidade contra a instância (--video grava WebM)
 $K down               # encerra; as evidências ficam em apps/web/.e2e/verify/<runId>/
 ```
 
-Para escrever um teste novo, use a skill `e2e` em [`.agents/skills/e2e`](../../../.agents/skills/e2e/SKILL.md) e siga os arquivos em `apps/web/e2e/`.
+O mapa fica em [`.claude/skills/verify-k5/features/`](../../../.claude/skills/verify-k5/features/README.md), com a lista dos testes e2e que ainda não têm receita. Para escrever um teste novo, use a skill `e2e` em [`.agents/skills/e2e`](../../../.agents/skills/e2e/SKILL.md) e siga os arquivos em `apps/web/e2e/`.
