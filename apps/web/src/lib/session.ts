@@ -6,7 +6,7 @@ import { auth } from "./auth";
 import { database } from "./database";
 import { ensureOfficeForUser, findOfficeForUser } from "./offices";
 
-export const getSession = cache(async () => auth.api.getSession({ headers: await headers() }));
+export const getSession = cache(async () => auth.api.getSession({ headers: await headers(), query: { disableRefresh: true } }));
 
 export const requireWorkspace = cache(async () => {
   const session = await getSession();
