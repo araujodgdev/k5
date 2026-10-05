@@ -258,7 +258,6 @@ export function TaskBoard({ activities, members, clients, busy, held, inspect, m
               {activity.notes && <p className="line-clamp-3 break-words text-xs text-muted-foreground">{activity.notes}</p>}
               <p className="text-xs text-muted-foreground">{activity.dueOn ? new Date(`${activity.dueOn}T12:00:00`).toLocaleDateString('pt-BR') : 'Sem data'}</p>
               {(activity.clientId || activity.assigneeId) && <p className="break-words text-xs text-muted-foreground">{[clients.find(item => item.id === activity.clientId)?.name, members.find(item => item.id === activity.assigneeId)?.name].filter(Boolean).join(' · ')}</p>}
-              {/* Held stays aria-disabled so this handle can take focus after the card changes columns. */}
               <button type="button" data-move-handle={activity.id} aria-label={`Mover ${activity.title}`} disabled={busy && !lifted} aria-disabled={held.has(activity.id) || undefined}
                 onPointerDown={event => onPointerDown(activity, event)} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onLostPointerCapture={onLostPointerCapture}
                 onKeyDown={event => onKeyDown(activity, event)} onBlur={() => { const current = gestureRef.current; if (current.kind === 'keyboard' && current.activityId === activity.id) { showGesture({ kind: 'idle' }); setAnnouncement(''); } }}
