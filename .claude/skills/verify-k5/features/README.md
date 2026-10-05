@@ -43,3 +43,13 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 - [Credits](./credits.md): the office's credit balance, statement and packages on Plano, desktop and mobile. Test: `e2e/credits.e2e.ts`.
 - [Conversation artifacts](./conversation-artifacts.md): the Lume chat's Artefatos panel and saving its documents and attachments to the Cofre, desktop and mobile. Test: `e2e/conversation-artifacts.e2e.ts`.
 - [Asaas](./asaas.md): connect the office's Asaas account in Integrações and the "Cobrança pelo Asaas" section of an installment's charge, desktop and mobile. Tests: `e2e/asaas.e2e.ts`, `e2e/honorario-charge.e2e.ts`.
+- [Legal acceptance](./legal-acceptance.md): the "Antes de continuar" terms gate and the one-time AI notice before the first chat, stored per user. Tests: `e2e/legal-acceptance.e2e.ts`, `e2e/app-shell.e2e.ts`.
+- [Office data](./office-data.md): export the office as a ZIP and schedule or cancel its deletion in Perfil → Seus dados. Test: `e2e/office-data.e2e.ts`.
+- [Public site](./public-site.md): the signed-out home, SEO for crawlers, robots and sitemap, keyboard and both themes. Test: `e2e/public-site.e2e.ts`.
+- [Honorários](./honorarios.md): installments, receipts, corrections, cancellation, tabs, error recovery and mobile in the fee ledger. Test: `e2e/honorarios.e2e.ts`.
+- [Task board](./task-board.md): the Kanban layout of Tarefas, keyboard moves, delegation and empty/error states (UI-only: its APIs are mocked). Test: `e2e/task-board.e2e.ts`.
+- [Vault upload](./vault-upload.md): the 100 MB upload limit and a direct upload into a case folder, processed and downloaded. Test: `e2e/vault-upload.e2e.ts`.
+
+## Not mapped yet
+
+These e2e files run in CI but have no recipe, so `drive` cannot reach them. When a change touches one, write its recipe (with a `Test:` line) before claiming it verified: `agent-approvals`, `agent-settings`, `chat-feedback`, `client-portal`, `collaboration`, `document-human-review`, `document-pdf`, `document-saving`, `pwa`, `vault-pagination`, `workspace`. `document-pdf` and `client-portal` produce PDFs; confirm they pass against the instance (no workers run) before mapping them.
