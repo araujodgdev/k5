@@ -55,6 +55,18 @@ pnpm --filter @k5/web deploy:vinext
 pnpm --filter @k5/web notifications:deploy
 ```
 
+O Worker web é publicado pelo GitHub Actions (`.github/workflows/deploy.yml`) quando o CI passa num push ao `main`.
+- **Aprovação:** o job usa o environment `production`, com aprovação obrigatória do responsável pelo repositório, restrito ao `main`. Aprove em **Actions → Deploy → Review deployments**.
+- **Secrets:** ficam no environment, fora do alcance de PRs:
+  - `CLOUDFLARE_API_TOKEN`;
+  - `DATABASE_URL_UNPOOLED` e `PROCESSOR_DATABASE_URL`, para as migrações;
+  - `SENTRY_AUTH_TOKEN`, do repositório.
+- **O que o job faz:** roda `deploy:vinext`, que aplica as migrações pendentes, compila com o Sentry ligado e source maps do próprio build, e publica o Worker e o container `LumeProcessor`.
+- **Sem cancelamento:** o deploy fica fora do `ci.yml`, cujo push novo cancela a execução anterior, para nunca ser interrompido entre as migrações e a publicação.
+- **Workers de fundo:** `notifications:deploy` e o Worker de integrações continuam manuais.
+
+`deploy:vinext` já compila antes de publicar, então rodar `build:vinext` antes dele, na máquina local, compila duas vezes.
+
 Web usa os bindings `VAULT` e `KNOWLEDGE`. Os processos Node usam `R2_BUCKET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` e, para Vectorize, `CF_ACCOUNT_ID`, `VECTORIZE_INDEX`, `CF_API_TOKEN`. Não coloque credenciais em arquivos versionados.
 
 O deploy web não inicia os workers Node. Sem eles, extração/OCR, embeddings e coleta externa permanecem pendentes. A pesquisa no acervo usa PostgreSQL e não depende de um filesystem dentro do Worker. A ausência de fonte temática habilitada continua sendo apresentada como cobertura parcial.

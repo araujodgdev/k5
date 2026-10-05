@@ -69,10 +69,7 @@ jobs:
       K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnQ=
       SENTRY_ENABLED: 'false'
       NEXT_PUBLIC_SENTRY_ENABLED: 'false'
-      SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
-      SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
-      SENTRY_RELEASE: ${{ github.sha }}
-      NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
+      # Source maps are uploaded by deploy.yml, from the build it publishes; this build only compiles.
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -167,10 +164,7 @@ jobs:
       SENTRY_ENABLED: 'false'
       NEXT_PUBLIC_SENTRY_ENABLED: 'false'
       WRANGLER_SEND_METRICS: 'false'
-      SENTRY_AUTH_TOKEN: ${{ github.event_name == 'push' && secrets.SENTRY_AUTH_TOKEN || '' }}
-      SENTRY_REQUIRE_SOURCEMAPS: ${{ github.event_name == 'push' && 'true' || 'false' }}
-      SENTRY_RELEASE: ${{ github.sha }}
-      NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
+      # Source maps are uploaded by deploy.yml, from the build it publishes; this build only compiles.
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

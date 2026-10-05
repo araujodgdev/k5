@@ -1,0 +1,69 @@
+name: Deploy
+
+# Publishes lume.software after CI passes on main. Kept apart from ci.yml because CI cancels a run
+# when a newer push arrives; a deploy stopped midway could leave migrations applied without the
+# Worker that needs them.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  # One deploy at a time, never interrupted; a newer pending deploy replaces an older pending one.
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  production:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    # Required reviewer and main-only branch policy live on the environment, with its secrets.
+    environment:
+      name: production
+      url: https://lume.software
+    services:
+      # Throwaway database for db:setup and the build's page collection, as in the CI build.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: k5
+          POSTGRES_PASSWORD: ci-build-only
+          POSTGRES_DB: k5_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U k5 -d k5_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Build-time values only, the same the local deploy used (.env.local points at localhost).
+      # Runtime configuration comes from the Worker's vars and secrets in Cloudflare.
+      DATABASE_URL: postgresql://k5:ci-build-only@127.0.0.1:5432/k5_ci
+      BETTER_AUTH_SECRET: ci-build-only-secret-not-used-at-runtime-000000
+      BETTER_AUTH_URL: http://localhost:3000
+      K5_CREDENTIALS_KEY: Y2ktYnVpbGQtb25seS1rZXktbm90LXVzZWQtYXQtcnQ=
+      WRANGLER_SEND_METRICS: 'false'
+      # Unlike the CI build, Sentry stays on: NEXT_PUBLIC_* values are bundled into the client.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_REQUIRE_SOURCEMAPS: 'true'
+      SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha }}
+      NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:setup
+      # deploy:vinext applies pending migrations to production, then builds and publishes the Worker
+      # and its container. The production database URLs reach this step only.
+      - name: Migrate and publish
+        run: pnpm --filter @k5/web deploy:vinext
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          PROCESSOR_DATABASE_URL: ${{ secrets.PROCESSOR_DATABASE_URL }}
