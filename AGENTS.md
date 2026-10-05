@@ -27,3 +27,10 @@ The application lives in `apps/web`; `packages/` is reserved for shared librarie
 - Run `pnpm build` for changes affecting routes, configuration, or production compilation. Configure the environment and run `pnpm db:setup` first, as described in the READMEs. `pnpm dev` performs setup automatically.
 - For UI changes, verify desktop and mobile behavior, including keyboard access and affected loading, empty, and error states, against `apps/web/DESIGN.md`.
 - Documentation-only edits need link/path and content checks; application tests are unnecessary. Report which checks ran and any checks that could not run.
+
+## Cursor Cloud specific instructions
+
+- The Cloud Agent `start` script brings up embedded PostgreSQL (`pnpm --filter @k5/web db:local`, `127.0.0.1:55432`) and then `pnpm dev` at http://localhost:3000. It writes `apps/web/.env.local` from `apps/web/.data/postgres-migration/dev.env` and keeps any secrets already there. `pnpm db:setup` migrates; it does not start the database.
+- Use Node 22.22.2 from `/home/ubuntu/.nvm/versions/node/v22.22.2` (full ICU). Symlinks in `/usr/local/cargo/bin` put it ahead of `/exec-daemon/node`. That platform Node is 22.14 with small ICU: `windows-1252` decoding and `node:module.registerHooks` fail, so `pnpm test` fails those cases.
+- Turborepo execs `~/.local/share/pnpm/.tools/pnpm/12.4.2/node_modules/pnpm` directly. If that file is still the shebang-less placeholder, run its `install.js` with Node so the native binary replaces it. Otherwise `pnpm dev` and `pnpm test` die with `Exec format error`.
+- LibreOffice (`soffice`) is installed for PDF conversion. `pnpm test` starts a separate temporary PostgreSQL and does not use the dev database. One chat-attachment test still fails when `pdfjs-dist` 6.3.289 and `unpdf`'s bundled PDF.js 6.1.200 load in the same process; that clash is in the app, not in this environment.
