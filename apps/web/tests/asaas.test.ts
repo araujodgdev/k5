@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import { withAsaasTransport } from '../src/lib/asaas/provider';
-import { asaasCredential, connectAsaas, disconnectAsaas, getAsaasStatus, refreshAsaas } from '../src/lib/asaas/service';
+import { asaasCredential, connectAsaas, disconnectAsaas, getAsaasStatus, refreshAsaas, syncAsaasWebhook } from '../src/lib/asaas/service';
 import { decryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
 import * as asaasCharges from '../src/lib/asaas/charges';
 import * as charges from '../src/lib/honorarios/charges';
@@ -327,5 +327,45 @@ test('Asaas webhook adopts a charge whose creation answer was lost and follows d
     assert.equal(removed.active, null); assert.equal(removed.history[0].state, 'cancelled');
     await deliver(token, event('PAYMENT_RESTORED', { id: created.id, status: 'PENDING', value: 100, externalReference: created.externalReference }));
     assert.equal((await asaasCharges.getAsaasCharge(context, { installmentId })).active?.state, 'open');
+  });
+}));
+
+test('Asaas webhook syncs of one office never leave the stored token behind the hook in the account', async () => withWebhookBase('https://lume.test', async () => {
+  const context = await office();
+  const apiKey = `$aact_prod_${randomUUID()}`;
+  const remote = fakeAccount(apiKey);
+  await withAsaasTransport(remote.handler, async () => {
+    await connectAsaas(context, { apiKey, expectedVersion: null });
+    remote.state.webhooks.length = 0;
+    await Promise.all([syncAsaasWebhook(context), syncAsaasWebhook(context), syncAsaasWebhook(context)]);
+    assert.equal(remote.state.webhooks.length, 1);
+    assert.equal((await deliver(remote.state.webhooks[0].authToken, { malformed: true })).status, 200);
+  });
+}));
+
+test('Asaas ignores a confirmation delivered after a refund and replays the current payment link', async () => withWebhookBase('https://lume.test', async () => {
+  const context = await office();
+  const apiKey = `$aact_prod_${randomUUID()}`;
+  const remote = fakeAccount(apiKey);
+  await withAsaasTransport(remote.handler, async () => {
+    await connectAsaas(context, { apiKey, expectedVersion: null });
+    const token = remote.state.webhooks[0].authToken;
+    const { installmentIds: [installmentId] } = await honorario(context);
+    const prepared = { installmentId, version: 0, pixKey: 'financeiro@example.com', instructions: '', remindersEnabled: true, idempotencyKey: randomUUID() };
+    const issued = await asaasCharges.createAsaasCharge(context, issue(installmentId, { document: '12345678909' }));
+    const first = await charges.prepareCharge(context, prepared);
+    assert.match(first.message, /Pague pelo link/);
+    await asaasCharges.cancelAsaasCharge(context, { installmentId, paymentId: issued.active?.id });
+    assert.doesNotMatch((await charges.prepareCharge(context, prepared)).message, /Pague pelo link/);
+
+    await asaasCharges.createAsaasCharge(context, issue(installmentId));
+    const payment = remote.state.payments.at(-1)!;
+    const base = { id: payment.id, value: 100, billingType: 'PIX', externalReference: payment.externalReference };
+    assert.match((await charges.prepareCharge(context, prepared)).message, new RegExp(payment.id));
+    await deliver(token, event('PAYMENT_REFUNDED', { ...base, status: 'REFUNDED' }));
+    await deliver(token, event('PAYMENT_CONFIRMED', { ...base, status: 'CONFIRMED', clientPaymentDate: '2026-01-02' }));
+    const receipts = await testDb.prepare('SELECT 1 FROM honorario_receipt WHERE office_id=? AND installment_id=?').all(context.officeId, installmentId);
+    assert.equal(receipts.length, 0);
+    assert.equal((await asaasCharges.getAsaasCharge(context, { installmentId })).history[0].state, 'refunded');
   });
 }));

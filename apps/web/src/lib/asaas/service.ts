@@ -90,6 +90,7 @@ export async function disconnectAsaas(context: WorkspaceContext, raw: unknown) {
   await authorizeAsaas(context);
   const { expectedVersion } = asaasVersionInput.parse(raw);
   const removed = await withTransaction(async tx => {
+    await lockWebhook(tx, context.officeId);
     const row = await tx.prepare('DELETE FROM asaas_connection WHERE office_id=? AND version=? RETURNING environment,wallet_id,encrypted_api_key,webhook_id')
       .get<Pick<ConnectionRow, 'environment' | 'wallet_id' | 'encrypted_api_key' | 'webhook_id'>>(context.officeId, expectedVersion);
     if (!row) throw changed();
@@ -108,6 +109,9 @@ const WEBHOOK_EVENTS = ['PAYMENT_CREATED', 'PAYMENT_UPDATED', 'PAYMENT_CONFIRMED
   'PAYMENT_RESTORED', 'PAYMENT_REFUNDED', 'PAYMENT_RECEIVED_IN_CASH_UNDONE', 'PAYMENT_CHARGEBACK_REQUESTED'];
 const remoteWebhook = z.object({ id: z.string().min(1).max(100), url: z.string().max(2_000), enabled: z.boolean().nullish(), interrupted: z.boolean().nullish() });
 
+/** Serializes webhook changes of one office: syncs wait for each other, and a disconnect sees the latest hook. */
+const lockWebhook = (tx: Transaction, officeId: string) => tx.prepare('SELECT pg_advisory_xact_lock(hashtextextended(?,0))').get(`asaas-webhook:${officeId}`);
+
 export const asaasWebhookTokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
 
 /** The public HTTPS address Asaas can reach; null where the Lume runs locally. */
@@ -124,39 +128,44 @@ export function asaasWebhookUrl(base = process.env.ASAAS_WEBHOOK_BASE_URL || pro
  * after removing stale ones with the same address. A failure is recorded for the panel, never thrown.
  */
 export async function syncAsaasWebhook(context: WorkspaceContext) {
-  const row = await database.prepare('SELECT environment,wallet_id,encrypted_api_key,webhook_id FROM asaas_connection WHERE office_id=?')
-    .get<Pick<ConnectionRow, 'environment' | 'wallet_id' | 'encrypted_api_key' | 'webhook_id'>>(context.officeId);
-  if (!row) return;
-  const record = (state: AsaasWebhookState, error: string | null, hook?: { id: string; tokenHash: string } | null) => database.prepare(`UPDATE asaas_connection
-    SET webhook_state=?,webhook_error=?,webhook_id=CASE WHEN ? THEN ? ELSE webhook_id END,webhook_token_hash=CASE WHEN ? THEN ? ELSE webhook_token_hash END
-    WHERE office_id=? AND wallet_id=?`).run(state, error, hook !== undefined, hook?.id ?? null, hook !== undefined, hook?.tokenHash ?? null, context.officeId, row.wallet_id);
-  const url = asaasWebhookUrl();
-  if (!url) { await record('unavailable', null, null); return; }
-  const apiKey = decryptCredential(row.encrypted_api_key, parseCredentialKeyring());
-  const call = <T extends z.ZodType>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, schema: T, body?: unknown) => asaasRequest(row.environment, apiKey, method, path, schema, body);
-  try {
-    if (row.webhook_id) {
-      const path = `/webhooks/${encodeURIComponent(row.webhook_id)}`;
-      const current = await call('GET', path, remoteWebhook).catch(error => {
-        if (error instanceof AsaasProviderError && error.upstream === 404) return null;
-        throw error;
-      });
-      if (current?.url === url) {
-        if (current.interrupted || current.enabled === false) await call('PUT', path, remoteWebhook, { enabled: true, interrupted: false });
-        await record('active', null);
-        return;
+  // One sync per office at a time, across the whole remote sequence: otherwise a second sync can delete
+  // the hook the first one created and leave the stored hash pointing at a token Asaas no longer sends.
+  await withTransaction(async tx => {
+    await lockWebhook(tx, context.officeId);
+    const row = await tx.prepare('SELECT environment,wallet_id,encrypted_api_key,webhook_id FROM asaas_connection WHERE office_id=?')
+      .get<Pick<ConnectionRow, 'environment' | 'wallet_id' | 'encrypted_api_key' | 'webhook_id'>>(context.officeId);
+    if (!row) return;
+    const record = (state: AsaasWebhookState, error: string | null, hook?: { id: string; tokenHash: string } | null) => tx.prepare(`UPDATE asaas_connection
+      SET webhook_state=?,webhook_error=?,webhook_id=CASE WHEN ? THEN ? ELSE webhook_id END,webhook_token_hash=CASE WHEN ? THEN ? ELSE webhook_token_hash END
+      WHERE office_id=? AND wallet_id=?`).run(state, error, hook !== undefined, hook?.id ?? null, hook !== undefined, hook?.tokenHash ?? null, context.officeId, row.wallet_id);
+    const url = asaasWebhookUrl();
+    if (!url) { await record('unavailable', null, null); return; }
+    const apiKey = decryptCredential(row.encrypted_api_key, parseCredentialKeyring());
+    const call = <T extends z.ZodType>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, schema: T, body?: unknown) => asaasRequest(row.environment, apiKey, method, path, schema, body);
+    try {
+      if (row.webhook_id) {
+        const path = `/webhooks/${encodeURIComponent(row.webhook_id)}`;
+        const current = await call('GET', path, remoteWebhook).catch(error => {
+          if (error instanceof AsaasProviderError && error.upstream === 404) return null;
+          throw error;
+        });
+        if (current?.url === url) {
+          if (current.interrupted || current.enabled === false) await call('PUT', path, remoteWebhook, { enabled: true, interrupted: false });
+          await record('active', null);
+          return;
+        }
       }
+      const existing = await call('GET', '/webhooks?limit=100', z.object({ data: z.array(remoteWebhook) }));
+      for (const stale of existing.data.filter(hook => hook.url === url)) await call('DELETE', `/webhooks/${encodeURIComponent(stale.id)}`, z.unknown());
+      const user = await tx.prepare('SELECT email FROM "user" WHERE id=?').get<{ email: string }>(context.userId);
+      const token = randomBytes(32).toString('base64url');
+      const created = await call('POST', '/webhooks', remoteWebhook, {
+        name: 'Lume - honorários', url, email: user?.email, enabled: true, interrupted: false, apiVersion: 3, authToken: token,
+        sendType: 'SEQUENTIALLY', events: WEBHOOK_EVENTS,
+      });
+      await record('active', null, { id: created.id, tokenHash: asaasWebhookTokenHash(token) });
+    } catch (error) {
+      await record('failed', error instanceof AsaasProviderError ? error.message.slice(0, 500) : 'Não foi possível configurar o aviso de pagamentos no Asaas.');
     }
-    const existing = await call('GET', '/webhooks?limit=100', z.object({ data: z.array(remoteWebhook) }));
-    for (const stale of existing.data.filter(hook => hook.url === url)) await call('DELETE', `/webhooks/${encodeURIComponent(stale.id)}`, z.unknown());
-    const user = await database.prepare('SELECT email FROM "user" WHERE id=?').get<{ email: string }>(context.userId);
-    const token = randomBytes(32).toString('base64url');
-    const created = await call('POST', '/webhooks', remoteWebhook, {
-      name: 'Lume - honorários', url, email: user?.email, enabled: true, interrupted: false, apiVersion: 3, authToken: token,
-      sendType: 'SEQUENTIALLY', events: WEBHOOK_EVENTS,
-    });
-    await record('active', null, { id: created.id, tokenHash: asaasWebhookTokenHash(token) });
-  } catch (error) {
-    await record('failed', error instanceof AsaasProviderError ? error.message.slice(0, 500) : 'Não foi possível configurar o aviso de pagamentos no Asaas.');
-  }
+  });
 }

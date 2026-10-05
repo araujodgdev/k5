@@ -21,7 +21,8 @@ test('o Asaas aparece em Integrações, recusa uma chave inválida e orienta a c
   await expect(screen.getByText('Nenhuma conta do Asaas conectada.')).toBeVisible();
   await screen.getByLabel('Chave de API do Asaas').fill('chave-sem-prefixo');
   await screen.getByRole('button', 'Verificar e conectar').tap();
-  await expect(screen.getByRole('alert')).toContainText('$aact_');
+  // The route announcer is also an alert; the refusal is found by its text.
+  await expect(screen.getByText('Cole a chave de API completa do Asaas. Ela começa com $aact_.')).toBeVisible();
   expect((await api.request('/api/asaas/connection')).status).toBe(200);
   expect((await new ApiSession(app.baseUrl!).request('/api/asaas/connection')).status).toBe(401);
 

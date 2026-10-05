@@ -26,7 +26,7 @@ Valores são inteiros em centavos. O banco guarda parcelas, recebimentos e corre
 
 ## Persistência e operação
 
-As migrações aditivas `apps/web/db/postgres/0037_honorarios.sql` e `0038_honorarios_indexes.sql` criam as tabelas e os índices do módulo. Execute `pnpm db:setup` antes de iniciar um build. Não há novas variáveis de ambiente nem workers; a chave do Asaas é do escritório, guardada criptografada (migrações `0071` e `0072`).
+As migrações aditivas `apps/web/db/postgres/0037_honorarios.sql` e `0038_honorarios_indexes.sql` criam as tabelas e os índices do módulo. Execute `pnpm db:setup` antes de iniciar um build. Não há novos workers. A chave do Asaas é do escritório, guardada criptografada. As migrações `0071` a `0073` criam conexão, cobranças e webhook. A variável opcional `ASAAS_WEBHOOK_BASE_URL` define o endereço público do webhook (vazia, vale `BETTER_AUTH_URL`).
 
 Os contratos ficam em `apps/web/src/lib/honorarios/contracts.ts`. O serviço em `apps/web/src/lib/honorarios/service.ts` concentra referências, saldos, recebimentos e cancelamento. As sete operações usam `/api/honorarios/[operation]` e a camada de capabilities já utilizada no aplicativo.
 

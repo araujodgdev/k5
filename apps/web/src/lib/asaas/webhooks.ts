@@ -28,7 +28,8 @@ const currency = (cents: number) => (cents / 100).toLocaleString('pt-BR', { styl
 
 /** Records a confirmed payment as the installment's receipt, once, within the open balance. */
 async function paid(tx: Transaction, officeId: string, row: Row, payment: Payment) {
-  if (row.receipt_id) return;
+  // A refund or chargeback already arrived: a confirmation delivered later must not record the payment again.
+  if (row.receipt_id || row.state === 'refunded') return;
   const agreement = await tx.prepare(`SELECT a.id,a.created_by,a.title,(a.cancelled_at IS NOT NULL) AS cancelled,
     (i.amount_cents-COALESCE((SELECT SUM(r.amount_cents) FROM honorario_receipt r WHERE r.office_id=i.office_id AND r.installment_id=i.id
       AND NOT EXISTS (SELECT 1 FROM honorario_receipt_reversal v WHERE v.office_id=r.office_id AND v.receipt_id=r.id)),0))::bigint AS pending

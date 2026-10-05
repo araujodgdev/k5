@@ -128,7 +128,7 @@ O dono dos honorários pode cadastrar e registrar recebimentos enquanto mantiver
 
 ## Registrar um recebimento de honorários
 
-Recebimentos são manuais e podem ser parciais ou integrais. Informe qual cliente e parcela, o valor recebido, a data real e o meio de pagamento. Os meios são PIX, transferência, dinheiro, cartão ou outro. A data não pode ser futura. Uma baixa integral usa o saldo atual da parcela; recebimentos anteriores válidos já são descontados.
+Fora da baixa automática do Asaas, os recebimentos são registrados à mão e podem ser parciais ou integrais. Informe qual cliente e parcela, o valor recebido, a data real e o meio de pagamento. Os meios são PIX, transferência, dinheiro, cartão, boleto ou outro. A data não pode ser futura. Uma baixa integral usa o saldo atual da parcela; recebimentos anteriores válidos já são descontados.
 
 Exemplo de pedido completo: "Recebi hoje por PIX o saldo da segunda parcela dos honorários da Maria; registre o recebimento". O assistente deve buscar Honorários, localizar o cliente e a parcela número 2 e usar o identificador da parcela. Se houver mais de um contrato ou faltar data ou meio, deve perguntar. Não deve criar uma tarefa nem escrever "recebido" nas observações do cliente como substituto da baixa.
 
@@ -140,7 +140,7 @@ Estornar um recebimento exige motivo, preserva o registro original e cria o hist
 
 Cancelar um honorário exige que não haja recebimentos líquidos válidos. Estorne recebimentos incorretos primeiro. O cancelamento preserva o histórico e retira os valores dos totais ativos. Também exige motivo e confirmação no chat. Não se apagam registros financeiros para esconder baixas ou correções.
 
-Valores, vínculos e cronograma não são editados após o cadastro nesta versão. Não há cancelamento isolado de uma parcela nem renegociação de parcelas futuras após recebimento. O módulo não emite PIX de cobrança, boletos ou notas fiscais, nem calcula juros ou correção monetária. Os pagamentos da assinatura Lume pertencem ao módulo Plano, separado dos honorários dos clientes.
+Valores, vínculos e cronograma não são editados após o cadastro nesta versão. Não há cancelamento isolado de uma parcela nem renegociação de parcelas futuras após recebimento. Sem a conta do Asaas conectada, o módulo não emite PIX de cobrança nem boletos. Em nenhum caso emite notas fiscais ou calcula juros e correção monetária. Os pagamentos da assinatura Lume pertencem ao módulo Plano, separado dos honorários dos clientes.
 
 ## Pesquisa jurídica e histórico
 
