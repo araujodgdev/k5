@@ -47,6 +47,7 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 - [Office data](./office-data.md): export the office as a ZIP and schedule or cancel its deletion in Perfil → Seus dados. Test: `e2e/office-data.e2e.ts`.
 - [Public site](./public-site.md): the signed-out home, SEO for crawlers, robots and sitemap, keyboard and both themes. Test: `e2e/public-site.e2e.ts`.
 - [Honorários](./honorarios.md): installments, receipts, corrections, cancellation, tabs, error recovery and mobile in the fee ledger. Test: `e2e/honorarios.e2e.ts`.
+- [Cálculos jurídicos](./calc.md): the seven calculators, a saved consumer calculation with versions and export, an OAB-PE/RS proposal with installments, and the federal-tax calculator at 390px. Test: `e2e/calc.e2e.ts`.
 - [Task board](./task-board.md): the Kanban layout of Tarefas, keyboard moves, delegation and empty/error states (UI-only: its APIs are mocked). Test: `e2e/task-board.e2e.ts`.
 - [Vault upload](./vault-upload.md): the 100 MB upload limit and a direct upload into a case folder, processed and downloaded. Test: `e2e/vault-upload.e2e.ts`.
 
