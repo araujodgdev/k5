@@ -60,12 +60,13 @@ habilitada para receber pagamentos reais.
 ## Honcho e transferência internacional
 
 Leitura em 05/10/2026. O que está sob "Pesquisa" é o texto público lido nessa data.
-O que está sob "Decisão" é o padrão que o operador autorizou gravar. Não é parecer
+O que está sob "Decisão" é o padrão que o responsável autorizou gravar. Não é parecer
 jurídico fechado e não é contrato assinado.
 
 Nenhum DPA com a Plastic Labs foi assinado ou aceito por um clique. A busca por
 um DPA público da Honcho não achou página de aceite. O painel descrito na
 documentação da Honcho trata de chave de API e cobrança, sem controle de DPA.
+Esta leitura não entrou na conta de produção.
 
 ### Pesquisa
 
@@ -153,7 +154,23 @@ público. Isso não é uma proibição negociada do fine-tuning não público.
 
 Situação. Decisão autorizada pelo responsável, pendente de aceite da contraparte.
 O passo de Douglas é enviar o e-mail abaixo. A Plastic Labs ainda precisa firmar
-as cláusulas. Não há DPA assinado.
+as cláusulas. Não há DPA assinado. A memória já segue para a Honcho em produção
+desde 03/10/2026, como registra
+[o plano da memória](plano-refinos-agente-memoria-e-revisao.md). Esta gravação
+não interrompe esses envios. Até as cláusulas estarem firmadas, a transferência
+segue sem o mecanismo registrado. O e-mail não anexa o Anexo II preenchido.
+Partes, descrição da transferência e medidas de segurança entram no instrumento
+que as duas empresas firmarem.
+
+O e-mail não atribui papel de controladora. Na política publicada, a Web Star
+Studio é controladora da conta da plataforma e, em regra, operadora dos dados do
+escritório. Uma linha de memória pode cair nos dois casos. O papel dessa linha
+não é decidido aqui. "Desidentificado", no texto da Honcho, não é o dado
+anonimizado do art. 5º, III, da LGPD.
+
+Os 90 dias de conteúdo são o padrão publicado. A política diz que o prazo pode
+ser configurado. Esta leitura não abriu o workspace de produção. O hard-delete
+é a frase da Honcho para o purge. Esta leitura não executou um purge.
 
 A política publicada, versão 1.1, já descreve os 90 dias e o uso de dados
 desidentificados. `LEGAL_VERSION` fica onde está, e os usuários não recebem novo
@@ -178,11 +195,9 @@ Corpo.
 
 Plastic Labs, Inc.
 
-Eu, Douglas Araújo, escrevo por WEB STAR STUDIO DESENVOLVIMENTO DE SOFTWARE LTDA, CNPJ 57.717.768/0001-06, controladora do Lume (lume.software). A conta de produção usa a API em https://api.honcho.dev.
+Eu, Douglas Araújo, escrevo por WEB STAR STUDIO DESENVOLVIMENTO DE SOFTWARE LTDA, CNPJ 57.717.768/0001-06, empresa do Lume (lume.software). A conta de produção usa a API em https://api.honcho.dev.
 
-Esta mensagem não é um DPA assinado. Peço resposta por escrito.
-
-Aceito, para essa conta, as condições publicadas em https://app.honcho.dev/privacy (vigência 24/04/2025, lida em 05/10/2026) e em https://app.honcho.dev/tos.
+Esta mensagem não é um DPA assinado. Peço resposta por escrito. Por este e-mail aceito três pontos da política em https://app.honcho.dev/privacy (vigência 24/04/2025, lida em 05/10/2026) e das seções citadas dos termos em https://app.honcho.dev/tos.
 
 Cópias de segurança. Snapshots cifrados por 90 dias, sobrescritos em rodízio, como na seção 6 da política.
 
@@ -198,7 +213,7 @@ I am writing for WEB STAR STUDIO DESENVOLVIMENTO DE SOFTWARE LTDA, CNPJ 57.717.7
 
 This email is not a signed DPA. Please reply in writing.
 
-For that account I accept the terms published at https://app.honcho.dev/privacy (effective April 24, 2025, read October 5, 2026) and https://app.honcho.dev/tos. Backups are encrypted snapshots kept for 90 days and overwritten on a rolling basis. Customer Content defaults to 90 days, with immediate hard-delete on a purge call or workspace deletion. On termination, section 9.2 keeps the data for 90 days for retrieval and then deletes it. Section 2 allows non-public fine-tuning on de-identified data. We do not opt in to training public language models on Customer Content.
+This email accepts three points from https://app.honcho.dev/privacy (effective April 24, 2025, read October 5, 2026) and from the terms sections cited below at https://app.honcho.dev/tos. Backups are encrypted snapshots kept for 90 days and overwritten on a rolling basis. Customer Content defaults to 90 days, with immediate hard-delete on a purge call or workspace deletion. On termination, section 9.2 keeps the data for 90 days for retrieval and then deletes it. Section 2 allows non-public fine-tuning on de-identified data. We do not opt in to training public language models on Customer Content.
 
 Please execute, in full and without alteration, the Brazilian standard contractual clauses in Annex II of ANPD Resolution CD/ANPD No. 19 of August 23, 2024. That is the transfer mechanism under article 33, II, "b", of Law No. 13,709/2018. The ANPD page read on October 5, 2026 recognizes the European Union under Resolution No. 32/2026 and does not list the United States.
 
@@ -217,7 +232,8 @@ nenhum comprovante de assinatura ou clique está neste repositório.
 
 O código em `apps/web/src/lib/ai-connections-core.ts` também admite os provedores
 `deepseek`, `inception` e `vercel`. A política publicada não os nomeia. Ficam
-fora desta tabela.
+fora desta tabela. Douglas confirma se alguma chave de produção aponta para um
+deles. Se apontar, a linha entra aqui.
 
 | Prestador | Papel na política | Instrumento lido em 05/10/2026 | Situação neste repositório | Próximo passo humano |
 | --- | --- | --- | --- | --- |
@@ -251,6 +267,9 @@ para impressão pelo navegador. Os links ficam no rodapé da página inicial e n
 formulários de acesso, abrindo outra aba no formulário para preservar os campos.
 
 ## Verificação desta implementação
+
+Os itens abaixo são da publicação das páginas, anterior a 05/10/2026. Não cobrem
+a seção da Honcho nem a tabela de suboperadores acrescentadas nessa data.
 
 - `pnpm lint`: passou, com aviso preexistente sobre `_bytes` em
   `src/lib/judicial/connectors/transport.ts`.
