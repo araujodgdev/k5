@@ -26,13 +26,19 @@ Valores são inteiros em centavos. O banco guarda parcelas, recebimentos e corre
 
 ## Persistência e operação
 
-As migrações aditivas `apps/web/db/postgres/0037_honorarios.sql` e `0038_honorarios_indexes.sql` criam as tabelas e os índices do módulo. Execute `pnpm db:setup` antes de iniciar um build. Não há novas variáveis de ambiente, workers ou credenciais de pagamento.
+As migrações aditivas `apps/web/db/postgres/0037_honorarios.sql` e `0038_honorarios_indexes.sql` criam as tabelas e os índices do módulo. Execute `pnpm db:setup` antes de iniciar um build. Não há novos workers. A chave do Asaas é do escritório, guardada criptografada. As migrações `0071` a `0073` criam conexão, cobranças e webhook. A variável opcional `ASAAS_WEBHOOK_BASE_URL` define o endereço público do webhook (vazia, vale `BETTER_AUTH_URL`).
 
 Os contratos ficam em `apps/web/src/lib/honorarios/contracts.ts`. O serviço em `apps/web/src/lib/honorarios/service.ts` concentra referências, saldos, recebimentos e cancelamento. As sete operações usam `/api/honorarios/[operation]` e a camada de capabilities já utilizada no aplicativo.
 
 Cada gravação exige uma chave de idempotência. A reserva da chave, a alteração e a resposta são confirmadas na mesma transação. Repetir a mesma solicitação retorna o resultado salvo. Reutilizar a chave com dados diferentes resulta em conflito. Recebimentos, correções e cancelamentos bloqueiam o mesmo honorário durante a transação, impedindo que duas baixas ultrapassem o saldo.
 
-As sete operações estão publicadas para o assistente e WebMCP, respeitando as permissões da pessoa. O agente consulta parcelas pelo módulo Honorários e registra recebimentos com valor, data, meio e chave idempotente; não substitui uma baixa financeira por uma nota no cadastro do cliente. Estornos e cancelamentos exigem confirmação vinculada aos argumentos exatos da ação. O controle não emite PIX, boletos, notas fiscais, juros, correção monetária ou cobranças recorrentes. Os pagamentos da assinatura Lume continuam no módulo Plano e no financeiro da administração da plataforma.
+As sete operações estão publicadas para o assistente e WebMCP, respeitando as permissões da pessoa. O agente consulta parcelas pelo módulo Honorários e registra recebimentos com valor, data, meio e chave idempotente; não substitui uma baixa financeira por uma nota no cadastro do cliente. Estornos e cancelamentos exigem confirmação vinculada aos argumentos exatos da ação. Pelas capabilities, o controle não emite PIX, boletos, notas fiscais, juros, correção monetária ou cobranças recorrentes. Os pagamentos da assinatura Lume continuam no módulo Plano e no financeiro da administração da plataforma.
+
+## Cobrança pelo Asaas
+
+Com a conta do Asaas do escritório conectada em Integrações, a tela de cobrança da parcela emite uma cobrança nessa conta. O valor é o saldo atual e o vencimento é escolhido pela pessoa. O cliente paga por um link do Asaas, com PIX, boleto ou cartão. O link entra na mensagem de cobrança e, por ela, no portal do cliente. Na primeira cobrança de um cliente, o Lume pede o CPF ou o CNPJ, envia o número só ao Asaas e guarda apenas o identificador do cliente criado lá.
+
+Cada parcela tem no máximo uma cobrança ativa no Asaas. Ela pode ser cancelada pela tela enquanto aguarda pagamento. Se o Asaas não responder à criação, a cobrança fica "sem confirmação". Depois de um minuto, "Conferir no Asaas" procura a cobrança pela referência `lume:<id>` antes de enviá-la de novo, então uma resposta perdida não gera cobrança em dobro. Quando o Asaas confirma o pagamento, o webhook cadastrado na conta lança o recebimento em nome de quem criou o honorário. O meio vem do Asaas: PIX, boleto ou cartão. O valor fica limitado ao saldo da parcela, e o responsável recebe a notificação "Pagamento recebido pelo Asaas". Um estorno, uma contestação ou um recebimento em dinheiro desfeito no Asaas estorna esse recebimento, com o motivo. As cobranças emitidas pelo Asaas não estão publicadas para o assistente nem para o WebMCP. Detalhes em [plano-integracao-asaas.md](plano-integracao-asaas.md).
 
 ## Verificação
 

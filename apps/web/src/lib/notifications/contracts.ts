@@ -8,7 +8,7 @@ export const notificationCategories = ['agenda', 'vault', 'documents', 'judicial
 export type NotificationCategory = typeof notificationCategories[number];
 
 export const notificationEventTypes = [
-  'honorarios.charge.soon', 'honorarios.charge.due', 'honorarios.charge.overdue',
+  'honorarios.charge.soon', 'honorarios.charge.due', 'honorarios.charge.overdue', 'honorarios.charge.paid',
   'agenda.activity.assigned',
   'agenda.activity.changed',
   'agenda.task.due',
