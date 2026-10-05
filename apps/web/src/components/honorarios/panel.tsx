@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { honorariosListDto, type HonorariosList } from '@/lib/honorarios/contracts';
 import { Button } from '@/components/ui/button';
@@ -52,7 +53,7 @@ export function HonorariosPanel() {
   }
   function editFilter(name: keyof Filters, value: string) { setDraft(current => ({ ...current, [name]: value })); }
   return <Reveal className="min-w-0 flex-1 px-5 py-6 md:px-10 md:py-10">
-    <header data-reveal className="flex flex-wrap items-center justify-between gap-4 pb-6 max-md:justify-end"><h1 ref={titleRef} tabIndex={-1} className="page-title outline-none max-md:sr-only">Honorários</h1><Button className="min-h-11 md:min-h-9" onClick={event => { opener.current = event.currentTarget; setDialog({ kind: 'create' }); }}><Plus aria-hidden="true" />Novo honorário</Button></header>
+    <header data-reveal className="flex flex-wrap items-center justify-between gap-4 pb-6 max-md:justify-end"><h1 ref={titleRef} tabIndex={-1} className="page-title outline-none max-md:sr-only">Honorários</h1><div className="flex flex-wrap items-center gap-4"><Link className="inline-flex min-h-11 items-center text-sm underline" href="/app/honorarios/propostas">Propostas e tabelas OAB</Link><Button className="min-h-11 md:min-h-9" onClick={event => { opener.current = event.currentTarget; setDialog({ kind: 'create' }); }}><Plus aria-hidden="true" />Novo honorário</Button></div></header>
     {notice && <p role="status" className="mb-4 text-sm">{notice}</p>}
     {/* Until there is room for three columns each total is a row (label, then the value at the end),
         so a large amount never breaks in the middle. */}

@@ -9,7 +9,7 @@ Anyone without the current Termos de uso and Política de privacidade version is
 - `legal-gate-validation`: "Aceitar e continuar" without the checkbox shows "Marque a opção para continuar."
 - `legal-ai-notice`: "Antes de usar o Lume" on the first `/app/agents` visit, mentioning "sem anonimização", dismissed with "Entendi".
 - `legal-stored`: rows `terms` and `ai_notice` in `legal_acceptance` for the user.
-- `legal-portal-invite`: the checkbox on `/client/invite/<token>` (not driven here: `client-portal.e2e.ts` publishes a PDF, which needs the PDF processor the instance lacks; run it in CI).
+- `legal-portal-invite`: the checkbox on `/client/invite/<token>` (driven by `client-portal`, which also publishes the PDF).
 
 ## How to get to it (user POV)
 

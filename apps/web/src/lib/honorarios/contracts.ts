@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { feePricing } from './pricing';
 
 const id = z.string().min(1).max(64);
 export const civilDate = z.iso.date();
@@ -10,6 +11,7 @@ export const paymentMethod = z.enum(['pix', 'transfer', 'cash', 'card', 'boleto'
 const reference = { clientId: id, clientName: z.string(), caseId: id.nullable(), caseName: z.string().nullable(), title: z.string() };
 const balances = { totalCents: cents, receivedCents: cents, pendingCents: cents };
 export const honorarioAgreementDto = z.object({
+  pricing: feePricing.nullable().default(null),
   id, ...reference, notes: z.string(), status: z.enum(['active', 'cancelled']), ...balances, canManage: z.boolean(),
   createdAt: instant, cancelledAt: instant.nullable(), cancelReason: z.string().nullable(),
 });

@@ -84,11 +84,15 @@ type CheckoutKind = 'ONE_TIME' | 'SUBSCRIPTION' | 'CREDITS';
 type CheckoutReservation = { id: string; officeId: string; userId: string | null; actorUserId: string | null; kind: string; amount: number; productId: string | null; state: string; credits: number | null };
 const reservationFields = `id, office_id AS "officeId", user_id AS "userId", actor_user_id AS "actorUserId", kind, amount, product_id AS "productId", state, credits`;
 const creationPending = () => new BillingError(409, 'Uma cobrança está sendo preparada ou aguardando confirmação. Atualize os pagamentos antes de tentar novamente.');
+const checkoutFence = (officeId: string) => `billing-checkout:${officeId}`;
 
 /** This transaction contains only local writes; externalId survives an insert/commit failure. */
 async function attachReservedCheckout(reservation: CheckoutReservation, checkout: AbacateCheckout) {
   if (!reservation.productId || checkout.externalId !== reservation.id) throw new Error('Checkout reservation mismatch');
   await withTransaction(async tx => {
+    // Publish under the same office fence that decides whether to open a checkout. A caller
+    // that already observed "no pending checkout" must still see this reservation as inflight.
+    await tx.prepare('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))').get(checkoutFence(reservation.officeId));
     const current = await tx.prepare('SELECT state FROM billing_checkout_reservation WHERE id=? FOR UPDATE').get<{ state: string }>(reservation.id);
     if (current?.state === 'COMPLETED') return;
     if (current?.state !== 'CREATING') throw new Error('Checkout reservation is not dispatched');
@@ -148,23 +152,27 @@ export async function startPlanCheckout(payer: Payer, client: AbacatePayClient =
   const kind: CheckoutKind = credits ? 'CREDITS' : options.recurring ? 'SUBSCRIPTION' : 'ONE_TIME';
   const ownerToken = randomUUID();
   const selected = await withTransaction(async db => {
-    await db.prepare('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))').get(`billing-checkout:${payer.officeId}`);
+    await db.prepare('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))').get(checkoutFence(payer.officeId));
     if (options.recurring) {
       const existing = await db.prepare(`SELECT s.status, c.url FROM billing_subscription s JOIN billing_checkout c ON c.id = s.checkout_id
         WHERE s.office_id = ? AND s.status IN ('PENDING','ACTIVE') ORDER BY (s.status='ACTIVE') DESC,s.created_at DESC LIMIT 1`).get<{ status: string; url: string }>(payer.officeId);
       if (existing?.status === 'ACTIVE') throw new BillingError(409, 'Este cliente já tem uma assinatura ativa.');
       if (existing) return { url: existing.url };
     }
-    const recent = await db.prepare(`
-      SELECT url FROM billing_checkout
-      WHERE office_id = ? AND kind = ? AND status = 'PENDING' AND amount = ? AND created_at > CURRENT_TIMESTAMP - make_interval(mins => ?)
-      ORDER BY created_at DESC LIMIT 1
-    `).get<{ url: string }>(payer.officeId, kind, price, REUSE_MINUTES);
-    if (recent) return { url: recent.url };
     // Only a preparation that never dispatched a checkout may expire. Its old owner
     // must still pass the token check before dispatching after a slow provider call.
     await db.prepare("UPDATE billing_checkout_reservation SET state='FAILED' WHERE office_id=? AND state='PREPARING' AND lease_until < CURRENT_TIMESTAMP").run(payer.officeId);
-    if (await db.prepare("SELECT 1 FROM billing_checkout_reservation WHERE office_id=? AND state IN ('PREPARING','CREATING')").get(payer.officeId)) throw creationPending();
+    // One snapshot: a checkout published by another caller commits together with the
+    // reservation leaving CREATING, so the two facts cannot be observed apart.
+    const gate = await db.prepare(`
+      SELECT
+        (SELECT url FROM billing_checkout
+          WHERE office_id = ? AND kind = ? AND status = 'PENDING' AND amount = ? AND created_at > CURRENT_TIMESTAMP - make_interval(mins => ?)
+          ORDER BY created_at DESC LIMIT 1) AS url,
+        EXISTS (SELECT 1 FROM billing_checkout_reservation WHERE office_id = ? AND state IN ('PREPARING','CREATING')) AS inflight
+    `).get<{ url: string | null; inflight: boolean }>(payer.officeId, kind, price, REUSE_MINUTES, payer.officeId);
+    if (gate?.url) return { url: gate.url };
+    if (gate?.inflight) throw creationPending();
     const id = randomUUID();
     await db.prepare(`INSERT INTO billing_checkout_reservation(id,office_id,user_id,actor_user_id,kind,amount,state,owner_token,lease_until,credits)
       VALUES(?,?,?,?,?,?,'PREPARING',?,CURRENT_TIMESTAMP + interval '5 minutes',?)`).run(id,payer.officeId,payer.userId,options.actorUserId ?? null,kind,price,ownerToken,credits);

@@ -64,7 +64,7 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
     },
     session: {
       expiresIn: settings.idleSeconds,
-      updateAge: 0,
+      updateAge: 5 * 60,
       cookieCache: { enabled: false },
     },
     advanced: {

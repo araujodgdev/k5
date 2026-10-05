@@ -2,7 +2,9 @@ import * as Sentry from '@sentry/react';
 import { privacyOptions, telemetryUrl } from './lib/observability/privacy';
 import { SENTRY_DSN, sampleRate } from './lib/observability/settings';
 
-const environment = process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV;
+const configured = process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV || 'development';
+const localHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const environment = localHost ? 'development' : configured;
 const enabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED === 'true' ||
   (process.env.NEXT_PUBLIC_SENTRY_ENABLED !== 'false' && environment !== 'development' && environment !== 'test');
 

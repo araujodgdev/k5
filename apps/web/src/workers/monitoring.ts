@@ -62,9 +62,10 @@ async function run(env: Env, name: MonitoringRunName) {
         return result;
       }, name === 'queues' ? '*/5 * * * *' : '2,17,32,47 * * * *', name === 'queues' ? 2 : 6);
     } catch (error) {
-      captureOperationalError(error, `monitor.${name}`, { run_id: runId });
+      const reported = error instanceof Error && (error.message === 'Synthetic journey failed.' || error.message === 'Queue health thresholds exceeded.');
+      if (!reported) captureOperationalError(error, `monitor.${name}`, { run_id: runId });
       await finishMonitoringRun(db, name, token, 'error', evidence);
-      throw new Error(`Lume ${name} monitor failed; run ${runId}.`);
+      throw new Error(`Lume ${name} monitor failed.`);
     }
   } finally { await pool.end(); }
 }

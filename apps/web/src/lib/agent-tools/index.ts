@@ -22,6 +22,8 @@ import * as platform from '@/lib/application/platform-service';
 import * as judicial from '@/lib/application/judicial-service';
 import * as agenda from '@/lib/application/agenda-service';
 import * as honorarios from '@/lib/honorarios/service';
+import * as feeQuotes from '@/lib/honorarios/quotes';
+import * as calc from '@/lib/calc/service';
 import * as honorarioCharges from '@/lib/honorarios/charges';
 import * as research from '@/lib/application/research-capability-service';
 import * as trademarks from '@/lib/research/trademarks/service';
@@ -48,6 +50,14 @@ type Executor = (context: WorkspaceContext, input: never) => unknown;
 
 /** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_calc_preview: calc.calculatePreview,
+  k5_calc_save: calc.saveCalculation,
+  k5_calc_get: calc.getCalculation,
+  k5_calc_list: calc.listCalculations,
+  k5_honorarios_quote_list: feeQuotes.listFeeQuotes,
+  k5_honorarios_quote_get: feeQuotes.getFeeQuote,
+  k5_honorarios_quote_save: feeQuotes.saveFeeQuote,
+  k5_honorarios_quote_bill: feeQuotes.billFeeQuote,
   k5_research_analyze_trademark_logo: analyzeTrademarkLogo,
   k5_research_start_trademark_search: trademarks.startTrademarkSearch,
   k5_research_get_trademark_search: trademarks.getTrademarkSearch,
@@ -267,7 +277,7 @@ export async function runCapability<N extends CapabilityName>(
   const key = typeof input.idempotencyKey === 'string' ? input.idempotencyKey : undefined;
   // Google owns durable pending/unknown states and reconciliation; caching an unknown response
   // in the generic idempotency store would prevent later reads from observing its outcome.
-  if (capability.effect === 'write' && key && capability.module !== 'google' && capability.module !== 'whatsapp' && capability.module !== 'honorarios') return withIdempotency(authorized, name, key, input, execute);
+  if (capability.effect === 'write' && key && capability.module !== 'google' && capability.module !== 'whatsapp' && capability.module !== 'honorarios' && capability.module !== 'calc') return withIdempotency(authorized, name, key, input, execute);
   return execute();
 }
 
@@ -391,6 +401,14 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_notifications_update_preferences: 'Atualizou as preferências de notificações',
     k5_notifications_follow_case: 'Atualizou o acompanhamento do caso',
     k5_honorarios_list: 'Consultou as parcelas de honorários',
+    k5_honorarios_quote_list: 'Consultou propostas de honorários',
+    k5_honorarios_quote_get: 'Abriu uma proposta de honorários',
+    k5_honorarios_quote_save: 'Salvou a proposta de honorários',
+    k5_honorarios_quote_bill: 'Gerou as parcelas da proposta',
+    k5_calc_preview: 'Conferiu o cálculo jurídico',
+    k5_calc_save: 'Salvou uma versão do cálculo',
+    k5_calc_get: 'Abriu a memória de cálculo',
+    k5_calc_list: 'Consultou os cálculos salvos',
     k5_honorarios_charge_get: 'Consultou uma cobrança',
     k5_honorarios_charge_prepare: 'Preparou uma cobrança',
     k5_honorarios_charge_sent: 'Registrou o envio de uma cobrança',

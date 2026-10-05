@@ -5,15 +5,20 @@ export const appNavigation = [
   { slug: "research", label: "Pesquisa", short: "Pesquisa" },
   { slug: "agenda", label: "Escritório", short: "Escritório" },
   { slug: "honorarios", label: "Honorários", short: "Honorários" },
+  { slug: "calc", label: "Cálculos jurídicos", short: "Calc", beta: true },
   { slug: "email", label: "E-mails", short: "E-mails" },
   { slug: "messages", label: "Mensagens", short: "Mensagens" },
   { slug: "whatsapp", label: "WhatsApp", short: "WhatsApp" },
-  { slug: "ads", label: "Anúncios", short: "Anúncios" },
+  { slug: "ads", label: "Anúncios", short: "Anúncios", beta: true },
   { slug: "integrations", label: "Integrações", short: "Integrações" },
   { slug: "billing", label: "Plano", short: "Plano" },
 ] as const;
 
 export type NavSlug = (typeof appNavigation)[number]["slug"];
+
+export function navIsBeta(item: (typeof appNavigation)[number]): boolean {
+  return "beta" in item && item.beta;
+}
 
 export const officeSections = [
   { slug: 'tasks', label: 'Tarefas' }, { slug: 'calendar', label: 'Agenda' }, { slug: 'clients', label: 'Clientes' },

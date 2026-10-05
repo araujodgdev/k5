@@ -232,6 +232,11 @@ export async function runBrowserJourneys(browser: Browser, credentials: {
       });
       await stage('command_center', async () => {
         await go(currentPage, origin, '/app/command-center');
+        if (await currentPage.$('#terms-title')) {
+          await currentPage.click('section[aria-labelledby="terms-title"] input[type="checkbox"]');
+          await clickButton(currentPage, 'Aceitar e continuar');
+          await currentPage.waitForFunction(() => document.querySelector('#terms-title') == null);
+        }
         await currentPage.waitForFunction(() => {
           return ['Tarefas até hoje', 'Próximas reuniões', 'Casos no Cofre', 'Clientes ativos', 'Conversas com Lume'].every(title => {
             const section = document.querySelector(`section[aria-label="${title}"]`);

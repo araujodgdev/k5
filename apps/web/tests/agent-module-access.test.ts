@@ -74,9 +74,9 @@ test('module selection exposes the requested authorized tools in the next real a
     assert.ok(names.length < 128);
     assert.ok(!names.includes('k5_google_save_policy'));
     if (step === 0) assert.ok(!names.includes('k5_honorarios_options'));
-    else assert.ok(names.includes('k5_honorarios_options'));
+    else { assert.ok(names.includes('k5_honorarios_options')); assert.ok(names.includes('k5_calc_preview')); }
     const call = step++ === 0
-      ? { toolName: 'k5_tools_select_modules', input: JSON.stringify({ modules: ['honorarios'] }) }
+      ? { toolName: 'k5_tools_select_modules', input: JSON.stringify({ modules: ['honorarios', 'calc'] }) }
       : step === 2 ? { toolName: 'k5_honorarios_options', input: '{}' } : undefined;
     return { stream: simulateReadableStream({ chunks: [
       { type: 'stream-start', warnings: [] },

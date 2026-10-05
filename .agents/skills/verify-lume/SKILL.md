@@ -5,7 +5,7 @@ description: Launch an isolated Lume (the K5 web app in apps/web) on its own dat
 
 # Verify Lume
 
-Lume's user surface is the Next.js web app in `apps/web`: pt-BR, public pages at `/`, the signed-in app under `/app`. This skill runs a **separate** instance with a throwaway embedded PostgreSQL, fresh secrets, and `next dev` on a free port with build directory `.next-verify`. The developer's server on port 3000, their database on `127.0.0.1:55432` and `.next` are never touched. Workers (`pnpm worker`, judicial, notifications, integrations) are not started, so this instance cannot verify document processing, court collection or push delivery.
+Lume's user surface is the Next.js web app in `apps/web`: pt-BR, public pages at `/`, the signed-in app under `/app`. This skill runs a **separate** instance with a throwaway embedded PostgreSQL, fresh secrets, and `next dev` on a free port with build directory `.next-verify`. The developer's server on port 3000, their database on `127.0.0.1:55432` and `.next` are never touched. Workers (`pnpm worker`, judicial, notifications, integrations) are not started, so this instance cannot verify vault ingestion, court collection or push delivery. Portal and charge PDFs are converted in the Next.js process by LibreOffice (`soffice` on PATH): `drive client-portal` needs Writer installed, not a worker.
 
 Everything goes through one CLI, run from the repository root:
 

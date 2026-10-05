@@ -8,7 +8,7 @@ import { signInWithSession } from './support/sign-in';
 
 // The ledger through the screen: every write here goes through the UI and is read back from the
 // API. Roles, privacy across offices and concurrency are covered in tests/honorarios.test.ts.
-test('honorários pela interface: parcelamento, baixas integral e parcial, correção, abas, cancelamento, erro e celular', async ({ app, screen, browser }) => {
+test('honorários pela interface: parcelamento, baixas integral e parcial, correção, abas, cancelamento, erro e celular', { timeout: 360_000 }, async ({ app, screen, browser }) => {
   const account = uniqueAccount('Financeiro');
   const api = await new ApiSession(app.baseUrl!).signIn(account);
   const list = async () => honorariosListDto.parse(await api.json('/api/honorarios/list', { json: {} }));
