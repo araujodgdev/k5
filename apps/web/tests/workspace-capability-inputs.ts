@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto';
 import type { CapabilityName } from '../src/lib/capabilities/contracts';
 
 const id = randomUUID();
+const calculation = { kind: 'correction', asOf: '2026-09-02', entries: [{ description: 'Parcela', dueOn: '2026-09-01', amountCents: 10000 }], payments: [], index: 'none', interest: { kind: 'none' }, penaltyPercent: '0' };
 export const workspaceCapabilityInputs: Partial<Record<CapabilityName, Record<string, unknown>>> = {
+  k5_calc_list: {}, k5_calc_get: { id }, k5_calc_preview: { input: calculation },
+  k5_calc_save: { title: 'Cálculo de teste', expectedVersion: 0, input: calculation, idempotencyKey: id },
+  k5_honorarios_quote_list: {}, k5_honorarios_quote_get: { id },
+  k5_honorarios_quote_save: { title: 'Proposta de teste', clientId: id, expectedVersion: 0, idempotencyKey: id, terms: { uf: 'PE', referenceId: null, serviceOn: '2026-09-01', scope: 'Consulta jurídica', paymentTerms: 'Na contratação', components: [{ kind: 'fixed', label: 'Consulta', due: 'contract', condition: '', amountCents: 50000 }] } },
+  k5_honorarios_quote_bill: { id, version: 1, component: 0, firstDueOn: '2026-09-01', count: 1, evidence: 'Contrato aprovado', idempotencyKey: id },
   k5_vault_update_folder_access: { folderId: id, visibility: 'private', memberIds: [] },
   k5_research_analyze_trademark_logo: {kind:'upload',uploadId:id},
   k5_research_start_trademark_search: { query: { kind: 'name', name: 'Lume' } },

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { agendaCapabilities } from './agenda';
 import { honorariosCapabilities } from './honorarios';
+import { calcCapabilities } from './calc';
 import { annexCapabilities } from './annexes';
 import { researchCapabilities } from './research';
 import { researchCaseCapabilities } from './research-case';
@@ -20,7 +21,7 @@ import { helpSearchInput, helpSearchOutput } from '@/lib/platform-help/contracts
 export type CapabilitySurface = 'agent' | 'webmcp';
 
 export type Capability = {
-  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'memory' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google' | 'whatsapp' | 'honorarios' | 'collaboration' | 'messages' | 'notifications' | 'agent_settings' | 'help';
+  module: 'vault' | 'knowledge' | 'runs' | 'artifacts' | 'conversations' | 'memory' | 'citations' | 'ui' | 'session' | 'platform' | 'judicial' | 'agenda' | 'research' | 'google' | 'whatsapp' | 'honorarios' | 'calc' | 'collaboration' | 'messages' | 'notifications' | 'agent_settings' | 'help';
   description: string;
   effect: 'read' | 'write';
   input: z.ZodType;
@@ -166,6 +167,7 @@ export const capabilities = {
   ...agentSettingsCapabilities,
   ...agendaCapabilities,
   ...honorariosCapabilities,
+  ...calcCapabilities,
   ...annexCapabilities,
   ...researchCapabilities,
   ...researchCaseCapabilities,

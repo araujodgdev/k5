@@ -5,6 +5,7 @@ export const appNavigation = [
   { slug: "research", label: "Pesquisa", short: "Pesquisa" },
   { slug: "agenda", label: "Escritório", short: "Escritório" },
   { slug: "honorarios", label: "Honorários", short: "Honorários" },
+  { slug: "calc", label: "Cálculos jurídicos", short: "Calc" },
   { slug: "email", label: "E-mails", short: "E-mails" },
   { slug: "messages", label: "Mensagens", short: "Mensagens" },
   { slug: "whatsapp", label: "WhatsApp", short: "WhatsApp" },
