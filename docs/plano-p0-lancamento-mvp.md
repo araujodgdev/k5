@@ -15,9 +15,9 @@ Origem: [auditoria de 03/10/2026](auditoria-lancamento-mvp-2026-10-03.md) e deci
 
 A Honcho também entrou na lista de destinatários. Nos termos, a seção de IA orienta a não pedir que a memória guarde dados de clientes.
 
-**Pendente.** Contrato/DPA com a Honcho e confirmação do mecanismo de transferência internacional. As versões publicadas exigem aceite, que é feito na frente 7.
+**Pendente.** O contrato com a Honcho continua em aberto. Em [documentos legais](documentos-legais.md), Douglas envia o e-mail da seção da Honcho, da caixa que entra na organização Honcho de produção, para privacy@honcho.dev, com cópia a support@honcho.dev. A Plastic Labs ainda precisa firmar as cláusulas-padrão. Não há DPA assinado. O registro fica "decisão autorizada pelo responsável, pendente de aceite da contraparte". O aceite da versão 1.1 pelos usuários já está na frente 7. Os outros suboperadores da política publicada estão na tabela do mesmo documento, com aceite não verificado.
 
-**Decisões.** O responsável optou por divulgar a Honcho como suboperadora em vez de desligá-la. Não existe botão para apagar a memória; o texto descreve o caminho real, que é pedir ao Lume na conversa.
+**Decisões.** O responsável optou por divulgar a Honcho como suboperadora em vez de desligá-la. Não existe botão para apagar a memória; o texto descreve o caminho real, que é pedir ao Lume na conversa. Em 05/10/2026 o responsável autorizou gravar o mecanismo do art. 33, inciso II, alínea "b", da LGPD, pelas cláusulas-padrão do Anexo II da Resolução CD/ANPD nº 19/2024, ainda não firmadas. A retenção registrada é a da política pública da Honcho lida nesse dia. Cópias de segurança por 90 dias. Conteúdo no padrão de 90 dias, com hard-delete no purge ou na exclusão do workspace. Fine-tuning não público sobre dados desidentificados permanece a condição publicada. Não há opt-in para treino de modelo público. A página pública não muda de versão enquanto as cláusulas não estiverem firmadas.
 
 ## Frente 2 — Headers de segurança (clickjacking)
 
