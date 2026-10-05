@@ -40,13 +40,21 @@ Valores são inteiros em centavos. O banco guarda parcelas, recebimentos e corre
 
 As migrações `apps/web/db/postgres/0037_honorarios.sql` e `0038_honorarios_indexes.sql` criam a base financeira. `0071_calc_and_fee_pricing.sql` e `0072_fee_quotes.sql` acrescentam cálculos, índices, propostas, versões e a formação do preço, preservando os registros existentes. Execute `pnpm db:setup` antes do build. Calc e propostas não exigem credenciais novas; a consulta de índices depende de acesso à API pública do Banco Central.
 
+A chave do Asaas é do escritório, guardada criptografada. As migrações `0071_asaas_connection.sql`, `0072_asaas_charges.sql` e `0073_asaas_webhooks.sql` criam conexão, cobranças e webhook, sem novos workers. A variável opcional `ASAAS_WEBHOOK_BASE_URL` define o endereço público do webhook (vazia, vale `BETTER_AUTH_URL`). O controle das migrações usa o nome completo de cada arquivo.
+
 Os contratos financeiros ficam em `apps/web/src/lib/honorarios/contracts.ts`; a precificação, em `pricing.ts`, e as propostas, em `quotes.ts`. `service.ts` concentra referências, saldos, recebimentos e cancelamento. As operações usam `/api/honorarios/[operation]` e a camada de capabilities do aplicativo. Calc usa `src/lib/calc` e `/api/calc/[operation]`.
 
 Cada gravação exige uma chave de idempotência. A reserva da chave, a alteração e a resposta são confirmadas na mesma transação. Repetir a mesma solicitação retorna o resultado salvo. Reutilizar a chave com dados diferentes resulta em conflito. Recebimentos, correções e cancelamentos bloqueiam o mesmo honorário durante a transação, impedindo que duas baixas ultrapassem o saldo.
 
 O catálogo de capabilities publica as operações autorizadas para o assistente e WebMCP. O agente consulta parcelas e propostas e registra recebimentos com valor, data, meio e chave idempotente; não substitui uma baixa financeira por uma nota no cliente. Estornos e cancelamentos exigem confirmação dos argumentos. Gerar parcelas de uma proposta fica disponível na interface e em WebMCP, sem execução automática pelo agente.
 
-O financeiro prepara cobranças com instruções PIX, boleto já emitido e histórico de envio manual. Lembretes ao responsável respeitam preferências e situação da parcela. Isso não emite boleto bancário, movimenta dinheiro ou aplica juros automaticamente às parcelas financeiras. Atualizações de valores ficam no Calc. A assinatura Lume permanece no módulo Plano e no financeiro da plataforma.
+O financeiro prepara cobranças com instruções PIX, boleto já emitido e histórico de envio manual. Lembretes ao responsável respeitam preferências e situação da parcela. Essa preparação manual não emite boleto bancário, movimenta dinheiro ou aplica juros automaticamente às parcelas financeiras. A emissão pelo Asaas usa o fluxo específico descrito abaixo. Atualizações de valores ficam no Calc. A assinatura Lume permanece no módulo Plano e no financeiro da plataforma.
+
+## Cobrança pelo Asaas
+
+Com a conta do Asaas do escritório conectada em Integrações, a tela de cobrança da parcela emite uma cobrança nessa conta. O valor é o saldo atual e o vencimento é escolhido pela pessoa. O cliente paga por um link do Asaas, com PIX, boleto ou cartão. O link entra na mensagem de cobrança e, por ela, no portal do cliente. Na primeira cobrança de um cliente, o Lume pede o CPF ou o CNPJ, envia o número só ao Asaas e guarda apenas o identificador do cliente criado lá.
+
+Cada parcela tem no máximo uma cobrança ativa no Asaas. Ela pode ser cancelada pela tela enquanto aguarda pagamento. Se o Asaas não responder à criação, a cobrança fica "sem confirmação". Depois de um minuto, "Conferir no Asaas" procura a cobrança pela referência `lume:<id>` antes de enviá-la de novo, então uma resposta perdida não gera cobrança em dobro. Quando o Asaas confirma o pagamento, o webhook cadastrado na conta lança o recebimento em nome de quem criou o honorário. O meio vem do Asaas: PIX, boleto ou cartão. O valor fica limitado ao saldo da parcela, e o responsável recebe a notificação "Pagamento recebido pelo Asaas". Um estorno, uma contestação ou um recebimento em dinheiro desfeito no Asaas estorna esse recebimento, com o motivo. As cobranças emitidas pelo Asaas não estão publicadas para o assistente nem para o WebMCP. Detalhes em [plano-integracao-asaas.md](plano-integracao-asaas.md).
 
 ## Verificação
 

@@ -13,7 +13,7 @@ import { controlClass, dialogClass, Failure, Field } from './fields';
 import { ChargeForm } from './charge-form';
 import { PricingSummary } from './quote-panel';
 
-const methods: Record<HonorarioReceipt['method'], string> = { pix: 'Pix', transfer: 'Transferência', cash: 'Dinheiro', card: 'Cartão', other: 'Outro' };
+const methods: Record<HonorarioReceipt['method'], string> = { pix: 'Pix', transfer: 'Transferência', cash: 'Dinheiro', card: 'Cartão', boleto: 'Boleto', other: 'Outro' };
 export const installmentStatus: Record<HonorarioInstallment['status'], string> = { pending: 'A receber', partial: 'Recebida em parte', received: 'Recebida', cancelled: 'Cancelada' };
 type FinancialAction = { kind: 'receive'; installment: HonorarioInstallment } | { kind: 'reverse'; receipt: HonorarioReceipt } | { kind: 'cancel' };
 type Action = FinancialAction | { kind: 'charge'; installment: HonorarioInstallment };

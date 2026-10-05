@@ -5,10 +5,23 @@ import { withTransaction, type Transaction } from '@/lib/database';
 import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/application/context';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import * as contract from './charges-contract';
+import { openAsaasInvoiceUrl } from '@/lib/asaas/charges';
 
 const missing = () => new CapabilityError('NOT_FOUND', 'Cobrança não encontrada.');
 const conflict = (message: string) => new CapabilityError('CONFLICT', message);
 const currency = (cents: number) => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const ASAAS_LINE = 'Pague pelo link (PIX, boleto ou cartão): ';
+
+/** Puts the installment's open Asaas link in the message, replacing any earlier one, so a replay never shows a stale link. */
+async function withAsaasLink(tx: Transaction, context: WorkspaceContext, installmentId: string, message: string) {
+  const url = await openAsaasInvoiceUrl(tx, context.officeId, installmentId);
+  const lines = message.split('\n').filter(line => !line.startsWith(ASAAS_LINE));
+  if (url) {
+    const beneficiary = lines.findIndex(line => line.startsWith('Beneficiário informado: '));
+    lines.splice(beneficiary + 1, 0, `${ASAAS_LINE}${url}`);
+  }
+  return lines.join('\n');
+}
 
 async function owner(tx: Transaction, context: WorkspaceContext, installmentId: string, lock = false) {
   const row = await tx.prepare(`SELECT a.id,a.cancelled_at,o.name AS office_name,u.name AS beneficiary_name
@@ -53,6 +66,7 @@ async function view(tx: Transaction, context: WorkspaceContext, installmentId: s
     `Saldo a pagar: ${currency(i.pendingCents)}`, `Vencimento: ${i.dueOn.split('-').reverse().join('/')}`,
     `Beneficiário informado: ${result.beneficiaryName}`, result.pixKey ? `Chave PIX: ${result.pixKey}` : '', result.instructions,
     result.boleto ? 'Boleto anexado separadamente.' : '', 'Após pagar, envie o comprovante para conferência.'].filter(Boolean).join('\n');
+  result.message = await withAsaasLink(tx, context, installmentId, result.message);
   result.pdfUrl = result.version > 0 && i.status !== 'cancelled' && i.pendingCents > 0 ? `/api/honorarios/charges/${encodeURIComponent(installmentId)}/pdf?version=${result.version}` : null;
   return result;
 }
@@ -76,7 +90,8 @@ async function mutate(context: WorkspaceContext, operation: 'prepare' | 'sent', 
       WHERE office_id=? AND user_id=? AND idempotency_key=? FOR UPDATE`).get(context.officeId, context.userId, input.idempotencyKey));
     if (claim.input_hash !== hash || claim.operation !== operation) throw conflict('Esta chave já foi usada com outros dados.');
     if (claim.response !== null) {
-      const response = contract.chargeDto.parse(claim.response);
+      const saved = contract.chargeDto.parse(claim.response);
+      const response = { ...saved, message: await withAsaasLink(tx, context, input.installmentId, saved.message) };
       if (response.boleto && !await tx.prepare('SELECT 1 FROM vault_document WHERE id=? AND office_id=? AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?)')
         .get(response.boleto.id, context.officeId, context.userId))
         return { ...response, boleto: null, message: response.message.split('\n').filter(line => line !== 'Boleto anexado separadamente.').join('\n') };

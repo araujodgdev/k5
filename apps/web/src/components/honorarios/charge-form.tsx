@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { chargeDto, type HonorarioCharge } from '@/lib/honorarios/charges-contract';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { honorariosCall } from './client';
 import { controlClass, Failure, Field } from './fields';
 import { money } from './editor';
+import { AsaasChargeSection } from './asaas-charge';
 
 export function ChargeForm({ installmentId, back, busy }: { installmentId: string; back: () => void; busy: (value: boolean) => void }) {
   const [charge, setCharge] = useState<HonorarioCharge | null>(null);
@@ -21,6 +22,7 @@ export function ChargeForm({ installmentId, back, busy }: { installmentId: strin
   const [notice, setNotice] = useState('');
   const [pending, setPending] = useState(false);
   const [revision, setRevision] = useState(0);
+  const reload = useCallback(() => setRevision(value => value + 1), []);
   const running = useRef(false);
   const attempt = useRef<{ input: string; key: string } | null>(null);
   useEffect(() => {
@@ -75,9 +77,11 @@ export function ChargeForm({ installmentId, back, busy }: { installmentId: strin
   }
   const inactive = charge?.installment.status === 'cancelled' || charge?.installment.pendingCents === 0;
   return <div className="grid min-w-0 gap-5">
-    <div><h2 className="font-medium">Cobrança da parcela {charge?.installment.number}</h2><p className="mt-2 text-sm text-muted-foreground">Prepare as instruções para pagamento direto ao advogado. Anexe o boleto emitido pelo banco, se houver.</p></div>
+    <div><h2 className="font-medium">Cobrança da parcela {charge?.installment.number}</h2><p className="mt-2 text-sm text-muted-foreground">Emita a cobrança pelo Asaas ou prepare as instruções para pagamento direto ao advogado, com o boleto emitido pelo banco, se houver.</p></div>
     {!charge ? <><Failure message={error} /><p role="status">Carregando cobrança…</p><Button variant="outline" className="min-h-11" onClick={() => setRevision(value => value + 1)}>Tentar novamente</Button></> : <>
       <p className="text-sm">Saldo atual: {money(charge.installment.pendingCents)}</p>
+      <AsaasChargeSection installmentId={installmentId} busy={busy} changed={reload} />
+      <h3 className="font-medium text-sm">Instruções para pagamento direto</h3>
       <form onSubmit={event => { event.preventDefault(); void perform(() => save('charge-prepare')); }} className="grid gap-4">
         <fieldset disabled={pending || inactive} className="grid min-w-0 gap-4">
           <Field label="Chave PIX">{id => <Input id={id} className="min-h-11" maxLength={140} value={pixKey} onChange={event => setPixKey(event.target.value)} />}</Field>
