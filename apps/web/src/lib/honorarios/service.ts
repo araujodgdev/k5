@@ -48,7 +48,7 @@ const installmentRows = `${accessibleAgreements}, received AS (
 )`;
 
 async function detail(tx: Transaction, context: WorkspaceContext, agreementId: string) {
-  const agreement = await tx.prepare(`${accessibleAgreements} SELECT a.id,a.office_id,a.canManage,a.title,a.notes,a.client_id AS clientId,c.name AS clientName,
+  const agreement = await tx.prepare(`${accessibleAgreements} SELECT a.id,a.office_id,a.canManage,a.title,a.notes,CASE WHEN a.canManage THEN a.pricing ELSE NULL END AS pricing,a.client_id AS clientId,c.name AS clientName,
     a.case_id AS caseId,k.name AS caseName,a.created_at AS createdAt,a.cancelled_at AS cancelledAt,a.cancel_reason AS cancelReason,
     CASE WHEN a.cancelled_at IS NULL THEN 'active' ELSE 'cancelled' END AS status
     FROM visible_agreements a JOIN crm_client c ON c.office_id=a.office_id AND c.id=a.client_id

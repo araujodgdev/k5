@@ -82,6 +82,7 @@
     "cmdk": "^1.1.1",
     "cn": "^0.3.0",
     "csv-parse": "^7.0.3",
+    "decimal.js": "^10.6.0",
     "docx": "^9.7.1",
     "docx-preview": "0.4.1",
     "docxtemplater": "^3.70.0",
