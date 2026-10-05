@@ -237,7 +237,9 @@ nenhum comprovante de assinatura ou clique está neste repositório.
 O código em `apps/web/src/lib/ai-connections-core.ts` também admite os provedores
 `deepseek`, `inception` e `vercel`. A política publicada não os nomeia. Ficam
 fora desta tabela. Douglas confirma se alguma chave de produção aponta para um
-deles. Se apontar, a linha entra aqui. O Asaas, em `apps/web/src/lib/asaas/charges.ts`, envia nome, CPF ou CNPJ e e-mail do cliente para `/customers` quando a conta está conectada. A política publicada não o nomeia. A mesma confirmação vale para ele.
+deles. Se apontar, a linha entra aqui. O Asaas também não está na política
+publicada. A linha dele fica na tabela porque o código envia dado pessoal quando
+a conta está conectada.
 
 | Prestador | Papel na política | Instrumento lido em 05/10/2026 | Situação neste repositório | Próximo passo humano |
 | --- | --- | --- | --- | --- |
@@ -253,6 +255,7 @@ deles. Se apontar, a linha entra aqui. O Asaas, em `apps/web/src/lib/asaas/charg
 | Exa | Pesquisa externa possível | A busca não achou DPA público. O trecho retornado de [https://exa.ai/privacy-policy](https://exa.ai/privacy-policy) diz que conteúdo tratado em nome do cliente segue o contrato do cliente. A página inteira não foi relida | Aceite não verificado | Se a Exa receber consulta real, Douglas pede o contrato de cliente |
 | Zernio | WhatsApp, quando habilitado | [Política](https://zernio.com/privacy-policy), atualizada em 05/10/2026, de ZERNIO SOFTWARE SL, Palamós, Espanha. Não é um DPA. A seção 13 diz que pode haver transferência internacional com salvaguardas, sem nomear o art. 33. O texto lido não menciona WhatsApp | Aceite não verificado. O papel na política do Lume e o texto lido hoje não fecham | Douglas pede à Zernio, em miki@zernio.com, o instrumento da conta usada pelo Lume, a retenção e o mecanismo do art. 33 |
 | AbacatePay | Cobrança, quando utilizada | [Termos e privacidade](https://www.abacatepay.com/termos), com checkbox no cadastro. Fora da ativação em produção, como acima | Sem passo enquanto a cobrança real estiver desligada | Nenhum, até a ativação |
+| Asaas | Não nomeado na política publicada | `ensureCustomer` em `apps/web/src/lib/asaas/charges.ts` envia nome, CPF ou CNPJ e, quando válido, e-mail para `POST /customers` da conta conectada. Esta leitura não abriu termos ou DPA do Asaas | Aceite não verificado. Fora da lista publicada | Douglas confirma se a conta de produção está conectada e, se estiver, pede o instrumento e a retenção |
 
 ## Fontes primárias consultadas
 
