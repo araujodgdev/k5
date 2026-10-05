@@ -3,7 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { web } from '@e2e-dev/web';
 import type { E2EConfig } from 'e2e';
 
-// K5_E2E_URL points the suite at a server started elsewhere (the verify-k5 instance, a preview).
+// K5_E2E_URL points the suite at a server started elsewhere (the verify-lume instance, a preview).
 // Without it the runner starts Next.js itself: `next start` over the CI build, `next dev` locally,
 // attaching to a dev server that is already running on port 3000.
 const external = process.env.K5_E2E_URL;

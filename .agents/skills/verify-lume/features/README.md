@@ -1,17 +1,17 @@
-# K5 verification map
+# Lume verification map
 
-This directory is the maintained source for verifying the user-facing behavior of the K5 web app (Lume). Read this index before driving the app, then use the matching feature file as the recipe.
+This directory is the maintained source for verifying the user-facing behavior of Lume, the K5 web app in `apps/web`. Read this index before driving the app, then use the matching feature file as the recipe.
 
 ## Baseline preconditions
 
-- An instance started by this run with `k5-verify.mts up`, and `k5-verify.mts doctor` all `OK`.
-- The signed-in user is `verify@k5.test`, administrator of `Escritório de Verificação`. The office starts empty: no cases, clients or activities.
+- An instance started by this run with `lume-verify.mts up`, and `lume-verify.mts doctor` all `OK`.
+- The signed-in user is `verify@lume.test`, administrator of `Escritório de Verificação`. The office starts empty: no cases, clients or activities.
 - Integrations are off: no AI connection, Exa, Google or AbacatePay keys, and no workers.
 - Never drive the developer's server on port 3000 or its database.
 
 ## Driving conventions
 
-- Run a feature with `k5-verify.mts drive <id>`. It runs the e2e tests that the recipe's `Test:` lines name (`apps/web/e2e/*.e2e.ts`) against the instance, signed in as its account. Write tests with the `e2e` skill.
+- Run a feature with `lume-verify.mts drive <id>`. It runs the e2e tests that the recipe's `Test:` lines name (`apps/web/e2e/*.e2e.ts`) against the instance, signed in as its account. Write tests with the `e2e` skill.
 - Every drive records a trace per test; e2e adds a screenshot on failure. Call `app.screenshot(label)` in a test for a before/after image.
 - Prefer roles and accessible names in pt-BR (`screen.getByRole('button', 'Salvar')`). e2e matches names exactly by default, because many labels share prefixes; pass `{ exact: false }` for a substring.
 - Use unique titles per run (`Date.now().toString(36)` suffix), because the database persists for the whole instance.

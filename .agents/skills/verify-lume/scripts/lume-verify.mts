@@ -1,8 +1,8 @@
 /**
- * k5-verify: one entry point to launch an isolated K5 instance, drive mapped features in a real
+ * lume-verify: one entry point to launch an isolated Lume instance, drive mapped features in a real
  * browser, inspect its database read-only, and tear it down. Every command prints one JSON object
  * on stdout ({ ok: true, ... } or { ok: false, error: { code, message, fix } }); progress goes to
- * stderr. Run `k5-verify.mts help` or `k5-verify.mts <command> --help`.
+ * stderr. Run `lume-verify.mts help` or `lume-verify.mts <command> --help`.
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -17,16 +17,16 @@ const SCRIPTS = dirname(fileURLToPath(import.meta.url));
 const FEATURES = resolve(SCRIPTS, '../features');
 export const WEB = resolve(SCRIPTS, '../../../../apps/web');
 const webRequire = createRequire(join(WEB, 'package.json'));
-const POINTER = join(tmpdir(), 'k5-verify-current.json');
+const POINTER = join(tmpdir(), 'lume-verify-current.json');
 // Build directory reserved for verification in next.config.ts, tsconfig.json and the ignore files.
 const DIST_DIR = '.next-verify';
 // tsconfig.json includes these so Next does not rewrite it, but next dev can leave them half-written
 // (overlapping writes on Windows), which breaks `pnpm typecheck`. They are regenerated on every start.
 const GENERATED_TYPES = join(WEB, DIST_DIR, 'dev', 'types');
-const ACCOUNT = { name: 'Verificação K5', officeName: 'Escritório de Verificação', email: 'verify@k5.test', password: 'VerificaK5!2026#segura' };
+const ACCOUNT = { name: 'Verificação Lume', officeName: 'Escritório de Verificação', email: 'verify@lume.test', password: 'VerificaLume!2026#segura' };
 const DEV_PORT = 3000;
 const DEV_DB_PORT = 55432;
-const CLI = 'pnpm --dir apps/web exec tsx ../../.claude/skills/verify-k5/scripts/k5-verify.mts';
+const CLI = 'pnpm --dir apps/web exec tsx ../../.agents/skills/verify-lume/scripts/lume-verify.mts';
 
 export type State = {
   runId: string; runDir: string; status: 'starting' | 'ready' | 'failed' | 'stopped'; error?: string;
@@ -37,7 +37,7 @@ export type State = {
 class CliError extends Error {
   constructor(readonly code: string, message: string, readonly fix: string, readonly details?: unknown) { super(message); }
 }
-const note = (line: string) => process.stderr.write(`[k5-verify] ${line}\n`);
+const note = (line: string) => process.stderr.write(`[lume-verify] ${line}\n`);
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const alive = (pid?: number) => { if (!pid) return false; try { process.kill(pid, 0); return true; } catch { return false; } };
 const readJson = <T>(file: string): T | undefined => { try { return JSON.parse(readFileSync(file, 'utf8')) as T; } catch { return undefined; } };
@@ -101,7 +101,7 @@ async function stopPostgres(dataDir: string) {
 const postmasterPid = (dataDir: string) => Number(readFileSync(join(dataDir, 'postmaster.pid'), 'utf8').split(/\r?\n/)[0]) || undefined;
 
 /** Only a scratch directory this tool created may be deleted. */
-const ownedRunDir = (dir: string) => dirname(resolve(dir)) === resolve(tmpdir()) && /^k5-verify-[\w-]+$/.test(basename(dir));
+const ownedRunDir = (dir: string) => dirname(resolve(dir)) === resolve(tmpdir()) && /^lume-verify-[\w-]+$/.test(basename(dir));
 
 // ---------------------------------------------------------------- supervisor (internal)
 
@@ -109,7 +109,7 @@ async function serve(runDir: string) {
   const state = readJson<State>(join(runDir, 'state.json'))!;
   // The supervisor has no inherited stdio; it and its children write to the run log.
   const logFd = openSync(state.log, 'a');
-  const log = (line: string) => appendFileSync(state.log, `[k5-verify] ${line}\n`);
+  const log = (line: string) => appendFileSync(state.log, `[lume-verify] ${line}\n`);
   let next: ChildProcess | undefined;
   const { default: EmbeddedPostgres } = await import(pathToFileURL(webRequire.resolve('embedded-postgres')).href);
   const password = randomBytes(24).toString('hex');
@@ -204,7 +204,7 @@ async function up(flags: Flags) {
       `Reuse it (\`${CLI} doctor\`), or stop it first with \`${CLI} down\`.`, publicState(existing));
   }
   const runId = `${new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '')}-${randomUUID().slice(0, 6)}`;
-  const runDir = join(tmpdir(), `k5-verify-${runId}`);
+  const runDir = join(tmpdir(), `lume-verify-${runId}`);
   // Inside apps/web, because e2e writes its output under the project root; .e2e/ is git-ignored.
   const evidenceDir = join(WEB, '.e2e', 'verify', runId);
   const port = await freePort(); const pgPort = await freePort();
@@ -371,7 +371,7 @@ async function down(flags: Flags) {
 // ---------------------------------------------------------------- help and dispatch
 
 const HELP: Record<string, string> = {
-  '': `k5-verify: isolated K5 instance for end-to-end verification. Every command prints JSON on stdout.
+  '': `lume-verify: isolated Lume instance for end-to-end verification. Every command prints JSON on stdout.
 
 Usage: ${CLI} <command> [options]
 
@@ -454,7 +454,7 @@ async function main() {
   } catch (error) {
     const body = error instanceof CliError
       ? { code: error.code, message: error.message, fix: error.fix, ...(error.details ? { details: error.details } : {}) }
-      : { code: 'INTERNAL', message: error instanceof Error ? error.message : String(error), fix: 'Unexpected failure in k5-verify; run `status`, then read the instance log it names.' };
+      : { code: 'INTERNAL', message: error instanceof Error ? error.message : String(error), fix: 'Unexpected failure in lume-verify; run `status`, then read the instance log it names.' };
     process.stdout.write(`${JSON.stringify({ ok: false, error: body }, null, 2)}\n`);
     process.exitCode = 1;
   }

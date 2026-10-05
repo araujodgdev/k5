@@ -32,7 +32,7 @@ Preconditions:
 - **Complete.** Click `checkbox "Concluir <título>"`. The row leaves Abertas, and `status` polls to `completed`.
 - **Archived.** Click `button "Arquivadas"`. `checkbox "Reabrir <título>"` is checked.
 - **Mobile.** At 390×844, `button "Nova atividade"` is visible and `scrollWidth <= innerWidth`.
-- **Proof.** `k5-verify.mts drive office-tasks` does all of the above, producing the screenshots `01-abertas-antes`, `02-nova-atividade`, `03-tarefa-criada`, `04-arquivadas` and `05-abertas-mobile` plus `trace.zip` under the test's `attempt-0/` artifacts (add `--video` for a WebM). The `sql` reads are in the trace and the test's assertions, not a separate file.
+- **Proof.** `lume-verify.mts drive office-tasks` does all of the above, producing the screenshots `01-abertas-antes`, `02-nova-atividade`, `03-tarefa-criada`, `04-arquivadas` and `05-abertas-mobile` plus `trace.zip` under the test's `attempt-0/` artifacts (add `--video` for a WebM). The `sql` reads are in the trace and the test's assertions, not a separate file.
 
 ## Gotchas
 

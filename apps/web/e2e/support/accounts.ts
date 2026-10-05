@@ -4,7 +4,7 @@
 export type Account = { name: string; officeName: string; email: string; password: string };
 
 // The lawyer account every signed-in test restores, in its own office (see auth.setup.e2e.ts).
-// E2E_EMAIL and E2E_PASSWORD select an account that already exists, such as verify-k5's.
+// E2E_EMAIL and E2E_PASSWORD select an account that already exists, such as verify-lume's.
 export const admin: Account = {
   name: 'Administração E2E',
   officeName: process.env.E2E_OFFICE_NAME ?? 'Araújo & Associados Advocacia',

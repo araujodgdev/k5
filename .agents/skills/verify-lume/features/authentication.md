@@ -37,5 +37,5 @@ Preconditions:
 ## Gotchas
 
 - Sign-in and sign-up allow 10 attempts per minute, and without `K5_CLIENT_IP_HEADER` all clients share one bucket. Repeated failing drives hit "Muitas tentativas. Aguarde um minuto…".
-- Signing out as `verify@k5.test` revokes the session of every other open driver context for that user. Run sign-out last, or with its own account.
+- Signing out as `verify@lume.test` revokes the session of every other open driver context for that user. Run sign-out last, or with its own account.
 - The password field has a "Mostrar senha" toggle. Target it by label, not by `type=password`.

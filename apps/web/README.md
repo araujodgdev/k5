@@ -529,10 +529,10 @@ pnpm --filter @k5/web exec e2e run --exclude-tag agent --last-failed
 - `e2e.config.ts` sobe o servidor: `next dev` localmente (ou reaproveita o que já responde em
   `localhost:3000`, lendo `.env.local` para as conferências no banco) e `next start` sobre o
   build no CI. `K5_E2E_URL` aponta a suíte para um servidor já iniciado, como a instância da
-  skill `verify-k5`.
+  skill `verify-lume`.
 - Localmente, sem `K5_E2E_URL`, os testes de fluxo real criam contas descartáveis
   (`*@k5.test`) e registros de teste no banco do `.env.local`. Para não tocar nesse banco, rode
-  contra a instância isolada da `verify-k5` (`k5-verify.mts up` e depois `drive <id>`).
+  contra a instância isolada da `verify-lume` (`lume-verify.mts up` e depois `drive <id>`).
 - `e2e/auth.setup.e2e.ts` entra uma vez pelo formulário com `admin@advocacia.test` (ou
   `E2E_EMAIL`/`E2E_PASSWORD`) e cria a conta se ela não existir; os testes com
   `{ session: 'admin' }` reaproveitam essa sessão. Testes que mudam credenciais ou precisam de
