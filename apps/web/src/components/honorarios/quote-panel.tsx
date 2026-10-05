@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { z } from 'zod';
+import { BetaLabel } from '@/components/ads/beta-label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -50,7 +51,7 @@ export function FeeQuotePanel() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível abrir a versão.'); }
     finally { setLoadingVersion(false); }
   }
-  return <div className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8"><header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6"><div><Link href="/app/honorarios" className="text-xs underline">Honorários</Link><h1 className="mt-3 text-3xl font-medium tracking-tight">Propostas e contratos</h1></div><Button onClick={() => { setActive(null); setCalculation(null); setEditing(true); }}>Nova proposta</Button></header>
+  return <div className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8"><header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6"><div><Link href="/app/honorarios" className="text-xs underline">Honorários</Link><div className="mt-3 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-medium tracking-tight">Propostas e contratos</h1><BetaLabel /></div></div><Button onClick={() => { setActive(null); setCalculation(null); setEditing(true); }}>Nova proposta</Button></header>
     <div className="py-3"><Failure message={error} /></div>
     {editing ? <QuoteEditor key={active?.id ?? calculation?.id ?? 'new'} seed={active} calculation={calculation} saved={save} back={() => setEditing(false)} /> : active ? <>
       <div className="flex flex-wrap justify-between gap-3 py-4"><h2 className="text-xl font-medium">{active.title}</h2><div className="flex flex-wrap gap-3"><Button variant="ghost" onClick={() => setActive(null)}>Voltar às propostas</Button><Button variant="outline" disabled={loadingVersion || active.billed.length > 0 || active.version !== active.latestVersion} onClick={() => setEditing(true)}>Revisar proposta</Button></div></div>

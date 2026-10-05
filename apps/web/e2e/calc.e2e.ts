@@ -16,6 +16,7 @@ test('Calc: consumidor, versões, tributo federal, proposta OAB e parcelas no de
   await signInWithSession({ app, screen, browser }, api);
   await app.open('/app/calc');
   await expect(screen.getByText('Nenhum cálculo salvo para esta busca.')).toBeVisible();
+  await expect(screen.getByText('BETA', { exact: true })).toBeVisible();
   await app.screenshot('calc-desktop');
   for (const name of ['Correção de valores', 'Trabalhista', 'Revisional bancário', 'Pensão alimentícia', 'Aluguel', 'Consumidor', 'Tributário']) {
     await screen.getByRole('button', new RegExp(`^${name}`)).tap();
@@ -58,6 +59,7 @@ test('Calc: consumidor, versões, tributo federal, proposta OAB e parcelas no de
 
   await screen.getByRole('link', 'Usar resultado como base de honorários').tap();
   await expect(screen.getByRole('heading', 'Propostas e contratos')).toBeVisible({ timeout: 60_000 });
+  await expect(screen.getByText('BETA', { exact: true })).toBeVisible();
   await expect(screen.getByLabel('Componente 1: base (R$)')).toHaveValue('150,00');
   await screen.getByRole('button', 'Cliente (obrigatório)').tap();
   await screen.getByRole('button', 'Cliente Calc', { exact: true }).tap();

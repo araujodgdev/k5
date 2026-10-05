@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { CircleAlert } from 'lucide-react';
 import { honorariosOptionsDto, type HonorariosOptions } from '@/lib/honorarios/contracts';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ export function ReferenceSelect({ kind, value, onChange, optional = false, purpo
   const [status, setStatus] = useState('');
   const known = !value || selected?.id === value;
   const clients = kind === 'clients';
+  const openedAt = useRef(0);
   const label = clients ? 'Cliente' : purpose === 'filter' ? 'Caso' : 'Caso (opcional)';
   const emptyLabel = clients ? optional ? 'Todos os clientes' : 'Selecione um cliente' : purpose === 'filter' ? 'Todos os casos' : 'Nenhum caso';
   // Loads while the list is open, and once for a value that arrived without its name (a filter
@@ -54,19 +55,28 @@ export function ReferenceSelect({ kind, value, onChange, optional = false, purpo
         if (choice) setSelected(choice);
       }).catch(() => { if (!controller.signal.aborted) setStatus('Não foi possível carregar as opções. Altere a busca para tentar novamente.'); })
         .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    }, open ? 200 : 0);
+    }, open && query ? 200 : 0);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [open, known, query, kind, clients, value, purpose]);
   function choose(option: Reference | null) {
     setSelected(option); onChange(option?.id ?? ''); setOpen(false); setQuery('');
   }
+  function changeOpen(next: boolean) {
+    // The opening click was also dismissing the list, before the cases request left, so the option never appeared.
+    if (next) openedAt.current = performance.now();
+    else if (performance.now() - openedAt.current < 250) return;
+    setOpen(next);
+  }
   const current = value ? selected?.id === value ? selected.name : 'Seleção atual' : emptyLabel;
   return <div className="grid min-w-0 gap-1.5">
     {/* The trigger is a button, which cannot be required; the label says it instead. */}
     <Label htmlFor={id}>{label}{!optional && <span className="sr-only"> (obrigatório)</span>}</Label>
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={changeOpen}>
       <PopoverTrigger asChild><PickerTrigger id={id} className="h-11 md:h-11" aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined}>{current}</PickerTrigger></PopoverTrigger>
-      <PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-64 max-w-[calc(100vw-2rem)] p-3" aria-label={label}>
+      <PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-64 max-w-[calc(100vw-2rem)] p-3" aria-label={label} onFocusOutside={event => {
+        const target = event.target;
+        if (target instanceof Element && target.closest('[data-slot="popover-trigger"]')) event.preventDefault();
+      }}>
         <Input autoFocus type="search" className="min-h-11" aria-label={clients ? 'Buscar cliente pelo nome' : 'Buscar caso pelo nome'} placeholder={clients ? 'Buscar cliente' : 'Buscar caso'} maxLength={180} value={query} onChange={event => setQuery(event.target.value)} />
         <div className="max-h-64 overflow-y-auto">
           {optional && <Button type="button" variant="ghost" className="min-h-11 w-full justify-start font-normal" aria-pressed={!value} onClick={() => choose(null)}>{emptyLabel}</Button>}
