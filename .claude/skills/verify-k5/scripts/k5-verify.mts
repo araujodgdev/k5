@@ -282,7 +282,7 @@ function features() {
 type E2EReport = { run: { status: string; exitCode: number; results: { titlePath: string[]; file: string; status: string; tags: string[]; error?: { code?: string; message?: string };
   attempts: { artifacts: { kind?: string; path?: string }[] }[] }[] } };
 
-function drive(args: string[]) {
+function drive(args: string[], flags: Flags) {
   const id = args[0];
   const known = listFeatures();
   if (!id) throw new CliError('MISSING_FEATURE', 'drive needs a feature id.', `Pick one of: ${known.map(f => f.id).join(', ')}. Example: \`${CLI} drive office-tasks\`.`);
@@ -295,7 +295,7 @@ function drive(args: string[]) {
   rmSync(dir, { recursive: true, force: true });
   note(`driving ${id} (${feature.tests.join(', ')}) against ${state.baseURL}`);
   const bin = join(WEB, 'node_modules', 'e2e', JSON.parse(readFileSync(join(WEB, 'node_modules', 'e2e', 'package.json'), 'utf8')).bin.e2e);
-  const run = spawnSync(process.execPath, [bin, 'run', ...feature.tests, '--output', relative(WEB, dir), '--reporter', 'list,markdown', '--trace', 'on', '--retries', '0'], {
+  const run = spawnSync(process.execPath, [bin, 'run', ...feature.tests, '--output', relative(WEB, dir), '--reporter', 'list,markdown', '--trace', 'on', ...(flags.video ? ['--video=on'] : []), '--retries', '0'], {
     cwd: WEB, encoding: 'utf8', windowsHide: true, maxBuffer: 32 * 1024 * 1024,
     // apps/web/e2e.config.ts targets K5_E2E_URL instead of starting a server; tests sign in as this account.
     env: { ...process.env, K5_E2E_URL: state.baseURL, DATABASE_URL: state.databaseUrl, E2E_EMAIL: state.account.email, E2E_PASSWORD: state.account.password, E2E_OFFICE_NAME: state.account.officeName },
@@ -364,7 +364,7 @@ async function down(flags: Flags) {
   rmSync(GENERATED_TYPES, { recursive: true, force: true });
   rmSync(POINTER, { force: true });
   const leftovers = [state.supervisorPid, state.nextPid, state.postmasterPid].filter(pid => alive(pid));
-  if (leftovers.length) throw new CliError('STOP_INCOMPLETE', `Processes still alive: ${leftovers.join(', ')}.`, `They were started by run ${state.runId}; stop them with taskkill /PID <pid> /T /F (never by process name).`, plan);
+  if (leftovers.length) throw new CliError('STOP_INCOMPLETE', `Processes still alive: ${leftovers.join(', ')}.`, `They were started by run ${state.runId}; stop them with ${process.platform === 'win32' ? 'taskkill /PID <pid> /T /F' : 'kill <pid> (kill -9 if it ignores SIGTERM)'}, never by process name.`, plan);
   return { stopped: plan, evidenceKept: existsSync(state.evidenceDir) ? state.evidenceDir : null };
 }
 
@@ -399,10 +399,11 @@ Output: { ok, healthy, checks: [{ name, ok, detail, fix? }] }. ok:false means do
   features: `features
 List the feature map (features/*.md) with each recipe path and the e2e tests its \`Test:\` lines name.
 Output: { ok, features: [{ id, title, recipe, tests }] }`,
-  drive: `drive <feature-id>
+  drive: `drive <feature-id> [--video]
 Run the feature's e2e tests (apps/web/e2e/*.e2e.ts) against the ready instance, signed in as its
 account, with a trace for every test. The report, summary.md, screenshots and traces go to
 <evidenceDir>/<feature-id>/. Agent tests (e2e/agent/) need OPENAI_API_KEY in your environment.
+  --video     also record a WebM per test (listed in artifacts) for a demo or review
 Output: { ok, passed, tests: [{ title, status, error?, artifacts }], summary, evidenceDir }; on failure, error.details.failure has the runner's last lines.
 Example: ${CLI} drive office-tasks`,
   sql: `sql "<query>" [--params '<json array>']
@@ -435,7 +436,7 @@ function parse(argv: string[]) {
   }
   return { args, flags };
 }
-const ALLOWED: Record<string, string[]> = { up: ['dry-run'], down: ['dry-run'], sql: ['params'], doctor: [], features: [], drive: [], status: [] };
+const ALLOWED: Record<string, string[]> = { up: ['dry-run'], down: ['dry-run'], sql: ['params'], doctor: [], features: [], drive: ['video'], status: [] };
 
 async function main() {
   const [command = 'help', ...rest] = process.argv.slice(2);
@@ -448,7 +449,7 @@ async function main() {
     const unknown = Object.keys(flags).filter(flag => !ALLOWED[command].includes(flag));
     if (unknown.length) throw new CliError('UNKNOWN_OPTION', `${command} does not accept --${unknown.join(', --')}.`, `Run \`${CLI} ${command} --help\` for its options.`);
     const result = command === 'up' ? await up(flags) : command === 'doctor' ? await doctor() : command === 'features' ? features()
-      : command === 'drive' ? drive(args) : command === 'sql' ? await sql(args, flags) : command === 'status' ? status() : await down(flags);
+      : command === 'drive' ? drive(args, flags) : command === 'sql' ? await sql(args, flags) : command === 'status' ? status() : await down(flags);
     process.stdout.write(`${JSON.stringify({ ok: true, ...result }, null, 2)}\n`);
   } catch (error) {
     const body = error instanceof CliError
