@@ -27,8 +27,8 @@ Preconditions:
 
 - `doctor` all OK. For sign-up, start from a test without `session` (a clean browser) and a unique e-mail such as `novo-<suffix>@k5.test`.
 
-- **Sign up.** On `/sign-up`, fill `label "Nome completo"`, `label "Nome do escritório"`, `label "E-mail"`, `label "Senha"` and `label "Confirmar senha"`, then click `button "Criar conta"`. The URL becomes `/app/…`, and the sidebar shows the office name.
-- **Stored.** Run `sql('SELECT o.name, m.role FROM "user" u JOIN office_member m ON m.user_id=u.id JOIN office o ON o.id=m.office_id WHERE u.email=$1')`. Expect the office name and `administrator`.
+- **Sign up.** On `/sign-up`, fill `label "Nome completo"`, `label "Nome do escritório"`, `label "E-mail"`, `label "Senha"` and `label "Confirmar senha"`, tick the checkbox "Li e aceito os Termos de uso…", then click `button "Criar conta"`. The URL becomes `/app/…`, and the sidebar shows the office name. This instance has no e-mail delivery, so sign-up does not stop on "Confira seu e-mail".
+- **Stored.** Run `sql('SELECT o.name FROM "user" u JOIN office_member m ON m.user_id=u.id JOIN office o ON o.id=m.office_id WHERE u.email=$1')`. Expect the office name. `office_member` has no role column.
 - **Guard.** In a new context without cookies, `goto('/app/command-center')` ends at `/sign-in`.
 - **Sign in.** On `/sign-in`, fill `label "E-mail"` and `label "Senha"`, then click `button "Entrar"`. `waitForURL('**/app/**')`.
 - **Sign out.** Click the sidebar `button "Sair"`. The URL becomes `/sign-in`. Revisit `/app/command-center`, which redirects to `/sign-in`. Run `sql('SELECT count(*) FROM session s JOIN "user" u ON u.id=s."userId" WHERE u.email=$1')`, which should return `0`.

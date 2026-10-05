@@ -1,6 +1,6 @@
 # Office data
 
-Perfil → Seus dados lets an administrator download the whole office as a ZIP ("Exportar dados") and schedule the deletion of the office and account with the current password ("Excluir conta"). A scheduled deletion shows its date, survives a reload, and can be cancelled.
+Perfil → Seus dados lets any signed-in member download the whole office as a ZIP ("Exportar dados") and schedule the deletion of the office and account with the current password ("Excluir conta"). The section heading is "Excluir conta e escritório". A scheduled deletion shows its date, survives a reload, and can be cancelled.
 
 ## Sub-features
 

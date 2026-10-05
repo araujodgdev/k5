@@ -12,7 +12,7 @@ The tutorial opens a library of short videos grouped by module, with independent
 
 ## How to get to it (user POV)
 
-Open Tutorial in the menu, choose Ver vídeos por módulo, select a module and open a video.
+On desktop, "Tutorial do Lume" is in the sidebar footer; on mobile it is under "Mais". It opens the tour dialog. Choose "Ver vídeos por módulo", select a module and open a video. The library is also at `/app/tutorial`. The first visit can open "Conheça o Lume" on its own.
 
 ## Driving it with e2e
 

@@ -16,7 +16,7 @@ The signed-in shell carries the Lume identity on desktop and mobile: the ink mar
 
 - Sign in; `/app` redirects to Início (`/app/command-center`), which shows the sidebar.
 - Sidebar "Lume" (`/app/agents`), "Plano" (`/app/billing`), "Mensagens" (`/app/messages`).
-- On mobile: the header mark and the bottom tab bar; extra sections sit behind "Mais".
+- On mobile: the header mark and the bottom tab bar (Início, Lume, Cofre, Escritório). Mensagens, Plano and the other sections sit behind "Mais".
 
 ## Driving it with e2e
 

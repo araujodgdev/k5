@@ -37,6 +37,6 @@ Preconditions:
 ## Gotchas
 
 - The checkbox is controlled by server state: use `tap()`, not `check()`. `check()` waits for the box to become checked, but the row disappears instead of toggling.
-- "Nova atividade" stays disabled until the case/client/member options load. Wait for it to be enabled, which `click()` does.
+- "Nova atividade" is not disabled while options load. The label becomes "Abrindo…" (`aria-busy`) and the dialog opens when the options arrive.
 - The `h1 "Escritório"` is `sr-only` on mobile. Assert it with `toBeAttached()`, not `toBeVisible()`.
 - The default due date is today, so a new task lands in "Hoje", which shows no date line.

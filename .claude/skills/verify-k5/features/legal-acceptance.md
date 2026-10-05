@@ -4,7 +4,7 @@ Anyone without the current Termos de uso and Política de privacidade version is
 
 ## Sub-features
 
-- `legal-signup-checkbox`: "Li e aceito os Termos de uso…" on `/sign-up` (driven by `auth.setup`'s sign-up path in `authentication`).
+- `legal-signup-checkbox`: "Li e aceito os Termos de uso…" on `/sign-up`. No e2e drives that checkbox; `tests/auth.test.ts` checks that sign-up records the ticked version.
 - `legal-gate`: "Antes de continuar" (or "Atualizamos os termos" after a version bump) in front of `/app` and `/client`.
 - `legal-gate-validation`: "Aceitar e continuar" without the checkbox shows "Marque a opção para continuar."
 - `legal-ai-notice`: "Antes de usar o Lume" on the first `/app/agents` visit, mentioning "sem anonimização", dismissed with "Entendi".

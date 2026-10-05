@@ -1,6 +1,6 @@
 # Profile
 
-A person edits their own profile (name, practice, OAB, city, a short text and a photo) and their access credentials (e-mail and password, both behind the current password). Whoever types that e-mail while inviting an associate or a case participant sees the person's name and, on hover, focus or tap, a card with the photo and profile summary.
+A person edits their own profile (name, practice, OAB, city, a short text and a photo) and their access credentials (e-mail and password, both behind the current password). Whoever types that e-mail while inviting an associate sees the person's name and, on hover, focus or tap, a card with the photo and profile summary. A case's Participantes tab adds an existing associate from a list; it does not look up a typed e-mail.
 
 ## Sub-features
 
@@ -8,15 +8,15 @@ A person edits their own profile (name, practice, OAB, city, a short text and a 
 - `profile-photo`: "Adicionar foto" / "Trocar foto" crops and shrinks the image to 256px in the browser; "Remover" clears it.
 - `profile-password`: "Alterar senha" needs the current one and can end the other sessions.
 - `profile-email`: "Alterar e-mail" needs the current password; an address of another account is refused.
-- `profile-card-invite`: typing an existing user's e-mail in "E-mail da pessoa" shows "… já usa o Lume" with the card on hover.
-- `profile-card-lists`: associate, team and participant rows show the avatar, and the e-mail opens the card.
+- `profile-card-invite`: typing an existing user's e-mail in "E-mail do advogado" shows "… já usa o Lume" with the card on hover.
+- `profile-card-lists`: associate rows, pending invites and case participant rows show the avatar, and the e-mail opens the card.
 - `profile-mobile`: the page fits 390px; "Mais" leads with the person's row linking to Perfil.
 
 ## How to get to it (user POV)
 
 - Desktop: the person's name and photo at the top of the sidebar footer → `/app/profile`.
 - Mobile: tab "Mais" → first row (name, "Perfil").
-- Cards: Escritório → Associados/Equipe → "Convidar …", and a case's Participantes tab.
+- Cards: Escritório → Associados → "Convidar …", and a case's Participantes tab.
 
 ## Driving it with e2e
 
@@ -33,5 +33,5 @@ Preconditions: none from the instance. The test signs up two accounts of its own
 - Changing the password with "Encerrar a sessão nos outros dispositivos" keeps the current tab signed in; other contexts of the same account are signed out.
 - An e-mail that belongs to another account answers like a success on the auth endpoint; the page re-reads the session and says it is in use.
 - E-mail lookups are limited to 60 per person every 10 minutes.
-- The wrong-password attempt logs one expected `400` console entry on `/app/profile`; the driver allows exactly that one.
-- "Salvar perfil" is disabled until something changes, so the driver writes a per-run suffix in Sobre.
+- A wrong current password can log a `400` from the auth endpoint. The e2e runner does not collect console errors, so that entry is not an assertion.
+- "Salvar perfil" stays disabled until a field changes. Fill "Sobre" (or any other field) before saving.

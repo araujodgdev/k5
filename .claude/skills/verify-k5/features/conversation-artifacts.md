@@ -8,7 +8,7 @@ In the Lume chat, the "Artefatos" button opens the panel of everything the conve
 - `artifacts-save-document`: a document saved as DOCX to the Biblioteca shows "<título>.docx foi salvo em Biblioteca." and a "No Cofre (DOCX, versão 1)" line.
 - `artifacts-save-attachment`: an attachment saved from the keyboard at 390px.
 - `artifacts-save-error`: a failed save keeps the form and offers "Tentar de novo".
-- `artifacts-context`: "Do Cofre nesta conversa" keeps the old Fontes selection (not driven; unchanged behavior).
+- `artifacts-context`: "Do Cofre nesta conversa" selects Vault documents and case references as chat context (not driven).
 - PDF copies need the PDFcn renderer; covered by `apps/web/tests/conversation-artifacts.test.ts`.
 
 ## How to get to it (user POV)

@@ -7,7 +7,7 @@ The Cofre accepts a file up to exactly 100 MB and refuses one byte more with "O 
 - `upload-limit`: `POST /api/vault/uploads` returns 201 for 100 MB and 400 with the pt-BR error for 100 MB + 1 byte; the upload ref is stored for the user.
 - `upload-direct`: `POST /api/vault/documents` with scope `case`, case and folder headers returns 201; `vault_document.folder_id` matches and `status` reaches `ready`.
 - `upload-download`: `GET /api/vault/documents/<id>/download` returns the original text.
-- `upload-ui`: the Cofre's upload button and drag-and-drop (not driven by this test; drive the screen with a new e2e test if a UI change touches it).
+- `upload-ui`: the Cofre's "Enviar arquivos" button (not driven by this test; drive the screen with a new e2e test if a UI change touches it). There is no drag-and-drop target.
 
 ## How to get to it (user POV)
 

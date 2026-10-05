@@ -52,4 +52,4 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 
 ## Not mapped yet
 
-These e2e files run in CI but have no recipe, so `drive` cannot reach them. When a change touches one, write its recipe (with a `Test:` line) before claiming it verified: `agent-approvals`, `agent-settings`, `chat-feedback`, `client-portal`, `collaboration`, `document-human-review`, `document-pdf`, `document-saving`, `pwa`, `vault-pagination`, `workspace`. `document-pdf` and `client-portal` produce PDFs; confirm they pass against the instance (no workers run) before mapping them.
+These e2e files run in CI but have no recipe, so `drive` cannot reach them. When a change touches one, write its recipe (with a `Test:` line) before claiming it verified: `agent-approvals`, `agent-settings`, `calc`, `chat-feedback`, `client-portal`, `collaboration`, `document-human-review`, `document-pdf`, `document-saving`, `pwa`, `vault-pagination`, `workspace`. `document-pdf` and `client-portal` produce PDFs; confirm they pass against the instance (no workers run) before mapping them.

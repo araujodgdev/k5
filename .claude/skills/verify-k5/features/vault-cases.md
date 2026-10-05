@@ -22,7 +22,7 @@ Test: `apps/web/e2e/agent/vault-cases.e2e.ts`
 
 Preconditions:
 
-- `doctor` all OK. For `cases-empty`, use a fresh instance (`down` + `up`) before creating any case.
+- `doctor` all OK. For `cases-empty`, use a fresh instance (`down` + `up`) before creating any case. The test is under `e2e/agent/` and needs `OPENAI_API_KEY` in the runner's environment. Without it, the drive is unreachable.
 
 - **Empty.** Go to `/app/vault`. The empty-state text above is visible.
 - **Open form.** Click `button "Novo caso"`. It gets `aria-expanded="true"` and turns into "Cancelar". The fields `label "Título"` and `label "Descrição"` appear.

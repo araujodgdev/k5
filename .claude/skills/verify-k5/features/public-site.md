@@ -14,7 +14,7 @@ The signed-out site at `/` presents Lume to visitors and crawlers: server-render
 
 ## How to get to it (user POV)
 
-- Open the instance's `baseURL` signed out; the header has "Entrar" and the theme toggle; the footer links Termos de uso and Política de privacidade.
+- Open the instance's `baseURL` signed out; the header has "Entrar" and the theme toggle; the footer links "Termos de uso" and "Privacidade".
 
 ## Driving it with e2e
 

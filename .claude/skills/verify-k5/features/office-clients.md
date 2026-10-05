@@ -13,7 +13,6 @@ A member registers a client in the office CRM, finds it in the Clientes list, op
 ## How to get to it (user POV)
 
 - Sidebar "Escritório" → tab "Clientes" (`/app/agenda?view=clients`), then the "Novo cliente" button.
-- From a case in Cofre, through its client data.
 
 ## Driving it with e2e
 
@@ -21,7 +20,7 @@ Test: `apps/web/e2e/agent/office-clients.e2e.ts`
 
 Preconditions:
 
-- `doctor` all OK. Use a unique client name per run.
+- `doctor` all OK. Use a unique client name per run. The test is under `e2e/agent/` and needs `OPENAI_API_KEY` in the runner's environment. Without it, the drive is unreachable.
 
 - **Open list.** Go to `/app/agenda?view=clients`. Without clients, the list shows "Nenhum cliente encontrado.".
 - **Create.** Click `button "Novo cliente"`. `dialog "Novo cliente"` opens. Fill `label "Nome"` and `label "E-mail"`, select `label "Relacionamento"` = `active`, then click `button "Salvar"`. The dialog closes and `link "<nome>"` is listed.
