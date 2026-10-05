@@ -10,7 +10,7 @@ An office connects its own Asaas account in Integrações with an API key, then 
 ## How to get to it (user POV)
 
 - Sidebar "Integrações" (`/app/integrations`), section "Asaas".
-- Sidebar "Honorários", then a honorário, then "Preparar cobrança da parcela N".
+- Sidebar "Honorários", then a honorário, then the button "Cobrança" (accessible name "Preparar cobrança da parcela N").
 
 ## Driving it with e2e
 
@@ -27,3 +27,4 @@ Preconditions:
 ## Gotchas
 
 - A real connection needs an Asaas key (`$aact_hmlg_` for sandbox). The automatic receipt also needs a public HTTPS URL (`ASAAS_WEBHOOK_BASE_URL`), which the instance does not have: there, the panel reports the automatic receipt as unavailable.
+- `honorario-charge.e2e.ts` is tagged `pdf` and needs LibreOffice (`soffice`, or `LIBREOFFICE_PATH`) on the machine running `next dev`. Without it, "Baixar PDF" stays disabled and the page shows "Não foi possível gerar o PDF. Tente novamente ou exporte o DOCX."; the test then times out. `asaas.e2e.ts` does not need the converter.
