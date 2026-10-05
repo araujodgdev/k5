@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { SECURITY_HEADERS, withSecurityHeaders } from '../src/lib/security-headers';
 
@@ -16,6 +17,15 @@ test('security headers: a route keeps its own values and its sandbox policy', ()
   assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
   // Two policies, both enforced: the route's sandbox and the framing rule.
   assert.equal(response.headers.get('content-security-policy'), "default-src 'none'; sandbox, frame-ancestors 'self'");
+});
+
+test('security headers: static assets repeat every worker header, including Permissions-Policy', () => {
+  const file = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8');
+  const globalBlock = file.split('\n/sw.js\n')[0];
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    assert.ok(globalBlock.includes(`  ${name}: ${value}`), `${name} missing from public/_headers`);
+  }
+  assert.ok(globalBlock.includes("  Content-Security-Policy: frame-ancestors 'self'"));
 });
 
 test('security headers: immutable responses such as redirects are copied, not left bare', () => {
