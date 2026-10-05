@@ -4,7 +4,7 @@ The office saves a legal calculation, exports it, and turns a positive result in
 
 ## Sub-features
 
-- `calc-empty`: the list at `/app/calc` shows "Nenhum cálculo salvo para esta busca."
+- `calc-empty`: the list at `/app/calc` shows "Nenhum cálculo salvo para esta busca." The page title carries a "BETA" mark.
 - `calc-kinds`: each of the seven starters opens its heading and "Voltar aos cálculos" returns to the list. The starters are "Correção de valores", "Trabalhista", "Revisional bancário", "Pensão alimentícia", "Aluguel", "Consumidor" and "Tributário".
 - `calc-consumer`: keyboard opens "Consumidor"; a double restitution of R$ 100,00 plus a R$ 50,00 payment previews "150,00" in the total; saving persists `totalCents` 15000.
 - `calc-export`: the saved version exports as JSON, CSV and a PDF (`%PDF-`).
