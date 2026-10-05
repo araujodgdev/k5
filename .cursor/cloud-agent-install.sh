@@ -69,15 +69,18 @@ activate_pnpm() {
 }
 
 repair_pnpm_native() {
-  # install.js replaces the shebang-less placeholder only when npm_lifecycle_event
-  # is unset. postinstall only relinks Windows shims. Corepack skips that script,
-  # and Turborepo execs the placeholder directly (ENOEXEC, "Exec format error").
+  # Corepack does not create ~/.local/share/pnpm/.tools. A standalone pnpm install
+  # can leave a shebang-less placeholder there. install.js replaces it only when
+  # npm_lifecycle_event is unset. postinstall only relinks Windows shims.
+  # Turborepo execs that file directly (ENOEXEC, "Exec format error").
   local tools="${HOME}/.local/share/pnpm/.tools/pnpm"
   local installs install_js dir
+  if [[ ! -d "$tools" ]]; then
+    return 0
+  fi
   installs="$(find "$tools" -path '*/node_modules/pnpm/install.js' 2>/dev/null | sort -u || true)"
   if [[ -z "$installs" ]]; then
-    echo "pnpm wrapper missing under ${tools}" >&2
-    exit 1
+    return 0
   fi
   while IFS= read -r install_js; do
     dir="$(dirname "$install_js")"
@@ -96,6 +99,8 @@ activate_pnpm
 cd "$ROOT"
 pnpm install --frozen-lockfile
 repair_pnpm_native
+# Spawn one real task. A cache hit would hide an ENOEXEC from the placeholder.
+pnpm exec turbo run typecheck --filter=@k5/tutorials --force --output-logs=errors-only
 
 resolved="$(command -v node)"
 version="$(node -v)"
