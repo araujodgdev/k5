@@ -37,6 +37,4 @@ Preconditions:
 
 - The only mock is the 503 on `/api/calc/list`. Writes go through the UI and are read back from the API.
 - The test checks the proposal and the tax calculator at 390px. It does not open "Mais", and it does not rebuild the consumer calculation or the proposal on the phone.
-- Calc and the proposal page sit outside the office shell, so the sidebar and the tab bar are absent on those URLs. Reach them from another module, or open the URL directly as the test does.
-- A cold `/app/calc` or `/app/honorarios/propostas` compile in `next dev` can outlast a short assertion. The test allows 360s overall and 60s for the proposal heading. Rerun the drive once before treating a timeout on the empty text as a product bug.
 - Numeric engines and the OAB tables are locked in `tests/calc-engine.test.ts` and `tests/calc-service.test.ts`, not in this UI test.
