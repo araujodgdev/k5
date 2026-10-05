@@ -5,7 +5,7 @@ description: Launch an isolated K5 (Lume) web app, drive it in a real browser as
 
 # Verify K5
 
-K5's user surface is the Next.js web app in `apps/web` (pt-BR, routes under `/app`). This skill runs a **separate** instance: a throwaway embedded PostgreSQL, fresh secrets, and `next dev` on a free port with build directory `.next-verify`. The developer's server on port 3000, their database on `127.0.0.1:55432` and `.next` are never touched. Workers (`pnpm worker`, judicial, notifications) are not started, so do not use this instance to verify document processing, court collection or push delivery.
+K5's user surface is the Next.js web app in `apps/web` (pt-BR, routes under `/app`). This skill runs a **separate** instance: a throwaway embedded PostgreSQL, fresh secrets, and `next dev` on a free port with build directory `.next-verify`. The developer's server on port 3000, their database on `127.0.0.1:55432` and `.next` are never touched. Workers (`pnpm worker`, judicial, notifications) are not started, so do not use this instance to verify vault ingestion, court collection or push delivery. Portal and charge PDFs are converted in the Next.js process by LibreOffice (`soffice` on PATH). `drive client-portal` needs Writer installed and does not need a worker.
 
 Everything goes through one CLI, run from the repository root:
 

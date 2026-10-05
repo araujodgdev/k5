@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { z } from 'zod';
+import { BetaLabel } from '@/components/ads/beta-label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Failure } from '@/components/honorarios/fields';
@@ -34,7 +35,7 @@ export function CalcPanel() {
   }
   const back = () => { setView({ kind: 'list' }); setRevision(value => value + 1); };
   return <div className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
-    <header className="border-b border-line pb-6"><p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Calc</p><h1 className="mt-3 text-3xl font-medium tracking-tight md:text-4xl">Cálculos jurídicos</h1></header>
+    <header className="border-b border-line pb-6"><p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Calc</p><div className="mt-3 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-medium tracking-tight md:text-4xl">Cálculos jurídicos</h1><BetaLabel /></div></header>
     <div className="py-3"><Failure message={error} /></div>
     {view.kind === 'edit' ? <CalcForm key={view.key} kind={view.calculator} seed={view.seed} saved={value => { setView({ kind: 'detail', value }); setRevision(current => current + 1); }} back={back} /> : view.kind === 'detail' ? <>
       <div className="flex flex-wrap items-center justify-between gap-4 py-4"><div><h2 className="text-xl font-medium">{view.value.title}</h2><p className="mt-1 text-xs text-muted-foreground">Salvo em {new Date(view.value.createdAt).toLocaleString('pt-BR')} · versão {view.value.version}</p></div><Button variant="ghost" onClick={back}>Voltar aos cálculos</Button></div>

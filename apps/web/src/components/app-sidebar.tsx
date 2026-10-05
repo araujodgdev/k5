@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { Avatar } from "@/components/profile/avatar";
-import { adminNavigation, appNavigation, mobileTabs, profileNavigation, tutorialNavigation } from "@/lib/navigation";
+import { adminNavigation, appNavigation, mobileTabs, navIsBeta, profileNavigation, tutorialNavigation } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { BetaLabel } from '@/components/ads/beta-label';
 import { TutorialTrigger } from '@/components/onboarding-tour';
@@ -235,12 +235,13 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
   const visibleNavigation = appNavigation.filter((item) => (item.slug !== "whatsapp" || whatsappEnabled) && (item.slug !== "ads" || adsEnabled));
   const overflow = visibleNavigation.filter((item) => !mobileTabs.includes(item.slug));
   const overflowActive = overflow.some((item) => pathname === `/app/${item.slug}`) || adminActive || profileActive || tutorialActive;
-  const currentModule = pathname.startsWith("/app/documents/")
-    ? "Cofre"
-    : tutorialActive ? tutorialNavigation.label : profileActive ? profileNavigation.label : adminActive ? adminNavigation.label : visibleNavigation.find((item) => {
+  const currentNav = pathname.startsWith("/app/documents/")
+    ? appNavigation.find((item) => item.slug === "vault")
+    : visibleNavigation.find((item) => {
         const href = `/app/${item.slug}`;
         return pathname === href || pathname.startsWith(`${href}/`);
-      })?.label ?? "Início";
+      });
+  const currentModule = tutorialActive ? tutorialNavigation.label : profileActive ? profileNavigation.label : adminActive ? adminNavigation.label : currentNav?.label ?? "Início";
 
   return (
     <>
@@ -264,10 +265,10 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
                 const active = pathname === href || pathname.startsWith(`${href}/`);
                 return (
                   <SidebarMenuItem key={item.slug}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.slug === 'ads' ? `${item.label} · BETA` : item.label} className={navRow}>
-                      <Link href={href} aria-current={active ? "page" : undefined} aria-label={collapsed ? `${item.label}${item.slug === 'ads' ? ' · BETA' : ''}` : undefined}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={navIsBeta(item) ? `${item.label} · BETA` : item.label} className={navRow}>
+                      <Link href={href} aria-current={active ? "page" : undefined} aria-label={collapsed ? `${item.label}${navIsBeta(item) ? ' · BETA' : ''}` : undefined}>
                         <Icon aria-hidden="true" className={navTone[item.slug]} /><span className="nav-label">{item.label}</span>
-                        {item.slug === 'ads' && <BetaLabel className="nav-label ml-auto" />}
+                        {navIsBeta(item) && <BetaLabel className="nav-label ml-auto" />}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -317,7 +318,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
       <header className="sticky top-0 z-10 flex h-[calc(3.25rem+env(safe-area-inset-top))] min-w-0 items-stretch gap-3 border-b border-line bg-background pt-[env(safe-area-inset-top)] pr-5 md:hidden">
         <MarkTile className="w-13" />
         <p className="shrink-0 self-center text-sm font-medium">{currentModule}</p>
-        {adsEnabled && currentModule === 'Anúncios' && <BetaLabel className="self-center" />}
+        {currentNav && navIsBeta(currentNav) && !tutorialActive && !profileActive && !adminActive && <BetaLabel className="self-center" />}
         <Separator orientation="vertical" className="data-vertical:h-4 data-vertical:self-center" />
         <p className="min-w-0 self-center truncate text-sm text-muted-foreground" title={officeName}>{officeName}</p>
       </header>
@@ -352,7 +353,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
               <Link key={item.slug} href={href} aria-current={active ? "page" : undefined} onClick={() => setSheetOpen(false)}
                 className={cn("flex min-h-12 items-center gap-3 px-3 text-base transition-colors", active ? "bg-foreground font-medium text-background [&_svg]:text-background" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
                 <Icon className={cn("size-[18px]", navTone[item.slug])} aria-hidden="true" />{item.label}
-                {item.slug === 'ads' && <BetaLabel className="ml-auto" />}
+                {navIsBeta(item) && <BetaLabel className="ml-auto" />}
               </Link>
             );
           })}

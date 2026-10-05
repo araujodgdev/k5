@@ -23,9 +23,24 @@ A Honcho também entrou na lista de destinatários. Nos termos, a seção de IA 
 
 **Situação anterior.** `curl -I https://lume.software/sign-in` voltava sem HSTS, `X-Frame-Options`, CSP/`frame-ancestors`, `X-Content-Type-Options` e `Referrer-Policy`. `next.config.ts` só definia headers para `/sw.js`. As telas de aprovação (envio de e-mail, exclusão) podiam ser emolduradas por outro site.
 
-**Feito.** Ficou comprovado que o `headers()` do `next.config.ts` não chega a produção: o `/sw.js` publicado também saía sem os headers declarados ali. Os headers agora são aplicados em `src/workers/web.ts` por `src/lib/security-headers.ts`: HSTS, `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy`, `Permissions-Policy` e CSP `frame-ancestors 'self'`. Valores próprios das rotas são preservados, e a CSP de sandbox das pré-visualizações passa a conviver com a regra de framing. Os arquivos estáticos recebem os mesmos headers por `public/_headers`, que também passa a entregar os headers do `/sw.js`. Teste: `tests/security-headers.test.ts`.
+**Feito.** Ficou comprovado que o `headers()` do `next.config.ts` não chega a produção: o `/sw.js` publicado também saía sem os headers declarados ali. Os headers agora são aplicados em `src/workers/web.ts` por `src/lib/security-headers.ts`: HSTS, `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy`, `Permissions-Policy` e CSP `frame-ancestors 'self'`. Valores próprios das rotas são preservados, e a CSP de sandbox das pré-visualizações passa a conviver com a regra de framing. Os arquivos estáticos recebem os headers por `public/_headers`, que também entrega os headers do `/sw.js`. Teste: `tests/security-headers.test.ts`.
 
-**Pendente.** Depois do deploy, `curl -I` em `/sign-in`, `/app` e `/sw.js`. Avaliar uma CSP completa (scripts, conexões), que exige inventário de Sentry, Google Picker e fontes.
+**Prova em produção, 05/10/2026, `curl -I` às 15:44 UTC.** `https://lume.software/sign-in` respondeu 200 com os seis headers pedidos.
+
+```
+strict-transport-security: max-age=31536000; includeSubDomains
+content-security-policy: frame-ancestors 'self'
+permissions-policy: camera=(self), microphone=(self), geolocation=(), payment=()
+referrer-policy: strict-origin-when-cross-origin
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+```
+
+`https://lume.software/app`, sem cookie, respondeu 307 para `/sign-in` com os mesmos seis headers. Não havia sessão de produção para repetir `/app` autenticado. A página autenticada passa pelo mesmo `withSecurityHeaders` de `/sign-in`.
+
+`https://lume.software/sw.js` respondeu 200, com `cf-cache-status: HIT`, e devolveu HSTS, `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy` e duas políticas de CSP. A primeira é `frame-ancestors 'self'`. A segunda é `default-src 'self'; script-src 'self'`. Faltou `Permissions-Policy`. `/lume.svg`, servido pelo binding de assets, também saiu sem esse header. `run_worker_first` só lista o vídeo do tutorial, então esses arquivos não passam por `src/workers/web.ts`. O bloco `/*` de `public/_headers` repetia os outros headers e omitia `Permissions-Policy`. A linha entrou nesse bloco, com o mesmo valor de `SECURITY_HEADERS`.
+
+**Pendente.** Publicar e repetir `curl -I https://lume.software/sw.js`. O header esperado é `permissions-policy: camera=(self), microphone=(self), geolocation=(), payment=()`. A CSP completa de scripts e conexões continua para depois, com inventário de Sentry, Google Picker e fontes.
 
 **Decisões.** O framing pela mesma origem continua permitido porque a pré-visualização de PDF usa `<iframe>`. Isso continua impedindo o clickjacking por outros sites. HSTS fica sem `preload`, que é difícil de desfazer.
 
@@ -121,7 +136,7 @@ Antes disso, guardar `K5_CREDENTIALS_KEY` fora da conta Cloudflare.
 - **7C — exportação.** Em Perfil → Seus dados, "Exportar dados" baixa um ZIP gerado em streaming (`/api/office/export`, `lib/office-export.ts`, dependência `client-zip`). Ele traz `dados/*.jsonl` com colunas listadas uma a uma, os originais do Cofre por caso, a memória e um LEIA-ME. Se um original estiver indisponível, entra um aviso no lugar e a exportação continua. Teste: `tests/office-export.test.ts`.
 - **7D — exclusão.** "Excluir conta" pede a senha atual e agenda a exclusão com 7 dias para cancelar (`/api/office/deletion`, `0070`). O expurgo é feito pelo operador com `pnpm --filter @k5/web office:purge list | dry-run | run`, que só aceita pedidos vencidos. Ele apaga as tabelas com `office_id` na ordem das FKs, enfileira originais e vetores, apaga a memória (inclusive na Honcho) e anonimiza a conta. Ficam guardados pagamentos, a auditoria da plataforma, o registro de aceite e o próprio pedido. Runbook em [exclusao-de-escritorio.md](exclusao-de-escritorio.md). Testes: `tests/office-deletion.test.ts`; e2e `e2e/office-data.e2e.ts` (passou no verify-k5, a 390 px).
 
-**Pendente.** O e2e do portal (`client-portal.e2e.ts`) depende de conversão de PDF e não roda no verify-k5; fica para a CI.
+**Feito.** O e2e `e2e/client-portal.e2e.ts` cobre o checkbox do convite e o PDF publicado do documento. O link da cobrança aparece, mas o teste não baixa esse arquivo. Ele passa na CI (`pnpm test:e2e`, com LibreOffice no job) e na instância do verify-k5 quando `soffice` está no PATH. A conversão roda no processo do Next, sem worker. Receita em `.claude/skills/verify-k5/features/client-portal.md`.
 
 **Decisões.**
 - O expurgo não roda automaticamente enquanto não houver restauração ensaiada (frente 5): um erro ali não tem volta. A conta é anonimizada em vez de apagada, porque mensagens e participações em casos de outros escritórios também pertencem a eles.

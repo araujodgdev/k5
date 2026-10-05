@@ -47,9 +47,11 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 - [Office data](./office-data.md): export the office as a ZIP and schedule or cancel its deletion in Perfil → Seus dados. Test: `e2e/office-data.e2e.ts`.
 - [Public site](./public-site.md): the signed-out home, SEO for crawlers, robots and sitemap, keyboard and both themes. Test: `e2e/public-site.e2e.ts`.
 - [Honorários](./honorarios.md): installments, receipts, corrections, cancellation, tabs, error recovery and mobile in the fee ledger. Test: `e2e/honorarios.e2e.ts`.
+- [Cálculos jurídicos](./calc.md): the seven calculators, a saved consumer calculation with versions and export, an OAB-PE/RS proposal with installments, and the federal-tax calculator at 390px. Test: `e2e/calc.e2e.ts`.
 - [Task board](./task-board.md): the Kanban layout of Tarefas, keyboard moves, delegation and empty/error states (UI-only: its APIs are mocked). Test: `e2e/task-board.e2e.ts`.
 - [Vault upload](./vault-upload.md): the 100 MB upload limit and a direct upload into a case folder, processed and downloaded. Test: `e2e/vault-upload.e2e.ts`.
+- [Client portal](./client-portal.md): invite a client, accept the terms checkbox, publish a PDF and a charge, upload a proof, and revoke access. Test: `e2e/client-portal.e2e.ts`. Needs `soffice` on PATH.
 
 ## Not mapped yet
 
-These e2e files run in CI but have no recipe, so `drive` cannot reach them. When a change touches one, write its recipe (with a `Test:` line) before claiming it verified: `agent-approvals`, `agent-settings`, `chat-feedback`, `client-portal`, `collaboration`, `document-human-review`, `document-pdf`, `document-saving`, `pwa`, `vault-pagination`, `workspace`. `document-pdf` and `client-portal` produce PDFs; confirm they pass against the instance (no workers run) before mapping them.
+These e2e files run in CI but have no recipe, so `drive` cannot reach them. When a change touches one, write its recipe (with a `Test:` line) before claiming it verified: `agent-approvals`, `agent-settings`, `chat-feedback`, `collaboration`, `document-human-review`, `document-pdf`, `document-saving`, `pwa`, `vault-pagination`, `workspace`. `document-pdf` produces a PDF. Confirm it passes against the instance (no workers run) before mapping it.

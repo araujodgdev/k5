@@ -346,14 +346,16 @@ test('returning to the page settles pending checkouts from AbacatePay', async ()
 });
 
 test('concurrent checkout requests for one office open a single payment', async () => {
-  const payer = await office();
-  const abacate = fakeAbacate();
-  const results = await Promise.allSettled(Array.from({ length: 4 }, () => startPlanCheckout(payer, abacate.client)));
-  const urls = results.flatMap(result => result.status === 'fulfilled' ? [result.value.url] : []);
-  assert.equal(new Set(urls).size, 1);
-  for (const result of results) if (result.status === 'rejected') assert.equal(result.reason.status,409);
-  assert.equal(abacate.calls.filter(call => call.name === 'createCheckout').length, 1);
-  assert.equal(abacate.calls.filter(call => call.name === 'createCustomer').length, 1);
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const payer = await office();
+    const abacate = fakeAbacate();
+    const results = await Promise.allSettled(Array.from({ length: 4 }, () => startPlanCheckout(payer, abacate.client)));
+    const urls = results.flatMap(result => result.status === 'fulfilled' ? [result.value.url] : []);
+    assert.equal(new Set(urls).size, 1, `attempt ${attempt}`);
+    for (const result of results) if (result.status === 'rejected') assert.equal(result.reason.status, 409);
+    assert.equal(abacate.calls.filter(call => call.name === 'createCheckout').length, 1, `attempt ${attempt}`);
+    assert.equal(abacate.calls.filter(call => call.name === 'createCustomer').length, 1, `attempt ${attempt}`);
+  }
 });
 
 test('a provider outage while reading the product never attempts to create it', async () => {

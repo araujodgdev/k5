@@ -140,7 +140,15 @@ Estornar um recebimento exige motivo, preserva o registro original e cria o hist
 
 Cancelar um honorário exige que não haja recebimentos líquidos válidos. Estorne recebimentos incorretos primeiro. O cancelamento preserva o histórico e retira os valores dos totais ativos. Também exige motivo e confirmação no chat. Não se apagam registros financeiros para esconder baixas ou correções.
 
-Valores, vínculos e cronograma não são editados após o cadastro nesta versão. Não há cancelamento isolado de uma parcela nem renegociação de parcelas futuras após recebimento. Sem a conta do Asaas conectada, o módulo não emite PIX de cobrança nem boletos. Em nenhum caso emite notas fiscais ou calcula juros e correção monetária. Os pagamentos da assinatura Lume pertencem ao módulo Plano, separado dos honorários dos clientes.
+Valores, vínculos e cronograma não são editados após o cadastro nesta versão. Não há cancelamento isolado de uma parcela nem renegociação de parcelas futuras após recebimento. Sem a conta do Asaas conectada, o módulo não emite PIX de cobrança nem boletos. Em nenhum caso emite notas fiscais. Este cadastro de parcelas não calcula juros nem correção monetária. Os pagamentos da assinatura Lume pertencem ao módulo Plano, separado dos honorários dos clientes.
+
+## Cálculos jurídicos
+
+Cálculos jurídicos é um módulo beta, em `/app/calc`. Ele guarda memórias de correção de valores, rescisão trabalhista assistida, revisão Price ou SAC, pensão, aluguel, restituição ao consumidor e débitos ou créditos federais. Quando a memória pede IPCA, INPC, SELIC ou Taxa Legal, os números vêm do Banco Central. Se a série não estiver completa, o cálculo para. O sistema não completa índice faltante.
+
+A tela pede as premissas. A devolução em dobro, a taxa do contrato, os avos da rescisão e o primeiro dia da mora federal são informações do advogado. O resultado não é DARF, liquidação trabalhista nem conclusão de abusividade.
+
+Uma proposta em Propostas e contratos pode usar o total de uma versão salva como base. O catálogo OAB-PE e OAB-RS 2026 reúne 30 atividades com a página e o valor de referência da tabela oficial. Não é a tabela integral, e a data de início da vigência não está confirmada. A proposta não comprova assinatura.
 
 ## Pesquisa jurídica e histórico
 
