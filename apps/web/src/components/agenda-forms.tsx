@@ -30,8 +30,8 @@ function localTime(instant: string | null) {
   return `${localDate(date)}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-export function AgendaEditor({ activity, client, mode, cases, clients, members, day, caseId, clientId, timeZone, close, saved, onConfirm }: {
-  activity?: AgendaActivity; client?: CrmClient; mode: 'activity' | 'client'; cases: Choice[]; clients: Choice[]; members: Choice[];
+export function AgendaEditor({ activity, client, mode, fields = 'all', cases, clients, members, day, caseId, clientId, timeZone, close, saved, onConfirm }: {
+  activity?: AgendaActivity; client?: CrmClient; mode: 'activity' | 'client'; fields?: 'all' | 'task-details'; cases: Choice[]; clients: Choice[]; members: Choice[];
   day: string; caseId: string; clientId: string; timeZone: string; close: () => void; saved: () => void;
   onConfirm?: (payload: Record<string, unknown>) => Promise<unknown>;
 }) {
@@ -60,7 +60,7 @@ export function AgendaEditor({ activity, client, mode, cases, clients, members, 
         }
         const payload = {
           ...(activity ? { activityId: activity.id, version: activity.version } : {}),
-          kind, title: text('title'), notes: text('notes'), status: text('status'),
+          kind, title: text('title'), notes: text('notes'), status: fields === 'task-details' && activity ? activity.status : text('status'),
           dueOn: kind === 'task' ? text('dueOn') || null : null,
           startsAt: kind === 'meeting' ? localInstant(text('startsAt').slice(0, 10), text('startsAt').slice(11), timeZone) : null,
           endsAt: kind === 'meeting' ? localInstant(text('endsAt').slice(0, 10), text('endsAt').slice(11), timeZone) : null,
@@ -76,7 +76,7 @@ export function AgendaEditor({ activity, client, mode, cases, clients, members, 
   // The fields scroll between the title and a fixed row of actions, so Cancelar and Salvar stay in
   // view on a phone instead of ending up at the bottom of a long scroll.
   return <Dialog open onOpenChange={open => { if (!open && !busy) close(); }}><DialogContent showCloseButton={false} className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-xl [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9">
-    <DialogHeader><DialogTitle>{onConfirm ? 'Revisar sugestão' : mode === 'client' ? (client ? 'Editar cliente' : 'Novo cliente') : (activity ? 'Editar atividade' : 'Nova atividade')}</DialogTitle><DialogDescription className={onConfirm ? 'text-sm text-muted-foreground' : 'sr-only'}>{onConfirm ? 'Confira todos os campos. A atividade só será salva ao confirmar.' : 'Preencha os dados e salve as alterações.'}</DialogDescription></DialogHeader>
+    <DialogHeader><DialogTitle>{onConfirm ? 'Revisar sugestão' : mode === 'client' ? (client ? 'Editar cliente' : 'Novo cliente') : (activity ? fields === 'task-details' ? 'Editar tarefa' : 'Editar atividade' : 'Nova atividade')}</DialogTitle><DialogDescription className={onConfirm ? 'text-sm text-muted-foreground' : 'sr-only'}>{onConfirm ? 'Confira todos os campos. A atividade só será salva ao confirmar.' : 'Preencha os dados e salve as alterações.'}</DialogDescription></DialogHeader>
     <form onSubmit={submit} onChange={() => setKey(crypto.randomUUID())} className="-mx-4 -mb-4 flex min-h-0 flex-col">
       <div className="min-h-0 overflow-y-auto px-4 pt-1 pb-4">
       <fieldset disabled={busy} className="grid min-w-0 gap-4">
@@ -95,7 +95,7 @@ export function AgendaEditor({ activity, client, mode, cases, clients, members, 
           </> :<p className="text-sm text-muted-foreground">Nenhum caso cadastrado no Cofre.</p>}</fieldset>
         </> : <>
           <Field name="title" label="Título"><Input id="title" name="title" required minLength={2} maxLength={180} defaultValue={activity?.title} className="h-11 md:h-9" /></Field>
-          <div className="grid gap-4 sm:grid-cols-2"><Field name="kind" label="Tipo"><select id="kind" value={kind} onChange={e => setKind(e.target.value as 'task' | 'meeting')} className={selectStyle}><option value="task">Tarefa</option><option value="meeting">Reunião</option></select></Field><Field name="status" label="Situação"><select id="status" name="status" defaultValue={activity?.status ?? 'pending'} className={selectStyle}><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="completed">Concluída</option><option value="cancelled">Cancelada</option></select></Field></div>
+          {fields === 'all' && <div className="grid gap-4 sm:grid-cols-2"><Field name="kind" label="Tipo"><select id="kind" value={kind} onChange={e => setKind(e.target.value as 'task' | 'meeting')} className={selectStyle}><option value="task">Tarefa</option><option value="meeting">Reunião</option></select></Field><Field name="status" label="Situação"><select id="status" name="status" defaultValue={activity?.status ?? 'pending'} className={selectStyle}><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="completed">Concluída</option><option value="cancelled">Cancelada</option></select></Field></div>}
           {kind === 'task' ? <Field name="dueOn" label="Data (opcional)"><Input id="dueOn" name="dueOn" type="date" defaultValue={activity ? activity.dueOn ?? '' : day} className="h-11 md:h-9" /></Field> : <div className="space-y-2"><p className="text-xs text-muted-foreground">{timeZoneLabel(timeZone)}</p><div className="grid gap-4 sm:grid-cols-2"><Field name="startsAt" label="Início"><Input id="startsAt" name="startsAt" type="datetime-local" required defaultValue={localTime(activity?.startsAt ?? null) || (onConfirm ? '' : `${day}T09:00`)} className="h-11 md:h-9" /></Field><Field name="endsAt" label="Fim"><Input id="endsAt" name="endsAt" type="datetime-local" required defaultValue={localTime(activity?.endsAt ?? null) || (onConfirm ? '' : `${day}T10:00`)} className="h-11 md:h-9" /></Field></div></div>}
           <Selection name="assigneeId" label="Responsável" choices={members} value={activity?.assigneeId} />
           <div className="grid gap-4 sm:grid-cols-2"><Field name="clientId" label="Cliente"><ClientPicker name="clientId" label="Cliente" value={selectedClientId} onChange={setSelectedClientId} choices={clients} /></Field><Selection name="caseId" label="Caso do Cofre" choices={cases} value={activity ? activity.caseId : caseId} /></div>

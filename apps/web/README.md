@@ -562,7 +562,7 @@ O Início reúne tarefas pendentes até hoje, próximas reuniões, clientes ativ
 
 ## Kanban e delegação de tarefas
 
-Em Escritório → Tarefas, alterne entre Lista e Kanban. O quadro reúne todas as tarefas dos filtros selecionados em A fazer, Em andamento, Concluídas e Canceladas. O controle de situação de cada cartão permite mover a tarefa com mouse, toque ou teclado. `?layout=kanban` abre o quadro diretamente.
+Em Escritório → Tarefas, alterne entre Lista e Kanban. O quadro reúne todas as tarefas dos filtros selecionados em A fazer, Em andamento, Concluídas e Canceladas. Cada cartão tem uma alça, "Arrastar <título>", para mover a tarefa de coluna: arraste com o mouse ou o dedo, ou, pelo teclado, foque a alça e use Espaço ou Enter para pegar, as setas para a esquerda e para a direita para escolher a coluna, Espaço ou Enter para soltar e Esc para cancelar. O cartão muda de coluna na hora e cada tarefa é salva sozinha; se o salvamento falha, o cartão volta e um aviso explica o motivo, sem recarregar o quadro. Mover só altera a situação: a ordem dentro da coluna segue o prazo. O título do cartão abre a página da tarefa. `?layout=kanban` abre o quadro diretamente.
 
 O advogado pode usar **Delegar ao Lume** em uma tarefa aberta. A ação cria uma conversa pessoal com título, observações, prazo e vínculos da tarefa, inicia o agente e coloca a tarefa em andamento. **Abrir sessão do Lume** retorna à mesma conversa. Cada usuário vê somente sua própria sessão. O agente deve entregar o resultado antes de concluir a tarefa; dúvidas e confirmações continuam na conversa.
 
