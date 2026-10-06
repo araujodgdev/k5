@@ -112,7 +112,7 @@ desvincular ou consultar um tribunal, sobrescrever uma minuta) viram uma propost
 `capability_approval` e só rodam quando a pessoa aperta **Confirmar** no chat
 (`/api/chat/approvals/[id]`), com exatamente os argumentos propostos.
 
-Com modelos OpenAI ou Anthropic, o Lume tem a busca na web do próprio provedor. Com os demais
+Com modelos OpenAI, Anthropic ou CLIProxyAPI, o Lume tem a busca na web do próprio provedor. Com os demais
 (Gemini inclusive, que não combina Google Search com ferramentas), `web_search` usa o Exa quando
 `EXA_API_KEY` está configurada; só a consulta sai do escritório, e as páginas devolvidas entram na
 conferência de citações. Sem a chave, esses modelos ficam sem busca na web. Em pedidos de
@@ -157,6 +157,44 @@ O botão **Atualizar** recarrega alterações realizadas pelo agente ou por outr
 
 Escopo e próximas etapas: [plano de Tarefas e Agenda](../../docs/plano-tarefas-agenda.md).
 
+## CLIProxyAPI e conversas simultâneas
+
+Em **Administração → IA → Conexões**, o administrador pode cadastrar **CLIProxyAPI (Lume)**
+com uma chave própria desse serviço. A conexão usa exclusivamente `https://api.lume.software/v1`
+pela API Responses. A chave fica cifrada no banco e não volta ao navegador. Redirecionamentos
+do endpoint são recusados. Ao trocar de ou para esse provider, informe uma chave nova.
+
+Escolha a conexão explicitamente em **Modelos por tarefa**. Criar ou editar uma conexão
+CLIProxyAPI não altera o padrão nem as atribuições existentes. O catálogo inclui `gpt-6-luna`
+e `gpt-6.1-sol`. Tarefas de documentos preservam o provider fixado quando entraram na fila.
+OpenAI direta continua usando sua conexão e credencial próprias.
+
+A busca web do proxy usa a ferramenta nativa do SDK OpenAI, com fontes na resposta.
+As chamadas usam `store: false`, pois o serviço não conserva os itens de resposta que
+o SDK referenciaria nos próximos passos de uma chamada com ferramentas.
+Imagens estão habilitadas somente em `gpt-6-luna`, verificado com uma requisição real.
+Outros modelos do proxy não recebem imagens. PDF direto, áudio, transcrição e embeddings
+não estão habilitados no proxy, mesmo quando o administrador digita outro ID de modelo.
+Textos já extraídos do Cofre continuam disponíveis. Mantenha embeddings e transcrição
+em conexões compatíveis com essas funções.
+
+Cada pessoa pode manter até três respostas do Lume em execução, somando chat e
+**Delegar ao Lume**, qualquer que seja o provider. A quarta recebe HTTP 429 antes de
+guardar uma pergunta ou alterar a tarefa. Outra mensagem na mesma conversa recebe 409.
+Concluir, parar ou falhar libera a vaga. Depois de uma queda do executor, a vaga expira
+em até cinco minutos. Uma execução antiga não pode substituir o histórico nem liberar
+a vaga de uma execução mais nova. O número de conversas salvas continua ilimitado.
+
+O servidor deriva um `Session-Id` opaco por escritório, pessoa e conversa. Ele permanece
+estável entre turnos e não contém o identificador da sessão de login. O histórico continua
+no Lume, sem depender de um histórico local do Codex.
+
+Os testes de contrato e concorrência rodam sem uma chave externa. O e2e
+`e2e/cliproxyapi.e2e.ts` cobre a seleção em desktop e celular. Para incluir uma conversa
+real, defina `K5_E2E_REAL_AI=1` e `K5_E2E_CLIPROXYAPI_KEY_FILE` no processo do runner.
+A [receita verify-lume](../../.agents/skills/verify-lume/features/cliproxyapi.md) descreve
+a configuração isolada, as evidências e os limites da prova local.
+
 ## IA e documentos
 
 O plano está em [`docs/plano-ia-mvp.md`](../../docs/plano-ia-mvp.md).
@@ -176,7 +214,7 @@ aplicativo continua exigindo salvar antes: rascunhos privados não são gravados
   as abas Feedback, Clientes, Financeiro, IA, Execuções, Credenciais e Auditoria. A aba Auditoria
   (`/app/admin/audit`) lista `platform_audit_log`, com filtros por grupo de ação e por escritório. A aba IA (`/app/admin/ai`) configura uma vez,
   para todos os escritórios, as conexões de IA da plataforma (OpenAI, Anthropic, Google,
-  DeepSeek, Inception, OpenRouter e AI Gateway) e a TypeSafe. Em **Modelos por tarefa** o
+  DeepSeek, Inception, OpenRouter, AI Gateway e CLIProxyAPI) e a TypeSafe. Em **Modelos por tarefa** o
   administrador escolhe conexão, modelo e esforço de raciocínio por grupo (Agente, Redação
   jurídica, Extração de documentos, Resumo e texto curto, Classificação e segurança, Transcrição)
   e, quando precisar, por tarefa; o catálogo fica em `src/lib/ai-tasks.ts` e a resolução em
@@ -196,7 +234,7 @@ aplicativo continua exigindo salvar antes: rascunhos privados não são gravados
   tabela `platform_admin`, independente do papel no escritório, e só é concedido pela linha
   de comando: `pnpm platform:admin grant --email usuario@exemplo.com` (`revoke` retira).
   Chaves ficam cifradas com AES-256-GCM e nunca voltam ao navegador; operações são auditadas.
-  Só providers que aceitam esforço o recebem (hoje, OpenAI); os demais usam o próprio padrão. A
+  Só providers que aceitam esforço o recebem (OpenAI e CLIProxyAPI); os demais usam o próprio padrão. A
   migração 0030 manteve o esforço de antes: `xhigh` no Agente, na Redação e na Extração, `medium`
   no panorama de e-mails, `low` nas respostas rápidas e na guarda contra injeção. O modelo
   escolhido precisa aceitar o esforço; o botão **Testar** confere a combinação.

@@ -44,6 +44,7 @@
     "db:local": "tsx scripts/postgres-local.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "4.0.21",
     "@ai-sdk/react": "^4.0.105",
     "@assistant-ui/ai-sdk": "^0.0.6",
     "@assistant-ui/react": "^0.15.20",
@@ -118,7 +119,6 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^4.0.83",
     "@cloudflare/puppeteer": "^1.4.0",
     "@cloudflare/vite-plugin": "^1.56.0",
     "@cloudflare/workers-types": "^5.20260928.1",

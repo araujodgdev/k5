@@ -7,11 +7,13 @@ import type { chatRequestSchema } from '@/lib/chat-contract';
 import { captureOperationalError, traceAgentTurn } from '@/lib/observability/report';
 import { AgentTrace, type TraceStatus } from '@/lib/observability/agent-trace';
 import { database } from '@/lib/database';
-import { conversation, ownedArtifact, saveMessages } from '@/lib/ai-store';
+import { conversation, ownedArtifact } from '@/lib/ai-store';
+import { releaseTurn, TURN_ABORT_MARGIN_MS, type TurnLease } from '@/lib/chat-lease';
 import { documentFocusPrompt } from '@/lib/artifact-edits';
 import { reviewCitations, type CitationItem } from '@/lib/citations/review';
 import { conversationSources, recordSources, type RecordedSource } from '@/lib/citations/sources';
 import { createAgent, errorClass, recordUsage, requestContextFor } from '@/lib/ai-runtime';
+import { conversationSession } from '@/lib/ai-providers';
 import { selectedResearchSources } from '@/lib/ai-sources';
 import type { WorkspaceContext } from '@/lib/application/context';
 import { agentTools, toolSummary, type ApprovalRequest } from '@/lib/agent-tools';
@@ -39,16 +41,11 @@ import { moduleToolSelection } from '@/lib/agent-tools/selection';
 import { recordedWebSources, webStepSources } from '@/lib/citations/web-step';
 import { citationMarkdown, type WebReference } from '@/lib/citations/web-references';
 
-/**
- * One chat turn, run apart from the request that asked for it. The route validates the message,
- * stores it and locks the conversation; this runs the agent to the end and stores the answer, in a
- * Durable Object on Cloudflare (see chat-run.ts), so closing the page no longer stops the Lume.
- * Everything here is serializable: the workspace comes from the session the route checked, and
- * the tools re-check access on every call.
- */
 export type ChatTurn = {
   workspace: Pick<WorkspaceContext, 'userId' | 'officeId' | 'sessionId'>;
   conversationId: string;
+  /** The answer is stored, and the conversation freed, only while this lease is the turn's (chat-lease.ts). */
+  lease: TurnLease;
   request: Pick<z.output<typeof chatRequestSchema>, 'documentIds' | 'caseId' | 'researchReferenceIds' | 'attachments' | 'timeZone' | 'openDocumentId' | 'selection'>;
 };
 
@@ -102,10 +99,10 @@ Não anuncie suas capacidades, não ofereça listas de próximos passos e não p
 Se faltar um dado para responder, faça uma pergunta objetiva. Se o Cofre estiver vazio, diga isso em uma frase e siga a conversa.`;
 
 
-export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter, signal: AbortSignal) {
-  const { workspace, conversationId: id, request: body } = turn;
+export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter, stop: AbortSignal) {
+  const { workspace, conversationId: id, request: body, lease } = turn;
   const owner = { officeId: workspace.officeId, userId: workspace.userId };
-  const release = () => database.prepare('UPDATE ai_conversation SET busy_until=0 WHERE id=? AND office_id=?').run(id, owner.officeId);
+  const signal = AbortSignal.any([stop, AbortSignal.timeout(Math.max(0, lease.expiresAt - TURN_ABORT_MARGIN_MS - Date.now()))]);
   let released = false;
   try {
     // Pages this turn's web search returned, filled as each step finishes; the case-law scoring
@@ -275,7 +272,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
 
         const controller = new AbortController();
         const response = await agent.stream(promptMessages as Parameters<typeof agent.stream>[0], {
-          requestContext: requestContextFor(config),
+          requestContext: requestContextFor({ ...config, session: conversationSession(owner, id) }),
           maxSteps: MAX_STEPS,
           prepareStep: () => ({ activeTools: selection.activeTools() }),
           modelSettings: { maxOutputTokens: 6000 },
@@ -367,6 +364,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
             }
           }
         }
+        signal.throwIfAborted();
         if (halted) { emit(halted); status = 'halted'; }
         usage = await response.usage;
         await recordUsage(owner.officeId, owner.userId, config, config.task, 'completed', usage,
@@ -406,8 +404,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
           ...confirmations.map(item => ({ type: 'data-approval' as const, id: item.approvalId, data: item })),
           ...(citations ? [{ type: 'data-citations' as const, id: `${messageId}-citations`, data: citations }] : []),
         ];
-        await saveMessages(database, owner, id, [...messages, { id: messageId, role: 'assistant', parts }]);
-        await release();
+        if (!await releaseTurn(owner, id, lease, [...messages, { id: messageId, role: 'assistant', parts }])) trace.event('fenced', null, {});
         released = true;
         await trace.close(status, usage, failure);
       }
@@ -421,6 +418,6 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     } catch (error) { captureOperationalError(error, 'honcho.queue'); }
   } finally {
     // A turn that failed before the agent started must not keep the conversation locked.
-    if (!released) await release().catch(error => captureOperationalError(error, 'chat.release'));
+    if (!released) await releaseTurn(owner, id, lease).catch(error => captureOperationalError(error, 'chat.release'));
   }
 }

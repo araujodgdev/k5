@@ -11,6 +11,7 @@ import { whatsappCapabilities } from './whatsapp';
 import { workspaceCapabilities } from './workspace';
 import { agentSettingsCapabilities } from './agent-settings';
 import { helpSearchInput, helpSearchOutput } from '@/lib/platform-help/contracts';
+import { AI_PROVIDERS } from '@/lib/ai-provider-names';
 
 /**
  * Serializable contract of every operation the product exposes to an agent.
@@ -700,7 +701,7 @@ export const platformCapabilities = {
     description: 'Cadastra uma nova conexão de IA da plataforma, com a credencial cifrada. Vale para todos os escritórios.',
     input: z.object({
       name: z.string().trim().min(2).max(80),
-      provider: z.enum(['openai', 'anthropic', 'google', 'deepseek', 'inception', 'openrouter', 'vercel']),
+      provider: z.enum(AI_PROVIDERS),
       // Opaque reference to a key a human already submitted through the platform form.
       secretRef: z.string().uuid().describe('Referência de segredo emitida pelo formulário da plataforma.'),
       enabled: z.boolean().optional(),
@@ -725,7 +726,7 @@ export const platformCapabilities = {
     input: z.object({
       connectionId: identifier,
       name: z.string().trim().min(2).max(80).optional(),
-      provider: z.enum(['openai', 'anthropic', 'google', 'deepseek', 'inception', 'openrouter', 'vercel']).optional(),
+      provider: z.enum(AI_PROVIDERS).optional(),
       secretRef: z.string().uuid().optional().describe('Referência de segredo emitida pelo formulário da plataforma; obrigatória apenas ao rotacionar a chave.'),
       enabled: z.boolean().optional(),
       // Task models are chosen per task in Administração › IA; a connection keeps only the embedding model.

@@ -5,11 +5,10 @@ import {
   credentialHint, credentialNeedsReencryption, CredentialDecryptError, decryptCredential, encryptCredential, type CredentialKeyring,
 } from "./platform-crypto";
 import { defaultChatModel, defaultEmbeddingModel } from "./ai-defaults";
+import { AI_PROVIDERS, type AiProvider } from "./ai-provider-names";
 
+export { AI_PROVIDERS, type AiProvider };
 export type MasterKey = Uint8Array | CredentialKeyring;
-
-export const AI_PROVIDERS = ["openai", "anthropic", "google", "deepseek", "inception", "openrouter", "vercel"] as const;
-export type AiProvider = typeof AI_PROVIDERS[number];
 
 /**
  * A connection is a provider and its credential. Which connection and model serve each task lives
@@ -74,6 +73,10 @@ function validateName(value: unknown): string {
 function validateProvider(value: unknown): AiProvider {
   if (!AI_PROVIDERS.includes(value as AiProvider)) throw new AiConnectionError("invalid", "Provider não suportado.");
   return value as AiProvider;
+}
+
+function validateEmbedding(provider: AiProvider, embeddingModel: string | null) {
+  if (provider === "cliproxyapi" && embeddingModel) throw new AiConnectionError("invalid", "O CLIProxyAPI não oferece embeddings. Mantenha a busca semântica em outra conexão.");
 }
 
 function toView(row: Row) {
@@ -142,6 +145,7 @@ export async function createAiConnection(db: Database, key: MasterKey, actorUser
   const name = validateName(input.name);
   const provider = validateProvider(input.provider);
   const embeddingModel = cleanModel(input.models?.embedding);
+  validateEmbedding(provider, embeddingModel);
   const apiKey = input.apiKey?.trim();
   if (!apiKey) throw new AiConnectionError("invalid", "Informe a chave do provider.");
   try {
@@ -169,8 +173,12 @@ export async function updateAiConnection(db: Database, key: MasterKey, actorUser
   // a pinned run would send that ID to a provider that does not know it.
   if (provider !== current.provider) await assertUnreferenced(db, connectionId, "trocar o provider");
   const embeddingModel = patch.models?.embedding === undefined ? current.embedding_model : cleanModel(patch.models.embedding);
+  validateEmbedding(provider, embeddingModel);
   const apiKey = patch.apiKey?.trim();
   if (patch.apiKey !== undefined && !apiKey) throw new AiConnectionError("invalid", "A nova chave não pode estar vazia.");
+  if (provider !== current.provider && (provider === "cliproxyapi" || current.provider === "cliproxyapi") && !apiKey) {
+    throw new AiConnectionError("invalid", "Informe a chave do novo provider. A chave atual não é enviada a outro endereço.");
+  }
   const encrypted = apiKey ? encryptCredential(apiKey, key) : current.encrypted_api_key;
   const hint = apiKey ? credentialHint(apiKey) : current.api_key_hint;
   const enabled = patch.enabled === undefined ? current.enabled : patch.enabled ? 1 : 0;

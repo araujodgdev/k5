@@ -2,6 +2,7 @@ import 'server-only';
 import { createUIMessageStream, JsonToSseTransformStream, UI_MESSAGE_STREAM_HEADERS, type UIMessageChunk } from 'ai';
 import { captureOperationalError } from '@/lib/observability/report';
 import { runChatTurn, type ChatTurn } from '@/lib/chat-turn';
+import { holdsTurn, TurnFenced } from '@/lib/chat-lease';
 
 /**
  * A chat turn in flight: the chunks written so far and the runs following them. Whoever connects
@@ -14,6 +15,9 @@ export class ChatRun {
   readonly controller = new AbortController();
   messageId: string | undefined;
   done = false;
+
+  /** The lease token of the turn this run answers. */
+  constructor(readonly token: string) {}
 
   push(chunk: UIMessageChunk) {
     if (chunk.type === 'start' && chunk.messageId) this.messageId = chunk.messageId;
@@ -57,6 +61,24 @@ export async function executeChatRun(run: ChatRun, turn: ChatTurn) {
   }
 }
 
+/**
+ * The run a start should begin, or null when it repeats the start of the run in flight. Any other
+ * start must hold the conversation's lease: a late or replayed one is refused, so it never stops a
+ * live run, and a current one ends the run it replaces, whose lease has already expired.
+ */
+export async function nextRun(active: () => ChatRun | undefined, install: (run: ChatRun) => void, turn: ChatTurn): Promise<ChatRun | null> {
+  for (;;) {
+    const previous = active();
+    if (previous?.token === turn.lease.token) return null;
+    if (!await holdsTurn(turn.workspace, turn.conversationId, turn.lease)) throw new TurnFenced();
+    if (active() !== previous) continue;
+    const run = new ChatRun(turn.lease.token);
+    install(run);
+    previous?.controller.abort();
+    return run;
+  }
+}
+
 /** The finished run stays followable briefly, for a page that reopened just as it ended. */
 const FINISHED_RUN_MS = 120_000;
 
@@ -91,8 +113,8 @@ export function followable(run: ChatRun | undefined, lastMessageId?: string) {
 export async function startChatRun(turn: ChatTurn) {
   const durable = await durableRuns();
   if (durable) return durable.getByName(turn.conversationId).start(turn);
-  const run = new ChatRun();
-  processRuns.set(turn.conversationId, run);
+  const run = await nextRun(() => processRuns.get(turn.conversationId), run => processRuns.set(turn.conversationId, run), turn);
+  if (!run) return;
   void executeChatRun(run, turn).finally(() => setTimeout(() => {
     if (processRuns.get(turn.conversationId) === run) processRuns.delete(turn.conversationId);
   }, FINISHED_RUN_MS));

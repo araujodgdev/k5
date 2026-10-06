@@ -1,12 +1,14 @@
 import 'server-only';
+import { openai } from '@ai-sdk/openai';
 import { createTool, webSearchTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { traceToolCall } from './observability/report';
 
 /**
  * Web search for models without one of their own. OpenAI and Anthropic search inside the provider
- * (Mastra's webSearchTool); every other provider, Gemini included because Google Search does not
- * mix with function calling, gets this tool under the same name, backed by Exa.
+ * (Mastra's webSearchTool), and so does CLIProxyAPI through the SDK's own tool, which Mastra's does not
+ * accept on an explicit SDK model. Every other provider, Gemini included because Google Search does
+ * not mix with function calling, gets this tool under the same name, backed by Exa.
  *
  * Only the query leaves the office. Page text comes back as untrusted data: the tool-result guard
  * checks it before the model reads it, and the chat records the URLs for the citation review.
@@ -73,6 +75,7 @@ export function exaWebSearchTool(apiKey: string) {
 
 /** The provider's own search when it has one, Exa when configured, otherwise no web search. */
 export function webSearchFor(provider: string): Record<string, unknown> {
+  if (provider === 'cliproxyapi') return { web_search: openai.tools.webSearch({}) };
   if (NATIVE_WEB_SEARCH_PROVIDERS.has(provider)) return { web_search: webSearchTool };
   const apiKey = exaApiKey();
   return apiKey ? { web_search: exaWebSearchTool(apiKey) } : {};

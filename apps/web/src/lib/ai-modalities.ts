@@ -43,6 +43,8 @@ const RULES: Rule[] = [
   { match: /^(llama-?3\.2-.*vision|llama-?4|pixtral|llava|qwen.*-vl)/i, modalities: IMAGE },
 ];
 
+const VERIFIED_PROXY_IMAGE_MODELS: ReadonlySet<string> = new Set(["gpt-6-luna"]);
+
 /** Aggregator ids look like `openai/gpt-4o`; the family lives after the last slash. */
 function bareModelId(modelId: string) {
   const parts = modelId.split("/").filter(Boolean);
@@ -52,6 +54,7 @@ function bareModelId(modelId: string) {
 
 export function modelModalities(provider: string, modelId: string): Modalities {
   if (!modelId) return TEXT_ONLY;
+  if (provider === "cliproxyapi") return VERIFIED_PROXY_IMAGE_MODELS.has(modelId) ? IMAGE : TEXT_ONLY;
   const id = provider === "google" ? modelId : bareModelId(modelId);
   return RULES.find((rule) => rule.match.test(id))?.modalities ?? TEXT_ONLY;
 }

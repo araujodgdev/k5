@@ -253,7 +253,9 @@ test("every supported provider can be stored and resolved with its own credentia
     assert.equal(created.provider, provider);
     await assignAgent(database, admin, created.id, `${provider}-chat-model`);
     const config = await resolveTaskModelFromDatabase(database, key, "agent.chat");
-    assert.deepEqual(modelFor(config), { providerId: provider, modelId: `${provider}-chat-model`, apiKey: `sk-${provider}-live` });
+    assert.equal(config.provider, provider);
+    assert.equal(config.modelId, `${provider}-chat-model`);
+    assert.equal(config.apiKey, `sk-${provider}-live`);
     assert.equal(JSON.stringify(created).includes(`sk-${provider}-live`), false);
     await updateModelAssignment(database, admin, { scope: "group", target: "agent", model: { mode: "inherit" }, effort: { mode: "inherit" } });
     await deleteAiConnection(database, admin, created.id);

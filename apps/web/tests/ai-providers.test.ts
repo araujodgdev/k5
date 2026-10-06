@@ -8,6 +8,7 @@ import { chatHearsAudio, modelModalities } from "../src/lib/ai-modalities";
 
 test("modelFor binds the given key and model id to the provider, without network calls", () => {
   for (const provider of AI_PROVIDERS) {
+    if (provider === 'cliproxyapi') continue;
     const config: ModelCredential = { provider, modelId: `${provider}-test-model`, apiKey: `key-${provider}` };
     assert.deepEqual(modelFor(config), { providerId: provider, modelId: config.modelId, apiKey: config.apiKey });
   }
@@ -21,7 +22,7 @@ test("every supported provider resolves through the model router and is named in
   const catalog = providerCatalog();
   for (const provider of AI_PROVIDERS) {
     const model = await resolveModelConfig(modelFor({ provider, modelId: catalog[provider][0], apiKey: `key-${provider}` }));
-    assert.equal(model.provider, provider, `${provider} resolve com o próprio protocolo`);
+    assert.equal(model.provider, provider === 'cliproxyapi' ? 'openai.responses' : provider, `${provider} resolve com o próprio protocolo`);
     assert.ok(catalog[provider].length > 0, `${provider} tem modelos conhecidos`);
     assert.ok(providerLabels[provider], `${provider} tem nome de exibição`);
   }

@@ -221,6 +221,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@ai-sdk/openai':
+        specifier: 4.0.21
+        version: 4.0.21(zod@4.6.5)
       '@ai-sdk/react':
         specifier: ^4.0.105
         version: 4.0.105(react@19.2.8)(zod@4.6.5)
@@ -438,9 +441,6 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@ai-sdk/openai':
-        specifier: ^4.0.83
-        version: 4.0.83(zod@4.6.5)
       '@cloudflare/puppeteer':
         specifier: ^1.4.0
         version: 1.4.0(supports-color@7.2.0)
@@ -452,7 +452,7 @@ importers:
         version: 5.20260928.1
       '@e2e-dev/web':
         specifier: ^0.11.1
-        version: 0.11.1(e2e@0.15.1(@ai-sdk/openai@4.0.83(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0))(playwright@1.63.0)
+        version: 0.11.1(e2e@0.15.1(@ai-sdk/openai@4.0.21(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0))(playwright@1.63.0)
       '@sentry/cli':
         specifier: ^3.8.0
         version: 3.8.0
@@ -497,7 +497,7 @@ importers:
         version: 0.5.35(react-dom@19.2.8(react@19.2.8))(react-server-dom-webpack@19.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.5.1))))(react@19.2.8)(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
       e2e:
         specifier: ^0.15.1
-        version: 0.15.1(@ai-sdk/openai@4.0.83(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0)
+        version: 0.15.1(@ai-sdk/openai@4.0.21(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0)
       embedded-postgres:
         specifier: 18.4.0-beta.17
         version: 18.4.0-beta.17
@@ -572,8 +572,8 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/openai@4.0.83':
-    resolution: {integrity: sha512-NgqZVWoya7hfmtLkWyIjX9THbyYMLfxFqpShdAmvMnkoT+R9AZbdULGan8+4BiBWIZ1aHiAsc90l3SL8QU/0+Q==}
+  '@ai-sdk/openai@4.0.21':
+    resolution: {integrity: sha512-2z+Hf+VXfevQWiiCUgUGi2m/rH1Tew5sL2knuUWUbY/qsrdmhgpCAghDdkcMY/bj6EgCvVVzqxHN4NyrTh2FdQ==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -596,12 +596,6 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@5.0.53':
-    resolution: {integrity: sha512-VVe6UDd0y0/B4TfauuKKzcppqvhTmSluwwUVT4WG2/8h7gFbyFm7PM4UGM+ZXe3/RI6bv+Vl1cw/7aiBoQqdxg==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
   '@ai-sdk/provider@2.0.3':
     resolution: {integrity: sha512-h88OPkavHTiN9tMn2l5awAznGB0lXzjcLhgR1/rvjB2zlLprsNxbM2tt6OJsHUxduLC3klq0/eqaSf6fX5XVww==}
     engines: {node: '>=18'}
@@ -616,10 +610,6 @@ packages:
 
   '@ai-sdk/provider@4.0.18':
     resolution: {integrity: sha512-+GZJIgz1jk86pwEbb3f1BD2bdoSKyWE4Jg4YUc7NMnMozbWemSKYZcw2F4nMaO5qwsL5A8RmioAKW81YktRpIQ==}
-    engines: {node: '>=22'}
-
-  '@ai-sdk/provider@4.0.21':
-    resolution: {integrity: sha512-UpbC9C1oht8dhfKPbVXSLRZS3DI8uk8n5v2uMjBPNIYGsC2kL045ywq7D8Hh9KgnH9rP5W/GxQdYtWScRouqlA==}
     engines: {node: '>=22'}
 
   '@ai-sdk/provider@4.0.4':
@@ -8863,10 +8853,10 @@ snapshots:
       pkce-challenge: 5.0.1
       zod: 4.6.5
 
-  '@ai-sdk/openai@4.0.83(zod@4.6.5)':
+  '@ai-sdk/openai@4.0.21(zod@4.6.5)':
     dependencies:
-      '@ai-sdk/provider': 4.0.21
-      '@ai-sdk/provider-utils': 5.0.53(zod@4.6.5)
+      '@ai-sdk/provider': 4.0.4
+      '@ai-sdk/provider-utils': 5.0.13(zod@4.6.5)
       zod: 4.6.5
 
   '@ai-sdk/provider-utils@4.0.40(zod@4.6.5)':
@@ -8893,15 +8883,6 @@ snapshots:
       undici: 7.29.1
       zod: 4.6.5
 
-  '@ai-sdk/provider-utils@5.0.53(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.21
-      '@standard-schema/spec': 1.1.0
-      '@workflow/serde': 4.1.0
-      eventsource-parser: 3.1.1
-      undici: 7.29.1
-      zod: 4.6.5
-
   '@ai-sdk/provider@2.0.3':
     dependencies:
       json-schema: 0.4.0
@@ -8915,10 +8896,6 @@ snapshots:
       json-schema: 0.4.0
 
   '@ai-sdk/provider@4.0.18':
-    dependencies:
-      json-schema: 0.4.0
-
-  '@ai-sdk/provider@4.0.21':
     dependencies:
       json-schema: 0.4.0
 
@@ -9548,9 +9525,9 @@ snapshots:
 
   '@dotenvx/primitives@0.8.0': {}
 
-  '@e2e-dev/web@0.11.1(e2e@0.15.1(@ai-sdk/openai@4.0.83(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0))(playwright@1.63.0)':
+  '@e2e-dev/web@0.11.1(e2e@0.15.1(@ai-sdk/openai@4.0.21(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0))(playwright@1.63.0)':
     dependencies:
-      e2e: 0.15.1(@ai-sdk/openai@4.0.83(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0)
+      e2e: 0.15.1(@ai-sdk/openai@4.0.21(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0)
       playwright: 1.63.0
 
   '@embedded-postgres/darwin-arm64@18.4.0-beta.17':
@@ -13625,7 +13602,7 @@ snapshots:
     dependencies:
       readable-stream: 2.3.8
 
-  e2e@0.15.1(@ai-sdk/openai@4.0.83(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0):
+  e2e@0.15.1(@ai-sdk/openai@4.0.21(zod@4.6.5))(ai@7.0.102(zod@4.6.5))(supports-color@7.2.0):
     dependencies:
       '@ai-sdk/provider': 4.0.18
       '@clack/prompts': 1.8.1
@@ -13637,7 +13614,7 @@ snapshots:
       tsx: 4.23.14
       zod: 4.6.1
     optionalDependencies:
-      '@ai-sdk/openai': 4.0.83(zod@4.6.5)
+      '@ai-sdk/openai': 4.0.21(zod@4.6.5)
       ai: 7.0.102(zod@4.6.5)
     transitivePeerDependencies:
       - '@cfworker/json-schema'

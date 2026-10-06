@@ -12,7 +12,7 @@ async function read(stream: ReadableStream<Uint8Array>) {
 }
 
 test('chat run: a follower that joins late gets the whole turn, then the rest live', async () => {
-  const run = new ChatRun();
+  const run = new ChatRun('turn-token');
   run.push({ type: 'start', messageId: 'answer-1' });
   run.push({ type: 'text-start', id: 'p' });
   run.push({ type: 'text-delta', id: 'p', delta: 'Olá' });
@@ -30,7 +30,7 @@ test('chat run: a follower that joins late gets the whole turn, then the rest li
 });
 
 test('chat run: a page that already shows the finished answer gets nothing to replay', async () => {
-  const run = new ChatRun();
+  const run = new ChatRun('turn-token');
   run.push({ type: 'start', messageId: 'answer-2' });
   assert.ok(followable(run, 'question-2'), 'still running: the page follows it');
   run.finish();

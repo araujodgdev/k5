@@ -8,9 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { AiConnectionView, AiProvider } from "@/lib/ai-connections-core";
-
-const providerNames: Record<AiProvider, string> = { openai: "OpenAI", anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek", inception: "Inception", openrouter: "OpenRouter", vercel: "AI Gateway" };
+import type { AiConnectionView } from "@/lib/ai-connections-core";
+import { providerLabels, type AiProvider } from "@/lib/ai-provider-names";
 // 44px controls on touch, default height from md up.
 const touch = "h-11 md:h-9";
 
@@ -34,8 +33,9 @@ function Fields({ draft, setDraft, requireKey, keyHint, serves = [] }: { draft: 
   return <div className="grid gap-5">
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="grid gap-1.5"><Label htmlFor={`${id}-name`}>Nome</Label><Input id={`${id}-name`} className={touch} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Produção principal" required minLength={2} maxLength={80} /></div>
-      <div className="grid gap-1.5"><Label htmlFor={`${id}-provider`}>Provider</Label><Select value={draft.provider} onValueChange={(value) => setDraft({ ...draft, provider: value as AiProvider })}><SelectTrigger id={`${id}-provider`} className="w-full"><SelectValue /></SelectTrigger><SelectContent position="popper">{Object.entries(providerNames).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+      <div className="grid gap-1.5"><Label htmlFor={`${id}-provider`}>Provider</Label><Select value={draft.provider} onValueChange={(value) => setDraft({ ...draft, provider: value as AiProvider })}><SelectTrigger id={`${id}-provider`} className="w-full" aria-describedby={draft.provider === "cliproxyapi" ? `${id}-proxy` : undefined}><SelectValue /></SelectTrigger><SelectContent position="popper">{Object.entries(providerLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
     </div>
+    {draft.provider === "cliproxyapi" && <p id={`${id}-proxy`} className="text-muted-foreground text-sm">O CLIProxyAPI responde pelo endereço fixo do Lume, api.lume.software. A conexão só atende as tarefas em que você escolhê-la em Modelos por tarefa. Ele não oferece transcrição nem embeddings.</p>}
     <div className="grid gap-1.5"><Label htmlFor={`${id}-key`}>{requireKey ? "Chave da API" : "Nova chave da API"}</Label><Input id={`${id}-key`} className={touch} type="password" value={draft.apiKey} onChange={(event) => setDraft({ ...draft, apiKey: event.target.value })} placeholder={requireKey ? "Cole a chave" : keyHint ? `Atual: ${keyHint}. Deixe em branco para manter.` : "Deixe em branco para manter"} required={requireKey} autoComplete="new-password" /></div>
     <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-0"><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })} className="size-4 accent-foreground" />Conexão ativa</label>
     {!draft.enabled && serves.length > 0 && <p className="flex items-start gap-2 text-destructive text-sm"><CircleAlert className="mt-0.5 size-4 shrink-0" />Ao salvar desativada, param de responder: {serves.join(", ")}. Elas não passam para outra conexão sozinhas.</p>}
@@ -60,8 +60,9 @@ function ExistingConnection({ connection, serves }: { connection: AiConnectionVi
   }
   // Tests use the saved credential with the model of a task it serves, or the provider default.
   return <article className="border-t py-7 first:border-t-0">
-    <div className="mb-5 flex items-start justify-between gap-4"><div className="min-w-0"><h4 className="break-words font-medium">{connection.name}</h4><p className="mt-1 text-muted-foreground text-xs">{providerNames[connection.provider]} · {connection.keyHint}</p><p className="mt-1 text-subtle-foreground text-xs">{serves.length ? `Atende: ${serves.join(", ")}.` : "Não atende nenhuma tarefa diretamente."}</p></div><span className="shrink-0 text-muted-foreground text-xs">{connection.enabled ? "Ativa" : "Desativada"}</span></div>
-    <Fields draft={draft} setDraft={setDraft} keyHint={connection.keyHint} serves={serves} />
+    <div className="mb-5 flex items-start justify-between gap-4"><div className="min-w-0"><h4 className="break-words font-medium">{connection.name}</h4><p className="mt-1 text-muted-foreground text-xs">{providerLabels[connection.provider]} · {connection.keyHint}</p><p className="mt-1 text-subtle-foreground text-xs">{serves.length ? `Atende: ${serves.join(", ")}.` : "Não atende nenhuma tarefa diretamente."}</p></div><span className="shrink-0 text-muted-foreground text-xs">{connection.enabled ? "Ativa" : "Desativada"}</span></div>
+    <Fields draft={draft} setDraft={setDraft} keyHint={connection.keyHint} serves={serves}
+      requireKey={draft.provider !== connection.provider && (draft.provider === "cliproxyapi" || connection.provider === "cliproxyapi")} />
     <div className="mt-5 flex flex-wrap items-center gap-2">
       <Button type="button" className={touch} disabled={Boolean(busy)} onClick={() => run("save", () => api(base, "PATCH", { ...draft, apiKey: draft.apiKey || undefined }))}>{busy === "save" && <LoaderCircle className="animate-spin motion-reduce:animate-none" />}Salvar alterações</Button>
       <Button type="button" variant="outline" className={touch} aria-describedby={noteId} disabled={Boolean(busy) || !connection.enabled} title={!connection.enabled ? "Ative e salve a conexão antes de testar." : undefined} onClick={() => run("test", () => api(`${base}/test`, "POST", {}))}>{busy === "test" && <LoaderCircle className="animate-spin motion-reduce:animate-none" />}Testar conexão</Button>

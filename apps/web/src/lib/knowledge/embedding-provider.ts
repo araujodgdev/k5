@@ -21,6 +21,7 @@ const UNSUPPORTED: Partial<Record<AiProvider, string>> = {
   deepseek: 'A DeepSeek não oferece endpoint de embeddings. Cadastre uma conexão OpenAI, Google ou AI Gateway para a busca semântica.',
   inception: 'A Inception não oferece endpoint de embeddings. Cadastre uma conexão OpenAI, Google ou AI Gateway para a busca semântica.',
   openrouter: 'O OpenRouter não expõe modelos de embedding. Cadastre uma conexão OpenAI, Google ou AI Gateway para a busca semântica.',
+  cliproxyapi: 'O CLIProxyAPI não oferece embeddings. Cadastre uma conexão OpenAI, Google ou AI Gateway para a busca semântica.',
 };
 
 export class EmbeddingUnavailableError extends Error {
@@ -88,6 +89,7 @@ async function embedGoogle(profile: EmbeddingProfile, inputs: string[]): Promise
 export async function embedTexts(profile: EmbeddingProfile, inputs: string[]): Promise<Float32Array[]> {
   if (!inputs.length) return [];
   const url = OPENAI_COMPATIBLE[profile.provider];
+  if (!url && profile.provider !== 'google') throw new EmbeddingUnavailableError('O provedor configurado para embedding não é compatível.');
   const vectors = url ? await embedOpenAiCompatible(profile, url, inputs) : await embedGoogle(profile, inputs);
   const dimension = vectors[0]?.length ?? 0;
   if (!dimension) throw new EmbeddingUnavailableError('O provedor de embedding devolveu um vetor vazio.');

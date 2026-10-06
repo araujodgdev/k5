@@ -32,6 +32,7 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 
 ## Features
 
+- [CLIProxyAPI](./cliproxyapi.md): provider selection, explicit task assignment, optional real chat and persistent private history. Test: `e2e/cliproxyapi.e2e.ts`. Real chat requires `K5_E2E_REAL_AI=1` and a private proxy key in the runner.
 - [Tutorial library](./tutorials.md): videos by module, filters, keyboard access and desktop/mobile playback pages. Test: `e2e/onboarding.e2e.ts`.
 - [Office tasks](./office-tasks.md): create, persist, complete and archive tasks in Escritório → Tarefas. Test: `e2e/office-tasks.e2e.ts`.
 - [Task details](./task-details.md): open a Kanban card's own page, edit its fields, preserve its status and reload on desktop and mobile. Test: `e2e/task-details.e2e.ts`.

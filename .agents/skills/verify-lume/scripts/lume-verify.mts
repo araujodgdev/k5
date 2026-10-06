@@ -209,7 +209,7 @@ async function up(flags: Flags) {
   const evidenceDir = join(WEB, '.e2e', 'verify', runId);
   const port = await freePort(); const pgPort = await freePort();
   if (port === DEV_PORT || pgPort === DEV_DB_PORT) throw new CliError('PORT_COLLISION', `The OS offered a developer port (${port}/${pgPort}).`, `Run \`${CLI} up\` again.`);
-  const plan = { runId, runDir, evidenceDir, baseURL: `http://127.0.0.1:${port}`, pgPort, distDir: join(WEB, DIST_DIR), cleansStaleRun: existing ? existing.runDir : null };
+  const plan = { runId, runDir, evidenceDir, baseURL: `http://localhost:${port}`, pgPort, distDir: join(WEB, DIST_DIR), cleansStaleRun: existing ? existing.runDir : null };
   if (flags['dry-run']) return { dryRun: true, wouldCreate: plan, next: `Run \`${CLI} up\` without --dry-run to start it.` };
   if (existing) { note(`cleaning leftovers of dead run ${existing.runId}`); await down({}); }
   mkdirSync(runDir, { recursive: true });

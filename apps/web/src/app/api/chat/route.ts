@@ -1,9 +1,10 @@
 import type { UIMessage } from 'ai';
 import { chatRequestSchema } from '@/lib/chat-contract';
 import { captureOperationalError } from '@/lib/observability/report';
-import { database } from '@/lib/database';
+import { database, withTransaction } from '@/lib/database';
 import { apiWorkspace, apiError, ApiError, limitedJson } from '@/lib/workspace-api';
-import { conversation, mergeHistory, saveMessages } from '@/lib/ai-store';
+import { conversation, mergeHistory } from '@/lib/ai-store';
+import { admitTurn, releaseTurn, TurnFenced, writeTurnHistory } from '@/lib/chat-lease';
 import { selectedResearchSources } from '@/lib/ai-sources';
 import { workspaceContext } from '@/lib/application/context';
 import { scopeCapability } from '@/lib/collaboration/capability-access';
@@ -16,9 +17,6 @@ import { chatRunResponse, followChatRun, startChatRun } from '@/lib/chat-run';
 import { assertCredits } from '@/lib/billing/credits';
 
 export const runtime = 'nodejs';
-
-/** Longer than the agent's own 180 s budget plus the citation review, so the lock outlives the turn. */
-const TURN_LOCK_MS = 300_000;
 
 /**
  * Accepts a message, stores it and starts the turn; the answer streams back from the run, which
@@ -55,8 +53,7 @@ export async function POST(request: Request) {
     // Checked before the message is stored, so a refused turn leaves no unanswered message behind.
     await assertCredits(owner.officeId, owner.userId);
 
-    const locked = await database.prepare('UPDATE ai_conversation SET busy_until=? WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(Date.now() + TURN_LOCK_MS, id, (office).officeId, user.id, Date.now());
-    if (!locked.changes) throw new ApiError(409, 'Aguarde a resposta atual.');
+    const lease = await withTransaction(tx => admitTurn(tx, owner, id));
     try {
       if (chatAttachments.some(item=>item.media_type.startsWith('image/')) && !modelModalities(config.provider,config.modelId).image) throw new ApiError(400,'O modelo configurado não lê imagens. Peça ao administrador para usar um modelo com visão.');
       await claimChatAttachments(owner,id,body.message.id,chatAttachments);
@@ -74,15 +71,17 @@ export async function POST(request: Request) {
             throw new ApiError(502, 'Não foi possível transcrever o áudio. Tente de novo ou escreva a mensagem.');
           })))).filter(Boolean);
       const input: UIMessage = { id: body.message.id, role: 'user', parts: [{ type: 'text', text: [text, ...spoken.map(item => `[Áudio] ${item}`)].join('\n\n') },...chatAttachments.map(item=>attachmentPart(publicChatAttachment(item)))] };
-      await saveMessages(database, owner, id, mergeHistory(stored.messages, input));
+      const current = await conversation(database, owner, id);
+      if (!current || !await writeTurnHistory(owner, id, lease, mergeHistory(current.messages, input))) throw new TurnFenced();
       await startChatRun({
         workspace: { userId: context.userId, officeId: context.officeId, sessionId: context.sessionId },
         conversationId: id,
+        lease,
         request: { documentIds: body.documentIds, caseId: body.caseId, researchReferenceIds: body.researchReferenceIds, attachments: body.attachments,
           timeZone: body.timeZone, openDocumentId: body.openDocumentId, selection: body.selection },
       });
     } catch (error) {
-      await database.prepare('UPDATE ai_conversation SET busy_until=0 WHERE id=? AND office_id=?').run(id, (office).officeId);
+      await releaseTurn(owner, id, lease);
       throw error;
     }
     const stream = await followChatRun(id);

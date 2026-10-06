@@ -42,10 +42,12 @@ export function mergeHistory(stored: UIMessage[], incoming: UIMessage): UIMessag
   if (index === -1) return [...stored, incoming];
   return [...stored.slice(0, index), incoming];
 }
-export async function saveMessages(db: Database, owner: Owner, id: string, messages: UIMessage[]) {
+export function conversationTitle(messages: UIMessage[]) {
   const first = messages.find(m => m.role === 'user')?.parts.find(p => p.type === 'text');
-  const title = first?.type === 'text' ? first.text.slice(0, 80) : 'Nova conversa';
-  await db.prepare('UPDATE ai_conversation SET messages=?,title=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND user_id=?').run(JSON.stringify(messages), title, id, owner.officeId, owner.userId);
+  return first?.type === 'text' ? first.text.slice(0, 80) : 'Nova conversa';
+}
+export async function saveMessages(db: Database, owner: Owner, id: string, messages: UIMessage[]) {
+  await db.prepare('UPDATE ai_conversation SET messages=?,title=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND user_id=?').run(JSON.stringify(messages), conversationTitle(messages), id, owner.officeId, owner.userId);
 }
 export async function claimRun(db: Database): Promise<RunRow | undefined> {
   const now = Date.now();

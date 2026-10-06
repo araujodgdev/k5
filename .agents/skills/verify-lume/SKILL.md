@@ -22,10 +22,12 @@ Every command prints one JSON object on stdout: `{ "ok": true, ... }` or `{ "ok"
 `$L up` creates `<os.tmpdir()>/lume-verify-<runId>/` (`/tmp` on Linux and macOS, `%TEMP%` on Windows) and starts PostgreSQL on a free port. It runs `apps/web/scripts/setup.ts` (all migrations) with its own env file and starts `next dev --hostname 127.0.0.1 --port <free>`. Once `/sign-in` answers 200, it registers the verification account through the real `POST /api/auth/sign-up/email`, which provisions the office through Better Auth's hook. Ready means the command returns `instance` (`baseURL`, `account`, `evidenceDir`, `log`). The first compile takes about a minute, and `up` gives up after about 5. `$L up --dry-run` prints the run id, directories and ports without starting anything.
 
 - Account: `verify@lume.test` / `VerificaLume!2026#segura`, administrator of office `Escritório de Verificação`. K5 offices have one user each, so do not build same-office multi-member scenarios.
-- Every variable in `apps/web/.env*` (Exa, Google, AbacatePay, Asaas…) is blanked for the instance, so external integrations are **off**. The office has no AI connection, so the Lume chat and Pesquisa cannot be verified here.
+- Every variable in `apps/web/.env*` (Exa, Google, AbacatePay, Asaas…) is blanked for the instance, so external integrations are **off**. The platform starts without an AI connection. Real chat requires explicit setup through the admin API, as described in [CLIProxyAPI](features/cliproxyapi.md). The default drive never requires a private AI key.
 - One instance at a time. `up` returns `INSTANCE_ALREADY_RUNNING` while one is alive, and cleans up a dead one's leftovers before starting.
 - Node: the instance runs on whichever `node` your shell resolves. Anything meeting `engines` (≥ 22.13) serves the app and the e2e suite. `pnpm test` needs the CI version (24), so check `node -v` before reading unit-test failures as regressions.
 - A detached supervisor owns PostgreSQL and `next dev`. Its log is `instance.log` at the `log` path `up` prints. `$L status` shows the registered instance without contacting it.
+
+The browser and `BETTER_AUTH_URL` use `http://localhost:<port>`. Next.js normalizes loopback request URLs to that hostname, so this keeps the request URL and Origin equal for CSRF checks. The listener and PostgreSQL remain bound to `127.0.0.1`.
 
 ## Doctor
 

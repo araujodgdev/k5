@@ -15,7 +15,7 @@ import { resolveTaskModel } from './ai-connections';
 import { AiConnectionError, type AiProvider } from './ai-connections-core';
 import type { ResolvedTaskModel } from './ai-assignments-core';
 import { groundedInstructions } from './ai-policy';
-import { modelFor, reasoningOptions, type ModelCredential } from './ai-providers';
+import { modelFor, modelProviderOptions, taskSession, type ModelCredential } from './ai-providers';
 import type { AiTaskKey, ExecutionKind, ReasoningEffort } from './ai-tasks';
 import { isTranscriptionModel } from './ai-tasks';
 import { transcribeWithEndpoint } from './audio-transcription';
@@ -35,13 +35,14 @@ function agentFor(config: EffortCredential, instructions: string, tools?: Record
     defaultOptions: ({ requestContext }) => {
       const provider = (requestContext?.get('provider') as AiProvider | undefined) ?? config.provider;
       const effort = requestContext?.get('reasoningEffort') as ReasoningEffort | null | undefined;
-      return { providerOptions: reasoningOptions(provider, effort === undefined ? config.effort : effort) };
+      return { providerOptions: modelProviderOptions(provider, effort === undefined ? config.effort : effort) };
     },
     model: ({ requestContext }: { requestContext?: RequestContext }) => {
       const provider = (requestContext?.get('provider') as AiProvider | undefined) ?? config.provider;
       const modelId = (requestContext?.get('modelId') as string | undefined) ?? config.modelId;
       const apiKey = (requestContext?.get('apiKey') as string | undefined) ?? config.apiKey;
-      return modelFor({ provider, modelId, apiKey });
+      const session = (requestContext?.get('session') as string | undefined) ?? config.session;
+      return modelFor({ provider, modelId, apiKey, session });
     },
     ...(tools ? { tools: tools as never } : {}),
     ...(features.memory ? { memory: features.memory } : {}),
@@ -52,13 +53,13 @@ function agentFor(config: EffortCredential, instructions: string, tools?: Record
   return agent;
 }
 
-/** The request context that binds a call to one credential, model and effort. */
 export function requestContextFor(config: EffortCredential) {
   const ctx = new RequestContext();
   ctx.set('provider', config.provider);
   ctx.set('modelId', config.modelId);
   ctx.set('apiKey', config.apiKey);
   ctx.set('reasoningEffort', config.effort ?? null);
+  ctx.set('session', config.session ?? taskSession());
   return ctx;
 }
 

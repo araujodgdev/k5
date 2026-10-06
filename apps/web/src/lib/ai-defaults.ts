@@ -17,6 +17,7 @@ export const DEFAULT_CHAT_MODEL: Record<AiProvider, string> = {
   inception: "mercury-2.5",
   openrouter: "anthropic/claude-sonnet-4.5",
   vercel: "anthropic/claude-sonnet-4.5",
+  cliproxyapi: "gpt-6-luna",
 };
 
 /** Providers without an embeddings endpoint are absent: semantic search needs another connection. */

@@ -58,6 +58,7 @@ export type ResolvedTaskModel = ResolvedModelConfig & {
 /** The transcription endpoint model used when the agent runs on OpenAI and transcription is unassigned. */
 export const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
 const UNCONFIGURED = "Nenhuma conexão de IA ativa na plataforma.";
+const ONLY_ASSIGNED = "O CLIProxyAPI atende só as tarefas em que for escolhido. Escolha uma conexão e um modelo para esta tarefa.";
 
 export async function loadAssignmentSnapshot(db: Database): Promise<AssignmentSnapshot> {
   const [rows, connections] = await Promise.all([
@@ -108,12 +109,6 @@ function modelPart(levels: Level[], snapshot: AssignmentSnapshot): ModelPart {
   return rootDefault(levels.at(-1)!.target as AiTaskGroup, snapshot, levels.length);
 }
 
-/**
- * The model of a chain with no assignment. Transcription follows the agent's provider, as it did
- * before tasks had models: the transcription endpoint on OpenAI, the agent's own model when it hears
- * audio, and nothing otherwise. Every other chain uses the provider default of the first active
- * connection.
- */
 function rootDefault(root: AiTaskGroup, snapshot: AssignmentSnapshot, index: number): ModelPart {
   const origin = { scope: "default" } as const;
   if (root === "transcription") {
@@ -123,8 +118,9 @@ function rootDefault(root: AiTaskGroup, snapshot: AssignmentSnapshot, index: num
     if (chatHearsAudio(agent.connection.provider, agent.modelId)) return { status: "ready", index, origin, connection: agent.connection, modelId: agent.modelId };
     return { status: "disabled", modelOrigin: origin, reason: "unsupported" };
   }
-  const connection = snapshot.connections.find(item => usable(item));
-  if (!connection) return { status: "unconfigured", message: UNCONFIGURED };
+  const defaultConnections = snapshot.connections.filter(connection => connection.provider !== "cliproxyapi");
+  const connection = defaultConnections.find(usable);
+  if (!connection) return { status: "unconfigured", message: snapshot.connections.some(usable) ? ONLY_ASSIGNED : UNCONFIGURED };
   return { status: "ready", index, origin, connection, modelId: defaultChatModel(connection.provider) };
 }
 
@@ -161,9 +157,9 @@ function planError(task: AiTaskKey, plan: Exclude<TaskModelPlan, { status: "read
   return new AiConnectionError("not_found", plan.message);
 }
 
-async function connectionSecret(db: Database, key: MasterKey, connectionId: string) {
-  const row = await db.prepare("SELECT encrypted_api_key FROM ai_connection WHERE id = ? AND office_id IS NULL AND deleted_at IS NULL AND enabled = 1")
-    .get(connectionId) as { encrypted_api_key: string | null } | undefined;
+async function connectionSecret(db: Database, key: MasterKey, connectionId: string, provider: AiProvider) {
+  const row = await db.prepare("SELECT encrypted_api_key FROM ai_connection WHERE id = ? AND provider = ? AND office_id IS NULL AND deleted_at IS NULL AND enabled = 1")
+    .get(connectionId, provider) as { encrypted_api_key: string | null } | undefined;
   return row?.encrypted_api_key ? readSecret(row.encrypted_api_key, key) : undefined;
 }
 
@@ -171,7 +167,7 @@ async function connectionSecret(db: Database, key: MasterKey, connectionId: stri
 export async function resolveTaskModelFromDatabase(db: Database, key: MasterKey, task: AiTaskKey): Promise<ResolvedTaskModel> {
   const plan = planTask(task, await loadAssignmentSnapshot(db));
   if (plan.status !== "ready") throw planError(task, plan);
-  const apiKey = await connectionSecret(db, key, plan.connectionId);
+  const apiKey = await connectionSecret(db, key, plan.connectionId, plan.provider);
   // The connection changed between the two reads: report it rather than guess.
   if (!apiKey) throw new AiConnectionError("unavailable", `A conexão escolhida para ${AI_TASK_DEFINITIONS[task].label} ficou indisponível. Tente de novo.`);
   return {
@@ -283,6 +279,9 @@ export async function updateModelAssignment(db: Database, actorUserId: string, i
     if (!connection.hasKey) throw new AiConnectionError("credential", "Esta conexão está sem credencial. Cadastre a chave antes de escolhê-la.");
     modelId = chosen.modelId.trim();
     if (!modelId || modelId.length > 160) throw new AiConnectionError("invalid", "Informe o ID do modelo.");
+    if (connection.provider === "cliproxyapi" && definition.execution === "transcription") {
+      throw new AiConnectionError("invalid", "O CLIProxyAPI não oferece transcrição. Escolha uma conexão OpenAI ou Google para a Transcrição.");
+    }
     if (!modelFitsExecution(definition.execution, connection.provider, modelId)) {
       throw new AiConnectionError("invalid", definition.execution === "transcription"
         ? "Escolha um modelo de transcrição, ou um modelo que ouça áudio fora da OpenAI."
@@ -331,7 +330,7 @@ export async function testModelAssignment(
     throw new AiConnectionError(plan.status === "unavailable" ? "unavailable" : "not_found", plan.message);
   }
   const details = { scope: level.scope, target: level.target, provider: plan.provider, modelId: plan.modelId, effort: plan.effort, execution };
-  const apiKey = await connectionSecret(db, key, plan.connectionId);
+  const apiKey = await connectionSecret(db, key, plan.connectionId, plan.provider);
   if (!apiKey) throw new AiConnectionError("unavailable", "A conexão escolhida ficou indisponível. Tente de novo.");
   try {
     await send({ provider: plan.provider, modelId: plan.modelId, apiKey, connectionId: plan.connectionId, effort: plan.effort }, execution);

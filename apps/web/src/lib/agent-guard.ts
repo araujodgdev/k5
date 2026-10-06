@@ -4,7 +4,7 @@ import { PromptInjectionDetector } from '@mastra/core/processors';
 import type { Processor, ProcessToolResultArgs } from '@mastra/core/processors';
 import { resolveModelConfig } from '@mastra/core/llm';
 import type { ResolvedTaskModel } from './ai-assignments-core';
-import { modelFor, reasoningOptions } from './ai-providers';
+import { modelFor, modelProviderOptions } from './ai-providers';
 import { captureOperationalError } from './observability/report';
 
 /**
@@ -121,7 +121,7 @@ export function injectionDetector(credential: () => Promise<ResolvedTaskModel>, 
       });
       const instance = new PromptInjectionDetector({
         // A classifier: its effort comes from the classification task, not from the chat.
-        model, providerOptions: reasoningOptions(resolved.provider, resolved.effort),
+        model, providerOptions: modelProviderOptions(resolved.provider, resolved.effort),
         strategy: 'filter', threshold: 0.7, errorStrategy: 'warn', lastMessageOnly: false,
       });
       const verdicts = await Promise.all(chunks.map(async chunk => {
