@@ -34,6 +34,7 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 
 - [Tutorial library](./tutorials.md): videos by module, filters, keyboard access and desktop/mobile playback pages. Test: `e2e/onboarding.e2e.ts`.
 - [Office tasks](./office-tasks.md): create, persist, complete and archive tasks in Escritório → Tarefas. Test: `e2e/office-tasks.e2e.ts`.
+- [Task details](./task-details.md): open a Kanban card's own page, edit its fields, preserve its status and reload on desktop and mobile. Test: `e2e/task-details.e2e.ts`.
 - [Vault cases](./vault-cases.md): create a case in Cofre and open its page. Test: `e2e/agent/vault-cases.e2e.ts` (agent steps, needs `OPENAI_API_KEY`).
 - [Office clients](./office-clients.md): create and edit a client in Escritório → Clientes. Test: `e2e/agent/office-clients.e2e.ts` (agent steps, needs `OPENAI_API_KEY`).
 - [Profile](./profile.md): edit the profile, photo and credentials, and see a user's card while inviting. Test: `e2e/profile.e2e.ts`.
@@ -48,7 +49,7 @@ Each file has an H1, one paragraph on the user-visible behavior, then exactly: `
 - [Public site](./public-site.md): the signed-out home, SEO for crawlers, robots and sitemap, keyboard and both themes. Test: `e2e/public-site.e2e.ts`.
 - [Honorários](./honorarios.md): installments, receipts, corrections, cancellation, tabs, error recovery and mobile in the fee ledger. Test: `e2e/honorarios.e2e.ts`.
 - [Cálculos jurídicos](./calc.md): the seven calculators, a saved consumer calculation with versions and export, an OAB-PE/RS proposal with installments, and the federal-tax calculator at 390px. Test: `e2e/calc.e2e.ts`.
-- [Task board](./task-board.md): the Kanban layout of Tarefas, keyboard moves, delegation and empty/error states (UI-only: its APIs are mocked). Test: `e2e/task-board.e2e.ts`.
+- [Task board](./task-board.md): the Kanban layout of Tarefas, moving cards by dragging with the mouse or keyboard (optimistic save, rollback, versions), delegation and empty/error states, and a real-path test that proves each drag is stored for the office, desktop and mobile. Tests: `e2e/task-board.e2e.ts` (UI-only: its APIs are mocked), `e2e/task-board-persistence.e2e.ts`.
 - [Vault upload](./vault-upload.md): the 100 MB upload limit and a direct upload into a case folder, processed and downloaded. Test: `e2e/vault-upload.e2e.ts`.
 - [Client portal](./client-portal.md): invite a client, accept the terms checkbox, publish a PDF and a charge, upload a proof, and revoke access. Test: `e2e/client-portal.e2e.ts`. Needs `soffice` on PATH.
 
