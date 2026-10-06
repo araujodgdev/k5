@@ -12,6 +12,11 @@ From a client's page the office invites that client, publishes a Lume document a
 - `portal-revoke`: button "Revogar acesso ao portal" shows "Acesso e convite revogados." The client's file URL and portal API then return 404.
 - `portal-mobile`: at 390×844, the portal and the office client page have no horizontal scroll.
 
+- `portal-withdraw`: Retirar documento/publicação invalida o download antigo sem expor internos.
+- `portal-local-pdf`: Publicar PDF local e versão de artefato produz bytes legíveis do documento escolhido.
+- `portal-existing-account`: Aceitar convite com conta existente do e-mail destinatário e alternar entre acessos autorizados.
+- `portal-govbr`: Orientação gov.br abre destino externo; devolução do PDF assinado permite conferência manual, sem prometer assinatura automática.
+
 ## How to get to it (user POV)
 
 - Office: Escritório → Clientes → the client (`/app/agenda/clients/<id>`), section heading "Portal do cliente".
@@ -42,3 +47,7 @@ Preconditions:
 - The charge file is converted on download, by the same LibreOffice path as the published document. This drive does not download it. `honorario-charge` does download a charge PDF.
 - `convertDocxToPdf` allows two conversions at once in one Next.js process. CI runs the suite with `--workers 4`. A third overlapping conversion returns 503, and this test then waits for a success text that will not appear.
 - A cold compile of the client page in `next dev` can outlast the 10 second assertion. Rerun the drive once before treating that as a regression.
+
+- **Revisão de fonte; sem execução nesta etapa:** Teste usa artefato preparado; comprova publicação, acesso e revogação, não geração por IA. Verificar bytes de cada download.
+- Confirmação de e-mail pode adiar a entrada pelo convite. LibreOffice pode ser localizado por LIBREOFFICE_PATH ou caminho padrão Windows, além do PATH. Inspecionar conteúdo dos PDFs, não apenas link/HTTP 200.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

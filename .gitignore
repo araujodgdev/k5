@@ -5,6 +5,8 @@ dist/
 build/
 .next/
 coverage/
+!/.agents/skills/verify-lume/coverage/
+!/.claude/skills/verify-lume/coverage/
 *.tsbuildinfo
 *.log
 .env

@@ -4,7 +4,7 @@ The office's fee ledger in Honorários: register an agreement for a client (and 
 
 ## Sub-features
 
-- `fees-create`: "Novo honorário" dialog with pickers "Cliente (obrigatório)" and "Caso (opcional)", "Descrição", "Valor total (R$)", "Número de parcelas", "Primeiro vencimento"; due dates follow each month's last day.
+- `fees-create`: "Novo honorário" dialog with pickers "Cliente (obrigatório)" and "Caso (opcional)", "Descrição", "Valor total (R$)", "Número de parcelas", "Primeiro vencimento"; due dates preserve the chosen day, capped at the last day of shorter months.
 - `fees-receive`: "Registrar recebimento da parcela N" → "Valor recebido (R$)" → "Salvar recebimento", full or partial.
 - `fees-undo`: "Desfazer recebimento de R$ …" → "Motivo da correção" → "Desfazer registro"; "Registro desfeito por" appears and the receipt stays with its reversal.
 - `fees-tabs`: "A receber", "Recebidas", "Canceladas".
@@ -12,6 +12,9 @@ The office's fee ledger in Honorários: register an agreement for a client (and 
 - `fees-states`: empty ("Nenhuma parcela a receber para estes filtros."), loading ("Carregando honorários…"), error alert and "Tentar novamente".
 - `fees-mobile`: the list and the create form at 390px; "Mais" lists Honorários.
 - `fees-asaas-charge`: charging an installment through Asaas (see `asaas`).
+
+- `fees-filters`: Busca, cliente, caso, vencimento e paginação retornam o conjunto correto.
+- `fees-authorization`: Participante pode consultar conforme acesso; somente criador altera; terceiro não consulta.
 
 ## How to get to it (user POV)
 
@@ -36,7 +39,10 @@ Preconditions:
 
 ## Gotchas
 
-- The only mock is the 503 on `/api/honorarios/list` to reach the error state; every write goes through the UI and is read back from the API.
+- The only mock is the 503 on `/api/honorarios/list` to reach the error state; the main agreement’s writes go through the UI and are read back from the API; a second agreement and prerequisites are prepared via authenticated APIs.
 - Roles, cross-office privacy and concurrency are in `tests/honorarios.test.ts`, not in the UI test.
 - A cold `/app/honorarios` compile in `next dev` can outlast the 10 s assertion and fail on the empty text with the shell already rendered. Rerun the drive once before treating it as a regression (seen on a fresh instance).
 - Money fields take pt-BR format (`3.000,00`); the API returns cents.
+
+- **Revisão de fonte; sem execução nesta etapa:** Incluir leitura de outro escritório/participante, sem presumir isolamento pela tela.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

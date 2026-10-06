@@ -11,6 +11,10 @@ In the Lume chat, the "Artefatos" button opens the panel of everything the conve
 - `artifacts-context`: "Do Cofre nesta conversa" keeps the old Fontes selection (not driven; unchanged behavior).
 - PDF copies need the PDFcn renderer; covered by `apps/web/tests/conversation-artifacts.test.ts`.
 
+- `artifacts-destinations`: Salvar PDF/DOCX/anexo em caso ou pasta autorizada mantém procedência e versão.
+- `artifacts-repeat`: Repetição retorna cópia existente; cópia excluída/movida é conflito e deve ser informada.
+- `artifacts-isolation`: Outra pessoa não lista nem salva artefatos privados da conversa.
+
 ## How to get to it (user POV)
 
 - Sidebar "Lume" → button "Artefatos" in the top bar (`/app/agents`). The same button on mobile.
@@ -24,3 +28,7 @@ Preconditions: none. The test signs up its own account, creates the conversation
 ## Gotchas
 
 - The instance has no AI connection, so the documents are seeded instead of written by the Lume.
+
+- **Revisão de fonte; sem execução nesta etapa:** Dados de conversa preparados pelo teste; não prova geração por IA. PDF é cenário adicional condicionado ao conversor.
+- Cópia excluída ou movida pode causar conflito na repetição. artifactVaultFile usa PDFcn e geração DOCX sem LibreOffice; exportação com timbrado e portal têm caminhos próprios.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

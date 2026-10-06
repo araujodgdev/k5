@@ -1,0 +1,4238 @@
+{
+    "schemaVersion":  1,
+    "sourceCommit":  "060160d",
+    "runId":  null,
+    "baseURL":  null,
+    "startedAt":  null,
+    "finishedAt":  null,
+    "results":  [
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`/`, `/termos-de-uso`, `/politica-privacidade` return 200 with `index, follow` and a canonical on `https://lume.software`; `/sign-in` and `/sign-up` carry `noindex`.",
+                        "checkId":  "site-seo",
+                        "featureId":  "public-site",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the home has `WebSite` JSON-LD named \"Lume\", `og:url`, and a description mentioning documentos, IA and honorários.",
+                        "checkId":  "site-structured-data",
+                        "featureId":  "public-site",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`/robots.txt` names the sitemap; `/sitemap.xml` lists exactly the three public pages.",
+                        "checkId":  "site-robots-sitemap",
+                        "featureId":  "public-site",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`/app` answers a 3xx to `/sign-in`; an unknown path answers 404.",
+                        "checkId":  "site-private-redirect",
+                        "featureId":  "public-site",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the first Tab focuses \"Ir para o conteúdo\", Enter jumps to `#conteudo`.",
+                        "checkId":  "site-keyboard",
+                        "featureId":  "public-site",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Usar tema claro\" / \"Usar tema escuro\" keep every section visible without horizontal scroll, at 390px and 1440px.",
+                        "checkId":  "site-themes",
+                        "featureId":  "public-site",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Entrar\" opens the sign-in form.",
+                        "checkId":  "site-enter",
+                        "featureId":  "public-site",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "CTAs de cadastro e links Termos/Privacidade abrem destinos; tema persiste após recarregar.",
+                        "checkId":  "site-navigation",
+                        "featureId":  "public-site",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Crie sua conta\" registers name, office, e-mail and password, then requires e-mail confirmation if configured, otherwise lands in `/app` or the pending invitation/message destination.",
+                        "checkId":  "auth-sign-up",
+                        "featureId":  "authentication",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "field errors (\"Informe seu nome completo.\", \"As senhas precisam ser iguais.\") and the duplicate e-mail message.",
+                        "checkId":  "auth-sign-up-validation",
+                        "featureId":  "authentication",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Entre no Lume\" with valid credentials lands in `/app/…`. Wrong credentials show \"E-mail ou senha incorretos.\" as `role=alert`.",
+                        "checkId":  "auth-sign-in",
+                        "featureId":  "authentication",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "visiting `/app/command-center` without a session redirects to `/sign-in`.",
+                        "checkId":  "auth-guard",
+                        "featureId":  "authentication",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the sidebar \"Sair\" (title \"Encerrar sessão em todos os dispositivos\") returns to `/sign-in` and revokes every session of the user.",
+                        "checkId":  "auth-sign-out",
+                        "featureId":  "authentication",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Solicitar recuperação, redefinir com token e recusar reutilização; revogar sessões anteriores.",
+                        "checkId":  "auth-recovery",
+                        "featureId":  "authentication",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Com configuração habilitada, concluir desafio e confirmação de e-mail antes do acesso.",
+                        "checkId":  "auth-email-turnstile",
+                        "featureId":  "authentication",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Li e aceito os Termos de uso…\" on `/sign-up` (requires a real form scenario; auth.setup provisions and accepts via API).",
+                        "checkId":  "legal-signup-checkbox",
+                        "featureId":  "legal-acceptance",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Antes de continuar\" (or \"Atualizamos os termos\" after a version bump) in front of `/app` and `/client`.",
+                        "checkId":  "legal-gate",
+                        "featureId":  "legal-acceptance",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Aceitar e continuar\" without the checkbox shows \"Marque a opção para continuar.\"",
+                        "checkId":  "legal-gate-validation",
+                        "featureId":  "legal-acceptance",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Antes de usar o Lume\" on the first `/app/agents` visit, mentioning \"sem anonimização\", dismissed with \"Entendi\".",
+                        "checkId":  "legal-ai-notice",
+                        "featureId":  "legal-acceptance",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "rows `terms` and `ai_notice` in `legal_acceptance` for the user.",
+                        "checkId":  "legal-stored",
+                        "featureId":  "legal-acceptance",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the checkbox on `/client/invite/\u003ctoken\u003e` (driven by `client-portal`, which also publishes the PDF).",
+                        "checkId":  "legal-portal-invite",
+                        "featureId":  "legal-acceptance",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Versão atual e data são persistidas sem duplicar; aceite antigo provoca Atualizamos os termos.",
+                        "checkId":  "legal-current-version",
+                        "featureId":  "legal-acceptance",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the \"Lume — início\" link in the sidebar (desktop) and header (mobile).",
+                        "checkId":  "shell-mark",
+                        "featureId":  "brand-shell",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "links Lume, Cofre, Mensagens and Plano in the main navigation.",
+                        "checkId":  "shell-nav",
+                        "featureId":  "brand-shell",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`/app/agents` has `h1 \"Lume\"`.",
+                        "checkId":  "shell-chat-title",
+                        "featureId":  "brand-shell",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`/app/billing` shows \"Plano Lume\".",
+                        "checkId":  "shell-billing-label",
+                        "featureId":  "brand-shell",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "at 390px, `navigation \"Navegação principal\"` has `button \"Mais\"` and there is no horizontal scroll.",
+                        "checkId":  "shell-mobile",
+                        "featureId":  "brand-shell",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "no \"Tises\" in the HTML of `/app/command-center` and `/app/billing`.",
+                        "checkId":  "shell-no-old-brand",
+                        "featureId":  "brand-shell",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the WhatsApp nav row (not driven: hidden while `isWhatsAppEnabled` is off, which the instance leaves off).",
+                        "checkId":  "shell-whatsapp",
+                        "featureId":  "brand-shell",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Recolhimento do menu persiste após recarregar.",
+                        "checkId":  "shell-collapse",
+                        "featureId":  "brand-shell",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Anúncios e WhatsApp seguem flags; Administração segue permissão da plataforma.",
+                        "checkId":  "shell-flags",
+                        "featureId":  "brand-shell",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Salvar perfil\" stores the fields; the name shows in the sidebar footer.",
+                        "checkId":  "profile-edit",
+                        "featureId":  "profile",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Adicionar foto\" / \"Trocar foto\" crops and shrinks the image to 256px in the browser; \"Remover\" clears it.",
+                        "checkId":  "profile-photo",
+                        "featureId":  "profile",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Alterar senha\" needs the current one and can end the other sessions.",
+                        "checkId":  "profile-password",
+                        "featureId":  "profile",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Alterar e-mail\" needs the current password; an address of another account is refused.",
+                        "checkId":  "profile-email",
+                        "featureId":  "profile",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "typing an existing user\u0027s e-mail in \"E-mail do advogado\" shows \"… já usa o Lume\" with the card on hover.",
+                        "checkId":  "profile-card-invite",
+                        "featureId":  "profile",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "associate and participant rows show the avatar, and the e-mail opens the card.",
+                        "checkId":  "profile-card-lists",
+                        "featureId":  "profile",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the page fits 390px; \"Mais\" leads with the person\u0027s row linking to Perfil.",
+                        "checkId":  "profile-mobile",
+                        "featureId":  "profile",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Se e-mail estiver habilitado, troca só conclui após confirmação; erro de endereço ocupado pode ser genérico.",
+                        "checkId":  "profile-email-confirmation",
+                        "featureId":  "profile",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "link \"Exportar dados\" downloads a ZIP (`GET /api/office/export`, `content-type: application/zip`).",
+                        "checkId":  "data-export",
+                        "featureId":  "office-data",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Agendar exclusão\" without a password shows \"Informe sua senha atual.\"; a wrong one shows \"Senha atual incorreta.\"",
+                        "checkId":  "data-delete-validation",
+                        "featureId":  "office-data",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "with the right password, \"Exclusão agendada para \u003cdata\u003e\" appears and `office_deletion_request.status` is `scheduled`.",
+                        "checkId":  "data-delete-schedule",
+                        "featureId":  "office-data",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Cancelar exclusão\" brings back \"Excluir conta\" and sets the status to `cancelled`.",
+                        "checkId":  "data-delete-cancel",
+                        "featureId":  "office-data",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the actual purge (not driven: an operator step, `pnpm --filter @k5/web office:purge`, covered by `tests/office-deletion.test.ts`).",
+                        "checkId":  "data-purge",
+                        "featureId":  "office-data",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Guided tour entry point and video library entry point.",
+                        "checkId":  "tutorials-01",
+                        "featureId":  "tutorials",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Module filters and return to the selected module from a video.",
+                        "checkId":  "tutorials-02",
+                        "featureId":  "tutorials",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Keyboard navigation, desktop and 390px mobile layout.",
+                        "checkId":  "tutorials-03",
+                        "featureId":  "tutorials",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Published video, captions and cover for each tutorial.",
+                        "checkId":  "tutorials-04",
+                        "featureId":  "tutorials",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Empty module, missing video and playback error with retry and download.",
+                        "checkId":  "tutorials-05",
+                        "featureId":  "tutorials",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Vídeo avança com áudio/legendas reais; presença da tag e HTTP 200 não bastam.",
+                        "checkId":  "tutorials-playback",
+                        "featureId":  "tutorials",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Biblioteca/página administrativa respeita papel; MP4 publicado é público conforme implementação atual.",
+                        "checkId":  "tutorials-access",
+                        "featureId":  "tutorials",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the \"Novo cliente\" dialog saves name, e-mail, phone, relationship stage, legal areas and address.",
+                        "checkId":  "clients-create",
+                        "featureId":  "office-clients",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the list shows name and stage, and \"Buscar clientes\", \"Filtrar área\" and \"Filtrar relacionamento\" narrow it.",
+                        "checkId":  "clients-list",
+                        "featureId":  "office-clients",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the client link opens `/app/agenda/clients/\u003cid\u003e` with the name as `h1`.",
+                        "checkId":  "clients-detail",
+                        "featureId":  "office-clients",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Editar cliente\" → \"Salvar\" updates the heading, and the change survives reload.",
+                        "checkId":  "clients-edit",
+                        "featureId":  "office-clients",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Ver agenda de \u003cnome\u003e\" switches to the calendar filtered by the client.",
+                        "checkId":  "clients-agenda",
+                        "featureId":  "office-clients",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Edição obsoleta é recusada sem sobrescrever dados da versão atual.",
+                        "checkId":  "clients-conflict",
+                        "featureId":  "office-clients",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Ficha abre honorários, portal e atividades vinculadas ao cliente correto.",
+                        "checkId":  "clients-related",
+                        "featureId":  "office-clients",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the \"Nova atividade\" dialog saves a task with a title.",
+                        "checkId":  "tasks-create",
+                        "featureId":  "office-tasks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the task is stored for the signed-in office and reappears after reload.",
+                        "checkId":  "tasks-persist",
+                        "featureId":  "office-tasks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the \"Concluir \u003ctítulo\u003e\" checkbox moves the task out of Abertas.",
+                        "checkId":  "tasks-complete",
+                        "featureId":  "office-tasks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Arquivadas lists completed tasks with \"Reabrir \u003ctítulo\u003e\".",
+                        "checkId":  "tasks-archived",
+                        "featureId":  "office-tasks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the list and primary action fit a 390px screen.",
+                        "checkId":  "tasks-mobile",
+                        "featureId":  "office-tasks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "completing a due task from Início (not yet driven).",
+                        "checkId":  "tasks-home",
+                        "featureId":  "office-tasks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Acionar Reabrir persiste pending e retorna a tarefa a Abertas.",
+                        "checkId":  "tasks-reopen",
+                        "featureId":  "office-tasks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Busca e filtros preservam escopo e paginação; links levam a Kanban e detalhes.",
+                        "checkId":  "tasks-filters",
+                        "featureId":  "office-tasks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Kanban\" button switches the layout; reload keeps it.",
+                        "checkId":  "board-layout",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "all tasks render (the mocked test uses 53, across pages of the list API).",
+                        "checkId":  "board-cards",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "pressing the grip with the mouse, moving past a few pixels and releasing over another column moves the card there; the column under the pointer gets a 2px brand rule. Releasing outside the board, over the card\u0027s own column, or pressing Escape changes nothing and sends no request.",
+                        "checkId":  "board-drag-pointer",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "with the grip focused, Space or Enter picks the card up, ArrowLeft and ArrowRight choose the adjacent column (the board scrolls to it on a phone), Space or Enter drops it and Escape cancels. Focus is back on the grip after the drop.",
+                        "checkId":  "board-drag-keyboard",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "while the save is pending the card already sits in the new column with \"Salvando…\" and its grip is `aria-disabled`; other cards stay movable, and the board is not reloaded.",
+                        "checkId":  "board-optimistic",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "each move sends the card\u0027s current version; a second move of the same card uses the version the first one returned.",
+                        "checkId":  "board-versions",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "a failed save returns only that card and shows an alert, \"Não foi possível mover “\u003ctítulo\u003e” para \u003ccoluna\u003e. …\", with \"Fechar\"; the board and every other card stay. The next attempt uses the refreshed version.",
+                        "checkId":  "board-rollback",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the card title is a link to `/app/agenda/tasks/\u003cid\u003e?from=kanban` (the page itself is in [task-details](./task-details.md)).",
+                        "checkId":  "board-open",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Delegar ao Lume\" navigates to `/app/agents?conversationId=…`.",
+                        "checkId":  "board-delegate",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "empty (\"Nenhuma tarefa.\" in each of the 4 columns), error alert, recovery.",
+                        "checkId":  "board-states",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "every drag is stored on the signed-in office\u0027s task and survives a reload (real path only).",
+                        "checkId":  "board-persist",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "at 390px the grip is 44×44 with `touch-action: none`, the keyboard drag crosses columns, and the page has no horizontal scroll.",
+                        "checkId":  "board-mobile",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Abrir sessão do Lume reutiliza a conversa da tarefa delegada, inclusive após encerramento.",
+                        "checkId":  "board-existing-session",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Com mais de 50 resultados, todas as páginas respeitam o filtro de situação; reproduzir a possível omissão de status.",
+                        "checkId":  "board-filter-pages",
+                        "featureId":  "task-board",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Open a card\u0027s title and reload its own URL.",
+                        "checkId":  "task-details-01",
+                        "featureId":  "task-details",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Edit the title and notes without a status or type selector.",
+                        "checkId":  "task-details-02",
+                        "featureId":  "task-details",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Confirm the saved fields and preserved status in the authenticated office\u0027s database.",
+                        "checkId":  "task-details-03",
+                        "featureId":  "task-details",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Read the page and reach its actions at 390px without horizontal page overflow.",
+                        "checkId":  "task-details-04",
+                        "featureId":  "task-details",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Show an unavailable task for a missing ID or a meeting.",
+                        "checkId":  "task-details-05",
+                        "featureId":  "task-details",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Editar prazo, responsável, cliente e caso preserva vínculos e situação; erro parcial das opções é informado.",
+                        "checkId":  "task-details-links",
+                        "featureId":  "task-details",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Abrir sessão do Lume navega para a conversa vinculada sem conceder acesso a outra pessoa.",
+                        "checkId":  "task-details-session",
+                        "featureId":  "task-details",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "an invitation the owner created reads \"\u003cnome\u003e criou um convite para \u003cconvidado\u003e\", with \"Acessos · Concluído\" under it.",
+                        "checkId":  "activity-list",
+                        "featureId":  "office-activity",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "another office\u0027s invitation to the same person is absent.",
+                        "checkId":  "activity-isolation",
+                        "featureId":  "office-activity",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Google\" with no rows shows \"Nada registrado com este filtro ainda.\"; \"Acessos\" shows the invitation again; \"Tudo\" works from the keyboard.",
+                        "checkId":  "activity-filters",
+                        "featureId":  "office-activity",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the list and filters fit 390px.",
+                        "checkId":  "activity-mobile",
+                        "featureId":  "office-activity",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Mais antigos →\" after 50 rows (not driven; covered by `apps/web/tests/audit.test.ts`).",
+                        "checkId":  "activity-pagination",
+                        "featureId":  "office-activity",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Administração → Auditoria (`/app/admin/audit`) for platform administrators (not driven; see Gotchas).",
+                        "checkId":  "platform-audit",
+                        "featureId":  "office-activity",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Com 51 eventos, página padrão contém 50 e Mais antigos alcança o restante sem repetição.",
+                        "checkId":  "activity-default-page",
+                        "featureId":  "office-activity",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "an office without cases shows \"Nenhum caso ainda. Crie o primeiro para organizar os arquivos por processo.\"",
+                        "checkId":  "cases-empty",
+                        "featureId":  "vault-cases",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Novo caso\" → \"Criar caso\" stores a case with title and description.",
+                        "checkId":  "cases-create",
+                        "featureId":  "vault-cases",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Dados do cliente (opcional)\" adds client name, CPF/CNPJ, e-mail, phone and notes.",
+                        "checkId":  "cases-client",
+                        "featureId":  "vault-cases",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the new case appears in the grid or list and opens `/app/vault/cases/\u003cid\u003e` with the title as `h1`.",
+                        "checkId":  "cases-open",
+                        "featureId":  "vault-cases",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Ver em cartões\" and \"Ver em lista\" switch the layout.",
+                        "checkId":  "cases-view-mode",
+                        "featureId":  "vault-cases",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "sending documents to a case; see [vault-upload](./vault-upload.md) for HTTP/TXT and [collaboration](./collaboration.md) for upload permissions through the UI.",
+                        "checkId":  "cases-upload",
+                        "featureId":  "vault-cases",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Editar e excluir caso respeita confirmação e autoria/permissões, sem confundir dados do caso com CRM.",
+                        "checkId":  "cases-edit-delete",
+                        "featureId":  "vault-cases",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`POST /api/vault/uploads` returns 201 for 100 MB and 400 with the pt-BR error for 100 MB + 1 byte; the upload ref is stored for the user.",
+                        "checkId":  "upload-limit",
+                        "featureId":  "vault-upload",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`POST /api/vault/documents` with scope `case`, case and folder headers returns 201; `vault_document.folder_id` matches and `status` reaches `ready`.",
+                        "checkId":  "upload-direct",
+                        "featureId":  "vault-upload",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`GET /api/vault/documents/\u003cid\u003e/download` returns the original text.",
+                        "checkId":  "upload-download",
+                        "featureId":  "vault-upload",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the Cofre\u0027s upload button and multiple-file picker (no drop handler exists in the current widget) (not driven by this test; drive the screen with a new e2e test if a UI change touches it).",
+                        "checkId":  "upload-ui",
+                        "featureId":  "vault-upload",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Referência temporária pertence ao usuário/escritório, expira e não pode ser consumida duas vezes.",
+                        "checkId":  "upload-ref",
+                        "featureId":  "vault-upload",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Lote mostra progresso e continua após falha de um arquivo, preservando os sucessos.",
+                        "checkId":  "upload-batch",
+                        "featureId":  "vault-upload",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "a document written in the conversation and a sent attachment are listed; unsent attachments and other conversations\u0027 documents are not.",
+                        "checkId":  "artifacts-list",
+                        "featureId":  "conversation-artifacts",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "a document saved as DOCX to the Biblioteca shows \"\u003ctítulo\u003e.docx foi salvo em Biblioteca.\" and a \"No Cofre (DOCX, versão 1)\" line.",
+                        "checkId":  "artifacts-save-document",
+                        "featureId":  "conversation-artifacts",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "an attachment saved from the keyboard at 390px.",
+                        "checkId":  "artifacts-save-attachment",
+                        "featureId":  "conversation-artifacts",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "a failed save keeps the form and offers \"Tentar de novo\".",
+                        "checkId":  "artifacts-save-error",
+                        "featureId":  "conversation-artifacts",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Do Cofre nesta conversa\" keeps the old Fontes selection (not driven; unchanged behavior).",
+                        "checkId":  "artifacts-context",
+                        "featureId":  "conversation-artifacts",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "PDF copies need the PDFcn renderer; covered by `apps/web/tests/conversation-artifacts.test.ts`.",
+                        "checkId":  "conversation-artifacts-06",
+                        "featureId":  "conversation-artifacts",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Salvar PDF/DOCX/anexo em caso ou pasta autorizada mantém procedência e versão.",
+                        "checkId":  "artifacts-destinations",
+                        "featureId":  "conversation-artifacts",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Repetição retorna cópia existente; cópia excluída/movida é conflito e deve ser informada.",
+                        "checkId":  "artifacts-repeat",
+                        "featureId":  "conversation-artifacts",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Outra pessoa não lista nem salva artefatos privados da conversa.",
+                        "checkId":  "artifacts-isolation",
+                        "featureId":  "conversation-artifacts",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "selects CLIProxyAPI, saves a connection and assigns a model on desktop and at 390px, including keyboard submission.",
+                        "checkId":  "provider-selection",
+                        "featureId":  "cliproxyapi",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "checks that creating the proxy connection preserves the Agente model selection.",
+                        "checkId":  "existing-assignments",
+                        "featureId":  "cliproxyapi",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "sends a real prompt from a new account, reloads the completed answer and checks the saved owner and released slot.",
+                        "checkId":  "history",
+                        "featureId":  "cliproxyapi",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "refuses a second account access to the first account\u0027s conversation.",
+                        "checkId":  "isolation",
+                        "featureId":  "cliproxyapi",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "admits three turns per person, refuses a fourth with 429, and allows another after a turn completes, stops or fails.",
+                        "checkId":  "capacity",
+                        "featureId":  "cliproxyapi",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Plano → \"Créditos\" shows \"\u003cn\u003e créditos\" and \"Usados neste mês\".",
+                        "checkId":  "credits-balance",
+                        "featureId":  "credits",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the table \"Últimas movimentações de créditos\" lists \"Créditos iniciais\" (+500), plan months, purchases, grants and AI or OCR use.",
+                        "checkId":  "credits-statement",
+                        "featureId":  "credits",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "one outline button per package opens the AbacatePay checkout; only listed packages are accepted.",
+                        "checkId":  "credits-packages",
+                        "featureId":  "credits",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "with no credits left, the chat, background runs, voice notes and OCR are refused with \"Seus créditos acabaram…\".",
+                        "checkId":  "credits-blocked",
+                        "featureId":  "credits",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Administração → Clientes → a client → \"Créditos\": amount, \"Motivo\" and \"Adicionar créditos\".",
+                        "checkId":  "credits-admin-grant",
+                        "featureId":  "credits",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the Plano page fits 390px.",
+                        "checkId":  "credits-mobile",
+                        "featureId":  "credits",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Novo honorário\" dialog with pickers \"Cliente (obrigatório)\" and \"Caso (opcional)\", \"Descrição\", \"Valor total (R$)\", \"Número de parcelas\", \"Primeiro vencimento\"; due dates preserve the chosen day, capped at the last day of shorter months.",
+                        "checkId":  "fees-create",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Registrar recebimento da parcela N\" → \"Valor recebido (R$)\" → \"Salvar recebimento\", full or partial.",
+                        "checkId":  "fees-receive",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Desfazer recebimento de R$ …\" → \"Motivo da correção\" → \"Desfazer registro\"; \"Registro desfeito por\" appears and the receipt stays with its reversal.",
+                        "checkId":  "fees-undo",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"A receber\", \"Recebidas\", \"Canceladas\".",
+                        "checkId":  "fees-tabs",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Cancelar honorário\" → \"Motivo do cancelamento\" → \"Confirmar cancelamento\"; \"Honorário cancelado. O histórico permanece disponível.\"",
+                        "checkId":  "fees-cancel",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "empty (\"Nenhuma parcela a receber para estes filtros.\"), loading (\"Carregando honorários…\"), error alert and \"Tentar novamente\".",
+                        "checkId":  "fees-states",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the list and the create form at 390px; \"Mais\" lists Honorários.",
+                        "checkId":  "fees-mobile",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "charging an installment through Asaas (see `asaas`).",
+                        "checkId":  "fees-asaas-charge",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Busca, cliente, caso, vencimento e paginação retornam o conjunto correto.",
+                        "checkId":  "fees-filters",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Participante pode consultar conforme acesso; somente criador altera; terceiro não consulta.",
+                        "checkId":  "fees-authorization",
+                        "featureId":  "honorarios",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the \"Asaas\" section in Integrações shows \"Nenhuma conta do Asaas conectada.\" and a \"Chave de API do Asaas\" field. A key without the `$aact_` prefix is refused with an alert.",
+                        "checkId":  "asaas-connection",
+                        "featureId":  "asaas",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the installment\u0027s charge screen has a \"Cobrança pelo Asaas\" section. Without a connection, it links to Integrações (\"conecte a conta do Asaas em Integrações\"), and the PIX and boleto instructions stay available.",
+                        "checkId":  "asaas-charge",
+                        "featureId":  "asaas",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Conectar, revalidar, trocar chave e desconectar conta sandbox, sem expor a chave.",
+                        "checkId":  "asaas-valid-connection",
+                        "featureId":  "asaas",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Emitir cobrança pelo saldo, recuperar envio incerto sem duplicação e cancelar.",
+                        "checkId":  "asaas-issue-cancel",
+                        "featureId":  "asaas",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Webhook autenticado registra recebimento uma vez; duplicação não duplica baixa; estorno reverte.",
+                        "checkId":  "asaas-webhook",
+                        "featureId":  "asaas",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the list at `/app/calc` shows \"Nenhum cálculo salvo para esta busca.\" The page title carries a \"BETA\" mark.",
+                        "checkId":  "calc-empty",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "each of the seven starters opens its heading and \"Voltar aos cálculos\" returns to the list. The starters are \"Correção de valores\", \"Trabalhista\", \"Revisional bancário\", \"Pensão alimentícia\", \"Aluguel\", \"Consumidor\" and \"Tributário\".",
+                        "checkId":  "calc-kinds",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "keyboard opens \"Consumidor\"; a double restitution of R$ 100,00 plus a R$ 50,00 payment previews \"150,00\" in the total; saving persists `totalCents` 15000.",
+                        "checkId":  "calc-consumer",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "the saved version exports as JSON, CSV and a PDF (`%PDF-`).",
+                        "checkId":  "calc-export",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "revising the parcel to R$ 200,00 and \"Salvar nova versão\" shows \"350,00\"; selecting version 1 shows \"150,00\" again, and the API keeps that historical total.",
+                        "checkId":  "calc-versions",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "\"Usar resultado como base de honorários\" opens \"Propostas e contratos\" with base \"150,00\". The OAB 2026 activity links \"Abrir OAB-PE\" and, after UF RS, \"Abrir OAB-RS\". Saving, downloading the proposal PDF, and \"Gerar parcelas deste componente\" create dues on 2026-01-31, 2026-02-28 and 2026-03-31 with reference UF RS.",
+                        "checkId":  "calc-proposal",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "at 390×844, \"Tributário\" saves a R$ 1.000,00 principal and the total shows \"1.033,00\", with no horizontal scroll.",
+                        "checkId":  "calc-tax-mobile",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "a held list request shows \"Carregando cálculos…\", then an alert \"Consulta de cálculos indisponível\", and \"Atualizar\" restores the saved calculation.",
+                        "checkId":  "calc-error",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Busca, paginação, duplicação e comparação de versões preservam valores e propriedade.",
+                        "checkId":  "calc-list-tools",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Validar entradas e resultado de cada uma das sete modalidades com casos de referência explícitos; abrir o formulário não basta.",
+                        "checkId":  "calc-all-formulas",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Quando o cálculo exigir série externa, conferir cache e retorno BCB separadamente do cenário sem consulta.",
+                        "checkId":  "calc-bcb",
+                        "featureId":  "calc",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "button \"Convidar cliente\" on the client page reveals `label \"Link do convite\"` whose value matches `/client/invite/`.",
+                        "checkId":  "portal-invite",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`label \"Publicar documento do Lume em PDF\"` selects a document, then button \"Publicar versão em PDF\". The text \"A versão selecionada foi publicada em PDF para este cliente.\" appears. The client later sees `link \"\u003ctítulo\u003e.pdf\"` and that URL returns 200.",
+                        "checkId":  "portal-publish-pdf",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "on the invite, fill `label \"Nova senha\"` and `label \"Confirmar nova senha\"`, check `checkbox /Li e aceito os Termos de uso/`, tap button \"Criar acesso ao portal\". `heading \"Portal do cliente\"` is visible and a session cookie is set. `sql` returns `accountKind` `client` and zero rows in `office_member`.",
+                        "checkId":  "portal-accept",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "`link \"Baixar cobrança em PDF\"` is visible. The drive does not open it, so it does not prove the charge file bytes.",
+                        "checkId":  "portal-charge-link",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "button \"Enviar comprovante desta parcela\", `label \"Arquivo para enviar\"` set to `e2e/fixtures/comprovante.pdf`, then button \"Enviar arquivo ao escritório\". The text \"Comprovante enviado. O escritório fará a conferência do pagamento.\" appears. Back in the office, button \"Atualizar portal\" shows `link \"comprovante.pdf\"`.",
+                        "checkId":  "portal-proof",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "button \"Revogar acesso ao portal\" shows \"Acesso e convite revogados.\" The client\u0027s file URL and portal API then return 404.",
+                        "checkId":  "portal-revoke",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "at 390×844, the portal and the office client page have no horizontal scroll.",
+                        "checkId":  "portal-mobile",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Retirar documento/publicação invalida o download antigo sem expor internos.",
+                        "checkId":  "portal-withdraw",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Publicar PDF local e versão de artefato produz bytes legíveis do documento escolhido.",
+                        "checkId":  "portal-local-pdf",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Aceitar convite com conta existente do e-mail destinatário e alternar entre acessos autorizados.",
+                        "checkId":  "portal-existing-account",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Orientação gov.br abre destino externo; devolução do PDF assinado permite conferência manual, sem prometer assinatura automática.",
+                        "checkId":  "portal-govbr",
+                        "featureId":  "client-portal",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Nova conversa mantém histórico após recarregar e não aparece para outro usuário.",
+                        "checkId":  "agent-chat-01",
+                        "featureId":  "agent-chat",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Enviar uma pergunta produz resposta; interromper termina o fluxo e permite novo envio.",
+                        "checkId":  "agent-chat-02",
+                        "featureId":  "agent-chat",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Anexo enviado aparece na conversa; arquivo recusado apresenta erro sem perder o rascunho.",
+                        "checkId":  "agent-chat-03",
+                        "featureId":  "agent-chat",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Áudio só é oferecido com transcrição configurada; texto transcrito aparece antes do envio.",
+                        "checkId":  "agent-chat-04",
+                        "featureId":  "agent-chat",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Compositor e rascunho permanecem acessíveis em conversa longa a 390px.",
+                        "checkId":  "agent-chat-05",
+                        "featureId":  "agent-chat",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Criar, editar e remover regra persiste após recarregar.",
+                        "checkId":  "agent-settings-01",
+                        "featureId":  "agent-settings",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Referências do Cofre aparecem sem duplicar itens legados e respeitam o modo de leitura escolhido.",
+                        "checkId":  "agent-settings-02",
+                        "featureId":  "agent-settings",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Adicionar e remover modelo DOCX altera a seleção persistida.",
+                        "checkId":  "agent-settings-03",
+                        "featureId":  "agent-settings",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "A lista e os formulários funcionam por teclado e em 390px.",
+                        "checkId":  "agent-settings-04",
+                        "featureId":  "agent-settings",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Ação financeira fica pendente e não altera o saldo antes de Confirmar.",
+                        "checkId":  "agent-approvals-01",
+                        "featureId":  "agent-approvals",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Confirmar executa uma vez e remove a ação disponível; repetir não duplica o efeito.",
+                        "checkId":  "agent-approvals-02",
+                        "featureId":  "agent-approvals",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Cancelar preserva o estado anterior e mantém o registro cancelado.",
+                        "checkId":  "agent-approvals-03",
+                        "featureId":  "agent-approvals",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Consulta à ajuda retorna fontes sem conceder acesso administrativo a Integrações.",
+                        "checkId":  "agent-approvals-04",
+                        "featureId":  "agent-approvals",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Citação abre a fonte correta após reabrir a conversa.",
+                        "checkId":  "chat-feedback-01",
+                        "featureId":  "chat-feedback",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Duas confirmações na mesma resposta mantêm estados independentes.",
+                        "checkId":  "chat-feedback-02",
+                        "featureId":  "chat-feedback",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Confirmar uma ação e cancelar outra não apaga nem troca seus estados.",
+                        "checkId":  "chat-feedback-03",
+                        "featureId":  "chat-feedback",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Fonte e ações permanecem acessíveis em 390px.",
+                        "checkId":  "chat-feedback-04",
+                        "featureId":  "chat-feedback",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Edição salva automaticamente e pode ser salva como nova versão explícita.",
+                        "checkId":  "document-saving-01",
+                        "featureId":  "document-saving",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Alternar aba, fechar painel e navegar preservam alterações confirmadas.",
+                        "checkId":  "document-saving-02",
+                        "featureId":  "document-saving",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Conflito ou falha preserva texto local e permite tentar novamente.",
+                        "checkId":  "document-saving-03",
+                        "featureId":  "document-saving",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Restaurar versão exige salvar ou resolver alterações locais antes.",
+                        "checkId":  "document-saving-04",
+                        "featureId":  "document-saving",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Logout continua possível com confirmação explícita para descartar alterações.",
+                        "checkId":  "document-saving-05",
+                        "featureId":  "document-saving",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Painel móvel controla e devolve foco; voltar/avançar não perde rascunho com falha.",
+                        "checkId":  "document-saving-06",
+                        "featureId":  "document-saving",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Confirmar um item com observação persiste na versão atual.",
+                        "checkId":  "document-human-review-01",
+                        "featureId":  "document-human-review",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Alterar decisão para Precisa de ajuste atualiza o resumo.",
+                        "checkId":  "document-human-review-02",
+                        "featureId":  "document-human-review",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Editar o documento cria versão e pede revisão novamente.",
+                        "checkId":  "document-human-review-03",
+                        "featureId":  "document-human-review",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Requisição sem sessão é negada; verificar também outra conta autenticada.",
+                        "checkId":  "document-human-review-04",
+                        "featureId":  "document-human-review",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Exportar PDF baixa arquivo cujo texto corresponde à versão salva.",
+                        "checkId":  "document-pdf-01",
+                        "featureId":  "document-pdf",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Versão antiga solicitada explicitamente é recusada conforme contrato.",
+                        "checkId":  "document-pdf-02",
+                        "featureId":  "document-pdf",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Exportação sem sessão é recusada.",
+                        "checkId":  "document-pdf-03",
+                        "featureId":  "document-pdf",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Falha no conversor mostra erro recuperável sem corromper o texto.",
+                        "checkId":  "document-pdf-04",
+                        "featureId":  "document-pdf",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Exportar DOCX entrega arquivo legível e coerente com a versão.",
+                        "checkId":  "document-pdf-05",
+                        "featureId":  "document-pdf",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Manifesto e ícones estão publicados e consistentes.",
+                        "checkId":  "pwa-01",
+                        "featureId":  "pwa",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Instalar Lume abre convite nativo ou instruções adequadas ao navegador.",
+                        "checkId":  "pwa-02",
+                        "featureId":  "pwa",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Tema escuro atualiza a cor da barra.",
+                        "checkId":  "pwa-03",
+                        "featureId":  "pwa",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Service worker existe no build de produção; modo offline apresenta o comportamento documentado sem expor dados privados.",
+                        "checkId":  "pwa-04",
+                        "featureId":  "pwa",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Arquivos além da primeira página permanecem alcançáveis.",
+                        "checkId":  "vault-pagination-01",
+                        "featureId":  "vault-pagination",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Falha ao carregar página mantém dados atuais e permite nova tentativa.",
+                        "checkId":  "vault-pagination-02",
+                        "featureId":  "vault-pagination",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Remover o último item recalcula a página sem perder acesso aos demais.",
+                        "checkId":  "vault-pagination-03",
+                        "featureId":  "vault-pagination",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Seletores de anexos, e-mail e Drive alcançam arquivos antigos.",
+                        "checkId":  "vault-pagination-04",
+                        "featureId":  "vault-pagination",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Layout móvel não cria rolagem horizontal da página.",
+                        "checkId":  "vault-pagination-05",
+                        "featureId":  "vault-pagination",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Resumo apresenta tarefas e dados do usuário autenticado.",
+                        "checkId":  "command-center-01",
+                        "featureId":  "command-center",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Concluir tarefa no Início persiste e aparece nas outras visões.",
+                        "checkId":  "command-center-02",
+                        "featureId":  "command-center",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Nova atividade abre o formulário correto.",
+                        "checkId":  "command-center-03",
+                        "featureId":  "command-center",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Estados vazio, carregamento e erro mantêm ações recuperáveis.",
+                        "checkId":  "command-center-04",
+                        "featureId":  "command-center",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Criar reunião com data e horário faz a atividade aparecer no dia correto.",
+                        "checkId":  "office-calendar-01",
+                        "featureId":  "office-calendar",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Trocar mês, pesquisar e filtrar por cliente/caso preserva os critérios.",
+                        "checkId":  "office-calendar-02",
+                        "featureId":  "office-calendar",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Editar, cancelar e reabrir atividades respeita o tipo e estado.",
+                        "checkId":  "office-calendar-03",
+                        "featureId":  "office-calendar",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Abrir ligação da ficha de cliente aplica o filtro correspondente.",
+                        "checkId":  "office-calendar-04",
+                        "featureId":  "office-calendar",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Convite só pode ser aceito pela conta destinatária; aceite cria associação.",
+                        "checkId":  "collaboration-01",
+                        "featureId":  "collaboration",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Incluir associado nos participantes libera o caso conforme permissão.",
+                        "checkId":  "collaboration-02",
+                        "featureId":  "collaboration",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Pastas públicas, privadas e restritas exibem apenas o conteúdo autorizado.",
+                        "checkId":  "collaboration-03",
+                        "featureId":  "collaboration",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Alterar acesso e revogar participação remove acesso também pela API.",
+                        "checkId":  "collaboration-04",
+                        "featureId":  "collaboration",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Erros permitem nova tentativa; teclado e 390px mantêm operações acessíveis.",
+                        "checkId":  "collaboration-05",
+                        "featureId":  "collaboration",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Upload na Biblioteca aparece com nome e escopo corretos.",
+                        "checkId":  "vault-library-01",
+                        "featureId":  "vault-library",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Enviar nova versão mantém histórico e download coerente.",
+                        "checkId":  "vault-library-02",
+                        "featureId":  "vault-library",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Renomear, mover/vincular e excluir seguem confirmações disponíveis e permissões.",
+                        "checkId":  "vault-library-03",
+                        "featureId":  "vault-library",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Arquivo em processamento ou erro exibe estado; tentar novamente permite acompanhar a recuperação.",
+                        "checkId":  "vault-library-04",
+                        "featureId":  "vault-library",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Pesquisa/seleção não revela arquivos de outro escritório sem compartilhamento.",
+                        "checkId":  "vault-library-05",
+                        "featureId":  "vault-library",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Pesquisa por nome, território e classe Nice apresenta resultados ou vazio explícito.",
+                        "checkId":  "research-trademarks-01",
+                        "featureId":  "research-trademarks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Pesquisa por logotipo valida arquivo e apresenta andamento/resultado sem perder a entrada.",
+                        "checkId":  "research-trademarks-02",
+                        "featureId":  "research-trademarks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Histórico pessoal reabre a mesma pesquisa e seus filtros.",
+                        "checkId":  "research-trademarks-03",
+                        "featureId":  "research-trademarks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Detalhes apresentam fonte, situação e classificação; outra conta não acessa pesquisa privada.",
+                        "checkId":  "research-trademarks-04",
+                        "featureId":  "research-trademarks",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Pesquisar tema e tribunal cria pesquisa recuperável no histórico pessoal.",
+                        "checkId":  "research-jurisprudence-01",
+                        "featureId":  "research-jurisprudence",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Consulta ao acervo e a fontes oficiais distingue resultados vazios, pendentes e falha de fonte.",
+                        "checkId":  "research-jurisprudence-02",
+                        "featureId":  "research-jurisprudence",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Carregar mais resultados não repete nem perde itens.",
+                        "checkId":  "research-jurisprudence-03",
+                        "featureId":  "research-jurisprudence",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Leitor apresenta ementa/inteiro teor e original quando disponível, com fonte oficial.",
+                        "checkId":  "research-jurisprudence-04",
+                        "featureId":  "research-jurisprudence",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Vincular julgado ao caso mantém finalidade e anotação após recarregar.",
+                        "checkId":  "research-casework-01",
+                        "featureId":  "research-casework",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Avaliação apresenta estado da versão atual e não reutiliza avaliação obsoleta.",
+                        "checkId":  "research-casework-02",
+                        "featureId":  "research-casework",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Nova versão do material pode ser avaliada/atualizada com decisão explícita.",
+                        "checkId":  "research-casework-03",
+                        "featureId":  "research-casework",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Gerar minuta a partir das referências apresenta progresso e documento vinculado.",
+                        "checkId":  "research-casework-04",
+                        "featureId":  "research-casework",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Remover referência do caso preserva histórico de versões já usadas.",
+                        "checkId":  "research-casework-05",
+                        "featureId":  "research-casework",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Vincular número de processo mantém fonte e situação no caso.",
+                        "checkId":  "judicial-monitoring-01",
+                        "featureId":  "judicial-monitoring",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Confirmar/rejeitar vínculo proposto altera o estado correto.",
+                        "checkId":  "judicial-monitoring-02",
+                        "featureId":  "judicial-monitoring",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Atualizar processo produz job observável e resultado ou erro explícito da fonte.",
+                        "checkId":  "judicial-monitoring-03",
+                        "featureId":  "judicial-monitoring",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Detalhe do processo mostra quantidade/data de publicações; caixa JudicialInbox e marcação de alertas precisam de entrada UI demonstrada.",
+                        "checkId":  "judicial-monitoring-04",
+                        "featureId":  "judicial-monitoring",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Seguir e desvincular alteram apenas o vínculo/autorização esperado.",
+                        "checkId":  "judicial-monitoring-05",
+                        "featureId":  "judicial-monitoring",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Conectar Google solicita os módulos/escopos escolhidos e retorna à conta correta.",
+                        "checkId":  "google-integration-01",
+                        "featureId":  "google-integration",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Estado de conexão e permissões persiste após recarregar.",
+                        "checkId":  "google-integration-02",
+                        "featureId":  "google-integration",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Recusa ou expiração de autorização apresenta recuperação compreensível.",
+                        "checkId":  "google-integration-03",
+                        "featureId":  "google-integration",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Desconectar invalida o acesso local sem afetar outra pessoa/escritório.",
+                        "checkId":  "google-integration-04",
+                        "featureId":  "google-integration",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Visão pessoal apresenta eventos sincronizados no fuso correto.",
+                        "checkId":  "google-calendar-01",
+                        "featureId":  "google-calendar",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Criar/editar evento e responder convite refletem o estado autorizado no Google.",
+                        "checkId":  "google-calendar-02",
+                        "featureId":  "google-calendar",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Falha de sincronização não confunde reunião interna com evento pessoal.",
+                        "checkId":  "google-calendar-03",
+                        "featureId":  "google-calendar",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Desconexão impede novas operações e sinaliza a necessidade de reconectar.",
+                        "checkId":  "google-calendar-04",
+                        "featureId":  "google-calendar",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Caixa e conversa exibem mensagens e paginação da conta conectada.",
+                        "checkId":  "google-mail-01",
+                        "featureId":  "google-mail",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Escrever/salvar/reabrir/excluir rascunho preserva destinatários, assunto e conteúdo.",
+                        "checkId":  "google-mail-02",
+                        "featureId":  "google-mail",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Anexar do Cofre e importar anexo respeitam permissões e limites.",
+                        "checkId":  "google-mail-03",
+                        "featureId":  "google-mail",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Enviar para destinatário de teste produz entrega única e confirmação.",
+                        "checkId":  "google-mail-04",
+                        "featureId":  "google-mail",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Triagem/insights distinguem resultado, pendência e indisponibilidade.",
+                        "checkId":  "google-mail-05",
+                        "featureId":  "google-mail",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Picker mostra arquivos acessíveis e respeita cancelamento/escopo.",
+                        "checkId":  "google-drive-docs-01",
+                        "featureId":  "google-drive-docs",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Importar arquivo para Cofre preserva nome, conteúdo e destino.",
+                        "checkId":  "google-drive-docs-02",
+                        "featureId":  "google-drive-docs",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Enviar versão a documento existente mantém histórico e autorização.",
+                        "checkId":  "google-drive-docs-03",
+                        "featureId":  "google-drive-docs",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Operações Docs disponíveis pelas ferramentas aprovadas preservam formato e destino.",
+                        "checkId":  "google-drive-docs-04",
+                        "featureId":  "google-drive-docs",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Nova conversa com pessoa do Lume persiste mensagem e leitura entre as duas contas.",
+                        "checkId":  "messages-01",
+                        "featureId":  "messages",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Compartilhar documento entrega a versão escolhida com download autorizado.",
+                        "checkId":  "messages-02",
+                        "featureId":  "messages",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Remover acesso revoga links antigos sem apagar o histórico da conversa.",
+                        "checkId":  "messages-03",
+                        "featureId":  "messages",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Destinatário externo recebe e-mail e reivindica endereço pela conta correta.",
+                        "checkId":  "messages-04",
+                        "featureId":  "messages",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Paginação e recuperação de envio incerto não duplicam mensagens.",
+                        "checkId":  "messages-05",
+                        "featureId":  "messages",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Flag desligada esconde entrada e bloqueia a rota direta.",
+                        "checkId":  "whatsapp-01",
+                        "featureId":  "whatsapp",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Conectar/sincronizar atualiza caixa e histórico da conta de teste.",
+                        "checkId":  "whatsapp-02",
+                        "featureId":  "whatsapp",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Enviar texto/anexo respeita janela de resposta e limites do arquivo.",
+                        "checkId":  "whatsapp-03",
+                        "featureId":  "whatsapp",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Envio incerto permite Verificar este envio sem duplicar a mensagem.",
+                        "checkId":  "whatsapp-04",
+                        "featureId":  "whatsapp",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Webhook atualiza o histórico; desconexão interrompe operações.",
+                        "checkId":  "whatsapp-05",
+                        "featureId":  "whatsapp",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Flag controla menu e acesso direto por usuário/escritório.",
+                        "checkId":  "ads-01",
+                        "featureId":  "ads",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Conectar chave válida mostra conta, moeda, fuso e situação sem expor segredo.",
+                        "checkId":  "ads-02",
+                        "featureId":  "ads",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Revalidar/substituir chave respeita versão e apresenta falha recuperável.",
+                        "checkId":  "ads-03",
+                        "featureId":  "ads",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Desconectar remove vínculo após confirmação.",
+                        "checkId":  "ads-04",
+                        "featureId":  "ads",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Interface informa que criar/publicar/gerir campanhas ainda não está disponível.",
+                        "checkId":  "ads-05",
+                        "featureId":  "ads",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Sino/painel apresenta contagem, leitura, abrir destino e arquivamento coerentes.",
+                        "checkId":  "notifications-01",
+                        "featureId":  "notifications",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Marcar todas como lidas persiste sem afetar outra conta.",
+                        "checkId":  "notifications-02",
+                        "featureId":  "notifications",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Preferências de categorias, fuso e silêncio persistem.",
+                        "checkId":  "notifications-03",
+                        "featureId":  "notifications",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Dispositivo pode ativar, testar e revogar push conforme suporte/permissão.",
+                        "checkId":  "notifications-04",
+                        "featureId":  "notifications",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Lembrete de atividade/cobrança chega no horário permitido e não após revogação.",
+                        "checkId":  "notifications-05",
+                        "featureId":  "notifications",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Enviar feedback permite problema, ideia e dúvida com descrição.",
+                        "checkId":  "feedback-01",
+                        "featureId":  "feedback",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Captura anexada pode ser removida antes de enviar.",
+                        "checkId":  "feedback-02",
+                        "featureId":  "feedback",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Confirmação e Ver seus relatos mostram o registro após reabrir.",
+                        "checkId":  "feedback-03",
+                        "featureId":  "feedback",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Histórico e anexos não ficam acessíveis a outra pessoa sem autorização.",
+                        "checkId":  "feedback-04",
+                        "featureId":  "feedback",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Conta comum recebe bloqueio de rotas e APIs administrativas.",
+                        "checkId":  "platform-admin-01",
+                        "featureId":  "platform-admin",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Feedback permite consultar ticket, anexos, triagem e histórico A/B conforme os controles disponíveis.",
+                        "checkId":  "platform-admin-02",
+                        "featureId":  "platform-admin",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Clientes apresenta escritório, plano, pagamentos e concessão de créditos auditada.",
+                        "checkId":  "platform-admin-03",
+                        "featureId":  "platform-admin",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Financeiro filtra cobranças, separando sandbox de produção.",
+                        "checkId":  "platform-admin-04",
+                        "featureId":  "platform-admin",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "IA configura conexões/atribuições e TypeSafe; Execuções mostra lista e detalhe.",
+                        "checkId":  "platform-admin-05",
+                        "featureId":  "platform-admin",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Credenciais permite rotação sem revelar segredos na evidência.",
+                        "checkId":  "platform-admin-06",
+                        "featureId":  "platform-admin",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Auditoria filtra grupo/escritório e pagina sem misturar contexto.",
+                        "checkId":  "platform-admin-07",
+                        "featureId":  "platform-admin",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Sem provedor configurado, Plano apresenta indisponibilidade explícita.",
+                        "checkId":  "billing-subscription-01",
+                        "featureId":  "billing-subscription",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Abrir checkout de plano usa uma cobrança por intenção concorrente.",
+                        "checkId":  "billing-subscription-02",
+                        "featureId":  "billing-subscription",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Confirmação de pagamento no sandbox atualiza plano e histórico uma única vez.",
+                        "checkId":  "billing-subscription-03",
+                        "featureId":  "billing-subscription",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Webhook repetido/estorno preserva consistência do plano e créditos.",
+                        "checkId":  "billing-subscription-04",
+                        "featureId":  "billing-subscription",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "PIX e boleto anexado ficam ligados à parcela correta.",
+                        "checkId":  "honorario-charge-01",
+                        "featureId":  "honorario-charge",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "PDF contém dados e valor da versão vigente da cobrança.",
+                        "checkId":  "honorario-charge-02",
+                        "featureId":  "honorario-charge",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Registrar envio mantém histórico sem registrar recebimento.",
+                        "checkId":  "honorario-charge-03",
+                        "featureId":  "honorario-charge",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Parcela quitada bloqueia alteração/envio incompatível.",
+                        "checkId":  "honorario-charge-04",
+                        "featureId":  "honorario-charge",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Publicar/retirar no portal altera acesso; lembretes seguem configuração.",
+                        "checkId":  "honorario-charge-05",
+                        "featureId":  "honorario-charge",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "PDF e petição válidos permitem propor a divisão de anexos.",
+                        "checkId":  "vault-annexes-01",
+                        "featureId":  "vault-annexes",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Revisar nomes, páginas, inclusão e ordem altera o plano antes de gerar.",
+                        "checkId":  "vault-annexes-02",
+                        "featureId":  "vault-annexes",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Intervalos inválidos impedem geração com erro claro.",
+                        "checkId":  "vault-annexes-03",
+                        "featureId":  "vault-annexes",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    },
+                    {
+                        "blocker":  null,
+                        "evidence":  [
+
+                                     ],
+                        "environment":  null,
+                        "expected":  "Gerar cria pasta/documentos cujos PDFs correspondem às páginas escolhidas.",
+                        "checkId":  "vault-annexes-04",
+                        "featureId":  "vault-annexes",
+                        "notes":  null,
+                        "observed":  null,
+                        "status":  "not-run",
+                        "attemptedEntry":  null
+                    }
+                ]
+}

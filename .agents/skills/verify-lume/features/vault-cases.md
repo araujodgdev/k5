@@ -1,6 +1,6 @@
 # Vault cases
 
-A member creates a case in Cofre to organize files by legal matter, optionally with client data, and opens the case page. File upload and processing need `pnpm worker`, which this instance does not run.
+A member creates a case in Cofre to organize files by legal matter, optionally with client data, and opens the case page. The harness does not launch a separate worker; Node can process uploads after the response. TXT ingestion is covered by vault-upload. Cloudflare and queued recovery have separate processor requirements.
 
 ## Sub-features
 
@@ -9,7 +9,9 @@ A member creates a case in Cofre to organize files by legal matter, optionally w
 - `cases-client`: "Dados do cliente (opcional)" adds client name, CPF/CNPJ, e-mail, phone and notes.
 - `cases-open`: the new case appears in the grid or list and opens `/app/vault/cases/<id>` with the title as `h1`.
 - `cases-view-mode`: "Ver em cartões" and "Ver em lista" switch the layout.
-- `cases-upload`: sending documents to a case (not verifiable here without the worker).
+- `cases-upload`: sending documents to a case; see [vault-upload](./vault-upload.md) for HTTP/TXT and [collaboration](./collaboration.md) for upload permissions through the UI.
+
+- `cases-edit-delete`: Editar e excluir caso respeita confirmação e autoria/permissões, sem confundir dados do caso com CRM.
 
 ## How to get to it (user POV)
 
@@ -37,3 +39,6 @@ Preconditions:
 - The page `h1 "Cofre"` is `sr-only` on mobile.
 - Titles need at least 2 characters after trimming. Shorter titles show a `role=alert` error without calling the API.
 - "Importar do Google Drive" needs Google keys, which are blanked here. Report it as unverifiable, not as broken.
+
+- **Revisão de fonte; sem execução nesta etapa:** Teste com agente exige chave no runner. Criar caso não prova ingestão, coleta judicial ou permissões das pastas.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

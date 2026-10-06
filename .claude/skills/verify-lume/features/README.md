@@ -1,59 +1,107 @@
-# Lume verification map
+# Mapa de verificação do Lume
 
-This directory is the maintained source for verifying the user-facing behavior of Lume, the K5 web app in `apps/web`. Read this index before driving the app, then use the matching feature file as the recipe.
+Leia [a skill](../SKILL.md), a receita correspondente e [o grafo/roteiro completo](../coverage/README.md).
 
-## Baseline preconditions
+## Condições básicas
 
-- An instance started by this run with `lume-verify.mts up`, and `lume-verify.mts doctor` all `OK`.
-- The signed-in user is `verify@lume.test`, administrator of `Escritório de Verificação`. The office starts empty: no cases, clients or activities.
-- Integrations are off: no AI connection, Exa, Google or AbacatePay keys, and no workers.
-- Never drive the developer's server on port 3000 or its database.
+- Usar instância isolada desta execução e doctor aprovado; nunca servidor/banco do desenvolvedor.
+- Conta de verificação é dona do escritório pessoal; office_member.role não existe. A sessão e2e chamada admin não concede platform_admin.
+- Usar nomes únicos e contas separadas para credenciais/logout. Passos anteriores podem ter criado dados.
+- O harness não habilita integrações nem workers separados. Node pode processar TXT inline; demais processadores dependem do cenário/runtime.
 
-## Driving conventions
+## Convenções de prova
 
-- Run a feature with `lume-verify.mts drive <id>`. It runs the e2e tests that the recipe's `Test:` lines name (`apps/web/e2e/*.e2e.ts`) against the instance, signed in as its account. Write tests with the `e2e` skill.
-- Every drive records a trace per test; e2e adds a screenshot on failure. Call `app.screenshot(label)` in a test for a before/after image.
-- Prefer roles and accessible names in pt-BR (`screen.getByRole('button', 'Salvar')`). e2e matches names exactly by default, because many labels share prefixes; pass `{ exact: false }` for a substring.
-- Use unique titles per run (`Date.now().toString(36)` suffix), because the database persists for the whole instance.
-- Wait for UI state or poll with `expect.poll`, never for a fixed sleep. Reads such as `inputValue()` do not wait: assert the field is visible first.
+drive executa todos os arquivos Test da receita. Teste presente não é teste executado; um arquivo verde não aprova todos os itens. Sem Test, o CLI retorna NO_TESTS: dirigir o roteiro manual ou escrever teste em tarefa própria.
 
-## Proof and skip reporting
+Capturar ação/resultado, persistência por recarga/leitura autenticada, isolamento, teclado e 390px. Bloqueio exige entrada tentada e pré-requisito concreto. Preservar artefatos antes de repetir drive, que limpa a pasta da feature.
 
-- UI proof: the trace of each test, plus `app.screenshot()` images where the before/after matters.
-- Mutation proof: a `sql()` read of the row scoped to the verification office, and a page reload showing the same state.
-- Mobile proof: the same screen at 390px wide, with no horizontal scroll.
-- Open the trace when a page error matters: e2e does not collect console errors itself.
-- The drive's `tests` list names each test title; a passing title is the proof of its entry point.
-- Report an unreachable path with the attempted step and the missing precondition. Never report a skipped entry point as verified through another one.
+## Contrato de receita
 
-## Feature entry contract
+Cada arquivo tem H1, introdução e quatro H2: Sub-features; How to get to it (user POV); Driving it with e2e; Gotchas. Linhas Test apontam a arquivos reais. Auxiliares ficam em coverage/, pois todo features/*.md salvo README vira receita no CLI.
 
-Each file has an H1, one paragraph on the user-visible behavior, then exactly: `Sub-features`, `How to get to it (user POV)`, `Driving it with e2e` (starting with its `Test:` lines, then `Preconditions:`), and `Gotchas`. Keep implementation details out; name user paths, handles, state and observable proof.
+## Funcionalidades
 
-## Features
+### Acesso
 
-- [CLIProxyAPI](./cliproxyapi.md): provider selection, explicit task assignment, optional real chat and persistent private history. Test: `e2e/cliproxyapi.e2e.ts`. Real chat requires `K5_E2E_REAL_AI=1` and a private proxy key in the runner.
-- [Tutorial library](./tutorials.md): videos by module, filters, keyboard access and desktop/mobile playback pages. Test: `e2e/onboarding.e2e.ts`.
-- [Office tasks](./office-tasks.md): create, persist, complete and archive tasks in Escritório → Tarefas. Test: `e2e/office-tasks.e2e.ts`.
-- [Task details](./task-details.md): open a Kanban card's own page, edit its fields, preserve its status and reload on desktop and mobile. Test: `e2e/task-details.e2e.ts`.
-- [Vault cases](./vault-cases.md): create a case in Cofre and open its page. Test: `e2e/agent/vault-cases.e2e.ts` (agent steps, needs `OPENAI_API_KEY`).
-- [Office clients](./office-clients.md): create and edit a client in Escritório → Clientes. Test: `e2e/agent/office-clients.e2e.ts` (agent steps, needs `OPENAI_API_KEY`).
-- [Profile](./profile.md): edit the profile, photo and credentials, and see a user's card while inviting. Test: `e2e/profile.e2e.ts`.
-- [Authentication](./authentication.md): sign up a new office, sign in, and sign out everywhere. Tests: `e2e/auth.setup.e2e.ts`, `e2e/password-recovery.e2e.ts`.
-- [Brand shell](./brand-shell.md): the Lume identity across the signed-in shell, desktop and mobile. Test: `e2e/app-shell.e2e.ts`.
-- [Office activity](./office-activity.md): the office's audit trail in Escritório → Atividade, with filters, desktop and mobile. Test: `e2e/office-activity.e2e.ts`.
-- [Credits](./credits.md): the office's credit balance, statement and packages on Plano, desktop and mobile. Test: `e2e/credits.e2e.ts`.
-- [Conversation artifacts](./conversation-artifacts.md): the Lume chat's Artefatos panel and saving its documents and attachments to the Cofre, desktop and mobile. Test: `e2e/conversation-artifacts.e2e.ts`.
-- [Asaas](./asaas.md): connect the office's Asaas account in Integrações and the "Cobrança pelo Asaas" section of an installment's charge, desktop and mobile. Tests: `e2e/asaas.e2e.ts`, `e2e/honorario-charge.e2e.ts`.
-- [Legal acceptance](./legal-acceptance.md): the "Antes de continuar" terms gate and the one-time AI notice before the first chat, stored per user. Tests: `e2e/legal-acceptance.e2e.ts`, `e2e/app-shell.e2e.ts`.
-- [Office data](./office-data.md): export the office as a ZIP and schedule or cancel its deletion in Perfil → Seus dados. Test: `e2e/office-data.e2e.ts`.
-- [Public site](./public-site.md): the signed-out home, SEO for crawlers, robots and sitemap, keyboard and both themes. Test: `e2e/public-site.e2e.ts`.
-- [Honorários](./honorarios.md): installments, receipts, corrections, cancellation, tabs, error recovery and mobile in the fee ledger. Test: `e2e/honorarios.e2e.ts`.
-- [Cálculos jurídicos](./calc.md): the seven calculators, a saved consumer calculation with versions and export, an OAB-PE/RS proposal with installments, and the federal-tax calculator at 390px. Test: `e2e/calc.e2e.ts`.
-- [Task board](./task-board.md): the Kanban layout of Tarefas, moving cards by dragging with the mouse or keyboard (optimistic save, rollback, versions), delegation and empty/error states, and a real-path test that proves each drag is stored for the office, desktop and mobile. Tests: `e2e/task-board.e2e.ts` (UI-only: its APIs are mocked), `e2e/task-board-persistence.e2e.ts`.
-- [Vault upload](./vault-upload.md): the 100 MB upload limit and a direct upload into a case folder, processed and downloaded. Test: `e2e/vault-upload.e2e.ts`.
-- [Client portal](./client-portal.md): invite a client, accept the terms checkbox, publish a PDF and a charge, upload a proof, and revoke access. Test: `e2e/client-portal.e2e.ts`. Needs `soffice` on PATH.
+- [Site público e SEO](./public-site.md) — `public-site`; 8 itens; testes existentes, cobertura parcial a conferir.
+- [Cadastro, login e recuperação](./authentication.md) — `authentication`; 7 itens; testes existentes, cobertura parcial a conferir.
+- [Aceite de termos e aviso de IA](./legal-acceptance.md) — `legal-acceptance`; 7 itens; testes existentes, cobertura parcial a conferir.
+- [Navegação, marca e temas](./brand-shell.md) — `brand-shell`; 9 itens; testes existentes, cobertura parcial a conferir.
+- [Perfil e credenciais pessoais](./profile.md) — `profile`; 8 itens; testes existentes, cobertura parcial a conferir.
+- [Exportação e exclusão de conta](./office-data.md) — `office-data`; 5 itens; testes existentes, cobertura parcial a conferir.
+- [Tour e biblioteca de vídeos](./tutorials.md) — `tutorials`; 7 itens; testes existentes, cobertura parcial a conferir.
+- [Instalação e funcionamento offline](./pwa.md) — `pwa`; 4 itens; testes existentes, cobertura parcial a conferir.
 
-## Not mapped yet
+### Escritório
 
-These e2e files run in CI but have no recipe, so `drive` cannot reach them. When a change touches one, write its recipe (with a `Test:` line) before claiming it verified: `agent-approvals`, `agent-settings`, `chat-feedback`, `collaboration`, `document-human-review`, `document-pdf`, `document-saving`, `pwa`, `vault-pagination`, `workspace`. `document-pdf` produces a PDF. Confirm it passes against the instance (no workers run) before mapping it.
+- [Clientes e ficha cadastral](./office-clients.md) — `office-clients`; 7 itens; testes existentes, cobertura parcial a conferir.
+- [Tarefas em lista](./office-tasks.md) — `office-tasks`; 8 itens; testes existentes, cobertura parcial a conferir.
+- [Quadro Kanban](./task-board.md) — `task-board`; 14 itens; testes existentes, cobertura parcial a conferir.
+- [Página da tarefa](./task-details.md) — `task-details`; 7 itens; testes existentes, cobertura parcial a conferir.
+- [Atividade do escritório](./office-activity.md) — `office-activity`; 7 itens; testes existentes, cobertura parcial a conferir.
+- [Início e ações rápidas](./command-center.md) — `command-center`; 4 itens; testes existentes, cobertura parcial a conferir.
+- [Agenda interna e reuniões](./office-calendar.md) — `office-calendar`; 4 itens; testes existentes, cobertura parcial a conferir.
+
+### Cofre
+
+- [Casos do Cofre](./vault-cases.md) — `vault-cases`; 7 itens; testes existentes, cobertura parcial a conferir.
+- [Envio e download de arquivos](./vault-upload.md) — `vault-upload`; 6 itens; testes existentes, cobertura parcial a conferir.
+- [Paginação e seletores do Cofre](./vault-pagination.md) — `vault-pagination`; 5 itens; testes existentes, cobertura parcial a conferir.
+- [Associados, convites e pastas](./collaboration.md) — `collaboration`; 5 itens; testes existentes, cobertura parcial a conferir.
+- [Biblioteca, documentos e versões](./vault-library.md) — `vault-library`; 5 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Separação de anexos de PDF](./vault-annexes.md) — `vault-annexes`; 4 itens; roteiro manual, sem e2e dedicado mapeado.
+
+### Lume e documentos
+
+- [Artefatos e cópias no Cofre](./conversation-artifacts.md) — `conversation-artifacts`; 9 itens; testes existentes, cobertura parcial a conferir.
+- [Provedor de IA e chat real](./cliproxyapi.md) — `cliproxyapi`; 5 itens; testes existentes, cobertura parcial a conferir.
+- [Conversas, anexos e voz](./agent-chat.md) — `agent-chat`; 5 itens; testes existentes, cobertura parcial a conferir.
+- [Personalizar Lume](./agent-settings.md) — `agent-settings`; 4 itens; testes existentes, cobertura parcial a conferir.
+- [Confirmações de ações do agente](./agent-approvals.md) — `agent-approvals`; 4 itens; testes existentes, cobertura parcial a conferir.
+- [Citações e confirmações no chat](./chat-feedback.md) — `chat-feedback`; 4 itens; testes existentes, cobertura parcial a conferir.
+- [Editor, salvamento e versões](./document-saving.md) — `document-saving`; 6 itens; testes existentes, cobertura parcial a conferir.
+- [Revisão humana de documentos](./document-human-review.md) — `document-human-review`; 4 itens; testes existentes, cobertura parcial a conferir.
+- [Exportação PDF e DOCX](./document-pdf.md) — `document-pdf`; 5 itens; testes existentes, cobertura parcial a conferir.
+
+### Financeiro
+
+- [Plano, saldo e créditos](./credits.md) — `credits`; 6 itens; testes existentes, cobertura parcial a conferir.
+- [Honorários, parcelas e recebimentos](./honorarios.md) — `honorarios`; 10 itens; testes existentes, cobertura parcial a conferir.
+- [Conexão e cobranças Asaas](./asaas.md) — `asaas`; 5 itens; testes existentes, cobertura parcial a conferir.
+- [Cálculos e propostas de honorários](./calc.md) — `calc`; 11 itens; testes existentes, cobertura parcial a conferir.
+- [Plano e checkout](./billing-subscription.md) — `billing-subscription`; 4 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Cobrança manual e PDF](./honorario-charge.md) — `honorario-charge`; 5 itens; testes existentes, cobertura parcial a conferir.
+
+### Portal
+
+- [Portal do cliente](./client-portal.md) — `client-portal`; 11 itens; testes existentes, cobertura parcial a conferir.
+
+### Pesquisa
+
+- [Pesquisa de marcas](./research-trademarks.md) — `research-trademarks`; 4 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Pesquisa e leitura de julgados](./research-jurisprudence.md) — `research-jurisprudence`; 4 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Referências, avaliações e minutas](./research-casework.md) — `research-casework`; 5 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Processos, publicações e alertas](./judicial-monitoring.md) — `judicial-monitoring`; 5 itens; roteiro manual, sem e2e dedicado mapeado.
+
+### Integrações
+
+- [Conexão Google e permissões](./google-integration.md) — `google-integration`; 4 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Agenda pessoal Google](./google-calendar.md) — `google-calendar`; 4 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Gmail, rascunhos e anexos](./google-mail.md) — `google-mail`; 5 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Google Drive e Docs](./google-drive-docs.md) — `google-drive-docs`; 4 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Conexão ChatGPT Ads BETA](./ads.md) — `ads`; 5 itens; roteiro manual, sem e2e dedicado mapeado.
+
+### Comunicação
+
+- [Mensagens e compartilhamentos](./messages.md) — `messages`; 5 itens; roteiro manual, sem e2e dedicado mapeado.
+- [WhatsApp Business](./whatsapp.md) — `whatsapp`; 5 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Notificações, lembretes e push](./notifications.md) — `notifications`; 5 itens; roteiro manual, sem e2e dedicado mapeado.
+- [Relatos e sugestões](./feedback.md) — `feedback`; 4 itens; roteiro manual, sem e2e dedicado mapeado.
+
+### Administração
+
+- [Administração da plataforma](./platform-admin.md) — `platform-admin`; 7 itens; testes existentes, cobertura parcial a conferir.
+
+## Estado da revisão
+
+51 receitas, 302 itens, 34 arquivos e2e referenciados (incluindo auth.setup). Todos os arquivos e2e encontrados têm vínculo a pelo menos uma receita; isso não significa cobertura integral das funcionalidades. Nenhuma validação ao vivo executada em 2026-10-06. Consulte [achados](../coverage/findings.md) e [prompt de execução](../coverage/validation-prompt.md).

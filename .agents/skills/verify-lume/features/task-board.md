@@ -17,6 +17,9 @@ Escritório → Tarefas has a Kanban layout: tasks appear as cards in four statu
 - `board-persist`: every drag is stored on the signed-in office's task and survives a reload (real path only).
 - `board-mobile`: at 390px the grip is 44×44 with `touch-action: none`, the keyboard drag crosses columns, and the page has no horizontal scroll.
 
+- `board-existing-session`: Abrir sessão do Lume reutiliza a conversa da tarefa delegada, inclusive após encerramento.
+- `board-filter-pages`: Com mais de 50 resultados, todas as páginas respeitam o filtro de situação; reproduzir a possível omissão de status.
+
 ## How to get to it (user POV)
 
 - Sidebar "Escritório" (`/app/agenda`) → tab Tarefas → button "Kanban"; or open `/app/agenda?layout=kanban`.
@@ -50,3 +53,7 @@ Preconditions:
 - Dropping onto Concluídas or Canceladas hides "Delegar ao Lume" on the card; dropping back onto A fazer reopens the task, with no confirmation.
 - With a Situação filter, a moved card stays on the board until the next load.
 - Cards are `article`s inside `label "Quadro de tarefas"`; each column is a `region` named after it. The grip's accessible name is exact, so `Arrastar Revisar contrato 1` does not match `Arrastar Revisar contrato 10`.
+
+- **Revisão de fonte; sem execução nesta etapa:** task-board usa APIs simuladas; task-board-persistence complementa com persistência real. Delegação real ao Lume exige IA.
+- Possível falha a reproduzir: páginas posteriores do Kanban omitem activityStatus em agenda-workspace.tsx:174. Não alterar o esperado para acomodá-la. Rollback só obtém versão atual quando o GET de recuperação funciona.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

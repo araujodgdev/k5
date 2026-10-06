@@ -10,10 +10,13 @@ A member registers a client in the office CRM, finds it in the Clientes list, op
 - `clients-edit`: "Editar cliente" → "Salvar" updates the heading, and the change survives reload.
 - `clients-agenda`: "Ver agenda de <nome>" switches to the calendar filtered by the client.
 
+- `clients-conflict`: Edição obsoleta é recusada sem sobrescrever dados da versão atual.
+- `clients-related`: Ficha abre honorários, portal e atividades vinculadas ao cliente correto.
+
 ## How to get to it (user POV)
 
 - Sidebar "Escritório" → tab "Clientes" (`/app/agenda?view=clients`), then the "Novo cliente" button.
-- From a case in Cofre, through its client data.
+- From a Cofre case, Tarefas e Agenda opens the workspace filtered by case. Its client-data form edits vault_case.client_* and does not automatically create/link a CRM client.
 
 ## Driving it with e2e
 
@@ -34,3 +37,6 @@ Preconditions:
 
 - The office has no cases at start, so the "Casos do Cofre" fieldset in the dialog is empty. Create a case first to prove linking.
 - Edits use optimistic versioning. Editing the same client from two tabs returns a conflict error, which is correct behavior and not a failure of the driver.
+
+- **Revisão de fonte; sem execução nesta etapa:** Teste com agente exige OPENAI_API_KEY no runner. A ficha também aparece em workspace.e2e.ts com APIs simuladas.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

@@ -1,0 +1,715 @@
+flowchart LR
+  %% Fonte revisada, sem validação ao vivo. Setas: pré-requisito de roteiro e composição.
+  public_site["Site público e SEO"]
+  authentication["Cadastro, login e recuperação"]
+  legal_acceptance["Aceite de termos e aviso de IA"]
+  brand_shell["Navegação, marca e temas"]
+  profile["Perfil e credenciais pessoais"]
+  office_data["Exportação e exclusão de conta"]
+  tutorials["Tour e biblioteca de vídeos"]
+  office_clients["Clientes e ficha cadastral"]
+  office_tasks["Tarefas em lista"]
+  task_board["Quadro Kanban"]
+  task_details["Página da tarefa"]
+  office_activity["Atividade do escritório"]
+  vault_cases["Casos do Cofre"]
+  vault_upload["Envio e download de arquivos"]
+  conversation_artifacts["Artefatos e cópias no Cofre"]
+  cliproxyapi["Provedor de IA e chat real"]
+  credits["Plano, saldo e créditos"]
+  honorarios["Honorários, parcelas e recebimentos"]
+  asaas["Conexão e cobranças Asaas"]
+  calc["Cálculos e propostas de honorários"]
+  client_portal["Portal do cliente"]
+  agent_chat["Conversas, anexos e voz"]
+  agent_settings["Personalizar Lume"]
+  agent_approvals["Confirmações de ações do agente"]
+  chat_feedback["Citações e confirmações no chat"]
+  document_saving["Editor, salvamento e versões"]
+  document_human_review["Revisão humana de documentos"]
+  document_pdf["Exportação PDF e DOCX"]
+  pwa["Instalação e funcionamento offline"]
+  vault_pagination["Paginação e seletores do Cofre"]
+  command_center["Início e ações rápidas"]
+  office_calendar["Agenda interna e reuniões"]
+  collaboration["Associados, convites e pastas"]
+  vault_library["Biblioteca, documentos e versões"]
+  research_trademarks["Pesquisa de marcas"]
+  research_jurisprudence["Pesquisa e leitura de julgados"]
+  research_casework["Referências, avaliações e minutas"]
+  judicial_monitoring["Processos, publicações e alertas"]
+  google_integration["Conexão Google e permissões"]
+  google_calendar["Agenda pessoal Google"]
+  google_mail["Gmail, rascunhos e anexos"]
+  google_drive_docs["Google Drive e Docs"]
+  messages["Mensagens e compartilhamentos"]
+  whatsapp["WhatsApp Business"]
+  ads["Conexão ChatGPT Ads BETA"]
+  notifications["Notificações, lembretes e push"]
+  feedback["Relatos e sugestões"]
+  platform_admin["Administração da plataforma"]
+  billing_subscription["Plano e checkout"]
+  honorario_charge["Cobrança manual e PDF"]
+  vault_annexes["Separação de anexos de PDF"]
+  authentication --> legal_acceptance
+  authentication --> brand_shell
+  legal_acceptance --> brand_shell
+  authentication --> profile
+  authentication --> office_data
+  authentication --> tutorials
+  authentication --> office_clients
+  authentication --> office_tasks
+  office_tasks --> task_board
+  office_tasks --> task_details
+  authentication --> office_activity
+  authentication --> vault_cases
+  vault_cases --> vault_upload
+  authentication --> conversation_artifacts
+  authentication --> cliproxyapi
+  authentication --> credits
+  office_clients --> honorarios
+  honorarios --> asaas
+  authentication --> calc
+  office_clients --> client_portal
+  honorarios --> client_portal
+  legal_acceptance --> agent_chat
+  authentication --> agent_settings
+  vault_library --> agent_settings
+  honorarios --> agent_approvals
+  agent_chat --> agent_approvals
+  agent_chat --> chat_feedback
+  conversation_artifacts --> document_saving
+  document_saving --> document_human_review
+  document_saving --> document_pdf
+  brand_shell --> pwa
+  vault_library --> vault_pagination
+  office_tasks --> command_center
+  authentication --> office_calendar
+  vault_cases --> collaboration
+  authentication --> vault_library
+  authentication --> research_trademarks
+  authentication --> research_jurisprudence
+  vault_cases --> research_casework
+  research_jurisprudence --> research_casework
+  vault_cases --> judicial_monitoring
+  authentication --> google_integration
+  office_calendar --> google_calendar
+  google_integration --> google_calendar
+  google_integration --> google_mail
+  google_integration --> google_drive_docs
+  vault_library --> google_drive_docs
+  authentication --> messages
+  vault_library --> messages
+  authentication --> whatsapp
+  authentication --> ads
+  authentication --> notifications
+  authentication --> feedback
+  authentication --> platform_admin
+  authentication --> billing_subscription
+  honorarios --> honorario_charge
+  vault_cases --> vault_annexes
+  vault_upload --> vault_annexes
+  check_public_site_site_seo["site-seo"]
+  public_site -.-> check_public_site_site_seo
+  check_public_site_site_structured_data["site-structured-data"]
+  public_site -.-> check_public_site_site_structured_data
+  check_public_site_site_robots_sitemap["site-robots-sitemap"]
+  public_site -.-> check_public_site_site_robots_sitemap
+  check_public_site_site_private_redirect["site-private-redirect"]
+  public_site -.-> check_public_site_site_private_redirect
+  check_public_site_site_keyboard["site-keyboard"]
+  public_site -.-> check_public_site_site_keyboard
+  check_public_site_site_themes["site-themes"]
+  public_site -.-> check_public_site_site_themes
+  check_public_site_site_enter["site-enter"]
+  public_site -.-> check_public_site_site_enter
+  check_public_site_site_navigation["site-navigation"]
+  public_site -.-> check_public_site_site_navigation
+  check_authentication_auth_sign_up["auth-sign-up"]
+  authentication -.-> check_authentication_auth_sign_up
+  check_authentication_auth_sign_up_validation["auth-sign-up-validation"]
+  authentication -.-> check_authentication_auth_sign_up_validation
+  check_authentication_auth_sign_in["auth-sign-in"]
+  authentication -.-> check_authentication_auth_sign_in
+  check_authentication_auth_guard["auth-guard"]
+  authentication -.-> check_authentication_auth_guard
+  check_authentication_auth_sign_out["auth-sign-out"]
+  authentication -.-> check_authentication_auth_sign_out
+  check_authentication_auth_recovery["auth-recovery"]
+  authentication -.-> check_authentication_auth_recovery
+  check_authentication_auth_email_turnstile["auth-email-turnstile"]
+  authentication -.-> check_authentication_auth_email_turnstile
+  check_legal_acceptance_legal_signup_checkbox["legal-signup-checkbox"]
+  legal_acceptance -.-> check_legal_acceptance_legal_signup_checkbox
+  check_legal_acceptance_legal_gate["legal-gate"]
+  legal_acceptance -.-> check_legal_acceptance_legal_gate
+  check_legal_acceptance_legal_gate_validation["legal-gate-validation"]
+  legal_acceptance -.-> check_legal_acceptance_legal_gate_validation
+  check_legal_acceptance_legal_ai_notice["legal-ai-notice"]
+  legal_acceptance -.-> check_legal_acceptance_legal_ai_notice
+  check_legal_acceptance_legal_stored["legal-stored"]
+  legal_acceptance -.-> check_legal_acceptance_legal_stored
+  check_legal_acceptance_legal_portal_invite["legal-portal-invite"]
+  legal_acceptance -.-> check_legal_acceptance_legal_portal_invite
+  check_legal_acceptance_legal_current_version["legal-current-version"]
+  legal_acceptance -.-> check_legal_acceptance_legal_current_version
+  check_brand_shell_shell_mark["shell-mark"]
+  brand_shell -.-> check_brand_shell_shell_mark
+  check_brand_shell_shell_nav["shell-nav"]
+  brand_shell -.-> check_brand_shell_shell_nav
+  check_brand_shell_shell_chat_title["shell-chat-title"]
+  brand_shell -.-> check_brand_shell_shell_chat_title
+  check_brand_shell_shell_billing_label["shell-billing-label"]
+  brand_shell -.-> check_brand_shell_shell_billing_label
+  check_brand_shell_shell_mobile["shell-mobile"]
+  brand_shell -.-> check_brand_shell_shell_mobile
+  check_brand_shell_shell_no_old_brand["shell-no-old-brand"]
+  brand_shell -.-> check_brand_shell_shell_no_old_brand
+  check_brand_shell_shell_whatsapp["shell-whatsapp"]
+  brand_shell -.-> check_brand_shell_shell_whatsapp
+  check_brand_shell_shell_collapse["shell-collapse"]
+  brand_shell -.-> check_brand_shell_shell_collapse
+  check_brand_shell_shell_flags["shell-flags"]
+  brand_shell -.-> check_brand_shell_shell_flags
+  check_profile_profile_edit["profile-edit"]
+  profile -.-> check_profile_profile_edit
+  check_profile_profile_photo["profile-photo"]
+  profile -.-> check_profile_profile_photo
+  check_profile_profile_password["profile-password"]
+  profile -.-> check_profile_profile_password
+  check_profile_profile_email["profile-email"]
+  profile -.-> check_profile_profile_email
+  check_profile_profile_card_invite["profile-card-invite"]
+  profile -.-> check_profile_profile_card_invite
+  check_profile_profile_card_lists["profile-card-lists"]
+  profile -.-> check_profile_profile_card_lists
+  check_profile_profile_mobile["profile-mobile"]
+  profile -.-> check_profile_profile_mobile
+  check_profile_profile_email_confirmation["profile-email-confirmation"]
+  profile -.-> check_profile_profile_email_confirmation
+  check_office_data_data_export["data-export"]
+  office_data -.-> check_office_data_data_export
+  check_office_data_data_delete_validation["data-delete-validation"]
+  office_data -.-> check_office_data_data_delete_validation
+  check_office_data_data_delete_schedule["data-delete-schedule"]
+  office_data -.-> check_office_data_data_delete_schedule
+  check_office_data_data_delete_cancel["data-delete-cancel"]
+  office_data -.-> check_office_data_data_delete_cancel
+  check_office_data_data_purge["data-purge"]
+  office_data -.-> check_office_data_data_purge
+  check_tutorials_tutorials_01["tutorials-01"]
+  tutorials -.-> check_tutorials_tutorials_01
+  check_tutorials_tutorials_02["tutorials-02"]
+  tutorials -.-> check_tutorials_tutorials_02
+  check_tutorials_tutorials_03["tutorials-03"]
+  tutorials -.-> check_tutorials_tutorials_03
+  check_tutorials_tutorials_04["tutorials-04"]
+  tutorials -.-> check_tutorials_tutorials_04
+  check_tutorials_tutorials_05["tutorials-05"]
+  tutorials -.-> check_tutorials_tutorials_05
+  check_tutorials_tutorials_playback["tutorials-playback"]
+  tutorials -.-> check_tutorials_tutorials_playback
+  check_tutorials_tutorials_access["tutorials-access"]
+  tutorials -.-> check_tutorials_tutorials_access
+  check_office_clients_clients_create["clients-create"]
+  office_clients -.-> check_office_clients_clients_create
+  check_office_clients_clients_list["clients-list"]
+  office_clients -.-> check_office_clients_clients_list
+  check_office_clients_clients_detail["clients-detail"]
+  office_clients -.-> check_office_clients_clients_detail
+  check_office_clients_clients_edit["clients-edit"]
+  office_clients -.-> check_office_clients_clients_edit
+  check_office_clients_clients_agenda["clients-agenda"]
+  office_clients -.-> check_office_clients_clients_agenda
+  check_office_clients_clients_conflict["clients-conflict"]
+  office_clients -.-> check_office_clients_clients_conflict
+  check_office_clients_clients_related["clients-related"]
+  office_clients -.-> check_office_clients_clients_related
+  check_office_tasks_tasks_create["tasks-create"]
+  office_tasks -.-> check_office_tasks_tasks_create
+  check_office_tasks_tasks_persist["tasks-persist"]
+  office_tasks -.-> check_office_tasks_tasks_persist
+  check_office_tasks_tasks_complete["tasks-complete"]
+  office_tasks -.-> check_office_tasks_tasks_complete
+  check_office_tasks_tasks_archived["tasks-archived"]
+  office_tasks -.-> check_office_tasks_tasks_archived
+  check_office_tasks_tasks_mobile["tasks-mobile"]
+  office_tasks -.-> check_office_tasks_tasks_mobile
+  check_office_tasks_tasks_home["tasks-home"]
+  office_tasks -.-> check_office_tasks_tasks_home
+  check_office_tasks_tasks_reopen["tasks-reopen"]
+  office_tasks -.-> check_office_tasks_tasks_reopen
+  check_office_tasks_tasks_filters["tasks-filters"]
+  office_tasks -.-> check_office_tasks_tasks_filters
+  check_task_board_board_layout["board-layout"]
+  task_board -.-> check_task_board_board_layout
+  check_task_board_board_cards["board-cards"]
+  task_board -.-> check_task_board_board_cards
+  check_task_board_board_drag_pointer["board-drag-pointer"]
+  task_board -.-> check_task_board_board_drag_pointer
+  check_task_board_board_drag_keyboard["board-drag-keyboard"]
+  task_board -.-> check_task_board_board_drag_keyboard
+  check_task_board_board_optimistic["board-optimistic"]
+  task_board -.-> check_task_board_board_optimistic
+  check_task_board_board_versions["board-versions"]
+  task_board -.-> check_task_board_board_versions
+  check_task_board_board_rollback["board-rollback"]
+  task_board -.-> check_task_board_board_rollback
+  check_task_board_board_open["board-open"]
+  task_board -.-> check_task_board_board_open
+  check_task_board_board_delegate["board-delegate"]
+  task_board -.-> check_task_board_board_delegate
+  check_task_board_board_states["board-states"]
+  task_board -.-> check_task_board_board_states
+  check_task_board_board_persist["board-persist"]
+  task_board -.-> check_task_board_board_persist
+  check_task_board_board_mobile["board-mobile"]
+  task_board -.-> check_task_board_board_mobile
+  check_task_board_board_existing_session["board-existing-session"]
+  task_board -.-> check_task_board_board_existing_session
+  check_task_board_board_filter_pages["board-filter-pages"]
+  task_board -.-> check_task_board_board_filter_pages
+  check_task_details_task_details_01["task-details-01"]
+  task_details -.-> check_task_details_task_details_01
+  check_task_details_task_details_02["task-details-02"]
+  task_details -.-> check_task_details_task_details_02
+  check_task_details_task_details_03["task-details-03"]
+  task_details -.-> check_task_details_task_details_03
+  check_task_details_task_details_04["task-details-04"]
+  task_details -.-> check_task_details_task_details_04
+  check_task_details_task_details_05["task-details-05"]
+  task_details -.-> check_task_details_task_details_05
+  check_task_details_task_details_links["task-details-links"]
+  task_details -.-> check_task_details_task_details_links
+  check_task_details_task_details_session["task-details-session"]
+  task_details -.-> check_task_details_task_details_session
+  check_office_activity_activity_list["activity-list"]
+  office_activity -.-> check_office_activity_activity_list
+  check_office_activity_activity_isolation["activity-isolation"]
+  office_activity -.-> check_office_activity_activity_isolation
+  check_office_activity_activity_filters["activity-filters"]
+  office_activity -.-> check_office_activity_activity_filters
+  check_office_activity_activity_mobile["activity-mobile"]
+  office_activity -.-> check_office_activity_activity_mobile
+  check_office_activity_activity_pagination["activity-pagination"]
+  office_activity -.-> check_office_activity_activity_pagination
+  check_office_activity_platform_audit["platform-audit"]
+  office_activity -.-> check_office_activity_platform_audit
+  check_office_activity_activity_default_page["activity-default-page"]
+  office_activity -.-> check_office_activity_activity_default_page
+  check_vault_cases_cases_empty["cases-empty"]
+  vault_cases -.-> check_vault_cases_cases_empty
+  check_vault_cases_cases_create["cases-create"]
+  vault_cases -.-> check_vault_cases_cases_create
+  check_vault_cases_cases_client["cases-client"]
+  vault_cases -.-> check_vault_cases_cases_client
+  check_vault_cases_cases_open["cases-open"]
+  vault_cases -.-> check_vault_cases_cases_open
+  check_vault_cases_cases_view_mode["cases-view-mode"]
+  vault_cases -.-> check_vault_cases_cases_view_mode
+  check_vault_cases_cases_upload["cases-upload"]
+  vault_cases -.-> check_vault_cases_cases_upload
+  check_vault_cases_cases_edit_delete["cases-edit-delete"]
+  vault_cases -.-> check_vault_cases_cases_edit_delete
+  check_vault_upload_upload_limit["upload-limit"]
+  vault_upload -.-> check_vault_upload_upload_limit
+  check_vault_upload_upload_direct["upload-direct"]
+  vault_upload -.-> check_vault_upload_upload_direct
+  check_vault_upload_upload_download["upload-download"]
+  vault_upload -.-> check_vault_upload_upload_download
+  check_vault_upload_upload_ui["upload-ui"]
+  vault_upload -.-> check_vault_upload_upload_ui
+  check_vault_upload_upload_ref["upload-ref"]
+  vault_upload -.-> check_vault_upload_upload_ref
+  check_vault_upload_upload_batch["upload-batch"]
+  vault_upload -.-> check_vault_upload_upload_batch
+  check_conversation_artifacts_artifacts_list["artifacts-list"]
+  conversation_artifacts -.-> check_conversation_artifacts_artifacts_list
+  check_conversation_artifacts_artifacts_save_document["artifacts-save-document"]
+  conversation_artifacts -.-> check_conversation_artifacts_artifacts_save_document
+  check_conversation_artifacts_artifacts_save_attachment["artifacts-save-attachment"]
+  conversation_artifacts -.-> check_conversation_artifacts_artifacts_save_attachment
+  check_conversation_artifacts_artifacts_save_error["artifacts-save-error"]
+  conversation_artifacts -.-> check_conversation_artifacts_artifacts_save_error
+  check_conversation_artifacts_artifacts_context["artifacts-context"]
+  conversation_artifacts -.-> check_conversation_artifacts_artifacts_context
+  check_conversation_artifacts_conversation_artifacts_06["conversation-artifacts-06"]
+  conversation_artifacts -.-> check_conversation_artifacts_conversation_artifacts_06
+  check_conversation_artifacts_artifacts_destinations["artifacts-destinations"]
+  conversation_artifacts -.-> check_conversation_artifacts_artifacts_destinations
+  check_conversation_artifacts_artifacts_repeat["artifacts-repeat"]
+  conversation_artifacts -.-> check_conversation_artifacts_artifacts_repeat
+  check_conversation_artifacts_artifacts_isolation["artifacts-isolation"]
+  conversation_artifacts -.-> check_conversation_artifacts_artifacts_isolation
+  check_cliproxyapi_provider_selection["provider-selection"]
+  cliproxyapi -.-> check_cliproxyapi_provider_selection
+  check_cliproxyapi_existing_assignments["existing-assignments"]
+  cliproxyapi -.-> check_cliproxyapi_existing_assignments
+  check_cliproxyapi_history["history"]
+  cliproxyapi -.-> check_cliproxyapi_history
+  check_cliproxyapi_isolation["isolation"]
+  cliproxyapi -.-> check_cliproxyapi_isolation
+  check_cliproxyapi_capacity["capacity"]
+  cliproxyapi -.-> check_cliproxyapi_capacity
+  check_credits_credits_balance["credits-balance"]
+  credits -.-> check_credits_credits_balance
+  check_credits_credits_statement["credits-statement"]
+  credits -.-> check_credits_credits_statement
+  check_credits_credits_packages["credits-packages"]
+  credits -.-> check_credits_credits_packages
+  check_credits_credits_blocked["credits-blocked"]
+  credits -.-> check_credits_credits_blocked
+  check_credits_credits_admin_grant["credits-admin-grant"]
+  credits -.-> check_credits_credits_admin_grant
+  check_credits_credits_mobile["credits-mobile"]
+  credits -.-> check_credits_credits_mobile
+  check_honorarios_fees_create["fees-create"]
+  honorarios -.-> check_honorarios_fees_create
+  check_honorarios_fees_receive["fees-receive"]
+  honorarios -.-> check_honorarios_fees_receive
+  check_honorarios_fees_undo["fees-undo"]
+  honorarios -.-> check_honorarios_fees_undo
+  check_honorarios_fees_tabs["fees-tabs"]
+  honorarios -.-> check_honorarios_fees_tabs
+  check_honorarios_fees_cancel["fees-cancel"]
+  honorarios -.-> check_honorarios_fees_cancel
+  check_honorarios_fees_states["fees-states"]
+  honorarios -.-> check_honorarios_fees_states
+  check_honorarios_fees_mobile["fees-mobile"]
+  honorarios -.-> check_honorarios_fees_mobile
+  check_honorarios_fees_asaas_charge["fees-asaas-charge"]
+  honorarios -.-> check_honorarios_fees_asaas_charge
+  check_honorarios_fees_filters["fees-filters"]
+  honorarios -.-> check_honorarios_fees_filters
+  check_honorarios_fees_authorization["fees-authorization"]
+  honorarios -.-> check_honorarios_fees_authorization
+  check_asaas_asaas_connection["asaas-connection"]
+  asaas -.-> check_asaas_asaas_connection
+  check_asaas_asaas_charge["asaas-charge"]
+  asaas -.-> check_asaas_asaas_charge
+  check_asaas_asaas_valid_connection["asaas-valid-connection"]
+  asaas -.-> check_asaas_asaas_valid_connection
+  check_asaas_asaas_issue_cancel["asaas-issue-cancel"]
+  asaas -.-> check_asaas_asaas_issue_cancel
+  check_asaas_asaas_webhook["asaas-webhook"]
+  asaas -.-> check_asaas_asaas_webhook
+  check_calc_calc_empty["calc-empty"]
+  calc -.-> check_calc_calc_empty
+  check_calc_calc_kinds["calc-kinds"]
+  calc -.-> check_calc_calc_kinds
+  check_calc_calc_consumer["calc-consumer"]
+  calc -.-> check_calc_calc_consumer
+  check_calc_calc_export["calc-export"]
+  calc -.-> check_calc_calc_export
+  check_calc_calc_versions["calc-versions"]
+  calc -.-> check_calc_calc_versions
+  check_calc_calc_proposal["calc-proposal"]
+  calc -.-> check_calc_calc_proposal
+  check_calc_calc_tax_mobile["calc-tax-mobile"]
+  calc -.-> check_calc_calc_tax_mobile
+  check_calc_calc_error["calc-error"]
+  calc -.-> check_calc_calc_error
+  check_calc_calc_list_tools["calc-list-tools"]
+  calc -.-> check_calc_calc_list_tools
+  check_calc_calc_all_formulas["calc-all-formulas"]
+  calc -.-> check_calc_calc_all_formulas
+  check_calc_calc_bcb["calc-bcb"]
+  calc -.-> check_calc_calc_bcb
+  check_client_portal_portal_invite["portal-invite"]
+  client_portal -.-> check_client_portal_portal_invite
+  check_client_portal_portal_publish_pdf["portal-publish-pdf"]
+  client_portal -.-> check_client_portal_portal_publish_pdf
+  check_client_portal_portal_accept["portal-accept"]
+  client_portal -.-> check_client_portal_portal_accept
+  check_client_portal_portal_charge_link["portal-charge-link"]
+  client_portal -.-> check_client_portal_portal_charge_link
+  check_client_portal_portal_proof["portal-proof"]
+  client_portal -.-> check_client_portal_portal_proof
+  check_client_portal_portal_revoke["portal-revoke"]
+  client_portal -.-> check_client_portal_portal_revoke
+  check_client_portal_portal_mobile["portal-mobile"]
+  client_portal -.-> check_client_portal_portal_mobile
+  check_client_portal_portal_withdraw["portal-withdraw"]
+  client_portal -.-> check_client_portal_portal_withdraw
+  check_client_portal_portal_local_pdf["portal-local-pdf"]
+  client_portal -.-> check_client_portal_portal_local_pdf
+  check_client_portal_portal_existing_account["portal-existing-account"]
+  client_portal -.-> check_client_portal_portal_existing_account
+  check_client_portal_portal_govbr["portal-govbr"]
+  client_portal -.-> check_client_portal_portal_govbr
+  check_agent_chat_agent_chat_01["agent-chat-01"]
+  agent_chat -.-> check_agent_chat_agent_chat_01
+  check_agent_chat_agent_chat_02["agent-chat-02"]
+  agent_chat -.-> check_agent_chat_agent_chat_02
+  check_agent_chat_agent_chat_03["agent-chat-03"]
+  agent_chat -.-> check_agent_chat_agent_chat_03
+  check_agent_chat_agent_chat_04["agent-chat-04"]
+  agent_chat -.-> check_agent_chat_agent_chat_04
+  check_agent_chat_agent_chat_05["agent-chat-05"]
+  agent_chat -.-> check_agent_chat_agent_chat_05
+  check_agent_settings_agent_settings_01["agent-settings-01"]
+  agent_settings -.-> check_agent_settings_agent_settings_01
+  check_agent_settings_agent_settings_02["agent-settings-02"]
+  agent_settings -.-> check_agent_settings_agent_settings_02
+  check_agent_settings_agent_settings_03["agent-settings-03"]
+  agent_settings -.-> check_agent_settings_agent_settings_03
+  check_agent_settings_agent_settings_04["agent-settings-04"]
+  agent_settings -.-> check_agent_settings_agent_settings_04
+  check_agent_approvals_agent_approvals_01["agent-approvals-01"]
+  agent_approvals -.-> check_agent_approvals_agent_approvals_01
+  check_agent_approvals_agent_approvals_02["agent-approvals-02"]
+  agent_approvals -.-> check_agent_approvals_agent_approvals_02
+  check_agent_approvals_agent_approvals_03["agent-approvals-03"]
+  agent_approvals -.-> check_agent_approvals_agent_approvals_03
+  check_agent_approvals_agent_approvals_04["agent-approvals-04"]
+  agent_approvals -.-> check_agent_approvals_agent_approvals_04
+  check_chat_feedback_chat_feedback_01["chat-feedback-01"]
+  chat_feedback -.-> check_chat_feedback_chat_feedback_01
+  check_chat_feedback_chat_feedback_02["chat-feedback-02"]
+  chat_feedback -.-> check_chat_feedback_chat_feedback_02
+  check_chat_feedback_chat_feedback_03["chat-feedback-03"]
+  chat_feedback -.-> check_chat_feedback_chat_feedback_03
+  check_chat_feedback_chat_feedback_04["chat-feedback-04"]
+  chat_feedback -.-> check_chat_feedback_chat_feedback_04
+  check_document_saving_document_saving_01["document-saving-01"]
+  document_saving -.-> check_document_saving_document_saving_01
+  check_document_saving_document_saving_02["document-saving-02"]
+  document_saving -.-> check_document_saving_document_saving_02
+  check_document_saving_document_saving_03["document-saving-03"]
+  document_saving -.-> check_document_saving_document_saving_03
+  check_document_saving_document_saving_04["document-saving-04"]
+  document_saving -.-> check_document_saving_document_saving_04
+  check_document_saving_document_saving_05["document-saving-05"]
+  document_saving -.-> check_document_saving_document_saving_05
+  check_document_saving_document_saving_06["document-saving-06"]
+  document_saving -.-> check_document_saving_document_saving_06
+  check_document_human_review_document_human_review_01["document-human-review-01"]
+  document_human_review -.-> check_document_human_review_document_human_review_01
+  check_document_human_review_document_human_review_02["document-human-review-02"]
+  document_human_review -.-> check_document_human_review_document_human_review_02
+  check_document_human_review_document_human_review_03["document-human-review-03"]
+  document_human_review -.-> check_document_human_review_document_human_review_03
+  check_document_human_review_document_human_review_04["document-human-review-04"]
+  document_human_review -.-> check_document_human_review_document_human_review_04
+  check_document_pdf_document_pdf_01["document-pdf-01"]
+  document_pdf -.-> check_document_pdf_document_pdf_01
+  check_document_pdf_document_pdf_02["document-pdf-02"]
+  document_pdf -.-> check_document_pdf_document_pdf_02
+  check_document_pdf_document_pdf_03["document-pdf-03"]
+  document_pdf -.-> check_document_pdf_document_pdf_03
+  check_document_pdf_document_pdf_04["document-pdf-04"]
+  document_pdf -.-> check_document_pdf_document_pdf_04
+  check_document_pdf_document_pdf_05["document-pdf-05"]
+  document_pdf -.-> check_document_pdf_document_pdf_05
+  check_pwa_pwa_01["pwa-01"]
+  pwa -.-> check_pwa_pwa_01
+  check_pwa_pwa_02["pwa-02"]
+  pwa -.-> check_pwa_pwa_02
+  check_pwa_pwa_03["pwa-03"]
+  pwa -.-> check_pwa_pwa_03
+  check_pwa_pwa_04["pwa-04"]
+  pwa -.-> check_pwa_pwa_04
+  check_vault_pagination_vault_pagination_01["vault-pagination-01"]
+  vault_pagination -.-> check_vault_pagination_vault_pagination_01
+  check_vault_pagination_vault_pagination_02["vault-pagination-02"]
+  vault_pagination -.-> check_vault_pagination_vault_pagination_02
+  check_vault_pagination_vault_pagination_03["vault-pagination-03"]
+  vault_pagination -.-> check_vault_pagination_vault_pagination_03
+  check_vault_pagination_vault_pagination_04["vault-pagination-04"]
+  vault_pagination -.-> check_vault_pagination_vault_pagination_04
+  check_vault_pagination_vault_pagination_05["vault-pagination-05"]
+  vault_pagination -.-> check_vault_pagination_vault_pagination_05
+  check_command_center_command_center_01["command-center-01"]
+  command_center -.-> check_command_center_command_center_01
+  check_command_center_command_center_02["command-center-02"]
+  command_center -.-> check_command_center_command_center_02
+  check_command_center_command_center_03["command-center-03"]
+  command_center -.-> check_command_center_command_center_03
+  check_command_center_command_center_04["command-center-04"]
+  command_center -.-> check_command_center_command_center_04
+  check_office_calendar_office_calendar_01["office-calendar-01"]
+  office_calendar -.-> check_office_calendar_office_calendar_01
+  check_office_calendar_office_calendar_02["office-calendar-02"]
+  office_calendar -.-> check_office_calendar_office_calendar_02
+  check_office_calendar_office_calendar_03["office-calendar-03"]
+  office_calendar -.-> check_office_calendar_office_calendar_03
+  check_office_calendar_office_calendar_04["office-calendar-04"]
+  office_calendar -.-> check_office_calendar_office_calendar_04
+  check_collaboration_collaboration_01["collaboration-01"]
+  collaboration -.-> check_collaboration_collaboration_01
+  check_collaboration_collaboration_02["collaboration-02"]
+  collaboration -.-> check_collaboration_collaboration_02
+  check_collaboration_collaboration_03["collaboration-03"]
+  collaboration -.-> check_collaboration_collaboration_03
+  check_collaboration_collaboration_04["collaboration-04"]
+  collaboration -.-> check_collaboration_collaboration_04
+  check_collaboration_collaboration_05["collaboration-05"]
+  collaboration -.-> check_collaboration_collaboration_05
+  check_vault_library_vault_library_01["vault-library-01"]
+  vault_library -.-> check_vault_library_vault_library_01
+  check_vault_library_vault_library_02["vault-library-02"]
+  vault_library -.-> check_vault_library_vault_library_02
+  check_vault_library_vault_library_03["vault-library-03"]
+  vault_library -.-> check_vault_library_vault_library_03
+  check_vault_library_vault_library_04["vault-library-04"]
+  vault_library -.-> check_vault_library_vault_library_04
+  check_vault_library_vault_library_05["vault-library-05"]
+  vault_library -.-> check_vault_library_vault_library_05
+  check_research_trademarks_research_trademarks_01["research-trademarks-01"]
+  research_trademarks -.-> check_research_trademarks_research_trademarks_01
+  check_research_trademarks_research_trademarks_02["research-trademarks-02"]
+  research_trademarks -.-> check_research_trademarks_research_trademarks_02
+  check_research_trademarks_research_trademarks_03["research-trademarks-03"]
+  research_trademarks -.-> check_research_trademarks_research_trademarks_03
+  check_research_trademarks_research_trademarks_04["research-trademarks-04"]
+  research_trademarks -.-> check_research_trademarks_research_trademarks_04
+  check_research_jurisprudence_research_jurisprudence_01["research-jurisprudence-01"]
+  research_jurisprudence -.-> check_research_jurisprudence_research_jurisprudence_01
+  check_research_jurisprudence_research_jurisprudence_02["research-jurisprudence-02"]
+  research_jurisprudence -.-> check_research_jurisprudence_research_jurisprudence_02
+  check_research_jurisprudence_research_jurisprudence_03["research-jurisprudence-03"]
+  research_jurisprudence -.-> check_research_jurisprudence_research_jurisprudence_03
+  check_research_jurisprudence_research_jurisprudence_04["research-jurisprudence-04"]
+  research_jurisprudence -.-> check_research_jurisprudence_research_jurisprudence_04
+  check_research_casework_research_casework_01["research-casework-01"]
+  research_casework -.-> check_research_casework_research_casework_01
+  check_research_casework_research_casework_02["research-casework-02"]
+  research_casework -.-> check_research_casework_research_casework_02
+  check_research_casework_research_casework_03["research-casework-03"]
+  research_casework -.-> check_research_casework_research_casework_03
+  check_research_casework_research_casework_04["research-casework-04"]
+  research_casework -.-> check_research_casework_research_casework_04
+  check_research_casework_research_casework_05["research-casework-05"]
+  research_casework -.-> check_research_casework_research_casework_05
+  check_judicial_monitoring_judicial_monitoring_01["judicial-monitoring-01"]
+  judicial_monitoring -.-> check_judicial_monitoring_judicial_monitoring_01
+  check_judicial_monitoring_judicial_monitoring_02["judicial-monitoring-02"]
+  judicial_monitoring -.-> check_judicial_monitoring_judicial_monitoring_02
+  check_judicial_monitoring_judicial_monitoring_03["judicial-monitoring-03"]
+  judicial_monitoring -.-> check_judicial_monitoring_judicial_monitoring_03
+  check_judicial_monitoring_judicial_monitoring_04["judicial-monitoring-04"]
+  judicial_monitoring -.-> check_judicial_monitoring_judicial_monitoring_04
+  check_judicial_monitoring_judicial_monitoring_05["judicial-monitoring-05"]
+  judicial_monitoring -.-> check_judicial_monitoring_judicial_monitoring_05
+  check_google_integration_google_integration_01["google-integration-01"]
+  google_integration -.-> check_google_integration_google_integration_01
+  check_google_integration_google_integration_02["google-integration-02"]
+  google_integration -.-> check_google_integration_google_integration_02
+  check_google_integration_google_integration_03["google-integration-03"]
+  google_integration -.-> check_google_integration_google_integration_03
+  check_google_integration_google_integration_04["google-integration-04"]
+  google_integration -.-> check_google_integration_google_integration_04
+  check_google_calendar_google_calendar_01["google-calendar-01"]
+  google_calendar -.-> check_google_calendar_google_calendar_01
+  check_google_calendar_google_calendar_02["google-calendar-02"]
+  google_calendar -.-> check_google_calendar_google_calendar_02
+  check_google_calendar_google_calendar_03["google-calendar-03"]
+  google_calendar -.-> check_google_calendar_google_calendar_03
+  check_google_calendar_google_calendar_04["google-calendar-04"]
+  google_calendar -.-> check_google_calendar_google_calendar_04
+  check_google_mail_google_mail_01["google-mail-01"]
+  google_mail -.-> check_google_mail_google_mail_01
+  check_google_mail_google_mail_02["google-mail-02"]
+  google_mail -.-> check_google_mail_google_mail_02
+  check_google_mail_google_mail_03["google-mail-03"]
+  google_mail -.-> check_google_mail_google_mail_03
+  check_google_mail_google_mail_04["google-mail-04"]
+  google_mail -.-> check_google_mail_google_mail_04
+  check_google_mail_google_mail_05["google-mail-05"]
+  google_mail -.-> check_google_mail_google_mail_05
+  check_google_drive_docs_google_drive_docs_01["google-drive-docs-01"]
+  google_drive_docs -.-> check_google_drive_docs_google_drive_docs_01
+  check_google_drive_docs_google_drive_docs_02["google-drive-docs-02"]
+  google_drive_docs -.-> check_google_drive_docs_google_drive_docs_02
+  check_google_drive_docs_google_drive_docs_03["google-drive-docs-03"]
+  google_drive_docs -.-> check_google_drive_docs_google_drive_docs_03
+  check_google_drive_docs_google_drive_docs_04["google-drive-docs-04"]
+  google_drive_docs -.-> check_google_drive_docs_google_drive_docs_04
+  check_messages_messages_01["messages-01"]
+  messages -.-> check_messages_messages_01
+  check_messages_messages_02["messages-02"]
+  messages -.-> check_messages_messages_02
+  check_messages_messages_03["messages-03"]
+  messages -.-> check_messages_messages_03
+  check_messages_messages_04["messages-04"]
+  messages -.-> check_messages_messages_04
+  check_messages_messages_05["messages-05"]
+  messages -.-> check_messages_messages_05
+  check_whatsapp_whatsapp_01["whatsapp-01"]
+  whatsapp -.-> check_whatsapp_whatsapp_01
+  check_whatsapp_whatsapp_02["whatsapp-02"]
+  whatsapp -.-> check_whatsapp_whatsapp_02
+  check_whatsapp_whatsapp_03["whatsapp-03"]
+  whatsapp -.-> check_whatsapp_whatsapp_03
+  check_whatsapp_whatsapp_04["whatsapp-04"]
+  whatsapp -.-> check_whatsapp_whatsapp_04
+  check_whatsapp_whatsapp_05["whatsapp-05"]
+  whatsapp -.-> check_whatsapp_whatsapp_05
+  check_ads_ads_01["ads-01"]
+  ads -.-> check_ads_ads_01
+  check_ads_ads_02["ads-02"]
+  ads -.-> check_ads_ads_02
+  check_ads_ads_03["ads-03"]
+  ads -.-> check_ads_ads_03
+  check_ads_ads_04["ads-04"]
+  ads -.-> check_ads_ads_04
+  check_ads_ads_05["ads-05"]
+  ads -.-> check_ads_ads_05
+  check_notifications_notifications_01["notifications-01"]
+  notifications -.-> check_notifications_notifications_01
+  check_notifications_notifications_02["notifications-02"]
+  notifications -.-> check_notifications_notifications_02
+  check_notifications_notifications_03["notifications-03"]
+  notifications -.-> check_notifications_notifications_03
+  check_notifications_notifications_04["notifications-04"]
+  notifications -.-> check_notifications_notifications_04
+  check_notifications_notifications_05["notifications-05"]
+  notifications -.-> check_notifications_notifications_05
+  check_feedback_feedback_01["feedback-01"]
+  feedback -.-> check_feedback_feedback_01
+  check_feedback_feedback_02["feedback-02"]
+  feedback -.-> check_feedback_feedback_02
+  check_feedback_feedback_03["feedback-03"]
+  feedback -.-> check_feedback_feedback_03
+  check_feedback_feedback_04["feedback-04"]
+  feedback -.-> check_feedback_feedback_04
+  check_platform_admin_platform_admin_01["platform-admin-01"]
+  platform_admin -.-> check_platform_admin_platform_admin_01
+  check_platform_admin_platform_admin_02["platform-admin-02"]
+  platform_admin -.-> check_platform_admin_platform_admin_02
+  check_platform_admin_platform_admin_03["platform-admin-03"]
+  platform_admin -.-> check_platform_admin_platform_admin_03
+  check_platform_admin_platform_admin_04["platform-admin-04"]
+  platform_admin -.-> check_platform_admin_platform_admin_04
+  check_platform_admin_platform_admin_05["platform-admin-05"]
+  platform_admin -.-> check_platform_admin_platform_admin_05
+  check_platform_admin_platform_admin_06["platform-admin-06"]
+  platform_admin -.-> check_platform_admin_platform_admin_06
+  check_platform_admin_platform_admin_07["platform-admin-07"]
+  platform_admin -.-> check_platform_admin_platform_admin_07
+  check_billing_subscription_billing_subscription_01["billing-subscription-01"]
+  billing_subscription -.-> check_billing_subscription_billing_subscription_01
+  check_billing_subscription_billing_subscription_02["billing-subscription-02"]
+  billing_subscription -.-> check_billing_subscription_billing_subscription_02
+  check_billing_subscription_billing_subscription_03["billing-subscription-03"]
+  billing_subscription -.-> check_billing_subscription_billing_subscription_03
+  check_billing_subscription_billing_subscription_04["billing-subscription-04"]
+  billing_subscription -.-> check_billing_subscription_billing_subscription_04
+  check_honorario_charge_honorario_charge_01["honorario-charge-01"]
+  honorario_charge -.-> check_honorario_charge_honorario_charge_01
+  check_honorario_charge_honorario_charge_02["honorario-charge-02"]
+  honorario_charge -.-> check_honorario_charge_honorario_charge_02
+  check_honorario_charge_honorario_charge_03["honorario-charge-03"]
+  honorario_charge -.-> check_honorario_charge_honorario_charge_03
+  check_honorario_charge_honorario_charge_04["honorario-charge-04"]
+  honorario_charge -.-> check_honorario_charge_honorario_charge_04
+  check_honorario_charge_honorario_charge_05["honorario-charge-05"]
+  honorario_charge -.-> check_honorario_charge_honorario_charge_05
+  check_vault_annexes_vault_annexes_01["vault-annexes-01"]
+  vault_annexes -.-> check_vault_annexes_vault_annexes_01
+  check_vault_annexes_vault_annexes_02["vault-annexes-02"]
+  vault_annexes -.-> check_vault_annexes_vault_annexes_02
+  check_vault_annexes_vault_annexes_03["vault-annexes-03"]
+  vault_annexes -.-> check_vault_annexes_vault_annexes_03
+  check_vault_annexes_vault_annexes_04["vault-annexes-04"]
+  vault_annexes -.-> check_vault_annexes_vault_annexes_04

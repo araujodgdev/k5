@@ -11,6 +11,8 @@ The office owner opens Escritório → Atividade and reads who did what in the o
 - `activity-pagination`: "Mais antigos →" after 50 rows (not driven; covered by `apps/web/tests/audit.test.ts`).
 - `platform-audit`: Administração → Auditoria (`/app/admin/audit`) for platform administrators (not driven; see Gotchas).
 
+- `activity-default-page`: Com 51 eventos, página padrão contém 50 e Mais antigos alcança o restante sem repetição.
+
 ## How to get to it (user POV)
 
 - Sidebar "Escritório" → tab "Atividade" (URL `/app/agenda?view=activity`).
@@ -26,3 +28,7 @@ Preconditions: none from the instance. The test signs up its own accounts over H
 
 - The instance has no platform administrator, so `/app/admin/audit` answers 404 there. Its query and filters are covered by `apps/web/tests/audit.test.ts`.
 - Court lookups, Google actions and Cofre searches need workers or external keys the instance lacks; only invitation rows can be produced from the UI here.
+
+- **Revisão de fonte; sem execução nesta etapa:** O teste não cobre paginação nem Auditoria administrativa.
+- Mais antigos aparece quando há mais de 50 eventos. audit.test.ts testa cursor com limite reduzido. Busca semântica possui fallback lexical; buscar com sucesso não garante evento se a gravação da auditoria falhar.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

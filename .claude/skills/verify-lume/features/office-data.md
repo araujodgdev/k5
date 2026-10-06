@@ -1,6 +1,6 @@
 # Office data
 
-Perfil → Seus dados lets an administrator download the whole office as a ZIP ("Exportar dados") and schedule the deletion of the office and account with the current password ("Excluir conta"). A scheduled deletion shows its date, survives a reload, and can be cancelled.
+Perfil → Seus dados lets the owner download the documented export of their personal office as a ZIP ("Exportar dados") and schedule the deletion of the office and account with the current password ("Excluir conta"). A scheduled deletion shows its date, survives a reload, and can be cancelled.
 
 ## Sub-features
 
@@ -34,3 +34,7 @@ Preconditions:
 
 - There are two `label "Senha atual"` fields on the profile page (credentials and deletion); the deletion one is `.last()`.
 - Check the row with `sql`: `SELECT r.status FROM office_deletion_request r JOIN office_member m ON m.office_id=r.office_id JOIN "user" u ON u.id=m.user_id WHERE u.email=$1`.
+
+- **Revisão de fonte; sem execução nesta etapa:** Agendar/cancelar não prova expurgo. Não executar expurgo sobre dados reais.
+- Exportação exclui credenciais, índices/textos extraídos e casos de terceiros; inclui originais atuais e limites por tabela. Não representa todos os dados históricos.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

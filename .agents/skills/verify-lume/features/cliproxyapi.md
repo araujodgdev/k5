@@ -10,6 +10,7 @@ Platform administrators can choose CLIProxyAPI in the existing AI connections an
 - `isolation` refuses a second account access to the first account's conversation.
 - `capacity` admits three turns per person, refuses a fourth with 429, and allows another after a turn completes, stops or fails.
 
+
 ## How to get to it (user POV)
 
 1. Open **Administração**, then **IA**.
@@ -39,3 +40,7 @@ For a live capacity proof, configure the isolated instance explicitly for real A
 - A saved conversation is not an active execution. Saved history has no three-conversation cap.
 - A crashed execution's slot expires within five minutes. A missing local executor does not justify clearing another process's lease.
 - Node tests cover the shared start and fencing operations used by both Node and the Durable Object. Hosted Durable Object runtime proof requires a Cloudflare environment and is separate from this local recipe.
+
+- **Revisão de fonte; sem execução nesta etapa:** Chat real é opt-in com K5_E2E_REAL_AI=1 e chave privada no runner. Capacidade de três turnos não é coberta pelo simples cadastro do provedor.
+- Chat exige saldo de créditos ou isenção. O e2e opt-in não substitui três turnos simultâneos nem prova no runtime Cloudflare.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

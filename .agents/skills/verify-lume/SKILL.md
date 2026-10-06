@@ -5,7 +5,7 @@ description: Launch an isolated Lume (the K5 web app in apps/web) on its own dat
 
 # Verify Lume
 
-Lume's user surface is the Next.js web app in `apps/web`: pt-BR, public pages at `/`, the signed-in app under `/app`. This skill runs a **separate** instance with a throwaway embedded PostgreSQL, fresh secrets, and `next dev` on a free port with build directory `.next-verify`. The developer's server on port 3000, their database on `127.0.0.1:55432` and `.next` are never touched. Workers (`pnpm worker`, judicial, notifications, integrations) are not started, so this instance cannot verify vault ingestion, court collection or push delivery. Portal and charge PDFs are converted in the Next.js process by LibreOffice (`soffice` on PATH): `drive client-portal` needs Writer installed, not a worker.
+Lume's user surface is the Next.js web app in `apps/web`: pt-BR, public pages at `/`, the signed-in app under `/app`. This skill runs a **separate** instance with a throwaway embedded PostgreSQL, fresh secrets, and `next dev` on a free port with build directory `.next-verify`. The developer's server on port 3000, their database on `127.0.0.1:55432` and `.next` are never touched. Separate workers (`pnpm worker`, judicial, notifications, integrations) are not started. Local Node may process uploaded TXT inline after the response; verify it with `vault-upload`. Court collection, queued recovery and push delivery need their own processors. Do not infer that all ingestion is unavailable or that every format works from the TXT result. Portal and charge PDFs are converted in the Next.js process by LibreOffice (`soffice` on PATH): `drive client-portal` needs Writer installed, not a worker.
 
 Everything goes through one CLI, run from the repository root:
 
@@ -21,7 +21,7 @@ Every command prints one JSON object on stdout: `{ "ok": true, ... }` or `{ "ok"
 
 `$L up` creates `<os.tmpdir()>/lume-verify-<runId>/` (`/tmp` on Linux and macOS, `%TEMP%` on Windows) and starts PostgreSQL on a free port. It runs `apps/web/scripts/setup.ts` (all migrations) with its own env file and starts `next dev --hostname 127.0.0.1 --port <free>`. Once `/sign-in` answers 200, it registers the verification account through the real `POST /api/auth/sign-up/email`, which provisions the office through Better Auth's hook. Ready means the command returns `instance` (`baseURL`, `account`, `evidenceDir`, `log`). The first compile takes about a minute, and `up` gives up after about 5. `$L up --dry-run` prints the run id, directories and ports without starting anything.
 
-- Account: `verify@lume.test` / `VerificaLume!2026#segura`, administrator of office `Escritório de Verificação`. K5 offices have one user each, so do not build same-office multi-member scenarios.
+- Account: `verify@lume.test` / `VerificaLume!2026#segura`, owner of the personal office `Escritório de Verificação`. K5 offices have one user each, so do not build same-office multi-member scenarios.
 - Every variable in `apps/web/.env*` (Exa, Google, AbacatePay, Asaas…) is blanked for the instance, so external integrations are **off**. The platform starts without an AI connection. Real chat requires explicit setup through the admin API, as described in [CLIProxyAPI](features/cliproxyapi.md). The default drive never requires a private AI key.
 - One instance at a time. `up` returns `INSTANCE_ALREADY_RUNNING` while one is alive, and cleans up a dead one's leftovers before starting.
 - Node: the instance runs on whichever `node` your shell resolves. Anything meeting `engines` (≥ 22.13) serves the app and the e2e suite. `pnpm test` needs the CI version (24), so check `node -v` before reading unit-test failures as regressions.
@@ -34,6 +34,8 @@ The browser and `BETTER_AUTH_URL` use `http://localhost:<port>`. Next.js normali
 `$L doctor` is read-only. Run it before driving and whenever something looks off. It checks status `ready`, supervisor and `next dev` alive, ports other than 3000/55432, `/sign-in` serving "Entre no Lume", and the verification account linked to its office in the database. `ok: false` (code `UNHEALTHY`) means do not drive. Each failed check carries its own `fix`.
 
 ## Drive
+
+For a system-wide pass, first read [coverage/README.md](coverage/README.md): the feature graph, stable check IDs, conditional prerequisites, known coverage gaps and a ready validation prompt. Its source review is not a live pass. New manual recipes have no Test lines, so `drive` returns `NO_TESTS`; follow their browser recipe or add e2e coverage in a separately scoped implementation task.
 
 Start from the map: `$L features` lists each feature's `id`, its recipe (`features/<id>.md`) and the e2e tests its `Test:` lines name. Read [features/README.md](features/README.md) and the recipe before driving. When a feature has several entry points, a proof that drives only one is incomplete.
 

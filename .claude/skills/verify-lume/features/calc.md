@@ -13,6 +13,10 @@ The office saves a legal calculation, exports it, and turns a positive result in
 - `calc-tax-mobile`: at 390×844, "Tributário" saves a R$ 1.000,00 principal and the total shows "1.033,00", with no horizontal scroll.
 - `calc-error`: a held list request shows "Carregando cálculos…", then an alert "Consulta de cálculos indisponível", and "Atualizar" restores the saved calculation.
 
+- `calc-list-tools`: Busca, paginação, duplicação e comparação de versões preservam valores e propriedade.
+- `calc-all-formulas`: Validar entradas e resultado de cada uma das sete modalidades com casos de referência explícitos; abrir o formulário não basta.
+- `calc-bcb`: Quando o cálculo exigir série externa, conferir cache e retorno BCB separadamente do cenário sem consulta.
+
 ## How to get to it (user POV)
 
 - Sidebar "Cálculos jurídicos" (`/app/calc`). On a phone, "Mais" → "Cálculos jurídicos".
@@ -38,3 +42,7 @@ Preconditions:
 - The only mock is the 503 on `/api/calc/list`. Writes go through the UI and are read back from the API.
 - The test checks the proposal and the tax calculator at 390px. It does not open "Mais", and it does not rebuild the consumer calculation or the proposal on the phone.
 - Numeric engines and the OAB tables are locked in `tests/calc-engine.test.ts` and `tests/calc-service.test.ts`, not in this UI test.
+
+- **Revisão de fonte; sem execução nesta etapa:** Abrir as sete calculadoras não prova todas as fórmulas; o e2e exercita principalmente consumidor, tributário e proposta.
+- Abrir sete modalidades não valida todas as fórmulas. BCB, demais fórmulas, busca/paginação e comparação exigem resultados próprios.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

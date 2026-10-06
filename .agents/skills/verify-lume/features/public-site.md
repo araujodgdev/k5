@@ -12,6 +12,8 @@ The signed-out site at `/` presents Lume to visitors and crawlers: server-render
 - `site-themes`: "Usar tema claro" / "Usar tema escuro" keep every section visible without horizontal scroll, at 390px and 1440px.
 - `site-enter`: "Entrar" opens the sign-in form.
 
+- `site-navigation`: CTAs de cadastro e links Termos/Privacidade abrem destinos; tema persiste após recarregar.
+
 ## How to get to it (user POV)
 
 - Open the instance's `baseURL` signed out; the header has "Entrar" and the theme toggle; the footer links Termos de uso and Política de privacidade.
@@ -33,3 +35,7 @@ Preconditions:
 
 - The canonical host is the production `https://lume.software`, not the instance's `baseURL`; that is expected.
 - The SEO test is HTTP-only on purpose; use the viewport tests (or a trace) for visual proof.
+
+- **Revisão de fonte; sem execução nesta etapa:** Teste presente; execução e cobertura por subitem ainda precisam ser verificadas.
+- O rodapé usa o rótulo Privacidade. O e2e verifica quatro títulos/overflow, não toda a página; completar CTAs, persistência do tema e movimento reduzido.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

@@ -10,6 +10,9 @@ The tutorial opens a library of short videos grouped by module, with independent
 - Published video, captions and cover for each tutorial.
 - Empty module, missing video and playback error with retry and download.
 
+- `tutorials-playback`: Vídeo avança com áudio/legendas reais; presença da tag e HTTP 200 não bastam.
+- `tutorials-access`: Biblioteca/página administrativa respeita papel; MP4 publicado é público conforme implementação atual.
+
 ## How to get to it (user POV)
 
 Open Tutorial in the menu, choose Ver vídeos por módulo, select a module and open a video.
@@ -25,3 +28,7 @@ Preconditions: the verification instance is ready. No workers or external keys a
 Administration tutorials only appear for platform administrators. The default account is an office user.
 The playback error test deliberately blocks the media request to exercise the recovery controls.
 Use FFmpeg to verify decoding independently of the browser's H.264 support.
+
+- **Revisão de fonte; sem execução nesta etapa:** Teste presente; execução e cobertura por subitem ainda precisam ser verificadas.
+- Biblioteca/página administrativa exige papel; MP4 publicado é público. Verificar reprodução, áudio e legendas além de HEAD/atributos.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

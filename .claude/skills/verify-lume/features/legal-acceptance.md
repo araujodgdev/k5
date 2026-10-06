@@ -4,12 +4,14 @@ Anyone without the current Termos de uso and Política de privacidade version is
 
 ## Sub-features
 
-- `legal-signup-checkbox`: "Li e aceito os Termos de uso…" on `/sign-up` (driven by `auth.setup`'s sign-up path in `authentication`).
+- `legal-signup-checkbox`: "Li e aceito os Termos de uso…" on `/sign-up` (requires a real form scenario; auth.setup provisions and accepts via API).
 - `legal-gate`: "Antes de continuar" (or "Atualizamos os termos" after a version bump) in front of `/app` and `/client`.
 - `legal-gate-validation`: "Aceitar e continuar" without the checkbox shows "Marque a opção para continuar."
 - `legal-ai-notice`: "Antes de usar o Lume" on the first `/app/agents` visit, mentioning "sem anonimização", dismissed with "Entendi".
 - `legal-stored`: rows `terms` and `ai_notice` in `legal_acceptance` for the user.
 - `legal-portal-invite`: the checkbox on `/client/invite/<token>` (driven by `client-portal`, which also publishes the PDF).
+
+- `legal-current-version`: Versão atual e data são persistidas sem duplicar; aceite antigo provoca Atualizamos os termos.
 
 ## How to get to it (user POV)
 
@@ -37,3 +39,6 @@ Preconditions:
 - `ApiSession.signIn()` accepts both documents by default; pass `{ acceptLegal: false }` to reach the gate.
 - "Agora não" (a push-notification prompt) may or may not appear; the test waits up to 10 s and taps it only if visible.
 - `tests/auth.test.ts` covers recording the version at sign-up; the UI test covers the gate.
+
+- **Revisão de fonte; sem execução nesta etapa:** Teste presente; execução e cobertura por subitem ainda precisam ser verificadas.
+- [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.
