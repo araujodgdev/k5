@@ -42,6 +42,7 @@ Preconditions:
 
 ## Gotchas
 
+- After Space or Enter picks up a card, wait for the grip's `aria-pressed="true"` and the live region's initial column announcement before sending an arrow. The keyboard sensor attaches its listener asynchronously; an immediate arrow can scroll the page instead, especially in the production build used by CI.
 - The delegated-chat destination can take longer than 10 seconds to compile on the first visit in `next dev`; its URL assertion allows 60 seconds.
 - `task-board.e2e.ts` mocks every agenda API (`browser.route` on `/api/agenda/*` and `/api/vault/cases`), so it proves the board's behavior, not persistence. Report drag, optimistic saves, rollback and versions from it as UI-only, and persistence only from `task-board-persistence.e2e.ts`.
 - Pointer drags are real `browser.mouse` events aimed at the grip's and the column's on-screen boxes. Touch gestures are not simulated. At 390px only the keyboard path is driven, because a pointer reaches the next column only through the board's edge scrolling, whose speed is not deterministic.

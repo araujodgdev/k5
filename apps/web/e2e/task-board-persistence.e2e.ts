@@ -69,6 +69,8 @@ test('arrastar uma tarefa no quadro grava a coluna no escritório: mouse, teclad
 
   await grip.focus();
   await browser.keyboard.press('Enter');
+  await expect(grip).toHaveAttribute('aria-pressed', 'true');
+  await expect(screen.getByRole('status')).toContainText(`“${title}” está sobre Concluídas.`);
   await browser.keyboard.press('ArrowLeft');
   await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
   await browser.keyboard.press('ArrowLeft');
@@ -90,6 +92,8 @@ test('arrastar uma tarefa no quadro grava a coluna no escritório: mouse, teclad
   await expect(grip).toBeVisible();
   await grip.focus();
   await browser.keyboard.press('Enter');
+  await expect(grip).toHaveAttribute('aria-pressed', 'true');
+  await expect(screen.getByRole('status')).toContainText(`“${title}” está sobre A fazer.`);
   await browser.keyboard.press('ArrowRight');
   await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
   await browser.keyboard.press('Enter');
