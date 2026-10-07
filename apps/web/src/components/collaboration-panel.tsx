@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
 import { OfficeNavigation } from './office-navigation';
 import { Avatar } from './profile/avatar';
 import { lookupProfile, PersonHoverCard } from './profile/person-card';
@@ -16,9 +15,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 type Person = { id: string; name: string; email: string; avatarVersion?: string | null };
 type Invitation = { id: string; email: string; status: string; expiresAt: string; inviterName: string };
-type Overview = { associates: Person[]; incoming: Invitation[]; outgoing: Invitation[];
+type Overview = { associates: Person[]; participants: Person[]; owner: Person | null; incoming: Invitation[]; outgoing: Invitation[];
   history: { id: string; action: string; createdAt: string; actorName: string; targetName: string | null }[];
-  viewerId: string };
+  isOwner: boolean; viewerId: string };
+const selectClass = 'min-h-11 min-w-0 max-w-full flex-1 border border-input bg-background px-3 text-sm md:min-h-9 md:flex-none';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -51,26 +51,25 @@ async function call(body: unknown) {
   return result as { path?: string; deliveredInApp?: boolean };
 }
 
-/** A person as the share dialog draws one (`Compartilhar`): initials, the name over the e-mail, a quiet action on the right. */
-function PersonRow({ person, viewerId, children }: { person: Person; viewerId: string; children?: React.ReactNode }) {
-  return <div className="flex min-h-12 items-center gap-3 py-1">
-    <Avatar name={person.name} src={avatarUrl(person.id, person.avatarVersion ?? null)} className="size-8 text-[11.5px] font-semibold" />
-    <div className="flex min-w-0 flex-1 flex-col gap-px">
-      <p className="truncate text-sm">{person.name}{person.id === viewerId && " (você)"}</p>
-      <PersonHoverCard email={person.email} className="truncate text-[12.5px] text-muted-foreground" />
-    </div>
+function PersonRow({ person, viewerId, note, children }: { person: Person; viewerId: string; note?: string; children?: React.ReactNode }) {
+  return <div className="flex flex-wrap items-center gap-3 border-b py-4">
+    <div className="flex min-w-0 basis-full items-start gap-3 sm:basis-auto sm:flex-1"><Avatar name={person.name} src={avatarUrl(person.id, person.avatarVersion ?? null)} /><div className="min-w-0">
+      <p className="break-words text-sm font-medium">{person.name}{person.id === viewerId && <span className="font-normal text-muted-foreground"> · você</span>}</p>
+      <PersonHoverCard email={person.email} className="text-[13px] text-muted-foreground" />
+      {note && <p className="mt-1 text-[13px] text-muted-foreground">{note}</p>}
+    </div></div>
     {children}
   </div>;
 }
 
 function ConfirmRemoval({ title, description, action, busy, onConfirm }: { title: string; description: string; action: string; busy: boolean; onConfirm: () => void }) {
-  return <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="px-2 text-[13px] text-muted-foreground hover:text-foreground md:h-[30px]" disabled={busy}>{action}</Button></AlertDialogTrigger><AlertDialogContent>
+  return <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" disabled={busy}>{action}</Button></AlertDialogTrigger><AlertDialogContent>
     <AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle><AlertDialogDescription>{description}</AlertDialogDescription></AlertDialogHeader>
     <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onConfirm}>{action}</AlertDialogAction></AlertDialogFooter>
   </AlertDialogContent></AlertDialog>;
 }
 
-export function CollaborationPanel({ view = 'associates' }: { view?: 'associates' | 'invites' }) {
+export function CollaborationPanel({ view = 'associates', caseId }: { view?: 'associates' | 'invites'; caseId?: string }) {
   const router = useRouter();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
@@ -78,18 +77,19 @@ export function CollaborationPanel({ view = 'associates' }: { view?: 'associates
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [email, setEmail] = useState('');
+  const [chosen, setChosen] = useState('');
   const [link, setLink] = useState('');
   const [notice, setNotice] = useState('');
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/collaboration', { cache: 'no-store' });
+      const response = await fetch(`/api/collaboration${caseId ? `?caseId=${encodeURIComponent(caseId)}` : ''}`, { cache: 'no-store' });
       const next = await response.json();
       if (!response.ok) throw new Error(next.error);
       setData(next); setError('');
     } catch (e) { setData(null); setError(e instanceof Error ? e.message : 'Não foi possível carregar.'); }
     finally { setLoading(false); }
-  }, []);
+  }, [caseId]);
   useEffect(() => { const timer = window.setTimeout(() => void refresh(), 0); return () => window.clearTimeout(timer); }, [refresh]);
   async function act(body: unknown) {
     setBusy(true); setError(''); setNotice('');
@@ -105,6 +105,13 @@ export function CollaborationPanel({ view = 'associates' }: { view?: 'associates
       setNotice(result.deliveredInApp ? 'Convite disponível na conta da pessoa. Você também pode compartilhar o link.' : 'Convite criado. Copie o link e envie para a pessoa. Não enviamos um e-mail.');
     }
   }
+  async function addParticipant(event: FormEvent) {
+    event.preventDefault();
+    if (!caseId || !chosen) return;
+    const result = await act({ action: 'participant', caseId, userId: chosen, add: true });
+    if (result) { setChosen(''); setNotice('Participante incluído no caso.'); }
+  }
+
   const feedback = <>
     {error && <p role="alert" className="py-3 text-sm text-destructive">{error} <Button variant="ghost" onClick={() => void refresh()}>Tentar novamente</Button></p>}
     {notice && <p role="status" className="py-3 text-sm">{notice}</p>}
@@ -112,11 +119,44 @@ export function CollaborationPanel({ view = 'associates' }: { view?: 'associates
   const history = data && data.history.length > 0 && <details className="mt-8"><summary className="cursor-pointer py-3 text-sm">Histórico de acessos</summary>{data.history.map(item => <p key={item.id} className="border-b py-3 text-sm">{item.actorName} {historyLine(item.action, item.targetName)}<span className="mt-1 block text-[13px] text-muted-foreground">{new Date(item.createdAt).toLocaleString('pt-BR')}</span></p>)}</details>;
   const buttonSize = '[&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9';
 
-  return <CanvasPage className={`gap-5 md:gap-5 ${buttonSize}`}>
-    <CanvasHeader title={view === 'associates' ? 'Associados' : 'Convites'}
-      eyebrow={view === 'associates' ? 'Advogados que trabalham com você. Cada um pode incluir o outro como participante nos próprios casos.' : 'Convites de associação recebidos em sua conta.'}
-      actions={view === 'associates' && <Button variant="outline" size="lg" disabled={busy} onClick={() => setFormOpen(value => !value)} aria-expanded={formOpen}>{formOpen ? 'Fechar convite' : 'Convidar associado'}</Button>} />
-    <OfficeNavigation view={view} />
+  if (caseId) {
+    const candidates = data ? data.associates.filter(person => !data.participants.some(item => item.id === person.id)) : [];
+    return <div className={`min-w-0 ${buttonSize}`}>
+      <p className="max-w-2xl border-b py-5 text-sm text-muted-foreground">Os participantes compartilham a pasta raiz do caso e as pastas públicas. Pastas privadas ou restritas ficam visíveis só para quem tem acesso a elas.</p>
+      {feedback}
+      {loading && !data && <p role="status" className="py-8 text-sm text-muted-foreground">Carregando participantes…</p>}
+      {data && <>
+        {data.isOwner && <form onSubmit={addParticipant} className="flex flex-wrap items-end gap-3 border-b py-5">
+          {candidates.length ? <>
+            <div className="grid min-w-0 flex-1 gap-1.5 sm:flex-none"><Label htmlFor="case-participant">Incluir associado</Label>
+              <select id="case-participant" value={chosen} onChange={event => setChosen(event.target.value)} className={selectClass}>
+                <option value="">Escolha um associado</option>
+                {candidates.map(person => <option key={person.id} value={person.id}>{person.name} · {person.email}</option>)}
+              </select></div>
+            <Button type="submit" disabled={busy || !chosen}>{busy ? 'Incluindo…' : 'Incluir no caso'}</Button>
+          </> : <p className="text-sm text-muted-foreground">{data.associates.length ? 'Todos os seus associados já participam deste caso.' : 'Você ainda não tem associados.'} <Link href="/app/agenda?view=associates" className="underline underline-offset-4">Convidar associados</Link></p>}
+        </form>}
+        {data.owner && <PersonRow person={data.owner} viewerId={data.viewerId} note="Responsável pelo caso" />}
+        {data.participants.length === 0 && <p className="py-8 text-sm text-subtle-foreground">Nenhum participante além do responsável.</p>}
+        {data.participants.map(person => <PersonRow key={person.id} person={person} viewerId={data.viewerId} note="Participante">
+          {data.isOwner ? <ConfirmRemoval busy={busy} action="Remover" title={`Remover ${person.name} do caso?`}
+            description="O acesso a este caso será revogado. As pastas privadas dessa pessoa no caso continuam guardadas e fora do alcance dos demais."
+            onConfirm={() => void act({ action: 'participant', caseId, userId: person.id, add: false })} />
+            : person.id === data.viewerId && <ConfirmRemoval busy={busy} action="Sair do caso" title="Sair deste caso?"
+              description="Você deixa de ver o caso. Para voltar, o responsável precisa incluir você de novo."
+              onConfirm={async () => { if (await act({ action: 'participant', caseId, userId: person.id, add: false })) router.push('/app/vault'); }} />}
+        </PersonRow>)}
+        {history}
+      </>}
+    </div>;
+  }
+
+  return <div className={`flex min-w-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10 ${buttonSize}`}>
+    <h1 className="page-title border-b pb-5 max-md:sr-only">Escritório</h1><OfficeNavigation view={view} />
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b py-5">
+      <p className="max-w-2xl text-sm text-muted-foreground">{view === 'associates' ? 'Advogados que trabalham com você. Cada um pode incluir o outro como participante nos próprios casos.' : 'Convites de associação recebidos em sua conta.'}</p>
+      {view === 'associates' && <Button disabled={busy} onClick={() => setFormOpen(value => !value)} aria-expanded={formOpen}>{formOpen ? 'Fechar convite' : 'Convidar associado'}</Button>}
+    </div>
     {feedback}
     {link && <div className="flex flex-wrap gap-2 border-b pb-4"><Input aria-label="Link do convite" value={link} readOnly className="min-w-0 flex-1" /><Button variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(link); setNotice('Link copiado.'); } catch { setNotice('Selecione e copie o link acima.'); } }}>Copiar link</Button></div>}
     {formOpen && view === 'associates' && <form onSubmit={submit} className="grid gap-4 border-b py-5 sm:grid-cols-2">
@@ -129,17 +169,17 @@ export function CollaborationPanel({ view = 'associates' }: { view?: 'associates
     {loading && !data && <p role="status" className="py-8 text-sm text-muted-foreground">Carregando associados e convites…</p>}
     {data && view === 'associates' && <>
       {data.associates.length === 0 && <p className="py-8 text-sm text-subtle-foreground">Nenhum associado ainda. Convide um advogado pelo e-mail.</p>}
-      {data.associates.length > 0 && <div className="flex flex-col gap-0.5">{data.associates.map(person => <PersonRow key={person.id} person={person} viewerId={data.viewerId}>
+      {data.associates.map(person => <PersonRow key={person.id} person={person} viewerId={data.viewerId}>
         <ConfirmRemoval busy={busy} action="Remover" title={`Remover ${person.name} dos associados?`}
           description="Vocês deixam de ser associados e cada um sai dos casos do outro. Arquivos e alterações já feitos permanecem."
           onConfirm={() => void act({ action: 'associate', userId: person.id })} />
-      </PersonRow>)}</div>}
+      </PersonRow>)}
       {data.outgoing.length > 0 && <section className="mt-8"><h2 className="text-lg">Convites pendentes</h2>{data.outgoing.map(item => <div key={item.id} className="flex flex-wrap items-center gap-3 border-b py-4"><div className="min-w-0 basis-full sm:basis-auto sm:flex-1"><PersonHoverCard email={item.email} className="text-sm" /><p className="mt-1 text-[13px] text-muted-foreground">Expira em {new Date(item.expiresAt).toLocaleDateString('pt-BR')}</p></div><Button variant="ghost" disabled={busy} onClick={() => void act({ action: 'cancel', id: item.id })}>Cancelar convite</Button></div>)}</section>}
       {data.incoming.length > 0 && <Link href="/app/agenda?view=invites" className="my-5 text-sm underline underline-offset-4">Você tem {data.incoming.length === 1 ? '1 convite' : `${data.incoming.length} convites`} para responder.</Link>}
       {history}
     </>}
     {data && view === 'invites' && <>{data.incoming.length === 0 && <p className="py-8 text-sm text-subtle-foreground">Nenhum convite pendente para sua conta.</p>}{data.incoming.map(item => <div key={item.id} className="flex flex-wrap items-center gap-4 border-b py-5"><div className="min-w-0 basis-full sm:basis-auto sm:flex-1"><p className="text-sm font-medium">{item.inviterName}</p><p className="mt-1 text-sm text-muted-foreground">Convidou você para ser associado</p><p className="mt-1 text-[13px] text-muted-foreground">Expira em {new Date(item.expiresAt).toLocaleDateString('pt-BR')}</p></div><Button variant="ghost" disabled={busy} onClick={() => void act({ action: 'respond', id: item.id, accept: false })}>Recusar</Button><Button disabled={busy} onClick={async () => { if (await act({ action: 'respond', id: item.id, accept: true })) setNotice('Convite aceito. Vocês agora são associados.'); }}>Aceitar convite</Button></div>)}</>}
-  </CanvasPage>;
+  </div>;
 }
 
 export function InvitationAcceptance({ token }: { token: string }) {

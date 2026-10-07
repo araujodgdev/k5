@@ -6,7 +6,6 @@ import { elapsed } from "@/components/admin/admin-format";
 import { DataTable, Pill } from "@/components/canvas/canvas-controls";
 import { AdminBar, AdminBlock, AdminGrid, AdminNote } from "@/components/admin/admin-blocks";
 import { AdminFilterChip } from "@/components/admin/admin-filters";
-import { AdminMeta } from "@/components/admin/admin-meta";
 
 export const metadata = { title: "Execuções · Administração" };
 
@@ -31,7 +30,6 @@ export default async function PlatformTracesPage({ searchParams }: PageProps<"/a
   const traces = await listAgentTraces(context.db, { status });
   const today = dayFormat.format(new Date());
   return <>
-    <AdminMeta title="Execuções" />
     <AdminGrid>
       <AdminBlock label="Execuções do Lume">
         <AdminNote>Estes registros guardam conteúdo de clientes. Abra só o necessário para investigar.</AdminNote>

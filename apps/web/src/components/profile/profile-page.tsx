@@ -4,7 +4,6 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { CircleAlert } from 'lucide-react';
 import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -134,7 +133,6 @@ export function ProfilePage({ initial, deletion, emailConfirmation = false }: { 
 
   return (
     <CanvasPage width="wide" className="md:gap-14 [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-[34px] [&_[data-slot=input]]:min-h-11 md:[&_[data-slot=input]]:min-h-9">
-      <CanvasMeta title="Perfil" subject={{ kind: 'module', slug: 'profile', title: 'Perfil' }} />
       <CanvasHeader eyebrow={profile.email} title="Perfil" />
 
       <section aria-labelledby="profile-about" className="grid gap-5 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10">

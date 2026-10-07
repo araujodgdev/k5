@@ -6,7 +6,6 @@ import { useSearchParams } from 'next/navigation';
 import type { CapabilityOutput } from '@/lib/capabilities/contracts';
 import { Field } from '@/components/canvas/canvas-controls';
 import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { sectionTab, sectionTabRow } from '@/components/section-tabs';
 import { Input } from '@/components/ui/input';
@@ -118,7 +117,6 @@ export function IntegrationsPanel({ children }: { children?: ReactNode }) {
   const control = 'h-11 md:h-[34px]';
   const callback = notice || callbackMessages[params.get('google') ?? ''];
   return <CanvasPage className="md:gap-8">
-    <CanvasMeta title="Integrações" subject={{ kind: 'module', slug: 'integrations', title: 'Integrações' }} />
     <div className="flex flex-col gap-4 md:gap-5">
       <CanvasHeader eyebrow="Contas e serviços ligados ao Lume" title="Integrações" />
       <div role="tablist" aria-label="Áreas de integrações" className={sectionTabRow}>

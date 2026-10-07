@@ -4,7 +4,6 @@ import { listOfficesForPlatform } from "@/lib/ai-connections-core";
 import { requirePlatformPage } from "@/lib/platform";
 import { DataTable } from "@/components/canvas/canvas-controls";
 import { AdminBlock, AdminGrid, adminLink } from "@/components/admin/admin-blocks";
-import { AdminMeta } from "@/components/admin/admin-meta";
 
 export const metadata = { title: "Clientes · Administração" };
 
@@ -16,7 +15,6 @@ export default async function PlatformClientsPage() {
   if (!context) notFound();
   const offices = await listOfficesForPlatform(context.db);
   return <>
-    <AdminMeta title="Clientes" />
     <AdminGrid>
       <AdminBlock label="Escritórios">
         <DataTable label="Escritórios clientes" rows={offices} rowKey={office => office.id} empty="Nenhum escritório cadastrado." columns={[

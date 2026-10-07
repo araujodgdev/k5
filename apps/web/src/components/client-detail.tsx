@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Folder, Plus } from 'lucide-react';
 import { CanvasHeader, CanvasPage, CanvasRow, CanvasSection, CanvasSectionLink } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { agendaCall, type Choice } from '@/lib/agenda-client';
 import { localDate } from '@/lib/calendar-days';
 import { legalAreaLabels, type AgendaActivity, type CrmClient } from '@/lib/capabilities/agenda';
@@ -66,7 +65,6 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   const areas = client.legalAreas.map(area => legalAreaLabels[area]);
   const encoded = encodeURIComponent(clientId);
   return <CanvasPage className="gap-8 md:gap-10">
-    <CanvasMeta title={client.name} subject={{ kind: 'module', slug: 'agenda', title: client.name }} />
     <div className="flex flex-col gap-3">
       {back}
       <CanvasHeader eyebrow={[stageLabels[client.stage], areas.length ? andList.format(areas) : ''].filter(Boolean).join(' · ')} title={<span className="break-words">{client.name}</span>}

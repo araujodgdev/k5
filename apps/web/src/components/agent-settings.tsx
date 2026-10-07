@@ -3,7 +3,6 @@
 import { useId, useRef, useState } from "react";
 import { CircleAlert, FileText, LoaderCircle, Upload } from "lucide-react";
 import { CanvasHeader, CanvasPage } from "@/components/canvas/canvas-page";
-import { CanvasMeta } from "@/components/shell/shell-context";
 import { Button } from "@/components/ui/button";
 import type { TemplateCandidate, TemplateView } from "@/lib/agent-profile";
 import { AgentRules, type RulesState } from "@/components/agent-rules";
@@ -28,7 +27,6 @@ export function AgentSettings({ initialTemplates, initialCandidates, initialRule
 
   return (
     <CanvasPage className="md:gap-12">
-      <CanvasMeta title="Personalizar Lume" subject={{ kind: "module", slug: "agents", title: "Personalizar Lume" }} />
       <CanvasHeader eyebrow="O que o Lume segue em cada conversa" title="Personalizar Lume" />
 
       <AgentRules initial={initialRules} />

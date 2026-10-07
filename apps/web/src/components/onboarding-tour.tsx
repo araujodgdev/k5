@@ -8,16 +8,10 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { tutorialNavigation } from '@/lib/navigation';
 import { tutorialSteps, tutorialStorageKey, type TutorialAccess } from '@/lib/onboarding';
-import { writePanel } from '@/lib/canvas-shell/panel';
 
 const TutorialContext = createContext<() => void>(() => {});
 type View = 'closed' | 'welcome' | 'tour';
 type Placement = { card: CSSProperties; spotlight: CSSProperties | null };
-
-/** Opens the tutorial's welcome card, from wherever the shell offers it. */
-export function useTutorial() {
-  return useContext(TutorialContext);
-}
 
 export function TutorialTrigger({ onOpen, className = '' }: { onOpen?: () => void; className?: string }) {
   const open = useContext(TutorialContext);
@@ -27,11 +21,11 @@ export function TutorialTrigger({ onOpen, className = '' }: { onOpen?: () => voi
   </button>;
 }
 
-export function OnboardingTour({ children, userId, officeId, whatsappEnabled, adsEnabled, platformAdmin, canvasShell }: TutorialAccess & { children: ReactNode; userId: string; officeId: string }) {
+export function OnboardingTour({ children, userId, officeId, whatsappEnabled, adsEnabled, platformAdmin }: TutorialAccess & { children: ReactNode; userId: string; officeId: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const steps = useMemo(() => tutorialSteps({ whatsappEnabled, adsEnabled, platformAdmin, canvasShell }), [whatsappEnabled, adsEnabled, platformAdmin, canvasShell]);
+  const steps = useMemo(() => tutorialSteps({ whatsappEnabled, adsEnabled, platformAdmin }), [whatsappEnabled, adsEnabled, platformAdmin]);
   const storageKey = tutorialStorageKey(userId, officeId);
   const [view, setView] = useState<View>('closed');
   const [index, setIndex] = useState(0);
@@ -71,20 +65,18 @@ export function OnboardingTour({ children, userId, officeId, whatsappEnabled, ad
     setIndex(next);
     save(nextStep.id);
     setView('tour');
-    // In the canvas shell the Lume's step needs the panel open; on a phone, where one stage shows at a
-    // time, every other step needs the canvas.
-    if (canvasShell && nextStep.module === 'agents') writePanel('open');
-    else if (canvasShell && !window.matchMedia('(min-width: 768px)').matches) writePanel('collapsed');
+    window.dispatchEvent(new CustomEvent('lume:tutorial-surface', { detail: nextStep.module === 'agents' ? 'chat' : 'canvas' }));
     if (currentHref !== nextStep.href) router.push(nextStep.href, { scroll: true });
   }
 
   useEffect(() => {
     if (view !== 'tour' || !step) return;
+    if (ready) window.dispatchEvent(new CustomEvent('lume:tutorial-surface', { detail: step.module === 'agents' ? 'chat' : 'canvas' }));
     let frame = 0;
     const measure = () => {
       const findVisible = (selector: string) => Array.from(document.querySelectorAll<HTMLElement>(selector))
         .find(element => { const box = element.getBoundingClientRect(); return box.width > 4 && box.height > 4 && box.bottom > 0 && box.top < innerHeight; });
-      const visible = ready ? findVisible(step.target) ?? findVisible('header.md\\:hidden') : undefined;
+      const visible = ready ? findVisible(step.target) ?? findVisible('[aria-label="Barra do escritório"]') : undefined;
       const rect = visible?.getBoundingClientRect();
       const width = Math.min(380, innerWidth - 24);
       const height = card.current?.offsetHeight ?? 300;
@@ -122,7 +114,7 @@ export function OnboardingTour({ children, userId, officeId, whatsappEnabled, ad
         {view === 'tour' && ready && placement.spotlight && <div aria-hidden="true" data-tutorial="spotlight" className="pointer-events-none fixed z-[51] border-2 border-brand shadow-[0_0_0_9999px_rgb(0_0_0/0.45)] motion-safe:transition-[top,left,width,height] motion-safe:duration-300" style={placement.spotlight} />}
         <DialogPrimitive.Content ref={card} aria-describedby="tutorial-description" onInteractOutside={event => event.preventDefault()}
           onCloseAutoFocus={event => { event.preventDefault(); const target = opener.current?.isConnected && opener.current.getBoundingClientRect().width ? opener.current : document.getElementById('main-content'); target?.focus(); }}
-          className={`fixed z-[52] grid max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto rounded-lg border border-line bg-popover p-5 text-popover-foreground shadow-[var(--shadow-float)] outline-none ${view === 'welcome' ? 'top-1/2 left-1/2 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2' : 'motion-safe:transition-[top,left] motion-safe:duration-300'}`}
+          className={`fixed z-[52] grid max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto border border-line bg-popover p-5 text-popover-foreground shadow-[var(--shadow-float)] outline-none ${view === 'welcome' ? 'top-1/2 left-1/2 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2' : 'motion-safe:transition-[top,left] motion-safe:duration-300'}`}
           style={view === 'tour' ? placement.card : undefined}>
           <p className="label-mono text-muted-foreground" aria-live="polite">{view === 'welcome' ? 'Primeiros passos' : `${index + 1} de ${steps.length}`}</p>
           <DialogPrimitive.Title className="text-xl font-medium tracking-tight">{view === 'welcome' ? 'Conheça o Lume' : step?.title}</DialogPrimitive.Title>

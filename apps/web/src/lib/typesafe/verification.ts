@@ -1,8 +1,10 @@
+import { contentAdmission } from '@/lib/content-admission';
+import { privateGenerationPolicy, observeDocument, parsePolicy, combinePolicy } from '@/lib/content-policy';
 import 'server-only';
 import { captureOperationalError } from '@/lib/observability/report';
 import { randomUUID } from 'node:crypto';
 import type { Questions } from '@typesafe-ai/sdk';
-import { database } from '@/lib/database';
+import { database, type Transaction } from '@/lib/database';
 import { ownedArtifact, type ArtifactRow, type Owner } from '@/lib/ai-store';
 import { quoteIsPresent } from '@/lib/ai-policy';
 import { CapabilityError } from '@/lib/capabilities/errors';
@@ -26,17 +28,17 @@ export function supportQuestions(count: number): Questions {
 }
 type Job = {
   id: string; office_id: string; user_id: string; artifact_id: string; artifact_version: number;
-  content_hash: string; source_fingerprint: string; units: string; results: string; status: string;
+  authority_json: WorkspaceContext | null; content_policy: unknown; content_hash: string; source_fingerprint: string; units: string; results: string; status: string;
   mode: string; checked: number; total: number; model: string | null; question_version: string; lease_token: string; attempts: number;
 };
 type Evidence = { id: string; documentId: string; sourceLabel: string; content: string; sha256: string; context: string };
-async function evidenceFor(owner: Owner, units: VerificationUnit[]) {
+async function evidenceFor(owner: Owner, units: VerificationUnit[], db: Transaction = database) {
   const ids = [...new Set(units.flatMap(unit => unit.evidence.map(e => e.sourceId)))];
   if (!ids.length) return [];
-  return database.prepare(`SELECT c.id,c.document_id AS documentId,d.original_name || ' — ' || c.stable_reference AS sourceLabel,c.content,d.sha256,
+  return db.prepare(`SELECT c.id,c.document_id AS documentId,d.original_name || ' — ' || c.stable_reference AS sourceLabel,c.content,d.sha256,
     coalesce((SELECT string_agg(n.content,chr(10) ORDER BY n.ordinal) FROM vault_document_chunk n WHERE n.office_id=c.office_id AND n.document_id=c.document_id AND n.ordinal BETWEEN c.ordinal-1 AND c.ordinal+1),'') AS context
     FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
-    WHERE c.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND vault_folder_visible(d.folder_id, ?) AND c.id IN (${ids.map(() => '?').join(',')}) ORDER BY c.id`).all<Evidence>(owner.officeId, owner.userId, ...ids);
+    WHERE c.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND lume_vault_visible(d.id, ?) AND c.id IN (${ids.map(() => '?').join(',')}) ORDER BY c.id`).all<Evidence>(owner.officeId, owner.userId, ...ids);
 }
 const snapshot = (evidence: Evidence[]) => fingerprint(evidence.map(e => [e.id, e.documentId, e.sha256, e.content, e.context]));
 async function artifactFor(owner: Owner, id: string) {
@@ -44,20 +46,21 @@ async function artifactFor(owner: Owner, id: string) {
   if (!artifact) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
   return artifact;
 }
-export async function enqueueVerification(owner: Owner, artifact: ArtifactRow, units: VerificationUnit[]) {
+export async function enqueueVerification(owner: WorkspaceContext, artifact: ArtifactRow, units: VerificationUnit[]) {
   const config = await getConnection();
   if (!config?.enabled || config.documents_mode === 'off') return null;
   units = units.map(unit => verificationUnit.parse(unit));
   const evidence = await evidenceFor(owner, units);
+  const policy = combinePolicy('',JSON.stringify(units),[await privateGenerationPolicy(owner), ...await Promise.all([...new Set(evidence.map(item => item.documentId))].map(id => observeDocument(owner.userId,id).then(source => source.policy)))],'generated');
+  const authority = { officeId: owner.officeId, userId: owner.userId, sessionId: owner.sessionId, invocation: owner.invocation, caseScope: owner.caseScope };
   const hash = fingerprint([artifact.title, artifact.content]);
   const id = randomUUID();
-  // The partial unique index keeps one active job per version: a concurrent enqueue waits and joins it.
-  await database.prepare(`INSERT INTO artifact_verification(id,office_id,user_id,artifact_id,artifact_version,content_hash,source_fingerprint,units,total,mode,model,question_version)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+
+  await database.prepare(`INSERT INTO artifact_verification(id,office_id,user_id,artifact_id,artifact_version,content_hash,source_fingerprint,units,total,mode,model,question_version,authority_json,content_policy)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?::jsonb,?::jsonb)
     ON CONFLICT (office_id,user_id,artifact_id,artifact_version,content_hash) WHERE status IN ('queued','running') DO NOTHING`)
-    .run(id, owner.officeId, owner.userId, artifact.id, artifact.version, hash, snapshot(evidence), JSON.stringify(units), units.length, config.documents_mode, config.model, supportVersion);
-  // The worker can finish the existing job between the INSERT and this read. Return that
-  // persisted job too, never the unused UUID of an insert that lost the conflict.
+    .run(id, owner.officeId, owner.userId, artifact.id, artifact.version, hash, snapshot(evidence), JSON.stringify(units), units.length, config.documents_mode, config.model, supportVersion,JSON.stringify(authority),JSON.stringify(policy));
+
   const queued = await database.prepare("SELECT id FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? AND artifact_version=? AND content_hash=? ORDER BY sequence_no DESC LIMIT 1")
     .get<{ id: string }>(owner.officeId, owner.userId, artifact.id, artifact.version, hash);
   return queued?.id ?? null;
@@ -67,17 +70,17 @@ export async function requestVerification(context: WorkspaceContext, input: { ar
   const prior = await database.prepare('SELECT units,content_hash FROM artifact_verification WHERE office_id=? AND user_id=? AND artifact_id=? ORDER BY created_at DESC,sequence_no DESC LIMIT 1')
     .get<{ units: string; content_hash: string }>(context.officeId, context.userId, artifact.id);
   const original = prior ? verificationUnit.array().parse(JSON.parse(prior.units)) : [];
-  // Changed prose does not inherit the previous paragraph's citations. Unbound text is explicitly unverified.
+
   const units = prior?.content_hash === fingerprint([artifact.title, artifact.content]) ? original : artifact.content.split(/\n\s*\n/).map(text => text.trim()).filter(text => text && !/^(#|Fonte:|Fontes:|\[)/.test(text))
     .map((text, i) => ({ id: `paragraph-${i}`, text, evidence: original.find(unit => unit.text === text)?.evidence ?? [] }));
   const id = await enqueueVerification(context, artifact, units);
   if (!id) throw new CapabilityError('NOT_READY', 'A verificação documental está desativada neste escritório.');
   return { verificationId: id };
 }
-async function isCurrent(job: Job, units: VerificationUnit[]) {
-  const artifact = await ownedArtifact(database, { officeId: job.office_id, userId: job.user_id }, job.artifact_id);
+async function isCurrent(job: Job, units: VerificationUnit[], db: Transaction = database) {
+  const artifact = await ownedArtifact(db, { officeId: job.office_id, userId: job.user_id }, job.artifact_id);
   return Boolean(artifact && artifact.version === job.artifact_version && fingerprint([artifact.title, artifact.content]) === job.content_hash
-    && snapshot(await evidenceFor({ officeId: job.office_id, userId: job.user_id }, units)) === job.source_fingerprint);
+    && snapshot(await evidenceFor({ officeId: job.office_id, userId: job.user_id }, units,db)) === job.source_fingerprint);
 }
 export async function getVerification(context: WorkspaceContext, input: { artifactId: string }): Promise<{ verification: VerificationReport | null }> {
   await artifactFor(context, input.artifactId);
@@ -98,11 +101,11 @@ export async function processNextVerification(options: { send?: DecisionTranspor
   if (!job) return false;
   const units = verificationUnit.array().parse(JSON.parse(job.units));
   const results = verificationItem.array().parse(JSON.parse(job.results));
-  const owner = { officeId: job.office_id, userId: job.user_id };
-  const allowed = async () => {
-    const member = await database.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(owner.officeId, owner.userId);
-    const lease = await database.prepare("SELECT 1 FROM artifact_verification WHERE id=? AND lease_token=? AND status='running' AND lease_until>?").get(job.id, token, Date.now());
-    return Boolean(member && lease && await isCurrent(job, units));
+  const owner: WorkspaceContext = { ...job.authority_json, officeId: job.office_id, userId: job.user_id };
+  const allowed = async (db: Transaction = database) => {
+    const member = await db.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(owner.officeId, owner.userId);
+    const lease = await db.prepare("SELECT 1 FROM artifact_verification WHERE id=? AND lease_token=? AND status='running' AND lease_until>?").get(job.id, token, Date.now());
+    return Boolean(member && lease && await isCurrent(job, units,db));
   };
   const finish = async (status: string) => {
     const writes = [database.prepare('UPDATE artifact_verification SET status=?,results=?,checked=?,lease_until=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=?')
@@ -125,7 +128,7 @@ export async function processNextVerification(options: { send?: DecisionTranspor
     await database.batch(writes);
   };
   try {
-    if (!await allowed()) { await finish('stale'); return true; }
+    if (!job.authority_json?.sessionId || !job.content_policy || !await allowed()) { await finish('stale'); return true; }
     const config = await getConnection();
     if (!config?.enabled || config.documents_mode === 'off') { await finish('disabled'); return true; }
     if (config.model !== job.model || config.documents_mode !== job.mode || job.question_version !== supportVersion) { await finish('stale'); return true; }
@@ -136,7 +139,7 @@ export async function processNextVerification(options: { send?: DecisionTranspor
       const source = evidence.find(source => source.id === e.sourceId)!;
       return { quote: e.quote, text: source.context, label: source.sourceLabel };
     }) })) };
-    const result = valid.length ? await evaluate(owner, 'documents', { state, questions: supportQuestions(valid.length), questionVersion: supportVersion }, options) : null;
+    const result = valid.length ? await evaluate(owner, 'documents', { state, questions: supportQuestions(valid.length), questionVersion: supportVersion }, { ...options, admission: contentAdmission(owner, state, [parsePolicy(job.content_policy)], { lease: async tx => { if (!await allowed(tx)) throw new CapabilityError('FORBIDDEN', 'As fontes desta revisão mudaram.'); } }) }) : null;
     if (!await allowed()) { await finish('stale'); return true; }
     for (const unit of batch) {
       const index = valid.indexOf(unit);

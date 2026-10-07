@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { testDb as db } from './test-setup';
 import type { WorkspaceContext } from '../src/lib/application/context';
@@ -11,6 +11,11 @@ import {
 } from '../src/lib/personal-chat/service';
 import { createShare, readDocumentShare, revokeDocumentShare } from '../src/lib/personal-chat/shares';
 import { decryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
+import { observePage, personPolicy } from '../src/lib/content-policy';
+import { createPage } from '../src/lib/case-pages/service';
+import { createPrivateDocument } from '../src/lib/documents/service';
+import { saveArtifactToVault } from '../src/lib/application/vault-service';
+import { processDocument } from '../src/lib/vault';
 import { objectStorage, storageKey } from '../src/lib/storage';
 
 type TestPerson = { person: PersonContext; workspace: WorkspaceContext };
@@ -47,17 +52,18 @@ async function documentFixture(owner: TestPerson, caseId: string | null = null, 
   const currentKey = storageKey(owner.workspace.officeId, documentId, 'pdf');
   const versionKey = storageKey(owner.workspace.officeId, documentId, 'pdf');
   const bytes = Buffer.from('%PDF-1.7\nconteúdo imutável');
+  const sha=createHash('sha256').update(bytes).digest('hex');
   await (await objectStorage()).put(versionKey, bytes);
   await db.prepare(`INSERT INTO vault_document(
       id,office_id,case_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by
     ) VALUES(?,?,?,?,?,?,'application/pdf',?,?,'ready',?)`)
     .run(documentId, owner.workspace.officeId, caseId, caseId ? 'case' : 'library', name, currentKey,
-      bytes.byteLength, 'a'.repeat(64), owner.person.userId);
+      bytes.byteLength, sha, owner.person.userId);
   await db.prepare(`INSERT INTO vault_document_version(
-      id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by
-    ) VALUES(?,?,?,1,?,?,'application/pdf',?,?,?)`)
+      id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,independent_upload_by,content_policy
+    ) VALUES(?,?,?,1,?,?,'application/pdf',?,?,?,?,?::jsonb)`)
     .run(versionId, owner.workspace.officeId, documentId, name, versionKey, bytes.byteLength,
-      'a'.repeat(64), owner.person.userId);
+      sha, owner.person.userId,owner.person.userId,JSON.stringify({...personPolicy('', ''),digest:sha}));
   return { documentId, versionId, bytes };
 }
 
@@ -278,4 +284,22 @@ test('Mensagens only accepts document shares; case participation belongs to Asso
     kind: 'case', caseId: randomUUID(), permission: 'viewer', canInvite: false,
     clientMessageId: randomUUID(), idempotencyKey: randomUUID(),
   }).success, false);
+});
+
+test('a managed private copy cannot acquire a recipient through a pinned document grant', async () => {
+  const sender = await person('Origem privada'), recipient = await person('Destinatária', true);
+  const thread = (await startThread(sender.person, sender.workspace.officeId, {
+    requestId: randomUUID(), recipient: { kind: 'exact_email', email: recipient.person.email },
+  })).thread;
+  const caseId = randomUUID();
+  await db.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId, sender.workspace.officeId, 'Fonte', sender.person.userId);
+  const page = (await createPage(sender.workspace, { caseId, folderId: null, title: 'Fonte privada', content: 'PRIVATE_SHARED_COPY_SENTINEL' })).page;
+  const observed = await observePage(sender.person.userId, page.id, caseId);
+  const draft = await createPrivateDocument({ ...sender.workspace, invocation: 'agent', contentSources: [observed.policy] }, { title: page.title, content: page.content });
+  const copy = await saveArtifactToVault(sender.workspace, { artifactId: draft.id, version: 1, format: 'docx', scope: 'library' });
+  await processDocument(copy.document.id, sender.workspace.officeId);
+  await assert.rejects(createShare(sender.person, sender.workspace, thread.id, {
+    kind: 'document', documentId: copy.document.id, version: 1, clientMessageId: randomUUID(), idempotencyKey: randomUUID(),
+  }), { code: 'NOT_FOUND' });
+  assert.equal(await db.prepare('SELECT 1 FROM vault_document_share WHERE document_id=?').get(copy.document.id), undefined);
 });

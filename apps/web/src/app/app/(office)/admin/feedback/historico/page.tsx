@@ -6,7 +6,6 @@ import { preferenceLabels, ratingCriteria } from '@/lib/feedback-contract';
 import { DataTable } from '@/components/canvas/canvas-controls';
 import { Button } from '@/components/ui/button';
 import { AdminBar, AdminBlock, AdminBlockHead, AdminDetailHead, AdminFact, AdminFacts, AdminFooter, AdminGrid, AdminNote, adminButton } from '@/components/admin/admin-blocks';
-import { AdminMeta } from '@/components/admin/admin-meta';
 
 export const metadata = { title: 'Histórico A/B' };
 
@@ -28,7 +27,6 @@ export default async function PlatformFeedbackHistoryPage() {
     ? `${(values.reduce((sum, value) => sum + value, 0) / values.length).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} / 5`
     : 'Sem notas';
   return <>
-    <AdminMeta title="Histórico A/B" />
     <AdminDetailHead back={{ href: '/app/admin/feedback', label: 'Voltar para feedback' }} title="Histórico A/B"
       sub={`${data.title} · ${data.votes.length} ${data.votes.length === 1 ? 'avaliação' : 'avaliações'} · Um voto por usuário, antes da revelação dos modelos.`} />
     <AdminGrid>

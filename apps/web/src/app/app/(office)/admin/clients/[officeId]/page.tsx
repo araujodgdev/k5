@@ -4,7 +4,6 @@ import { platformClientBilling } from '@/lib/billing/platform-billing';
 import { BillingError } from '@/lib/billing/office-billing';
 import { creditOverview } from '@/lib/billing/credits';
 import { PlatformClientBilling } from '@/components/platform-client-billing';
-import { AdminMeta } from '@/components/admin/admin-meta';
 
 export const metadata = { title: 'Cliente · Administração' };
 
@@ -20,7 +19,6 @@ export default async function ClientPage({ params, searchParams }: PageProps<'/a
   });
   const credits = await creditOverview(officeId, 10);
   return <>
-    <AdminMeta title={data.office.name} />
     <PlatformClientBilling data={data} credits={credits} />
   </>;
 }

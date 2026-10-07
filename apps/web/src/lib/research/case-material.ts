@@ -1,5 +1,5 @@
 import 'server-only';
-import { database, type Database } from '@/lib/database';
+import { database, type Transaction } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { toInstallationRef } from '@/lib/judicial/repositories/installations';
 import { canUseResearchSource } from './policy';
@@ -15,7 +15,7 @@ export type MaterialSnapshot = {
 };
 
 /** A pinned version, not the current version pointer, is the authority for case references. */
-export async function materialSnapshot(versionId: string, db: Database = database): Promise<MaterialSnapshot | null> {
+export async function materialSnapshot(versionId: string, db: Transaction = database): Promise<MaterialSnapshot | null> {
   const row = await db.prepare(`SELECT v.id AS version_id,v.material_id,v.sha256,v.parser_version,v.metadata_revision,v.citation_metadata_json,v.text_content,v.published_at,
     m.kind,m.status AS material_status,m.current_version_id,j.id AS judgment_id,j.status AS judgment_status,
     j.title,j.tribunal,j.court_unit,j.case_number,j.decision_date,j.source_url,j.installation_id,j.metadata_revision AS judgment_metadata_revision
@@ -54,7 +54,7 @@ export async function materialSnapshot(versionId: string, db: Database = databas
   };
 }
 
-export async function requireMaterialSnapshot(versionId: string, db: Database = database) {
+export async function requireMaterialSnapshot(versionId: string, db: Transaction = database) {
   const material = await materialSnapshot(versionId, db);
   if (!material) throw new CapabilityError('NOT_FOUND', 'Material não encontrado.');
   if (!material.localAllowed) throw new CapabilityError('NOT_READY', 'Este material não está disponível no acervo.');

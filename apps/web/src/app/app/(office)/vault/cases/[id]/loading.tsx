@@ -1,5 +1,0 @@
-import { CasosLoading } from "@/components/casos/route-states";
-
-export default function Loading() {
-  return <CasosLoading label="Carregando caso" card="item" />;
-}

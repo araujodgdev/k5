@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { AdminBar, AdminBlock, AdminGrid, AdminPages, adminButton } from '@/components/admin/admin-blocks';
 import { AdminFilterChip, AdminFilterMenu } from '@/components/admin/admin-filters';
 import { adminHref } from '@/components/admin/admin-href';
-import { AdminMeta } from '@/components/admin/admin-meta';
 
 export const metadata = { title: 'Feedback · Administração' };
 
@@ -39,7 +38,6 @@ export default async function PlatformFeedbackPage({ searchParams }: PageProps<'
   };
   const pages = Math.ceil(data.total / PAGE_SIZE);
   return <>
-    <AdminMeta title="Feedback" />
     <AdminGrid>
       <AdminBlock label="Tickets por situação">
         <KpiRow>{ticketStatuses.map(status => <Kpi key={status} size="small" label={statusLabels[status]} value={count(data.counts[status])} />)}</KpiRow>

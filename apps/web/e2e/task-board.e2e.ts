@@ -22,10 +22,9 @@ async function mockAgenda(browser: Browser, tasks: AgendaActivity[]) {
   await browser.route('**/api/agenda/clients/list', route => route.fulfill({ json: { clients: [], total: 0 } }));
   await browser.route('**/api/agenda/proposals/list', route => route.fulfill({ json: { proposals: [] } }));
   await browser.route('**/api/agenda/activities/list', route => {
-    const body = JSON.parse(route.request.postData ?? '{}') as { openOnly?: boolean; status?: string; offset?: number; limit: number };
-    // Only the board's own loads count: one-row queries are the counters and the Lume's greeting.
-    if (body.limit > 1) control.lists++;
+    control.lists++;
     if (control.state === 'error') return route.fulfill({ status: 503, json: { error: 'Falha de teste ao carregar tarefas.' } });
+    const body = JSON.parse(route.request.postData ?? '{}') as { openOnly?: boolean; status?: string; offset?: number; limit: number };
     const filtered = control.state === 'empty' ? [] : tasks.filter(task => (!body.openOnly || ['pending', 'in_progress'].includes(task.status)) && (!body.status || body.status === task.status));
     return route.fulfill({ json: { activities: filtered.slice(body.offset ?? 0, (body.offset ?? 0) + body.limit), total: filtered.length } });
   });
@@ -62,8 +61,7 @@ const outsideBoard = () => {
   const board = document.querySelector('[aria-label="Quadro de tarefas"]')!.getBoundingClientRect();
   return { x: Math.round(board.x + board.width / 2), y: Math.round(board.y - 30) };
 };
-// The column a card is carried over takes the selected fill.
-const ruled = (title: string) => document.querySelector(`section[aria-label="${title}"]`)!.classList.contains('bg-selected');
+const ruled = (title: string) => getComputedStyle(document.querySelector(`section[aria-label="${title}"]`)!).boxShadow !== 'none';
 const gripMetrics = (label: string) => {
   const grip = document.querySelector(`[aria-label="${label}"]`)!;
   const rect = grip.getBoundingClientRect();
@@ -92,10 +90,15 @@ test('o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e
     delegated.push((JSON.parse(route.request.postData ?? '{}') as { activityId: string }).activityId);
     return route.fulfill({ json: { conversationId: 'board-session', url: '/app/agents?conversationId=board-session' } });
   });
+  await browser.route('**/api/conversations/board-session', route => route.fulfill({ json: {
+    conversation: { id: 'board-session', title: 'Revisar contrato 2', updatedAt: new Date().toISOString() },
+    messages: [{ id: 'delegation-message', role: 'user', parts: [{ type: 'text', text: 'Prepare a tarefa Revisar contrato 2.' }] }],
+  } }));
+  await browser.route('**/api/chat/board-session/stream*', route => route.fulfill({ status: 204 }));
 
   await app.open('/app/agenda');
-  await expect(screen.getByRole('region', 'Tarefas')).toHaveAttribute('aria-busy', 'false');
-  const kanban = screen.getByRole('button', 'Ver em quadro');
+  await expect(screen.getByText('Carregando…')).toBeHidden();
+  const kanban = screen.getByRole('button', 'Kanban');
   await kanban.focus();
   await browser.keyboard.press('Enter');
   const cards = screen.getByLabel('Quadro de tarefas').getByRole('article');
@@ -112,7 +115,7 @@ test('o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e
   await grip.focus();
   await browser.keyboard.press('Space');
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
-  await expect(screen.getByRole('status').filter({ hasText: 'está sobre' })).toContainText('“Revisar contrato 1” está sobre A fazer.');
+  await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre A fazer.');
   await browser.keyboard.press('ArrowRight');
   await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
   await browser.keyboard.press('Space');
@@ -127,19 +130,16 @@ test('o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e
   await expect(inProgress).toContainText('Revisar contrato 1');
 
   await browser.setViewport({ width: 390, height: 844 });
-  // The Lume stays open after the resize, and on a phone it covers the canvas.
-  await screen.getByRole('button', 'Abrir o canvas do escritório').tap();
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
   await screen.getByLabel('Quadro de tarefas').getByRole('button', 'Delegar ao Lume').first().tap();
-  // The Lume's link opens Início with the delegated conversation in the panel.
-  await browser.waitForURL(/\/app\/command-center\?conversationId=board-session$/, { timeout: 60_000 });
+  await expect(screen.getByText('Prepare a tarefa Revisar contrato 2.', { exact: true })).toBeVisible();
   expect(delegated).toEqual(['board-1']);
 
   board.state = 'empty';
   await app.open('/app/agenda?layout=kanban');
   await expect(screen.getByLabel('Quadro de tarefas').getByText('Nenhuma tarefa.')).toHaveCount(4);
   board.state = 'error';
-  await browser.reload();
+  await screen.getByRole('button', 'Atualizar').tap();
   await expect(screen.getByRole('alert').filter({ hasText: 'Falha de teste' })).toBeVisible();
   board.state = 'ready';
   await screen.getByRole('button', 'Tentar novamente').tap();
@@ -220,7 +220,7 @@ test('uma falha devolve só aquele cartão e a nova tentativa usa a versão atua
   await grip.focus();
   await browser.keyboard.press('Space');
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
-  await expect(screen.getByRole('status').filter({ hasText: 'está sobre' })).toContainText('“Revisar contrato 1” está sobre A fazer.');
+  await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre A fazer.');
   await browser.keyboard.press('ArrowRight');
   await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
   await browser.keyboard.press('Space');
@@ -254,7 +254,7 @@ test('movimentos seguidos usam a versão devolvida e o teclado anda coluna a col
   await grip.focus();
   await browser.keyboard.press('Enter');
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
-  await expect(screen.getByRole('status').filter({ hasText: 'está sobre' })).toContainText('“Revisar contrato 1” está sobre Concluídas.');
+  await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre Concluídas.');
   await browser.keyboard.press('ArrowLeft');
   await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
   await browser.keyboard.press('ArrowLeft');
@@ -272,7 +272,7 @@ test('movimentos seguidos usam a versão devolvida e o teclado anda coluna a col
   await grip.focus();
   await browser.keyboard.press('Enter');
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
-  await expect(screen.getByRole('status').filter({ hasText: 'está sobre' })).toContainText('“Revisar contrato 1” está sobre A fazer.');
+  await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre A fazer.');
   await browser.keyboard.press('ArrowRight');
   await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
   await browser.keyboard.press('Escape');
@@ -294,7 +294,7 @@ test('no celular o arrasto fica no quadro e o teclado leva a tarefa de coluna em
   await grip.focus();
   await browser.keyboard.press('Enter');
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
-  await expect(screen.getByRole('status').filter({ hasText: 'está sobre' })).toContainText('“Revisar contrato 1” está sobre A fazer.');
+  await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre A fazer.');
   await browser.keyboard.press('ArrowRight');
   await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
   await browser.keyboard.press('Enter');
@@ -304,7 +304,7 @@ test('no celular o arrasto fica no quadro e o teclado leva a tarefa de coluna em
 
   await browser.keyboard.press('Enter');
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
-  await expect(screen.getByRole('status').filter({ hasText: 'está sobre' })).toContainText('“Revisar contrato 1” está sobre Em andamento.');
+  await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre Em andamento.');
   await browser.keyboard.press('ArrowRight');
   await expect.poll(() => browser.evaluate(ruled, 'Concluídas')).toBe(true);
   await browser.keyboard.press('ArrowRight');

@@ -2,10 +2,11 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database as defaultDatabase, type BoundStatement, type Database } from '@/lib/database';
 import type { WorkspaceContext } from '@/lib/application/context';
-import { vaultDocumentPath } from '@/lib/vault-document-path';
 import { NotificationRequestError, type NotificationCategory, type NotificationEventType, type NotificationPreferenceInput, type NotificationView, type PushSubscriptionInput } from './contracts';
 import { categoryForEvent, eventCopy, isTimeZone } from './policy';
 import { endpointHash, encryptPushSubscription, publicPushConfiguration, validatePushSubscription } from './subscriptions';
+
+const notificationAccess = `(e.source_kind<>'activity' AND e.office_id=r.office_id OR e.source_kind='activity' AND lume_activity_notification_allowed(e.source_id,r.user_id,e.event_type,e.source_version,e.data_json))`;
 
 type NotificationRow = {
   id: string;
@@ -81,7 +82,7 @@ export async function listNotifications(context: WorkspaceContext, input: {
     .get<{ inbox_enabled: number }>(context.officeId);
   if (!rollout?.inbox_enabled) return { notifications: [], nextCursor: null };
   // The inbox holds what is still unread; anything read or archived moves to "Arquivadas".
-  const clauses = ['r.office_id=?', 'r.user_id=?',
+  const clauses = ['r.office_id=?', 'r.user_id=?', notificationAccess,
     input.archived ? '(r.read_at IS NOT NULL OR r.archived_at IS NOT NULL)' : 'r.archived_at IS NULL'];
   const params: unknown[] = [context.officeId, context.userId];
   if (input.unreadOnly && !input.archived) clauses.push('r.read_at IS NULL');
@@ -92,7 +93,7 @@ export async function listNotifications(context: WorkspaceContext, input: {
     params.push(cursor[0], cursor[0], cursor[1]);
   }
   const rows = await db.prepare(`SELECT r.event_id AS id,e.event_type,e.data_json,r.created_at,r.read_at
-    FROM notification_recipient r JOIN notification_event e ON e.id=r.event_id AND e.office_id=r.office_id
+    FROM notification_recipient r JOIN notification_event e ON e.id=r.event_id
     WHERE ${clauses.join(' AND ')} ORDER BY r.created_at DESC,r.event_id DESC LIMIT ?`)
     .all<NotificationRow>(...params, input.limit + 1);
   const hasMore = rows.length > input.limit;
@@ -111,7 +112,8 @@ export async function unreadCount(context: WorkspaceContext, db: Database = defa
   if (!defaults) await ensureNotificationDefaults(context, db);
   const row = await db.prepare(`SELECT count(*) AS total FROM notification_recipient r
     JOIN notification_rollout ro ON ro.office_id=r.office_id AND ro.inbox_enabled=1
-    WHERE r.office_id=? AND r.user_id=? AND r.read_at IS NULL AND r.archived_at IS NULL`)
+    JOIN notification_event e ON e.id=r.event_id
+    WHERE ${notificationAccess} AND r.office_id=? AND r.user_id=? AND r.read_at IS NULL AND r.archived_at IS NULL`)
     .get<{ total: number }>(context.officeId, context.userId);
   return Number(row?.total ?? 0);
 }
@@ -293,10 +295,10 @@ export function pushConfigurationView() {
 }
 
 export async function resolveNotificationDestination(context: WorkspaceContext, eventId: string, db: Database = defaultDatabase) {
-  const row = await db.prepare(`SELECT e.source_kind,e.source_id,e.event_type FROM notification_recipient r
-    JOIN notification_event e ON e.id=r.event_id AND e.office_id=r.office_id
-    WHERE r.event_id=? AND r.office_id=? AND r.user_id=?`)
-    .get<{ source_kind: string; source_id: string | null; event_type: string }>(eventId, context.officeId, context.userId);
+  const row = await db.prepare(`SELECT e.source_kind,e.source_id,e.event_type,e.office_id FROM notification_recipient r
+    JOIN notification_event e ON e.id=r.event_id
+    WHERE r.event_id=? AND r.office_id=? AND r.user_id=? AND ${notificationAccess}`)
+    .get<{ source_kind: string; source_id: string | null; event_type: string; office_id: string }>(eventId, context.officeId, context.userId);
   if (!row) return null;
   await markNotificationRead(context, eventId, db);
   if (row.event_type === 'system.feedback.resolved') return '/app/command-center?feedback=relatos';
@@ -305,15 +307,17 @@ export async function resolveNotificationDestination(context: WorkspaceContext, 
       WHERE i.id=? AND i.office_id=? AND a.created_by=?`).get<{ id: string }>(row.source_id, context.officeId, context.userId);
     if (installment) return `/app/honorarios?agreementId=${encodeURIComponent(installment.id)}`;
   }
-  if (row.source_kind === 'activity' && row.source_id && await db.prepare('SELECT 1 FROM agenda_activity WHERE id=? AND office_id=?').get(row.source_id, context.officeId)) {
-    return `/app/agenda?activityId=${encodeURIComponent(row.source_id)}`;
+  if (row.source_kind === 'activity' && row.source_id) {
+    const activity = await db.prepare('SELECT case_id,visibility FROM agenda_activity WHERE id=? AND office_id=? AND lume_activity_visible(id,?)')
+      .get<{ case_id: string | null; visibility: string }>(row.source_id,row.office_id,context.userId);
+    if (activity?.visibility === 'case') return '/app/vault/cases/'+encodeURIComponent(activity.case_id!)+'?section=tasks&task='+encodeURIComponent(row.source_id);
+    if (activity) return '/app/agenda?activityId='+encodeURIComponent(row.source_id);
   }
   if (row.source_kind === 'case' && row.source_id && await db.prepare('SELECT 1 FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL').get(row.source_id, context.officeId)) {
     return `/app/vault/cases/${encodeURIComponent(row.source_id)}`;
   }
-  if (row.source_kind === 'document' && row.source_id) {
-    const path = await vaultDocumentPath(db, context.officeId, row.source_id);
-    if (path) return path;
+  if (row.source_kind === 'document' && row.source_id && await db.prepare('SELECT 1 FROM vault_document WHERE id=? AND office_id=? AND deleted_at IS NULL').get(row.source_id, context.officeId)) {
+    return `/app/vault?documentId=${encodeURIComponent(row.source_id)}`;
   }
   if (row.source_kind === 'artifact' && row.source_id && await db.prepare('SELECT 1 FROM ai_artifact WHERE id=? AND office_id=? AND user_id=?').get(row.source_id, context.officeId, context.userId)) {
     return `/app/documents/${encodeURIComponent(row.source_id)}`;

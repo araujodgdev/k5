@@ -15,7 +15,9 @@ Receita derivada do código para validação futura. Nenhum cenário desta revis
 
 ## Driving it with e2e
 
-Nenhum e2e dedicado mapeado. `drive vault-annexes` retorna `NO_TESTS`; executar o roteiro manual pelo navegador ou adicionar teste em uma tarefa de implementação.
+Test: `apps/web/e2e/annex-plan.e2e.ts`
+
+O teste prepara o plano pelo serviço real com stub apenas no provedor externo. A interface reabre o vínculo autorizado, revisa nomes e gera PDFs pelo endpoint real em desktop e 390px. Uma versão posterior do scan recusa o plano antigo.
 
 Preconditions: instância isolada saudável segundo `doctor`, contas descartáveis e dados do cenário. Preparar os resultados de [vault-cases](./vault-cases.md), [vault-upload](./vault-upload.md). Dependências adicionais de cenários: `ai-provider`, `document-worker`. Consultar [o catálogo e o escopo das dependências](../coverage/README.md); elas não bloqueiam automaticamente os cenários locais.
 

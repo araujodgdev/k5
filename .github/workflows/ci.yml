@@ -70,8 +70,6 @@ jobs:
       SENTRY_ENABLED: 'false'
       NEXT_PUBLIC_SENTRY_ENABLED: 'false'
       # Source maps are uploaded by deploy.yml, from the build it publishes; this build only compiles.
-      # The suite covers the canvas shell (Lume panel and canvas), forced on for every office.
-      K5_CANVAS_SHELL: 'on'
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

@@ -1,3 +1,4 @@
+import './server-only-fixture';
 import { postgresFixture } from './postgres-fixture';
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -21,7 +22,7 @@ async function fixture() {
     assert.equal(response.status, 200);
     return { cookie: response.headers.getSetCookie().map((value) => value.split(";")[0]).join("; "), user: (await response.json()).user as { id: string } };
   }
-  // Mirrors a platform route handler: authorize with the real Better Auth session, then run the operation.
+
   async function handler(cookie?: string, init: { method?: string; origin?: string } = {}) {
     const request = new Request(`${origin}/api/platform/offices`, { method: init.method ?? "GET", headers: { ...(cookie ? { cookie } : {}), ...(init.origin ? { origin: init.origin } : {}) } });
     try {

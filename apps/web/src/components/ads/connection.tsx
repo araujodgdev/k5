@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { ArrowUpRight } from 'lucide-react';
 import { BetaLabel } from '@/components/ads/beta-label';
 import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,7 +68,6 @@ export function AdsConnection() {
   const quiet = 'text-[13.5px] text-muted-foreground';
   const control = 'h-11 md:h-[34px]';
   return <CanvasPage className="md:gap-8">
-    <CanvasMeta title="Anúncios" subject={{ kind: 'module', slug: 'ads', title: 'Anúncios' }} />
     <CanvasHeader eyebrow={<span className="flex items-center gap-2">Conta de anúncios do escritório<BetaLabel /></span>} title="Anúncios"
       actions={<Button asChild variant="outline" size="lg" className={control}><a href="https://ads.openai.com" target="_blank" rel="noopener noreferrer">Abrir OpenAI Ads<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only">, abre em nova aba</span></a></Button>} />
     <CanvasSection title="Conta do ChatGPT Ads" label="Conta do ChatGPT Ads">

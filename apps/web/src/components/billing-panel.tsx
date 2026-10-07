@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { ArrowUpRight, CircleAlert, LoaderCircle } from 'lucide-react';
 import { DataTable, Kpi, KpiRow, type DataColumn } from '@/components/canvas/canvas-controls';
 import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import type { BillingCheckoutRow } from '@/lib/billing/office-billing';
 import type { CreditOverview } from '@/lib/billing/credits';
@@ -53,7 +52,6 @@ export function BillingPanel({ overview, credits, exempt = false, returned, hasS
 
   return (
     <CanvasPage className="md:gap-10">
-      <CanvasMeta title="Plano" subject={{ kind: 'module', slug: 'billing', title: 'Plano' }} />
       <div className="flex flex-col gap-4 md:gap-6">
         <CanvasHeader eyebrow={active && paidUntil ? `Plano Lume ativo até ${longDay(paidUntil)}` : paidUntil ? `Plano Lume vencido em ${longDay(paidUntil)}` : 'Plano Lume ainda não contratado'} title="Plano" actions={configured &&
           <Button size="lg" className="h-11 md:h-[34px]" disabled={pending} onClick={() => void pay()}>

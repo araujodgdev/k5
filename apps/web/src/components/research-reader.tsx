@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CircleAlert, ExternalLink, LoaderCircle, RefreshCw, Scale } from 'lucide-react';
 import { CanvasTrail, trailAction } from '@/components/canvas/canvas-controls';
 import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { requestCapability } from '@/lib/capabilities/http-client';
 import type { JudgmentDetail, ResearchMaterial, ResearchMaterialStatus } from '@/lib/research/contracts';
@@ -100,7 +99,6 @@ function ResearchReaderContent({ judgmentId, searchId }: { judgmentId: string; s
   const full = judgment?.materials.find(item => item.kind === 'full_text');
   const source = officialUrl(judgment?.sourceUrl ?? null);
   return <>
-    <CanvasMeta title="Pesquisa" subject={{ kind: 'module', slug: 'research', title: 'Pesquisa' }} />
     <CanvasTrail back={{ href: back, label: 'Pesquisa' }} icon={<Scale />} current={judgment?.title || 'Julgado'} actions={judgment && <>
       <Button type="button" variant="ghost" onClick={() => void load()} className={trailAction}><RefreshCw aria-hidden="true" /><span className="max-md:sr-only">Atualizar estado</span></Button>
       {source && <Button asChild variant="ghost" className={trailAction}><a href={source} target="_blank" rel="noopener noreferrer"><ExternalLink aria-hidden="true" /><span className="max-md:sr-only">Fonte oficial</span><span className="sr-only">, abre em nova aba</span></a></Button>}

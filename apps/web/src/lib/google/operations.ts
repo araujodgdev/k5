@@ -1,5 +1,7 @@
+import { assertExternalDelivery, parsePolicy } from '@/lib/content-policy';
+import { documentTransaction } from '@/lib/documents/service';
 import { createHash, randomUUID } from 'node:crypto';
-import { database, withTransaction, type Database, type Transaction } from '@/lib/database';
+import { database, type Database, type Transaction } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { decryptCredential, encryptCredential, parseCredentialKeyring } from '@/lib/platform-crypto';
 import { requireAndConsumeApproval } from '@/lib/application/approvals-service';
@@ -76,7 +78,6 @@ function failureFrom(error: unknown): { status: 'failed' | 'unknown'; code: stri
   if (error instanceof CapabilityError) return { status: 'failed', code: error.code.toLowerCase(), message: error.message, capability: error };
   if (error instanceof GoogleNetworkError) return { status: 'unknown', code: 'unknown', message: errorMessages.unknown };
   if (error instanceof GoogleApiError) {
-    // 429 and 4xx are refusals: nothing happened. A 5xx on a write may have been applied.
     if (error.status === 429) return { status: 'failed', code: 'rate_limited', message: errorMessages.rate_limited };
     if (error.status >= 500) return { status: 'unknown', code: 'unknown', message: errorMessages.unknown };
     if (error.status === 403) return { status: 'failed', code: 'permission', message: errorMessages.permission };
@@ -84,7 +85,6 @@ function failureFrom(error: unknown): { status: 'failed' | 'unknown'; code: stri
     if (error.status === 409 || error.status === 412) return { status: 'failed', code: 'conflict', message: errorMessages.conflict };
     return { status: 'failed', code: 'google_rejected', message: errorMessages.google_rejected };
   }
-  // A failure in our own code after the call could hide a completed effect.
   return { status: 'unknown', code: 'unknown', message: errorMessages.unknown };
 }
 
@@ -101,16 +101,12 @@ export function operationResult<T>(row: OperationRecord): T | null {
 
 type Admission = { kind: 'admitted'; row: OperationRecord } | { kind: 'needs_approval'; reason: string } | { kind: 'existing'; row: OperationRecord };
 
-/**
- * Checks the rules and the daily counters under row locks and writes the durable record in the same
- * transaction, so two automatic operations cannot both take the last unit of a daily limit and a
- * rule change is either seen before the record exists or after it.
- */
-async function admit(context: WorkspaceContext, spec: OperationSpec<unknown>, connection: ConnectionRow, key: string, requestHash: string,
+async function reserveOperation(context: WorkspaceContext, spec: OperationSpec<unknown>, connection: ConnectionRow, key: string, requestHash: string,
   args: Record<string, unknown>, confirmed: boolean, approvalId: string | null, retryOf?: OperationRecord): Promise<Admission> {
   const day = usageDay();
   try {
-    return await withTransaction(async (tx: Transaction) => {
+    return await documentTransaction(context, async (tx: Transaction) => {
+      if (spec.bound?.contentPolicy) await assertExternalDelivery(context.userId, parsePolicy(spec.bound.contentPolicy), tx);
       await tx.prepare('SELECT pg_advisory_xact_lock(hashtext(?))').get(`google-operation:${context.officeId}:${context.userId}`);
       const previous = await load(context, key, tx);
       if (previous && (!retryOf || previous.status !== 'failed')) return { kind: 'existing', row: previous };
@@ -137,8 +133,6 @@ async function admit(context: WorkspaceContext, spec: OperationSpec<unknown>, co
       if (decision.kind === 'blocked') throw new CapabilityError('FORBIDDEN', decision.reason);
       if (decision.kind === 'invalid') throw new CapabilityError('INVALID', decision.reason);
       if (decision.kind === 'needs_confirmation' && !confirmed) return { kind: 'needs_approval', reason: decision.reason };
-      // Text from a third party read in this turn could be steering the agent: what the office
-      // allowed to run on its own waits for the person instead (agent-guard.ts).
       if (decision.kind === 'automatic' && !confirmed && context.untrustedContent?.seen)
         return { kind: 'needs_approval', reason: 'Esta conversa leu conteúdo de terceiros; confirme antes de executar.' };
       const mode = decision.kind === 'automatic' && !confirmed ? 'automatic' : 'confirmation';
@@ -224,6 +218,8 @@ async function saveCheckpoint(operation: RunningOperation, checkpoint: Record<st
 }
 
 async function assertExecution(context: WorkspaceContext, row: OperationRecord, spec: OperationSpec<unknown>) {
+  const bound = operationArgs(row).__bound as { contentPolicy?: unknown; authorizationGeneration?: number } | undefined;
+  if (bound?.contentPolicy) await assertExternalDelivery(context.userId, parsePolicy(bound.contentPolicy));
   if (context.sessionId && !await database.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>CURRENT_TIMESTAMP').get(context.sessionId, context.userId)) {
     throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada. Entre novamente.');
   }
@@ -231,6 +227,8 @@ async function assertExecution(context: WorkspaceContext, row: OperationRecord, 
   if (!member) throw new CapabilityError('FORBIDDEN', 'Seu acesso a este escritório foi removido.');
   const live = await requireConnection(context, spec.module);
   if (live.id !== row.connection_id) throw new CapabilityError('CONFLICT', 'A conexão Google mudou. Prepare a operação novamente.');
+  if (bound?.authorizationGeneration !== undefined && live.authorization_generation !== bound.authorizationGeneration)
+    throw new CapabilityError('CONFLICT', 'A autorização Google mudou. Prepare a operação novamente.');
   const policy = await readPolicy(context.officeId);
   if (policy.version !== row.policy_version) throw new CapabilityError('CONFLICT', 'As regras do escritório mudaram. Prepare a operação novamente.');
   const decision = gate(policy.rules, spec, spec.actions.map(() => 0));
@@ -273,7 +271,6 @@ async function execute<T>(context: WorkspaceContext, row: OperationRecord, conne
   }
 }
 
-/** Resolves an unknown outcome by looking at Google. Only a confirmed absence allows running the call again. */
 async function settleUnknown<T>(row: OperationRecord, connection: ConnectionRow, spec: Pick<OperationSpec<T>, 'reconcile' | 'actions'>, args: Record<string, unknown>) {
   if (!spec.reconcile) return null;
   const lease = randomUUID();
@@ -308,7 +305,6 @@ export async function runGoogleOperation<T>(context: WorkspaceContext, spec: Ope
   const connection = await requireConnection(context, spec.module);
   const { approvalId: rawApproval, idempotencyKey: rawKey, ...args } = spec.input;
   const approvalId = typeof rawApproval === 'string' && rawApproval ? rawApproval : null;
-  // One approval is one operation: a confirmed proposal can never be replayed under a fresh key.
   const key = approvalId ? `approval:${approvalId}` : typeof rawKey === 'string' && rawKey ? `key:${rawKey}` : `once:${randomUUID()}`;
   const requestHash = digest({ capability: spec.capabilityName, args });
   const policy = await readPolicy(context.officeId);
@@ -321,7 +317,7 @@ export async function runGoogleOperation<T>(context: WorkspaceContext, spec: Ope
   if (approvalId) {
     await requireAndConsumeApproval(context, spec.capabilityName, approvalId, approvalInput, spec.targetResourceId ?? null, null, spec.describe, { allowConsumedRetry: true });
   }
-  const admission = await admit(context, spec as OperationSpec<unknown>, connection, key, requestHash, storedArgs, Boolean(approvalId), approvalId);
+  const admission = await reserveOperation(context, spec as OperationSpec<unknown>, connection, key, requestHash, storedArgs, Boolean(approvalId), approvalId);
   if (admission.kind === 'needs_approval') {
     await requireAndConsumeApproval(context, spec.capabilityName, undefined, approvalInput, spec.targetResourceId ?? null, null, `${spec.describe}. ${admission.reason}`);
     throw new CapabilityError('APPROVAL_REQUIRED', admission.reason);
@@ -339,7 +335,6 @@ async function replay<T>(context: WorkspaceContext, row: OperationRecord, reques
     throw new CapabilityError('CONFLICT', 'A operação ainda está em andamento.');
   }
   if (row.status === 'running') {
-    // The process that held it died mid-call: its effect may exist.
     await database.prepare(`UPDATE google_operation SET status='unknown',lease_token=NULL,lease_until=NULL,error_code='unknown',error_message=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='running' AND (lease_until IS NULL OR lease_until<CURRENT_TIMESTAMP)`)
       .run(errorMessages.unknown, row.id);
     row = (await load(context, row.idempotency_key))!;
@@ -354,14 +349,13 @@ async function replay<T>(context: WorkspaceContext, row: OperationRecord, reques
     }
     row = current;
   }
-  // failed: nothing reached Google, so the same request may run again under the current rules.
   if (row.bound_hash !== digest(spec.bound ?? {})) throw new CapabilityError('CONFLICT', 'O conteúdo ou a versão mudou. Prepare uma nova operação e revise a confirmação.');
   if (row.approval_id) {
     const policy = await readPolicy(context.officeId);
     await requireAndConsumeApproval(context, spec.capabilityName, row.approval_id,
       { ...args, __bound: spec.bound ?? {}, __connectionId: connection.id, __policyVersion: policy.version }, spec.targetResourceId ?? null, null, spec.describe, { allowConsumedRetry: true });
   }
-  const admission = await admit(context, spec as OperationSpec<unknown>, connection, row.idempotency_key, requestHash, args,
+  const admission = await reserveOperation(context, spec as OperationSpec<unknown>, connection, row.idempotency_key, requestHash, args,
     Boolean(row.approval_id), row.approval_id, row);
   if (admission.kind === 'needs_approval') throw new CapabilityError('APPROVAL_REQUIRED', `${admission.reason} Peça a confirmação novamente.`);
   if (admission.kind === 'existing') return replay(context, admission.row, requestHash, connection, spec, args);

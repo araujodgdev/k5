@@ -1,3 +1,4 @@
+import { fixtureSession } from './session-fixture';
 import { testDb } from './test-setup';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,9 +15,9 @@ async function office(research: 'enabled' | 'off') {
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Advogada');
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
   await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
-  await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId); // configures the platform TypeSafe connection
+  await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId);
   await saveConnection(userId, connectionSettings.parse({ apiKey: `fake-${officeId}`, enabled: true, research, version: (await connectionView()).version }));
-  return { officeId, userId };
+  return { officeId, userId, sessionId: await fixtureSession(userId) };
 }
 
 const decisions = [
@@ -27,7 +28,6 @@ const decisions = [
 ];
 const question = 'Cabe a revisão da vida toda para aposentadoria concedida em 2015?';
 
-/** Jev: the STF theme and the STJ ruling fit the case, the blog is not a decision. */
 const jev: DecisionTransport = async (_key, request: DecisionRequest) => ({
   model: request.model, usage: { input_tokens: 100, output_tokens: 0 },
   answers: Object.fromEntries(Object.entries(request.questions).map(([name, question]) => {
@@ -42,10 +42,10 @@ const jev: DecisionTransport = async (_key, request: DecisionRequest) => ({
 test('jurisprudence score: only web search results count as found links', () => {
   const links = webSearchLinks({
     toolResults: [
-      // The provider's own search (OpenAI) and the Exa fallback, both named web_search.
+
       { type: 'tool-result', payload: { toolName: 'web_search', result: { action: { query: 'revisão' }, sources: [{ type: 'url', url: 'https://portal.stf.jus.br/tema/1102' }] } } },
       { toolName: 'web_search', result: { results: [{ url: 'https://stj.jus.br/decisao-1', title: 'REsp' }] } },
-      // A tool that echoes what the model wrote never vouches for a link.
+
       { toolName: 'k5_research_score_jurisprudence', result: { results: [{ url: 'https://trf3.jus.br/nao-existe' }] } },
     ],
     sources: [{ type: 'source', payload: { url: 'https://blog.example.com/revisao' } }],
@@ -69,7 +69,7 @@ test('jurisprudence score: Jev grades the fit to the case and nothing is dropped
   assert.deepEqual(result.results.map(item => [item.court, item.reliability, item.score, item.linkFound]), [
     ['STJ', 'alta', 3.8, true],
     ['STF', 'média', 2.8, true],
-    // Jev rated the invented TRF3 ruling highly; its link never came from a search, so it stays low.
+
     ['TRF3', 'baixa', 3.9, false],
     ['', 'baixa', 1, true],
   ]);

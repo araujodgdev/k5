@@ -1,4 +1,6 @@
 import 'server-only';
+import { artifactPolicy, assertPolicyAccess } from './content-policy';
+import { CapabilityError } from './capabilities/errors';
 import { database } from './database';
 import type { Owner } from './ai-store';
 
@@ -29,7 +31,12 @@ export async function conversationArtifacts(owner: Owner, conversationId: string
       WHERE conversation_id=? AND office_id=? AND user_id=? AND message_id IS NOT NULL ORDER BY created_at, id`)
       .all<{ id: string; name: string; mediaType: string; byteSize: number; createdAt: string }>(conversationId, owner.officeId, owner.userId),
   ]);
-  const sources = [...documents.map(row => row.id), ...attachments.map(row => row.id)];
+  const visible = [];
+  for (const row of documents) {
+    try { await assertPolicyAccess(owner.userId, await artifactPolicy(owner, row.id)); visible.push(row); }
+    catch (error) { if (!(error instanceof CapabilityError && error.code === 'NOT_FOUND')) throw error; }
+  }
+  const sources = [...visible.map(row => row.id), ...attachments.map(row => row.id)];
   const copies = new Map<string, VaultCopy[]>();
   if (sources.length) {
     const marks = sources.map(() => '?').join(',');
@@ -38,7 +45,7 @@ export async function conversationArtifacts(owner: Owner, conversationId: string
       FROM vault_agent_origin o
       JOIN vault_document d ON d.id=o.document_id AND d.deleted_at IS NULL
       LEFT JOIN vault_case c ON c.id=d.case_id AND c.office_id=d.office_id
-      WHERE o.user_id=? AND o.source_id IN (${marks}) AND vault_folder_visible(d.folder_id, ?)
+      WHERE o.user_id=? AND o.source_id IN (${marks}) AND lume_vault_visible(d.id, ?)
         AND (d.office_id=? OR EXISTS (SELECT 1 FROM case_participant p WHERE p.case_id=d.case_id AND p.office_id=d.office_id AND p.user_id=? AND p.revoked_at IS NULL))
       ORDER BY o.created_at, d.id`)
       .all<{ sourceId: string; kind: string; version: number | null; documentId: string; name: string; scope: 'library' | 'case'; caseId: string | null; caseName: string | null; folderId: string | null; status: string }>(
@@ -54,7 +61,7 @@ export async function conversationArtifacts(owner: Owner, conversationId: string
     }
   }
   return {
-    documents: documents.map(row => ({ ...row, updatedAt: iso(row.updatedAt), createdByAgent: Boolean(row.createdByAgent), copies: copies.get(row.id) ?? [] })),
+    documents: visible.map(row => ({ ...row, updatedAt: iso(row.updatedAt), createdByAgent: Boolean(row.createdByAgent), copies: copies.get(row.id) ?? [] })),
     attachments: attachments.map(row => ({ ...row, byteSize: Number(row.byteSize), createdAt: iso(row.createdAt), url: `/api/chat/attachments/${row.id}`, copies: copies.get(row.id) ?? [] })),
   };
 }

@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { ChevronLeft, ChevronRight, File, Inbox, Mail, Mails, Paperclip, PenLine, Search, Send, Star, type LucideIcon } from 'lucide-react';
 import { CanvasTrail, Chip, Field } from '@/components/canvas/canvas-controls';
 import { CanvasHeader, CanvasPage, CanvasRow } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +24,7 @@ type DraftSummary = CapabilityOutput<'k5_gmail_list_drafts'>['drafts'][number];
 type Draft = CapabilityOutput<'k5_gmail_get_draft'>['draft'];
 type AttachmentRef = { kind: 'vault'; documentId: string; name: string } | { kind: 'upload'; uploadId: string; name: string } | {
   kind: 'draft'; partId: string; name: string };
-type Editor = { draftId?: string; to: string; cc: string; bcc: string; subject: string; body: string;
+type Editor = { composeId?: string; seedId?: string; draftId?: string; to: string; cc: string; bcc: string; subject: string; body: string;
   replyToMessageId: string | null; attachments: AttachmentRef[] };
 type VaultCase = { id: string; name: string };
 const blank = (): Editor => ({ to: '', cc: '', bcc: '', subject: '', body: '', replyToMessageId: null, attachments: [] });
@@ -194,19 +193,19 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
       const { draft } = await googleCall<{ draft: Draft }>('draft', { draftId: id });
       if (request !== detailRequest.current) return;
       setEditor({ draftId: draft.id, to: draft.to.join(', '), cc: draft.cc.join(', '), bcc: draft.bcc.join(', '),
-        subject: draft.subject, body: draft.body, replyToMessageId: draft.replyToMessageId,
+        composeId: draft.composeId, subject: draft.subject, body: draft.body, replyToMessageId: draft.replyToMessageId,
         attachments: draft.attachments.map(a => ({ kind: 'draft', partId: a.partId, name: a.filename })) });
       setThread(null);
     } catch (error) { if (request === detailRequest.current) setFailure(message(error)); }
     finally { if (request === detailRequest.current) setDetailLoading(false); }
   };
-  const reply = (mail: Thread['messages'][number], body = '') => {
+  const reply = (mail: Thread['messages'][number], body = '', seedId?: string) => {
     if (detailScroller.current) detailScroller.current.scrollTop = 0;
     // Following up on one's own message goes back to the people it was sent to.
     const own = status?.connection?.email.toLowerCase();
     const to = own && address(mail.from).toLowerCase() === own ? mail.to.join(', ') : address(mail.from);
     setThread(null); setInsightOpen(null);
-    setEditor({ ...blank(), to, body, subject: /^re:/i.test(mail.subject) ? mail.subject : `Re: ${mail.subject}`,
+    setEditor({ ...blank(), to, body, seedId, composeId: seedId, subject: /^re:/i.test(mail.subject) ? mail.subject : `Re: ${mail.subject}`,
       replyToMessageId: mail.id });
     requestAnimationFrame(() => detailHeading.current?.focus());
   };
@@ -215,7 +214,7 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
     let active = true;
     if (initialDraftId) googleCall<{ draft: Draft }>('draft', { draftId: initialDraftId }).then(({ draft }) => {
       if (active) setEditor({ draftId: draft.id, to: draft.to.join(', '), cc: draft.cc.join(', '), bcc: draft.bcc.join(', '),
-        subject: draft.subject, body: draft.body, replyToMessageId: draft.replyToMessageId,
+        composeId: draft.composeId, subject: draft.subject, body: draft.body, replyToMessageId: draft.replyToMessageId,
         attachments: draft.attachments.map(a => ({ kind: 'draft', partId: a.partId, name: a.filename })) });
     }).catch(error => { if (active) setFailure(message(error)); });
     else if (initialThreadId) fetchThread(initialThreadId).then(value => {
@@ -295,7 +294,7 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
     setShowVault(false); setVaultDocumentId('');
   };
   const payload = (value: Editor) => ({
-    draftId: value.draftId, to: splitAddresses(value.to), cc: splitAddresses(value.cc), bcc: splitAddresses(value.bcc),
+    composeId: value.composeId, seedId: value.seedId, draftId: value.draftId, to: splitAddresses(value.to), cc: splitAddresses(value.cc), bcc: splitAddresses(value.bcc),
     subject: value.subject, body: value.body, replyToMessageId: value.replyToMessageId,
     attachments: value.attachments.map(ref => ref.kind === 'vault' ? { kind: 'vault', documentId: ref.documentId }
       : ref.kind === 'upload' ? { kind: 'upload', uploadId: ref.uploadId } : { kind: 'draft', partId: ref.partId }),
@@ -383,7 +382,6 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
   </>;
 
   if (enabled && detailVisible) return <>
-    <CanvasMeta title="E-mails" subject={{ kind: 'module', slug: 'email', title: 'E-mails' }} />
     <CanvasTrail back={{ label: labels[folder], onClick: resetDetail }} icon={<Mail />} current={detailTitle}
       actions={thread && <SmartOptions options={threadOptions} onSelect={() => { if (thread) loadInsight(thread.id); }} busy={threadBusy} align="end" />} />
     <div ref={detailScroller} tabIndex={-1} className="mx-auto flex outline-none w-full max-w-[760px] flex-col gap-6 px-4 pt-6 pb-24 md:px-10 md:pt-10 md:pb-16">
@@ -396,7 +394,7 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
         <h1 ref={detailHeading} tabIndex={-1} className="text-[24px] leading-[1.3] font-semibold tracking-[-0.02em] outline-none md:text-[26px]">{thread.subject || '(sem assunto)'}</h1>
         {insightOpen === thread.id && insights[thread.id] && <ThreadInsightView state={insights[thread.id]}
           onRetry={() => loadInsight(thread.id, true)} onClose={() => setInsightOpen(null)}
-          onUseReply={body => { const latest = thread.messages.at(-1); if (latest) reply(latest, body); }} />}
+          onUseReply={(body, seedId) => { const latest = thread.messages.at(-1); if (latest) reply(latest, body, seedId); }} />}
         {thread.messages.map(mail => <article key={mail.id} className="flex flex-col gap-3 border-t border-border pt-5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
             <p className="text-sm font-medium">{mail.from}</p>
@@ -468,7 +466,6 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
   </>;
 
   return <CanvasPage className="md:gap-6">
-    <CanvasMeta title="E-mails" subject={{ kind: 'module', slug: 'email', title: 'E-mails' }} />
     <CanvasHeader eyebrow={status?.connection?.email ?? 'Gmail'} title="E-mails" actions={enabled && <>
       <SmartOptions options={mailboxOptions} onSelect={onMailboxOption} busy={digestBusy || triageBusy} align="end" />
       <Button type="button" variant="outline" size="lg" className={control} onClick={compose}><PenLine className="size-3.5" aria-hidden="true" />Escrever</Button>

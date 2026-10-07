@@ -2,6 +2,9 @@ import 'server-only';
 import { getDocumentChunks, type Viewer } from './vault';
 import type { SourceChunk } from './ai-policy';
 import { database } from './database';
+import { aclReadTransaction } from './acl-transaction';
+import { assertPolicyAccess, personPolicy } from './content-policy';
+import { contentResult } from './content-result';
 import type { WorkspaceContext } from './application/context';
 import { CapabilityError } from './capabilities/errors';
 import { assertResearchCaseAccess } from './research/case-profile';
@@ -15,7 +18,6 @@ export async function selectedSources(officeId: string, viewer: Viewer, document
   }));
 }
 
-/** Only explicitly selected links in this authenticated case enter Lume or a draft. */
 export type PinnedResearchReference = { referenceId: string; materialVersionId: string };
 
 async function selectResearchSources(context: WorkspaceContext, caseId: string, referenceIds: string[], query?: string,
@@ -28,7 +30,8 @@ async function selectResearchSources(context: WorkspaceContext, caseId: string, 
     throw new CapabilityError('SCOPE_REQUIRED', 'A pessoa precisa selecionar estas referências na conversa.');
   await assertResearchCaseAccess(context, caseId);
   const ids = [...new Set(referenceIds)];
-  const rows = await database.prepare(`SELECT id,material_version_id FROM research_case_reference WHERE office_id=? AND case_id=? ${pinned ? '' : 'AND deleted_at IS NULL'}
+  return aclReadTransaction(async tx => {
+  const rows = await tx.prepare(`SELECT id,material_version_id FROM research_case_reference WHERE office_id=? AND case_id=? ${pinned ? '' : 'AND deleted_at IS NULL'}
     AND id IN (${ids.map(() => '?').join(',')})`).all<{ id: string; material_version_id: string }>(context.officeId, caseId, ...ids);
   if (rows.length !== ids.length) throw new CapabilityError('NOT_FOUND', 'Uma referência não pertence a este caso.');
   const byId = new Map(rows.map(row => [row.id, row.material_version_id]));
@@ -38,26 +41,31 @@ async function selectResearchSources(context: WorkspaceContext, caseId: string, 
   for (const id of ids) {
     const pinnedVersion = pinned?.find(item => item.referenceId === id)?.materialVersionId;
     if (pinned && !pinnedVersion) throw new CapabilityError('NOT_FOUND', 'A referência fixada não pertence à tarefa.');
-    const material = await materialSnapshot(pinnedVersion ?? byId.get(id)!);
+    const material = await materialSnapshot(pinnedVersion ?? byId.get(id)!, tx);
     if (!material?.aiAllowed) throw new CapabilityError('NOT_READY', 'Uma referência está indisponível para uso por IA.');
     if (pinnedVersion) {
-      const current = await materialSnapshot(byId.get(id)!);
+      const current = await materialSnapshot(byId.get(id)!, tx);
       if (!current || current.materialId !== material.materialId)
         throw new CapabilityError('NOT_FOUND', 'A versão fixada não corresponde à referência original.');
     }
-    const chunks = await database.prepare('SELECT id,text_content,reference FROM research_chunk WHERE material_version_id=? ORDER BY ordinal LIMIT 200')
+    const chunks = await tx.prepare('SELECT id,text_content,reference FROM research_chunk WHERE material_version_id=? ORDER BY ordinal LIMIT 200')
       .all<{ id: string; text_content: string; reference: string }>(material.versionId);
     if (!chunks.length) throw new CapabilityError('NOT_READY', 'O material ainda não tem trechos utilizáveis.');
     const ranked = chunks.map((chunk, index) => ({ chunk, index,
       score: terms.reduce((score, term) => score + Number(chunk.text_content.toLocaleLowerCase('pt-BR').includes(term)), 0) }));
     if (terms.length) ranked.sort((a,b) => b.score - a.score || a.index - b.index);
-    for (const { chunk } of ranked.slice(0, perReferenceLimit)) sources.push({
+    const policy = { ...personPolicy(material.title, material.text ?? ''),
+      guards: [pinnedVersion ? { kind: 'case' as const, id: caseId } : { kind: 'research' as const, id, caseId }, { kind: 'research-material' as const, id: material.versionId }],
+      observed: [{ kind: 'research' as const, id, version: material.versionId, digest: material.sha256 }] };
+    await assertPolicyAccess(context.userId, policy, tx);
+    for (const { chunk } of ranked.slice(0, perReferenceLimit)) sources.push(contentResult({
       id: `research:${id}:${chunk.id}`, sourceType: 'research', researchReferenceId: id,
       materialVersionId: material.versionId, judgmentId: material.judgmentId, researchChunkId: chunk.id,
       text: chunk.text_content, sourceLabel: `${material.tribunal} — ${material.title} — ${chunk.reference}`,
-    });
+    }, [policy], [{ kind: 'research', id, version: material.versionId, digest: material.sha256 }]));
   }
   return sources;
+  });
 }
 
 export function selectedResearchSources(context: WorkspaceContext, caseId: string, referenceIds: string[], query?: string): Promise<SourceChunk[]> {

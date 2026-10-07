@@ -1,10 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import './lume-workspace.css';
 
 @custom-variant dark (&:is(.dark *));
-/* The canvas shell with the Lume collapsed (lib/canvas-shell/panel.ts sets it before the first paint). */
-@custom-variant lume-collapsed (&:is([data-lume-panel="collapsed"] *));
 
 /* ---------------------------------------------------------------------------
    Lume theme. Warm off-white surfaces on a slightly deeper ground, soft borders and rounded
@@ -65,7 +64,7 @@
   --sidebar-width-icon: 3.75rem;
 
   --radius: .75rem;
-  --tabbar-h: 64px;
+  --tabbar-h: 54px;
   /* The sidebar's header row (the 60px mark tile and its line); a workspace's top bar takes the
      same height so its line continues the sidebar's. */
   --shell-header: calc(3.75rem + 1px);
@@ -130,31 +129,10 @@
 @keyframes fade-in { from { opacity: 0; transform: translateY(16px); } }
 .fade-in { animation: fade-in 1s var(--ease) both; animation-delay: var(--delay, 0s); }
 
-/* Desktop menu: the preference restored in the head sets the width before the first paint. */
-@media (min-width: 768px) {
-  html[data-nav="collapsed"] .app-nav { --sidebar-width: 3.75rem; }
-  html[data-nav="collapsed"] .app-nav .nav-label { display: none; }
-  html[data-nav="collapsed"] .app-nav .nav-dot { display: block; }
-  html[data-nav="collapsed"] .app-nav [data-sidebar="menu-button"] { justify-content: center; }
-  html[data-nav="collapsed"] .app-nav .nav-footer { flex-direction: column; }
-  .app-nav .nav-expand { display: none; }
-  html[data-nav="collapsed"] .app-nav .nav-expand { display: grid; }
-}
 
 /* Both panes exist in SSR. Geometry follows CSS and the preference restored in the head. */
 .agent-chat-history { display: none; }
 html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
-@media (min-width: 768px) {
-  html:not([data-agent-list-open="0"]) .agent-chat-history { display: flex; }
-}
-@media (max-width: 767px) {
-  html[data-agent-list-open="1"] .agent-chat-content { display: none; }
-}
-
-/* With a document open beside the chat, the conversation list steps aside on wide screens. */
-@media (min-width: 1024px) {
-  .agent-chat[data-document-open] .agent-chat-history { display: none; }
-}
 
 /* The document editor takes the Word template's body typography through custom properties. */
 .document-prose {
@@ -335,22 +313,7 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
 }
 
-/* A definite shell height keeps the chat viewport, composer and mobile dock together. */
-.app-shell:has(.agent-chat) {
-  height: 100dvh;
-  overflow: hidden;
-}
-.app-shell:has(.agent-chat) > header { flex-shrink: 0; }
-
-/* E-mail keeps the folder list and message in separate viewport scroll regions. */
-.app-shell:has(.gmail-workspace, .whatsapp-workspace, .messaging-workspace) {
-  height: 100dvh;
-  overflow: hidden;
-}
-.app-shell:has(.gmail-workspace, .whatsapp-workspace, .messaging-workspace) > header { flex-shrink: 0; }
-.app-shell:has(.gmail-workspace, .whatsapp-workspace, .messaging-workspace) > main { min-height: 0; overflow: hidden; }
-
-/* The mobile "Mais" panel floats above the tab bar. Written as plain CSS (and
+/* Contextual bottom sheets clear the mobile surface switch. Written as plain CSS (and
    outside a cascade layer) so it beats the utility classes, with a static
    fallback for engines that choke on env() inside calc(). */
 [data-slot="sheet-content"][data-side="bottom"] {
@@ -389,18 +352,6 @@ select[data-inline]:not([multiple], [size]):focus-visible { border-color: var(--
 @media (min-width: 768px) {
   .feedback-panel, .notification-panel { left: calc(15.5rem + .75rem); bottom: .75rem; }
   html[data-nav="collapsed"] :is(.feedback-panel, .notification-panel) { left: calc(3.75rem + .75rem); }
-}
-
-/* The canvas shell (components/shell/office-shell.tsx). Pages that keep their own scroll regions
-   (chat, e-mail, messages) fill the canvas instead of scrolling it. */
-.canvas-scroll:has(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace) { overflow: hidden; padding-bottom: 0; }
-/* The phone's "Pedir ao Lume" pill steps aside for a page's own composer and while the person types. */
-.canvas-scroll:is(:has(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace), :has(input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus)) ~ .lume-phone-pill { display: none; }
-/* No tab bar under the phone menu; on a computer the panels hang from the strip, under the bell. */
-html:has([data-lume-shell]) [data-slot="sheet-content"][data-side="bottom"] { bottom: .5rem; bottom: calc(env(safe-area-inset-bottom) + .5rem); border-color: var(--border); }
-html:has([data-lume-shell]) :is(.feedback-panel, .notification-panel) { bottom: .5rem; bottom: calc(env(safe-area-inset-bottom) + .5rem); }
-@media (min-width: 768px) {
-  html:has([data-lume-shell]) :is(.feedback-panel, .notification-panel) { top: 3.5rem; right: .75rem; bottom: auto; left: auto; max-height: calc(100dvh - 4.25rem); }
 }
 
 @media (prefers-reduced-motion: reduce) {

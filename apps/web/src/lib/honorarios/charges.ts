@@ -53,7 +53,7 @@ async function view(tx: Transaction, context: WorkspaceContext, installmentId: s
     WHERE i.office_id=? AND i.id=?`).get(context.officeId, installmentId);
   const settings = await tx.prepare(`SELECT ch.version,ch.pix_key AS "pixKey",ch.instructions,ch.reminders_enabled AS "remindersEnabled",
     CASE WHEN d.id IS NULL THEN NULL ELSE json_build_object('id',d.id,'name',d.original_name) END AS boleto
-    FROM honorario_charge ch LEFT JOIN vault_document d ON d.office_id=ch.office_id AND d.id=ch.boleto_document_id AND d.deleted_at IS NULL AND vault_folder_visible(d.folder_id, ?)
+    FROM honorario_charge ch LEFT JOIN vault_document d ON d.office_id=ch.office_id AND d.id=ch.boleto_document_id AND d.deleted_at IS NULL AND lume_vault_visible(d.id, ?)
     WHERE ch.office_id=? AND ch.installment_id=?`).get(context.userId, context.officeId, installmentId);
   const history = await tx.prepare(`SELECT e.id,e.operation,e.channel,e.notes,e.created_at AS createdAt,u.name AS createdByName
     FROM honorario_charge_event e JOIN "user" u ON u.id=e.user_id WHERE e.office_id=? AND e.installment_id=? AND e.response IS NOT NULL
@@ -92,7 +92,7 @@ async function mutate(context: WorkspaceContext, operation: 'prepare' | 'sent', 
     if (claim.response !== null) {
       const saved = contract.chargeDto.parse(claim.response);
       const response = { ...saved, message: await withAsaasLink(tx, context, input.installmentId, saved.message) };
-      if (response.boleto && !await tx.prepare('SELECT 1 FROM vault_document WHERE id=? AND office_id=? AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?)')
+      if (response.boleto && !await tx.prepare('SELECT 1 FROM vault_document WHERE id=? AND office_id=? AND deleted_at IS NULL AND lume_vault_visible(id, ?)')
         .get(response.boleto.id, context.officeId, context.userId))
         return { ...response, boleto: null, message: response.message.split('\n').filter(line => line !== 'Boleto anexado separadamente.').join('\n') };
       return response;
@@ -101,7 +101,7 @@ async function mutate(context: WorkspaceContext, operation: 'prepare' | 'sent', 
     if (agreement.cancelled_at || current.installment.pendingCents === 0) throw conflict('Esta parcela foi quitada ou cancelada.');
     if (current.version !== input.version) throw conflict('A cobrança mudou. Reabra a versão atual antes de continuar.');
     if (operation === 'prepare' && 'pixKey' in input) {
-      if (input.boletoDocumentId && !await tx.prepare(`SELECT 1 FROM vault_document WHERE office_id=? AND id=? AND mime_type='application/pdf' AND byte_size<=10000000 AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?) FOR SHARE`)
+      if (input.boletoDocumentId && !await tx.prepare(`SELECT 1 FROM vault_document WHERE office_id=? AND id=? AND mime_type='application/pdf' AND byte_size<=10000000 AND deleted_at IS NULL AND lume_vault_visible(id, ?) FOR SHARE`)
         .get(context.officeId, input.boletoDocumentId, context.userId)) throw new CapabilityError('INVALID', 'Escolha um boleto em PDF do Cofre deste escritório, de até 10 MB.');
       await tx.prepare(`INSERT INTO honorario_charge(office_id,installment_id,version,pix_key,instructions,boleto_document_id,reminders_enabled,updated_by)
         VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(office_id,installment_id) DO UPDATE SET version=EXCLUDED.version,pix_key=EXCLUDED.pix_key,instructions=EXCLUDED.instructions,

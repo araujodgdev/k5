@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import { Ellipsis, type LucideIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LumeMark } from "@/components/lume-mark";
-import { CanvasLink } from "@/components/shell/canvas-link";
 import { cn } from "@/lib/utils";
 
 /** What the top of a card draws: a page's first lines, a sheet of paper, a set of images or a folder. */
@@ -70,9 +69,8 @@ export function ItemCard({ title, meta, alert = false, icon: Icon, preview, lume
   menu?: ReactNode;
 }) {
   const linkClass = "min-w-0 truncate text-[14.5px] font-medium outline-none after:absolute after:inset-0 md:text-[13.5px]";
-  const link = action.kind === "tab" ? <CanvasLink href={action.href} tab={action.tab} data-card-action className={linkClass}>{title}</CanvasLink>
-    : action.kind === "route" ? <Link href={action.href} data-card-action className={linkClass}>{title}</Link>
-    : <a href={action.href} aria-label={`Baixar ${title}`} data-card-action className={linkClass}>{title}</a>;
+  const link = action.kind === "file" ? <a href={action.href} aria-label={`Baixar ${title}`} data-card-action className={linkClass}>{title}</a>
+    : <Link href={action.href} data-card-action className={linkClass}>{title}</Link>;
   return (
     <div role="listitem" className={cn("group/card relative -mx-2 flex min-h-14 min-w-0 items-center gap-3 rounded-[10px] px-2 py-1.5 transition-colors hover:bg-accent",
       "has-[[data-card-action]:focus-visible]:outline-2 has-[[data-card-action]:focus-visible]:outline-offset-2 has-[[data-card-action]:focus-visible]:outline-ring",

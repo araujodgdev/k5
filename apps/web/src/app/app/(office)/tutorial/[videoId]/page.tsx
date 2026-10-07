@@ -5,7 +5,6 @@ import { database } from '@/lib/database';
 import { isPlatformAdmin } from '@/lib/platform-core';
 import { CanvasTrail } from '@/components/canvas/canvas-controls';
 import { CanvasHeader, CanvasPage, CanvasRow, CanvasSection, CanvasSectionLink } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { tutorialLibrary, tutorialDuration } from '@/lib/tutorial-library';
 import { tutorialNavigation } from '@/lib/navigation';
 import { TutorialPlayer } from '@/components/tutorial-player';
@@ -21,7 +20,6 @@ export default async function TutorialVideoPage({ params }: { params: Promise<{ 
   if (!tutorialModule || !video) notFound();
   const others = tutorialModule.videos.filter(item => item.id !== video.id);
   return <>
-    <CanvasMeta title="Tutorial" subject={{ kind: 'module', slug: 'tutorial', title: 'Tutorial' }} />
     <CanvasTrail back={{ href: `${tutorialNavigation.href}?modulo=${tutorialModule.id}`, label: `Tutoriais de ${tutorialModule.title}` }} icon={<CircleHelp />} current={video.title} />
     <CanvasPage className="md:gap-8">
       <div className="flex flex-col gap-3">

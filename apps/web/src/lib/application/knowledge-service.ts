@@ -1,5 +1,7 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
+import { exposeContent, observeDocument } from '@/lib/content-policy';
+import { documentTransaction } from '@/lib/documents/service';
 import { database } from '@/lib/database';
 import { findVaultDocument } from '@/lib/vault';
 import { CapabilityError } from '@/lib/capabilities/errors';
@@ -27,9 +29,13 @@ export async function getKnowledgeSource(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_get_source'>
 ): Promise<CapabilityOutput<'k5_knowledge_get_source'>> {
-  const doc = await requireSourceDocument(context, input.documentId);
+  return documentTransaction(context, async tx => {
+  const observed = await observeDocument(context.userId, input.documentId, tx);
+  const doc = await tx.prepare('SELECT id,original_name AS name,case_id FROM vault_document WHERE id=? AND office_id=?')
+    .get<{ id: string; name: string; case_id: string | null }>(input.documentId, context.officeId);
+  if (!doc || context.caseScope && doc.case_id !== context.caseScope.caseId) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
 
-  const targetChunk = await database.prepare(
+  const targetChunk = await tx.prepare(
     'SELECT * FROM vault_document_chunk WHERE office_id=? AND document_id=? AND stable_reference=?'
   ).get(context.officeId, input.documentId, input.stableReference) as {
     id: string;
@@ -43,7 +49,7 @@ export async function getKnowledgeSource(
   }
 
   // Fetch bounded adjacent context (one ordinal before and one ordinal after)
-  const adjacentRows = await database.prepare(
+  const adjacentRows = await tx.prepare(
     `SELECT stable_reference, content FROM vault_document_chunk
      WHERE office_id=? AND document_id=? AND ordinal IN (?, ?) ORDER BY ordinal`
   ).all(context.officeId, input.documentId, targetChunk.ordinal - 1, targetChunk.ordinal + 1) as Array<{
@@ -53,10 +59,9 @@ export async function getKnowledgeSource(
 
   const adjacentContext = adjacentRows.map(r => `[${r.stable_reference}]\n${r.content}`).join('\n---\n').slice(0, 4000);
 
-  await assertCapabilityAllowed(context, 'k5_knowledge_get_source');
-  await requireSourceDocument(context, input.documentId);
-
-  return {
+  await assertCapabilityAllowed(context, 'k5_knowledge_get_source', tx);
+  context.contentSources?.push(observed.policy);
+  return exposeContent({
     source: {
       sourceId: targetChunk.id,
       documentId: doc.id,
@@ -65,7 +70,8 @@ export async function getKnowledgeSource(
       text: targetChunk.content.slice(0, 4000),
       adjacentContext: adjacentContext || undefined,
     },
-  };
+  }, [observed.policy], { [targetChunk.id]: observed.policy });
+  });
 }
 
 export async function getKnowledgeIndexStatus(

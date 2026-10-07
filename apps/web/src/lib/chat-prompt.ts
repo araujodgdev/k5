@@ -1,4 +1,7 @@
 import 'server-only';
+import { database } from './database';
+import { assertPolicyAccess, parsePolicy, policyUnavailable, uncertainPolicy, personPolicy, legacyGuards, type ContentPolicy } from './content-policy';
+import { readProvenance, sourceAccess } from './case-pages/provenance';
 import type { UIMessage } from 'ai';
 import type { Owner } from './ai-store';
 import { resolveChatAttachments, type ChatAttachmentRow } from './chat-attachments';
@@ -12,9 +15,30 @@ const attachmentIds=(message:UIMessage)=>message.parts.flatMap(part=>part.type==
 type TextPart={type:'text';text:string};
 type FilePart={type:'file';data:string;mediaType:string};
 type ImagePart={type:'image';image:string;mimeType:string};
-export async function chatPromptMessages(owner:Owner,conversationId:string,messages:UIMessage[],vision:boolean) {
+export async function chatPromptMessages(owner:Owner,conversationId:string,messages:UIMessage[],vision:boolean,policies?:ContentPolicy[]) {
   const history:Array<{role:'user'|'assistant';content:string|Array<TextPart|FilePart|ImagePart>}>=[];
-  const recent=messages.slice(-24);
+  const recent: UIMessage[] = [];
+  const legacy = await readProvenance(owner, 'conversation', conversationId);
+  for (const message of messages.slice(-24)) {
+    try {
+      const metadata = message.metadata as { contentPolicy?: unknown; submissionId?: string } | undefined;
+      let policy: ContentPolicy | undefined;
+      if (metadata?.contentPolicy) policy = parsePolicy(metadata.contentPolicy);
+      else if (metadata?.submissionId) {
+        const row = await database.prepare('SELECT content_policy FROM content_submission WHERE id=? AND office_id=? AND user_id=?')
+          .get<{ content_policy: unknown }>(metadata.submissionId, owner.officeId, owner.userId);
+        if (!row) throw policyUnavailable();
+        policy = parsePolicy(row.content_policy);
+      } else if (legacy && message !== messages.at(-1)) {
+        await sourceAccess(owner.userId, legacy.dependencies);
+        policy = uncertainPolicy(owner.userId, [{ ...personPolicy('', ''), guards: await legacyGuards(legacy.dependencies) }]);
+      }
+      if (policy) { await assertPolicyAccess(owner.userId, policy); policies?.push(policy); }
+      recent.push(message);
+    } catch (error) {
+      if (!(error instanceof Error && 'code' in error && ['NOT_FOUND','FORBIDDEN'].includes(String(error.code)))) throw error;
+    }
+  }
   // Resolve every file first, so the text budget goes to the newest ones: a follow-up question is
   // almost always about what was just attached, and older files give way instead of failing the turn.
   const resolved=new Map<string,ChatAttachmentRow[]>();
@@ -45,9 +69,9 @@ export async function chatPromptMessages(owner:Owner,conversationId:string,messa
       }
       if(part.type==='data-approval') {
         // The model must know whether the person confirmed, or it would offer the same action again.
-        const data=part.data as {summary?:string;state?:string;result?:string};
-        const state=data?.state==='confirmed'?`confirmada: ${data.result??''}`:data?.state==='cancelled'?'cancelada pela pessoa':data?.state==='failed'?`falhou: ${data.result??''}`:'aguardando a pessoa confirmar';
-        return data?.summary?[`[confirmação] ${data.summary} — ${state}`]:[];
+        const data=part.data as {approvalId?:string;state?:string};
+        const state=data?.state==='confirmed'?'confirmada':data?.state==='cancelled'?'cancelada':data?.state==='failed'?'falhou':'pendente';
+        return [`[confirmação ${state}]`];
       }
       return [];
     }).join('\n');

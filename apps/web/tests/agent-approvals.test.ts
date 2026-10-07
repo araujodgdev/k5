@@ -1,4 +1,5 @@
 import { testDb } from './test-setup';
+import { fixtureSession } from './session-fixture';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -22,11 +23,10 @@ async function office() {
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
   await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId, officeId, 'Divórcio', userId);
-  const context: WorkspaceContext = { officeId, userId };
+  const context: WorkspaceContext = { officeId, userId,sessionId:await fixtureSession(userId) };
   return { context, caseId, agent: { ...context, invocation: 'agent' as const } };
 }
 
-/** The gate's refusal carries the proposal id the chat turns into a Confirmar button. */
 async function proposal(promise: Promise<unknown>) {
   try { await promise; } catch (error) {
     assert.ok(error instanceof CapabilityError); assert.equal(error.code, 'APPROVAL_REQUIRED');
@@ -67,7 +67,8 @@ test('agent approvals: deleting waits for Confirmar in the chat, then runs exact
   const part = stored!.messages[0].parts[1];
   assert.ok(part.type === 'data-approval');
   assert.equal((part.data as { state: string }).state, 'confirmed', 'the button does not come back after a reload');
-  await assert.rejects(decideAgentApproval(context, approvalId, 'confirm'), { code: 'CONFLICT' });
+  assert.equal((await decideAgentApproval(context, approvalId, 'confirm')).state,'confirmed');
+  assert.equal(await findVaultFolder(context.officeId, folder.id, null), undefined);
 });
 
 test('agent approvals: gated calls in the agent stream become a Confirmar each, paired by call', async () => {
@@ -87,8 +88,6 @@ test('agent approvals: gated calls in the agent stream become a Confirmar each, 
   const tises = new Agent({ id: 'k5', name: 'Lume', instructions: 'Teste.', model, tools: agentTools(agent, request => pending.push(request)) } as ConstructorParameters<typeof Agent>[0]);
   new Mastra({ agents: { k5: tises }, logger: noopLogger });
 
-  // A tool that throws reaches the stream as `tool-error`; the chat read only `tool-result`,
-  // so the Confirmar button never appeared.
   const outcomes: ToolOutcome[] = [];
   for await (const chunk of (await tises.stream('Apague as pastas Rascunhos e Provas.', { maxSteps: 3 })).fullStream) {
     const outcome = toolOutcome(chunk);

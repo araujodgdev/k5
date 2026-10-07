@@ -1,10 +1,11 @@
+import { updateArtifact } from './document-writes';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
 import { extractText } from 'unpdf';
 import { testDatabase as db } from './test-setup';
-import { createConversation, updateArtifact, ownedArtifact } from '../src/lib/ai-store';
+import { createConversation, ownedArtifact } from '../src/lib/ai-store';
 import { createChatAttachment, claimChatAttachments, resolveChatAttachments } from '../src/lib/chat-attachments';
 import { importChatAttachment, saveArtifactToVault } from '../src/lib/application/vault-service';
 import { createArtifact } from '../src/lib/application/artifacts-service';
@@ -15,6 +16,7 @@ async function owner() {
   const officeId = randomUUID(), userId = randomUUID();
   await db.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Artefatos do Lume');
   await db.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Teste');
+  await db.prepare("INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)").run(randomUUID(),officeId,userId);
   return { officeId, userId };
 }
 
@@ -45,7 +47,7 @@ test('a Lume document is saved to the Vault per version, format and destination 
   assert.notEqual(next.document.id, first.document.id);
 
   await assert.rejects(saveArtifactToVault({ ...scoped, userId: randomUUID() }, input), /não encontrado/);
-  await assert.rejects(saveArtifactToVault(scoped, { ...input, version: updated.version, scope: 'case', caseId: randomUUID() }), /caso disponível/);
+  await assert.rejects(saveArtifactToVault(scoped, { ...input, version: updated.version, scope: 'case', caseId: randomUUID() }), /origem continua não verificável/);
   const origins = await db.prepare("SELECT source_kind AS kind, source_version AS version FROM vault_agent_origin WHERE source_id=? ORDER BY source_kind, source_version")
     .all<{ kind: string; version: number }>(created.artifact.id);
   assert.deepEqual(origins.map(row => `${row.kind}:${row.version}`), ['artifact_docx:1', 'artifact_pdf:1', 'artifact_pdf:2']);

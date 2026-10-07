@@ -6,7 +6,6 @@ import { Mail, MessageSquare, Plus } from 'lucide-react';
 import { z } from 'zod';
 import { sendMessageOutput, startThreadOutput, threadPageDto, type PersonalThread as Thread } from '@/lib/personal-chat/domain';
 import { CanvasHeader, CanvasPage, CanvasRow } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Conversation, type SendAttempt } from './conversation';
 import { jsonPost, messageError, messageRequest, MessageRequestError, messageWhen, useMessagePoll } from './client';
@@ -115,7 +114,6 @@ export function MessagesInbox() {
 
   const status = 'text-[13.5px] text-muted-foreground';
   return <>
-    <CanvasMeta title="Mensagens" subject={{ kind: 'module', slug: 'messages', title: 'Mensagens' }} />
     {selected ? <Conversation key={selected.id} thread={selected} draft={drafts[selected.id] ?? ''} attempt={attempts[selected.id]} revision={revision} onDraft={text => updateDraft(selected.id, text)} onSend={text => void send(selected, text)} onBack={back} onShare={() => setShare(current => current ? { ...current, open: true } : { thread: selected, open: true })} onRead={read} onChanged={refresh} />
       : selectedId ? <CanvasPage>
         <p role={detailError ? 'alert' : 'status'} className={detailError ? 'text-[13.5px] text-destructive' : status}>{detailError || 'Abrindo conversa…'}</p>

@@ -1,6 +1,7 @@
 import { apiPersonalWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
 import { getApprovalProposal, approveProposal, rejectProposal, publicApproval } from '@/lib/application/approvals-service';
+import { assertPolicyAccess, parsePolicy } from '@/lib/content-policy';
 import { z } from 'zod';
 import { googleApprovalReview } from '@/lib/google/approval-review';
 
@@ -13,6 +14,7 @@ export async function GET(request: Request, context: Context) {
     const workspace = await apiPersonalWorkspace(request);
     const id = (await context.params).id;
     const proposal = await getApprovalProposal(workspaceContext(workspace), id);
+    if (proposal.content_policy) await assertPolicyAccess(workspace.user.id, parsePolicy(proposal.content_policy));
     return Response.json({ proposal: publicApproval(proposal), review: googleApprovalReview(proposal) }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) { return apiError(error); }
 }

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { agendaCall, type Choice } from '@/lib/agenda-client';
 import { localDate } from '@/lib/calendar-days';
 import type { AgendaActivity, CrmClient } from '@/lib/capabilities/agenda';
@@ -72,7 +71,6 @@ export function TaskDetail({ taskId, from = 'list' }: { taskId: string; from?: '
   const today = localDate(new Date());
   const caseName = cases.find(item => item.id === activity.caseId)?.name;
   return <CanvasPage className="gap-6 md:gap-8">
-    <CanvasMeta title={activity.title} subject={{ kind: 'module', slug: 'agenda', title: activity.title }} />
     <div className="flex flex-col gap-3">
       {back}
       <CanvasHeader eyebrow={when(activity, today)} title={<span className="break-words">{activity.title}</span>}

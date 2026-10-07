@@ -1,3 +1,4 @@
+import { fixtureSession } from './session-fixture';
 import { testDb as db, testDatabase } from './test-setup';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -13,6 +14,9 @@ import { enqueueVerification, processNextVerification, getVerification } from '.
 import { saveConnection, connectionView } from '../src/lib/typesafe/config';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
 import { ownedArtifact } from '../src/lib/ai-store';
+import { authorizedCanvasResource } from '../src/lib/canvas-resources';
+import { openResource } from '../src/lib/application/ui-service';
+import { resourceHref } from '../src/lib/application/agent-approvals';
 
 type Folder = { id: string; visibility: string; owned: boolean; memberIds: string[] };
 
@@ -21,7 +25,7 @@ async function fixture() {
     const id = randomUUID(); const email = `${id}@collaboration.test`;
     await db.prepare('INSERT INTO "user"(id,name,email) VALUES(?,?,?)').run(id, name, email);
     const office = await ensureOfficeForUser(db, { id, officeName: `${name} Advocacia` });
-    return { id, email, context: { userId: id, officeId: office.officeId } satisfies WorkspaceContext };
+    return { id, email, context: { userId: id, officeId: office.officeId, sessionId: await fixtureSession(id) } satisfies WorkspaceContext };
   }
   const owner = await user('Ana'); const guest = await user('Bia'); const stranger = await user('Clara');
   async function createCase(name: string) {
@@ -36,6 +40,8 @@ async function fixture() {
       VALUES(?,?,?,?,?,?,?,'text/plain',12,?,'ready',?)`).run(id, owner.context.officeId, caseId, folderId, caseId ? 'case' : 'library', name, `${id}.txt`, 'a'.repeat(64), createdBy);
     await db.prepare('INSERT INTO vault_document_chunk(id,document_id,office_id,ordinal,stable_reference,content) VALUES(?,?,?,0,?,?)')
       .run(randomUUID(), id, owner.context.officeId, 'página:1', `Contrato de colaboração ${name}`);
+    await db.prepare('INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active) SELECT ?,office_id,id,1,original_name,stored_name,mime_type,byte_size,sha256,created_by,1 FROM vault_document WHERE id=?').run(randomUUID(),id);
+    await db.prepare('UPDATE vault_document SET extracted_version=1,extracted_sha256=sha256 WHERE id=?').run(id);
     return id;
   }
   const sharedDoc = await document(shared, 'Documento autorizado'); const privateDoc = await document(privateCase, 'Segredo de outro caso'); const library = await document(null, 'Biblioteca privada');
@@ -59,6 +65,34 @@ test('each lawyer owns exactly one office and an office has exactly one lawyer',
   assert.equal(new Set(offices.map(o => o.officeId)).size, 1);
 });
 
+test('canvas resource titles and tool links reauthorize cases and private folders after access changes', async () => {
+  const f = await fixture(); await f.grant();
+  const opened = await openResource(f.guest.context, { resourceType: 'case', resourceId: f.shared });
+  assert.deepEqual(opened, { path: `/app/vault/cases/${f.shared}` });
+  assert.equal(resourceHref('k5_ui_open_resource', opened), opened.path);
+  assert.equal(resourceHref('k5_ui_open_resource', { path: 'https://example.com/app/vault' }), undefined);
+  assert.deepEqual(await openResource(f.guest.context, { resourceType: 'document', resourceId: f.sharedDoc }), { path: `/app/vault/files/${f.sharedDoc}` });
+  assert.equal((await authorizedCanvasResource(f.guest.context, `/app/vault/files/${f.sharedDoc}`)).title, 'Documento autorizado');
+  const { folder } = await runCapability(f.guest.context, 'k5_vault_create_folder', { caseId: f.shared, name: 'Só minha', visibility: 'private' }) as { folder: Folder };
+  const privateFile = await f.document(f.shared, 'Nome sigiloso', folder.id, f.guest.id);
+  await assert.rejects(authorizedCanvasResource(f.owner.context, `/app/vault/cases/${f.shared}?folder=${folder.id}`));
+  await assert.rejects(openResource(f.owner.context, { resourceType: 'document', resourceId: privateFile }));
+  await changeAccess(f.owner.context, { action: 'participant', caseId: f.shared, userId: f.guest.id, add: false });
+  await assert.rejects(authorizedCanvasResource(f.guest.context, `/app/vault/cases/${f.shared}`));
+  await assert.rejects(openResource(f.guest.context, { resourceType: 'document', resourceId: f.sharedDoc }));
+});
+
+test('canvas keeps artifacts private and rejects stale office membership and non-canvas URLs', async () => {
+  const f = await fixture(); await f.grant();
+  const artifactId = randomUUID();
+  await db.prepare("INSERT INTO ai_artifact(id,office_id,user_id,title,content,kind) VALUES(?,?,?,'Minuta privada','Rascunho','document')").run(artifactId, f.owner.context.officeId, f.owner.id);
+  assert.deepEqual(await openResource(f.owner.context, { resourceType: 'artifact', resourceId: artifactId }), { path: `/app/documents/${artifactId}` });
+  await assert.rejects(openResource(f.guest.context, { resourceType: 'artifact', resourceId: artifactId }));
+  await assert.rejects(authorizedCanvasResource(f.owner.context, 'https://example.com/app/vault'), { code: 'INVALID' });
+  await db.prepare('DELETE FROM office_member WHERE user_id=?').run(f.owner.id);
+  await assert.rejects(openResource(f.owner.context, { resourceType: 'artifact', resourceId: artifactId }), { code: 'FORBIDDEN' });
+});
+
 test('association is mutual, needs acceptance and grants no content by itself', async () => {
   const f = await fixture();
   const invitation = await invite(f.owner.context, { email: f.guest.email });
@@ -78,7 +112,7 @@ test('only the case owner includes participants, and only among their associates
   await assert.rejects(changeAccess(f.owner.context, { action: 'participant', caseId: f.shared, userId: f.guest.id, add: true }), { code: 'FORBIDDEN' });
   await f.grant();
   await f.associate(f.guest, f.stranger);
-  // A participant cannot bring their own associates into someone else's case.
+
   await assert.rejects(changeAccess(f.guest.context, { action: 'participant', caseId: f.shared, userId: f.stranger.id, add: true }), { code: 'FORBIDDEN' });
   await assert.rejects(changeAccess(f.owner.context, { action: 'participant', caseId: f.shared, userId: f.guest.id, add: true }), { code: 'CONFLICT' });
   const overview = await collaborationOverview(f.guest.context, f.shared);
@@ -99,7 +133,7 @@ test('a participant shares the case files and sources, but not other cases, the 
   assert.ok(search.sources.length); assert.ok(search.sources.every(s => s.documentId === f.sharedDoc));
   for (const id of [f.privateDoc, f.library]) await assert.rejects(runCapability(f.guest.context, 'k5_vault_get_document', { documentId: id }));
   await assert.rejects(runCapability(f.guest.context, 'k5_knowledge_search', { query: 'Contrato', documentIds: [f.sharedDoc, f.privateDoc] }));
-  // Participants write in the case like its owner does, without being able to take files out of it.
+
   await runCapability(f.guest.context, 'k5_vault_create_folder', { caseId: f.shared, name: 'Petições' });
   await runCapability(f.guest.context, 'k5_vault_update_document', { documentId: f.sharedDoc, name: 'Contrato revisado' });
   await assert.rejects(runCapability(f.guest.context, 'k5_vault_update_document', { documentId: f.sharedDoc, caseId: null }));
@@ -121,7 +155,7 @@ test('removing a participant or ending the association takes effect on the next 
   await assert.rejects(runCapability(f.guest.context, 'k5_vault_download_document', { documentId: f.sharedDoc }));
 
   await changeAccess(f.owner.context, { action: 'participant', caseId: f.shared, userId: f.guest.id, add: true });
-  // The participant may leave on their own; ending the association removes them from both sides' cases.
+
   await changeAccess(f.guest.context, { action: 'participant', caseId: f.shared, userId: f.guest.id, add: false });
   await assert.rejects(caseAccess(f.guest.id, f.shared));
   await changeAccess(f.owner.context, { action: 'participant', caseId: f.shared, userId: f.guest.id, add: true });
@@ -153,12 +187,12 @@ test('a private folder is visible only to its creator, not even to the case owne
     await assert.rejects(runCapability(f.owner.context, 'k5_vault_get_document', { documentId: id }), { code: 'NOT_FOUND' });
     await assert.rejects(documentAccess(f.owner.context, id), { code: 'NOT_FOUND' });
   }
-  // A public subfolder inside a private one stays hidden: every folder on the path must admit the person.
+
   await assert.rejects(runCapability(f.owner.context, 'k5_vault_list_folders', { caseId: f.shared, parentId: inner.id }), { code: 'NOT_FOUND' });
   const search = await runCapability(f.owner.context, 'k5_knowledge_search', { query: 'Contrato' }) as { sources: { documentId: string }[] };
   assert.ok(search.sources.every(s => s.documentId !== hidden && s.documentId !== nested));
   await assert.rejects(runCapability(f.owner.context, 'k5_knowledge_search', { query: 'Contrato', documentIds: [hidden] }));
-  // The owner cannot change, delete or file into a folder they cannot see.
+
   await assert.rejects(runCapability(f.owner.context, 'k5_vault_update_folder_access', { folderId: folder.id, visibility: 'public' }));
   await assert.rejects(runCapability(f.owner.context, 'k5_vault_create_folder', { caseId: f.shared, name: 'Intrusa', parentId: folder.id }));
   await assert.rejects(runCapability(f.owner.context, 'k5_vault_update_document', { documentId: f.sharedDoc, folderId: folder.id }));
@@ -182,7 +216,7 @@ test('a restricted folder admits only the people its creator chose among the cas
   await assert.rejects(runCapability(f.stranger.context, 'k5_vault_get_document', { documentId: inside }), { code: 'NOT_FOUND' });
   const strangerView = await runCapability(f.stranger.context, 'k5_vault_list_folders', { caseId: f.shared }) as { folders: Folder[] };
   assert.equal(strangerView.folders.length, 0);
-  // Only the creator manages access; the case owner may still delete a folder they can see.
+
   await assert.rejects(runCapability(f.owner.context, 'k5_vault_update_folder_access', { folderId: folder.id, visibility: 'public' }), { code: 'FORBIDDEN' });
   await runCapability(f.guest.context, 'k5_vault_update_folder_access', { folderId: folder.id, visibility: 'restricted', memberIds: [f.stranger.id] });
   await assert.rejects(runCapability(f.owner.context, 'k5_vault_get_document', { documentId: inside }), { code: 'NOT_FOUND' });
@@ -258,7 +292,7 @@ test('removing reserved folders or flattening a case cannot publish their files'
   await approveProposal(f.owner.context, caseApproval.id);
   await assert.rejects(runCapability(f.owner.context, 'k5_vault_delete_case', { caseId: f.shared, targetCaseId: f.privateCase, approvalId: caseApproval.id }), { code: 'CONFLICT' });
   assert.deepEqual(await db.prepare('SELECT case_id,folder_id FROM vault_document WHERE id=?').get(privateDocument), { case_id: f.shared, folder_id: folder.id });
-  // Only the creator can deliberately take a file outside the rule they set.
+
   await runCapability(f.guest.context, 'k5_vault_update_document', { documentId: privateDocument, folderId: null });
   const ownApproval = await createApprovalProposal(f.guest.context, 'k5_vault_delete_folder', { folderId: folder.id });
   await approveProposal(f.guest.context, ownApproval.id);
@@ -294,7 +328,7 @@ test('folder visibility fails closed for missing, deleted, cyclic, cross-case or
   assert.equal(await visible(inner.id), true);
   assert.equal((await db.prepare('SELECT vault_folder_visible(?, NULL) AS visible').get<{ visible: boolean }>(inner.id))?.visible, false);
   let parentId = inner.id;
-  for (let depth = 0; depth < 17; depth++) {
+  for (let depth = 0; depth < 64; depth++) {
     const id = randomUUID();
     await db.prepare('INSERT INTO vault_folder(id,office_id,case_id,parent_id,name,created_by) VALUES(?,?,?,?,?,?)')
       .run(id, f.owner.context.officeId, f.shared, parentId, `Nível ${depth}`, f.owner.id);

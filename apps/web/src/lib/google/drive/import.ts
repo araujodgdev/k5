@@ -1,4 +1,6 @@
 import 'server-only';
+import { documentTransaction } from '@/lib/documents/service';
+import { assertPolicyAccess, personPolicy, vaultPolicy } from '@/lib/content-policy';
 import { createHash, randomUUID } from 'node:crypto';
 import { database, withTransaction, type Database } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
@@ -191,7 +193,7 @@ export async function processDriveImport(job: GoogleJob, db: Database = database
     await storage.put(key, bytes);
     let committed = false;
     try {
-      await withTransaction(async tx => {
+      await documentTransaction(c, async tx => {
         // Serialize imports of the same source into the same case before choosing its Vault
         // document. storageKey adds a fresh UUID per attempt beneath the import id, so stale
         // attempts can clean up only their own object, never a committed version's bytes.
@@ -200,7 +202,7 @@ export async function processDriveImport(job: GoogleJob, db: Database = database
         await tx.prepare('SELECT pg_advisory_xact_lock(hashtextextended(?,0))').get(sourceLock);
         const locked = await tx.prepare('SELECT * FROM google_drive_import WHERE id=? FOR UPDATE').get<ImportRow>(row.id);
         if (!locked || locked.status === 'completed') return;
-        const activeJob = await tx.prepare("SELECT 1 FROM google_job WHERE id=? AND lease_token=? AND status='running' AND lease_until>CURRENT_TIMESTAMP")
+        const activeJob = await tx.prepare("SELECT 1 FROM google_job WHERE id=? AND lease_token=? AND status='running' AND lease_until>clock_timestamp()")
           .get(job.id, job.lease_token);
         if (!activeJob) throw new Error('A licença da fila expirou; outra execução assumiu.');
         const currentConnection = await requireConnection(c, row.source_kind === 'drive' ? 'drive' : 'gmail', tx);
@@ -212,8 +214,8 @@ export async function processDriveImport(job: GoogleJob, db: Database = database
           throw new CapabilityError('NOT_FOUND', 'O arquivo escolhido foi removido da seleção.');
         if (row.scope === 'case' && !await tx.prepare('SELECT 1 FROM vault_case WHERE office_id=? AND id=? AND deleted_at IS NULL').get(row.office_id, row.case_id))
           throw new CapabilityError('NOT_FOUND', 'O caso foi removido.');
-        if (row.folder_id && !await tx.prepare('SELECT 1 FROM vault_folder WHERE office_id=? AND case_id=? AND id=? AND deleted_at IS NULL')
-          .get(row.office_id, row.case_id, row.folder_id)) throw new CapabilityError('NOT_FOUND', 'A pasta foi removida.');
+        if (row.folder_id && !await tx.prepare('SELECT 1 FROM vault_folder WHERE office_id=? AND case_id=? AND id=? AND deleted_at IS NULL AND vault_folder_visible(id,?)')
+          .get(row.office_id, row.case_id, row.folder_id, row.user_id)) throw new CapabilityError('NOT_FOUND', 'A pasta foi removida.');
         const prior = await tx.prepare(`SELECT i.vault_document_id FROM google_drive_import i
           JOIN vault_document d ON d.id=i.vault_document_id AND d.office_id=i.office_id AND d.deleted_at IS NULL
             AND d.scope=i.scope AND d.case_id IS NOT DISTINCT FROM i.case_id
@@ -232,11 +234,13 @@ export async function processDriveImport(job: GoogleJob, db: Database = database
             VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(docId, row.office_id, row.case_id, row.folder_id, row.scope, name, key, format.mimeType, bytes.length, hash, row.user_id);
         } else if (existing.case_id !== row.case_id || existing.folder_id !== row.folder_id || existing.scope !== row.scope)
           throw new CapabilityError('CONFLICT', 'A cópia anterior está em outro destino.');
+        const policy = { ...(existing ? await vaultPolicy(docId, undefined, tx) : personPolicy('', '')), digest: hash };
+        await assertPolicyAccess(row.user_id, policy, tx);
         const max = await tx.prepare('SELECT coalesce(max(version),0) AS n FROM vault_document_version WHERE document_id=?').get<{ n: number }>(docId);
         const version = Number(max?.n ?? 0) + 1;
         await tx.prepare('UPDATE vault_document_version SET is_active=0 WHERE office_id=? AND document_id=?').run(row.office_id, docId);
-        await tx.prepare(`INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active)
-          VALUES(?,?,?,?,?,?,?,?,?,?,1)`).run(randomUUID(), row.office_id, docId, version, name, key, format.mimeType, bytes.length, hash, row.user_id);
+        await tx.prepare(`INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active,content_policy)
+          VALUES(?,?,?,?,?,?,?,?,?,?,1,?::jsonb)`).run(randomUUID(), row.office_id, docId, version, name, key, format.mimeType, bytes.length, hash, row.user_id, JSON.stringify(policy));
         if (existing) await tx.prepare(`UPDATE vault_document SET original_name=?,stored_name=?,mime_type=?,byte_size=?,sha256=?,status='queued',
           progress=0,error_message=NULL,lease_owner=NULL,lease_expires_at=NULL,updated_at=CURRENT_TIMESTAMP
           WHERE id=? AND office_id=? AND deleted_at IS NULL`).run(name, key, format.mimeType, bytes.length, hash, docId, row.office_id);

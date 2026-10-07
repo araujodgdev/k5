@@ -8,7 +8,6 @@ import { CanvasTrail } from '@/components/canvas/canvas-controls';
 import { CanvasHeader, CanvasPage, CanvasRow } from '@/components/canvas/canvas-page';
 import { MessageAttachment } from '@/components/message-attachment';
 import { messageWhen } from '@/components/messaging/client';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -182,7 +181,6 @@ export function WhatsAppInbox() {
   const quiet = 'text-[13.5px] text-muted-foreground';
 
   return <>
-    <CanvasMeta title="WhatsApp" subject={{ kind: 'module', slug: 'whatsapp', title: 'WhatsApp' }} />
     {currentThread ? <Conversation key={currentThread.id} thread={currentThread} connected={Boolean(connected)} draft={drafts[currentThread.id] ?? ''} attempt={attempts[currentThread.id]} revision={revision}
       attachment={attachments[currentThread.id]} onAttachment={file => setAttachments(current => ({ ...current, [currentThread.id]: file }))}
       onDraft={text => setDrafts(current => ({ ...current, [currentThread.id]: text }))} onBack={back}

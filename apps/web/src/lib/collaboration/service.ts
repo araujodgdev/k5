@@ -1,7 +1,8 @@
 import 'server-only';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { database, withTransaction, type Transaction } from '@/lib/database';
+import { database, type Transaction } from '@/lib/database';
+import { aclTransaction } from '@/lib/acl-transaction';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { WorkspaceContext } from '@/lib/application/context';
 import { caseAccess } from './access';
@@ -29,7 +30,8 @@ async function lockOffices(tx: Transaction, ...officeIds: (string | undefined)[]
     await tx.prepare('SELECT id FROM office WHERE id=? FOR UPDATE').get(id);
 }
 async function liveSession(tx: Transaction, context: WorkspaceContext) {
-  if (context.sessionId && !await tx.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>CURRENT_TIMESTAMP').get(context.sessionId, context.userId))
+  context.signal?.throwIfAborted();
+  if (context.sessionId && !await tx.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>clock_timestamp()').get(context.sessionId, context.userId))
     throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada.');
 }
 async function associated(tx: Pick<Transaction, 'prepare'>, officeId: string, userId: string) {
@@ -41,7 +43,7 @@ export async function invite(context: WorkspaceContext, raw: z.input<typeof invi
   const input = invitationInput.parse(raw);
   const email = input.email.trim().toLowerCase();
   const officeId = context.officeId;
-  return withTransaction(async tx => {
+  return aclTransaction(async tx => {
     await lockOffices(tx, officeId);
     await liveSession(tx, context);
     if (await ownerOf(tx, officeId) !== context.userId) throw denied();
@@ -70,7 +72,7 @@ function recipientMatches(invitation: Invitation, user: { id: string; email: str
 }
 
 export async function respond(context: WorkspaceContext, id: string, accept: boolean, token?: string) {
-  return withTransaction(async tx => {
+  return aclTransaction(async tx => {
     // Same lock order as removal; accepting cannot race the inviter ending the association.
     const initial = await tx.prepare('SELECT office_id FROM collaboration_invitation WHERE id=?').get<{ office_id: string }>(id);
     if (!initial) throw new CapabilityError('NOT_FOUND', 'Convite não encontrado.');
@@ -96,7 +98,7 @@ export async function respond(context: WorkspaceContext, id: string, accept: boo
 }
 
 export async function changeAccess(context: WorkspaceContext, input: Exclude<z.infer<typeof collaborationAction>, { action: 'invite' | 'respond' }>) {
-  if (input.action === 'cancel') return withTransaction(async tx => {
+  if (input.action === 'cancel') return aclTransaction(async tx => {
     await lockOffices(tx, context.officeId);
     await liveSession(tx, context);
     const changed = await tx.prepare(`UPDATE collaboration_invitation SET status='revoked',responded_at=CURRENT_TIMESTAMP
@@ -106,7 +108,7 @@ export async function changeAccess(context: WorkspaceContext, input: Exclude<z.i
     return { success: true };
   });
 
-  if (input.action === 'associate') return withTransaction(async tx => {
+  if (input.action === 'associate') return aclTransaction(async tx => {
     const theirOffice = await officeOf(tx, input.userId);
     await lockOffices(tx, context.officeId, theirOffice);
     await liveSession(tx, context);
@@ -121,7 +123,7 @@ export async function changeAccess(context: WorkspaceContext, input: Exclude<z.i
   });
 
   const access = await caseAccess(context.userId, input.caseId);
-  return withTransaction(async tx => {
+  return aclTransaction(async tx => {
     await lockOffices(tx, access.officeId);
     await liveSession(tx, context);
     // Re-read under the lock: the case or the person's access may have changed since.

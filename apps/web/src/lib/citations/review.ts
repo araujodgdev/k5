@@ -1,18 +1,15 @@
+import { contentAdmission } from '@/lib/content-admission';
+import { privateGenerationPolicy, type ContentPolicy } from '@/lib/content-policy';
 import 'server-only';
 import type { Questions } from '@typesafe-ai/sdk';
 import { evaluate, type DecisionTransport } from '@/lib/typesafe/client';
+import { exposedPolicies } from '@/lib/content-policy';
 import type { DecisionResponse } from '@/lib/typesafe/contracts';
 import { candidateSources, findCitationSpans, type CitationSource, type CitationSpan } from './detect';
 import { composeCitation, type CitationItem, type CitationReview } from './verdict';
 
 export type { CitationItem, CitationReview } from './verdict';
 
-/**
- * Checks the legal citations in a text the Lume wrote against the sources it consulted. Code finds
- * candidate spans and the sources sharing their numbers; Jev answers, in one request per batch,
- * whether each span is a citation at all, which source (if any) it is, and whether that source
- * backs the paragraph using it. The verdict and what goes to a person are decided in `verdict.ts`.
- */
 export const citationQuestionVersion = 'citations-pt-BR-v1';
 const MAX_SPANS = 40;
 const BATCH_BYTES = 16_000;
@@ -74,18 +71,18 @@ function batches(units: Unit[]) {
 }
 
 export async function reviewCitations(
-  context: { officeId: string; userId: string },
+  context: import('@/lib/application/context').WorkspaceContext,
   text: string,
   sources: CitationSource[],
-  options: { signal?: AbortSignal; send?: DecisionTransport } = {},
+  options: { signal?: AbortSignal; send?: DecisionTransport; policies?: readonly ContentPolicy[] } = {},
 ): Promise<CitationReview> {
   const units = findCitationSpans(text).slice(0, MAX_SPANS).map(span => ({ span, candidates: candidateSources(span.text, sources) }));
   if (!units.length) return { status: 'evaluated', items: [], mentions: 0 };
   const results = await Promise.all(batches(units).map(async group => {
     const evaluation = await evaluate(context, 'documents', {
       state: { citations: group.map(unitState) }, questions: questionsFor(group), questionVersion: citationQuestionVersion,
-    }, { signal: options.signal, send: options.send, deadlineMs: 12_000 });
-    // Shadow mode records the evaluation for comparison but does not change what the person sees.
+    }, { signal: options.signal, send: options.send, admission: contentAdmission(context, { text, group }, [...options.policies ?? [], await privateGenerationPolicy(context),
+      ...group.flatMap(unit => unit.candidates).flatMap(source => exposedPolicies(source) ?? [])]), deadlineMs: 12_000 });
     const answers: DecisionResponse['answers'] | undefined = evaluation.status === 'evaluated' && evaluation.mode === 'enabled' ? evaluation.response?.answers : undefined;
     return { group, answers, status: evaluation.status };
   }));

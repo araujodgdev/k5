@@ -1,3 +1,5 @@
+import { contentAdmission } from '@/lib/content-admission';
+import { privateGenerationPolicy } from '@/lib/content-policy';
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import type { Questions } from '@typesafe-ai/sdk';
@@ -30,12 +32,12 @@ export async function listProposals(context: WorkspaceContext) {
 export async function interpretAgenda(context: WorkspaceContext, input: { message: string; timeZone?: string }, transport?: DecisionTransport) {
   const referenceAt = new Date().toISOString(); const timeZone = input.timeZone ?? '';
   const temporal = temporalCandidates(input.message, referenceAt, timeZone);
-  // Bounded discovery, with explicit coverage. A missing candidate always asks the person to select it.
+
   const [clientsAll, casesAll, membersAll, activitiesAll] = await Promise.all([
     database.prepare('SELECT id,name FROM crm_client WHERE office_id=? ORDER BY name LIMIT 101').all<Named>(context.officeId),
     database.prepare('SELECT id,name FROM vault_case WHERE office_id=? AND deleted_at IS NULL ORDER BY name LIMIT 101').all<Named>(context.officeId),
     database.prepare('SELECT u.id,u.name FROM user u JOIN office_member m ON m.user_id=u.id WHERE m.office_id=? ORDER BY u.name LIMIT 101').all<Named>(context.officeId),
-    database.prepare("SELECT id,title AS name FROM agenda_activity WHERE office_id=? ORDER BY updated_at DESC LIMIT 101").all<Named>(context.officeId),
+    database.prepare("SELECT id,title AS name FROM agenda_activity WHERE office_id=? AND visibility='personal' ORDER BY updated_at DESC LIMIT 101").all<Named>(context.officeId),
   ]);
   const pick = (items: Named[]) => {
     const words = input.message.toLocaleLowerCase('pt-BR').split(/[^\p{L}\p{N}]+/u).filter(w => w.length > 2);
@@ -51,13 +53,13 @@ export async function interpretAgenda(context: WorkspaceContext, input: { messag
     end: { type: 'choice', instructions: 'Qual horário de fim é explicitamente pedido em message? Não invente duração. none se ausente; ambiguous se incerto.', criteria: Object.fromEntries([['none', 'Não informado'], ['ambiguous', 'Ambíguo'], ...temporal.times.map((value, i) => [`time_${i}`, value])]) },
   };
   await assertCapabilityAllowed(context, 'k5_agenda_interpret');
-  const evaluated = await evaluate(context, 'agenda', { state: { message: input.message, referenceAt, timeZone, candidates: groups }, questions, questionVersion: agendaQuestionVersion }, { send: transport, signal: context.signal });
+  const evaluated = await evaluate(context, 'agenda', { state: { message: input.message, referenceAt, timeZone, candidates: groups }, questions, questionVersion: agendaQuestionVersion }, { send: transport, signal: context.signal, admission: contentAdmission(context, { input, groups }, [await privateGenerationPolicy(context)], { capability: 'k5_agenda_interpret' }) });
   await assertCapabilityAllowed(context, 'k5_agenda_interpret');
   const doubts = [...temporal.questions]; const provenance: Record<string, string> = { title: 'Texto original; revise o título.', referenceAt: 'Relógio do servidor na criação da proposta.' };
   const selected = (name: string) => {
     const answer = evaluated.response?.answers[name];
     if (evaluated.mode !== 'enabled' || answer?.type !== 'choice') return 'ambiguous';
-    // This is a conservative proposal threshold, not authority to perform a mutation.
+
     if (answer.confidence < 0.8) {
       const label: Record<string, string> = { intent: 'a operação', client: 'o cliente', case: 'o caso', member: 'o responsável', activity: 'a atividade', date: 'a data', start: 'o início', end: 'o fim' };
       doubts.push(`Confira ${label[name] ?? 'o campo'}: interpretação incerta.`); return 'ambiguous';

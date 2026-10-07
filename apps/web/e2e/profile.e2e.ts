@@ -25,15 +25,14 @@ test('perfil, foto, credenciais e convite de associado com o card do perfil', as
   expect(await sql(`SELECT u.name, p.headline, p.oab FROM "user" u JOIN user_profile p ON p.user_id=u.id WHERE u.email=$1`, [person.email]))
     .toEqual([{ name: 'Vera Verificação', headline: 'Advocacia trabalhista', oab: 'SP 123.456' }]);
 
-  // The browser crops and shrinks the photo before upload. The Lume's panel has a file input of its own.
-  await browser.locator('#main-content input[type=file]').setInputFiles(['e2e/fixtures/foto-perfil.png']);
+  // The browser crops and shrinks the photo before upload.
+  await browser.locator('main input[type=file]').setInputFiles(['e2e/fixtures/foto-perfil.png']);
   await expect(screen.getByRole('button', 'Trocar foto')).toBeVisible();
   const [photo] = await sql<{ avatar_type: string }>(`SELECT p.avatar_type FROM user_profile p JOIN "user" u ON u.id=p.user_id WHERE u.email=$1`, [person.email]);
   expect(['image/webp', 'image/jpeg']).toContain(photo.avatar_type);
   await browser.reload();
   await expect(screen.getByLabel('Nome')).toHaveValue('Vera Verificação');
-  // The account menu at the end of the canvas strip shows the new photo.
-  await expect.poll(() => browser.evaluate(() => document.querySelector<HTMLImageElement>('button[aria-label="Conta de Vera Verificação"] img')?.naturalWidth ?? 0)).toBe(256);
+  await expect.poll(() => browser.evaluate(() => document.querySelector<HTMLImageElement>('[aria-label="Conta de Vera Verificação"] img')?.naturalWidth ?? 0)).toBe(256);
 
   // Credential changes verify the current password (a deliberately slow hash); allow for a busy server.
   const hashed = { timeout: 30_000 };
@@ -84,8 +83,8 @@ test('perfil, foto, credenciais e convite de associado com o card do perfil', as
   await app.open('/app/profile');
   await expect(screen.getByRole('button', 'Salvar perfil')).toBeAttached();
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
-  await screen.getByRole('button', /^Mais opções/).tap();
-  await expect(screen.getByRole('dialog', 'Mais opções').getByRole('link', 'Perfil')).toHaveAttribute('aria-current', 'page');
+  await screen.getByRole('button', /^Conta de /).tap();
+  await expect(screen.getByRole('button', /Vera Verificação.*Meu perfil/)).toBeVisible();
   await browser.keyboard.press('Escape');
   await app.open('/app/agenda?view=associates');
   await screen.getByRole('button', `Ver perfil de ${partner.email}`).tap();

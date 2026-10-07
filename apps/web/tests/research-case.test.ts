@@ -1,3 +1,4 @@
+import { fixtureSession } from './session-fixture';
 import './test-setup';
 import { testDb } from './test-setup';
 import test from 'node:test';
@@ -25,6 +26,7 @@ test('trecho de jurisprudência selecionado pode ser citado sem palavra-chave no
   assert.equal(citationCandidates([{ id: 'chunk-v', sourceType: 'vault', text, sourceLabel: 'Cofre' }]).length, 0);
 });
 import { composeResearchAssessment, researchAssessmentQuestions } from '../src/lib/research/case-assessment-contracts';
+import { personPolicy } from '../src/lib/content-policy';
 import { rerankResearchResults } from '../src/lib/typesafe/research-rerank';
 import { saveConnection, connectionView } from '../src/lib/typesafe/config';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
@@ -39,9 +41,12 @@ async function fixture() {
   (await testDb.prepare(`INSERT INTO vault_document(id,office_id,case_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by)
     VALUES(?,?,?,'case','relato.txt',?,'text/plain',100,?,'ready',?)`)
     .run(documentId, officeId, caseId, randomUUID(), randomUUID().replaceAll('-', ''), userId));
+  await testDb.prepare(`INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active)
+    SELECT ?,office_id,id,1,original_name,stored_name,mime_type,byte_size,sha256,created_by,1 FROM vault_document WHERE id=?`).run(randomUUID(), documentId);
+  await testDb.prepare('UPDATE vault_document SET extracted_version=1,extracted_sha256=sha256 WHERE id=?').run(documentId);
   (await testDb.prepare('INSERT INTO vault_document_chunk(id,document_id,office_id,ordinal,stable_reference,content) VALUES(?,?,?,?,?,?)')
     .run(chunkId, documentId, officeId, 0, 'linha:1', 'A avó cuida da criança desde janeiro, conforme o relatório anexado.'));
-  return { context: { officeId, userId } as WorkspaceContext, caseId, documentId, chunkId };
+  return { context: { officeId, userId, sessionId: await fixtureSession(userId) } as WorkspaceContext, caseId, documentId, chunkId };
 }
 
 async function publicMaterial() {
@@ -101,7 +106,7 @@ async function enableResearch(f: Awaited<ReturnType<typeof fixture>>) {
 test('profile versions, per-fact evidence and office isolation', async () => {
   const a = (await fixture()), b = (await fixture());
   assert.equal(await getResearchCaseProfile(a.context, a.caseId), null);
-  await assert.rejects(saveResearchCaseProfile(a.context, { ...profileInput(a), documentedFacts: [{ text: 'Fato externo', documentIds: [b.documentId], chunkIds: [] }] }), { code: 'INVALID' });
+  await assert.rejects(saveResearchCaseProfile(a.context, { ...profileInput(a), documentedFacts: [{ text: 'Fato externo', documentIds: [b.documentId], chunkIds: [] }] }), { code: 'NOT_FOUND' });
   const saved = await saveResearchCaseProfile(a.context, profileInput(a));
   assert.equal(saved.version, 1); assert.deepEqual(saved.documentedFacts[0].chunkIds, [a.chunkId]);
   await assert.rejects(saveResearchCaseProfile(a.context, profileInput(a)), { code: 'CONFLICT' });
@@ -116,14 +121,13 @@ test('reserved case evidence is hidden in profiles and cached assessments when f
   const assessment = await assessResearchCaseMaterial(a.context, { caseId: a.caseId, materialVersionId: material.versionId });
   await processNextResearchAssessment({ send: sendOpposes });
   assert.ok((await getResearchCaseAssessment(a.context, assessment.id)).result?.excerpts.some(source => source.id === a.chunkId));
-  const folder = await createVaultFolder(a.context.officeId, guest.context.userId, a.caseId, 'Estratégia', null, { visibility: 'private' });
+  const folder = await createVaultFolder(a.context.officeId, guest.context.userId, a.caseId, 'Estratégia', null, { visibility: 'private' }, await contextForCase(guest.context, a.caseId));
   await runCapability(guest.context, 'k5_vault_update_document', { documentId: a.documentId, folderId: folder.id });
   const profile = await getResearchCaseProfile(a.context, a.caseId);
   assert.deepEqual(profile?.documentIds, []);
   assert.deepEqual(profile?.documentedFacts, []);
-  await assert.rejects(saveResearchCaseProfile(a.context, { ...profileInput(a), expectedVersion: 1 }), { code: 'NOT_FOUND' });
-  const hidden = await getResearchCaseAssessment(a.context, assessment.id);
-  assert.equal(hidden.status, 'stale'); assert.equal(hidden.result, null);
+  await assert.rejects(saveResearchCaseProfile(a.context, { ...profileInput(a), expectedVersion: 1,readToken:profile!.readToken }), { code: 'NOT_FOUND' });
+  await assert.rejects(getResearchCaseAssessment(a.context, assessment.id),{code:'NOT_FOUND'});
   const incomplete = await assessResearchCaseMaterial(a.context, { caseId: a.caseId, materialVersionId: material.versionId });
   assert.equal(incomplete.status, 'incomplete');
   const scoped = await contextForCase(guest.context, a.caseId);
@@ -169,7 +173,7 @@ test('queued assessment keeps stance apart from relevance and invalidates change
 test('explicit bypass, idempotent link, pinned historical citation and office boundaries', async () => {
   const a = (await fixture()), b = (await fixture()), material = (await publicMaterial());
   await saveResearchCaseProfile(a.context, profileInput(a));
-  // The platform connection is shared by every test in this file; research starts switched off here.
+
   (await testDb.prepare("UPDATE typesafe_platform_connection SET research_mode='off' WHERE id=1").run());
   const disabled = await assessResearchCaseMaterial(a.context, { caseId: a.caseId, materialVersionId: material.versionId });
   assert.equal(disabled.status, 'disabled');
@@ -193,8 +197,8 @@ test('explicit bypass, idempotent link, pinned historical citation and office bo
   assert.equal(historical.title, 'Guarda pela avó');
   const candidate = citationCandidates([source]).find(item => item.sourceType === 'research');
   assert.ok(candidate); assert.equal(candidate.materialVersionId, material.versionId);
-  const updated = await updateResearchCaseReference(a.context, { referenceId: first.id, expectedVersion: first.version, notes: 'Anotação privada.' });
-  assert.equal(updated.notes, 'Anotação privada.');
+  const updated = await updateResearchCaseReference(a.context, { referenceId: first.id, expectedVersion: first.version, readToken:first.readToken!, notes: 'Anotação do caso.' });
+  assert.equal(updated.notes, 'Anotação do caso.');
   await assert.rejects(updateResearchCaseReference(a.context, { referenceId: first.id, expectedVersion: first.version, notes: 'Conflito.' }), { code: 'CONFLICT' });
   const runId = randomUUID(), artifactId = randomUUID();
   (await testDb.prepare("INSERT INTO ai_run(id,office_id,user_id,kind,input) VALUES(?,?,?,'draft','{}')")
@@ -237,19 +241,19 @@ test('research rerank uses its own mode and private versioned cache', async () =
           probabilities: Object.fromEntries((question.type === 'score' ? question.criteria : []).map((_, i) => [String(i), Number(i === score)])) }];
       })) };
   };
-  const first = await rerankResearchResults(a.context, 'guarda à avó', candidates, { send });
+  const first = await rerankResearchResults(a.context, 'guarda à avó', candidates, { send, policies: candidate => [personPolicy('',candidate.text)] });
   assert.equal(first.applied, false); assert.deepEqual(first.candidates, candidates);
-  assert.equal((await rerankResearchResults(a.context, 'guarda à avó', candidates, { send })).status, 'evaluated');
+  assert.equal((await rerankResearchResults(a.context, 'guarda à avó', candidates, { send, policies: candidate => [personPolicy('',candidate.text)] })).status, 'evaluated');
   assert.equal(calls, 1);
   await saveConnection(a.context.userId, connectionSettings.parse({ apiKey: 'synthetic-key-not-secret', enabled: true,
     rag: 'off', research: 'enabled', version: (await connectionView()).version }));
-  const enabled = await rerankResearchResults(a.context, 'guarda à avó', candidates, { send });
+  const enabled = await rerankResearchResults(a.context, 'guarda à avó', candidates, { send, policies: candidate => [personPolicy('',candidate.text)] });
   assert.equal(enabled.applied, true); assert.deepEqual(enabled.candidates.map(item => item.id), ['b', 'a']);
   assert.equal(calls, 2);
-  // Same platform connection, but the cache stays private to each office.
-  assert.equal((await rerankResearchResults(b.context, 'guarda à avó', candidates, { send })).status, 'evaluated');
+
+  assert.equal((await rerankResearchResults(b.context, 'guarda à avó', candidates, { send, policies: candidate => [personPolicy('',candidate.text)] })).status, 'evaluated');
   assert.equal(calls, 3);
-  const changed = await rerankResearchResults(a.context, 'guarda à avó', [{ ...candidates[0], versionFingerprint: 'v2' }, candidates[1]], { send });
+  const changed = await rerankResearchResults(a.context, 'guarda à avó', [{ ...candidates[0], versionFingerprint: 'v2' }, candidates[1]], { send, policies: candidate => [personPolicy('',candidate.text)] });
   assert.equal(changed.status, 'evaluated'); assert.equal(calls, 4);
 });
 

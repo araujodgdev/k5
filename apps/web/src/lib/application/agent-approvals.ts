@@ -1,4 +1,7 @@
 import 'server-only';
+import { approvalPreview } from '@/lib/case-pages/service';
+import { documentHref } from '@/lib/document-ref';
+import { canonicalCanvasHref } from '@/lib/lume-workspace';
 import { database } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityName } from '@/lib/capabilities/contracts';
@@ -6,7 +9,9 @@ import { findVaultCase, findVaultDocument, findVaultFolder } from '@/lib/vault';
 import { findCaseLink } from '@/lib/judicial/repositories/links';
 import { ownedArtifact } from '@/lib/ai-store';
 import { runCapability, toolSummary } from '@/lib/agent-tools';
-import type { WorkspaceContext } from './context';
+import { assertCapabilityAllowed, assertSourcesAdmitted, type WorkspaceContext } from './context';
+import { assertPolicyAccess, parsePolicy } from '@/lib/content-policy';
+import { scopeCapability } from '@/lib/collaboration/capability-access';
 import { agentConfirmedCapabilities, approveProposal, getApprovalProposal, rejectProposal } from './approvals-service';
 import { collaborationAction, collaborationOverviewDto } from '@/lib/collaboration/contracts';
 import { collaborationOverview } from '@/lib/collaboration/service';
@@ -15,19 +20,27 @@ import { createShareInput } from '@/lib/personal-chat/domain';
 import { agentSettingsCapabilities } from '@/lib/capabilities/agent-settings';
 import { getAgentSettings } from './agent-settings-service';
 import { getThread } from '@/lib/personal-chat/service';
-import type { ApprovalDecision } from '@/lib/chat-approval-state';
+import { approvalDecision, type ApprovalDecision } from '@/lib/chat-approval-state';
 
 export type AgentApprovalState = 'pending' | 'confirmed' | 'cancelled' | 'failed';
-export type AgentApprovalPart = { approvalId: string; capability: string; summary: string; state: AgentApprovalState; result?: string; href?: string };
+export type AgentApprovalPart = { preparedContent?: boolean; approvalId: string; capability: string; summary: string; state: AgentApprovalState; result?: string; href?: string };
 
 type Confirmed = (typeof agentConfirmedCapabilities)[number];
 const isConfirmed = (name: string): name is Confirmed => (agentConfirmedCapabilities as readonly string[]).includes(name);
 
 /** What the person is about to confirm, in their words: the name of the thing, not an id. */
-export async function describeAgentApproval(context: WorkspaceContext, capability: string, input: Record<string, unknown>): Promise<string> {
+export async function describeAgentApproval(context: WorkspaceContext, capability: string, input: Record<string, unknown>, approvalId?: string): Promise<string> {
+  if (approvalId) input = JSON.parse((await getApprovalProposal(context, approvalId)).normalized_input);
   const text = (value: unknown) => typeof value === 'string' ? value : '';
   const quoted = (name: string | undefined | null) => name ? ` “${name}”` : '';
   switch (capability) {
+    case 'k5_case_pages_create':
+    case 'k5_case_pages_update':
+    case 'k5_case_pages_publish':
+    case 'k5_case_pages_restore': {
+      if (approvalId) await approvalPreview(context, approvalId);
+      return 'Revisar o conteúdo e o destino da página antes de compartilhar.';
+    }
     case 'k5_collaboration_change': {
       const change = collaborationAction.parse(input.change);
       if (change.action === 'invite') return `Convidar ${change.invitation.email} como associado`;
@@ -149,6 +162,8 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
     case 'k5_drive_upload_version': return 'Enviar um documento do Cofre como nova versão do arquivo no Drive';
     case 'k5_drive_share_file': return `Compartilhar o arquivo do Drive com ${text(input.email)} (${({ reader: 'leitor', commenter: 'comentarista', writer: 'editor' } as Record<string, string>)[text(input.role)] ?? text(input.role)})`;
     case 'k5_drive_revoke_permission': return 'Remover um acesso ao arquivo do Drive';
+    case 'k5_case_tasks_create':
+    case 'k5_case_tasks_update': return `Publicar a tarefa compartilhada ${text(input.title)}. ${text(input.notes)}. Estado ${text(input.status)}. Prazo ${text(input.dueOn)}. Responsável ${text(input.assigneeId) || 'sem responsável'}`;
     default: return 'Executar esta ação';
   }
 }
@@ -156,12 +171,16 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
 /** Where the person can see the result of an agent action. Only ids from the result, never from the model's text. */
 export function resourceHref(name: string, result: unknown): string | undefined {
   if (!result || typeof result !== 'object') return undefined;
-  if (name === 'k5_ui_open_resource') return typeof (result as { path?: unknown }).path === 'string' ? (result as { path: string }).path : undefined;
+  if (name === 'k5_ui_open_resource' && 'path' in result && typeof result.path === 'string') return canonicalCanvasHref(result.path) ?? undefined;
   if (name.startsWith('k5_honorarios_')) return '/app/honorarios';
   if (name.startsWith('k5_messages_')) return '/app/messages';
   if (name.startsWith('k5_collaboration_')) return '/app/agenda?view=associates';
   const value = result as Record<string, { id?: string; caseId?: string | null } | string | undefined>;
   const id = (key: string) => { const item = value[key]; return item && typeof item === 'object' && typeof item.id === 'string' ? item.id : undefined; };
+  const task=value.task;
+  if(name.startsWith('k5_case_tasks_') && task && typeof task==='object' && task.caseId && task.id) return '/app/vault/cases/'+encodeURIComponent(task.caseId)+'?section=tasks&task='+encodeURIComponent(task.id);
+  const page = value.page;
+  if (name.startsWith('k5_case_pages_') && page && typeof page === 'object' && page.id && page.caseId) return documentHref({ kind: 'case-page', id: page.id, caseId: page.caseId });
   if (name.startsWith('k5_agenda_') && id('activity')) return `/app/agenda?activityId=${encodeURIComponent(id('activity')!)}`;
   if (name.startsWith('k5_crm_') && id('client')) return `/app/agenda/clients/${encodeURIComponent(id('client')!)}`;
   if (name.startsWith('k5_vault_') && id('case')) return `/app/vault/cases/${encodeURIComponent(id('case')!)}`;
@@ -189,15 +208,40 @@ export function resourceHref(name: string, result: unknown): string | undefined 
 export async function decideAgentApproval(context: WorkspaceContext, approvalId: string, decision: 'confirm' | 'cancel') {
   const row = await getApprovalProposal(context, approvalId);
   if (!isConfirmed(row.capability_name)) throw new CapabilityError('FORBIDDEN', 'Esta confirmação não pode ser feita pelo chat.');
+  if(decision==='confirm') {
+    const execution={...context,invocation:'agent' as const,...row.origin_context,userId:context.userId,sessionId:context.sessionId};
+    const checkedInput=JSON.parse(row.normalized_input) as Record<string,unknown>;
+    if(row.status==='consumed' && ['k5_vault_delete_folder','k5_vault_delete_document'].includes(row.capability_name)) {
+      const folder=row.capability_name==='k5_vault_delete_folder';
+      const id=checkedInput[folder ? 'folderId' : 'documentId'];
+      const target=await database.prepare(`SELECT case_id FROM ${folder ? 'vault_folder' : 'vault_document'} WHERE id=?`).get<{case_id:string|null}>(id);
+      if(target?.case_id)checkedInput.caseId=target.case_id;
+      delete checkedInput[folder ? 'folderId' : 'documentId'];
+    }
+    try {
+      await assertCapabilityAllowed(await scopeCapability(execution,row.capability_name as CapabilityName,checkedInput),row.capability_name as CapabilityName);
+      if(row.content_policy) {
+        const policy=parsePolicy(row.content_policy);
+        await assertPolicyAccess(context.userId,policy);
+        await assertSourcesAdmitted(policy);
+      }
+    } catch(error) {
+      return {state:'failed' as const,result:error instanceof CapabilityError ? error.message : 'Não foi possível concluir a ação.'};
+    }
+  }
+  if (row.status === 'consumed' && row.chat_result) {
+    const stored = approvalDecision.safeParse(JSON.parse(row.chat_result));
+    if (stored.success && stored.data.state === 'confirmed') return stored.data;
+  }
   let part: ApprovalDecision;
   if (decision === 'cancel') {
     await rejectProposal(context, approvalId);
     part = { state: 'cancelled', result: 'Cancelado. Nada foi alterado.' };
   } else {
-    await approveProposal(context, approvalId);
+    if (!row.capability_name.startsWith('k5_case_pages_') || row.status === 'pending') await approveProposal(context, approvalId);
     const input = { ...(JSON.parse(row.normalized_input) as Record<string, unknown>), approvalId };
     try {
-      const result = await runCapability({ ...context, invocation: 'agent' }, row.capability_name as CapabilityName, input);
+      const result = await runCapability({ ...context, invocation: 'agent', ...row.origin_context, userId: context.userId, sessionId: context.sessionId }, row.capability_name as CapabilityName, input);
       part = { state: 'confirmed', result: toolSummary(row.capability_name, result, false), href: resourceHref(row.capability_name, result) };
     } catch (error) {
       part = { state: 'failed', result: error instanceof CapabilityError ? error.message : 'Não foi possível concluir a ação.' };

@@ -1,3 +1,6 @@
+import type { ContentAdmission } from '@/lib/content-admission';
+import { payloadDigest } from '@/lib/content-result';
+import { CapabilityError } from '@/lib/capabilities/errors';
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import type { Questions } from '@typesafe-ai/sdk';
@@ -10,7 +13,6 @@ import type { TriageRecord } from './feedback-tickets';
 export const feedbackTriageQuestionVersion = 'feedback-triage-pt-BR-v2';
 const MAX_ATTEMPTS = 3;
 
-/** Starting thresholds from the TypeSafe confidence-routing guidance; calibrate on real tickets. */
 export const triageThresholds = { review: 0.6, flag: 0.5, urgentSeverity: 2.5, highSeverity: 1.5, highValue: 2, lowValue: 1 };
 
 const kindCriteria: Record<TicketKind, string> = {
@@ -60,7 +62,6 @@ export type Triage = {
   securityFlag: boolean; personalDataFlag: boolean; needsReview: boolean;
 };
 
-/** Policy lives here, not in the model: raw answers stay reusable if a threshold changes. */
 export function composeTriage(response: DecisionResponse | undefined): Triage {
   const answers = response?.answers ?? {};
   const choice = <T extends string>(name: string, allowed: readonly T[]) => {
@@ -75,7 +76,7 @@ export function composeTriage(response: DecisionResponse | undefined): Triage {
   const valueAnswer = answers.value;
   const valueScore = kind?.value === 'suggestion' && valueAnswer?.type === 'score' ? valueAnswer.score : null;
   const securityFlag = noul('security') >= triageThresholds.flag;
-  // Relevance: a problem ranks by its impact, an improvement by how much it would help.
+
   const priority: TicketPriority = securityFlag || (severity ?? 0) >= triageThresholds.urgentSeverity ? 'p0'
     : (severity ?? 0) >= triageThresholds.highSeverity || (valueScore ?? 0) >= triageThresholds.highValue ? 'p1'
       : valueScore !== null && valueScore < triageThresholds.lowValue ? 'p3'
@@ -98,6 +99,18 @@ export function triageState(row: Pick<Claimed, 'message' | 'page_path' | 'report
   } };
 }
 
+function feedbackTicketAdmission(row: Claimed, token: string): ContentAdmission {
+  const input = triageState(row);
+  return { applicationDigest: payloadDigest(input), async admit(signal) {
+    signal?.throwIfAborted();
+    const live = await database.prepare(`SELECT message,page_path,reported_kind,reported_module FROM feedback_ticket
+      WHERE id=? AND version=? AND classification_status='running' AND lease_token=? AND lease_until>extract(epoch FROM clock_timestamp())*1000`)
+      .get<Claimed>(row.id,row.version,token);
+    if (!live || payloadDigest(triageState(live)) !== payloadDigest(input)) throw new CapabilityError('CONFLICT','Este retorno foi alterado.');
+    signal?.throwIfAborted();
+  } };
+}
+
 /** One ticket per call. Returns false when there is nothing to classify. */
 export async function processNextFeedbackClassification(options: { send?: DecisionTransport } = {}): Promise<boolean> {
   const now = Date.now();
@@ -110,7 +123,7 @@ export async function processNextFeedbackClassification(options: { send?: Decisi
   const evaluated = await evaluate({ officeId: row.office_id, userId: row.user_id }, 'feedback', {
     state: triageState(row),
     questions: triageQuestions(), questionVersion: feedbackTriageQuestionVersion,
-  }, { send: options.send, deadlineMs: 10_000 });
+  }, { send: options.send, deadlineMs: 10_000, admission: feedbackTicketAdmission(row,token) });
   const retry = (evaluated.status === 'unavailable' || evaluated.status === 'budget_exceeded') && row.attempts < MAX_ATTEMPTS;
   if (retry) {
     await database.prepare("UPDATE feedback_ticket SET classification_status='pending',lease_until=? WHERE id=? AND lease_token=?")
@@ -127,7 +140,7 @@ export async function processNextFeedbackClassification(options: { send?: Decisi
   const classified = evaluated.status === 'evaluated';
   const triage = classified ? composeTriage(evaluated.response) : null;
   const status = classified ? 'classified' : evaluated.status === 'disabled' ? 'disabled' : 'unavailable';
-  // An admin correction made while the call ran wins: the model result is kept only as the raw record.
+
   await database.batch([
     database.prepare(`UPDATE feedback_ticket SET classification_status=?,classification_json=?,lease_token=NULL,lease_until=0,
         kind=CASE WHEN classified_by='admin' THEN kind ELSE COALESCE(?,kind) END,

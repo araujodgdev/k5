@@ -1,19 +1,21 @@
 import 'server-only';
-import { randomUUID } from 'node:crypto';
+import { artifactPolicy, assertPolicyAccess, exposeContent, type ContentPolicy } from '@/lib/content-policy';
+import { consumedArtifactResult, createPrivateDocument, updatePrivateDocument } from '@/lib/documents/service';
 import { database } from '@/lib/database';
 import { applyEdits, editFailureMessage } from '@/lib/artifact-edits';
 import { reviewArtifactCitations } from '@/lib/citations/artifact-review';
-import { ownedArtifact, publicArtifact, updateArtifact, type ArtifactRow } from '@/lib/ai-store';
-import { requireAgentApproval } from './approvals-service';
+import { ownedArtifact, publicArtifact, type ArtifactRow } from '@/lib/ai-store';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
 
 const owner = (context: WorkspaceContext) => ({ officeId: context.officeId, userId: context.userId });
 
+
 async function requireArtifact(context: WorkspaceContext, artifactId: string): Promise<ArtifactRow> {
   const artifact = await ownedArtifact(database, owner(context), artifactId);
   if (!artifact) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
+  await assertPolicyAccess(context.userId, await artifactPolicy(context, artifactId));
   return artifact;
 }
 
@@ -29,10 +31,10 @@ export async function getArtifact(context: WorkspaceContext, input: CapabilityIn
 }
 
 export async function saveArtifact(context: WorkspaceContext, input: CapabilityInput<'k5_artifacts_update'>): Promise<CapabilityOutput<'k5_artifacts_update'>> {
-  await requireArtifact(context, input.artifactId);
-  await requireAgentApproval(context, 'k5_artifacts_update', input.approvalId,
-    { artifactId: input.artifactId, title: input.title, content: input.content, version: input.version }, input.artifactId, 'Sobrescrever uma minuta pede confirmação.');
-  const updated = await updateArtifact(database, owner(context), input.artifactId, input.title, input.content, input.version);
+  const replay = await consumedArtifactResult(context, input.approvalId, 'k5_artifacts_update', { artifactId: input.artifactId, title: input.title, content: input.content, version: input.version });
+  if (replay) return exposeContent({ artifact: view(replay) }, [await artifactPolicy(context, replay.id, database, replay.version)]);
+  const updated = await updatePrivateDocument(context, { id: input.artifactId, title: input.title, content: input.content, version: input.version,
+    approval: { id: input.approvalId, name: 'k5_artifacts_update', input: { artifactId: input.artifactId, title: input.title, content: input.content, version: input.version } } });
   if (!updated) throw new CapabilityError('CONFLICT', 'O documento mudou desde a leitura. Leia a versão atual antes de salvar.');
   return { artifact: view(updated), ...await checkAgentWrite(context, updated) };
 }
@@ -44,7 +46,7 @@ export async function saveArtifact(context: WorkspaceContext, input: CapabilityI
  */
 async function checkAgentWrite(context: WorkspaceContext, row: ArtifactRow) {
   if (!context.invocation) return {};
-  return { citations: await reviewArtifactCitations(owner(context), row, { conversationId: context.conversationId, signal: context.signal }) };
+  return { citations: await reviewArtifactCitations(context, row, { conversationId: context.conversationId, signal: context.signal }) };
 }
 
 type SummaryRow = { id: string; title: string; version: number; kind: 'draft' | 'chronology' | 'document'; updatedAt: string; conversationId: string | null };
@@ -52,18 +54,7 @@ const summaryColumns = 'id, title, version, kind, updated_at AS "updatedAt", con
 
 /** A document written in the conversation. It starts as the agent's, so the agent may keep refining it. */
 export async function createArtifact(context: WorkspaceContext, input: CapabilityInput<'k5_artifacts_create'>): Promise<CapabilityOutput<'k5_artifacts_create'>> {
-  // The conversation comes from the chat request that built this context, never from the model.
-  const conversationId = context.conversationId && await database.prepare('SELECT 1 FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?')
-    .get(context.conversationId, context.officeId, context.userId) ? context.conversationId : null;
-  const id = randomUUID();
-  await database.batch([
-    database.prepare(`INSERT INTO ai_artifact(id,office_id,user_id,run_id,title,content,source_refs,validation_issues,status,kind,conversation_id,created_by_agent)
-      VALUES(?,?,?,NULL,?,?,'[]','[]','draft','document',?,?)`)
-      .bind(id, context.officeId, context.userId, input.title, input.content, conversationId, context.invocation === 'agent'),
-    database.prepare('INSERT INTO ai_artifact_version(artifact_id,version,title,content,user_id) VALUES(?,1,?,?,?)')
-      .bind(id, input.title, input.content, context.userId),
-  ]);
-  const created = await requireArtifact(context, id);
+  const created = await createPrivateDocument(context, input);
   return { artifact: view(created), ...await checkAgentWrite(context, created) };
 }
 
@@ -72,17 +63,15 @@ export async function createArtifact(context: WorkspaceContext, input: Capabilit
  * other document is the person's work, and changing it goes through the Confirmar button.
  */
 export async function editArtifact(context: WorkspaceContext, input: CapabilityInput<'k5_artifacts_edit'>): Promise<CapabilityOutput<'k5_artifacts_edit'>> {
+  const replay = await consumedArtifactResult(context, input.approvalId, 'k5_artifacts_edit', { artifactId: input.artifactId, version: input.version, edits: input.edits, title: input.title });
+  if (replay) return exposeContent({ artifact: view(replay) }, [await artifactPolicy(context, replay.id, database, replay.version)]);
   const current = await requireArtifact(context, input.artifactId);
-  if (current.version !== input.version) throw new CapabilityError('CONFLICT', `O documento está na versão ${current.version}. Leia a versão atual antes de editar.`);
   const own = current.created_by_agent && !!current.conversation_id && current.conversation_id === context.conversationId;
-  if (!own) {
-    await requireAgentApproval(context, 'k5_artifacts_edit', input.approvalId,
-      { artifactId: input.artifactId, version: input.version, edits: input.edits, title: input.title }, input.artifactId,
-      'Alterar um documento que não foi criado nesta conversa pede confirmação.');
-  }
-  const applied = applyEdits(current.content, input.edits);
+  const applied = current.version === input.version ? applyEdits(current.content, input.edits) : { content: '' };
   if ('failure' in applied) throw new CapabilityError('INVALID', editFailureMessage(applied.failure));
-  const updated = await updateArtifact(database, owner(context), input.artifactId, input.title ?? current.title, applied.content, input.version);
+  const updated = await updatePrivateDocument(context, { id: input.artifactId, title: input.title ?? current.title, content: applied.content, version: input.version,
+    ...(!own || input.approvalId ? { approval: { id: input.approvalId, name: 'k5_artifacts_edit' as const,
+      input: { artifactId: input.artifactId, version: input.version, edits: input.edits, title: input.title } } } : {}) });
   if (!updated) throw new CapabilityError('CONFLICT', 'O documento mudou durante a edição. Leia a versão atual antes de editar.');
   return { artifact: view(updated), ...await checkAgentWrite(context, updated) };
 }
@@ -96,16 +85,30 @@ export async function listArtifacts(context: WorkspaceContext, input: Capability
   const recent = await database.prepare(`SELECT ${summaryColumns} FROM ai_artifact WHERE office_id=? AND user_id=? ORDER BY updated_at DESC LIMIT ?`)
     .all(context.officeId, context.userId, input.limit) as SummaryRow[];
   const rows = [...inConversation, ...recent.filter(row => !inConversation.some(item => item.id === row.id))].slice(0, input.limit);
-  return { artifacts: rows.map(({ conversationId, ...row }) => ({ ...row, inThisConversation: !!conversationId && conversationId === context.conversationId })) };
+  const visible: SummaryRow[] = [];
+  const policies: ContentPolicy[] = [];
+  for (const row of rows) {
+    try { const policy = await artifactPolicy(context, row.id, database, row.version); await assertPolicyAccess(context.userId, policy); visible.push(row); policies.push(policy); }
+    catch (error) { if (!(error instanceof CapabilityError && error.code === 'NOT_FOUND')) throw error; }
+  }
+  return exposeContent({ artifacts: visible.map(({ conversationId, ...row }) => ({ ...row, inThisConversation: !!conversationId && conversationId === context.conversationId })) }, policies);
 }
 
 export async function listArtifactVersions(context: WorkspaceContext, input: CapabilityInput<'k5_artifacts_list_versions'>): Promise<CapabilityOutput<'k5_artifacts_list_versions'>> {
-  await requireArtifact(context, input.artifactId);
+  if (!await database.prepare('SELECT 1 FROM ai_artifact WHERE id=? AND office_id=? AND user_id=?')
+    .get(input.artifactId, context.caseScope?.homeOfficeId ?? context.officeId, context.userId))
+    throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
   const rows = await database.prepare(
     'SELECT version, title, created_at AS createdAt FROM ai_artifact_version WHERE artifact_id=? AND user_id=? ORDER BY version DESC'
   ).all(input.artifactId, context.userId) as Array<{ version: number; title: string; createdAt: string }>;
 
-  return { versions: rows };
+  const visible = [];
+  const policies: ContentPolicy[] = [];
+  for (const row of rows) {
+    try { const policy = await artifactPolicy(context, input.artifactId, database, row.version); await assertPolicyAccess(context.userId, policy); visible.push(row); policies.push(policy); }
+    catch (error) { if (!(error instanceof CapabilityError && error.code === 'NOT_FOUND')) throw error; }
+  }
+  return exposeContent({ versions: visible }, policies);
 }
 
 export async function restoreArtifactVersion(context: WorkspaceContext, input: CapabilityInput<'k5_artifacts_restore_version'>): Promise<CapabilityOutput<'k5_artifacts_restore_version'>> {
@@ -117,7 +120,7 @@ export async function restoreArtifactVersion(context: WorkspaceContext, input: C
 
   if (!historical) throw new CapabilityError('NOT_FOUND', 'Versão histórica não encontrada.');
 
-  const updated = await updateArtifact(database, owner(context), input.artifactId, historical.title, historical.content, current.version);
+  const updated = await updatePrivateDocument(context, { id: input.artifactId, title: historical.title, content: historical.content, version: current.version, restoreVersion: input.version });
   if (!updated) throw new CapabilityError('CONFLICT', 'Conflito de versão ao restaurar.');
 
   return { artifact: view(updated) };

@@ -8,7 +8,6 @@ import { Kpi, KpiRow } from '@/components/canvas/canvas-controls';
 import { AdminBar, AdminBlock, AdminBlockHead, AdminFooter, AdminGrid, AdminNote, AdminPages } from '@/components/admin/admin-blocks';
 import { AdminFilterMenu } from '@/components/admin/admin-filters';
 import { adminHref } from '@/components/admin/admin-href';
-import { AdminMeta } from '@/components/admin/admin-meta';
 
 export const metadata = { title: 'Financeiro · Administração' };
 
@@ -34,7 +33,6 @@ export default async function FinancePage({ searchParams }: PageProps<'/app/admi
   const period = periods.find(item => item.value === filters.days) ?? periods[0];
   const pages = Math.ceil(data.total / PAYMENTS_PER_PAGE);
   return <>
-    <AdminMeta title="Financeiro" />
     <AdminGrid>
       <AdminBlock label="Filtros">
         <AdminBar label="Filtrar cobranças">

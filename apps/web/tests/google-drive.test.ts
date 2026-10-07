@@ -5,12 +5,16 @@ import { randomUUID } from 'node:crypto';
 import { testDb } from './test-setup';
 import { FakeGoogle, googleFixture, respond, setRule } from './google-fixture';
 import { setGoogleTransport } from '../src/lib/google/transport';
-import { registerFiles, listFiles, refreshFile, importFile, listPermissions, revokePermission, renameFile, shareFile, readDoc, editDoc } from '../src/lib/google/drive/service';
+import { registerFiles, listFiles, refreshFile, importFile, listPermissions, revokePermission, renameFile, shareFile, readDoc, editDoc, uploadVersion } from '../src/lib/google/drive/service';
 import { processDriveImport } from '../src/lib/google/drive/import';
 import { claimGoogleJob, type GoogleJob } from '../src/lib/google/jobs';
 import { documentText, editRequests, resolveEdits } from '../src/lib/google/drive/docs';
 import { GOOGLE_EXPORT_LIMIT_BYTES, MAX_IMPORT_BYTES, importFormatFor } from '../src/lib/google/drive/formats';
 import { resetObjectStorageForTests } from '../src/lib/storage';
+import { createVaultDocument } from '../src/lib/vault';
+import { createUploadRef } from '../src/lib/application/uploads-service';
+import { personPolicy, vaultPolicy } from '../src/lib/content-policy';
+import { approveProposal } from '../src/lib/application/approvals-service';
 
 afterEach(() => { setGoogleTransport(undefined); resetObjectStorageForTests(); });
 const fileId = 'drive-file-123456789';
@@ -35,6 +39,31 @@ function fakeDrive(mimeType = 'application/pdf', content = new TextEncoder().enc
   setGoogleTransport(fake);
   return { fake, version: (value: string) => { version = value; } };
 }
+
+test('a proven independent upload retains exact Drive replacement confirmation; a changed version is rejected', async () => {
+  const f = await googleFixture();
+  const { fake } = fakeDrive();
+  const file = (await registerFiles(f.context, { googleFileIds: [fileId] })).files[0];
+  const upload = await createUploadRef(f.context, new File(['LEGACY_HUMAN_BYTES'], 'contrato.txt', { type: 'text/plain' }));
+  const doc = await createVaultDocument(f.context, upload, { scope: 'library', policy: personPolicy('', ''),independentUpload:true });
+  assert.deepEqual(await vaultPolicy(doc.id), await vaultPolicy(doc.id));
+  fake.on('PATCH', /\/upload\/drive\/v3\/files\/drive-file-123456789$/, request => {
+    assert.equal(request.text(), 'LEGACY_HUMAN_BYTES');
+    return respond(200, { id: fileId, name: 'Contrato', mimeType: 'text/plain', version: '2', capabilities: { canModifyContent: true, canDownload: true } });
+  });
+  const input = { fileId: file.id, documentId: doc.id, idempotencyKey: randomUUID() };
+  await assert.rejects(uploadVersion(f.context, input), { code: 'APPROVAL_REQUIRED' });
+  const proposal = await testDb.prepare("SELECT id FROM capability_approval WHERE user_id=? AND capability_name='k5_drive_upload_version' ORDER BY created_at DESC LIMIT 1").get<{ id: string }>(f.userId);
+  await approveProposal(f.context, proposal!.id);
+  assert.equal((await uploadVersion(f.context, { ...input, approvalId: proposal!.id })).operation.status, 'succeeded');
+  const second = { ...input, idempotencyKey: randomUUID() };
+  await assert.rejects(uploadVersion(f.context, second), { code: 'APPROVAL_REQUIRED' });
+  const next = await testDb.prepare("SELECT id FROM capability_approval WHERE user_id=? AND status='pending'").get<{ id: string }>(f.userId);
+  await approveProposal(f.context, next!.id);
+  await testDb.prepare('UPDATE vault_document_version SET sha256=? WHERE document_id=? AND is_active=1').run('changed-bytes', doc.id);
+  await assert.rejects(uploadVersion(f.context, { ...second, approvalId: next!.id }), { code: 'NOT_FOUND' });
+  assert.equal(fake.count('PATCH', /\/upload\/drive\/v3\/files/), 1);
+});
 
 test('seleção é verificada no Google e fica privada até para administrador do mesmo escritório', async () => {
   const owner = await googleFixture();

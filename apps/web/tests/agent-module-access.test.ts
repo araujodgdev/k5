@@ -1,4 +1,5 @@
 import { testDb } from './test-setup';
+import {fixtureSession} from './session-fixture';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -17,13 +18,14 @@ import { decideAgentApproval, describeAgentApproval } from '../src/lib/applicati
 import { CapabilityError } from '../src/lib/capabilities/errors';
 import { toolOutcome, type ToolOutcome } from '../src/lib/chat-tool-outcome';
 import type { WorkspaceContext } from '../src/lib/application/context';
+import {personRequestContext,recordingWriter} from './shared-writing-fixture';
 
 async function fixture(): Promise<WorkspaceContext & { invocation: 'agent' }> {
   const officeId = randomUUID(), userId = randomUUID();
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Pessoa');
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Escritório');
   await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
-  return { officeId, userId, invocation: 'agent' as const };
+  return { officeId, userId,sessionId:await fixtureSession(userId), invocation: 'agent' as const };
 }
 async function proposal(call: Promise<unknown>) {
   try { await call; } catch (error) {
@@ -113,8 +115,9 @@ test('settings wait for confirmation, bind the full edit and keep each lawyer to
   assert.equal(capabilities.k5_agent_settings_get.output.parse(await runCapability(context, 'k5_agent_settings_get', {})).instructions.office.length, 0);
 });
 
-test('personal message tools send only after confirmation and reject another person reading the thread', async () => {
-  const sender = await fixture();
+test('personal message tools send only after confirmation and reject another person reading the thread', async t => {
+  const sender = await personRequestContext(await fixture(),'Envie uma mensagem de confirmação independente.');
+  await recordingWriter(t,sender.userId,[{title:'Mensagem',content:'Mensagem de teste local.'}]);
   const peer = randomUUID();
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(peer, `${peer}@example.test`, 'Colega');
   await testDb.prepare('INSERT INTO office_associate(office_id,user_id,created_by) VALUES(?,?,?)').run(sender.officeId, peer, sender.userId);

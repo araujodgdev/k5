@@ -15,6 +15,11 @@ import { cancelPendingResearchDownloads, enqueueResearchJob } from '@/lib/resear
 import { assertResearchStorageRuntime, assertResearchWritableRuntime } from '@/lib/research/runtime';
 import { rerankResearchResults } from '@/lib/typesafe/research-rerank';
 import type { DecisionTransport } from '@/lib/typesafe/client';
+import { privateGenerationPolicy, uncertainPolicy, assertPolicyAccess, parsePolicy, policyUnavailable, combinePolicy } from '@/lib/content-policy';
+import { contentResult, mapContentResult } from '@/lib/content-result';
+import { contentAdmission, admissionTransport } from '@/lib/content-admission';
+import { exposedPolicies } from '@/lib/content-policy';
+import { CapabilityError } from '@/lib/capabilities/errors';
 
 async function authorize(context: WorkspaceContext, write = false): Promise<void> {
   if (context.sessionId) {
@@ -30,29 +35,30 @@ async function authorize(context: WorkspaceContext, write = false): Promise<void
 }
 
 type SearchRow = { id: string; office_id: string; user_id: string; theme: string; filters_json: string;
-  include_sources: number; status: string; created_at: string };
+  include_sources: number; status: string; created_at: string;content_policy:unknown };
 type PageRow = { id: string; page_number: number; source_cursor: string | null; next_cursor: string | null;
   status: SearchPage['status']; total_reported: number | null; source_error: string | null };
 type ResultRow = {
   id: string; position: number; origin: 'local' | 'source'; id_judgment: string;
   installation_id: string; source_judgment_id: string; tribunal: string; court_unit: string | null;
   case_number: string | null; title: string; decision_date: string | null; source_url: string | null;
-  status: string; ementa: string | null; ementa_version_id: string | null;
+  status: string; ementa: string | null; ementa_version_id: string | null; ementa_sha256: string | null;
   full_text_status: string | null; full_text_version_id: string | null; permission_documents: string;
-  source_kind: string; source_court_code: string;
+  source_kind: string; source_court_code: string; metadata_revision: number;
 };
 
 async function findSearch(context: WorkspaceContext, searchId: string): Promise<SearchRow> {
   const search = await database.prepare(`SELECT * FROM research_search WHERE id=? AND office_id=? AND user_id=?`)
     .get<SearchRow>(searchId,context.officeId,context.userId);
   if (!search) throw new ResearchError('not_found', 'Pesquisa não encontrada.');
+  await assertPolicyAccess(context.userId,search.content_policy ? parsePolicy(search.content_policy) : uncertainPolicy(context.userId));
   return search;
 }
 
-async function pageView(context: WorkspaceContext, page: PageRow): Promise<SearchPage> {
+async function pageView(context: WorkspaceContext, page: PageRow, search: SearchRow): Promise<SearchPage> {
   const rows = await database.prepare(`SELECT r.id,r.position,r.origin,j.id AS id_judgment,j.installation_id,
-    j.source_judgment_id,j.tribunal,j.court_unit,j.case_number,j.title,j.decision_date,j.source_url,j.status,
-    ev.text_content AS ementa,ev.id AS ementa_version_id,fm.status AS full_text_status,
+    j.source_judgment_id,j.tribunal,j.court_unit,j.case_number,j.title,j.decision_date,j.source_url,j.status,j.metadata_revision,
+    ev.text_content AS ementa,ev.id AS ementa_version_id,ev.sha256 AS ementa_sha256,fm.status AS full_text_status,
     fm.current_version_id AS full_text_version_id,i.permission_documents,
     i.kind AS source_kind,i.court_code AS source_court_code
     FROM research_search_result r JOIN research_judgment j ON j.id=r.judgment_id
@@ -64,8 +70,10 @@ async function pageView(context: WorkspaceContext, page: PageRow): Promise<Searc
       AND j.status='active' AND i.enabled=1 AND i.auth_kind='none' AND i.permission_query='permitido'
       AND i.permission_cache='permitido' AND i.permission_redistribution='permitido'
     ORDER BY r.position LIMIT ?`).all<ResultRow>(page.id,context.officeId,context.userId,RESEARCH_PAGE_SIZE);
-  const results: ResearchResult[] = rows.map((row) => ({ ...toJudgmentSummary({ ...row, id: row.id_judgment }),
-    resultId: row.id, position: row.position, origin: row.origin }));
+  const results: ResearchResult[] = rows.map(row => {
+    const summary = toJudgmentSummary({ ...row, id: row.id_judgment });
+    return mapContentResult({ ...summary, resultId: row.id, position: row.position, origin: row.origin }, summary);
+  });
   const progress: SearchProgress = { ready: 0, pending: 0, unavailable: 0, failed: 0, cancelled: 0 };
   const materialJobs = await database.prepare(`SELECT m.judgment_id,j.status FROM research_job j
     JOIN research_material m ON m.id=j.material_id WHERE j.page_id=? AND j.kind='fetch_material'
@@ -89,21 +97,21 @@ async function pageView(context: WorkspaceContext, page: PageRow): Promise<Searc
     AND status='failed' LIMIT 1`).get(page.id);
   const status = active?.count ? (page.status === 'queued' ? 'queued' : 'running')
     : page.status === 'queued' || page.status === 'running' ? terminalFailed ? 'partial' : 'completed' : page.status;
-  return { id: page.id, pageNumber: page.page_number, status, results, nextCursor: page.next_cursor,
-    totalReported: page.total_reported, sourceError: page.source_error, progress };
+  return mapContentResult({ id: page.id, pageNumber: page.page_number, status, results, nextCursor: page.next_cursor,
+    totalReported: page.total_reported, sourceError: page.source_error, progress }, contentResult({},[search.content_policy ? parsePolicy(search.content_policy) : uncertainPolicy(context.userId)]), ...results);
 }
 
 async function loadSearch(context: WorkspaceContext, search: SearchRow): Promise<ResearchSearchView> {
   const pageRows = await database.prepare(`SELECT * FROM research_search_page WHERE search_id=? ORDER BY page_number`)
     .all<PageRow>(search.id);
-  const pages = await Promise.all(pageRows.map((page) => pageView(context,page)));
+  const pages = await Promise.all(pageRows.map((page) => pageView(context,page,search)));
   const jobs = await database.prepare(`SELECT status,kind FROM research_job WHERE search_id=? AND office_id=? AND user_id=?`)
     .all<{ status: string; kind: string }>(search.id,context.officeId,context.userId);
   const active = jobs.some((job) => job.status === 'queued' || job.status === 'running');
   const failed = jobs.some((job) => job.status === 'failed');
   const status = active ? 'running' : failed || pages.some((page) => page.status === 'partial' || page.status === 'failed') ? 'partial' : 'completed';
-  return { id: search.id, theme: search.theme, filters: JSON.parse(search.filters_json), status,
-    createdAt: search.created_at, pageCount: pages.length, pages, includeSources: search.include_sources === 1 };
+  return mapContentResult({ id: search.id, theme: search.theme, filters: JSON.parse(search.filters_json), status,
+    createdAt: search.created_at, pageCount: pages.length, pages, includeSources: search.include_sources === 1 }, contentResult({},[search.content_policy ? parsePolicy(search.content_policy) : uncertainPolicy(context.userId)]), ...pages);
 }
 
 async function addLocalPage(context: WorkspaceContext, search: SearchRow, pageNumber: number,
@@ -120,10 +128,10 @@ async function addLocalPage(context: WorkspaceContext, search: SearchRow, pageNu
     try {
       const candidates=selected.map((item)=>({id:item.id,text:item.ementa ?? item.title,
         versionFingerprint:item.ementaVersionId ?? item.fullTextVersionId ?? item.sourceJudgmentId,item}));
-      const ranked=await rerankResearchResults({officeId:context.officeId,userId:context.userId},search.theme,candidates,
-        {signal:AbortSignal.timeout(6_000),send:options.rerankSend});
+      const ranked=await rerankResearchResults(context,search.theme,candidates,
+        {signal:AbortSignal.timeout(6_000),send:options.rerankSend,policies: candidate => exposedPolicies(candidate.item) ?? []});
       selected=ranked.candidates.map((candidate)=>candidate.item);
-    } catch { /* A research page remains usable in lexical order when optional AI fails. */ }
+    } catch (error) { if (error instanceof CapabilityError) throw error; }
   }
   selected=selected.slice(0,RESEARCH_PAGE_SIZE);
   const digest = createHash('sha256').update(`${search.id}:${pageNumber}`).digest('hex');
@@ -197,6 +205,7 @@ export async function startResearchSearch(context: WorkspaceContext, input: Sear
   const parsed = searchInputSchema.parse(input);
   if (parsed.refreshSources && !parsed.includeSources) throw new ResearchError('invalid_input','Atualizar fontes exige consulta externa.');
   const filters = JSON.stringify(parsed.filters);
+  const policy=await privateGenerationPolicy(context);
   if (parsed.idempotencyKey) {
     const existing = await database.prepare(`SELECT * FROM research_search WHERE office_id=? AND user_id=? AND idempotency_key=?`)
       .get<SearchRow>(context.officeId,context.userId,parsed.idempotencyKey);
@@ -221,9 +230,9 @@ export async function startResearchSearch(context: WorkspaceContext, input: Sear
   }
   const id = randomUUID();
   await database.prepare(`INSERT INTO research_search
-    (id,office_id,user_id,theme,filters_json,include_sources,idempotency_key) VALUES(?,?,?,?,?,?,?)
+    (id,office_id,user_id,theme,filters_json,include_sources,idempotency_key,content_policy) VALUES(?,?,?,?,?,?,?,?::jsonb)
     ON CONFLICT DO NOTHING`)
-    .run(id,context.officeId,context.userId,parsed.theme,filters,parsed.includeSources?1:0,parsed.idempotencyKey ?? null);
+    .run(id,context.officeId,context.userId,parsed.theme,filters,parsed.includeSources?1:0,parsed.idempotencyKey ?? null,JSON.stringify(policy));
   const actual = parsed.idempotencyKey ? await database.prepare(`SELECT id FROM research_search
     WHERE office_id=? AND user_id=? AND idempotency_key=?`).get<{id:string}>(context.officeId,context.userId,parsed.idempotencyKey) : null;
   const search = await findSearch(context,actual?.id ?? id);
@@ -247,13 +256,13 @@ export async function requestResearchPage(context: WorkspaceContext, searchId: s
   if (cursor) {
     const replay=await database.prepare(`SELECT * FROM research_search_page WHERE search_id=? AND request_cursor=?`)
       .get<PageRow>(searchId,cursor);
-    if (replay) return pageView(context,replay);
+    if (replay) return pageView(context,replay,search);
   }
   const pages = await database.prepare(`SELECT * FROM research_search_page WHERE search_id=? ORDER BY page_number DESC LIMIT 1`)
     .get<PageRow>(searchId);
   if (!pages) throw new ResearchError('not_found','Página não encontrada.');
   const token = cursor;
-  if (!token) return pageView(context,pages);
+  if (!token) return pageView(context,pages,search);
   if (cursor !== pages.next_cursor) throw new ResearchError('invalid_input','Cursor fora de sequência.');
   let decoded: { searchId?:string;afterPage?:number;local?: string | null; source?: number | null };
   try { decoded = JSON.parse(Buffer.from(token,'base64url').toString('utf8')); }
@@ -263,7 +272,7 @@ export async function requestResearchPage(context: WorkspaceContext, searchId: s
     throw new ResearchError('invalid_input','Cursor inválido.');
   }
   const next = await addLocalPage(context,search,pages.page_number+1,decoded.source ?? null,cursor,options);
-  return pageView(context,next);
+  return pageView(context,next,search);
 }
 
 export async function getResearchSearch(context: WorkspaceContext, searchId: string): Promise<ResearchSearchView> {
@@ -272,16 +281,23 @@ export async function getResearchSearch(context: WorkspaceContext, searchId: str
 }
 export async function listResearchHistory(context: WorkspaceContext): Promise<SearchHistoryItem[]> {
   await authorize(context);
-  const rows = await database.prepare(`SELECT s.id,s.theme,s.filters_json,s.status,s.created_at,COUNT(p.id) AS pages
+  const rows = await database.prepare(`SELECT s.id,s.theme,s.filters_json,s.status,s.created_at,s.content_policy,COUNT(p.id) AS pages
     FROM research_search s LEFT JOIN research_search_page p ON p.search_id=s.id
     WHERE s.office_id=? AND s.user_id=? GROUP BY s.id ORDER BY s.created_at DESC,s.id DESC LIMIT 100`)
-    .all<{ id:string;theme:string;filters_json:string;status:string;created_at:string;pages:number }>(context.officeId,context.userId);
-  return rows.map((row) => ({ id:row.id,theme:row.theme,filters:JSON.parse(row.filters_json),status:row.status,
-    createdAt:row.created_at,pageCount:row.pages }));
+    .all<{ id:string;theme:string;filters_json:string;status:string;created_at:string;pages:number;content_policy:unknown }>(context.officeId,context.userId);
+  const visible:SearchHistoryItem[]=[];
+  for(const row of rows) {
+    const policy=row.content_policy ? parsePolicy(row.content_policy) : uncertainPolicy(context.userId);
+    try {await assertPolicyAccess(context.userId,policy);}catch(error){if(error instanceof CapabilityError)continue;throw error;}
+    visible.push(contentResult({id:row.id,theme:row.theme,filters:JSON.parse(row.filters_json),status:row.status,createdAt:row.created_at,pageCount:row.pages},[policy]));
+  }
+  return mapContentResult(visible,...visible);
 }
 export async function searchResearchCorpus(context: WorkspaceContext, input: CorpusQuery): Promise<CorpusPage> {
   await authorize(context);
-  return searchCorpus(input);
+  const policy=await privateGenerationPolicy(context);
+  const result=await searchCorpus(input);
+  return mapContentResult(result,result,contentResult({},[policy]));
 }
 export async function getResearchJudgment(context: WorkspaceContext, judgmentId: string): Promise<JudgmentDetail> {
   await authorize(context);
@@ -326,11 +342,9 @@ export async function cancelResearchDownloads(context: WorkspaceContext, searchI
   return { cancelled:await cancelPendingResearchDownloads(context.officeId,context.userId,searchId) };
 }
 
-// Web search (Exa) for the Pesquisa screen. Only the question leaves the office; the pages found
-// are kept with the search so the person's history reopens them without paying for them again.
 const WEB_SEARCH_RESULTS = 10;
 const WEB_EXCERPT_CHARACTERS = 600;
-type WebSearchRow = { id: string; query: string; mode: WebSearchMode; results_json: string; created_at: string | Date };
+type WebSearchRow = { id: string; query: string; mode: WebSearchMode; results_json: string; created_at: string | Date; content_policy: unknown };
 
 function webResult(page: WebPage): WebSearchResult {
   const text = page.text.replace(/\s+/g, ' ').trim();
@@ -348,39 +362,52 @@ function webSearchView(row: WebSearchRow): WebSearchView {
 export async function runResearchWebSearch(context: WorkspaceContext, input: { query: string; mode: WebSearchMode },
   dependencies: { search?: typeof exaSearch } = {}): Promise<WebSearchView> {
   await authorize(context);
+  const policy = await privateGenerationPolicy(context);
+  const transport = admissionTransport(contentAdmission(context,input,[policy]));
   const apiKey = exaApiKey();
   if (!apiKey && !dependencies.search) throw new ResearchError('unsupported', 'A busca na web ainda não está configurada. Peça ao administrador a chave da Exa.');
   let pages: WebPage[];
   try {
     pages = await (dependencies.search ?? exaSearch)(input.query, {
       apiKey: apiKey ?? '', type: input.mode, numResults: WEB_SEARCH_RESULTS, signal: context.signal,
+      fetch: transport.fetch,
     });
   } catch {
+    transport.throwIfDenied();
     throw new ResearchError('unsupported', 'A busca na web não respondeu. Tente de novo em instantes.');
   }
   const results = pages.map(webResult);
-  const row = await database.prepare(`INSERT INTO research_web_search(id,office_id,user_id,query,mode,results_json)
-    VALUES(?,?,?,?,?,?) RETURNING id,query,mode,results_json,created_at`)
-    .get<WebSearchRow>(randomUUID(), context.officeId, context.userId, input.query, input.mode, JSON.stringify(results));
+  const retained = combinePolicy('',JSON.stringify({query:input.query,results}),[policy],'generated');
+  const row = await database.prepare(`INSERT INTO research_web_search(id,office_id,user_id,query,mode,results_json,content_policy)
+    VALUES(?,?,?,?,?,?,?::jsonb) RETURNING id,query,mode,results_json,created_at,content_policy`)
+    .get<WebSearchRow>(randomUUID(), context.officeId, context.userId, input.query, input.mode, JSON.stringify(results),JSON.stringify(retained));
   if (!row) throw new ResearchError('unsupported', 'Não foi possível guardar a pesquisa.');
-  return webSearchView(row);
+  return contentResult(webSearchView(row),[retained]);
 }
 
 export async function listResearchWebSearches(context: WorkspaceContext): Promise<WebSearchHistoryItem[]> {
   await authorize(context);
-  const rows = await database.prepare(`SELECT id,query,mode,results_json,created_at FROM research_web_search
+  const rows = await database.prepare(`SELECT id,query,mode,results_json,created_at,content_policy FROM research_web_search
     WHERE office_id=? AND user_id=? ORDER BY created_at DESC,id DESC LIMIT 100`)
     .all<WebSearchRow>(context.officeId, context.userId);
-  return rows.map((row) => {
+  const visible: WebSearchHistoryItem[] = [];
+  for (const row of rows) {
+    if (!row.content_policy) continue;
+    const policy = parsePolicy(row.content_policy);
+    try { await assertPolicyAccess(context.userId,policy); }
+    catch(error) { if (error instanceof CapabilityError) continue; throw error; }
     const { id, query, mode, createdAt, resultCount } = webSearchView(row);
-    return { id, query, mode, createdAt, resultCount };
-  });
+    visible.push(contentResult({ id, query, mode, createdAt, resultCount },[policy]));
+  }
+  return mapContentResult(visible,...visible);
 }
 
 export async function getResearchWebSearch(context: WorkspaceContext, searchId: string): Promise<WebSearchView> {
   await authorize(context);
-  const row = await database.prepare(`SELECT id,query,mode,results_json,created_at FROM research_web_search
+  const row = await database.prepare(`SELECT id,query,mode,results_json,created_at,content_policy FROM research_web_search
     WHERE id=? AND office_id=? AND user_id=?`).get<WebSearchRow>(searchId, context.officeId, context.userId);
   if (!row) throw new ResearchError('not_found', 'Pesquisa não encontrada.');
-  return webSearchView(row);
+  if (!row.content_policy) throw policyUnavailable();
+  const policy = parsePolicy(row.content_policy); await assertPolicyAccess(context.userId,policy);
+  return contentResult(webSearchView(row),[policy]);
 }

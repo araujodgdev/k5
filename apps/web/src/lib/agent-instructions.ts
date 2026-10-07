@@ -1,15 +1,13 @@
 import 'server-only';
+import { documentTransaction } from './documents/service';
+import { contentResult, mapContentResult } from './content-result';
+import { exposedPolicies } from './content-policy';
+import { assertPolicyAccess, contentDigest, parsePolicy, uncertainPolicy, settingWritePolicy, type ContentPolicy } from './content-policy';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { database } from './database';
+import { database, type Transaction } from './database';
 import { CapabilityError } from './capabilities/errors';
-import type { WorkspaceContext } from './application/context';
-
-/**
- * Writing rules: office-wide ones set by an administrator, and each person's own. They are the
- * office's words, so they reach the model as instructions, unlike Cofre documents, which are data.
- * The prompt places them under the persona and above the legal policy, and says so.
- */
+import { assertCapabilityAllowed, type WorkspaceContext } from './application/context';
 
 export type InstructionScope = 'office' | 'personal';
 export type InstructionTarget = 'chat' | 'documents';
@@ -18,7 +16,6 @@ export type Instruction = { id: string; title: string; content: string; appliesT
 export type InstructionInput = { title: string; content: string; appliesTo: AppliesTo; enabled: boolean };
 type Owner = Pick<WorkspaceContext, 'officeId' | 'userId'>;
 
-/** Request body shared by the create and update routes; `clean` does the real bounds. */
 export const instructionBody = z.object({
   scope: z.enum(['office', 'personal']),
   title: z.string().max(200),
@@ -27,22 +24,32 @@ export const instructionBody = z.object({
   enabled: z.boolean(),
 });
 
-/** Enabled text per scope. Bounds what every request pays for and keeps the rules readable. */
 export const INSTRUCTION_BUDGET = 8000;
 export const MAX_INSTRUCTIONS = 20;
 
-const columns = `id, title, content, applies_to AS "appliesTo", enabled, version, updated_at AS "updatedAt"`;
+const columns = `id, title, content, applies_to AS "appliesTo", enabled, version, updated_at AS "updatedAt", content_policy`;
 
-
-async function scopeRows(owner: Owner, scope: InstructionScope) {
-  return scope === 'office'
-    ? await database.prepare(`SELECT ${columns} FROM agent_instruction WHERE office_id = ? AND user_id IS NULL ORDER BY created_at, id`).all(owner.officeId) as Instruction[]
-    : await database.prepare(`SELECT ${columns} FROM agent_instruction WHERE office_id = ? AND user_id = ? ORDER BY created_at, id`).all(owner.officeId, owner.userId) as Instruction[];
+async function scopeRows(owner: Owner, scope: InstructionScope, db: Transaction = (owner as WorkspaceContext).contentTransaction ?? database) {
+  const rows = scope === 'office'
+    ? await db.prepare(`SELECT ${columns} FROM agent_instruction WHERE office_id = ? AND user_id IS NULL ORDER BY created_at, id`).all(owner.officeId) as Instruction[]
+    : await db.prepare(`SELECT ${columns} FROM agent_instruction WHERE office_id = ? AND user_id = ? ORDER BY created_at, id`).all(owner.officeId, owner.userId) as Instruction[];
+  const visible: Instruction[] = [];
+  for (const stored of rows as (Instruction & { content_policy: unknown })[]) {
+    try {
+      const { content_policy, ...row } = stored;
+      const policy = content_policy ? parsePolicy(content_policy, contentDigest(row.title, row.content)) : uncertainPolicy(owner.userId);
+      await assertPolicyAccess(owner.userId, policy, db);
+      const observation: ContentPolicy = { ...policy, observed: [...policy.observed, { kind: 'instruction', id: row.id, version: String(row.version), digest: policy.digest }] };
+      visible.push(contentResult(row, [observation], [{ kind: 'instruction', id: row.id, version: row.version, digest: policy.digest }]));
+    } catch (error) { if (!(error instanceof CapabilityError)) throw error; }
+  }
+  return visible;
 }
 
 export async function listInstructions(owner: Owner) {
-  const [office, personal] = await Promise.all([scopeRows(owner, 'office'), scopeRows(owner, 'personal')]);
-  return { office, personal };
+  const office = await scopeRows(owner, 'office');
+  const personal = await scopeRows(owner, 'personal');
+  return mapContentResult({ office, personal }, ...office, ...personal);
 }
 
 const used = (rules: Array<Pick<Instruction, 'content' | 'enabled'>>) => rules.reduce((sum, rule) => sum + (rule.enabled ? rule.content.trim().length : 0), 0);
@@ -56,45 +63,53 @@ function clean(input: InstructionInput): InstructionInput {
 
 /** Creates a rule, or updates it when `id` is given; `version` guards against overwriting a newer edit. */
 export async function saveInstruction(context: WorkspaceContext, scope: InstructionScope, raw: InstructionInput, existing?: { id: string; version: number }) {
+  return documentTransaction(context, async tx => {
+  await assertCapabilityAllowed(context, 'k5_agent_settings_change', tx);
   const input = clean(raw);
-  const rules = await scopeRows(context, scope);
+  const rules = await scopeRows(context, scope, tx);
   const others = rules.filter(rule => rule.id !== existing?.id);
   if (!existing && rules.length >= MAX_INSTRUCTIONS) throw new CapabilityError('INVALID', `Use no máximo ${MAX_INSTRUCTIONS} regras. Junte ou exclua regras antigas.`);
   if (used([...others, input]) > INSTRUCTION_BUDGET) {
     throw new CapabilityError('INVALID', `As regras ativas passam de ${INSTRUCTION_BUDGET.toLocaleString('pt-BR')} caracteres. Encurte ou desative alguma.`);
   }
+  const base = existing ? await tx.prepare('SELECT title,content,content_policy FROM agent_instruction WHERE id=? AND office_id=? AND user_id IS NOT DISTINCT FROM ?')
+    .get<{ title: string; content: string; content_policy: unknown }>(existing.id, context.officeId, scope === 'office' ? null : context.userId) : undefined;
+  const policy = await settingWritePolicy(context, input.title, input.content, base, tx);
   const owner = scope === 'office' ? null : context.userId;
   if (!existing) {
     const id = randomUUID();
-    await database.prepare(`INSERT INTO agent_instruction (id, office_id, user_id, title, content, applies_to, enabled, updated_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(id, context.officeId, owner, input.title, input.content, input.appliesTo, input.enabled, context.userId);
-    return (await scopeRows(context, scope)).find(rule => rule.id === id)!;
+    await tx.prepare(`INSERT INTO agent_instruction (id, office_id, user_id, title, content, applies_to, enabled, updated_by,content_policy)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?,?::jsonb)`).run(id, context.officeId, owner, input.title, input.content, input.appliesTo, input.enabled, context.userId, JSON.stringify(policy));
+    return (await scopeRows(context, scope, tx)).find(rule => rule.id === id)!;
   }
   if (!rules.some(rule => rule.id === existing.id)) throw new CapabilityError('NOT_FOUND', 'Regra não encontrada.');
-  // The scope is part of the WHERE: an id alone would let a personal edit reach an office rule.
-  const result = await database.prepare(`UPDATE agent_instruction SET title = ?, content = ?, applies_to = ?, enabled = ?,
-      version = version + 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+
+  const result = await tx.prepare(`UPDATE agent_instruction SET title = ?, content = ?, applies_to = ?, enabled = ?,
+      content_policy=?::jsonb, version = version + 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ? AND office_id = ? AND user_id IS NOT DISTINCT FROM ? AND version = ?`)
-    .run(input.title, input.content, input.appliesTo, input.enabled, context.userId, existing.id, context.officeId, owner, existing.version);
+    .run(input.title, input.content, input.appliesTo, input.enabled, JSON.stringify(policy), context.userId, existing.id, context.officeId, owner, existing.version);
   if (!result.changes) throw new CapabilityError('CONFLICT', 'Esta regra foi alterada em outra sessão. Recarregue a página.');
-  return (await scopeRows(context, scope)).find(rule => rule.id === existing.id)!;
+  return (await scopeRows(context, scope, tx)).find(rule => rule.id === existing.id)!;
+  });
 }
 
 export async function deleteInstruction(context: WorkspaceContext, scope: InstructionScope, id: string) {
   const owner = scope === 'office' ? null : context.userId;
-  const result = await database.prepare('DELETE FROM agent_instruction WHERE id = ? AND office_id = ? AND user_id IS NOT DISTINCT FROM ?').run(id, context.officeId, owner);
+  const result = await (context.contentTransaction ?? database).prepare('DELETE FROM agent_instruction WHERE id = ? AND office_id = ? AND user_id IS NOT DISTINCT FROM ?').run(id, context.officeId, owner);
   if (!result.changes) throw new CapabilityError('NOT_FOUND', 'Regra não encontrada.');
 }
 
-// One line per rule, and no angle brackets, so a rule cannot close its block and open another.
-const flat = (text: string) => text.replace(/[<>]/g, '').replace(/\s*\n\s*/g, ' ');
+const encodeInstructionLine = (text: string) => text.replace(/[<>]/g, '').replace(/\s*\n\s*/g, ' ');
 const block = (tag: string, rules: Instruction[]) =>
-  rules.length ? `<${tag}>\n${rules.map(rule => `- ${flat(rule.title)}: ${flat(rule.content)}`).join('\n')}\n</${tag}>` : '';
+  rules.length ? `<${tag}>\n${rules.map(rule => `- ${encodeInstructionLine(rule.title)}: ${encodeInstructionLine(rule.content)}`).join('\n')}\n</${tag}>` : '';
 
 /** The rules that apply to `target`, as a system prompt block; empty when there are none. */
-export async function instructionsPrompt(owner: Owner, target: InstructionTarget) {
+export async function instructionsPrompt(owner: Owner, target: InstructionTarget, policies?: ContentPolicy[]) {
   const { office, personal } = await listInstructions(owner);
   const applies = (rule: Instruction) => rule.enabled && (rule.appliesTo === 'all' || rule.appliesTo === target);
+  if (policies) for (const rule of [...office, ...personal].filter(applies)) {
+    policies.push(...exposedPolicies(rule) ?? []);
+  }
   const blocks = [block('regras_do_escritorio', office.filter(applies)), block('regras_pessoais', personal.filter(applies))].filter(Boolean);
   if (!blocks.length) return '';
   return [

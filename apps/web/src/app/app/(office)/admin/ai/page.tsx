@@ -3,7 +3,6 @@ import { AiTaskModels } from '@/components/ai-task-models';
 import { PlatformConnections } from '@/components/platform-connections';
 import { TypesafeSettings } from '@/components/typesafe-settings';
 import { AdminGrid } from '@/components/admin/admin-blocks';
-import { AdminMeta } from '@/components/admin/admin-meta';
 import { assignmentOverview } from '@/lib/ai-assignments-core';
 import { AI_PROVIDERS, listAiConnections, type AiProvider } from '@/lib/ai-connections-core';
 import { isChatModel } from '@/lib/ai-defaults';
@@ -40,7 +39,6 @@ export default async function PlatformAiPage() {
     }
   }
   return <>
-    <AdminMeta title="IA" />
     <AdminGrid>
       <AiTaskModels initial={overview} catalogs={{ chat, transcription }} />
       <PlatformConnections initialConnections={connections} usage={usage} />

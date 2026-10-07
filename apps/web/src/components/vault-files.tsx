@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LoaderCircle, Upload } from "lucide-react";
+import { Download, FileText, LoaderCircle, RotateCw, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { FileItem } from "@/components/casos/case-items";
 import { approveAndRun } from "@/lib/approve-and-run";
 import type { VaultDocument } from "@/lib/vault";
@@ -189,4 +190,79 @@ export function DocumentItems({ documents, onRetried, onDeleted, onError }: {
   return documents.map((document) => (
     <FileItem key={document.id} document={document} onRetry={() => void retry(document.id)} onDelete={() => void remove(document.id)} />
   ));
+}
+
+// 44px on touch, compact from md up.
+const touchIcon = "size-11 md:size-8";
+
+function stateLabel(document: VaultDocument) {
+  if (document.status === "queued") return "Na fila";
+  if (document.status === "processing") return `Processando ${document.progress}%`;
+  if (document.status === "ready") return "Pronto";
+  return document.errorMessage ? `Falhou: ${document.errorMessage}` : "Falhou";
+}
+
+/** The file table of the case page, which keeps the Lume workspace's own layout. */
+export function DocumentRows({ documents, showOrigin, onRetried, onDeleted, onError, empty }: {
+  documents: VaultDocument[];
+  showOrigin?: boolean;
+  onRetried: (documentId: string) => void;
+  onDeleted: (documentId: string) => void;
+  onError: (message: string) => void;
+  empty: string;
+}) {
+  const { retry, remove } = documentActions({ onRetried, onDeleted, onError });
+  if (!documents.length) return <p className="py-10 text-sm text-subtle-foreground">{empty}</p>;
+
+  const columns = showOrigin ? "md:grid-cols-[minmax(240px,1fr)_150px_120px_130px]" : "md:grid-cols-[minmax(240px,1fr)_120px_130px]";
+  return (
+    <div>
+      <div className={`hidden gap-4 border-b pb-2 text-[13px] text-muted-foreground md:grid ${columns}`}>
+        <span>Documento</span>{showOrigin && <span>Destino</span>}<span>Estado</span><span className="text-right">Ações</span>
+      </div>
+      {documents.map((document) => (
+        <div key={document.id} className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 border-b py-2 text-sm md:py-3 ${columns}`}>
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2"><FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate">{document.name}</span></div>
+            <p className={`mt-0.5 truncate pl-6 text-[13px] md:hidden ${document.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}>
+              {showOrigin ? `${document.caseName ?? "Biblioteca"} · ` : ""}{stateLabel(document)}
+            </p>
+          </div>
+          {showOrigin && <span className="hidden truncate text-muted-foreground md:block">{document.caseName ?? "Biblioteca"}</span>}
+          <span className={`hidden md:block ${document.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}>{stateLabel(document)}</span>
+          <div className="flex justify-end gap-1">
+            <Button asChild variant="ghost" size="icon-sm" className={touchIcon}>
+              <a href={`/api/vault/documents/${document.id}/download`} aria-label={`Baixar ${document.name}`}><Download aria-hidden="true" /></a>
+            </Button>
+            {(document.status === "failed" || document.status === "queued") && (
+              <Button type="button" variant="ghost" size="icon-sm" className={touchIcon} onClick={() => void retry(document.id)} aria-label={`Reenviar ${document.name}`}><RotateCw aria-hidden="true" /></Button>
+            )}
+            <DocumentDelete name={document.name} onConfirm={() => void remove(document.id)} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DocumentDelete({ name, onConfirm }: { name: string; onConfirm: () => void }) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="ghost" size="icon-sm" className={touchIcon} aria-label={`Excluir ${name}`}><Trash2 aria-hidden="true" /></Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir {name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            O arquivo sai do Cofre e da busca, e as versões anteriores vão junto. Não dá para desfazer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>Excluir documento</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }

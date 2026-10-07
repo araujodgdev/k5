@@ -219,3 +219,34 @@ test('stopping a running Node turn interrupts the provider, saves the interrupti
   assert.equal(await holdsTurn(owner, conversations[3].id, fourth), true);
   assert.equal(await holdsTurn(owner, conversations[1].id, leases[1]), true);
 });
+
+test('observed tool calls stream and persist one stable running/completed identity', { timeout: 30_000 }, async t => {
+  const { owner, conversations, admit } = await fixture(1);
+  const connection = await createAiConnection(testDb, Buffer.from(process.env.K5_CREDENTIALS_KEY!, 'base64'), owner.userId,
+    { name: 'Provedor de gravação local', provider: 'deepseek', apiKey: 'synthetic-recording-key' });
+  await updateModelAssignment(testDb, owner.userId, { scope: 'group', target: 'agent',
+    model: { mode: 'explicit', connectionId: connection.id, modelId: 'deepseek-chat' }, effort: { mode: 'provider_default' } });
+  const id = conversations[0].id, lease = await admit(id);
+  await writeTurnHistory(owner, id, lease, [{ id: 'recorded-question', role: 'user', parts: [{ type: 'text', text: 'Consulte meus casos.' }] }]);
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) => {
+    const url = String(input instanceof Request ? input.url : input);
+    assert.match(url, /^https:\/\/api\.deepseek\.com\/.*chat\/completions$/);
+    calls += 1;
+    const delta = calls === 1 ? { role: 'assistant', tool_calls: [{ index: 0, id: 'observed-read', type: 'function', function: { name: 'k5_vault_list_cases', arguments: '{}' } }] } : { role: 'assistant', content: 'Consulta concluída.' };
+    const chunk = (value: unknown, reason: string | null) => ({ id: 'local-recording', object: 'chat.completion.chunk', created: 1, model: 'deepseek-chat', choices: [{ index: 0, delta: value, finish_reason: reason }] });
+    return new Response([chunk(delta, null), chunk({}, calls === 1 ? 'tool_calls' : 'stop')].map(value => `data: ${JSON.stringify(value)}\n\n`).join('') + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } });
+  });
+  const run = new ChatRun(lease.token);
+  await executeChatRun(run, turnFor(owner, id, lease));
+  const stream = await new Response(run.follow()).text();
+  assert.match(stream, /"callId":"observed-read".*"state":"running"/);
+  assert.match(stream, /"callId":"observed-read".*"state":"completed"/);
+  assert.equal(calls, 2);
+  const stored = await conversation(testDb, owner, id);
+  const parts = stored!.messages.at(-1)!.parts.filter(part => part.type === 'data-tool');
+  assert.equal(parts.length, 1);
+  assert.ok('id' in parts[0] && 'data' in parts[0]);
+  assert.equal(parts[0].id, 'observed-read');
+  assert.deepEqual(parts[0].data, { callId: 'observed-read', name: 'k5_vault_list_cases', summary: 'Consultou os casos do Cofre: 0 caso(s)', state: 'completed' });
+});

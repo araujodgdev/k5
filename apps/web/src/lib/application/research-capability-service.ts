@@ -1,5 +1,7 @@
+import { contentResult, mapContentResult } from '@/lib/content-result';
 import { captureOperationalError } from '@/lib/observability/report';
 import 'server-only';
+import { personPolicy } from '@/lib/content-policy';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput } from '@/lib/capabilities/contracts';
 import type { WorkspaceContext } from './context';
@@ -29,50 +31,49 @@ async function operation<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
-// Context is derived from the authenticated request and membership is revalidated by runCapability.
 export const searchCorpus = (context: WorkspaceContext, input: CapabilityInput<'k5_research_search_corpus'>) =>
   operation(() => searchResearchCorpus(context, input));
 export const getJudgment = (context: WorkspaceContext, input: CapabilityInput<'k5_research_get_judgment'>) =>
   operation(async () => {
     const judgment = await getResearchJudgment(context, input.judgmentId);
-    return { judgment: { ...judgment, materials: judgment.materials.map(material => ({ ...material,
+    return mapContentResult({ judgment: { ...judgment, materials: judgment.materials.map(material => ({ ...material,
       version: material.version ? { ...material.version, originalAvailable: !!material.version.storageKey } : null,
-    })) } };
+    })) } }, judgment);
   });
 export const webSearch = (context: WorkspaceContext, input: CapabilityInput<'k5_research_web_search'>) =>
-  operation(async () => ({ search: await runResearchWebSearch(context, { query: input.query, mode: input.mode ?? 'auto' }) }));
+  operation(async () => {const search=await runResearchWebSearch(context, { query: input.query, mode: input.mode ?? 'auto' });return mapContentResult({search},search);});
 export const listWebSearches = (context: WorkspaceContext) =>
-  operation(async () => ({ searches: await listResearchWebSearches(context) }));
+  operation(async () => {const searches=await listResearchWebSearches(context);return mapContentResult({searches},searches);});
 export const getWebSearch = (context: WorkspaceContext, input: CapabilityInput<'k5_research_get_web_search'>) =>
-  operation(async () => ({ search: await getResearchWebSearch(context, input.searchId) }));
+  operation(async () => {const search=await getResearchWebSearch(context,input.searchId);return mapContentResult({search},search);});
 export const listHistory = (context: WorkspaceContext) =>
-  operation(async () => ({ searches: await listResearchHistory(context) }));
+  operation(async () => {const searches=await listResearchHistory(context);return mapContentResult({searches},searches);});
 export const getSearch = (context: WorkspaceContext, input: CapabilityInput<'k5_research_get_search'>) =>
-  operation(async () => ({ search: await getResearchSearch(context, input.searchId) }));
+  operation(async () => { const search = await getResearchSearch(context, input.searchId); return mapContentResult({ search }, search); });
 export const startSearch = (context: WorkspaceContext, input: CapabilityInput<'k5_research_start_search'>) =>
-  operation(async () => ({ search: await startResearchSearch(context, input) }));
+  operation(async () => { const search = await startResearchSearch(context, input); return mapContentResult({ search }, search); });
 export const requestPage = (context: WorkspaceContext, input: CapabilityInput<'k5_research_request_page'>) =>
-  operation(async () => ({ page: await requestResearchPage(context, input.searchId, input.cursor) }));
+  operation(async () => { const page = await requestResearchPage(context, input.searchId, input.cursor); return mapContentResult({ page }, page); });
 export const requestMaterial = (context: WorkspaceContext, input: CapabilityInput<'k5_research_request_material'>) =>
-  operation(() => requestResearchMaterial(context, input));
+  operation(async () => contentResult(await requestResearchMaterial(context, input), []));
 export const cancelDownloads = (context: WorkspaceContext, input: CapabilityInput<'k5_research_cancel_downloads'>) =>
-  operation(() => cancelResearchDownloads(context, input.searchId));
+  operation(async () => contentResult(await cancelResearchDownloads(context, input.searchId), []));
 export const getProfile = (context: WorkspaceContext, input: CapabilityInput<'k5_research_get_profile'>) =>
-  operation(async () => ({ profile: await getResearchCaseProfile(context, input.caseId) }));
+  operation(async () => { const profile = await getResearchCaseProfile(context, input.caseId); return profile ? mapContentResult({ profile }, profile) : contentResult({ profile: null },[{ ...personPolicy('',''),guards:[{kind:'case',id:input.caseId}]}]); });
 export const saveProfile = (context: WorkspaceContext, input: CapabilityInput<'k5_research_save_profile'>) =>
-  operation(async () => ({ profile: await saveResearchCaseProfile(context, input) }));
+  operation(async () => { const profile = await saveResearchCaseProfile(context, input as Parameters<typeof saveResearchCaseProfile>[1]); return mapContentResult({ profile }, profile); });
 export const assessMaterial = (context: WorkspaceContext, input: CapabilityInput<'k5_research_assess_material'>) =>
-  operation(async () => ({ assessment: await assessResearchCaseMaterial(context, input) }));
+  operation(async () => { const assessment = await assessResearchCaseMaterial(context, input); return mapContentResult({ assessment }, assessment); });
 export const getAssessment = (context: WorkspaceContext, input: CapabilityInput<'k5_research_get_assessment'>) =>
-  operation(async () => ({ assessment: await getResearchCaseAssessment(context, input.assessmentId) }));
+  operation(async () => { const assessment = await getResearchCaseAssessment(context, input.assessmentId); return mapContentResult({ assessment }, assessment); });
 export const listReferences = (context: WorkspaceContext, input: CapabilityInput<'k5_research_list_references'>) =>
-  operation(async () => ({ references: await listResearchCaseReferences(context, input.caseId) }));
+  operation(async () => { const references = await listResearchCaseReferences(context, input.caseId); return mapContentResult({ references }, references); });
 export const addReference = (context: WorkspaceContext, input: CapabilityInput<'k5_research_add_reference'>) =>
-  operation(async () => ({ reference: await addResearchCaseReference(context, input) }));
+  operation(async () => { const reference = await addResearchCaseReference(context, input); return mapContentResult({ reference }, reference); });
 export const updateReference = (context: WorkspaceContext, input: CapabilityInput<'k5_research_update_reference'>) =>
-  operation(async () => ({ reference: await updateResearchCaseReference(context, input) }));
+  operation(async () => { const reference = await updateResearchCaseReference(context, input); return mapContentResult({ reference }, reference); });
 export const removeReference = (context: WorkspaceContext, input: CapabilityInput<'k5_research_remove_reference'>) =>
-  operation(async () => { await removeResearchCaseReference(context, input.referenceId, input.expectedVersion); return { success: true }; });
+  operation(async () => { await removeResearchCaseReference(context, input.referenceId, input.expectedVersion); return contentResult({ success: true },[]); });
 
 export async function scoreFoundJurisprudence(context: WorkspaceContext, input: CapabilityInput<'k5_research_score_jurisprudence'>) {
   return scoreJurisprudence(context, input);

@@ -1,6 +1,7 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { database, withTransaction } from './database';
+import { database } from './database';
+import { aclTransaction } from './acl-transaction';
 import type { Transaction } from './db/postgres';
 import { memoryResource } from './agent-memory';
 import { queueHonchoWorkspaceDeletion } from './honcho-memory';
@@ -95,7 +96,7 @@ export async function purgeOffice(requestId: string, options: { dryRun: boolean 
     .all<{ table: string; column: string }>(STORAGE_COLUMNS, tables);
 
   try {
-    return await withTransaction(async tx => {
+    return await aclTransaction(async tx => {
       const objects = new Set<string>();
       for (const { table, column } of storage) {
         const rows = await tx.prepare(`SELECT "${column}" AS key FROM "${table}" WHERE office_id = ? AND "${column}" IS NOT NULL`).all<{ key: string }>(officeId);

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowUpRight, LoaderCircle, Search } from 'lucide-react';
 import { CanvasTrail, trailAction } from '@/components/canvas/canvas-controls';
 import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { requestCapability } from '@/lib/capabilities/http-client';
 import { trademarkDetail, type TrademarkDetail } from '@/lib/research/trademarks/contracts';
@@ -50,7 +49,6 @@ export function TrademarkReader({ resultId }: { resultId: string }) {
   const back = detail ? `/app/research?mode=trademarks&search=${detail.searchId}` : '/app/research';
   const link = 'relative inline-flex min-h-11 items-center gap-1 rounded-sm text-[13px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring md:min-h-6';
   return <>
-    <CanvasMeta title="Pesquisa" subject={{ kind: 'module', slug: 'research', title: 'Pesquisa' }} />
     <CanvasTrail back={{ href: back, label: 'Pesquisa' }} icon={<Search />} current={detail ? detail.name || 'Marca sem nome informado' : 'Marca'} actions={detail && <>
       <Button asChild variant="ghost" className={trailAction}><a href={detail.source.url} target="_blank" rel="noopener noreferrer"><ArrowUpRight aria-hidden="true" /><span className="max-md:sr-only">Ver na WIPO</span><span className="sr-only">, abre em nova aba</span></a></Button>
     </>} />

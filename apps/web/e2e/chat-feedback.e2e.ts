@@ -14,8 +14,10 @@ for (const width of [1280, 390]) {
       { type: 'data-web-sources', data: { sources: [{ id: 'turn0search2', url: 'https://example.test/fonte', title: 'Fonte oficial' }] } },
       ...approvals,
     ] }];
-    await browser.route(/\/api\/conversations\/chat-feedback-fixture-\d+$/, route => route.fulfill({ headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversation, messages }) }));
-    await browser.route(/\/api\/chat\/chat-feedback-fixture-\d+\/stream/, route => route.fulfill({ status: 204 }));
+    await browser.route('**/api/conversations', route => route.request.method === 'GET'
+      ? route.fulfill({ json: { conversations: [conversation] } }) : route.continue());
+    await browser.route('**/api/conversations/chat-feedback-fixture', route => route.fulfill({ headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversation, messages }) }));
+    await browser.route('**/api/chat/chat-feedback-fixture/stream*', route => route.fulfill({ status: 204 }));
     const calls: string[] = [];
     let failOnce = true;
     await browser.route('**/api/chat/approvals/*-fixture', async route => {
@@ -31,20 +33,19 @@ for (const width of [1280, 390]) {
       part.data.result = decision === 'confirm' ? 'Pasta removida.' : 'Nada foi alterado.';
       return route.fulfill({ json: { state: part.data.state, result: part.data.result } });
     });
-    // A link that names a conversation opens it in the Lume's panel. Each visit mounts the chat anew
-    // under a new id, so nothing comes from its cache; the mock serves the same messages for every id.
-    let opened = 0;
-    const openChat = async () => {
-      opened++;
-      await app.open(`/app/command-center?conversationId=chat-feedback-fixture-${opened}`);
-    };
+    const openChat = () => app.open(`/app/agents?conversationId=${conversation.id}`);
     await openChat();
     const groups = screen.getByRole('group', 'Confirmação');
     await expect(groups).toHaveCount(2);
-    // Two searches and two approvals make one plan card above the answer; the searches are one step.
-    const plan = screen.getByRole('region', 'Plano do Lume');
-    await expect(plan).toContainText('Pesquisou na web');
-    await expect(plan).toContainText('primeiro resultado · segundo resultado');
+    const activity = screen.getByLabel('Atividade do Lume');
+    await expect(activity.getByText('Pesquisou na web: primeiro resultado', { exact: false })).toBeVisible();
+    await expect(activity.getByText('Pesquisou na web: segundo resultado', { exact: false })).toBeVisible();
+    expect(await browser.evaluate(() => {
+      const activity=document.querySelector('[aria-label="Atividade do Lume"]');
+      const message = activity?.parentElement?.textContent ?? '';
+      const research = message.indexOf('Pesquisou na web: segundo resultado');
+      return research >= 0 && research < message.indexOf('Fundamento consultado.');
+    })).toBe(true);
     await expect(screen.getByRole('link', 'Fonte 1')).toHaveAttribute('href', 'https://example.test/fonte');
     await expect(screen.getByText('(fonte não vinculada)', { exact: false })).toBeVisible();
     await expect(screen.getByText(/turn0search2|turn3view0/)).toHaveCount(0);

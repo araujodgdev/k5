@@ -25,13 +25,10 @@ export const officeSections = [
   { slug: 'associates', label: 'Associados' }, { slug: 'invites', label: 'Convites' }, { slug: 'activity', label: 'Atividade' },
 ] as const;
 
-/** Sections shown directly in the mobile tab bar; the rest live under "Mais". */
-export const mobileTabs: NavSlug[] = ["command-center", "agents", "vault", "agenda"];
-
-/** Shown only to platform administrators, after the office's sections, on desktop and in "Mais". */
+/** Shown only to platform administrators in the workspace launcher. */
 export const adminNavigation = { href: "/app/admin", label: "Administração", short: "Admin" } as const;
 
-/** The person's own page: reached from their name in the sidebar footer and from "Mais" on mobile. */
+/** The person's own page, reached from the workspace account menu. */
 export const profileNavigation = { href: "/app/profile", label: "Perfil" } as const;
 export const tutorialNavigation = { href: '/app/tutorial', label: 'Tutorial' } as const;
 

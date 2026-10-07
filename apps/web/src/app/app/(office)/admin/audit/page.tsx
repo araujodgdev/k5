@@ -9,7 +9,6 @@ import { AdminBar, AdminBlock, AdminFooter, AdminGrid, AdminNote, adminFooterLin
 import { cn } from "@/lib/utils";
 import { AdminFilterChip } from "@/components/admin/admin-filters";
 import { adminHref } from "@/components/admin/admin-href";
-import { AdminMeta } from "@/components/admin/admin-meta";
 
 export const metadata = { title: "Auditoria · Administração" };
 
@@ -32,7 +31,6 @@ export default async function PlatformAuditPage({ searchParams }: PageProps<"/ap
   ]);
   const href = (params: { group?: string; office?: string; before?: string }) => adminHref("/app/admin/audit", params);
   return <>
-    <AdminMeta title="Auditoria" />
     <AdminGrid>
       <AdminBlock label="Registros de auditoria">
         <AdminBar label="Filtrar auditoria">

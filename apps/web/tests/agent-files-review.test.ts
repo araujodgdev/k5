@@ -1,8 +1,9 @@
+import { updateArtifact } from './document-writes';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { testDatabase as db } from './test-setup';
-import { createConversation, updateArtifact, ownedArtifact } from '../src/lib/ai-store';
+import { createConversation, ownedArtifact } from '../src/lib/ai-store';
 import { createChatAttachment, claimChatAttachments, resolveChatAttachments } from '../src/lib/chat-attachments';
 import { attachmentPart } from '../src/lib/chat-attachment-contract';
 import { chatPromptMessages } from '../src/lib/chat-prompt';
@@ -21,7 +22,8 @@ async function owner() {
   const officeId=randomUUID(), userId=randomUUID();
   await db.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Validação do agente');
   await db.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@example.test`,'Teste');
-  return {officeId,userId};
+  await db.prepare("INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)").run(randomUUID(),officeId,userId);
+  return { officeId, userId };
 }
 
 test('chat import copies the original, serializes retries, validates source and keeps bytes after chat deletion', async()=>{

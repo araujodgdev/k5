@@ -47,12 +47,11 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 844 }, { name: '
     await app.clearState();
     await signInWithSession({ app, screen, browser }, ownerApi);
     await app.open(casePath);
-    // The case's people are in its share dialog ("Compartilhar caso" on a phone).
-    await screen.getByRole('button', /^Compartilhar/, { visible: true }).tap();
-    await screen.getByLabel('Associado para adicionar ao caso').selectOption({ value: guestUser.id });
-    await screen.getByRole('button', 'Adicionar').tap();
+    await screen.getByRole('button', 'Mais seções do caso', { visible: true }).tap();
+    await screen.getByRole('menuitem', 'Participantes').tap();
+    await screen.getByLabel('Incluir associado').selectOption({ value: guestUser.id });
+    await screen.getByRole('button', 'Incluir no caso').tap();
     await expect(screen.getByRole('status').filter({ hasText: 'Participante incluído' })).toBeVisible();
-    await screen.getByRole('button', 'Concluir').tap();
     await ownerApi.json('/api/collaboration', { json: { action: 'participant', caseId: record.id, userId: thirdUser.id, add: true } });
     expect((await guestApi.request('/api/collaboration', { json: { action: 'participant', caseId: record.id, userId: thirdUser.id, add: true } })).status).toBe(403);
 
@@ -60,8 +59,7 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 844 }, { name: '
     await signInWithSession({ app, screen, browser }, guestApi);
     await app.open(casePath);
     await expect(screen.getByRole('button', 'Enviar arquivos', { visible: true })).toBeVisible();
-    // The Lume's panel has a file input of its own; the case's is named.
-    await screen.getByLabel('Arquivos para enviar').setInputFiles(['e2e/fixtures/colaboracao-validacao.txt']);
+    await browser.locator('main input[type=file]').setInputFiles(['e2e/fixtures/colaboracao-validacao.txt']);
     await expect(screen.getByText('colaboracao-validacao.txt').first()).toBeVisible();
     await screen.getByRole('button', 'Nova pasta', { visible: true }).tap();
     await screen.getByLabel('Nome da pasta').fill('Reservada');
@@ -73,7 +71,7 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 844 }, { name: '
     if (!privateFolder) throw new Error('A pasta criada não apareceu para sua criadora.');
     await screen.getByRole('link', 'Reservada', { exact: false }).first().tap();
     await expect(screen.getByRole('navigation', 'Trilha').getByRole('link', 'Reservada', { exact: true })).toBeVisible();
-    await screen.getByLabel('Arquivos para enviar').setInputFiles(['e2e/fixtures/colaboracao-privada.txt']);
+    await browser.locator('main input[type=file]').setInputFiles(['e2e/fixtures/colaboracao-privada.txt']);
     await expect(screen.getByText('colaboracao-privada.txt').first()).toBeVisible();
     const { documents } = await guestApi.json<{ documents: { id: string }[] }>(`/api/vault/documents?caseId=${record.id}&folderId=${privateFolder.id}`);
     expect(documents.length).toBe(1);
@@ -98,20 +96,15 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 844 }, { name: '
     expect((await folderList(thirdApi, record.id)).folders.map(folder => folder.id)).not.toContain(restricted.id);
     expect((await ownerApi.request(`/api/vault/folders/${restricted.id}`, { method: 'PATCH', json: { visibility: 'public' } })).status).toBe(403);
 
-    // Who sees a folder is an action of the folder's menu.
-    const folderAccess = async () => {
-      await screen.getByRole('button', 'Mais opções da pasta Reservada').tap();
-      await screen.getByRole('menuitem', 'Quem vê a pasta').tap();
-    };
-    await folderAccess();
+    await screen.getByRole('button', 'Quem vê a pasta Reservada').tap();
     await expect(screen.getByRole('dialog')).toBeVisible();
     await browser.keyboard.press('Tab');
     expect(await browser.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);
     await screen.getByLabel('Quem vê a pasta', { exact: true }).selectOption({ value: 'public' });
     await screen.getByRole('button', 'Salvar acesso').tap();
     await expect(screen.getByRole('dialog')).toHaveCount(0);
-    await expect(screen.getByText('1 arquivo · Privada', { exact: true })).toHaveCount(0);
-    await folderAccess();
+    await expect(screen.getByText('Privada · 1 arquivo', { exact: true })).toHaveCount(0);
+    await screen.getByRole('button', 'Quem vê a pasta Reservada').tap();
     await expect(screen.getByLabel('Quem vê a pasta', { exact: true })).toHaveValue('public');
     await browser.keyboard.press('Escape');
     await expect(screen.getByRole('dialog')).toHaveCount(0);

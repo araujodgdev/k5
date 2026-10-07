@@ -4,14 +4,11 @@ import type { Account, ApiSession } from './accounts';
 
 type Fixtures = { app: App; screen: Screen; browser: Browser };
 
-/**
- * The onboarding tour opens once per browser; close it so it does not cover the page. Every caller
- * signs in on a fresh browser, so the tour comes as soon as the page hydrates; the long wait only
- * spans a slow first compile, which would otherwise save a session with the tour still to show.
- */
-async function dismissTour({ screen }: Fixtures) {
+/** The onboarding tour opens once per browser; close it so it does not cover the page. */
+async function dismissTour({ screen, browser }: Fixtures) {
+  await expect(browser.locator('nav[aria-label="Abas do canvas"] button').first()).toBeAttached({ timeout: 30_000 });
   const dismiss = screen.getByRole('button', 'Agora não');
-  if (await dismiss.waitFor({ state: 'visible', timeout: 30_000 }).then(() => true, () => false)) {
+  if (await dismiss.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false)) {
     await dismiss.tap();
     await expect(dismiss).toBeHidden();
   }
@@ -28,7 +25,7 @@ export async function signInThroughForm(fixtures: Fixtures, account: Account) {
   await screen.getByLabel('Senha').fill(account.password);
   await screen.getByRole('button', 'Entrar').tap();
   // A first sign-in lands on /app, which then redirects to the command center.
-  await browser.waitForURL(/\/app(\/|$)/);
+  await browser.waitForURL(/\/app\/command-center$/);
   await dismissTour(fixtures);
 }
 

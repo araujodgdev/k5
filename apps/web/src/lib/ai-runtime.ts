@@ -15,7 +15,8 @@ import { resolveTaskModel } from './ai-connections';
 import { AiConnectionError, type AiProvider } from './ai-connections-core';
 import type { ResolvedTaskModel } from './ai-assignments-core';
 import { groundedInstructions } from './ai-policy';
-import { modelFor, modelProviderOptions, taskSession, type ModelCredential } from './ai-providers';
+import { modelFor, protectedModelFor, modelProviderOptions, taskSession, type ModelCredential } from './ai-providers';
+import { admissionTransport, type ContentAdmission } from './content-admission';
 import type { AiTaskKey, ExecutionKind, ReasoningEffort } from './ai-tasks';
 import { isTranscriptionModel } from './ai-tasks';
 import { transcribeWithEndpoint } from './audio-transcription';
@@ -27,10 +28,11 @@ export type { ResolvedTaskModel };
 export type AgentFeatures = { memory?: MastraMemory; outputProcessors?: OutputProcessor[] };
 type EffortCredential = ModelCredential & { effort?: ReasoningEffort | null };
 
-function agentFor(config: EffortCredential, instructions: string, tools?: Record<string, unknown>, features: AgentFeatures = {}) {
+function agentFor(config: EffortCredential, instructions: string, tools?: Record<string, unknown>, features: AgentFeatures = {}, protectedFetch?: typeof fetch) {
   const agent = new Agent({
     id: 'k5',
     name: 'Lume',
+    ...(protectedFetch ? { maxRetries: 2 } : {}),
     instructions,
     defaultOptions: ({ requestContext }) => {
       const provider = (requestContext?.get('provider') as AiProvider | undefined) ?? config.provider;
@@ -42,13 +44,13 @@ function agentFor(config: EffortCredential, instructions: string, tools?: Record
       const modelId = (requestContext?.get('modelId') as string | undefined) ?? config.modelId;
       const apiKey = (requestContext?.get('apiKey') as string | undefined) ?? config.apiKey;
       const session = (requestContext?.get('session') as string | undefined) ?? config.session;
-      return modelFor({ provider, modelId, apiKey, session });
+      return protectedFetch ? protectedModelFor({ provider, modelId, apiKey, session }, protectedFetch) : modelFor({ provider, modelId, apiKey, session });
     },
     ...(tools ? { tools: tools as never } : {}),
     ...(features.memory ? { memory: features.memory } : {}),
     ...(features.outputProcessors?.length ? { outputProcessors: features.outputProcessors } : {}),
   });
-  // No raw provider errors, credentials or document contents are sent to telemetry.
+
   new Mastra({ agents: { k5: agent }, logger: noopLogger });
   return agent;
 }
@@ -182,28 +184,33 @@ export async function recordUsage(officeId: string, userId: string | null, confi
   });
 }
 
-/** Quick features (e-mail summaries, reply suggestions) pass their own instructions; the default keeps the grounded legal ones. */
 export type StructuredOptions<T = unknown> = {
+  admission: ContentAdmission;
   instructions?: string; timeoutMs?: number; maxOutputTokens?: number; signal?: AbortSignal;
   image?: { bytes: Uint8Array; mimeType: string };
+  images?: { bytes: Uint8Array; mimeType: string }[];
   /** Cheap quality signals computed from the answer, stored with the usage (for example, rejected citations). */
   signals?: (output: T) => Record<string, unknown>;
 };
 
 export async function generateStructured<T extends z.ZodType>(officeId: string, userId: string, task: AiTaskKey | ResolvedTaskModel, prompt: string, schema: T,
-  options: StructuredOptions<z.output<T>> = {}): Promise<z.output<T>> {
+  options: StructuredOptions<z.output<T>>): Promise<z.output<T>> {
+  const transport = admissionTransport(options.admission);
+  const images = (options.images ?? (options.image ? [options.image] : [])).map(image => ({ bytes: Buffer.from(image.bytes), mimeType: image.mimeType }));
+  const instructions = options.instructions ?? groundedInstructions;
   await assertCredits(officeId, userId);
-  const { agent, config } = await createAgent(task, options.instructions);
+  const config = typeof task === 'string' ? await resolveTaskModel(task) : task;
+  const agent = agentFor(config, instructions, undefined, {}, transport.fetch);
   const timeout = AbortSignal.timeout(options.timeoutMs ?? 180_000);
   const started = performance.now();
   return traceAgentTurn({ task: config.task, provider: config.provider, modelId: config.modelId }, async span => {
     span.setAttribute('lume.reasoning_effort', config.effort ?? 'provider_default');
-    // Kept outside the try: an answer that fails the schema was still billed, so its usage is recorded.
+
     let usage: unknown;
     try {
-      const message = options.image ? [{ role: 'user' as const, content: [
+      const message = images.length ? [{ role: 'user' as const, content: [
         { type: 'text' as const, text: prompt },
-        { type: 'image' as const, image: `data:${options.image.mimeType};base64,${Buffer.from(options.image.bytes).toString('base64')}`, mimeType:options.image.mimeType },
+        ...images.map(image => ({ type: 'image' as const, image: `data:${image.mimeType};base64,${Buffer.from(image.bytes).toString('base64')}`, mimeType: image.mimeType })),
       ] }] : prompt;
       const result = await agent.generate(message, {
         requestContext: requestContextFor(config),
@@ -213,14 +220,30 @@ export async function generateStructured<T extends z.ZodType>(officeId: string, 
         abortSignal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout,
         modelSettings: { maxOutputTokens: options.maxOutputTokens ?? 12000 },
       });
+      transport.throwIfDenied();
       usage = result.usage;
       const output = schema.parse(result.object);
       let signals: Record<string, unknown> | undefined;
       try { signals = options.signals?.(output); } catch (error) { captureOperationalError(error, 'ai.structured.signals'); }
-      await recordUsage(officeId, userId, config, config.task, 'completed', result.usage, { durationMs: performance.now() - started, signals });
+      await recordUsage(officeId, userId, config, config.task, 'completed', result.usage, { durationMs: performance.now() - started,
+        signals: { ...signals, applicationDigest: options.admission.applicationDigest, wireDigests: transport.wireDigests } });
       span.setAttributes({ 'gen_ai.usage.input_tokens': result.usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': result.usage?.outputTokens ?? 0, 'lume.outcome': 'completed' });
       return output;
     } catch (error) {
+      if (transport.denied) {
+        span.setAttribute('lume.outcome', 'denied');
+        try { await recordUsage(officeId, userId, config, config.task, 'failed', usage,
+          { durationMs: performance.now() - started, errorClass: 'denied' }); }
+        catch (accountingError) { captureOperationalError(accountingError, 'ai.structured.denial-accounting'); }
+        transport.throwIfDenied();
+      }
+      if (options.signal?.aborted) {
+        span.setAttribute('lume.outcome', 'cancelled');
+        try { await recordUsage(officeId, userId, config, config.task, 'failed', usage,
+          { durationMs: performance.now() - started, errorClass: 'aborted' }); }
+        catch (accountingError) { captureOperationalError(accountingError, 'ai.structured.cancellation-accounting'); }
+        options.signal.throwIfAborted();
+      }
       captureOperationalError(error, 'ai.structured');
       span.setAttribute('lume.outcome', 'failed');
       await recordUsage(officeId, userId, config, config.task, 'failed', usage, { durationMs: performance.now() - started, errorClass: errorClass(error) });

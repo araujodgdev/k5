@@ -4,6 +4,9 @@ import type { ArtifactRow } from '@/lib/ai-store';
 import { reviewCitations, type CitationReview } from './review';
 import { conversationSources } from './sources';
 import { needsReview, type CitationItem } from './verdict';
+import type { DecisionTransport } from '@/lib/typesafe/client';
+import type { WorkspaceContext } from '@/lib/application/context';
+import { artifactPolicy } from '@/lib/content-policy';
 
 type Owner = { officeId: string; userId: string };
 export type CitationSummary = { status: CitationReview['status']; total: number; toReview: number; noSource: number };
@@ -19,10 +22,11 @@ export const summarize = (review: CitationReview): CitationSummary => ({
  * that version. Bounded, so an agent's write never waits long on it: past the deadline the batches
  * still running come back unchecked and the document says so.
  */
-export async function reviewArtifactCitations(owner: Owner, artifact: ArtifactRow, options: { conversationId?: string | null; signal?: AbortSignal } = {}) {
+export async function reviewArtifactCitations(owner: WorkspaceContext, artifact: ArtifactRow, options: { conversationId?: string | null; signal?: AbortSignal; send?: DecisionTransport } = {}) {
+  const policy = await artifactPolicy(owner, artifact.id, database, artifact.version);
   const sources = await conversationSources(owner, artifact.conversation_id ?? options.conversationId);
   const signal = AbortSignal.any([AbortSignal.timeout(20_000), ...(options.signal ? [options.signal] : [])]);
-  const review = await reviewCitations(owner, artifact.content, sources, { signal });
+  const review = await reviewCitations(owner, artifact.content, sources, { signal, send: options.send, policies: [policy] });
   await database.prepare(`INSERT INTO artifact_citation_review(artifact_id,office_id,user_id,artifact_version,status,items,mentions)
     SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM ai_artifact WHERE id=? AND office_id=? AND user_id=? AND version=?)
     ON CONFLICT (artifact_id) DO UPDATE SET artifact_version=excluded.artifact_version,status=excluded.status,items=excluded.items,

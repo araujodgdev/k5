@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { requestCapability } from "@/lib/capabilities/http-client";
 import type { ResearchCaseReference } from "@/lib/application/research-case-service";
+import type { SourceSelection } from '@/lib/lume-workspace';
 
 export type VaultDocumentSummary = {
   id: string;
@@ -19,11 +20,7 @@ export type VaultDocumentSummary = {
 };
 
 /** Existing Vault documents and case references selected by the person for this conversation. */
-export type AgentContext = {
-  caseId: string | null;
-  documentIds: string[];
-  researchReferenceIds: string[];
-};
+export type AgentContext = SourceSelection;
 
 const ALL_CASES = "__all";
 
@@ -43,9 +40,10 @@ async function responseError(response: Response, fallback: string) {
  * Existing Vault material selected as context for this conversation, inside the Artefatos panel.
  * It does not decide what the person is here to do: work is asked for in the conversation.
  */
-export function VaultContextSection({ context, onChange }: {
+export function VaultContextSection({ context, onChange, lockedCase = false }: {
   context: AgentContext;
   onChange: (context: AgentContext) => void;
+  lockedCase?: boolean;
 }) {
   const [documents, setDocuments] = useState<VaultDocumentSummary[]>([]);
   const [cases, setCases] = useState<Array<{ id: string; name: string }>>([]);
@@ -113,14 +111,14 @@ export function VaultContextSection({ context, onChange }: {
     const selected = context.documentIds.includes(id);
     const next = selected ? context.documentIds.filter((value) => value !== id) : [...context.documentIds, id];
     const caseId = selected ? context.caseId : documents.find((document) => document.id === id)?.caseId ?? context.caseId;
-    onChange({ caseId: caseId ?? null, documentIds: next, researchReferenceIds: caseId === context.caseId ? context.researchReferenceIds : [] });
+    onChange({ caseId: caseId ?? null, caseLabel: cases.find(item => item.id === caseId)?.name, documentIds: next, researchReferenceIds: caseId === context.caseId ? context.researchReferenceIds : [] });
   }
 
   function selectCase(value: string) {
     setCaseFilter(value);
     setReferences([]);
     const next = value === ALL_CASES ? null : value;
-    onChange({ ...context, caseId: next, documentIds: next === context.caseId ? context.documentIds : [], researchReferenceIds: next === context.caseId ? context.researchReferenceIds : [] });
+    onChange({ ...context, caseId: next, caseLabel: cases.find(item => item.id === next)?.name, documentIds: next === context.caseId ? context.documentIds : [], researchReferenceIds: next === context.caseId ? context.researchReferenceIds : [] });
   }
 
   function toggleReference(id: string) {
@@ -132,10 +130,10 @@ export function VaultContextSection({ context, onChange }: {
 
   return (
     <section aria-labelledby="vault-context-title" className="min-w-0 border-t pt-5 [&>*]:min-w-0">
-        <h3 id="vault-context-title" className="text-sm font-medium">Do Cofre nesta conversa</h3>
+        <h3 id="vault-context-title" className="text-sm font-medium">Do Cofre no próximo pedido</h3>
         {attached.length === 0 && context.researchReferenceIds.length === 0 && (
           <p className="py-3 text-sm text-subtle-foreground">
-            {context.caseId ? 'O Lume pode consultar os arquivos deste caso. Escolha arquivos ou referências para limitar o contexto da conversa.' : 'Nenhum arquivo do Cofre selecionado. O Lume ainda pode procurar no Cofre; escolha arquivos ou referências para esta conversa.'}
+            {context.caseId ? 'O Lume pode consultar os arquivos deste caso. Escolha arquivos ou referências para limitar o contexto do próximo pedido.' : 'Nenhum arquivo do Cofre selecionado. O Lume ainda pode procurar no Cofre; escolha arquivos ou referências para o próximo pedido.'}
           </p>
         )}
         {attached.map((document) => (
@@ -159,7 +157,7 @@ export function VaultContextSection({ context, onChange }: {
           <div className="flex min-w-0 flex-col gap-3">
             <div className="flex min-w-0 flex-col gap-1.5">
               <Label htmlFor="sources-case">Caso</Label>
-              <Select value={caseFilter} onValueChange={selectCase}>
+              <Select value={caseFilter} onValueChange={selectCase} disabled={lockedCase}>
                 <SelectTrigger id="sources-case" className="w-full max-w-full overflow-hidden [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate">
                   <SelectValue />
                 </SelectTrigger>

@@ -6,7 +6,8 @@ import { describe } from '@e2e-dev/web';
 import { test, overflowsHorizontally } from './support/fixtures';
 import { ApiSession, uniqueAccount } from './support/accounts';
 import { signInWithSession } from './support/sign-in';
-import type { AssignmentOverview, AssignmentView } from '../src/lib/ai-assignments-core';
+import type { AssignmentOverview } from '../src/lib/ai-assignments-core';
+import { preserveModelAssignment } from './support/seed';
 
 async function administrator(baseUrl: string) {
   const account = uniqueAccount('Proxy admin');
@@ -15,34 +16,12 @@ async function administrator(baseUrl: string) {
   return api;
 }
 
-function savedAssignment(assignment: AssignmentView) {
-  return {
-    model: assignment?.model.mode === 'explicit'
-      ? { mode: 'explicit', connectionId: assignment.model.connectionId, modelId: assignment.model.modelId }
-      : { mode: assignment?.model.mode ?? 'inherit' },
-    effort: assignment?.effort.mode === 'explicit'
-      ? { mode: 'explicit', value: assignment.effort.value }
-      : { mode: assignment?.effort.mode ?? 'inherit' },
-  };
-}
-
-async function restoreSummary(api: ApiSession, previous: AssignmentView) {
-  const saved = savedAssignment(previous);
-  const put = (assignment: typeof saved) => api.request('/api/platform/ai/assignments', { method: 'PUT', json: { scope: 'group', target: 'summary', ...assignment } });
-  const response = await put(saved);
-  if (response.ok) return;
-  // The seed gives this group an explicit effort over an inherited model, which the API refuses while
-  // no model is available (a fresh database has none); the effort then goes back to inherited too.
-  if (response.status === 400 && saved.effort.mode === 'explicit' && (await put({ ...saved, effort: { mode: 'inherit' } })).ok) return;
-  throw new Error(`Restaurar o grupo Resumo e texto curto: HTTP ${response.status} ${await response.text()}`);
-}
-
 describe('seleção do CLIProxyAPI', { serial: true }, () => {
 for (const width of [1280, 390]) {
   test(`administra CLIProxyAPI e escolhe uma tarefa pelo teclado em ${width}px`, async ({ app, browser, screen, sql }) => {
     const api = await administrator(app.baseUrl!);
     const before = await api.json<AssignmentOverview>('/api/platform/ai/assignments');
-    const previous = before.groups.find(group => group.key === 'summary')!.assignment;
+    const restoreAssignment = await preserveModelAssignment('group', 'summary');
     const name = `Proxy de teste ${width} ${Date.now()}`;
     let connectionId: string | undefined;
     await browser.setViewport({ width, height: 844 });
@@ -58,13 +37,15 @@ for (const width of [1280, 390]) {
       await expect(screen.getByText('O CLIProxyAPI responde pelo endereço fixo do Lume', { exact: false }).first()).toBeVisible();
       await creation.getByLabel('Chave da API').fill('synthetic-e2e-key-not-a-credential');
       await screen.getByRole('button', 'Criar conexão').tap();
-      await expect(screen.getByRole('table', 'Conexões').getByRole('cell', name)).toBeVisible();
+      await expect(screen.getByRole('heading', name)).toBeVisible();
       const overview = await api.json<AssignmentOverview>('/api/platform/ai/assignments');
       connectionId = overview.connections.find(connection => connection.name === name)!.id;
-      expect(overview.groups.find(group => group.key === 'agent')!.plan).toEqual(before.groups.find(group => group.key === 'agent')!.plan);
-      // Each task's row names its group; the group's settings open in a dialog.
-      await screen.getByRole('button', 'Editar o grupo Resumo e texto curto').first().tap();
-      const group = screen.getByRole('dialog', 'Grupo Resumo e texto curto');
+      const agentPlan = overview.groups.find(group => group.key === 'agent')!.plan;
+      const previousAgentPlan = before.groups.find(group => group.key === 'agent')!.plan;
+      if (previousAgentPlan.status === 'unconfigured') expect(agentPlan.status).toBe('unconfigured');
+      else expect(agentPlan).toEqual(previousAgentPlan);
+      const group = screen.getByRole('article').filter({ has: screen.getByRole('heading', 'Resumo e texto curto') });
+      await group.getByRole('button', 'Editar').first().tap();
       await group.getByRole('combobox', 'Modelo').tap();
       await screen.getByRole('option', 'Escolher conexão e modelo').tap();
       await group.getByRole('combobox', 'Conexão').tap();
@@ -73,19 +54,15 @@ for (const width of [1280, 390]) {
       await screen.getByRole('option', 'gpt-6-luna').tap();
       await group.getByRole('button', 'Salvar').focus();
       await browser.keyboard.press('Enter');
-      await expect(group).toBeHidden();
+      await expect(group.getByRole('button', 'Salvar')).toBeHidden();
       await browser.reload();
-      // A task of that group now runs on the new connection and model.
-      const row = screen.getByRole('row').filter({ hasText: 'Panorama de e-mails' });
-      await expect(row).toContainText(name);
-      await expect(row).toContainText('gpt-6-luna');
+      await expect(group).toContainText(name);
+      await expect(group).toContainText('gpt-6-luna');
       expect(await sql('SELECT c.provider,a.model_id FROM ai_model_assignment a JOIN ai_connection c ON c.id=a.connection_id WHERE a.scope=$1 AND a.target=$2', ['group', 'summary'])).toEqual([{ provider: 'cliproxyapi', model_id: 'gpt-6-luna' }]);
       expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
       await app.screenshot(`proxy-selection-${width}`);
     } finally {
-      await restoreSummary(api, previous);
-      // A run that stopped before reading the id still removes its connection.
-      connectionId ??= (await api.json<AssignmentOverview>('/api/platform/ai/assignments')).connections.find(connection => connection.name === name)?.id;
+      await restoreAssignment();
       if (connectionId) expect((await api.request(`/api/platform/ai/connections/${connectionId}`, { method: 'DELETE' })).status).toBe(204);
     }
   });
@@ -101,8 +78,7 @@ test('novo usuário conversa pelo proxy, recarrega o histórico e mantém isolam
     : process.env.K5_E2E_CLIPROXYAPI_KEY?.trim();
   if (!apiKey) throw new Error('Configure K5_E2E_CLIPROXYAPI_KEY_FILE ou K5_E2E_CLIPROXYAPI_KEY no processo do teste.');
   const api = await administrator(app.baseUrl!);
-  const before = await api.json<AssignmentOverview>('/api/platform/ai/assignments');
-  const previous = before.tasks.find(task => task.key === 'agent.chat')!.assignment;
+  const restoreAssignment = await preserveModelAssignment('task', 'agent.chat');
   const created = await api.request('/api/platform/ai/connections', { json: { name: `Proxy real ${Date.now()}`, provider: 'cliproxyapi', apiKey } });
   expect(created.status).toBe(201);
   const { connection } = await created.json();
@@ -114,7 +90,7 @@ test('novo usuário conversa pelo proxy, recarrega o histórico e mantém isolam
     const { conversation } = await user.json<{ conversation: { id: string } }>('/api/conversations', { json: {} });
     await app.open(`/app/agents?conversationId=${conversation.id}`);
     const marker = `MARCADOR-${Date.now()}`;
-    await screen.getByPlaceholder('Peça algo ao Lume').fill(`Responda apenas com ${marker}.`);
+    await screen.getByPlaceholder('Pergunte ao Lume').fill(`Responda apenas com ${marker}.`);
     await screen.getByRole('button', 'Enviar mensagem').tap();
     await expect.poll(async () => {
       const detail = await user.json<{ messages: Array<{ role: string; parts: Array<{ type: string; text?: string }> }> }>(`/api/conversations/${conversation.id}`);
@@ -127,7 +103,7 @@ test('novo usuário conversa pelo proxy, recarrega o histórico e mantém isolam
     expect((await other.request(`/api/conversations/${conversation.id}`)).status).toBe(404);
     await app.screenshot('proxy-history-reloaded');
   } finally {
-    await api.json('/api/platform/ai/assignments', { method: 'PUT', json: { scope: 'task', target: 'agent.chat', ...savedAssignment(previous) } });
+    await restoreAssignment();
     expect((await api.request(`/api/platform/ai/connections/${connection.id}`, { method: 'DELETE' })).status).toBe(204);
   }
 });

@@ -98,7 +98,7 @@ export async function listMembers(context: WorkspaceContext) {
 }
 
 export async function getActivity(context: WorkspaceContext, input: Input<'k5_agenda_get_activity'>) {
-  const row = await database.prepare(`SELECT ${activityColumns} FROM agenda_activity WHERE office_id=? AND id=?`).get(context.officeId, input.activityId);
+  const row = await database.prepare(`SELECT ${activityColumns} FROM agenda_activity WHERE office_id=? AND id=? AND visibility='personal'`).get(context.officeId, input.activityId);
   if (!row) throw missing();
   const delegation = await database.prepare('SELECT conversation_id FROM agenda_delegation WHERE activity_id=? AND office_id=? AND user_id=?').get<{ conversation_id: string }>(input.activityId, context.officeId, context.userId);
   return { activity: activityDto.parse({ ...row, ...(delegation ? { agentConversationId: delegation.conversation_id } : {}) }) };
@@ -107,7 +107,7 @@ export async function getActivity(context: WorkspaceContext, input: Input<'k5_ag
 export async function listActivities(context: WorkspaceContext, input: Input<'k5_agenda_list_activities'>) {
   input = { ...input, from: input.from ? new Date(input.from).toISOString() : undefined, to: input.to ? new Date(input.to).toISOString() : undefined };
   if ((input.from && input.to && input.from >= input.to) || (input.dueFrom && input.dueTo && input.dueFrom > input.dueTo)) throw new CapabilityError('INVALID', 'O fim do período deve ser posterior ao início.');
-  const where = ['office_id=?'];
+  const where = ["office_id=?", "visibility='personal'"];
   const params: unknown[] = [context.officeId];
   for (const [field, value] of [['kind', input.kind], ['status', input.status], ['client_id', input.clientId], ['case_id', input.caseId], ['assignee_id', input.assigneeId]] as const) {
     if (value) { where.push(`${field}=?`); params.push(value); }
@@ -181,7 +181,7 @@ export async function updateActivity(context: WorkspaceContext, input: Input<'k5
     },
     createdAt: now,
   })] : [];
-  const result = await commitActivity(context, input.activityId, token, database.prepare('UPDATE agenda_activity SET kind=?,title=?,notes=?,status=?,due_on=?,starts_at=?,ends_at=?,client_id=?,case_id=?,assignee_id=?,version=version+1,updated_at=?,mutation_token=? WHERE id=? AND office_id=? AND version=?')
+  const result = await commitActivity(context, input.activityId, token, database.prepare(`UPDATE agenda_activity SET kind=?,title=?,notes=?,status=?,due_on=?,starts_at=?,ends_at=?,client_id=?,case_id=?,assignee_id=?,version=version+1,updated_at=?,mutation_token=? WHERE id=? AND office_id=? AND visibility='personal' AND version=?`)
     .bind(value.kind, value.title, value.notes, value.status, value.dueOn, value.startsAt, value.endsAt, value.clientId, value.caseId, value.assigneeId, now, token, input.activityId, context.officeId, input.version), events);
   if (!result.changes) throw conflict();
   return getActivity(context, input);

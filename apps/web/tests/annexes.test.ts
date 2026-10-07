@@ -1,4 +1,5 @@
 import { testDb } from './test-setup';
+import { personPolicy } from '../src/lib/content-policy';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
@@ -23,8 +24,8 @@ async function scannedPdf(owner: { officeId: string; userId: string; caseId: str
   const id = randomUUID();
   const key = storageKey(owner.officeId, id, 'pdf');
   await (await objectStorage()).put(key, bytes);
-  const document = await createVaultDocument(owner.officeId, owner.userId, { id, storageKey: key, originalName: 'digitalizado.pdf', mimeType: 'application/pdf',
-    byteSize: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }, { scope: 'case', caseId: owner.caseId });
+  const document = await createVaultDocument(owner, { id, storageKey: key, originalName: 'digitalizado.pdf', mimeType: 'application/pdf',
+    byteSize: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }, { scope: 'case', caseId: owner.caseId, policy: personPolicy('', '') });
   await testDb.prepare('UPDATE vault_document SET status=? WHERE id=?').run(status, document.id);
   return document.id;
 }

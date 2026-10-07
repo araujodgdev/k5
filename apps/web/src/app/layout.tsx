@@ -5,8 +5,6 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PwaProvider } from "@/components/pwa-provider";
-import { navCollapseScript } from "@/lib/nav-collapse";
-import { panelScript } from "@/lib/canvas-shell/panel";
 import { agentHistoryScript } from "@/lib/agent-history";
 import { BootScript } from "@/components/boot-script";
 
@@ -34,5 +32,5 @@ export const viewport: Viewport = { viewportFit: "cover", interactiveWidget: "re
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   // Google requires this tag in the initial head; vinext can stream route metadata into the body.
-  return <html lang="pt-BR" suppressHydrationWarning className={cn(sans.variable, mono.variable, "font-sans")}><head><meta name="google-site-verification" content="Umr2r9jGskbTkLGQ_gjOAdXTr80xWnyk8_4TIO9iWnE" /><BootScript code={agentHistoryScript + navCollapseScript + panelScript} /></head><body><ThemeProvider><PwaProvider>{children}</PwaProvider></ThemeProvider></body></html>;
+  return <html lang="pt-BR" suppressHydrationWarning className={cn(sans.variable, mono.variable, "font-sans")}><head><meta name="google-site-verification" content="Umr2r9jGskbTkLGQ_gjOAdXTr80xWnyk8_4TIO9iWnE" /><BootScript code={agentHistoryScript} /></head><body><ThemeProvider><PwaProvider>{children}</PwaProvider></ThemeProvider></body></html>;
 }

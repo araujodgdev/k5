@@ -2,7 +2,9 @@ import { testDb } from './test-setup';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { z } from 'zod';
-import { googleFixture, installFakeGoogle, respond } from './google-fixture';
+import { randomUUID } from 'node:crypto';
+import { getDraft, saveDraft, sendMail } from '../src/lib/google/gmail/service';
+import { googleFixture, installFakeGoogle, respond, setRule } from './google-fixture';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
 import { connectionView, saveConnection } from '../src/lib/typesafe/config';
 import type { DecisionRequest, DecisionTransport } from '../src/lib/typesafe/client';
@@ -182,7 +184,7 @@ test('email digest cache: reuses unchanged content and sends only changes plus t
   await assert.rejects(emailInsight(a.context, { kind: 'digest', period: 'week' }, options), { code: 'FORBIDDEN' });
 });
 
-test('thread cache: read labels do not regenerate, new messages use the old overview, roles stay isolated', async () => {
+test('thread cache: read labels do not regenerate, new replies use original messages, roles stay isolated', async () => {
   const a = await setup('off');
   const calls: Call[] = [];
   const options = { generate: writer({ overview: 'Resumo anterior.', points: [], replies: [{ intent: 'confirm', label: 'Confirmar', body: 'Recebido.' }] }, calls) };
@@ -199,8 +201,8 @@ test('thread cache: read labels do not regenerate, new messages use the old over
   assert.equal(calls.length, 1);
   extra = true;
   await emailInsight(a.context, { kind: 'thread', threadId: 't1' }, options);
-  assert.equal(calls.length, 2); assert.match(calls[1].prompt, /Resumo anterior/);
-  assert.match(calls[1].prompt, /Documentos enviados agora/); assert.doesNotMatch(calls[1].prompt, /Pode confirmar o envio até sexta/);
+  assert.equal(calls.length, 2); assert.doesNotMatch(calls[1].prompt, /Resumo anterior/);
+  assert.match(calls[1].prompt, /Documentos enviados agora/); assert.match(calls[1].prompt, /Pode confirmar o envio até sexta/);
   await testDb.prepare("DELETE FROM office_member WHERE office_id=? AND user_id=?").run(a.officeId, a.userId);
   await assert.rejects(emailInsight(a.context, { kind: 'thread', threadId: 't1' }, options), { code: 'FORBIDDEN' });
   assert.equal(calls.length, 2);
@@ -221,4 +223,89 @@ test('email cache: concurrent requests do not duplicate generation; failures rel
   const calls: Call[] = [];
   await emailInsight(a.context, { kind: 'digest', period: 'week' }, { generate: writer({ headline: 'Recuperado.', attention: [], themes: [] }, calls) });
   assert.equal(calls.length, 1);
+});
+
+test('an offered reply keeps its server seed across edits and omitted seed IDs, and cannot move to a new recipient', async () => {
+  const f = await setup('off');
+  const result = await emailInsight(f.context, { kind: 'thread', threadId: 't1' }, {
+    generate: writer({ overview: 'Resumo', points: [], replies: [{ intent: 'confirm', label: 'Confirmar', body: 'Recebido.' }] }, []),
+  });
+  assert.ok('insight' in result);
+  const reply = result.insight.replies[0];
+  assert.ok(reply.seedId);
+  await setRule(f.officeId, 'gmail.send', { mode: 'automatic' });
+  f.google.on('GET', /\/users\/me\/messages\/t1-m1$/, () => respond(200, {
+    id: 't1-m1', threadId: 't1', payload: { headers: [{ name: 'Subject', value: 'Prazo da contestação' }, { name: 'Message-ID', value: '<t1@example.test>' }] },
+  }));
+  f.google.on('POST', /\/users\/me\/messages\/send$/, () => respond(200, { id: 'sent', threadId: 't1' }));
+  const input = { to: ['cliente@example.test'], cc: [], bcc: [], subject: 'Re: Prazo da contestação',
+    body: reply.body + ' Obrigada.', replyToMessageId: 't1-m1', attachments: [], idempotencyKey: randomUUID() };
+  assert.equal((await sendMail(f.context, { ...input, seedId: reply.seedId })).operation.status, 'succeeded');
+  await assert.rejects(sendMail(f.context, { ...input, composeId: reply.seedId, to: ['outra@example.test'], idempotencyKey: randomUUID() }), { code: 'FORBIDDEN' });
+  assert.equal(f.google.count('POST', /\/messages\/send$/), 1);
+});
+
+test('changed thread audiences and saved compose lineage survive reopen, edits, omitted metadata and retry', async () => {
+  const f = await setup('off');
+  f.google.on('GET', /\/users\/me\/threads\/t1$/, () => respond(200, { id: 't1', messages: [
+    { id: 'broad', payload: { mimeType: 'text/plain', headers: [{ name: 'Subject', value: 'Contrato' },
+      { name: 'From', value: 'cliente@example.test' }, { name: 'To', value: 'me@example.test, antigo@example.test' }], body: { data: b64('Mensagem ampla.') } } },
+    { id: 'private', payload: { mimeType: 'text/plain', headers: [{ name: 'Subject', value: 'Contrato' },
+      { name: 'From', value: 'cliente@example.test' }, { name: 'To', value: 'me@example.test' }], body: { data: b64('PRIVATE_LATER_SENTINEL') } } },
+  ] }));
+  const calls: Call[] = [];
+  const result = await emailInsight(f.context, { kind: 'thread', threadId: 't1' }, { generate: writer({
+    overview: 'Resumo', points: [], replies: [{ intent: 'confirm', label: 'Confirmar', body: 'PRIVATE_LATER_SENTINEL recebido.' }],
+  }, calls) });
+  assert.ok('insight' in result);
+  assert.match(calls[0].prompt, /PRIVATE_LATER_SENTINEL/);
+  const seedId = result.insight.replies[0].seedId!;
+  const seed = await testDb.prepare('SELECT scope FROM content_seed WHERE id=?').get<{ scope: { recipients: string[]; messageIds: string[] } }>(seedId);
+  assert.deepEqual(seed?.scope.messageIds, ['broad', 'private']);
+  assert.ok(!seed?.scope.recipients.includes('antigo@example.test'));
+  await setRule(f.officeId, 'gmail.send', { mode: 'automatic' });
+  await setRule(f.officeId, 'gmail.draft', { mode: 'automatic' });
+  f.google.on('GET', /\/users\/me\/messages\/private$/, () => respond(200, { id: 'private', threadId: 't1',
+    payload: { headers: [{ name: 'Subject', value: 'Contrato' }, { name: 'Message-ID', value: '<private@example.test>' }] } }));
+  const remoteDraft = { id: 'draft1', message: { id: 'draft-message', threadId: 't1', internalDate: '1790160000000',
+    payload: { mimeType: 'text/plain', headers: [{ name: 'Subject', value: 'Re: Contrato' }, { name: 'To', value: 'cliente@example.test' }],
+      body: { data: b64('PRIVATE_LATER_SENTINEL recebido.') } } } };
+  f.google.on('POST', /\/users\/me\/drafts$/, () => respond(200, remoteDraft));
+  f.google.failNetwork('POST', /\/users\/me\/drafts$/, request => {
+    const mime = Buffer.from((request.json() as { message: { raw: string } }).message.raw, 'base64url').toString();
+    remoteDraft.message.payload.headers.push({ name: 'Message-ID', value: /^Message-ID: (.+)$/m.exec(mime)![1].trim() });
+    return respond(200, remoteDraft);
+  });
+  let discoverable = false;
+  f.google.on('GET', /\/users\/me\/drafts$/, () => respond(200, { drafts: discoverable ? [{ id: 'draft1' }] : [] }));
+  f.google.on('GET', /\/users\/me\/drafts\/draft1$/, () => respond(200, remoteDraft));
+  f.google.on('POST', /\/users\/me\/drafts\/send$/, () => respond(200, { id: 'sent1', threadId: 't1' }));
+  f.google.on('POST', /\/users\/me\/messages\/send$/, () => respond(200, { id: 'typed', threadId: 't1' }));
+  const base = { to: ['cliente@example.test'], cc: [], bcc: [], subject: 'Re: Contrato', body: result.insight.replies[0].body,
+    replyToMessageId: 'private', attachments: [], composeId: seedId, idempotencyKey: randomUUID() };
+  const saved = await saveDraft(f.context, base);
+  assert.equal(saved.operation.status, 'unknown');
+  const reopened = await getDraft(f.context, { draftId: 'draft1' });
+  assert.equal(reopened.draft.composeId, seedId);
+  assert.equal(reopened.draft.replyToMessageId, 'private');
+  const edited = { draftId: 'draft1', to: ['antigo@example.test'], cc: [], bcc: [], subject: 'Re: Contrato',
+    body: `${reopened.draft.body} Editado.`, attachments: [], idempotencyKey: randomUUID() };
+  await assert.rejects(sendMail(f.context, edited), { code: 'FORBIDDEN' });
+  assert.equal(f.google.count('POST', /\/drafts\/send$/), 0);
+  discoverable = true;
+  const recovered = await saveDraft(f.context, base);
+  assert.equal(recovered.operation.status, 'succeeded');
+  assert.equal(recovered.draft?.composeId, seedId);
+  assert.equal(recovered.draft?.replyToMessageId, 'private');
+  const authorized = { ...edited, to: ['cliente@example.test'], idempotencyKey: randomUUID() };
+  assert.equal((await sendMail(f.context, authorized)).operation.status, 'succeeded');
+  assert.equal((await sendMail(f.context, authorized)).messageId, 'sent1');
+  assert.equal(f.google.count('POST', /\/drafts\/send$/), 1);
+  const sent = f.google.calls.find(call => call.method === 'POST' && /\/drafts\/send$/.test(call.path))!;
+  const mime = Buffer.from((sent.json() as { message: { raw: string } }).message.raw, 'base64url').toString();
+  assert.match(Buffer.from(mime.split('\r\n\r\n')[1].trim(), 'base64').toString(), /PRIVATE_LATER_SENTINEL/);
+  await testDb.prepare('UPDATE google_connection SET authorization_generation=authorization_generation+1 WHERE id=?').run(f.connectionId);
+  await assert.rejects(sendMail(f.context, { ...authorized, idempotencyKey: randomUUID() }), { code: 'FORBIDDEN' });
+  assert.equal((await sendMail(f.context, { to: ['antigo@example.test'], subject: 'Re: Contrato', body: 'Resposta digitada independente.',
+    replyToMessageId: 'private', cc: [], bcc: [], attachments: [], idempotencyKey: randomUUID() })).operation.status, 'succeeded');
 });

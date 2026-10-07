@@ -47,9 +47,7 @@ test('arquivos antigos do Cofre são alcançáveis e falhas de paginação se re
   }
   await expect(screen.getByRole('link', 'Baixar Arquivo 201')).toBeVisible();
   await expect(pages.getByRole('button', 'Próxima')).toBeDisabled();
-  // Deleting is an action of the file's menu.
-  await screen.getByRole('button', 'Mais opções de Arquivo 201').tap();
-  await screen.getByRole('menuitem', 'Excluir').tap();
+  await screen.getByRole('button', 'Excluir Arquivo 201').tap();
   await screen.getByRole('button', 'Excluir documento').tap();
   await expect(pages).toContainText('151–200 de 200 arquivos');
   await expect(screen.getByRole('link', 'Baixar Arquivo 200')).toBeVisible();

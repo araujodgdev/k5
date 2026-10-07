@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { Lock } from "lucide-react";
 import { AdminTabs } from "@/components/admin-tabs";
-import { AdminLumeStrip } from "@/components/admin/admin-lume-strip";
 import { CanvasHeader, CanvasPage } from "@/components/canvas/canvas-page";
 import { requirePlatformPage } from "@/lib/platform";
 
@@ -15,7 +14,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <CanvasHeader title="Administração" eyebrow={
         <span className="flex items-center gap-1.5"><Lock aria-hidden className="size-3.5 shrink-0" />Só administradores da plataforma veem esta área</span>
       } />
-      <AdminLumeStrip />
       <AdminTabs newTickets={fresh?.total ?? 0} />
       {children}
     </CanvasPage>

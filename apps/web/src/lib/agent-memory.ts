@@ -46,10 +46,21 @@ function schemaOf(pool: Pool) {
   return schema;
 }
 
-export async function agentMemory() {
+export async function agentMemory(onRead?: (memory: string) => Promise<void>) {
   const pool = await authStore();
   // disableInit: the tables come from the migration and the runtime role issues no DDL.
   const storage = new PostgresStore({ id: 'k5-memory', pool, schemaName: await schemaOf(pool), disableInit: true });
+  // Mastra's WorkingMemory processor reads storage directly, bypassing Memory.getWorkingMemory.
+  const memoryStore = await storage.getStore('memory');
+  if (onRead && memoryStore) {
+    const read = memoryStore.getResourceById.bind(memoryStore);
+    memoryStore.getResourceById = async input => {
+      const resource = await read(input);
+      const value = resource?.workingMemory?.trim();
+      if (value && value !== template.trim()) await onRead(value);
+      return resource;
+    };
+  }
   return new Memory({
     storage,
     options: {

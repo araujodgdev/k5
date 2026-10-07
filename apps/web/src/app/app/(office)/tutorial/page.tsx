@@ -6,7 +6,6 @@ import { isPlatformAdmin } from '@/lib/platform-core';
 import { CanvasHeader, CanvasPage, CanvasRow, CanvasSection, CanvasSectionLink } from '@/components/canvas/canvas-page';
 import { TutorialTrigger } from '@/components/onboarding-tour';
 import { sectionTab, sectionTabRow } from '@/components/section-tabs';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import { tutorialLibrary, tutorialDuration } from '@/lib/tutorial-library';
 import { tutorialNavigation } from '@/lib/navigation';
 
@@ -19,7 +18,6 @@ export default async function TutorialPage({ searchParams }: { searchParams: Pro
   const { modulo } = await searchParams;
   const selected = modulo ? modules.filter(module => module.id === modulo) : modules;
   return <CanvasPage className="md:gap-8">
-    <CanvasMeta title="Tutorial" subject={{ kind: 'module', slug: 'tutorial', title: 'Tutorial' }} />
     <div className="flex flex-col gap-4 md:gap-5">
       <CanvasHeader eyebrow="Vídeos curtos, com legendas em português" title="Tutoriais do Lume"
         actions={<TutorialTrigger className="h-11 w-auto rounded-sm border border-input text-foreground md:h-[34px] md:min-h-0" />} />

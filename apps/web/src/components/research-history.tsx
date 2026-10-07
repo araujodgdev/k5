@@ -1,6 +1,5 @@
 import { Scale, Search } from 'lucide-react';
 import { CanvasHeader, CanvasPage, CanvasRow } from '@/components/canvas/canvas-page';
-import { CanvasMeta } from '@/components/shell/shell-context';
 import type { SearchHistoryItem } from '@/lib/research/contracts';
 import { trademarkCountries, type TrademarkHistoryItem } from '@/lib/research/trademarks/contracts';
 import { NewResearchMenu } from './research-new-search';
@@ -47,7 +46,6 @@ export function ResearchHistory({ judgments, trademarks }: { judgments: readonly
   const rows = entries(judgments, trademarks);
   return (
     <CanvasPage className="md:gap-6">
-      <CanvasMeta title="Pesquisa" subject={{ kind: 'module', slug: 'research', title: 'Pesquisa' }} />
       <CanvasHeader eyebrow="Jurisprudência e marcas" title="Pesquisa" actions={<NewResearchMenu />} />
       {rows.length ? (
         <div role="list" aria-label="Pesquisas recentes" className="flex flex-col gap-0.5">

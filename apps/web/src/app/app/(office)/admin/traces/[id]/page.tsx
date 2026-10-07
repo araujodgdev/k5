@@ -7,7 +7,6 @@ import { elapsed } from "@/components/admin/admin-format";
 import { Pill } from "@/components/canvas/canvas-controls";
 import { Button } from "@/components/ui/button";
 import { AdminBlock, AdminBlockHead, AdminDetailHead, AdminFact, AdminFacts, AdminGrid, AdminNote, adminButton } from "@/components/admin/admin-blocks";
-import { AdminMeta } from "@/components/admin/admin-meta";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Execução · Administração" };
@@ -23,7 +22,6 @@ export default async function PlatformTracePage({ params }: PageProps<"/app/admi
   const { trace, events } = detail;
   const title = `Execução de ${dateFormat.format(new Date(trace.startedAt))}`;
   return <>
-    <AdminMeta title={title} />
     <AdminDetailHead back={{ href: "/app/admin/traces", label: "Voltar para execuções" }} title={title}
       sub={`${trace.officeName} · ${trace.userEmail}`}
       actions={trace.sentryTraceId && (

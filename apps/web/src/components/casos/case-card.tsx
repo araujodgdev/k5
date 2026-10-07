@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { CanvasLink } from "@/components/shell/canvas-link";
 import { cn } from "@/lib/utils";
 import { PeopleStack, type CasePerson } from "./people-stack";
 
@@ -26,9 +26,9 @@ export function CaseCard({ href, title, icon: Icon, client, summary, footer, peo
       "has-[[data-card-action]:focus-visible]:outline-2 has-[[data-card-action]:focus-visible]:outline-offset-2 has-[[data-card-action]:focus-visible]:outline-ring")}>
       <span className="flex min-w-0 items-center gap-2 border-b border-border px-3.5 py-3">
         <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-        <CanvasLink href={href} tab={title} data-card-action className={cn("min-w-0 flex-1 truncate text-sm font-medium outline-none after:absolute after:inset-0", menu && "max-md:pr-10")}>
+        <Link href={href} data-card-action className={cn("min-w-0 flex-1 truncate text-sm font-medium outline-none after:absolute after:inset-0", menu && "max-md:pr-10")}>
           {title}
-        </CanvasLink>
+        </Link>
       </span>
       <span className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden p-3.5 max-md:pb-1">
         {client && <span className="truncate text-[12.5px] font-medium">{client}</span>}

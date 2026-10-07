@@ -1,3 +1,4 @@
+import { fixtureSession } from './session-fixture';
 import { testDb } from './test-setup';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -13,7 +14,7 @@ async function actor(): Promise<WorkspaceContext> {
   (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?) ON CONFLICT DO NOTHING').run(officeId, 'Escritório de teste'));
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.invalid`, 'Pesquisador'));
   (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId));
-  return { officeId, userId };
+  return { officeId, userId, sessionId: await fixtureSession(userId) };
 }
 
 test('pesquisa publica operações autorizadas de leitura e escrita', async () => {

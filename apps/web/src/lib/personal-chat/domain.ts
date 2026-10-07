@@ -26,10 +26,10 @@ const documentShareBodyDto = z.strictObject({
   name: z.string().min(1).max(500),
   mimeType: z.string().min(1).max(255),
   version: z.number().int().positive(),
-  contentUrl: z.string().min(1),
+  contentUrl: z.string(),
   canRevoke: z.boolean(),
   state: z.enum(['active', 'pending_claim', 'revoked', 'unavailable']),
-});
+}).refine(body => body.contentUrl.length > 0 || body.state === 'revoked' || body.state === 'unavailable', { path:['contentUrl'], message:'O documento ativo precisa de um endereço.' });
 const caseInvitationBodyDto = z.strictObject({
   kind: z.literal('case_invitation'),
   invitationId: internalId,
@@ -122,8 +122,6 @@ export const documentPickDto = z.strictObject({
 });
 export const documentPickPageDto = z.strictObject({ documents: z.array(documentPickDto), nextCursor: cursor.nullable() });
 
-// A case is shared by including an associate as its participant, inside the case; Mensagens
-// shares single document versions. Old case invitations stay readable in the conversation.
 export const createShareInput = z.strictObject({
   kind: z.literal('document'), documentId: internalId, version: z.number().int().positive(),
   clientMessageId: internalId, idempotencyKey: internalId,
