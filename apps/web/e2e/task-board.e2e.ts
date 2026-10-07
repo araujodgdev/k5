@@ -90,6 +90,11 @@ test('o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e
     delegated.push((JSON.parse(route.request.postData ?? '{}') as { activityId: string }).activityId);
     return route.fulfill({ json: { conversationId: 'board-session', url: '/app/agents?conversationId=board-session' } });
   });
+  await browser.route('**/api/conversations/board-session', route => route.fulfill({ json: {
+    conversation: { id: 'board-session', title: 'Revisar contrato 2', updatedAt: new Date().toISOString() },
+    messages: [{ id: 'delegation-message', role: 'user', parts: [{ type: 'text', text: 'Prepare a tarefa Revisar contrato 2.' }] }],
+  } }));
+  await browser.route('**/api/chat/board-session/stream*', route => route.fulfill({ status: 204 }));
 
   await app.open('/app/agenda');
   await expect(screen.getByText('Carregando…')).toBeHidden();
@@ -127,7 +132,7 @@ test('o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e
   await browser.setViewport({ width: 390, height: 844 });
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
   await screen.getByLabel('Quadro de tarefas').getByRole('button', 'Delegar ao Lume').first().tap();
-  await browser.waitForURL(/\/app\/agents\?conversationId=board-session$/, { timeout: 60_000 });
+  await expect(screen.getByText('Prepare a tarefa Revisar contrato 2.', { exact: true })).toBeVisible();
   expect(delegated).toEqual(['board-1']);
 
   board.state = 'empty';

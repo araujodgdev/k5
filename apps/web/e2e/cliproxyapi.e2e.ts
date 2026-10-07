@@ -6,7 +6,8 @@ import { describe } from '@e2e-dev/web';
 import { test, overflowsHorizontally } from './support/fixtures';
 import { ApiSession, uniqueAccount } from './support/accounts';
 import { signInWithSession } from './support/sign-in';
-import type { AssignmentOverview, AssignmentView } from '../src/lib/ai-assignments-core';
+import type { AssignmentOverview } from '../src/lib/ai-assignments-core';
+import { preserveModelAssignment } from './support/seed';
 
 async function administrator(baseUrl: string) {
   const account = uniqueAccount('Proxy admin');
@@ -15,23 +16,12 @@ async function administrator(baseUrl: string) {
   return api;
 }
 
-function savedAssignment(assignment: AssignmentView) {
-  return {
-    model: assignment?.model.mode === 'explicit'
-      ? { mode: 'explicit', connectionId: assignment.model.connectionId, modelId: assignment.model.modelId }
-      : { mode: assignment?.model.mode ?? 'inherit' },
-    effort: assignment?.effort.mode === 'explicit'
-      ? { mode: 'explicit', value: assignment.effort.value }
-      : { mode: assignment?.effort.mode ?? 'inherit' },
-  };
-}
-
 describe('seleção do CLIProxyAPI', { serial: true }, () => {
 for (const width of [1280, 390]) {
   test(`administra CLIProxyAPI e escolhe uma tarefa pelo teclado em ${width}px`, async ({ app, browser, screen, sql }) => {
     const api = await administrator(app.baseUrl!);
     const before = await api.json<AssignmentOverview>('/api/platform/ai/assignments');
-    const previous = before.groups.find(group => group.key === 'summary')!.assignment;
+    const restoreAssignment = await preserveModelAssignment('group', 'summary');
     const name = `Proxy de teste ${width} ${Date.now()}`;
     let connectionId: string | undefined;
     await browser.setViewport({ width, height: 844 });
@@ -69,7 +59,7 @@ for (const width of [1280, 390]) {
       expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
       await app.screenshot(`proxy-selection-${width}`);
     } finally {
-      await api.json('/api/platform/ai/assignments', { method: 'PUT', json: { scope: 'group', target: 'summary', ...savedAssignment(previous) } });
+      await restoreAssignment();
       if (connectionId) expect((await api.request(`/api/platform/ai/connections/${connectionId}`, { method: 'DELETE' })).status).toBe(204);
     }
   });
@@ -85,8 +75,7 @@ test('novo usuário conversa pelo proxy, recarrega o histórico e mantém isolam
     : process.env.K5_E2E_CLIPROXYAPI_KEY?.trim();
   if (!apiKey) throw new Error('Configure K5_E2E_CLIPROXYAPI_KEY_FILE ou K5_E2E_CLIPROXYAPI_KEY no processo do teste.');
   const api = await administrator(app.baseUrl!);
-  const before = await api.json<AssignmentOverview>('/api/platform/ai/assignments');
-  const previous = before.tasks.find(task => task.key === 'agent.chat')!.assignment;
+  const restoreAssignment = await preserveModelAssignment('task', 'agent.chat');
   const created = await api.request('/api/platform/ai/connections', { json: { name: `Proxy real ${Date.now()}`, provider: 'cliproxyapi', apiKey } });
   expect(created.status).toBe(201);
   const { connection } = await created.json();
@@ -111,7 +100,7 @@ test('novo usuário conversa pelo proxy, recarrega o histórico e mantém isolam
     expect((await other.request(`/api/conversations/${conversation.id}`)).status).toBe(404);
     await app.screenshot('proxy-history-reloaded');
   } finally {
-    await api.json('/api/platform/ai/assignments', { method: 'PUT', json: { scope: 'task', target: 'agent.chat', ...savedAssignment(previous) } });
+    await restoreAssignment();
     expect((await api.request(`/api/platform/ai/connections/${connection.id}`, { method: 'DELETE' })).status).toBe(204);
   }
 });

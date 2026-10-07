@@ -16,6 +16,27 @@ async function owner(client: pg.Client, email: string) {
   return rows[0];
 }
 
+/** Restores even migrated assignments whose inherited model has no configured connection. */
+export async function preserveModelAssignment(scope: 'group' | 'task', target: string) {
+  const saved = await withClient(async client => (await client.query<{ row: Record<string, unknown> }>(
+    'SELECT row_to_json(a) AS row FROM ai_model_assignment a WHERE scope=$1 AND target=$2', [scope, target],
+  )).rows[0]?.row);
+  return () => withClient(async client => {
+    await client.query('BEGIN');
+    try {
+      await client.query('DELETE FROM ai_model_assignment WHERE scope=$1 AND target=$2', [scope, target]);
+      if (saved) await client.query(`INSERT INTO ai_model_assignment
+        (scope,target,model_mode,connection_id,model_id,effort_mode,reasoning_effort,updated_at,updated_by)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      ['scope', 'target', 'model_mode', 'connection_id', 'model_id', 'effort_mode', 'reasoning_effort', 'updated_at', 'updated_by'].map(key => saved[key]));
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  });
+}
+
 /** A Lume document owned by the account, as a finished draft run leaves it. */
 export function seedArtifact(email: string, title: string, content: string) {
   return withClient(async client => {
