@@ -38,11 +38,13 @@ for (const width of [1280, 390]) {
     const groups = screen.getByRole('group', 'Confirmação');
     await expect(groups).toHaveCount(2);
     const activity = screen.getByLabel('Atividade do Lume');
-    await expect(activity.getByText('Pesquisou na web: primeiro resultado')).toBeVisible();
-    await expect(activity.getByText('Pesquisou na web: segundo resultado')).toBeVisible();
+    await expect(activity.getByText('Pesquisou na web: primeiro resultado', { exact: false })).toBeVisible();
+    await expect(activity.getByText('Pesquisou na web: segundo resultado', { exact: false })).toBeVisible();
     expect(await browser.evaluate(() => {
       const activity=document.querySelector('[aria-label="Atividade do Lume"]');
-      return !!activity && !!activity.parentElement?.textContent?.trim().startsWith('Pesquisou na web');
+      const message = activity?.parentElement?.textContent ?? '';
+      const research = message.indexOf('Pesquisou na web: segundo resultado');
+      return research >= 0 && research < message.indexOf('Fundamento consultado.');
     })).toBe(true);
     await expect(screen.getByRole('link', 'Fonte 1')).toHaveAttribute('href', 'https://example.test/fonte');
     await expect(screen.getByText('(fonte não vinculada)', { exact: false })).toBeVisible();

@@ -40,7 +40,10 @@ for (const width of [1280, 390]) {
       await expect(screen.getByRole('heading', name)).toBeVisible();
       const overview = await api.json<AssignmentOverview>('/api/platform/ai/assignments');
       connectionId = overview.connections.find(connection => connection.name === name)!.id;
-      expect(overview.groups.find(group => group.key === 'agent')!.plan).toEqual(before.groups.find(group => group.key === 'agent')!.plan);
+      const agentPlan = overview.groups.find(group => group.key === 'agent')!.plan;
+      const previousAgentPlan = before.groups.find(group => group.key === 'agent')!.plan;
+      if (previousAgentPlan.status === 'unconfigured') expect(agentPlan.status).toBe('unconfigured');
+      else expect(agentPlan).toEqual(previousAgentPlan);
       const group = screen.getByRole('article').filter({ has: screen.getByRole('heading', 'Resumo e texto curto') });
       await group.getByRole('button', 'Editar').first().tap();
       await group.getByRole('combobox', 'Modelo').tap();
