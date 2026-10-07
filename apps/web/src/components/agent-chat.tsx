@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
 import { GoogleApprovalReview } from '@/components/google/client';
 import { PageApprovalReview } from '@/components/document/page-approval-review';
 import { useRouter } from 'next/navigation';
@@ -30,10 +29,10 @@ import {
   Camera,
   ExternalLink,
   Copy,
-  FileStack,
+
   FileText,
   PanelLeftClose,
-  SlidersHorizontal,
+
   PanelLeftOpen,
   Image as ImageIcon,
   LoaderCircle,
@@ -45,7 +44,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { AgentContext } from "@/components/agent-sources-panel";
-import dynamic from "next/dynamic";
+import { LumeMark } from "./lume-mark";
 import { readListOpen, subscribeListOpen, writeListOpen, serverListOpen } from "@/lib/agent-history";
 import { formatConversationTime } from "@/lib/conversation-time";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,13 +52,6 @@ import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { DOCUMENT_ACCEPT, IMAGE_ACCEPT, type Modalities } from "@/lib/ai-modalities";
 import { cn } from "@/lib/utils";
 import { ChatCamera } from './chat-camera';
@@ -74,9 +66,6 @@ import { applyApprovalDecisions, approvalDecision, type ApprovalDecision } from 
 import { citationMarkdown, webReference } from "@/lib/citations/web-references";
 
 const DOCUMENT_WRITES = new Set(["k5_artifacts_create", "k5_artifacts_edit", "k5_artifacts_update", "k5_artifacts_restore_version"]);
-const AgentArtifactsPanel = dynamic(() => import("./agent-artifacts-panel").then(module => module.AgentArtifactsPanel), {
-  loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Carregando artefatos…</p>,
-});
 type Conversation = { id: string; title: string; updatedAt: string };
 
 function unwrapConversations(value: unknown): Conversation[] {
@@ -683,7 +672,7 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
   </WorkingContext.Provider></ConversationIdContext.Provider>;
 }
 
-export function AgentChat({ identityKey, displayName = '', modalities = { image: false, audio: false } }: { identityKey: string; displayName?: string; modalities?: Modalities }) {
+export function AgentChat({ identityKey, displayName = '', modalities = { image: false, audio: false }, panelControls }: { identityKey: string; displayName?: string; modalities?: Modalities; panelControls: React.ReactNode }) {
   const { controller, openResource, conversationIntent } = useLumeWorkspace();
   const workspace = useLumeState();
   const router = useRouter();
@@ -698,16 +687,12 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
   const [error, setError] = useState('');
   const visibleCase = workspace.resource?.kind === 'case' || workspace.resource?.kind === 'file' ? workspace.resource.caseId : null;
   const context: AgentContext = { ...workspace.sources, caseId: visibleCase ?? workspace.sources.caseId };
-  const setContext = (sources: AgentContext) => controller.dispatch({ type: 'sources', sources });
-  const [contextOpen, setContextOpen] = useState(false);
-  const [contextHref, setContextHref] = useState(workspace.href);
   const listOpen = useSyncExternalStore(subscribeListOpen, readListOpen, serverListOpen);
   const [uploading, setUploading] = useState(0);
   const [draftFiles, setDraftFiles] = useState<Record<string, ChatAttachment[]>>({});
   const sendNavigation = useRef<{ conversationId: string; navigation: number } | undefined>(undefined);
   const intentId = useRef<string | null>(null);
   const [handledIntent, setHandledIntent] = useState(0);
-  if (contextHref !== workspace.href) { setContextHref(workspace.href); setContextOpen(false); }
   if (conversationIntent && conversationIntent.serial !== handledIntent) {
     setHandledIntent(conversationIntent.serial);
     setSelectedId(conversationIntent.id);
@@ -914,11 +899,12 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
     <UserNameContext value={displayName}><TooltipProvider>
       <DocumentLinksContext.Provider value={documentLinks}>
       <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden">
-        <header className="lume-conversation-tools flex shrink-0 items-center justify-between gap-1 px-3 pb-2">
-          <div className="flex min-w-0 items-center gap-2">
+        <header className="lume-panel-header lume-conversation-tools">
+          <LumeMark width={21} height={21} aria-hidden="true" /><span className="font-medium">Lume</span>
+          <div className="ml-auto flex min-w-0 items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button ref={historyToggle} variant="ghost" size="icon" className="-ml-2 size-11 text-muted-foreground md:ml-0 md:size-9" aria-label={listOpen ? "Ocultar conversas" : "Mostrar conversas"} aria-expanded={listOpen} aria-controls="agent-conversations" onClick={toggleList}>
+                <Button ref={historyToggle} variant="ghost" size="icon" className="lume-icon" aria-label={listOpen ? "Ocultar conversas" : "Mostrar conversas"} aria-expanded={listOpen} aria-controls="agent-conversations" onClick={toggleList}>
                   {listOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
                 </Button>
               </TooltipTrigger>
@@ -927,26 +913,11 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
             <h2 className="sr-only">Conversa privada</h2>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-11 md:size-9" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
+                <Button variant="ghost" size="icon" className="lume-icon" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
               </TooltipTrigger>
               <TooltipContent>Nova conversa</TooltipContent>
             </Tooltip>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Personalizar Lume"><Link href="/app/agents/settings"><SlidersHorizontal /></Link></Button>
-              </TooltipTrigger>
-              <TooltipContent>Personalizar Lume</TooltipContent>
-            </Tooltip>
-            <Sheet open={contextOpen} onOpenChange={setContextOpen}>
-              <SheetTrigger asChild><Button variant="ghost" size="icon" className="size-11 md:size-9" aria-label={selectedCount ? `Artefatos, ${selectedCount} fontes do Cofre` : "Artefatos"}><FileStack /></Button></SheetTrigger>
-              <SheetContent side="right" showCloseButton={false} className="min-w-0 overflow-x-hidden gap-0 bg-background sm:max-w-md">
-                <SheetHeader className="sr-only"><SheetTitle>Artefatos desta conversa</SheetTitle></SheetHeader>
-                {contextOpen && <AgentArtifactsPanel conversationId={selectedId} context={context} onChange={setContext} lockedCase={Boolean(visibleCase)}
-                  onOpenDocument={id => { setContextOpen(false); openDocument(id); }} onClose={() => setContextOpen(false)} />}
-              </SheetContent>
-            </Sheet>
+            {panelControls}
           </div>
         </header>
 

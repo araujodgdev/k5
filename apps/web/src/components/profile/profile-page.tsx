@@ -1,5 +1,7 @@
 'use client';
 
+import Link from "next/link";
+
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { CircleAlert } from 'lucide-react';
@@ -191,6 +193,13 @@ export function ProfilePage({ initial, deletion, emailConfirmation = false }: { 
       </section>
 
       <Access email={profile.email} emailConfirmation={emailConfirmation} onEmailChanged={email => { setProfile(current => ({ ...current, email })); router.refresh(); }} />
+      <section aria-labelledby="profile-lume" className="grid gap-6 border-y border-line py-8 lg:grid-cols-[16rem_1fr]" data-reveal>
+        <div className="grid content-start gap-3">
+          <SectionLabel><span id="profile-lume">Lume</span></SectionLabel>
+          <p className="text-sm text-muted-foreground">Suas regras, conhecimentos e modelo de Word para o assistente.</p>
+        </div>
+        <Button asChild variant="outline" className="justify-self-start"><Link href="/app/profile/lume">Personalizar Lume</Link></Button>
+      </section>
       <DataSection initial={deletion} />
     </Reveal>
   );

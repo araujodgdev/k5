@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CasePages } from "./case-pages";
+import { CaseArtifacts } from './case-artifacts';
 import { CaseSharing } from './case-sharing';
 import { useLumeWorkspace } from './lume/workspace-context';
 import { sectionTab } from './section-tabs';
@@ -26,12 +27,12 @@ import { FolderAccessDialog, FolderAccessFields, visibilityNote, type FolderAcce
 import type { VaultCase, VaultDocument, VaultFolder } from "@/lib/vault";
 
 type View = "cards" | "list";
-export type CaseSection = 'all' | 'pages' | 'files' | 'processes' | 'references' | 'annexes' | 'participants' | 'tasks' | 'honorarios' | 'activity';
+export type CaseSection = 'all' | 'pages' | 'files' | 'artifacts' | 'processes' | 'references' | 'annexes' | 'participants' | 'tasks' | 'honorarios' | 'activity';
 type Section = CaseSection;
 
 // View modes keep their joined borders and ink selection.
 const segment = "-mt-px -ml-px focus-visible:z-10 aria-pressed:bg-foreground aria-pressed:text-background";
-const sectionLabels: [Section, string][] = [['all', 'Tudo'], ['pages', 'Páginas'], ['files', 'Arquivos'], ['tasks', 'Tarefas'], ['honorarios', 'Honorários'], ['activity', 'Atividade']];
+const sectionLabels: [Section, string][] = [['all', 'Tudo'], ['pages', 'Páginas'], ['files', 'Arquivos'], ['artifacts', 'Artefatos'], ['tasks', 'Tarefas'], ['honorarios', 'Honorários'], ['activity', 'Atividade']];
 
 function countLabel(count: number) {
   return count === 1 ? "1 arquivo" : `${count} arquivos`;
@@ -226,6 +227,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
     <div className="mt-5 min-h-0 overflow-auto">
       {section === 'all' && <><CasePages key={`${vaultCase.id}:${folderId ?? 'root'}`} caseId={vaultCase.id} folderId={folderId} documents={documents} /><DocumentPagination {...pagination} /></>}
       {section === 'pages' && <CasePages caseId={vaultCase.id} folderId={folderId} />}
+      {section === 'artifacts' && <CaseArtifacts key={vaultCase.id} caseId={vaultCase.id} caseName={vaultCase.name} />}
       {section === 'tasks' && <CaseTasks key={vaultCase.id} caseId={vaultCase.id} selectedTask={initialTask} />}
       {section === 'honorarios' && <CaseHonorarios key={vaultCase.id} caseId={vaultCase.id} />}
       {section === 'activity' && <CaseRecentActivity key={vaultCase.id} caseId={vaultCase.id} />}

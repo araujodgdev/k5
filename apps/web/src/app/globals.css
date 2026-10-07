@@ -135,16 +135,6 @@
 @keyframes fade-in { from { opacity: 0; transform: translateY(16px); } }
 .fade-in { animation: fade-in 1s var(--ease) both; animation-delay: var(--delay, 0s); }
 
-/* "Traço": the mark's outline draws in a fine line, piece by piece, then each piece fills, the
-   beam last. The resting state is the filled mark, so it is simply there under reduced motion.
-   Paths carry pathLength="1" and --i (0 stem, 1 base, 2 beam). The line is in the mark's units
-   (--trace-width, of 24), because a non-scaling stroke ignores pathLength and would come out dashed. */
-@keyframes lume-trace-draw { from { stroke-dashoffset: 1; } }
-@keyframes lume-trace-fill { from { fill: transparent; stroke-width: var(--trace-width, .2px); } }
-.lume-trace path { stroke: currentColor; stroke-width: 0; stroke-dasharray: 1; fill: currentColor;
-  animation: lume-trace-draw 1.1s var(--ease-in-out) backwards, lume-trace-fill .7s var(--ease) backwards;
-  animation-delay: calc(var(--delay, 0s) + var(--i) * .15s), calc(var(--delay, 0s) + .9s + var(--i) * .15s); }
-
 /* Both panes exist in SSR. Geometry follows CSS and the preference restored in the head. */
 .agent-chat-history { display: none; }
 html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
@@ -330,58 +320,8 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   &:focus-visible::before { transform: scaleX(1); }
 }
 
-/* Opções inteligentes (src/components/smart-options.tsx): the peach Lume mark. On hover a band of
-   light crosses it from the bottom-left to the top-right and its three strokes trade places,
-   forming a mirrored mark and a spark before settling back. The same motion shows while it works. */
-.smart-options {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-}
-.smart-options::after {
-  content: "";
-  position: absolute;
-  inset: -60%;
-  z-index: -1;
-  background: linear-gradient(45deg, transparent 40%, color-mix(in oklab, var(--module-lume) 40%, transparent) 50%, transparent 60%);
-  transform: translate(-45%, 45%);
-  opacity: 0;
-  pointer-events: none;
-}
-.smart-mark { overflow: visible; transition: filter .5s var(--ease); }
-.smart-mark path { transform-box: fill-box; transform-origin: center; transition: transform .6s var(--ease); }
-@keyframes smart-shine {
-  0% { transform: translate(-45%, 45%); opacity: 0; }
-  12% { opacity: 1; }
-  55% { transform: translate(45%, -45%); opacity: 1; }
-  56%, 100% { transform: translate(45%, -45%); opacity: 0; }
-}
-@keyframes smart-a {
-  0%, 12%, 91%, 100% { transform: none; }
-  25%, 45% { transform: translate(11px, 0); }
-  58%, 78% { transform: translate(5.5px, 1.25px); }
-}
-@keyframes smart-b {
-  0%, 12%, 91%, 100% { transform: none; }
-  25%, 45% { transform: translate(0, -12px); }
-  58%, 78% { transform: translate(-1.25px, -5.5px); }
-}
-@keyframes smart-c {
-  0%, 12%, 91%, 100% { transform: none; }
-  25%, 45% { transform: translate(-5px, 3.75px) rotate(90deg); }
-  58%, 78% { transform: translate(-3px, 2.75px) rotate(180deg); }
-}
-@media (hover: hover) {
-  .smart-options:hover::after { animation: smart-shine 2.4s var(--ease) infinite; }
-  .smart-options:hover .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-lume) 75%, transparent)); }
-  .smart-options:hover .smart-mark-a { animation: smart-a 3.6s var(--ease) infinite; }
-  .smart-options:hover .smart-mark-b { animation: smart-b 3.6s var(--ease) infinite; }
-  .smart-options:hover .smart-mark-c { animation: smart-c 3.6s var(--ease) infinite; }
-}
-.smart-options:focus-visible .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-lume) 75%, transparent)); }
-.smart-options[data-busy] .smart-mark-a { animation: smart-a 3.6s var(--ease) infinite; }
-.smart-options[data-busy] .smart-mark-b { animation: smart-b 3.6s var(--ease) infinite; }
-.smart-options[data-busy] .smart-mark-c { animation: smart-c 3.6s var(--ease) infinite; }
+.smart-options { position: relative; isolation: isolate; overflow: hidden; }
+.smart-mark { overflow: hidden; }
 
 /* The small square that leads a mono label or a list item. */
 @utility square-dot {
@@ -430,13 +370,6 @@ select[data-inline]:not([multiple], [size]) {
 }
 select[data-inline]:not([multiple], [size]):hover { border-color: var(--foreground); }
 select[data-inline]:not([multiple], [size]):focus-visible { border-color: var(--brand); }
-
-/* The feedback and notification panels open beside the menu, near the button that opened them,
-   and follow the menu's width. Plain CSS, like the sheet above, so it beats the dialog's centring utilities. */
-@media (min-width: 768px) {
-  .feedback-panel, .notification-panel { left: calc(15.5rem + .75rem); bottom: .75rem; }
-  html[data-nav="collapsed"] :is(.feedback-panel, .notification-panel) { left: calc(3.75rem + .75rem); }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

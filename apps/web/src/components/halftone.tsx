@@ -2,13 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { LumeMark } from './lume-mark';
 
 export type HalftoneMood = "idle" | "focus" | "submit" | "error";
 
 type Mark = { x: number; y: number; size: number };
 
-// The Lume symbol, the same paths as src/components/lume-mark.tsx, on its 24-unit grid.
-const MARK_PATHS = ["M5 4h3v10.5l-3 3V4Z", "m6.5 19 3-3H20v3H6.5Z", "m11 11.5 6.5-6.5L19 6.5 12.5 13 11 11.5Z"];
 // Ordered dithering: a 4×4 Bayer matrix turns a smooth value into a pattern of square pixels.
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + .5) / 16);
 
@@ -39,8 +38,8 @@ function colorWord(ctx: CanvasRenderingContext2D, value: string) {
 
 /**
  * A dithered field of square ink pixels drifting over paper, with the Lume mark cut out of it.
- * A grey mark is drawn in the field's own pixels; a peach mark is a vector laid over a paper
- * cut-out, so it stays sharp and draws itself in with the Traço (`.lume-trace` in globals.css).
+ * A grey mark is drawn in the field's own pixels; a peach mark uses the supplied logo's alpha
+ * mask over a paper cut-out so its edges stay sharp.
  * It leans toward the pointer; `mood` lets a form answer through it.
  * Decorative: aria-hidden, paused off screen, one still frame under reduced motion.
  */
@@ -49,7 +48,7 @@ export function Halftone({ className, mood = "idle", mark = null, markTone = "pa
   mood?: HalftoneMood;
   /** Where the mark sits, as fractions of the field: centre x, centre y and height. */
   mark?: Mark | null;
-  /** `panel`: grey pixels, where text sits over the field. `brand`: a peach vector with the Traço, where the mark stands alone. */
+  /** `panel`: grey pixels behind text. `brand`: the peach symbol where the mark stands alone. */
   markTone?: "panel" | "brand";
   seed?: number;
   /** CSS pixels per dither pixel. */
@@ -82,6 +81,7 @@ export function Halftone({ className, mood = "idle", mark = null, markTone = "pa
     let image: ImageData | null = null;
     let words: Uint32Array | null = null;
     let mask: Uint8Array | null = null;
+    const markImage = new Image();
     let palette = { ink: 0, paper: 0, panel: 0, brand: 0 };
     let darkPaper = false;
     const pointer = { x: .5, y: .5, tx: .5, ty: .5, lean: 0, target: 0 };
@@ -105,16 +105,13 @@ export function Halftone({ className, mood = "idle", mark = null, markTone = "pa
 
     const buildMask = () => {
       mask = null;
-      if (markX === undefined || markY === undefined || !markSize || !cols || !rows) return;
+      if (markX === undefined || markY === undefined || !markSize || !cols || !rows || !markImage.complete || !markImage.naturalWidth) return;
       const shape = document.createElement("canvas");
       shape.width = cols;
       shape.height = rows;
       const sctx = shape.getContext("2d", { willReadFrequently: true })!;
       const size = markSize * rows;
-      sctx.translate(markX * cols - size / 2, markY * rows - size / 2);
-      sctx.scale(size / 24, size / 24);
-      sctx.translate(-.5, .5); // the drawn symbol spans 5–20 × 4–19; this centres it
-      for (const d of MARK_PATHS) sctx.fill(new Path2D(d));
+      sctx.drawImage(markImage, 221, 216, 818, 818, markX * cols - size / 2, markY * rows - size / 2, size, size);
       const data = sctx.getImageData(0, 0, cols, rows).data;
       mask = new Uint8Array(cols * rows);
       for (let i = 0; i < mask.length; i++) mask[i] = data[i * 4 + 3] > 110 ? 1 : 0;
@@ -216,6 +213,8 @@ export function Halftone({ className, mood = "idle", mark = null, markTone = "pa
     const onVisibility = () => { if (document.hidden) stop(); else if (visible) start(); };
     const onMotion = () => { stop(); start(); };
 
+    markImage.onload = () => { buildMask(); draw(); };
+    markImage.src = '/lume-mark.png';
     readPalette();
     resize();
     draw();
@@ -236,6 +235,7 @@ export function Halftone({ className, mood = "idle", mark = null, markTone = "pa
 
     return () => {
       stop();
+      markImage.onload = null;
       redrawRef.current = () => {};
       sizeObserver.disconnect();
       viewObserver.disconnect();
@@ -250,12 +250,8 @@ export function Halftone({ className, mood = "idle", mark = null, markTone = "pa
     <div aria-hidden="true" className={cn("relative overflow-hidden bg-background", className)}>
       <canvas ref={canvasRef} className="halftone-canvas absolute inset-0 size-full" />
       {vector && mark && (
-        // Same placement as the cut-out: centred on (x, y), as tall as `size`; the viewBox offset
-        // matches the half-unit shift that centres the symbol in buildMask.
-        <svg viewBox=".5 -.5 24 24" className="lume-trace absolute aspect-square w-auto -translate-1/2 overflow-visible text-brand"
-          style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, height: `${mark.size * 100}%` }}>
-          {MARK_PATHS.map((d, i) => <path key={d} d={d} pathLength={1} style={{ "--i": i } as React.CSSProperties} />)}
-        </svg>
+        <LumeMark className="absolute aspect-square w-auto -translate-1/2 text-brand"
+          style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, height: `${mark.size * 100}%` }} />
       )}
     </div>
   );

@@ -1,0 +1,23 @@
+import { readFileSync, existsSync, mkdirSync, writeFileSync, createWriteStream } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+const require = createRequire(new URL('../apps/web/package.json', import.meta.url));
+const web=fileURLToPath(new URL('../apps/web',import.meta.url));
+const inventory=JSON.parse(readFileSync(new URL('./lume-provenance-files.json',import.meta.url),'utf8'));
+const files=Object.values(inventory.groups).flat() as string[];
+if(files.some(file=>!existsSync(join(web,file)))) throw Error('Inventory contains a missing file');
+const output=join(web,'.e2e/verify/20261006T234247-d88728',`source-static-${Date.now()}`);
+mkdirSync(output,{recursive:true});
+const args=[join(require.resolve('eslint/package.json'),'../bin/eslint.js'),...files.filter(file=>/\.tsx?$/.test(file))];
+const log=createWriteStream(join(output,'eslint.log'));
+const child=spawn(process.execPath,args,{cwd:web,windowsHide:true,stdio:['ignore','pipe','pipe']});
+child.stdout.on('data',bytes=>{log.write(bytes);process.stdout.write(bytes)});
+child.stderr.on('data',bytes=>{log.write(bytes);process.stderr.write(bytes)});
+const code=await new Promise(resolve=>child.on('exit',resolve));
+log.end();
+writeFileSync(join(output,'checks.json'),JSON.stringify({at:new Date().toISOString(),command:'pnpm --dir apps/web exec eslint <explicit inventory TS/TSX files>',files,exitCode:code},null,2));
+console.log(JSON.stringify({output,exitCode:code}));
+process.exitCode=Number(code);
+

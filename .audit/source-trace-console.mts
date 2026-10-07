@@ -1,0 +1,2 @@
+﻿import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';const require=createRequire(new URL('../apps/web/package.json',import.meta.url));const z=new(require('pizzip'))(readFileSync(process.argv[2]));
+for(const [n,v]of Object.entries(z.files)as[string,{asText():string}][]){if(!n.endsWith('.trace'))continue;for(const l of v.asText().split('\n').filter(Boolean)){const e=JSON.parse(l);if(e.type==='console'||e.type==='after'&&e.error)console.log(JSON.stringify({type:e.type,time:e.time??e.endTime,text:e.text??e.error?.message}));}}

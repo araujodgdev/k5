@@ -1,0 +1,10 @@
+{
+  "caseId": "ec35d415-b0f8-4452-9395-50dd8f0c5a57",
+  "scanId": "97015fac-b5af-41f3-b540-8805e30b4a5c",
+  "petitionId": "5ff9fe64-8194-4020-bf16-5c6cb30ef377",
+  "planId": "930873cd-60c3-43c8-9b3c-21c1f389357c",
+  "scanDocumentId": "97015fac-b5af-41f3-b540-8805e30b4a5c",
+  "providerAdmissions": 1,
+  "boundary": "External provider only; actual analyze owner and PostgreSQL plan",
+  "url": "http://localhost:62541/app/vault/cases/ec35d415-b0f8-4452-9395-50dd8f0c5a57?section=annexes"
+}

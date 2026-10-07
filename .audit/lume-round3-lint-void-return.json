@@ -1,0 +1,53 @@
+{
+  "at": "2026-10-07T10:48:20.011Z",
+  "violations": [
+    {
+      "path": "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\apps\\web\\scripts\\processor-server.ts",
+      "line": 59,
+      "message": "Promise returned in function argument where a void return was expected.",
+      "messageId": "voidReturnArgument"
+    },
+    {
+      "path": "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\apps\\web\\scripts\\processor-server.ts",
+      "line": 118,
+      "message": "Promise returned in function argument where a void return was expected.",
+      "messageId": "voidReturnArgument"
+    },
+    {
+      "path": "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\apps\\web\\src\\components\\document-verification.tsx",
+      "line": 20,
+      "message": "Promise returned in function argument where a void return was expected.",
+      "messageId": "voidReturnArgument"
+    },
+    {
+      "path": "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\apps\\web\\src\\components\\judicial-case-links.tsx",
+      "line": 273,
+      "message": "Promise returned in function argument where a void return was expected.",
+      "messageId": "voidReturnArgument"
+    },
+    {
+      "path": "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\apps\\web\\src\\components\\research-case-linker.tsx",
+      "line": 103,
+      "message": "Promise returned in function argument where a void return was expected.",
+      "messageId": "voidReturnArgument"
+    },
+    {
+      "path": "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\apps\\web\\src\\components\\research-case-references.tsx",
+      "line": 70,
+      "message": "Promise returned in function argument where a void return was expected.",
+      "messageId": "voidReturnArgument"
+    },
+    {
+      "path": "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\apps\\web\\src\\components\\research-reader.tsx",
+      "line": 71,
+      "message": "Promise returned in function argument where a void return was expected.",
+      "messageId": "voidReturnArgument"
+    },
+    {
+      "path": "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\apps\\web\\tests\\honcho-memory.test.ts",
+      "line": 17,
+      "message": "Promise returned in function argument where a void return was expected.",
+      "messageId": "voidReturnArgument"
+    }
+  ]
+}

@@ -1,0 +1,1074 @@
+{
+  "purpose": "Bounded call-site census of the reported policy/context/version handoffs, not a completeness or vulnerability scanner.",
+  "rows": [
+    {
+      "owner": "capability replay",
+      "paths": [
+        {
+          "path": "apps/web/src/lib/agent-tools/index.ts",
+          "sites": [
+            {
+              "line": 3,
+              "text": "import { recordToolProvenance } from '@/lib/case-pages/provenance';"
+            },
+            {
+              "line": 251,
+              "text": "import { withIdempotency } from '@/lib/application/idempotency-service';"
+            },
+            {
+              "line": 252,
+              "text": "import { captureCapabilityReplay, replayCapabilityResult } from '@/lib/application/capability-replay';"
+            },
+            {
+              "line": 253,
+              "text": "import { capabilityIdempotency } from '@/lib/capabilities/contracts';"
+            },
+            {
+              "line": 294,
+              "text": "const key = typeof input.idempotencyKey === 'string' ? input.idempotencyKey : undefined;"
+            },
+            {
+              "line": 297,
+              "text": "const result = capability.effect === 'write' && key && capabilityIdempotency[capability.module] === 'cache'"
+            },
+            {
+              "line": 298,
+              "text": "? await withIdempotency(authorized, name, key, input, execute,"
+            },
+            {
+              "line": 299,
+              "text": "result => captureCapabilityReplay(authorized, capability, result),"
+            },
+            {
+              "line": 300,
+              "text": "(result, binding) => replayCapabilityResult(authorized, result, binding)) : await execute();"
+            },
+            {
+              "line": 304,
+              "text": "await recordToolProvenance(authorized, name, input, returned);"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/application/idempotency-service.ts",
+          "sites": [
+            {
+              "line": 15,
+              "text": ".filter(([key, item]) => item !== undefined && key !== 'idempotencyKey')"
+            },
+            {
+              "line": 31,
+              "text": "export async function withIdempotency<T>("
+            },
+            {
+              "line": 34,
+              "text": "idempotencyKey: string | undefined,"
+            },
+            {
+              "line": 40,
+              "text": "if (!idempotencyKey) return execute();"
+            },
+            {
+              "line": 43,
+              "text": "const scopedKey = `${context.userId}:${idempotencyKey}`;"
+            },
+            {
+              "line": 52,
+              "text": "const existing = await database.prepare(`SELECT capability_name,input_hash,state,response_payload,replay_binding"
+            },
+            {
+              "line": 54,
+              "text": ".get<{ capability_name: string; input_hash: string; state: string; response_payload: string | null; replay_binding: unknown }>(context.officeId, context.userId, scopedKey);"
+            },
+            {
+              "line": 58,
+              "text": "if (existing.state === 'completed' && existing.response_payload !== null) return replay(JSON.parse(existing.response_payload) as T, existing.replay_binding);"
+            },
+            {
+              "line": 68,
+              "text": "await database.prepare(`UPDATE capability_idempotency SET state='completed',response_payload=?,replay_binding=?::jsonb WHERE id=? AND state='pending'`)"
+            },
+            {
+              "line": 73,
+              "text": "else await database.prepare(\"UPDATE capability_idempotency SET state='unknown' WHERE id=? AND state='pending'\").run(id);"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/application/capability-replay.ts",
+          "sites": [
+            {
+              "line": 7,
+              "text": "import { settingsReplayPolicies, type getAgentSettings } from './agent-settings-service';"
+            },
+            {
+              "line": 8,
+              "text": "import { researchSearchReplayPolicies } from './research-service';"
+            },
+            {
+              "line": 23,
+              "text": "export async function captureCapabilityReplay(context: WorkspaceContext, capability: Capability, result: unknown): Promise<ReplayBinding> {"
+            },
+            {
+              "line": 27,
+              "text": "if (capability.module === 'agent_settings') policies.push(...await settingsReplayPolicies(context, result as Awaited<ReturnType<typeof getAgentSettings>>));"
+            },
+            {
+              "line": 36,
+              "text": "policies.push(...await researchSearchReplayPolicies(value as Parameters<typeof researchSearchReplayPolicies>[0]));"
+            },
+            {
+              "line": 38,
+              "text": "const source = z.object({ caseId: z.string(), materialVersionId: z.string().optional(), documentIds: z.array(z.string()).optional() }).parse(item);"
+            },
+            {
+              "line": 39,
+              "text": "policies.push({ ...personPolicy('', ''), guards: [{ kind: 'case', id: source.caseId }, ...(source.materialVersionId ? [{ kind: 'research-material' as const, id: source.materialVersionId }] : []),"
+            },
+            {
+              "line": 87,
+              "text": "export async function replayCapabilityResult(context: WorkspaceContext, result: unknown, rawBinding: unknown): Promise<unknown> {"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/application/agent-settings-service.ts",
+          "sites": [
+            {
+              "line": 21,
+              "text": "export async function settingsReplayPolicies(context: WorkspaceContext, result: Awaited<ReturnType<typeof getAgentSettings>>) {"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/application/research-service.ts",
+          "sites": [
+            {
+              "line": 22,
+              "text": "export async function researchSearchReplayPolicies(result: { search?: ResearchSearchView; page?: SearchPage }): Promise<ContentPolicy[]> {"
+            },
+            {
+              "line": 206,
+              "text": "installationId:source.id,materialId:row.id,kind:'fetch_material',idempotencyKey:`fetch:${row.id}:${keySuffix}` });"
+            },
+            {
+              "line": 216,
+              "text": "if (parsed.idempotencyKey) {"
+            },
+            {
+              "line": 218,
+              "text": ".get<SearchRow>(context.officeId,context.userId,parsed.idempotencyKey);"
+            },
+            {
+              "line": 242,
+              "text": ".run(id,context.officeId,context.userId,parsed.theme,filters,parsed.includeSources?1:0,parsed.idempotencyKey ?? null);"
+            },
+            {
+              "line": 243,
+              "text": "const actual = parsed.idempotencyKey ? await database.prepare(`SELECT id FROM research_search"
+            },
+            {
+              "line": 244,
+              "text": "WHERE office_id=? AND user_id=? AND idempotency_key=?`).get<{id:string}>(context.officeId,context.userId,parsed.idempotencyKey) : null;"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/capabilities/research-case.ts",
+          "sites": [
+            {
+              "line": 5,
+              "text": "const idempotencyKey = z.string().trim().min(8).max(128).optional();"
+            },
+            {
+              "line": 15,
+              "text": "id: uuid, caseId: uuid, materialVersionId: uuid, profileVersion: z.number().nullable(),"
+            },
+            {
+              "line": 25,
+              "text": "id: uuid, caseId: uuid, materialVersionId: uuid, purpose, notes: z.string(), assessmentId: uuid.nullable(),"
+            },
+            {
+              "line": 51,
+              "text": "documentIds: z.array(uuid).max(60), idempotencyKey,"
+            },
+            {
+              "line": 57,
+              "text": "input: z.object({ caseId: uuid, materialVersionId: uuid, idempotencyKey }), output: z.object({ assessment }),"
+            },
+            {
+              "line": 72,
+              "text": "input: z.object({ caseId: uuid, materialVersionId: uuid, purpose, assessmentId: uuid, bypassEvaluation: z.boolean().default(false), notes: z.string().trim().max(4000).default(''), idempotencyKey, approvalId: z.uuid().optional() }),"
+            },
+            {
+              "line": 78,
+              "text": "input: z.object({ referenceId: uuid, expectedVersion: z.number().int().positive(), materialVersionId: uuid.optional(), assessmentId: uuid.optional(), bypassEvaluation: z.boolean().optional(), purpose: purpose.optional(), notes: z.string().trim().max(4000).optional(), idempotencyKey, approvalId: z.uuid().optional() }),"
+            },
+            {
+              "line": 84,
+              "text": "input: z.object({ referenceId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey, approvalId: z.uuid().optional() }), output: z.object({ success: z.boolean() }),"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/capabilities/contracts.ts",
+          "sites": [
+            {
+              "line": 39,
+              "text": "export const capabilityIdempotency: Record<Capability['module'], 'cache' | 'domain'> = {"
+            },
+            {
+              "line": 54,
+              "text": "const idempotencyKey = z.string().min(8).max(128).optional();"
+            },
+            {
+              "line": 92,
+              "text": "materialVersionId: z.string().optional(), judgmentId: z.string().optional(), researchChunkId: z.string().optional(),"
+            },
+            {
+              "line": 102,
+              "text": "materialVersionId: z.string().optional(), judgmentId: z.string().optional(), researchChunkId: z.string().optional(),"
+            },
+            {
+              "line": 203,
+              "text": "idempotencyKey,"
+            },
+            {
+              "line": 215,
+              "text": "idempotencyKey,"
+            },
+            {
+              "line": 222,
+              "text": "input: z.object({ caseId: identifier, targetCaseId: identifier.optional().describe('Caso de destino. Com ele os documentos são movidos e sobrevivem; sem ele são excluídos com o caso.'), approvalId: z.string().optional(), idempotencyKey }),"
+            },
+            {
+              "line": 250,
+              "text": "idempotencyKey,"
+            },
+            {
+              "line": 257,
+              "text": "input: z.object({ documentId: identifier, approvalId: z.string().optional(), idempotencyKey }),"
+            },
+            {
+              "line": 263,
+              "text": "input: z.object({ documentId: identifier, uploadRef: uuid.describe('Referência devolvida pelo envio de arquivo.'), idempotencyKey }),"
+            },
+            {
+              "line": 275,
+              "text": "input: z.object({ documentId: identifier, idempotencyKey }), output: z.object({ document: documentDto }),"
+            },
+            {
+              "line": 285,
+              "text": "idempotencyKey,"
+            },
+            {
+              "line": 312,
+              "text": "visibility: folderVisibility.optional(), memberIds: z.array(identifier).max(50).optional(), idempotencyKey }),"
+            },
+            {
+              "line": 318,
+              "text": "input: z.object({ folderId: identifier, visibility: folderVisibility, memberIds: z.array(identifier).max(50).optional(), idempotencyKey }),"
+            },
+            {
+              "line": 324,
+              "text": "input: z.object({ folderId: identifier, approvalId: z.string().optional(), idempotencyKey }),"
+            },
+            {
+              "line": 365,
+              "text": "input: z.object({ documentId: identifier, idempotencyKey }),"
+            },
+            {
+              "line": 382,
+              "text": "input: z.object({ runId: identifier, idempotencyKey }), output: z.object({ run: runDto }),"
+            },
+            {
+              "line": 387,
+              "text": "input: z.object({ runId: identifier, idempotencyKey }), output: z.object({ run: runDto }),"
+            },
+            {
+              "line": 393,
+              "text": "documentIds, instructions: z.string().trim().min(1).max(12000).describe('O que a cronologia deve priorizar.'), idempotencyKey,"
+            },
+            {
+              "line": 403,
+              "text": "templateId: identifier.optional().describe('Documento do Cofre usado apenas como modelo de estilo.'), idempotencyKey,"
+            },
+            {
+              "line": 424,
+              "text": "idempotencyKey,"
+            },
+            {
+              "line": 441,
+              "text": "approvalId: z.string().optional(), idempotencyKey,"
+            },
+            {
+              "line": 463,
+              "text": "content: z.string().min(1).max(400_000), version: z.number().int().positive().describe('Versão lida em k5_artifacts_get.'), approvalId: z.string().optional(), idempotencyKey,"
+            },
+            {
+              "line": 476,
+              "text": "input: z.object({ artifactId: identifier, version: z.number().int().positive(), idempotencyKey }),"
+            },
+            {
+              "line": 506,
+              "text": "input: z.object({ title: z.string().trim().min(1).max(120).optional(), idempotencyKey }),"
+            },
+            {
+              "line": 512,
+              "text": "input: z.object({ conversationId: identifier, approvalId: z.string().optional(), idempotencyKey }),"
+            },
+            {
+              "line": 582,
+              "text": "idempotencyKey,"
+            },
+            {
+              "line": 589,
+              "text": "input: z.object({ linkId: identifier, decision: z.enum(['confirmed', 'rejected']), approvalId: z.string().optional(), idempotencyKey }),"
+            },
+            {
+              "line": 598,
+              "text": "input: z.object({ linkId: identifier, approvalId: z.string().optional(), idempotencyKey }),"
+            },
+            {
+              "line": 629,
+              "text": "input: z.object({ linkId: identifier, approvalId: z.string().optional(), idempotencyKey }),"
+            },
+            {
+              "line": 661,
+              "text": "input: z.object({ alertId: identifier, idempotencyKey }),"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "owner": "annex managed plan",
+      "paths": [
+        {
+          "path": "apps/web/src/lib/annexes.ts",
+          "sites": [
+            {
+              "line": 83,
+              "text": "async function petitionText(owner: Owner, caseId: string, input: { petitionDocumentId?: string; petitionArtifactId?: string; petitionText?: string }) {"
+            },
+            {
+              "line": 84,
+              "text": "if (input.petitionText?.trim()) {"
+            },
+            {
+              "line": 86,
+              "text": "const text = input.petitionText.trim().slice(0, PETITION_LIMIT);"
+            },
+            {
+              "line": 106,
+              "text": "async function managedPlan(owner: Owner, caseId: string, scanDocumentId: string, planId?: string) {"
+            },
+            {
+              "line": 108,
+              "text": "${planId ? 'AND id=?' : ''} ORDER BY created_at DESC,id DESC LIMIT 1`).get<ManagedPlan>(owner.officeId, owner.userId, caseId, scanDocumentId, ...(planId ? [planId] : []));"
+            },
+            {
+              "line": 109,
+              "text": "if (planId && !row) throw new CapabilityError('NOT_FOUND', 'Plano de anexos não encontrado. Proponha os anexos novamente.');"
+            },
+            {
+              "line": 112,
+              "text": "async function managedBaseline(owner: Owner, caseId: string, scanDocumentId: string, tx: Transaction = database) {"
+            },
+            {
+              "line": 114,
+              "text": ".all<{ content_policy: unknown }>(owner.officeId, owner.userId, caseId, scanDocumentId);"
+            },
+            {
+              "line": 118,
+              "text": "export async function getAnnexPlan(owner: Owner, input: { caseId: string; scanDocumentId: string }) {"
+            },
+            {
+              "line": 120,
+              "text": "const row = await managedPlan(owner, input.caseId, input.scanDocumentId);"
+            },
+            {
+              "line": 122,
+              "text": "const policy = combinePolicy('', '', await managedBaseline(owner, input.caseId, input.scanDocumentId, tx), 'generated');"
+            },
+            {
+              "line": 124,
+              "text": "const source = await observeVaultFile(owner.userId, input.scanDocumentId, tx);"
+            },
+            {
+              "line": 127,
+              "text": "return exposeContent({ plan: { planId: row.id, scanDocumentId: input.scanDocumentId, ...row.plan } }, [policy]);"
+            },
+            {
+              "line": 132,
+              "text": "export async function analyzeAnnexes(owner: Owner, input: { caseId: string; scanDocumentId: string; petitionDocumentId?: string; petitionArtifactId?: string; petitionText?: string }) {"
+            },
+            {
+              "line": 133,
+              "text": "const { document, pdf, source, policy } = await scannedPdf(owner, input.caseId, input.scanDocumentId);"
+            },
+            {
+              "line": 135,
+              "text": "const petitionSource = await petitionText(owner, input.caseId, input);"
+            },
+            {
+              "line": 168,
+              "text": "const baseline = combinePolicy('', '', [policy, petitionSource.policy, ...await managedBaseline(owner, input.caseId, input.scanDocumentId)], 'generated');"
+            },
+            {
+              "line": 172,
+              "text": "const planId = randomUUID();"
+            },
+            {
+              "line": 175,
+              "text": "const retained = combinePolicy('', JSON.stringify(plan), [baseline, ...await managedBaseline(owner, input.caseId, input.scanDocumentId, tx)], 'generated');"
+            },
+            {
+              "line": 181,
+              "text": "VALUES(?,?,?,?,?,?,?,?::jsonb,?::jsonb,?::jsonb)`).run(planId, owner.officeId, owner.userId, input.caseId, document.id, source.version, source.sha256,"
+            },
+            {
+              "line": 185,
+              "text": "return exposeContent({ planId, scanDocumentId: document.id, ...plan }, [retained]);"
+            },
+            {
+              "line": 189,
+              "text": "export async function generateAnnexes(owner: Owner, input: { caseId: string; scanDocumentId: string; planId?: string; folderName?: string; items: Array<{ label: string; startPage: number; endPage: number }> }, checkAccess?: () => Promise<unknown>) {"
+            },
+            {
+              "line": 190,
+              "text": "const { document, pdf, source, policy: scanPolicy } = await scannedPdf(owner, input.caseId, input.scanDocumentId);"
+            },
+            {
+              "line": 191,
+              "text": "const plan = await managedPlan(owner, input.caseId, input.scanDocumentId, input.planId);"
+            },
+            {
+              "line": 200,
+              "text": "const policy = combinePolicy('', '', [scanPolicy, ...await managedBaseline(owner, input.caseId, input.scanDocumentId),"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/components/vault-annexes.tsx",
+          "sites": [
+            {
+              "line": 27,
+              "text": "type Plan = { planId: string; scanDocumentId: string; pageCount: number; items: AnnexItem[]; uncoveredPages: number[] };"
+            },
+            {
+              "line": 35,
+              "text": "const [petitionText, setPetitionText] = useState('');"
+            },
+            {
+              "line": 48,
+              "text": "void fetch(`/api/vault/cases/${encodeURIComponent(caseId)}/annexes?scanDocumentId=${encodeURIComponent(scanId)}`, { signal: controller.signal })"
+            },
+            {
+              "line": 60,
+              "text": "scanDocumentId: scanId, ...(petitionText.trim() ? { petitionText } : { petitionDocumentId: petitionId }),"
+            },
+            {
+              "line": 70,
+              "text": "const signature = JSON.stringify([plan.planId, plan.scanDocumentId, folderName, items]);"
+            },
+            {
+              "line": 72,
+              "text": "setResult(await post<Result>(`/api/vault/cases/${encodeURIComponent(caseId)}/annexes/files`, { planId: plan.planId, scanDocumentId: plan.scanDocumentId, folderName, items, idempotencyKey: generation.current.key }));"
+            },
+            {
+              "line": 98,
+              "text": "<select id=\"annex-petition\" value={petitionId} onChange={event => setPetitionId(event.target.value)} disabled={Boolean(petitionText.trim())} className={selectStyle}>"
+            },
+            {
+              "line": 103,
+              "text": "<Textarea id=\"annex-petition-text\" value={petitionText} onChange={event => setPetitionText(event.target.value)} rows={4} maxLength={60_000} /></div>"
+            },
+            {
+              "line": 104,
+              "text": "<Button type=\"submit\" className=\"justify-self-start\" size=\"lg\" disabled={Boolean(busy) || !scanId || (!petitionId && petitionText.trim().length < 50)}>"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/capabilities/annexes.ts",
+          "sites": [
+            {
+              "line": 11,
+              "text": "const plan = z.object({ planId: id, scanDocumentId: id, pageCount: z.number(), items: z.array(item), uncoveredPages: z.array(z.number()) });"
+            },
+            {
+              "line": 14,
+              "text": "k5_vault_get_annex_plan: { module: 'vault', effect: 'read',"
+            },
+            {
+              "line": 16,
+              "text": "input: z.object({ caseId: id, scanDocumentId: id }), output: z.object({ plan: plan.nullable() }) },"
+            },
+            {
+              "line": 19,
+              "text": "input: z.object({ caseId: id, scanDocumentId: id, petitionDocumentId: id.optional(), petitionArtifactId: id.optional(), petitionText: z.string().max(60_000).optional() }),"
+            },
+            {
+              "line": 23,
+              "text": "input: z.object({ caseId: id, scanDocumentId: id, planId: id.optional(), folderName: z.string().trim().max(120).default(''),"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/application/annexes-service.ts",
+          "sites": [
+            {
+              "line": 4,
+              "text": "import { analyzeAnnexes, generateAnnexes, getAnnexPlan } from '@/lib/annexes';"
+            },
+            {
+              "line": 11,
+              "text": "try { const result = await analyzeAnnexes(context, input); await assertCapabilityAllowed(context, 'k5_vault_plan_annexes'); return result; } catch (error) { throw asCapabilityError(error); }"
+            },
+            {
+              "line": 15,
+              "text": "const result = await generateAnnexes(context, input, () => assertCapabilityAllowed(context, 'k5_vault_generate_annexes'));"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/app/api/vault/cases/[id]/annexes/route.ts",
+          "sites": [
+            {
+              "line": 6,
+              "text": "return handleCapability(request, 'k5_vault_get_annex_plan', { caseId: (await params).id, scanDocumentId: new URL(request.url).searchParams.get('scanDocumentId') });"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/capabilities/http-client.ts",
+          "sites": [
+            {
+              "line": 130,
+              "text": "k5_vault_get_annex_plan: { method: 'GET', path: i => `/api/vault/cases/${id(i.caseId)}/annexes?scanDocumentId=${id(i.scanDocumentId)}` },"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "owner": "citation replay",
+      "paths": [
+        {
+          "path": "apps/web/src/lib/citations/sources.ts",
+          "sites": [
+            {
+              "line": 6,
+              "text": "import { assertPolicyAccess, exposeContent, exposedSourcePolicies, parsePolicy, type ContentPolicy } from '@/lib/content-policy';"
+            },
+            {
+              "line": 18,
+              "text": "if (source.kind !== 'vault' && !source.policy) { admitted.push({ ...source, policy: null }); continue; }"
+            },
+            {
+              "line": 21,
+              "text": "await assertPolicyAccess(owner.userId, policy);"
+            },
+            {
+              "line": 27,
+              "text": "await database.batch(admitted.map(source => database.prepare(`INSERT INTO conversation_source(id,office_id,user_id,conversation_id,kind,ref,title,url,court,case_number,text,content_policy)"
+            },
+            {
+              "line": 36,
+              "text": "const rows = await database.prepare(`SELECT id, kind, ref, title, url, court, case_number AS \"caseNumber\", text,content_policy FROM conversation_source"
+            },
+            {
+              "line": 37,
+              "text": "WHERE office_id=? AND user_id=? AND conversation_id=? ORDER BY created_at DESC LIMIT 200`).all<CitationSource & { content_policy: unknown }>(owner.officeId, owner.userId, conversationId);"
+            },
+            {
+              "line": 39,
+              "text": "for (const { content_policy, ...source } of rows as (CitationSource & { content_policy: unknown; ref: string })[]) {"
+            },
+            {
+              "line": 40,
+              "text": "const catalog = source.kind === 'web_jurisprudence' && !content_policy && Boolean(await database.prepare(`SELECT 1 FROM research_material_version WHERE id=split_part(?,':',1)` ).get(source.ref));"
+            },
+            {
+              "line": 42,
+              "text": "if (source.kind === 'vault' || content_policy) {"
+            },
+            {
+              "line": 43,
+              "text": "try { await assertPolicyAccess(owner.userId, parsePolicy(content_policy)); }"
+            },
+            {
+              "line": 46,
+              "text": "visible.push(content_policy ? exposeContent(source, [parsePolicy(content_policy)]) : source);"
+            },
+            {
+              "line": 73,
+              "text": "kind: item.sourceType === 'research' ? 'web_jurisprudence' as const : 'vault' as const,"
+            },
+            {
+              "line": 74,
+              "text": "ref: item.sourceType === 'research' ? `${item.materialVersionId}:${item.researchChunkId}` : item.sourceId,"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/knowledge/retrieval.ts",
+          "sites": [
+            {
+              "line": 5,
+              "text": "import { exposeContent, observeDocument, observeResearch, type ContentPolicy } from '@/lib/content-policy';"
+            },
+            {
+              "line": 48,
+              "text": "const researchPolicies = new Map<string, ContentPolicy>();"
+            },
+            {
+              "line": 49,
+              "text": "for (const id of researchReferenceIds) researchPolicies.set(id, (await observeResearch(context.userId, id, input.caseId!)).policy);"
+            },
+            {
+              "line": 85,
+              "text": "researchCoverage: coverage(selected) }, selected.map(source => researchPolicies.get(source.researchReferenceId!)!),"
+            },
+            {
+              "line": 86,
+              "text": "Object.fromEntries(selected.map(source => [source.sourceId, researchPolicies.get(source.researchReferenceId!)!])));"
+            },
+            {
+              "line": 230,
+              "text": "? candidatePolicies.get(source.documentId)! : researchPolicies.get(source.researchReferenceId!)!),"
+            },
+            {
+              "line": 232,
+              "text": "? candidatePolicies.get(source.documentId)! : researchPolicies.get(source.researchReferenceId!)!])));"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/citations/review.ts",
+          "sites": [
+            {
+              "line": 4,
+              "text": "import { assertPolicyAccess, exposedPolicies } from '@/lib/content-policy';"
+            },
+            {
+              "line": 89,
+              "text": "for (const source of group.flatMap(unit => unit.candidates)) for (const policy of exposedPolicies(source) ?? [])"
+            },
+            {
+              "line": 90,
+              "text": "await assertPolicyAccess(context.userId, policy);"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "owner": "Gmail output and authorization binding",
+      "paths": [
+        {
+          "path": "apps/web/src/lib/google/gmail/service.ts",
+          "sites": [
+            {
+              "line": 26,
+              "text": "threadId: string | null; replyHeader: string | null; references: string | null; draftId: string | null; files: MailFile[]; contentPolicy: ContentPolicy; draftVersion: string | null; composeId: string | null; seedId: string | null; authorizationGeneration: number };"
+            },
+            {
+              "line": 110,
+              "text": "return row ? operationArgs(row).__bound as { composeId?: string; seedId?: string; replyToMessageId?: string; contentPolicy?: unknown; authorizationGeneration?: number } | undefined : undefined;"
+            },
+            {
+              "line": 170,
+              "text": "if (priorBinding && priorBinding.authorizationGeneration !== connection.authorization_generation)"
+            },
+            {
+              "line": 172,
+              "text": "const composeId = priorBinding?.composeId ?? input.composeId ?? input.seedId ?? null;"
+            },
+            {
+              "line": 175,
+              "text": "const seedId = priorBinding?.seedId ?? composeId ?? input.seedId;"
+            },
+            {
+              "line": 177,
+              "text": "if (seedId) {"
+            },
+            {
+              "line": 179,
+              "text": ".get<{ content_policy: unknown; scope: { connectionId: string; generation: number; messageIds: string[]; recipients: string[] } | null }>(seedId, context.officeId, context.userId);"
+            },
+            {
+              "line": 182,
+              "text": "if (!scope || scope.connectionId !== connection.id || scope.generation !== connection.authorization_generation ||"
+            },
+            {
+              "line": 199,
+              "text": "return { contentPolicy, authorizationGeneration: connection.authorization_generation, composeId, seedId: seedId ?? null, to, cc, bcc, subject, body, replyToMessageId: replyId, threadId: sameSubject ? reply?.threadId ?? draft?.message.threadId ?? null : null,"
+            },
+            {
+              "line": 215,
+              "text": "return { contentPolicy: prepared.contentPolicy, authorizationGeneration: prepared.authorizationGeneration, composeId: prepared.composeId, seedId: prepared.seedId, to: prepared.to, cc: prepared.cc, bcc: prepared.bcc, subject: prepared.subject, body: prepared.body,"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/google/operations.ts",
+          "sites": [
+            {
+              "line": 238,
+              "text": "if (live.id !== row.connection_id) throw new CapabilityError('CONFLICT', 'A conexão Google mudou. Prepare a operação novamente.');"
+            },
+            {
+              "line": 239,
+              "text": "if (bound?.authorizationGeneration !== undefined && live.authorization_generation !== bound.authorizationGeneration)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "owner": "portal commit and invitation",
+      "paths": [
+        {
+          "path": "apps/web/src/lib/client-portal/service.ts",
+          "sites": [
+            {
+              "line": 2,
+              "text": "import { aclReadTransaction, aclTransaction } from '@/lib/acl-transaction';"
+            },
+            {
+              "line": 8,
+              "text": "import { assertCapabilityAllowed, assertWorkspaceSession, type WorkspaceContext } from '@/lib/application/context';"
+            },
+            {
+              "line": 20,
+              "text": "export type ClientContext = { userId: string; sessionId: string; signal?: AbortSignal };"
+            },
+            {
+              "line": 26,
+              "text": "async function clientAccess(context: ClientContext, accessId: string, tx: Transaction = database, lock = false) {"
+            },
+            {
+              "line": 27,
+              "text": "context.signal?.throwIfAborted();"
+            },
+            {
+              "line": 28,
+              "text": "if (!await tx.prepare(`SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>clock_timestamp()${lock ? ' FOR SHARE' : ''}`).get(context.sessionId, context.userId))"
+            },
+            {
+              "line": 32,
+              "text": "WHERE p.id=? AND p.user_id=? AND p.revoked_at IS NULL AND p.accepted_at IS NOT NULL ${lock ? 'FOR SHARE OF p' : ''}`)"
+            },
+            {
+              "line": 68,
+              "text": "await aclTransaction(async tx => {"
+            },
+            {
+              "line": 70,
+              "text": "await tx.prepare('SELECT id FROM crm_client WHERE office_id=? AND id=? FOR UPDATE').get(context.officeId, input.clientId);"
+            },
+            {
+              "line": 84,
+              "text": "await aclTransaction(async tx => {"
+            },
+            {
+              "line": 85,
+              "text": "await tx.prepare('SELECT id FROM crm_client WHERE office_id=? AND id=? FOR UPDATE').get(context.officeId, input.clientId);"
+            },
+            {
+              "line": 111,
+              "text": "const access = await clientAccess(context, accessId);"
+            },
+            {
+              "line": 126,
+              "text": "await clientAccess(context, accessId);"
+            },
+            {
+              "line": 167,
+              "text": "const result = await aclReadTransaction(async tx => {"
+            },
+            {
+              "line": 168,
+              "text": "context.signal?.throwIfAborted();"
+            },
+            {
+              "line": 169,
+              "text": "if (!await tx.prepare('SELECT id FROM crm_client WHERE office_id=? AND id=? FOR KEY SHARE').get(input.officeId, input.clientId)) throw missing();"
+            },
+            {
+              "line": 170,
+              "text": "await authorize(tx);"
+            },
+            {
+              "line": 181,
+              "text": "await authorize(tx);"
+            },
+            {
+              "line": 205,
+              "text": "if (replay) { if (replay.source_ref !== sourceRef) throw conflict(); await readFile(context.officeId, input.clientId, replay.id); await assertWorkspaceSession(context); return { id: replay.id }; }"
+            },
+            {
+              "line": 211,
+              "text": "const access = await clientAccess(context, accessId);"
+            },
+            {
+              "line": 214,
+              "text": "await clientAccess(context, accessId, tx, true);"
+            },
+            {
+              "line": 244,
+              "text": "const access = await clientAccess(context, accessId);"
+            },
+            {
+              "line": 246,
+              "text": "await clientAccess(context, accessId);"
+            },
+            {
+              "line": 261,
+              "text": "const access = await clientAccess(context, accessId);"
+            },
+            {
+              "line": 271,
+              "text": "await clientAccess(context, accessId);"
+            },
+            {
+              "line": 278,
+              "text": "await clientAccess(context, accessId);"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/client-portal/invitations.ts",
+          "sites": [
+            {
+              "line": 4,
+              "text": "import { aclTransaction } from '@/lib/acl-transaction';"
+            },
+            {
+              "line": 5,
+              "text": "import { assertWorkspaceSession } from '@/lib/application/context';"
+            },
+            {
+              "line": 17,
+              "text": "export async function acceptPortalInvitation(db: Pick<Database, 'prepare'>, token: string, user: { id: string; email: string }, session?: { id: string; signal?: AbortSignal }) {"
+            },
+            {
+              "line": 19,
+              "text": "await aclTransaction(async tx => {"
+            },
+            {
+              "line": 22,
+              "text": "await tx.prepare('SELECT id FROM crm_client WHERE office_id=? AND id=? FOR UPDATE').get(access.office_id, access.client_id);"
+            },
+            {
+              "line": 23,
+              "text": "const context = { officeId: access.office_id, userId: user.id, sessionId: session?.id, signal: session?.signal };"
+            },
+            {
+              "line": 24,
+              "text": "await assertWorkspaceSession(context, tx);"
+            },
+            {
+              "line": 29,
+              "text": "await assertWorkspaceSession(context, tx);"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/client-portal/http.ts",
+          "sites": [
+            {
+              "line": 11,
+              "text": "return { userId: session.user.id, sessionId: session.session.id, signal: request.signal };"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/auth-core.ts",
+          "sites": [
+            {
+              "line": 7,
+              "text": "import { withPostgres } from './database';"
+            },
+            {
+              "line": 143,
+              "text": "if (registration) { await withPostgres(store as Pool, () => acceptPortalInvitation(db, registration.token, user)); return; }"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/app/api/client-portal/invitations/[token]/route.ts",
+          "sites": [
+            {
+              "line": 16,
+              "text": "if (session) { await acceptPortalInvitation(database, token, session.user, { id: session.session.id, signal: request.signal }); return Response.json({ accepted: true }); }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "owner": "private source discovery",
+      "paths": [
+        {
+          "path": "apps/web/src/lib/chat-turn.ts",
+          "sites": [
+            {
+              "line": 2,
+              "text": "import { observeVaultFile, bytesDigest, assertPolicyAccess, observePage, observeResearch, artifactPolicy, uncertainPolicy, privateGenerationPolicy } from './content-policy';"
+            },
+            {
+              "line": 136,
+              "text": "const scopeDocuments = body.documentIds.length"
+            },
+            {
+              "line": 142,
+              "text": "const pending = scopeDocuments.filter((doc) => doc.status === 'queued' || doc.status === 'processing');"
+            },
+            {
+              "line": 143,
+              "text": "const scope = scopeDocuments.length"
+            },
+            {
+              "line": 144,
+              "text": "? `Fontes do Cofre selecionadas nesta conversa (use estes identificadores nas ferramentas):\\n${scopeDocuments.map((doc) => `${doc.id} — ${doc.name} (${doc.status})`).join('\\n')}${pending.length"
+            },
+            {
+              "line": 174,
+              "text": "const observedFiles = new Map<string, Awaited<ReturnType<typeof observeVaultFile>>>();"
+            },
+            {
+              "line": 175,
+              "text": "for (const doc of scopeDocuments) {"
+            },
+            {
+              "line": 176,
+              "text": "const file = await observeVaultFile(context.userId, doc.id);"
+            },
+            {
+              "line": 191,
+              "text": "dependencies: mergeDependencies(await documentDependencies(scopeDocuments.map(doc => doc.id)), focusProvenance.dependencies,"
+            },
+            {
+              "line": 285,
+              "text": "for (const document of scopeDocuments.filter((doc) => doc.mimeType.startsWith('image/')).slice(0, 3)) {"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/content-policy.ts",
+          "sites": [
+            {
+              "line": 167,
+              "text": "export async function observeDocument(userId: string, id: string, db: Transaction = database): Promise<ContentSource> {"
+            },
+            {
+              "line": 168,
+              "text": "if (db === database) return aclReadTransaction(tx => observeDocument(userId, id, tx));"
+            },
+            {
+              "line": 178,
+              "text": "if (row.status !== 'ready' || row.extracted_version !== row.version || row.extracted_sha256 !== row.sha256)"
+            },
+            {
+              "line": 185,
+              "text": "export async function observeVaultFile(userId: string, id: string, db: Transaction = database): Promise<{"
+            },
+            {
+              "line": 188,
+              "text": "if (db === database) return aclReadTransaction(tx => observeVaultFile(userId, id, tx));"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "owner": "generation attempt lifecycle",
+      "paths": [
+        {
+          "path": "apps/web/db/postgres/0076_content_policy.sql",
+          "sites": [
+            {
+              "line": 34,
+              "text": "CREATE TABLE content_generation_attempt ("
+            },
+            {
+              "line": 36,
+              "text": "submission_id TEXT NOT NULL REFERENCES content_submission(id),"
+            },
+            {
+              "line": 47,
+              "text": "approval_id TEXT REFERENCES capability_approval(id),"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/db/postgres/0083_retained_source_bindings.sql",
+          "sites": [
+            {
+              "line": 1,
+              "text": "ALTER TABLE content_generation_attempt ADD COLUMN office_id TEXT REFERENCES office(id);"
+            },
+            {
+              "line": 2,
+              "text": "UPDATE content_generation_attempt a SET office_id=s.office_id FROM content_submission s WHERE s.id=a.submission_id;"
+            },
+            {
+              "line": 3,
+              "text": "ALTER TABLE content_generation_attempt ALTER COLUMN office_id SET NOT NULL;"
+            },
+            {
+              "line": 4,
+              "text": "ALTER TABLE content_generation_attempt DROP CONSTRAINT content_generation_attempt_submission_id_fkey;"
+            },
+            {
+              "line": 5,
+              "text": "ALTER TABLE content_generation_attempt ADD FOREIGN KEY(submission_id) REFERENCES content_submission(id) ON DELETE CASCADE;"
+            },
+            {
+              "line": 6,
+              "text": "ALTER TABLE content_generation_attempt DROP CONSTRAINT content_generation_attempt_approval_id_fkey;"
+            },
+            {
+              "line": 7,
+              "text": "ALTER TABLE content_generation_attempt ADD FOREIGN KEY(approval_id) REFERENCES capability_approval(id) ON DELETE SET NULL;"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/office-deletion.ts",
+          "sites": [
+            {
+              "line": 93,
+              "text": "WHERE table_schema = current_schema() AND column_name = 'office_id' ORDER BY table_name`).all<{ name: string }>()).map(row => row.name);"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/lib/application/conversations-service.ts",
+          "sites": [
+            {
+              "line": 37,
+              "text": "export async function deleteConversation(context: WorkspaceContext, input: CapabilityInput<'k5_conversations_delete'>): Promise<CapabilityOutput<'k5_conversations_delete'>> {"
+            },
+            {
+              "line": 44,
+              "text": "await database.prepare('DELETE FROM ai_conversation WHERE id=? AND office_id=? AND user_id=?').run(input.conversationId, context.officeId, context.userId);"
+            }
+          ]
+        },
+        {
+          "path": "apps/web/src/app/api/conversations/[id]/route.ts",
+          "sites": [
+            {
+              "line": 21,
+              "text": "const result = await database.prepare('DELETE FROM ai_conversation WHERE id=? AND office_id=? AND user_id=? AND busy_until<?').run(id, (office).officeId, user.id, Date.now());"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

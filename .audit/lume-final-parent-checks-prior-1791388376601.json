@@ -1,0 +1,18 @@
+{
+  "pid": 43712,
+  "startedAt": "2026-10-07T15:29:08.464Z",
+  "active": null,
+  "childPid": null,
+  "results": [
+    {
+      "name": "root-typecheck",
+      "exitCode": 0,
+      "finishedAt": "2026-10-07T15:29:55.069Z"
+    },
+    {
+      "name": "root-test",
+      "exitCode": 1,
+      "finishedAt": "2026-10-07T15:49:03.984Z"
+    }
+  ]
+}

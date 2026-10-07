@@ -3,23 +3,19 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { LumeMark } from './lume-mark';
 
 export type SmartOption = { id: string; label: string; description?: string; disabled?: boolean };
 
-/**
- * The Lume mark whose three strokes trade places, forming new shapes while it is hovered or busy.
- * Same paths as <LumeMark />; the motion lives in globals.css (`.smart-mark`).
- */
 export function SmartMark({ className, ...props }: React.SVGProps<SVGSVGElement>) {
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none"
     aria-hidden="true" focusable="false" className={cn("smart-mark", className)} {...props}>
-    <path className="smart-mark-a" d="M5 4h3v10.5l-3 3V4Z" />
-    <path className="smart-mark-b" d="m6.5 19 3-3H20v3H6.5Z" />
-    <path className="smart-mark-c" d="m11 11.5 6.5-6.5L19 6.5 12.5 13 11 11.5Z" />
+    <LumeMark className="lume-mark-still" width="24" height="24" />
+    <svg className="lume-mark-animation" viewBox="153 136 360 368" width="24" height="24"><image href="/lume-reflexo.gif" width="640" height="640" /></svg>
   </svg>;
 }
 
-/** The Lume at work: the mark trades its strokes while the text says what is happening. */
+/** The animation accompanies the actual working status. */
 export function SmartWorking({ children, className }: { children: React.ReactNode; className?: string }) {
   return <p role="status" className={cn("flex items-center gap-3 text-sm text-muted-foreground", className)}>
     <span className="smart-options grid size-6 shrink-0 place-items-center text-module-lume" data-busy><SmartMark width={18} height={18} /></span>{children}
@@ -69,7 +65,7 @@ export function SmartOptions({ options, onSelect, busy = false, label = "Opçõe
         {busy && <span className="sr-only">O Lume está trabalhando…</span>}
       </button>
     </PopoverAnchor>
-    <PopoverContent align={align} sideOffset={6} className="w-72 gap-0 rounded-none p-1"
+    <PopoverContent align={align} sideOffset={6} className="w-72 gap-0 rounded-xl p-1"
       onPointerEnter={() => schedule(true, 0)} onPointerLeave={() => schedule(false, 220)}
       // The mark is an anchor, not a Radix trigger: a tap on it toggles instead of counting as outside.
       onInteractOutside={event => { if (button.current?.contains(event.target as Node)) event.preventDefault(); }}

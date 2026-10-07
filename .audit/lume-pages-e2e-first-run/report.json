@@ -1,0 +1,3425 @@
+{
+  "schemaVersion": "report-1",
+  "run": {
+    "id": "01a113cd-12af-7dea-bdde-ff74af881c83",
+    "specVersion": "0.1",
+    "runner": {
+      "name": "e2e",
+      "version": "0.15.1"
+    },
+    "status": "failed",
+    "exitCode": 1,
+    "startedAt": "2026-10-07T00:39:30.673Z",
+    "finishedAt": "2026-10-07T00:41:12.197Z",
+    "project": {
+      "id": "@k5/web",
+      "configDigest": "d0b0b7f5954359c0bc346021f3db1c1cd411baff87d8344f3b99f88918b4a9a7"
+    },
+    "environment": {
+      "ci": false,
+      "trustNoticeShown": false,
+      "os": "win32 10.0.26200",
+      "arch": "x64",
+      "runtime": "node v26.6.0"
+    },
+    "vcs": {
+      "commit": "177fc222f74dd64daba352067e1e7d5082cdecb4",
+      "branch": "feat/lume-agent-canvas",
+      "dirty": true
+    },
+    "targets": [
+      {
+        "id": "web",
+        "index": 0,
+        "platform": "web",
+        "baseOrigin": "http://localhost:62541",
+        "environment": "test",
+        "engine": {
+          "name": "web",
+          "version": "0.11.1",
+          "spiVersion": 1
+        },
+        "capabilities": [
+          "actions",
+          "artifacts",
+          "browser",
+          "keyboard",
+          "location",
+          "observation",
+          "pointer",
+          "state"
+        ],
+        "artifactCapabilities": [
+          "screenshot",
+          "trace",
+          "video"
+        ],
+        "stateCapability": true
+      }
+    ],
+    "serialGroups": [],
+    "results": [
+      {
+        "id": "79b63e54c5fc7bc2f817d3f1f9a95b30348562bfbb159463a71c5eed1f987611",
+        "testId": "e2e/agent-approvals.e2e.ts::a%C3%A7%C3%B5es%20financeiras%20do%20agente%20esperam%20confirma%C3%A7%C3%A3o%20no%20chat%2C%20e%20o%20agente%20consulta%20a%20ajuda%20sem%20acessar%20Integra%C3%A7%C3%B5es",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "ações financeiras do agente esperam confirmação no chat, e o agente consulta a ajuda sem acessar Integrações"
+        ],
+        "file": "e2e/agent-approvals.e2e.ts",
+        "source": {
+          "file": "e2e/agent-approvals.e2e.ts",
+          "line": 12,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "2202d6ca0a33a39687a60333ba120d43b39a6f4c57ca366e81c6adb2a3189026",
+        "testId": "e2e/agent-settings.e2e.ts::personaliza%C3%A7%C3%A3o%20do%20Lume%20re%C3%BAne%20legados%20e%20novos%20itens%20em%20uma%20lista%20no%20desktop%20e%20celular",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "personalização do Lume reúne legados e novos itens em uma lista no desktop e celular"
+        ],
+        "file": "e2e/agent-settings.e2e.ts",
+        "source": {
+          "file": "e2e/agent-settings.e2e.ts",
+          "line": 8,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "f24b80237a848790b371b9edf56e9083321ee1663d812dd784812e33c81c3b0e",
+        "testId": "e2e/agent/office-clients.e2e.ts::o%20agente%20cadastra%20um%20cliente%2C%20abre%20a%20ficha%20e%20corrige%20o%20nome",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "o agente cadastra um cliente, abre a ficha e corrige o nome"
+        ],
+        "file": "e2e/agent/office-clients.e2e.ts",
+        "source": {
+          "file": "e2e/agent/office-clients.e2e.ts",
+          "line": 6,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [
+          "agent"
+        ],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "c0b0a911ed5d8bcb6ef67ac799d2e3395399268e3cc47d5d56fe88a1a224a3f2",
+        "testId": "e2e/agent/vault-cases.e2e.ts::o%20agente%20cria%20um%20caso%20no%20Cofre%20com%20dados%20do%20cliente%20e%20abre%20a%20p%C3%A1gina%20do%20caso",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "o agente cria um caso no Cofre com dados do cliente e abre a página do caso"
+        ],
+        "file": "e2e/agent/vault-cases.e2e.ts",
+        "source": {
+          "file": "e2e/agent/vault-cases.e2e.ts",
+          "line": 5,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [
+          "agent"
+        ],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "b471237e45650129e5010a85e0d70162f3ca581e2170d6c7b7c2d77e1c6bc580",
+        "testId": "e2e/app-shell.e2e.ts::o%20shell%20mant%C3%A9m%20a%20marca%20Lume%20e%20todos%20os%20destinos%20no%20desktop%20e%20no%20celular",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "o shell mantém a marca Lume e todos os destinos no desktop e no celular"
+        ],
+        "file": "e2e/app-shell.e2e.ts",
+        "source": {
+          "file": "e2e/app-shell.e2e.ts",
+          "line": 5,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "5f50b5aaaec9b0d1eb700070fb067ee0a766d508c142094ceb5b0eb0f6d7f86e",
+        "testId": "e2e/asaas.e2e.ts::o%20Asaas%20aparece%20em%20Integra%C3%A7%C3%B5es%2C%20recusa%20uma%20chave%20inv%C3%A1lida%20e%20orienta%20a%20cobran%C3%A7a%20da%20parcela",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "o Asaas aparece em Integrações, recusa uma chave inválida e orienta a cobrança da parcela"
+        ],
+        "file": "e2e/asaas.e2e.ts",
+        "source": {
+          "file": "e2e/asaas.e2e.ts",
+          "line": 10,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "fdd79172b8997341c89928fcd866b8e4ede889c64a959eeb54f94165ae14df63",
+        "testId": "setup::e2e/auth.setup.e2e.ts::administrador%20entra%20pelo%20formul%C3%A1rio",
+        "kind": "setup",
+        "declarationIndex": 0,
+        "titlePath": [
+          "administrador entra pelo formulário"
+        ],
+        "file": "e2e/auth.setup.e2e.ts",
+        "source": {
+          "file": "e2e/auth.setup.e2e.ts",
+          "line": 7,
+          "column": 6
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": true,
+        "status": "passed",
+        "attempts": [
+          {
+            "id": "01a113cd-1c40-71ae-9bfc-7102b218d675",
+            "index": 0,
+            "status": "passed",
+            "startedAt": "2026-10-07T00:39:31.648Z",
+            "durationMs": 6584,
+            "artifacts": [
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:artifact:0",
+                "kind": "video",
+                "mediaType": "video/webm",
+                "startedAt": "2026-10-07T00:39:32.202Z",
+                "redaction": "incomplete",
+                "producer": {
+                  "kind": "attempt"
+                },
+                "path": "web/setup__e2e_auth.setup.e2e.ts__administrador_20entra_20pelo_20formul_C3_A1rio-8b0e40c2/default/attempt-0/video/video.webm",
+                "size": 843167,
+                "sha256": "166f7932d3f7b06b4cf3440914a3c88e572619bc2ed58aa457d19bb0b2701cf9"
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:artifact:1",
+                "kind": "trace",
+                "mediaType": "application/zip",
+                "redaction": "not-required",
+                "producer": {
+                  "kind": "attempt"
+                },
+                "path": "web/setup__e2e_auth.setup.e2e.ts__administrador_20entra_20pelo_20formul_C3_A1rio-8b0e40c2/default/attempt-0/trace/trace.zip",
+                "size": 13714602,
+                "sha256": "05b54c35e641006c3f394e56f06a0c9df5402fafee5e2e5df1d551577d7c64d3"
+              }
+            ],
+            "secondaryErrors": [],
+            "cleanup": "complete",
+            "steps": [
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:0",
+                "index": 0,
+                "kind": "app",
+                "api": "app.open",
+                "label": "/sign-in",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:32.673Z",
+                "durationMs": 896,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:1",
+                "index": 1,
+                "kind": "locator",
+                "api": "locator.fill",
+                "label": "getByLabel(\"E-mail\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:33.571Z",
+                "durationMs": 307,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:2",
+                "index": 2,
+                "kind": "locator",
+                "api": "locator.fill",
+                "label": "getByLabel(\"Senha\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:33.878Z",
+                "durationMs": 97,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:3",
+                "index": 3,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Entrar\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:33.977Z",
+                "durationMs": 192,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:4",
+                "index": 4,
+                "kind": "resource",
+                "api": "browser.waitForURL",
+                "label": "/\\/app\\/command-center$/",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:34.169Z",
+                "durationMs": 1023,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:5",
+                "index": 5,
+                "kind": "assertion",
+                "api": "expect.toBeAttached",
+                "label": "locator(\"nav[aria-label=\\\"Abas do canvas\\\"] button\").first()",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:35.195Z",
+                "durationMs": 1265,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:6",
+                "index": 6,
+                "kind": "locator",
+                "api": "locator.waitFor",
+                "label": "getByRole(\"button\", name: \"Agora não\") → visible",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:36.464Z",
+                "durationMs": 31,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:7",
+                "index": 7,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Agora não\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:36.496Z",
+                "durationMs": 156,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:8",
+                "index": 8,
+                "kind": "assertion",
+                "api": "expect.toBeHidden",
+                "label": "getByRole(\"button\", name: \"Agora não\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:36.653Z",
+                "durationMs": 20,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-1c40-71ae-9bfc-7102b218d675:9",
+                "index": 9,
+                "kind": "session",
+                "api": "session.save",
+                "label": "admin",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:36.675Z",
+                "durationMs": 26,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "00385d397bcea75938d69362344800bcc84922b659ba742024ede8059247bcc6",
+        "testId": "e2e/calc.e2e.ts::Calc%3A%20consumidor%2C%20vers%C3%B5es%2C%20tributo%20federal%2C%20proposta%20OAB%20e%20parcelas%20no%20desktop%20e%20celular",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "Calc: consumidor, versões, tributo federal, proposta OAB e parcelas no desktop e celular"
+        ],
+        "file": "e2e/calc.e2e.ts",
+        "source": {
+          "file": "e2e/calc.e2e.ts",
+          "line": 11,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "af476530b935531b474767414279237734b1f19171449d3cefe64aa9c22bc3bf",
+        "testId": "e2e/case-pages.e2e.ts::p%C3%A1ginas%3A%20criar%20no%20caso%2C%20editar%2C%20recarregar%2C%20restaurar%20e%20usar%20o%20canvas%20m%C3%B3vel",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "páginas: criar no caso, editar, recarregar, restaurar e usar o canvas móvel"
+        ],
+        "file": "e2e/case-pages.e2e.ts",
+        "source": {
+          "file": "e2e/case-pages.e2e.ts",
+          "line": 11,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": true,
+        "status": "failed",
+        "attempts": [
+          {
+            "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a",
+            "index": 0,
+            "status": "failed",
+            "startedAt": "2026-10-07T00:39:38.330Z",
+            "durationMs": 26365,
+            "artifacts": [
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:artifact:0",
+                "kind": "log",
+                "mediaType": "text/plain",
+                "redaction": "complete",
+                "producer": {
+                  "kind": "attempt"
+                },
+                "path": "web/e2e_case-pages.e2e.ts__p_C3_A1ginas_3A_20criar_20no_20caso_2C_20editar_2C_20recarregar_2C_20restaurar_20e_20usa-6fcf2e8a/default/attempt-0/failure/screen.txt",
+                "size": 1626,
+                "sha256": "fb477f16f325d683db2779fb49502e46934e6568cd93d8a94ee3e62278464b90"
+              },
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:artifact:1",
+                "kind": "screenshot",
+                "mediaType": "image/png",
+                "redaction": "complete",
+                "producer": {
+                  "kind": "attempt"
+                },
+                "path": "web/e2e_case-pages.e2e.ts__p_C3_A1ginas_3A_20criar_20no_20caso_2C_20editar_2C_20recarregar_2C_20restaurar_20e_20usa-6fcf2e8a/default/attempt-0/screenshots/001-failure.png",
+                "size": 36641,
+                "sha256": "6a57849394bad35ba1685adf5ab6edaedd2774073e9a25bd6f642766d6d04748"
+              },
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:artifact:2",
+                "kind": "video",
+                "mediaType": "video/webm",
+                "startedAt": "2026-10-07T00:39:38.814Z",
+                "redaction": "incomplete",
+                "producer": {
+                  "kind": "attempt"
+                },
+                "path": "web/e2e_case-pages.e2e.ts__p_C3_A1ginas_3A_20criar_20no_20caso_2C_20editar_2C_20recarregar_2C_20restaurar_20e_20usa-6fcf2e8a/default/attempt-0/video/video.webm",
+                "size": 1003070,
+                "sha256": "716a11bf78f0dde0ec4717f351b71b7e132c8804a03970cda19b98d43e45aa6e"
+              },
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:artifact:3",
+                "kind": "trace",
+                "mediaType": "application/zip",
+                "redaction": "not-required",
+                "producer": {
+                  "kind": "attempt"
+                },
+                "path": "web/e2e_case-pages.e2e.ts__p_C3_A1ginas_3A_20criar_20no_20caso_2C_20editar_2C_20recarregar_2C_20restaurar_20e_20usa-6fcf2e8a/default/attempt-0/trace/trace.zip",
+                "size": 23923297,
+                "sha256": "31ece43b1e8a97b2a2b8563c65faaed2395104dbca4c20d0391bca648dfbda17"
+              }
+            ],
+            "error": {
+              "category": "test",
+              "code": "ASSERTION_FAILED",
+              "message": "expect.toBeVisible failed\nlocator: getByRole(\"textbox\", name: \"Texto do documento\")\nexpected: visible\nobserved: no node (match count 0)",
+              "retryable": false,
+              "phase": "body",
+              "details": {
+                "locator": "getByRole(\"textbox\", name: \"Texto do documento\")",
+                "expected": "visible",
+                "observed": "no node",
+                "matches": 0
+              }
+            },
+            "secondaryErrors": [],
+            "cleanup": "complete",
+            "failure": {
+              "url": "http://localhost:62541/app/vault/cases/43e530dc-06aa-42e2-bbd8-0b8d4c91f86e/pages/2f3b8473-9ee9-4847-a8a3-7abdf7795009",
+              "screen": "01a113cd-365a-716e-8a4a-c4debbc02a0a:artifact:0",
+              "screenshot": "01a113cd-365a-716e-8a4a-c4debbc02a0a:artifact:1"
+            },
+            "steps": [
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:0",
+                "index": 0,
+                "kind": "app",
+                "api": "app.open",
+                "label": "/app/vault/cases/43e530dc-06aa-42e2-bbd8-0b8d4c91f86e",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:39.332Z",
+                "durationMs": 2433,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:1",
+                "index": 1,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"group\", name: \"Seção do caso\") >> getByRole(\"button\", name: \"Páginas\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:41.768Z",
+                "durationMs": 1024,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:2",
+                "index": 2,
+                "kind": "assertion",
+                "api": "expect.toBeVisible",
+                "label": "getByText(\"Nenhuma página nesta pasta.\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:42.793Z",
+                "durationMs": 8350,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:3",
+                "index": 3,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Nova página\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:51.144Z",
+                "durationMs": 91,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:4",
+                "index": 4,
+                "kind": "locator",
+                "api": "locator.fill",
+                "label": "getByLabel(\"Nome da página\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:51.236Z",
+                "durationMs": 107,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:5",
+                "index": 5,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Criar página\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:39:51.345Z",
+                "durationMs": 118,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-365a-716e-8a4a-c4debbc02a0a:6",
+                "index": 6,
+                "kind": "assertion",
+                "api": "expect.toBeVisible",
+                "label": "getByRole(\"textbox\", name: \"Texto do documento\")",
+                "status": "failed",
+                "startedAt": "2026-10-07T00:39:51.463Z",
+                "durationMs": 10014,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                },
+                "error": {
+                  "category": "test",
+                  "code": "ASSERTION_FAILED",
+                  "message": "expect.toBeVisible failed\nlocator: getByRole(\"textbox\", name: \"Texto do documento\")\nexpected: visible\nobserved: no node (match count 0)",
+                  "retryable": false,
+                  "details": {
+                    "locator": "getByRole(\"textbox\", name: \"Texto do documento\")",
+                    "expected": "visible",
+                    "observed": "no node",
+                    "matches": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "041ff130b620ba0ffeec03680ec0ce982cb5dad5d81b900a7961555ac02fa053",
+        "testId": "e2e/case-pages.e2e.ts::publica%C3%A7%C3%A3o%3A%20revisar%20uma%20c%C3%B3pia%20exata%2C%20manter%20o%20original%20particular%20e%20colaborar%20com%20conflito%20e%20revoga%C3%A7%C3%A3o",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "publicação: revisar uma cópia exata, manter o original particular e colaborar com conflito e revogação"
+        ],
+        "file": "e2e/case-pages.e2e.ts",
+        "source": {
+          "file": "e2e/case-pages.e2e.ts",
+          "line": 59,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": true,
+        "status": "passed",
+        "attempts": [
+          {
+            "id": "01a113cd-9d65-702b-a228-aec5c022d0e9",
+            "index": 0,
+            "status": "passed",
+            "startedAt": "2026-10-07T00:40:04.710Z",
+            "durationMs": 66753,
+            "artifacts": [
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:artifact:0",
+                "kind": "screenshot",
+                "mediaType": "image/png",
+                "redaction": "complete",
+                "producer": {
+                  "kind": "step",
+                  "stepId": "01a113cd-9d65-702b-a228-aec5c022d0e9:15"
+                },
+                "path": "web/e2e_case-pages.e2e.ts__publica_C3_A7_C3_A3o_3A_20revisar_20uma_20c_C3_B3pia_20exata_2C_20manter_20o_20original_-f10b90d5/default/attempt-0/screenshots/001-publicacao-revisada.png",
+                "size": 79730,
+                "sha256": "face5ed140e736d3f04a07726b915806d58d685de992a16d51d33284a28abd90"
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:artifact:1",
+                "kind": "screenshot",
+                "mediaType": "image/png",
+                "redaction": "complete",
+                "producer": {
+                  "kind": "step",
+                  "stepId": "01a113cd-9d65-702b-a228-aec5c022d0e9:30"
+                },
+                "path": "web/e2e_case-pages.e2e.ts__publica_C3_A7_C3_A3o_3A_20revisar_20uma_20c_C3_B3pia_20exata_2C_20manter_20o_20original_-f10b90d5/default/attempt-0/screenshots/002-conflito-real-entre-participantes.png",
+                "size": 65231,
+                "sha256": "3a88670f70439cac14dab777243dd54c3270aa3733bc0896d8babb270ff481d6"
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:artifact:2",
+                "kind": "screenshot",
+                "mediaType": "image/png",
+                "redaction": "complete",
+                "producer": {
+                  "kind": "step",
+                  "stepId": "01a113cd-9d65-702b-a228-aec5c022d0e9:37"
+                },
+                "path": "web/e2e_case-pages.e2e.ts__publica_C3_A7_C3_A3o_3A_20revisar_20uma_20c_C3_B3pia_20exata_2C_20manter_20o_20original_-f10b90d5/default/attempt-0/screenshots/003-pagina-revogada.png",
+                "size": 38090,
+                "sha256": "de0316839ae907b7061222614b16708759d06e14d3334deb4641b06418c5ce73"
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:artifact:3",
+                "kind": "video",
+                "mediaType": "video/webm",
+                "startedAt": "2026-10-07T00:40:04.904Z",
+                "redaction": "incomplete",
+                "producer": {
+                  "kind": "attempt"
+                },
+                "path": "web/e2e_case-pages.e2e.ts__publica_C3_A7_C3_A3o_3A_20revisar_20uma_20c_C3_B3pia_20exata_2C_20manter_20o_20original_-f10b90d5/default/attempt-0/video/video.webm",
+                "size": 1749393,
+                "sha256": "4726267fca52258fb6f0eaf0e4da8d25e28340a8fa25e1d38e85e5ac503a948f"
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:artifact:4",
+                "kind": "trace",
+                "mediaType": "application/zip",
+                "redaction": "not-required",
+                "producer": {
+                  "kind": "attempt"
+                },
+                "path": "web/e2e_case-pages.e2e.ts__publica_C3_A7_C3_A3o_3A_20revisar_20uma_20c_C3_B3pia_20exata_2C_20manter_20o_20original_-f10b90d5/default/attempt-0/trace/trace.zip",
+                "size": 20390328,
+                "sha256": "a39a479ace4dcc8c930f48d1ebd2868e3004e3bf04865ce45df7327995f42cc1"
+              }
+            ],
+            "secondaryErrors": [],
+            "cleanup": "complete",
+            "steps": [
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:0",
+                "index": 0,
+                "kind": "resource",
+                "api": "browser.setCookies",
+                "label": "",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:06.643Z",
+                "durationMs": 4,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:1",
+                "index": 1,
+                "kind": "app",
+                "api": "app.open",
+                "label": "/app/command-center",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:06.648Z",
+                "durationMs": 15806,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:2",
+                "index": 2,
+                "kind": "assertion",
+                "api": "expect.toHaveURL",
+                "label": "/\\/app\\/command-center$/",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:22.455Z",
+                "durationMs": 1,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:3",
+                "index": 3,
+                "kind": "assertion",
+                "api": "expect.toBeAttached",
+                "label": "locator(\"nav[aria-label=\\\"Abas do canvas\\\"] button\").first()",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:22.457Z",
+                "durationMs": 580,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:4",
+                "index": 4,
+                "kind": "locator",
+                "api": "locator.waitFor",
+                "label": "getByRole(\"button\", name: \"Agora não\") → visible",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:23.038Z",
+                "durationMs": 43,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:5",
+                "index": 5,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Agora não\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:23.083Z",
+                "durationMs": 238,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:6",
+                "index": 6,
+                "kind": "assertion",
+                "api": "expect.toBeHidden",
+                "label": "getByRole(\"button\", name: \"Agora não\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:23.323Z",
+                "durationMs": 35,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:7",
+                "index": 7,
+                "kind": "app",
+                "api": "app.open",
+                "label": "/app/documents/d2d5afd6-27ec-4920-aafe-8d0d4559e1e2",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:23.359Z",
+                "durationMs": 2025,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:8",
+                "index": 8,
+                "kind": "locator",
+                "api": "locator.fill",
+                "label": "getByRole(\"textbox\", name: \"Texto do documento\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:25.385Z",
+                "durationMs": 2894,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:9",
+                "index": 9,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Publicar no caso\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:28.279Z",
+                "durationMs": 304,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:10",
+                "index": 10,
+                "kind": "locator",
+                "api": "locator.selectOption",
+                "label": "getByLabel(\"Caso\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:28.585Z",
+                "durationMs": 185,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:11",
+                "index": 11,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Revisar publicação\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:28.771Z",
+                "durationMs": 2742,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:12",
+                "index": 12,
+                "kind": "assertion",
+                "api": "expect.toContainText",
+                "label": "getByRole(\"dialog\", name: \"Publicar no caso\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:31.515Z",
+                "durationMs": 5458,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:13",
+                "index": 13,
+                "kind": "assertion",
+                "api": "expect.toContainText",
+                "label": "getByRole(\"dialog\", name: \"Publicar no caso\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:36.975Z",
+                "durationMs": 23,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:14",
+                "index": 14,
+                "kind": "assertion",
+                "api": "expect.toContainText",
+                "label": "getByRole(\"dialog\", name: \"Publicar no caso\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:36.998Z",
+                "durationMs": 19,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:15",
+                "index": 15,
+                "kind": "app",
+                "api": "app.screenshot",
+                "label": "publicacao-revisada",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:37.018Z",
+                "durationMs": 121,
+                "events": [],
+                "artifacts": [
+                  "01a113cd-9d65-702b-a228-aec5c022d0e9:artifact:0"
+                ],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:16",
+                "index": 16,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Confirmar publicação\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:37.139Z",
+                "durationMs": 101,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:17",
+                "index": 17,
+                "kind": "assertion",
+                "api": "expect.toHaveURL",
+                "label": "/\\/app\\/vault\\/cases\\/e7ccff28-07e7-4397-adbb-c6d1427f28cd\\/pages\\//",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:37.242Z",
+                "durationMs": 1679,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:18",
+                "index": 18,
+                "kind": "resource",
+                "api": "browser.setCookies",
+                "label": "",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:56.367Z",
+                "durationMs": 5,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:19",
+                "index": 19,
+                "kind": "app",
+                "api": "app.open",
+                "label": "/app/command-center",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:56.373Z",
+                "durationMs": 1347,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:20",
+                "index": 20,
+                "kind": "assertion",
+                "api": "expect.toHaveURL",
+                "label": "/\\/app\\/command-center$/",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:57.721Z",
+                "durationMs": 0,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:21",
+                "index": 21,
+                "kind": "assertion",
+                "api": "expect.toBeAttached",
+                "label": "locator(\"nav[aria-label=\\\"Abas do canvas\\\"] button\").first()",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:57.722Z",
+                "durationMs": 392,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:22",
+                "index": 22,
+                "kind": "locator",
+                "api": "locator.waitFor",
+                "label": "getByRole(\"button\", name: \"Agora não\") → visible",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:58.115Z",
+                "durationMs": 41,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:23",
+                "index": 23,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Agora não\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:58.158Z",
+                "durationMs": 204,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:24",
+                "index": 24,
+                "kind": "assertion",
+                "api": "expect.toBeHidden",
+                "label": "getByRole(\"button\", name: \"Agora não\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:58.363Z",
+                "durationMs": 55,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:25",
+                "index": 25,
+                "kind": "app",
+                "api": "app.open",
+                "label": "/app/vault/cases/e7ccff28-07e7-4397-adbb-c6d1427f28cd/pages/b75f45d2-45da-46cf-ad1a-88615806d897",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:40:58.418Z",
+                "durationMs": 1655,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:26",
+                "index": 26,
+                "kind": "assertion",
+                "api": "expect.toContainText",
+                "label": "getByRole(\"textbox\", name: \"Texto do documento\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:00.074Z",
+                "durationMs": 1423,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:27",
+                "index": 27,
+                "kind": "locator",
+                "api": "locator.fill",
+                "label": "getByRole(\"textbox\", name: \"Texto do documento\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:01.589Z",
+                "durationMs": 162,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:28",
+                "index": 28,
+                "kind": "assertion",
+                "api": "expect.toBeVisible",
+                "label": "getByText(\"Conflito de versão\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:01.752Z",
+                "durationMs": 1718,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:29",
+                "index": 29,
+                "kind": "assertion",
+                "api": "expect.toContainText",
+                "label": "getByRole(\"textbox\", name: \"Texto do documento\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:03.471Z",
+                "durationMs": 16,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:30",
+                "index": 30,
+                "kind": "app",
+                "api": "app.screenshot",
+                "label": "conflito-real-entre-participantes",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:03.487Z",
+                "durationMs": 84,
+                "events": [],
+                "artifacts": [
+                  "01a113cd-9d65-702b-a228-aec5c022d0e9:artifact:1"
+                ],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:31",
+                "index": 31,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"button\", name: \"Manter a minha\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:03.572Z",
+                "durationMs": 103,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:32",
+                "index": 32,
+                "kind": "app",
+                "api": "app.open",
+                "label": "/app/vault/cases/e7ccff28-07e7-4397-adbb-c6d1427f28cd/pages/b75f45d2-45da-46cf-ad1a-88615806d897",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:03.929Z",
+                "durationMs": 1410,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:33",
+                "index": 33,
+                "kind": "assertion",
+                "api": "expect.toContainText",
+                "label": "getByRole(\"textbox\", name: \"Texto do documento\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:05.340Z",
+                "durationMs": 1698,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:34",
+                "index": 34,
+                "kind": "locator",
+                "api": "locator.tap",
+                "label": "getByRole(\"navigation\", name: \"Abas do canvas\") >> getByRole(\"button\", name: \"Rascunho de publicação\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:07.415Z",
+                "durationMs": 142,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:35",
+                "index": 35,
+                "kind": "assertion",
+                "api": "expect.toHaveCount",
+                "label": "getByRole(\"textbox\", name: \"Texto do documento\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:07.557Z",
+                "durationMs": 296,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:36",
+                "index": 36,
+                "kind": "assertion",
+                "api": "expect.toHaveCount",
+                "label": "getByRole(\"navigation\", name: \"Abas do canvas\") >> getByRole(\"button\", name: \"Rascunho de publicação\")",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:07.853Z",
+                "durationMs": 24,
+                "events": [],
+                "artifacts": [],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              },
+              {
+                "id": "01a113cd-9d65-702b-a228-aec5c022d0e9:37",
+                "index": 37,
+                "kind": "app",
+                "api": "app.screenshot",
+                "label": "pagina-revogada",
+                "status": "passed",
+                "startedAt": "2026-10-07T00:41:07.878Z",
+                "durationMs": 105,
+                "events": [],
+                "artifacts": [
+                  "01a113cd-9d65-702b-a228-aec5c022d0e9:artifact:2"
+                ],
+                "source": {
+                  "file": "unknown",
+                  "line": 1,
+                  "column": 1
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "24e183a2f6e7bf312db179f1906c5ba8312ce8b6603dbc465e08be519597818b",
+        "testId": "e2e/chat-feedback.e2e.ts::cita%C3%A7%C3%B5es%20e%20duas%20aprova%C3%A7%C3%B5es%20independentes%20continuam%20vis%C3%ADveis%20depois%20de%20remontar%20o%20chat%20em%201280px",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "citações e duas aprovações independentes continuam visíveis depois de remontar o chat em 1280px"
+        ],
+        "file": "e2e/chat-feedback.e2e.ts",
+        "source": {
+          "file": "e2e/chat-feedback.e2e.ts",
+          "line": 5,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "943e467cea8804794fb095234f28c79efd526728ce0f02dd2821f47de06c8b52",
+        "testId": "e2e/chat-feedback.e2e.ts::cita%C3%A7%C3%B5es%20e%20duas%20aprova%C3%A7%C3%B5es%20independentes%20continuam%20vis%C3%ADveis%20depois%20de%20remontar%20o%20chat%20em%20390px",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "citações e duas aprovações independentes continuam visíveis depois de remontar o chat em 390px"
+        ],
+        "file": "e2e/chat-feedback.e2e.ts",
+        "source": {
+          "file": "e2e/chat-feedback.e2e.ts",
+          "line": 5,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "99a41c04ebc4487f8a5130f55e5257a5aaefd56dfa94c2023e31cbaf3aa4f976",
+        "testId": "e2e/client-portal.e2e.ts::o%20portal%20do%20cliente%3A%20convite%2C%20conta%20sem%20escrit%C3%B3rio%2C%20PDF%20e%20cobran%C3%A7a%20publicados%2C%20comprovante%20e%20revoga%C3%A7%C3%A3o",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "o portal do cliente: convite, conta sem escritório, PDF e cobrança publicados, comprovante e revogação"
+        ],
+        "file": "e2e/client-portal.e2e.ts",
+        "source": {
+          "file": "e2e/client-portal.e2e.ts",
+          "line": 11,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [
+          "pdf"
+        ],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "d2b73c3f9b9713191aae9ac6979ef12a9beb12b30078e2b9c8fd71f5bbcf3b97",
+        "testId": "e2e/cliproxyapi.e2e.ts::sele%C3%A7%C3%A3o%20do%20CLIProxyAPI::administra%20CLIProxyAPI%20e%20escolhe%20uma%20tarefa%20pelo%20teclado%20em%201280px",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "seleção do CLIProxyAPI",
+          "administra CLIProxyAPI e escolhe uma tarefa pelo teclado em 1280px"
+        ],
+        "file": "e2e/cliproxyapi.e2e.ts",
+        "source": {
+          "file": "e2e/cliproxyapi.e2e.ts",
+          "line": 31,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "4bc767770f03175bfe877527d6d981da5c5b1f0c51247c011cf077cf697930c1",
+        "testId": "e2e/cliproxyapi.e2e.ts::sele%C3%A7%C3%A3o%20do%20CLIProxyAPI::administra%20CLIProxyAPI%20e%20escolhe%20uma%20tarefa%20pelo%20teclado%20em%20390px",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "seleção do CLIProxyAPI",
+          "administra CLIProxyAPI e escolhe uma tarefa pelo teclado em 390px"
+        ],
+        "file": "e2e/cliproxyapi.e2e.ts",
+        "source": {
+          "file": "e2e/cliproxyapi.e2e.ts",
+          "line": 31,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "6785a1b6f2be28a449526d745f3721a205ed3dd982af33d99fdc58050573832b",
+        "testId": "e2e/cliproxyapi.e2e.ts::novo%20usu%C3%A1rio%20conversa%20pelo%20proxy%2C%20recarrega%20o%20hist%C3%B3rico%20e%20mant%C3%A9m%20isolamento",
+        "kind": "test",
+        "declarationIndex": 2,
+        "titlePath": [
+          "novo usuário conversa pelo proxy, recarrega o histórico e mantém isolamento"
+        ],
+        "file": "e2e/cliproxyapi.e2e.ts",
+        "source": {
+          "file": "e2e/cliproxyapi.e2e.ts",
+          "line": 79,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "dc795fda866385b60a9387592ff9f252852ef6ea008f92a19a86f3ad6961c45f",
+        "testId": "e2e/collaboration.e2e.ts::associados%20e%20pastas%3A%20convite%2C%20colabora%C3%A7%C3%A3o%20e%20revoga%C3%A7%C3%A3o%20no%20desktop",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "associados e pastas: convite, colaboração e revogação no desktop"
+        ],
+        "file": "e2e/collaboration.e2e.ts",
+        "source": {
+          "file": "e2e/collaboration.e2e.ts",
+          "line": 12,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "a385d73438c0cba8b784c4d4c7cc7b17e7b61cb41c8894016aaaa368b0d3a2ec",
+        "testId": "e2e/collaboration.e2e.ts::associados%20e%20pastas%3A%20convite%2C%20colabora%C3%A7%C3%A3o%20e%20revoga%C3%A7%C3%A3o%20no%20celular",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "associados e pastas: convite, colaboração e revogação no celular"
+        ],
+        "file": "e2e/collaboration.e2e.ts",
+        "source": {
+          "file": "e2e/collaboration.e2e.ts",
+          "line": 12,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "7c00e0917b6b5732c4f48647221f651bdea03f826f0dbcf72f2c93b7b208f349",
+        "testId": "e2e/conversation-artifacts.e2e.ts::Artefatos%20lista%20o%20que%20a%20conversa%20criou%20e%20recebeu%20e%20salva%20no%20Cofre%20pela%20interface",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "Artefatos lista o que a conversa criou e recebeu e salva no Cofre pela interface"
+        ],
+        "file": "e2e/conversation-artifacts.e2e.ts",
+        "source": {
+          "file": "e2e/conversation-artifacts.e2e.ts",
+          "line": 8,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "3f438878901d3dc78dfea2b246896cef0c294cdf613aeb1a6fc57c98310f607e",
+        "testId": "e2e/credits.e2e.ts::um%20escrit%C3%B3rio%20novo%20v%C3%AA%20os%20cr%C3%A9ditos%20iniciais%20e%20o%20extrato%20no%20Plano%2C%20no%20desktop%20e%20no%20celular",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "um escritório novo vê os créditos iniciais e o extrato no Plano, no desktop e no celular"
+        ],
+        "file": "e2e/credits.e2e.ts",
+        "source": {
+          "file": "e2e/credits.e2e.ts",
+          "line": 6,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "b36363b92520e1f13e67d9e3e55829ad62325b7730dd64a6569f81e593bbc7f3",
+        "testId": "e2e/document-human-review.e2e.ts::decis%C3%A3o%20humana%20persiste%2C%20permite%20corre%C3%A7%C3%A3o%20e%20pede%20nova%20revis%C3%A3o%20quando%20o%20texto%20muda",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "decisão humana persiste, permite correção e pede nova revisão quando o texto muda"
+        ],
+        "file": "e2e/document-human-review.e2e.ts",
+        "source": {
+          "file": "e2e/document-human-review.e2e.ts",
+          "line": 8,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "0ff493e9393b4ccca34e6106ade8c6c702c1c7e269dd83d9517f6e205f633091",
+        "testId": "e2e/document-pdf.e2e.ts::exportar%20PDF%20baixa%20o%20texto%20salvo%2C%20recusa%20vers%C3%A3o%20antiga%20e%20sess%C3%A3o%20ausente%2C%20e%20mostra%20a%20falha%20de%20convers%C3%A3o",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "exportar PDF baixa o texto salvo, recusa versão antiga e sessão ausente, e mostra a falha de conversão"
+        ],
+        "file": "e2e/document-pdf.e2e.ts",
+        "source": {
+          "file": "e2e/document-pdf.e2e.ts",
+          "line": 10,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [
+          "pdf"
+        ],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "3d766ac7f8a0bf3d73a4e06e254b96d34cf500d595ddfc4897382ab2603e37d0",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::esconder%20a%20aba%20salva%20uma%20vez%20e%20deixa%20as%20edi%C3%A7%C3%B5es%20seguintes%20salv%C3%A1veis",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "salvamento de documentos",
+          "esconder a aba salva uma vez e deixa as edições seguintes salváveis"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 42,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "0062bc06e064a80d8bbc5b6c84e21e00d8d0ab27900afbbeb4207c4354a6e4dd",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::salvar%20explicitamente%20grava%20uma%20vers%C3%A3o%20mesmo%20depois%20do%20salvamento%20autom%C3%A1tico",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "salvamento de documentos",
+          "salvar explicitamente grava uma versão mesmo depois do salvamento automático"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 54,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "9f433a3bae014d9f7042e1fc2b8ce58e49e9eec5f4776a7fc9eee7b561e8e0d4",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::restaurar%20para%20quando%20salvar%20o%20texto%20atual%20falha",
+        "kind": "test",
+        "declarationIndex": 2,
+        "titlePath": [
+          "salvamento de documentos",
+          "restaurar para quando salvar o texto atual falha"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 64,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "5e05786e59036b09fe8e6ec24f49c6857d588bbf606d950165047ec3b73adf5f",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::documentos%20grandes%20terminam%20de%20salvar%20antes%20de%20o%20painel%20fechar",
+        "kind": "test",
+        "declarationIndex": 3,
+        "titlePath": [
+          "salvamento de documentos",
+          "documentos grandes terminam de salvar antes de o painel fechar"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 76,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "e77a388242663867cf817fa6101a3941b5fd5d8c7dea20a33ca3156883f8b60a",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::uma%20revis%C3%A3o%20do%20Lume%20preserva%20o%20texto%20local%20depois%20de%20uma%20falha%20ao%20salvar",
+        "kind": "test",
+        "declarationIndex": 4,
+        "titlePath": [
+          "salvamento de documentos",
+          "uma revisão do Lume preserva o texto local depois de uma falha ao salvar"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 88,
+          "column": 5
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "59a43b7723d4d2a24793dda5da23a082045ecb603ca0870db13dae6c8490b1c4",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::uma%20revis%C3%A3o%20do%20Lume%20preserva%20o%20texto%20local%20depois%20de%20um%20conflito%20ao%20salvar",
+        "kind": "test",
+        "declarationIndex": 5,
+        "titlePath": [
+          "salvamento de documentos",
+          "uma revisão do Lume preserva o texto local depois de um conflito ao salvar"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 88,
+          "column": 5
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "dacf824fc473ca7507cf09a2f8c876b6da644d3d84a8db01db3aa8765733eb83",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::no%20celular%20o%20chat%20oculto%20%C3%A9%20inerte%20e%20alternar%20superf%C3%ADcies%20preserva%20o%20editor",
+        "kind": "test",
+        "declarationIndex": 6,
+        "titlePath": [
+          "salvamento de documentos",
+          "no celular o chat oculto é inerte e alternar superfícies preserva o editor"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 117,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "b4418bc60b81061f7e3ca6a2c8666aab6df6f02d9a19a91dd3f987f4f9884759",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::voltar%20%C3%A0%20conversa%20para%20quando%20o%20documento%20em%20p%C3%A1gina%20inteira%20n%C3%A3o%20salva",
+        "kind": "test",
+        "declarationIndex": 7,
+        "titlePath": [
+          "salvamento de documentos",
+          "voltar à conversa para quando o documento em página inteira não salva"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 136,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "107d7967adfc87e33c87485b229b5496f57ecd1a5e8ae687c3a7c884ec5de693",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::o%20menu%20de%20m%C3%B3dulos%20espera%20o%20salvamento%20e%20tentar%20de%20novo%20recupera%20uma%20falha",
+        "kind": "test",
+        "declarationIndex": 8,
+        "titlePath": [
+          "salvamento de documentos",
+          "o menu de módulos espera o salvamento e tentar de novo recupera uma falha"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 147,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "9cea0a9aba50797b44ed85ce56e68e4ba605686f303cd5fc3ff578acf7b3cbe2",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::uma%20falha%20ao%20salvar%20nunca%20prende%20o%20logout%20global%20e%20descartar%20exige%20escolha%20expl%C3%ADcita%20em%201280px",
+        "kind": "test",
+        "declarationIndex": 9,
+        "titlePath": [
+          "salvamento de documentos",
+          "uma falha ao salvar nunca prende o logout global e descartar exige escolha explícita em 1280px"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 167,
+          "column": 5
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "e379de64e7c2787b1ddc4df51f4f0c34073e7e73cee6b644a359a50e1c834d55",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::uma%20falha%20ao%20salvar%20nunca%20prende%20o%20logout%20global%20e%20descartar%20exige%20escolha%20expl%C3%ADcita%20em%20390px",
+        "kind": "test",
+        "declarationIndex": 10,
+        "titlePath": [
+          "salvamento de documentos",
+          "uma falha ao salvar nunca prende o logout global e descartar exige escolha explícita em 390px"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 167,
+          "column": 5
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "3ff03e2b3825632f2f104d5f82a8607d13ece7986bd8f9a3cbe3eb9580054ef1",
+        "testId": "e2e/document-saving.e2e.ts::salvamento%20de%20documentos::voltar%20e%20avan%C3%A7ar%20mant%C3%A9m%20edi%C3%A7%C3%B5es%20que%20falharam%20em%20390px",
+        "kind": "test",
+        "declarationIndex": 11,
+        "titlePath": [
+          "salvamento de documentos",
+          "voltar e avançar mantém edições que falharam em 390px"
+        ],
+        "file": "e2e/document-saving.e2e.ts",
+        "source": {
+          "file": "e2e/document-saving.e2e.ts",
+          "line": 194,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "976c5c06a9399209026503fb310986e54eb42f2cf425badbb200d0098ee7313d",
+        "testId": "e2e/honorario-charge.e2e.ts::a%20cobran%C3%A7a%20de%20uma%20parcela%20com%20PIX%20e%20boleto%20gera%20o%20PDF%2C%20registra%20o%20envio%20e%20trava%20depois%20da%20quita%C3%A7%C3%A3o",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "a cobrança de uma parcela com PIX e boleto gera o PDF, registra o envio e trava depois da quitação"
+        ],
+        "file": "e2e/honorario-charge.e2e.ts",
+        "source": {
+          "file": "e2e/honorario-charge.e2e.ts",
+          "line": 14,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [
+          "pdf"
+        ],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "dad687b29b2216625032579471792d91c5905534a3ab96f1665ac167bc24c0d7",
+        "testId": "e2e/honorarios.e2e.ts::honor%C3%A1rios%20pela%20interface%3A%20parcelamento%2C%20baixas%20integral%20e%20parcial%2C%20corre%C3%A7%C3%A3o%2C%20abas%2C%20cancelamento%2C%20erro%20e%20celular",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "honorários pela interface: parcelamento, baixas integral e parcial, correção, abas, cancelamento, erro e celular"
+        ],
+        "file": "e2e/honorarios.e2e.ts",
+        "source": {
+          "file": "e2e/honorarios.e2e.ts",
+          "line": 11,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "ed36a6683fb722a124084a25143bfe0575507af2aa467973c928c09255cf7e39",
+        "testId": "e2e/legal-acceptance.e2e.ts::termos%20e%20aviso%20de%20IA%3A%20aceite%20antes%20do%20escrit%C3%B3rio%20e%20ci%C3%AAncia%20antes%20da%20primeira%20conversa",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "termos e aviso de IA: aceite antes do escritório e ciência antes da primeira conversa"
+        ],
+        "file": "e2e/legal-acceptance.e2e.ts",
+        "source": {
+          "file": "e2e/legal-acceptance.e2e.ts",
+          "line": 7,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "4e35ba4d67446134cb96e81c61389918a14a3fb703dfee91d33872b805ec0e55",
+        "testId": "e2e/lume-shell.e2e.ts::a%20conversa%20e%20o%20rascunho%20sobrevivem%20aos%20modos%2C%20m%C3%B3dulos%20e%20altern%C3%A2ncia%20m%C3%B3vel",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "a conversa e o rascunho sobrevivem aos modos, módulos e alternância móvel"
+        ],
+        "file": "e2e/lume-shell.e2e.ts",
+        "source": {
+          "file": "e2e/lume-shell.e2e.ts",
+          "line": 27,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "1278c4e3d0ab739396556f00bb160213c290b00f3035ad6f385df850bf1b774d",
+        "testId": "e2e/lume-shell.e2e.ts::contrato%20frontend%3A%20o%20transporte%20envia%20o%20caso%20vis%C3%ADvel%20e%20uma%20sa%C3%ADda%20tardia%20abre%20s%C3%B3%20uma%20aba%20de%20fundo",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "contrato frontend: o transporte envia o caso visível e uma saída tardia abre só uma aba de fundo"
+        ],
+        "file": "e2e/lume-shell.e2e.ts",
+        "source": {
+          "file": "e2e/lume-shell.e2e.ts",
+          "line": 63,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [
+          "frontend-contract"
+        ],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "9430d5a65df84ca7674c88237e4fe71d8c4f92c4042bc63aaac3283b1c97eba2",
+        "testId": "e2e/lume-shell.e2e.ts::links%20privados%20can%C3%B4nicos%20e%20abas%20restauradas%20conservam%20autoriza%C3%A7%C3%A3o%20e%20rascunhos",
+        "kind": "test",
+        "declarationIndex": 2,
+        "titlePath": [
+          "links privados canônicos e abas restauradas conservam autorização e rascunhos"
+        ],
+        "file": "e2e/lume-shell.e2e.ts",
+        "source": {
+          "file": "e2e/lume-shell.e2e.ts",
+          "line": 107,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "42ed44e09a8ba8861bcd3584faa3dd7bc8c148528615e21cb60a7af28394ccc7",
+        "testId": "e2e/lume-shell.e2e.ts::a%20revoga%C3%A7%C3%A3o%20real%20de%20um%20caso%20remove%20a%20aba%2C%20o%20conte%C3%BAdo%20e%20o%20contexto%20sem%20apagar%20o%20pedido%20privado",
+        "kind": "test",
+        "declarationIndex": 3,
+        "titlePath": [
+          "a revogação real de um caso remove a aba, o conteúdo e o contexto sem apagar o pedido privado"
+        ],
+        "file": "e2e/lume-shell.e2e.ts",
+        "source": {
+          "file": "e2e/lume-shell.e2e.ts",
+          "line": 135,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "219fc1a8f116d808a96e0064af3a39a9bc93bf5cbd78871735cfad35958a9f98",
+        "testId": "e2e/lume-shell.e2e.ts::contrato%20frontend%3A%20a%20conversa%20restrita%20por%20403%20n%C3%A3o%20reaparece%20pelo%20cache",
+        "kind": "test",
+        "declarationIndex": 4,
+        "titlePath": [
+          "contrato frontend: a conversa restrita por 403 não reaparece pelo cache"
+        ],
+        "file": "e2e/lume-shell.e2e.ts",
+        "source": {
+          "file": "e2e/lume-shell.e2e.ts",
+          "line": 172,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [
+          "frontend-contract"
+        ],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "51b66f5e780d4a7c0ce0fdbdbaa162dd4d5157479d2ac9aa86740c4e79a8cc2b",
+        "testId": "e2e/lume-shell.e2e.ts::contrato%20frontend%3A%20a%20conversa%20restrita%20por%20404%20n%C3%A3o%20reaparece%20pelo%20cache",
+        "kind": "test",
+        "declarationIndex": 5,
+        "titlePath": [
+          "contrato frontend: a conversa restrita por 404 não reaparece pelo cache"
+        ],
+        "file": "e2e/lume-shell.e2e.ts",
+        "source": {
+          "file": "e2e/lume-shell.e2e.ts",
+          "line": 172,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [
+          "frontend-contract"
+        ],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "d8050d98fd4cec59ebb5c3613218ed86ac5fa242b5a816a7b426bb1615f9ad27",
+        "testId": "e2e/office-activity.e2e.ts::a%20atividade%20do%20escrit%C3%B3rio%20mostra%20quem%20fez%20o%20qu%C3%AA%2C%20com%20filtros%2C%20no%20desktop",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "a atividade do escritório mostra quem fez o quê, com filtros, no desktop"
+        ],
+        "file": "e2e/office-activity.e2e.ts",
+        "source": {
+          "file": "e2e/office-activity.e2e.ts",
+          "line": 7,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "d9467e572df127dd45c34af42451616d98b3f8dbe0b65705eabea5cfeef75b0b",
+        "testId": "e2e/office-activity.e2e.ts::a%20atividade%20do%20escrit%C3%B3rio%20mostra%20quem%20fez%20o%20qu%C3%AA%2C%20com%20filtros%2C%20no%20celular",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "a atividade do escritório mostra quem fez o quê, com filtros, no celular"
+        ],
+        "file": "e2e/office-activity.e2e.ts",
+        "source": {
+          "file": "e2e/office-activity.e2e.ts",
+          "line": 7,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "dc6850e532a7a90a6959fae416a94a18f8ae02b8f975b98bb76cbc7074aec96e",
+        "testId": "e2e/office-data.e2e.ts::seus%20dados%3A%20exportar%20o%20escrit%C3%B3rio%20e%20agendar%20e%20cancelar%20a%20exclus%C3%A3o",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "seus dados: exportar o escritório e agendar e cancelar a exclusão"
+        ],
+        "file": "e2e/office-data.e2e.ts",
+        "source": {
+          "file": "e2e/office-data.e2e.ts",
+          "line": 9,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "dbbe4996c4658eb385b427a8f1ada52af81ca0dd81c604a795c5a9850e23d11f",
+        "testId": "e2e/office-tasks.e2e.ts::uma%20tarefa%20criada%20em%20Escrit%C3%B3rio%20%C3%A9%20gravada%20no%20escrit%C3%B3rio%2C%20conclu%C3%ADda%20e%20arquivada",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "uma tarefa criada em Escritório é gravada no escritório, concluída e arquivada"
+        ],
+        "file": "e2e/office-tasks.e2e.ts",
+        "source": {
+          "file": "e2e/office-tasks.e2e.ts",
+          "line": 6,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "8d6fda0496d25a45ae17260374ee07098e50c1a3142c7560cc58c2547a8fe4fe",
+        "testId": "e2e/onboarding.e2e.ts::o%20tutorial%20percorre%20todas%20as%20etapas%2C%20pausa%20e%20retoma%20em%201440px",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "o tutorial percorre todas as etapas, pausa e retoma em 1440px"
+        ],
+        "file": "e2e/onboarding.e2e.ts",
+        "source": {
+          "file": "e2e/onboarding.e2e.ts",
+          "line": 19,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "63b1e19b3b5eed60f63f468e6583f6a8713bc55f4707db5cde64ccfb4873413f",
+        "testId": "e2e/onboarding.e2e.ts::o%20tutorial%20percorre%20todas%20as%20etapas%2C%20pausa%20e%20retoma%20em%20390px",
+        "kind": "test",
+        "declarationIndex": 2,
+        "titlePath": [
+          "o tutorial percorre todas as etapas, pausa e retoma em 390px"
+        ],
+        "file": "e2e/onboarding.e2e.ts",
+        "source": {
+          "file": "e2e/onboarding.e2e.ts",
+          "line": 19,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "40e0aacb0b555b85573b90017648927b334c6f36a2631bb08af65a6d760aaafe",
+        "testId": "e2e/onboarding.e2e.ts::o%20tour%20leva%20%C3%A0%20biblioteca%20de%20v%C3%ADdeos%20por%20m%C3%B3dulo",
+        "kind": "test",
+        "declarationIndex": 3,
+        "titlePath": [
+          "o tour leva à biblioteca de vídeos por módulo"
+        ],
+        "file": "e2e/onboarding.e2e.ts",
+        "source": {
+          "file": "e2e/onboarding.e2e.ts",
+          "line": 59,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "08234c14ab6bb222954082b605e3907709b2ef0f5e197cd92957e7a761e8c488",
+        "testId": "e2e/onboarding.e2e.ts::a%20biblioteca%20filtra%20m%C3%B3dulos%20e%20abre%20v%C3%ADdeos%20independentes%20em%201440px",
+        "kind": "test",
+        "declarationIndex": 4,
+        "titlePath": [
+          "a biblioteca filtra módulos e abre vídeos independentes em 1440px"
+        ],
+        "file": "e2e/onboarding.e2e.ts",
+        "source": {
+          "file": "e2e/onboarding.e2e.ts",
+          "line": 69,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "4796bf4933a3b1a5800b2e0c1804579ad86974462938ae3ebf46cd86ad4ddff7",
+        "testId": "e2e/onboarding.e2e.ts::a%20biblioteca%20filtra%20m%C3%B3dulos%20e%20abre%20v%C3%ADdeos%20independentes%20em%20390px",
+        "kind": "test",
+        "declarationIndex": 5,
+        "titlePath": [
+          "a biblioteca filtra módulos e abre vídeos independentes em 390px"
+        ],
+        "file": "e2e/onboarding.e2e.ts",
+        "source": {
+          "file": "e2e/onboarding.e2e.ts",
+          "line": 69,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "29d1f897b2675f3b470a8fad96f792c8adb02785aa324a45010a68927830b079",
+        "testId": "e2e/onboarding.e2e.ts::cada%20tutorial%20tem%20v%C3%ADdeo%2C%20legenda%20e%20capa%20publicados",
+        "kind": "test",
+        "declarationIndex": 6,
+        "titlePath": [
+          "cada tutorial tem vídeo, legenda e capa publicados"
+        ],
+        "file": "e2e/onboarding.e2e.ts",
+        "source": {
+          "file": "e2e/onboarding.e2e.ts",
+          "line": 97,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "cb8bf5e3fad6dab9279da1fa880939ceb4a135c6715570205b5ee9fcb47d094b",
+        "testId": "e2e/onboarding.e2e.ts::falha%20de%20carregamento%20oferece%20tentar%20novamente%20e%20download",
+        "kind": "test",
+        "declarationIndex": 7,
+        "titlePath": [
+          "falha de carregamento oferece tentar novamente e download"
+        ],
+        "file": "e2e/onboarding.e2e.ts",
+        "source": {
+          "file": "e2e/onboarding.e2e.ts",
+          "line": 107,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "653fcf12d1404cf910e358129fb4c4361674ea6815dc1a78df30313d5d15659f",
+        "testId": "e2e/onboarding.e2e.ts::um%20endere%C3%A7o%20de%20v%C3%ADdeo%20desconhecido%20retorna%20p%C3%A1gina%20n%C3%A3o%20encontrada",
+        "kind": "test",
+        "declarationIndex": 8,
+        "titlePath": [
+          "um endereço de vídeo desconhecido retorna página não encontrada"
+        ],
+        "file": "e2e/onboarding.e2e.ts",
+        "source": {
+          "file": "e2e/onboarding.e2e.ts",
+          "line": 119,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "39af63cd74678424ca2e46eef5ce33cb45ca191ffdec89780790a3f6dc9783a4",
+        "testId": "e2e/password-recovery.e2e.ts::recupera%C3%A7%C3%A3o%20de%20senha%20volta%20ao%20login%20do%20escrit%C3%B3rio%20em%201280px",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "recuperação de senha volta ao login do escritório em 1280px"
+        ],
+        "file": "e2e/password-recovery.e2e.ts",
+        "source": {
+          "file": "e2e/password-recovery.e2e.ts",
+          "line": 7,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "d04eb8391ed9429eb26c002f68a5343d45bb96a10e553d19c0c8ad75fc1ae06d",
+        "testId": "e2e/password-recovery.e2e.ts::recupera%C3%A7%C3%A3o%20de%20senha%20volta%20ao%20login%20do%20cliente%20em%20390px",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "recuperação de senha volta ao login do cliente em 390px"
+        ],
+        "file": "e2e/password-recovery.e2e.ts",
+        "source": {
+          "file": "e2e/password-recovery.e2e.ts",
+          "line": 7,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "bd2853af769aa19335352d752f81c7be59c9aa0c3be40b0f7ac7b5d4a97a8b28",
+        "testId": "e2e/profile.e2e.ts::perfil%2C%20foto%2C%20credenciais%20e%20convite%20de%20associado%20com%20o%20card%20do%20perfil",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "perfil, foto, credenciais e convite de associado com o card do perfil"
+        ],
+        "file": "e2e/profile.e2e.ts",
+        "source": {
+          "file": "e2e/profile.e2e.ts",
+          "line": 8,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "28e7752234c6db0233adf4e6b355000d6843c8eeccd597e42d9c589ccde12367",
+        "testId": "e2e/public-site.e2e.ts::o%20site%20p%C3%BAblico%20entrega%20SEO%20no%20HTML%20do%20servidor%20e%20mant%C3%A9m%20as%20%C3%A1reas%20privadas%20fora%20do%20%C3%ADndice",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "o site público entrega SEO no HTML do servidor e mantém as áreas privadas fora do índice"
+        ],
+        "file": "e2e/public-site.e2e.ts",
+        "source": {
+          "file": "e2e/public-site.e2e.ts",
+          "line": 10,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "134d8fc963531cdad4081b2d1e41ef6e6734541ed834d1d89571c9287d6756a0",
+        "testId": "e2e/public-site.e2e.ts::a%20p%C3%A1gina%20inicial%20funciona%20pelo%20teclado%20e%20nos%20dois%20temas%20em%20390px",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "a página inicial funciona pelo teclado e nos dois temas em 390px"
+        ],
+        "file": "e2e/public-site.e2e.ts",
+        "source": {
+          "file": "e2e/public-site.e2e.ts",
+          "line": 46,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "8d9fcfb21161af74c427c2ff660eb54d4527fa72d82cfed87b12783159fab85a",
+        "testId": "e2e/public-site.e2e.ts::a%20p%C3%A1gina%20inicial%20funciona%20pelo%20teclado%20e%20nos%20dois%20temas%20em%201440px",
+        "kind": "test",
+        "declarationIndex": 2,
+        "titlePath": [
+          "a página inicial funciona pelo teclado e nos dois temas em 1440px"
+        ],
+        "file": "e2e/public-site.e2e.ts",
+        "source": {
+          "file": "e2e/public-site.e2e.ts",
+          "line": 46,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "4e65f6d1d01c1f1edf6886724c47ac5ad96da6b07cacdee35efe2d14da733607",
+        "testId": "e2e/pwa.e2e.ts::o%20manifesto%2C%20os%20%C3%ADcones%20e%20o%20service%20worker%20do%20Lume%20est%C3%A3o%20publicados%20para%20instala%C3%A7%C3%A3o",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "o manifesto, os ícones e o service worker do Lume estão publicados para instalação"
+        ],
+        "file": "e2e/pwa.e2e.ts",
+        "source": {
+          "file": "e2e/pwa.e2e.ts",
+          "line": 6,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "adaf363b3a3807ea0ff0d12c1d6f85e8d11396f72ae220addf45f28e6c5060e1",
+        "testId": "e2e/pwa.e2e.ts::instalar%20o%20Lume%20usa%20o%20convite%20do%20navegador%20ou%20explica%20como%20instalar%2C%20e%20o%20tema%20escuro%20ajusta%20a%20cor%20da%20barra",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "instalar o Lume usa o convite do navegador ou explica como instalar, e o tema escuro ajusta a cor da barra"
+        ],
+        "file": "e2e/pwa.e2e.ts",
+        "source": {
+          "file": "e2e/pwa.e2e.ts",
+          "line": 18,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "d5c26ce583c6af52b5d5b4d866f39188d0126daaa183f0a5c7c0934eb9069894",
+        "testId": "e2e/task-board-persistence.e2e.ts::arrastar%20uma%20tarefa%20no%20quadro%20grava%20a%20coluna%20no%20escrit%C3%B3rio%3A%20mouse%2C%20teclado%20e%20celular",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "arrastar uma tarefa no quadro grava a coluna no escritório: mouse, teclado e celular"
+        ],
+        "file": "e2e/task-board-persistence.e2e.ts",
+        "source": {
+          "file": "e2e/task-board-persistence.e2e.ts",
+          "line": 29,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "c58189bad2ef7f380a835512eb11f5263b3f3c308a240e40ab1081ad59100a30",
+        "testId": "e2e/task-board.e2e.ts::o%20quadro%20de%20tarefas%20mostra%2053%20tarefas%2C%20move%20pelo%20teclado%2C%20delega%20ao%20Lume%20e%20se%20recupera%20de%20vazio%20e%20erro",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e se recupera de vazio e erro"
+        ],
+        "file": "e2e/task-board.e2e.ts",
+        "source": {
+          "file": "e2e/task-board.e2e.ts",
+          "line": 85,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "093768160bafa6a105133d03d86b69d636a5c53d62d674cb3faa77d91b1f9d2c",
+        "testId": "e2e/task-board.e2e.ts::arrastar%20com%20o%20mouse%20move%20a%20tarefa%20de%20coluna%3B%20fora%20do%20quadro%2C%20na%20mesma%20coluna%20e%20com%20Esc%20nada%20muda",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "arrastar com o mouse move a tarefa de coluna; fora do quadro, na mesma coluna e com Esc nada muda"
+        ],
+        "file": "e2e/task-board.e2e.ts",
+        "source": {
+          "file": "e2e/task-board.e2e.ts",
+          "line": 144,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "dacf7a284a3d4ff6624c4343937f2cd3679980e8a6ca5f43f335706aca18f72b",
+        "testId": "e2e/task-board.e2e.ts::a%20tarefa%20troca%20de%20coluna%20antes%20da%20resposta%20e%20cada%20cart%C3%A3o%20salva%20sozinho",
+        "kind": "test",
+        "declarationIndex": 2,
+        "titlePath": [
+          "a tarefa troca de coluna antes da resposta e cada cartão salva sozinho"
+        ],
+        "file": "e2e/task-board.e2e.ts",
+        "source": {
+          "file": "e2e/task-board.e2e.ts",
+          "line": 179,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "e7a72d2681b652b35372ff92246063c12bf9c024e51f26d92add3a7d2c2e67d1",
+        "testId": "e2e/task-board.e2e.ts::uma%20falha%20devolve%20s%C3%B3%20aquele%20cart%C3%A3o%20e%20a%20nova%20tentativa%20usa%20a%20vers%C3%A3o%20atual",
+        "kind": "test",
+        "declarationIndex": 3,
+        "titlePath": [
+          "uma falha devolve só aquele cartão e a nova tentativa usa a versão atual"
+        ],
+        "file": "e2e/task-board.e2e.ts",
+        "source": {
+          "file": "e2e/task-board.e2e.ts",
+          "line": 205,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "44422df30017f82dc1ac7af29c262310db7680e246289c095eaa6c2283469b2d",
+        "testId": "e2e/task-board.e2e.ts::movimentos%20seguidos%20usam%20a%20vers%C3%A3o%20devolvida%20e%20o%20teclado%20anda%20coluna%20a%20coluna",
+        "kind": "test",
+        "declarationIndex": 4,
+        "titlePath": [
+          "movimentos seguidos usam a versão devolvida e o teclado anda coluna a coluna"
+        ],
+        "file": "e2e/task-board.e2e.ts",
+        "source": {
+          "file": "e2e/task-board.e2e.ts",
+          "line": 237,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "b9993564035cb6c59ad1555175d9cf28af373aa8abf2e7b27f218227792bf015",
+        "testId": "e2e/task-board.e2e.ts::no%20celular%20o%20arrasto%20fica%20no%20quadro%20e%20o%20teclado%20leva%20a%20tarefa%20de%20coluna%20em%20coluna",
+        "kind": "test",
+        "declarationIndex": 5,
+        "titlePath": [
+          "no celular o arrasto fica no quadro e o teclado leva a tarefa de coluna em coluna"
+        ],
+        "file": "e2e/task-board.e2e.ts",
+        "source": {
+          "file": "e2e/task-board.e2e.ts",
+          "line": 280,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "e766eeda1d2defbd6c105aacf0fefaf7227c49e63b69f144760f7d80058db601",
+        "testId": "e2e/task-details.e2e.ts::cada%20tarefa%20do%20Kanban%20abre%20a%20pr%C3%B3pria%20p%C3%A1gina%2C%20que%20edita%20t%C3%ADtulo%20e%20observa%C3%A7%C3%B5es%20sem%20mudar%20a%20situa%C3%A7%C3%A3o",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "cada tarefa do Kanban abre a própria página, que edita título e observações sem mudar a situação"
+        ],
+        "file": "e2e/task-details.e2e.ts",
+        "source": {
+          "file": "e2e/task-details.e2e.ts",
+          "line": 7,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "ad1201d70063c4ad2f684af31d179403c9667115f03991264e42a2bd5d30eb56",
+        "testId": "e2e/task-details.e2e.ts::uma%20reuni%C3%A3o%20e%20um%20id%20inexistente%20mostram%20a%20tarefa%20indispon%C3%ADvel%20sem%20revelar%20o%20t%C3%ADtulo",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "uma reunião e um id inexistente mostram a tarefa indisponível sem revelar o título"
+        ],
+        "file": "e2e/task-details.e2e.ts",
+        "source": {
+          "file": "e2e/task-details.e2e.ts",
+          "line": 95,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "d649e704b7f41c51ff70cf233959a94e66e681c7e5d4bc1854939c1258097d63",
+        "testId": "e2e/task-details.e2e.ts::a%20p%C3%A1gina%20da%20tarefa%20mostra%20a%20falha%20de%20carregamento%20e%20tenta%20de%20novo",
+        "kind": "test",
+        "declarationIndex": 2,
+        "titlePath": [
+          "a página da tarefa mostra a falha de carregamento e tenta de novo"
+        ],
+        "file": "e2e/task-details.e2e.ts",
+        "source": {
+          "file": "e2e/task-details.e2e.ts",
+          "line": 124,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "7c5060496a025c12a756dae400584290173fb7377e842c7244858210ac7470f4",
+        "testId": "e2e/vault-pagination.e2e.ts::arquivos%20antigos%20do%20Cofre%20s%C3%A3o%20alcan%C3%A7%C3%A1veis%20e%20falhas%20de%20pagina%C3%A7%C3%A3o%20se%20recuperam%20em%20390px",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "arquivos antigos do Cofre são alcançáveis e falhas de paginação se recuperam em 390px"
+        ],
+        "file": "e2e/vault-pagination.e2e.ts",
+        "source": {
+          "file": "e2e/vault-pagination.e2e.ts",
+          "line": 11,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "1f3d77bf90f5410cfeca5b8d4aa89d3b7999bd1b9c9ead8400e7ec1db709fbbb",
+        "testId": "e2e/vault-pagination.e2e.ts::arquivos%20antigos%20continuam%20selecion%C3%A1veis%20em%20anexos%2C%20e-mail%20e%20Drive%20em%201280px",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "arquivos antigos continuam selecionáveis em anexos, e-mail e Drive em 1280px"
+        ],
+        "file": "e2e/vault-pagination.e2e.ts",
+        "source": {
+          "file": "e2e/vault-pagination.e2e.ts",
+          "line": 59,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "1f37f549d39c60bb4bfbf88863ed578fd9f04f95f8ed1b8690d606734144dd4d",
+        "testId": "e2e/vault-upload.e2e.ts::o%20Cofre%20recebe%20arquivo%20de%20100%20MB%20e%20recusa%20um%20byte%20a%20mais",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "o Cofre recebe arquivo de 100 MB e recusa um byte a mais"
+        ],
+        "file": "e2e/vault-upload.e2e.ts",
+        "source": {
+          "file": "e2e/vault-upload.e2e.ts",
+          "line": 5,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "f1ff5ae80237fb5b8953790ffcdbb89fd9e99d4b7599ec5b36bb2e6253625311",
+        "testId": "e2e/vault-upload.e2e.ts::envio%20direto%20ao%20Cofre%20preserva%20nome%2C%20pasta%20e%20processamento%20do%20arquivo",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "envio direto ao Cofre preserva nome, pasta e processamento do arquivo"
+        ],
+        "file": "e2e/vault-upload.e2e.ts",
+        "source": {
+          "file": "e2e/vault-upload.e2e.ts",
+          "line": 33,
+          "column": 1
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "fb0fac3fb8eb118f2fde4c59d5c6dae4be5ae57a4da55f4158c95310cefa2da3",
+        "testId": "e2e/workspace.e2e.ts::%C3%A1rea%20de%20trabalho::o%20menu%20da%20conta%20no%20celular%20alterna%20o%20tema%20e%20devolve%20o%20foco%20ao%20fechar",
+        "kind": "test",
+        "declarationIndex": 0,
+        "titlePath": [
+          "área de trabalho",
+          "o menu da conta no celular alterna o tema e devolve o foco ao fechar"
+        ],
+        "file": "e2e/workspace.e2e.ts",
+        "source": {
+          "file": "e2e/workspace.e2e.ts",
+          "line": 9,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "8022822f6ff2cfbcab388299fdc1184823a2b0aee96ffa51475db8f4eaa00e3f",
+        "testId": "e2e/workspace.e2e.ts::%C3%A1rea%20de%20trabalho::o%20compositor%20do%20chat%20fica%20vis%C3%ADvel%20numa%20conversa%20longa%20e%20o%20rascunho%20sobrevive%20%C3%A0%20rolagem",
+        "kind": "test",
+        "declarationIndex": 1,
+        "titlePath": [
+          "área de trabalho",
+          "o compositor do chat fica visível numa conversa longa e o rascunho sobrevive à rolagem"
+        ],
+        "file": "e2e/workspace.e2e.ts",
+        "source": {
+          "file": "e2e/workspace.e2e.ts",
+          "line": 22,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      },
+      {
+        "id": "7648b18ebd63e3a1376a6e3ccbabfbe2af4b814ebec20a48b33ea3e31daa15fd",
+        "testId": "e2e/workspace.e2e.ts::%C3%A1rea%20de%20trabalho::In%C3%ADcio%2C%20calend%C3%A1rio%20e%20ficha%20do%20cliente%20com%20dados%20controlados%2C%20estados%20vazios%20e%20de%20erro",
+        "kind": "test",
+        "declarationIndex": 2,
+        "titlePath": [
+          "área de trabalho",
+          "Início, calendário e ficha do cliente com dados controlados, estados vazios e de erro"
+        ],
+        "file": "e2e/workspace.e2e.ts",
+        "source": {
+          "file": "e2e/workspace.e2e.ts",
+          "line": 59,
+          "column": 3
+        },
+        "targetId": "web",
+        "platform": "web",
+        "agent": "default",
+        "repeat": 0,
+        "tags": [],
+        "selected": false,
+        "status": "skipped",
+        "skip": {
+          "cause": "filtered",
+          "reason": "file not selected by a positional argument"
+        },
+        "attempts": []
+      }
+    ],
+    "errors": [],
+    "summary": {
+      "discovered": 80,
+      "selected": 3,
+      "executed": 3,
+      "passed": 2,
+      "failed": 1,
+      "flaky": 0,
+      "skipped": 77
+    },
+    "limits": {
+      "maxAgentContextBytes": 16384,
+      "maxLedgerBytes": 8192,
+      "maxObservationBytes": 262144,
+      "maxEventsPerStep": 1000,
+      "maxModelTokensPerCall": 64000
+    },
+    "usage": {
+      "discoveredResults": 80,
+      "maxAgentContextBytes": 0,
+      "maxLedgerBytes": 0,
+      "maxObservationBytes": 0,
+      "artifactBytes": 61845175,
+      "downloads": 0,
+      "events": 0,
+      "modelTokens": 0,
+      "maxModelCallsInStep": 0,
+      "maxActionStepsInStep": 0
+    }
+  }
+}

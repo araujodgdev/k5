@@ -115,7 +115,7 @@ export function NotificationPanel({ open, onOpenChange, onCloseFocus }: { open: 
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent overlayClassName="bg-overlay/20"
-      className="notification-panel top-auto right-2 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+.5rem)] left-2 flex max-h-[calc(100dvh-6rem)] w-auto max-w-none translate-x-0 translate-y-0 flex-col gap-0 p-0 sm:max-w-none md:right-auto md:max-h-[min(36rem,calc(100dvh-1.5rem))] md:w-[26rem] data-open:slide-in-from-bottom-3 data-open:zoom-in-100 data-closed:zoom-out-100"
+      className="notification-panel flex w-[calc(100%-2rem)] max-w-lg max-h-[calc(100dvh-8rem)] flex-col gap-0 rounded-2xl p-0 sm:max-w-lg md:max-h-[min(36rem,calc(100dvh-2rem))]"
       onCloseAutoFocus={event => { event.preventDefault(); onCloseFocus(); }}>
       <div className="px-5 pt-5 pr-12"><DialogTitle className="font-sans text-base font-medium">Notificações</DialogTitle></div>
       <div className="flex items-center gap-5 border-b px-5">

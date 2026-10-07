@@ -1,0 +1,14 @@
+﻿{
+    "pid":  40964,
+    "startedAt":  "2026-10-07T10:55:50.986Z",
+    "active":  "root-test",
+    "results":  [
+                    {
+                        "name":  "freeze-before",
+                        "exitCode":  0,
+                        "finishedAt":  "2026-10-07T10:55:51.136Z"
+                    }
+                ],
+    "stoppedAt":  "2026-10-07T11:08:02.8708131Z",
+    "reason":  "Parent intentionally stopped obsolete full verification before concrete review repairs; this is not a test result."
+}

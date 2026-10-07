@@ -1,0 +1,295 @@
+ M ../../.agents/skills/verify-lume/features/agent-chat.md
+ M ../../.agents/skills/verify-lume/features/brand-shell.md
+ M ../../.agents/skills/verify-lume/features/vault-annexes.md
+ M ../../.claude/skills/verify-lume/features/agent-chat.md
+ M ../../.claude/skills/verify-lume/features/brand-shell.md
+ M ../../.claude/skills/verify-lume/features/vault-annexes.md
+ M DESIGN.md
+ M e2e.config.ts
+ M e2e/app-shell.e2e.ts
+ M e2e/client-portal.e2e.ts
+ M e2e/collaboration.e2e.ts
+ M e2e/document-saving.e2e.ts
+ M e2e/honorarios.e2e.ts
+ M e2e/legal-acceptance.e2e.ts
+ M e2e/onboarding.e2e.ts
+ M e2e/profile.e2e.ts
+ M e2e/pwa.e2e.ts
+ M e2e/support/sign-in.ts
+ M e2e/workspace.e2e.ts
+ M eslint.config.mjs
+ M package.json
+ M scripts/typesafe-eval.ts
+ M src/app/api/approvals/[id]/route.ts
+ M src/app/api/artifacts/[id]/citations/route.ts
+ M src/app/api/artifacts/[id]/export/route.ts
+ M src/app/api/artifacts/[id]/route.ts
+ M src/app/api/chat/route.ts
+ M src/app/api/client-portal/invitations/[token]/route.ts
+ M src/app/api/platform/typesafe/route.ts
+ M src/app/api/vault/cases/[id]/annexes/route.ts
+ M src/app/api/vault/documents/route.ts
+ M src/app/app/(office)/[section]/page.tsx
+ M src/app/app/(office)/documents/[id]/page.tsx
+ M src/app/app/(office)/layout.tsx
+ M src/app/app/(office)/vault/cases/[id]/page.tsx
+ M src/app/app/(office)/vault/page.tsx
+ D src/app/app/calc/error.tsx
+ D src/app/app/calc/loading.tsx
+ D src/app/app/calc/page.tsx
+ D src/app/app/honorarios/propostas/page.tsx
+ M src/app/globals.css
+ M src/app/layout.tsx
+ M src/components/agent-artifacts-panel.tsx
+ M src/components/agent-chat.tsx
+ M src/components/agent-sources-panel.tsx
+ D src/components/app-sidebar.tsx
+ M src/components/command-center.tsx
+ M src/components/document/document-drafts-provider.tsx
+ D src/components/document/document-panel.tsx
+ M src/components/document/document-workspace.tsx
+ M src/components/document/page-preview.tsx
+ M src/components/google/email-smart.tsx
+ M src/components/google/gmail-panel.tsx
+ M src/components/onboarding-tour.tsx
+ M src/components/research-case-linker.tsx
+ M src/components/research-case-references.tsx
+ M src/components/theme-provider.tsx
+ M src/components/vault-annexes.tsx
+ M src/components/vault-case-view.tsx
+ M src/lib/agent-guard.ts
+ M src/lib/agent-history.ts
+ M src/lib/agent-instructions.ts
+ M src/lib/agent-knowledge.ts
+ M src/lib/agent-memory.ts
+ M src/lib/agent-profile.ts
+ M src/lib/agent-tools/index.ts
+ M src/lib/agent-tools/selection.ts
+ M src/lib/ai-policy.ts
+ M src/lib/ai-providers.ts
+ M src/lib/ai-runtime.ts
+ M src/lib/ai-sources.ts
+ M src/lib/ai-store.ts
+ M src/lib/annexes-contract.ts
+ M src/lib/annexes.ts
+ M src/lib/application/agenda-service.ts
+ M src/lib/application/agent-approvals.ts
+ M src/lib/application/agent-settings-service.ts
+ M src/lib/application/annexes-service.ts
+ M src/lib/application/approvals-service.ts
+ M src/lib/application/artifacts-service.ts
+ M src/lib/application/context.ts
+ M src/lib/application/idempotency-service.ts
+ M src/lib/application/knowledge-service.ts
+ M src/lib/application/research-capability-service.ts
+ M src/lib/application/research-service.ts
+ M src/lib/application/runs-service.ts
+ M src/lib/application/task-delegation.ts
+ M src/lib/application/ui-service.ts
+ M src/lib/application/vault-service.ts
+ M src/lib/application/workspace-agent-service.ts
+ M src/lib/artifact-file.ts
+ M src/lib/auth-core.ts
+ M src/lib/capabilities/annexes.ts
+ M src/lib/capabilities/contracts.ts
+ M src/lib/capabilities/google.ts
+ M src/lib/capabilities/http-client.ts
+ M src/lib/capabilities/research-case.ts
+ M src/lib/capabilities/research.ts
+ M src/lib/capabilities/whatsapp.ts
+ M src/lib/capabilities/workspace.ts
+ M src/lib/chat-contract.ts
+ M src/lib/chat-prompt.ts
+ M src/lib/chat-run.ts
+ M src/lib/chat-status.ts
+ M src/lib/chat-turn.ts
+ M src/lib/citations/artifact-review.ts
+ M src/lib/citations/review.ts
+ M src/lib/citations/sources.ts
+ M src/lib/client-portal/http.ts
+ M src/lib/client-portal/invitations.ts
+ M src/lib/client-portal/service.ts
+ M src/lib/collaboration/access.ts
+ M src/lib/collaboration/capability-access.ts
+ M src/lib/collaboration/service.ts
+ M src/lib/conversation-artifacts.ts
+ M src/lib/db/postgres.ts
+ M src/lib/document-drafts.ts
+ D src/lib/document-split.ts
+ M src/lib/document-workflows.ts
+ M src/lib/feedback-triage.ts
+ M src/lib/google/approval-review.ts
+ M src/lib/google/calendar/service.ts
+ M src/lib/google/connections.ts
+ M src/lib/google/drive/import.ts
+ M src/lib/google/drive/service.ts
+ M src/lib/google/gmail/insights-contracts.ts
+ M src/lib/google/gmail/insights.ts
+ M src/lib/google/gmail/service.ts
+ M src/lib/google/gmail/triage.ts
+ M src/lib/google/operations.ts
+ M src/lib/honorarios/charges.ts
+ M src/lib/knowledge/embedding-provider.ts
+ M src/lib/knowledge/retrieval.ts
+ D src/lib/nav-collapse.ts
+ M src/lib/navigation.ts
+ M src/lib/notifications/repository.ts
+ M src/lib/notifications/worker.ts
+ M src/lib/office-deletion.ts
+ M src/lib/office-export.ts
+ M src/lib/onboarding.ts
+ M src/lib/personal-chat/domain.ts
+ M src/lib/personal-chat/email-worker.ts
+ M src/lib/personal-chat/service.ts
+ M src/lib/personal-chat/shares.ts
+ M src/lib/research/case-assessment.ts
+ M src/lib/research/case-material.ts
+ M src/lib/research/case-profile.ts
+ M src/lib/research/case-references.ts
+ M src/lib/research/jurisprudence-score.ts
+ M src/lib/research/retrieval.ts
+ M src/lib/research/trademarks/logo-analysis.ts
+ M src/lib/research/trademarks/wipo.ts
+ M src/lib/typesafe/agenda.ts
+ M src/lib/typesafe/client.ts
+ M src/lib/typesafe/rerank.ts
+ M src/lib/typesafe/research-rerank.ts
+ M src/lib/typesafe/verification.ts
+ M src/lib/vault.ts
+ M src/lib/whatsapp/send.ts
+ M tests/agent-approvals.test.ts
+ M tests/agent-capabilities.test.ts
+ M tests/agent-files-review.test.ts
+ M tests/agent-knowledge.test.ts
+ M tests/agent-module-access.test.ts
+ M tests/agent-profile.test.ts
+ M tests/ai-store.test.ts
+ M tests/animation-ssr.test.ts
+ M tests/annexes.test.ts
+ M tests/artifact-edits.test.ts
+ M tests/auth.test.ts
+ M tests/capabilities.test.ts
+ M tests/chat-lease.test.ts
+ M tests/chat-route.test.ts
+ M tests/citations.test.ts
+ M tests/client-portal.test.ts
+ M tests/collaboration.test.ts
+ M tests/conversation-artifacts.test.ts
+ M tests/document-drafts.test.ts
+ M tests/document-panel.test.ts
+ M tests/documents.test.ts
+ M tests/google-calendar.test.ts
+ M tests/google-drive.test.ts
+ M tests/google-email-insights.test.ts
+ M tests/google-fixture.ts
+ M tests/honorario-charges.test.ts
+ M tests/jurisprudence-score.test.ts
+ M tests/openai-effort.test.ts
+ M tests/personal-chat-share-state.test.ts
+ M tests/personal-chat.test.ts
+ M tests/platform-auth.test.ts
+ M tests/research-capabilities.test.ts
+ M tests/research-case.test.ts
+ M tests/research-core.test.ts
+ M tests/run-model-plan.test.ts
+ M tests/security.test.ts
+ M tests/typesafe.test.ts
+ M tests/whatsapp-media.test.ts
+ M tests/whatsapp-send.test.ts
+ M tests/workspace-capability-inputs.ts
+ M tsconfig.json
+ M ../../pnpm-lock.yaml
+?? ../../.agents/skills/verify-lume/features/case-pages.md
+?? ../../.audit/
+?? ../../.claude/skills/verify-lume/features/case-pages.md
+?? db/postgres/0075_case_pages.sql
+?? db/postgres/0076_content_policy.sql
+?? db/postgres/0077_content_policy_validation.sql
+?? db/postgres/0078_source_policy_repair.sql
+?? db/postgres/0079_citation_source_policy.sql
+?? db/postgres/0080_calendar_share_review.sql
+?? db/postgres/0080a_capture_upgrade_compat.sql
+?? db/postgres/0081_source_capture_upgrade.sql
+?? db/postgres/0082_capture_upgrade_compat_cleanup.sql
+?? db/postgres/0083_retained_source_bindings.sql
+?? db/postgres/0084_research_content_admission.sql
+?? db/postgres/0085_verification_admission.sql
+?? db/postgres/0086_retained_web_and_share_files.sql
+?? db/postgres/0087_research_search_input_policy.sql
+?? db/postgres/0088_folder_identity_admission.sql
+?? db/postgres/0089_research_metadata_admission.sql
+?? db/postgres/0090_case_collaboration.sql
+?? db/postgres/0091_case_notification_inbox.sql
+?? db/postgres/0092_case_task_content_policy.sql
+?? db/postgres/0093_case_task_reminder_recipients.sql
+?? e2e/annex-plan.e2e.ts
+?? e2e/case-collaboration.e2e.ts
+?? e2e/case-pages.e2e.ts
+?? e2e/editor-repair.e2e.ts
+?? e2e/lume-composition.e2e.ts
+?? e2e/lume-shell.e2e.ts
+?? e2e/private-chat-readiness.e2e.ts
+?? e2e/research-linker-race.e2e.ts
+?? e2e/research-source-round3.e2e.ts
+?? e2e/source-policy.e2e.ts
+?? e2e/source-round3.e2e.ts
+?? src/app/api/approvals/[id]/page/
+?? src/app/api/canvas/
+?? src/app/api/cases/
+?? src/app/api/home/
+?? src/app/app/(office)/calc/
+?? src/app/app/(office)/honorarios/propostas/
+?? src/app/app/(office)/vault/cases/[id]/pages/
+?? src/app/app/(office)/vault/files/
+?? src/app/lume-workspace.css
+?? src/components/case-collaboration.tsx
+?? src/components/case-pages.tsx
+?? src/components/case-sharing.tsx
+?? src/components/document/page-approval-review.tsx
+?? src/components/document/publish-document.tsx
+?? src/components/lume/
+?? src/lib/acl-transaction.ts
+?? src/lib/application/capability-replay.ts
+?? src/lib/canvas-resources.ts
+?? src/lib/case-collaboration.ts
+?? src/lib/case-pages/
+?? src/lib/case-tasks/
+?? src/lib/chat-scope-server.ts
+?? src/lib/chat-scope.ts
+?? src/lib/content-admission.ts
+?? src/lib/content-policy.ts
+?? src/lib/content-result.ts
+?? src/lib/document-ref.ts
+?? src/lib/documents/
+?? src/lib/home-overview.ts
+?? src/lib/lume-workspace.ts
+?? src/lib/research/case-content-contract.ts
+?? src/lib/research/case-content.ts
+?? src/lib/typesafe/connection-probe.ts
+?? tests/case-collaboration.test.ts
+?? tests/case-pages.test.ts
+?? tests/chat-audio-source.test.ts
+?? tests/chat-source-boundary.test.ts
+?? tests/content-exits.test.ts
+?? tests/content-policy.test.ts
+?? tests/document-writes.ts
+?? tests/lume-workspace.test.ts
+?? tests/server-only-fixture.ts
+?? tests/session-fixture.ts
+?? tests/shared-writing-fixture.ts
+?? tests/source-acl.test.ts
+?? tests/source-annex-plan.test.ts
+?? tests/source-archive.test.ts
+?? tests/source-catalog-cache.test.ts
+?? tests/source-dispatch-round3.test.ts
+?? tests/source-extraction.test.ts
+?? tests/source-functional-citations.test.ts
+?? tests/source-functional-repair.test.ts
+?? tests/source-gmail-binding.test.ts
+?? tests/source-handoff-round3.test.ts
+?? tests/source-provider-round3.test.ts
+?? tests/source-repair-behavior.test.ts
+?? tests/source-round2.test.ts
+?? tests/source-round3.test.ts
+?? tests/source-session-expiry.test.ts
+?? ../../docs/lume-agent-canvas-implementation.md

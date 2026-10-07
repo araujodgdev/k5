@@ -1,0 +1,1851 @@
+{
+  "at": "2026-10-07T10:43:14.418Z",
+  "files": [
+    {
+      "path": "apps/web/eslint.config.mjs",
+      "beforeHash": "317f6af1400183e2cf76da37caa96a9e4dc7faca5bf520502a035c6bf508c4e5",
+      "afterHash": "417b3f4949a239b030f753fc9f3ffcfb78d182d62e2e48804acc4e5b3e9d11c9",
+      "tokens": 12,
+      "comments": [
+        {
+          "start": 2090,
+          "end": 2162,
+          "text": "// Local data and browser audit artifacts can contain generated bundles."
+        },
+        {
+          "start": 1963,
+          "end": 2028,
+          "text": "// vinext build output: bundled and generated, not authored here."
+        },
+        {
+          "start": 1762,
+          "end": 1803,
+          "text": "// Default ignores of eslint-config-next:"
+        },
+        {
+          "start": 1687,
+          "end": 1737,
+          "text": "// Override default ignores of eslint-config-next."
+        },
+        {
+          "start": 1492,
+          "end": 1580,
+          "text": "// checksVoidReturn stays off: an async onClick is ordinary React, and React handles it."
+        },
+        {
+          "start": 1392,
+          "end": 1484,
+          "text": "// un-awaited call is always truthy, so `if (!findThing())` silently stops running its body."
+        },
+        {
+          "start": 1298,
+          "end": 1384,
+          "text": "// Catches the failure TypeScript stays quiet about: a Promise used as a condition. An"
+        },
+        {
+          "start": 970,
+          "end": 1052,
+          "text": "// test file would be wrong, so it is exempt rather than voided at 200 call sites."
+        },
+        {
+          "start": 873,
+          "end": 962,
+          "text": "// `test()` from node:test returns a promise the runner owns; awaiting it at the top of a"
+        },
+        {
+          "start": 492,
+          "end": 526,
+          "text": "// the only thing that catches it."
+        },
+        {
+          "start": 393,
+          "end": 488,
+          "text": "// that may never land — and TypeScript stays silent when the result is discarded. This rule is"
+        },
+        {
+          "start": 293,
+          "end": 389,
+          "text": "// Type-aware checks. The database is asynchronous, so a forgotten `await` on a write is a write"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/scripts/typesafe-eval.ts",
+      "beforeHash": "7f6646ce6c4656ea176d3f60129f274268024ba22c8746330f7b3c6e03a1c275",
+      "afterHash": "2e6ac65fe6db811b51be31a39a1aa1112e07078c8a2f773497cb19ed62e2b835",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 0,
+          "end": 89,
+          "text": "// Opt-in network evaluation. Uses an isolated PostgreSQL schema and synthetic data only."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/components/agent-chat.tsx",
+      "beforeHash": "e28683ad109fe89bf288c93bef0ff794fbf9be7729134201197d335bad45b7c3",
+      "afterHash": "be7867dd634617299b82e9e7c72a7ed333b501a2a4378f324049da4308fab9a1",
+      "tokens": 18,
+      "comments": [
+        {
+          "start": 51765,
+          "end": 51868,
+          "text": "// Tool lines already in the loaded history are old news; only calls made from here on open a document."
+        },
+        {
+          "start": 43758,
+          "end": 44024,
+          "text": "/**\r\n   * Uploads belong to a private conversation, independent from the selected Vault sources. Several\r\n   * files go up side by side; each one joins the draft as soon as it is ready, and the ones that\r\n   * cannot be attached are named in a single message.\r\n   */"
+        },
+        {
+          "start": 27981,
+          "end": 28017,
+          "text": "// it waits in the composer instead."
+        },
+        {
+          "start": 27885,
+          "end": 27977,
+          "text": "// conversation shows the words that were said. While a reply or an upload is still running,"
+        },
+        {
+          "start": 27790,
+          "end": 27881,
+          "text": "// The transcript joins whatever was typed and goes out as the person's own message, so the"
+        },
+        {
+          "start": 24282,
+          "end": 24348,
+          "text": "// The accept attribute has to be applied before the dialog opens."
+        },
+        {
+          "start": 23443,
+          "end": 23489,
+          "text": "/** Files still on their way to the server. */"
+        },
+        {
+          "start": 22971,
+          "end": 23056,
+          "text": "/** A control that stays visible when the model cannot do the thing, and says why. */"
+        },
+        {
+          "start": 20816,
+          "end": 20918,
+          "text": "/** What Lume is doing in the running turn (\"Consultando o Cofre…\"), sent by the server as it goes. */"
+        },
+        {
+          "start": 16450,
+          "end": 16650,
+          "text": "/**\r\n * The answer's legal citations, checked against what the conversation consulted. The Lume writes\r\n * freely; this is where the lawyer sees which citations to confirm before relying on them.\r\n */"
+        },
+        {
+          "start": 14568,
+          "end": 14769,
+          "text": "/**\r\n * Case law the Lume found on the web. It is built from the tool result, not from the model's\r\n * prose, so every item carries the link the search returned and Jev's relevance, in plain text.\r\n */"
+        },
+        {
+          "start": 10257,
+          "end": 10463,
+          "text": "/**\r\n * The only thing the Lume asks before acting: deleting, reaching a court, or overwriting a draft.\r\n * Confirmar runs exactly the action it proposed on the server; nothing is retyped by the model.\r\n */"
+        },
+        {
+          "start": 8889,
+          "end": 8985,
+          "text": "/** One finished tool call, as a quiet line above the answer, with a link to what it touched. */"
+        },
+        {
+          "start": 7109,
+          "end": 7316,
+          "text": "/**\r\n * Documents open beside the conversation instead of replacing it. `announce` hears every tool line\r\n * as it renders; a document the Lume created or changed in this turn opens, or reloads if open.\r\n */"
+        },
+        {
+          "start": 6410,
+          "end": 6498,
+          "text": "/** The model writes Markdown; this is what turns it into headings, lists and tables. */"
+        },
+        {
+          "start": 5828,
+          "end": 5912,
+          "text": "// Not a JSON body (e.g. network failure) — fall through to the raw/generic message."
+        },
+        {
+          "start": 5285,
+          "end": 5340,
+          "text": "/* Quota is not worth failing the conversation over. */"
+        },
+        {
+          "start": 2979,
+          "end": 3081,
+          "text": "/** Tool calls that leave a document the person should see: created, edited, rewritten or restored. */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/components/research-case-linker.tsx",
+      "beforeHash": "44186d8837ae8f42455f3e2cb4b67e256a5fad4e6f6bf8d85bec601f37d37451",
+      "afterHash": "0e2ab950da4773e876562a6ce476be2bb6b6817316ebf482294aac764928bc68",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 3328,
+          "end": 3421,
+          "text": "// Presentation threshold only: model confidence is not a calibrated chance of legal success."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/components/vault-annexes.tsx",
+      "beforeHash": "fcf5ec52e8bc3f08685414a2fe2011239bc1a7aade2fff48f025e64e07d99375",
+      "afterHash": "ce07da351d3a3ad570f9c90e7f036fc25607d166c4385e083e16eca204e4fadb",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 4660,
+          "end": 4715,
+          "text": "// eslint-disable-next-line react-hooks/exhaustive-deps"
+        },
+        {
+          "start": 4579,
+          "end": 4654,
+          "text": "// Request identities belong to the selection epoch, not callback identity."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/agent-instructions.ts",
+      "beforeHash": "9315f5ff41367dc51dfee050e06157eaf0f0d267588ecb44e19bb210a9fd7bce",
+      "afterHash": "8ece075121b1c9805d24a9f7eb3fea5af60846e85f6fc5e632743b812d541524",
+      "tokens": 5,
+      "comments": [
+        {
+          "start": 7452,
+          "end": 7547,
+          "text": "// One line per rule, and no angle brackets, so a rule cannot close its block and open another."
+        },
+        {
+          "start": 6184,
+          "end": 6278,
+          "text": "// The scope is part of the WHERE: an id alone would let a personal edit reach an office rule."
+        },
+        {
+          "start": 1727,
+          "end": 1822,
+          "text": "/** Enabled text per scope. Bounds what every request pays for and keeps the rules readable. */"
+        },
+        {
+          "start": 1402,
+          "end": 1491,
+          "text": "/** Request body shared by the create and update routes; `clean` does the real bounds. */"
+        },
+        {
+          "start": 622,
+          "end": 914,
+          "text": "/**\r\n * Writing rules: office-wide ones set by an administrator, and each person's own. They are the\r\n * office's words, so they reach the model as instructions, unlike Cofre documents, which are data.\r\n * The prompt places them under the persona and above the legal policy, and says so.\r\n */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/agent-knowledge.ts",
+      "beforeHash": "59ff6857acd2d59e3dfac7a66672617c3fc587b5447f1b5e32ebb314263c32b5",
+      "afterHash": "c443cc7ca01d7ed9092161ef9135898437fc2afb02418d5173c8b86d84f1f754",
+      "tokens": 5,
+      "comments": [
+        {
+          "start": 8568,
+          "end": 8654,
+          "text": "// This lower bound avoids reading a document that cannot fit, even before joining it."
+        },
+        {
+          "start": 8118,
+          "end": 8205,
+          "text": "// A document in both the office's and the person's list is read once, as the office's."
+        },
+        {
+          "start": 7329,
+          "end": 7424,
+          "text": "// The text is quoted inside a tag; it must not be able to close that tag and speak outside it."
+        },
+        {
+          "start": 4590,
+          "end": 4677,
+          "text": "// The office comes from the session: a document of another office is simply not found."
+        },
+        {
+          "start": 1463,
+          "end": 1537,
+          "text": "/** Drafts send the text once per section, so they get a smaller share. */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/agent-profile.ts",
+      "beforeHash": "92e1d4d66ff2224855820b8752999887b63ed04e57ea20212785829f665cec11",
+      "afterHash": "7d6ac4ae1f163a05b79545c6c1a1955d7fd1d0cdcd7fffa582f7ad5a6dbcbd3e",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 3755,
+          "end": 3850,
+          "text": "// The office id comes from the session; a document id from another office simply is not found."
+        },
+        {
+          "start": 1150,
+          "end": 1243,
+          "text": "// Deleted and foreign documents never come back from here: the join carries both conditions."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/agent-tools/index.ts",
+      "beforeHash": "7db2c54b0fd495f80414298e23bc40607b2d8dc8aaa71a692f22db4d729984b2",
+      "afterHash": "508a02dd7c33a0ae21541d02b3474bde44a43947debc5b4742c231f4ae6fd431",
+      "tokens": 5,
+      "comments": [
+        {
+          "start": 18935,
+          "end": 19013,
+          "text": "/** Platform tools catalog, separated from office agent tools (Section 5.3) */"
+        },
+        {
+          "start": 16184,
+          "end": 16451,
+          "text": "/**\r\n * Builds the tools for one authenticated request. The office and the user come from the\r\n * session and are re-checked inside every call, so a revoked membership stops the next step.\r\n * Capabilities marked unpublished are absent from the catalog entirely.\r\n */"
+        },
+        {
+          "start": 15309,
+          "end": 15368,
+          "text": "// later cannot reach the model or the browser by accident."
+        },
+        {
+          "start": 15213,
+          "end": 15303,
+          "text": "// Zod strips anything the contract does not declare, so an internal column added to a row"
+        },
+        {
+          "start": 13377,
+          "end": 13656,
+          "text": "/**\r\n * Single execution path for a capability, whatever called it. The Mastra tool and the HTTP route\r\n * both land here, so authorization, idempotency and the DTO fence cannot drift between the two\r\n * adapters the way they do when each route re-implements its own checks.\r\n */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/ai-policy.ts",
+      "beforeHash": "60b7c804a959653408297593e14334582da9bd3537c1ab6548e69448f48dad56",
+      "afterHash": "920bc862f413c09eed74f26cc30858f2631d9c813b17d1200f78bfb96cf70001",
+      "tokens": 4,
+      "comments": [
+        {
+          "start": 2767,
+          "end": 3061,
+          "text": "/**\r\n * The product's one hard promise: nothing leaves the office citing an authority nobody chose.\r\n * It constrains how facts and legal citations are handled — not what the assistant is willing to\r\n * talk about, which is why the conversational persona lives with the chat route instead.\r\n */"
+        },
+        {
+          "start": 2387,
+          "end": 2463,
+          "text": "// It checks provenance, never the legal validity of the selected authority."
+        },
+        {
+          "start": 2303,
+          "end": 2385,
+          "text": "// A conservative gate: generated legal passages must be verbatim authorized text."
+        },
+        {
+          "start": 1843,
+          "end": 1948,
+          "text": "// Legal mentions (e.g. \"art. 186\", \"Lei n. 8.078/90\") in generated text must appear in the cited source."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/ai-providers.ts",
+      "beforeHash": "c74ee375685ee8ba90c5f1745c45ada972a56aa001a264178556027c0d82e0b2",
+      "afterHash": "79e60f2ccc795bc906575dc1678846c4fa5f44145f2bbb6c8bbd81db4f27e6c8",
+      "tokens": 5,
+      "comments": [
+        {
+          "start": 5009,
+          "end": 5070,
+          "text": "// tools, structured output and native search were proven on."
+        },
+        {
+          "start": 4906,
+          "end": 5005,
+          "text": "// The router would turn a custom URL into Chat Completions; the proxy keeps the Responses API that"
+        },
+        {
+          "start": 4321,
+          "end": 4413,
+          "text": "// Each call binds the model to this credential; no global env key or shared client is used."
+        },
+        {
+          "start": 1684,
+          "end": 1786,
+          "text": "// The installed Mastra registry can lag newly released API model IDs, and has no entry for the proxy."
+        },
+        {
+          "start": 1268,
+          "end": 1365,
+          "text": "// store:false avoids replaying references to response items the stateless proxy cannot retrieve."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/ai-runtime.ts",
+      "beforeHash": "b88317128f5d5008c906af9dfaf9acdea209adb77d34b0826fc6d532592a8af0",
+      "afterHash": "39618d226c2a617607402373f08a8ea1a6f996199e32e5839b547f7a14af6a7c",
+      "tokens": 3,
+      "comments": [
+        {
+          "start": 12378,
+          "end": 12478,
+          "text": "// Kept outside the try: an answer that fails the schema was still billed, so its usage is recorded."
+        },
+        {
+          "start": 10778,
+          "end": 10909,
+          "text": "/** Quick features (e-mail summaries, reply suggestions) pass their own instructions; the default keeps the grounded legal ones. */"
+        },
+        {
+          "start": 3241,
+          "end": 3323,
+          "text": "// No raw provider errors, credentials or document contents are sent to telemetry."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/ai-sources.ts",
+      "beforeHash": "fad54f54ce8285701c48801cce5ebafbc182812624026372c7dbbddc328991dd",
+      "afterHash": "f9fe84519eeb106fdf0667623c560003cb3e8418ec3d66414bc19057a122e356",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 1065,
+          "end": 1152,
+          "text": "/** Only explicitly selected links in this authenticated case enter Lume or a draft. */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/application/approvals-service.ts",
+      "beforeHash": "213b821d03fceef2b5f73b7730018fafc6068330238c3e4162f58fe85844ec6e",
+      "afterHash": "316da81ce9cca72511d1fe983732e5bb04e3f541a6c7d9a44d7804e8d4c52bd8",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 11686,
+          "end": 11780,
+          "text": "// Google writes ask only when the office rules say so (src/lib/google/operations.ts decides)."
+        },
+        {
+          "start": 1593,
+          "end": 1871,
+          "text": "/**\r\n * Stable JSON at every depth. The obvious `JSON.stringify(obj, Object.keys(obj).sort())` looks\r\n * like a sort but is a property *filter* that applies recursively, so nested fields vanish from\r\n * the canonical form and changing one would not invalidate the approval.\r\n */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/application/research-capability-service.ts",
+      "beforeHash": "1ca8d2d2f8e6326c476df910806a673749f0b2e27d730ca60eae075ba511187e",
+      "afterHash": "104a63becc3732153a6089abe8435ed665c696c917b4704a595f0cd62091b098",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 1680,
+          "end": 1780,
+          "text": "// Context is derived from the authenticated request and membership is revalidated by runCapability."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/application/runs-service.ts",
+      "beforeHash": "ee7f1fefe1462595704613ed2010acccdaa3334cec8836e40779f62be45b5a33",
+      "afterHash": "39662c1f163ddb680542773627a804e3f062340205debd9257ed001cc6e5a7b2",
+      "tokens": 9,
+      "comments": [
+        {
+          "start": 6198,
+          "end": 6270,
+          "text": "// without its approvals would draft from passages nobody signed off on."
+        },
+        {
+          "start": 6102,
+          "end": 6194,
+          "text": "// The run and the citations it was approved against are written together. A run that starts"
+        },
+        {
+          "start": 5243,
+          "end": 5340,
+          "text": "// Kept for workers still on the previous release during a deploy, which read only these columns."
+        },
+        {
+          "start": 4902,
+          "end": 4986,
+          "text": "// and the run keeps these models even if the administration changes them meanwhile."
+        },
+        {
+          "start": 4798,
+          "end": 4898,
+          "text": "// Fail here, not three minutes into the worker: every task of the run must resolve before queueing,"
+        },
+        {
+          "start": 4018,
+          "end": 4104,
+          "text": "// Drafts have no tools, so only the always-read material goes, with a smaller budget."
+        },
+        {
+          "start": 3750,
+          "end": 3841,
+          "text": "// Rules come from the session's owner, never from the request body, which is spread first."
+        },
+        {
+          "start": 3518,
+          "end": 3627,
+          "text": "// A draft with no template picked takes the letterhead, so neither the agent nor the form has to ask for it."
+        },
+        {
+          "start": 3225,
+          "end": 3433,
+          "text": "/**\r\n * Queues a durable run. Approved legal citations only ever arrive from a human selection in the\r\n * interface: the agent tools call this without them, and the run rejects unapproved passages later.\r\n */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/application/vault-service.ts",
+      "beforeHash": "6480f3f6f6c8b69a24b737d2675f688f9c7fe2a558e6765413d03a12bda80c21",
+      "afterHash": "fc8e867ed29e7116677048ee945bcab9b991f3c3782bef54f0db892bec408941",
+      "tokens": 12,
+      "comments": [
+        {
+          "start": 29062,
+          "end": 29156,
+          "text": "// A slash in a title is text, not a path: validatedFileName keeps only the last path segment."
+        },
+        {
+          "start": 26146,
+          "end": 26236,
+          "text": "// committed batch whose response was lost, without deleting that batch's stored original."
+        },
+        {
+          "start": 26052,
+          "end": 26140,
+          "text": "// The deterministic primary key serializes competing inserts. A retry also reconciles a"
+        },
+        {
+          "start": 23193,
+          "end": 23386,
+          "text": "/**\r\n * Copies a file the chat holds into the Vault under its own storage key. The document id derives\r\n * from the source and the destination, so a repeated request returns the same copy.\r\n */"
+        },
+        {
+          "start": 22377,
+          "end": 22477,
+          "text": "/** The destination is checked against the person's access; a folder only exists inside its case. */"
+        },
+        {
+          "start": 22075,
+          "end": 22166,
+          "text": "// Handing the reference back is what keeps a rejected destination from costing the upload."
+        },
+        {
+          "start": 21975,
+          "end": 22069,
+          "text": "// createVaultDocument writes in one batch, so a throw means no document and no version exist."
+        },
+        {
+          "start": 12501,
+          "end": 12573,
+          "text": "// no loading the whole office to slice twenty rows off the front of it."
+        },
+        {
+          "start": 12403,
+          "end": 12497,
+          "text": "// Tombstones are excluded in SQL and the page is taken in SQL: no per-row liveness query, and"
+        },
+        {
+          "start": 11281,
+          "end": 11378,
+          "text": "/** Every object key a case's live documents hold, current and historical, without duplicates. */"
+        },
+        {
+          "start": 3801,
+          "end": 3893,
+          "text": "// Idempotent by natural key: a retried tool call must not leave two identical cases behind."
+        },
+        {
+          "start": 2394,
+          "end": 2519,
+          "text": "/** `findVaultDocument` already excludes tombstones and hidden folders, so one lookup settles office, liveness and access. */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/capabilities/contracts.ts",
+      "beforeHash": "d22cddb7849d85850eb7e9c5dec31c9edbe8769c3eeb4e6731596cd0ca38d940",
+      "afterHash": "37965a2ef1693da2beacd429436c044d7f03d639d6ded7003cc18b3d70309be5",
+      "tokens": 3,
+      "comments": [
+        {
+          "start": 6829,
+          "end": 7037,
+          "text": "/**\r\n * Judicial infrastructure DTOs (docs/plano-infra-judicial.md). Two things these shapes refuse to\r\n * do: collapse the five source permissions into one flag, and merge the dates a court keeps apart.\r\n */"
+        },
+        {
+          "start": 2619,
+          "end": 2849,
+          "text": "/**\r\n * Supplied by the caller so a retried tool call, a regenerated turn or a reconnect resolves to the\r\n * same write. It is part of the contract precisely so the schema does not strip it before the\r\n * executor can see it.\r\n */"
+        },
+        {
+          "start": 823,
+          "end": 1148,
+          "text": "/**\r\n * Serializable contract of every operation the product exposes to an agent.\r\n * No server import belongs here: the browser adapter will read the same file.\r\n * The output schema is the DTO fence — Zod strips whatever it does not declare,\r\n * so an internal field added to a row never reaches the model by accident.\r\n */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/chat-turn.ts",
+      "beforeHash": "c181fb94b2e35496e51f98a0322f9dedfbcf9b369fe760f8ca62ab9ee31190cc",
+      "afterHash": "a62f4c6d0ccef612e37e9b64ab8cf21cca16c7065017cc1b9c349e9ba6b3db20",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 29288,
+          "end": 29325,
+          "text": "// step scores case law against them."
+        },
+        {
+          "start": 29188,
+          "end": 29276,
+          "text": "// The loop runs this before the next step, so the links are known before a tool of that"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/citations/review.ts",
+      "beforeHash": "0ea03edfd6636df8bb25aedda76163268e0f27e8a9b97b555d4976121ec49ee3",
+      "afterHash": "e169ec7bc9c241e3b75615e4222356cc0350d0df023348c8fc0a84a66bfbf0e9",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 659,
+          "end": 1064,
+          "text": "/**\r\n * Checks the legal citations in a text the Lume wrote against the sources it consulted. Code finds\r\n * candidate spans and the sources sharing their numbers; Jev answers, in one request per batch,\r\n * whether each span is a citation at all, which source (if any) it is, and whether that source\r\n * backs the paragraph using it. The verdict and what goes to a person are decided in `verdict.ts`.\r\n */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/document-workflows.ts",
+      "beforeHash": "8fe9966658fd95126409adec4170f4abc14619f35d926b7dd66009dba51c6ec8",
+      "afterHash": "6ce6b9ca9f8a81b694c2d95146e1c4fbd8c6023ada6de2786260a17ad9611a9b",
+      "tokens": 14,
+      "comments": [
+        {
+          "start": 22473,
+          "end": 22582,
+          "text": "/** The person sees why a run stopped when the cause is the AI configuration; other failures stay generic. */"
+        },
+        {
+          "start": 18931,
+          "end": 19033,
+          "text": "// Every selected chunk must have been extracted: similarity search alone does not guarantee coverage."
+        },
+        {
+          "start": 18313,
+          "end": 18387,
+          "text": "// after process loss and skip completed per-document / per-section steps."
+        },
+        {
+          "start": 18222,
+          "end": 18309,
+          "text": "// SQL checkpoints are intentionally owned by Lume. A worker can recreate this workflow"
+        },
+        {
+          "start": 16348,
+          "end": 16447,
+          "text": "// A pinned connection that was disabled or deleted stops the run before any work, with its reason."
+        },
+        {
+          "start": 11877,
+          "end": 11984,
+          "text": "// The office's writing rules and reference material shape form; the sourcing rules after them still apply."
+        },
+        {
+          "start": 10636,
+          "end": 10684,
+          "text": "// failed model call degrades to the note below."
+        },
+        {
+          "start": 10532,
+          "end": 10632,
+          "text": "// Resolved before the try: a pinned connection that went away stops the run with its reason. Only a"
+        },
+        {
+          "start": 9902,
+          "end": 10007,
+          "text": "// Optional model pass: may only point at existing event indices; validated before use, never adds facts."
+        },
+        {
+          "start": 3254,
+          "end": 3354,
+          "text": "// Snapshot taken by the server when the run is queued; a resumed run keeps the rules it began with."
+        },
+        {
+          "start": 2458,
+          "end": 2521,
+          "text": "// let it resume where it stopped once more credits are bought."
+        },
+        {
+          "start": 2357,
+          "end": 2452,
+          "text": "// Checked before each call, so a run that used up the credits stops saying so; its checkpoints"
+        },
+        {
+          "start": 1986,
+          "end": 2185,
+          "text": "/**\r\n * A run's configuration failures, kept outside the workflow: Mastra reports a failed step with its\r\n * own error, and the person must see why the run stopped rather than a generic failure.\r\n */"
+        },
+        {
+          "start": 1680,
+          "end": 1783,
+          "text": "/** The tasks of each kind of run; their models are pinned when the run is queued (runs-service.ts). */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/documents/managed-file.ts",
+      "beforeHash": "bfc2792f67ebd08bebafc6adf27445f3bea2c3a6b57c44295fa8fdf9e1c75c3e",
+      "afterHash": "3e6450a3fb0ab623dec494601df8e46c644cb2b0fdb40c6cbc531dac65e295f0",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 2588,
+          "end": 2683,
+          "text": "// Only this contributor's independently submitted original sheds its own location obligations."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/feedback-triage.ts",
+      "beforeHash": "e81985207f0ef5657d47a240212e640677cf45cb67674943d84380b17cd6bb21",
+      "afterHash": "73b1c46c01bb0189946269e59c98f09ea5c0a27492f65d850bb5e05ab04f782c",
+      "tokens": 5,
+      "comments": [
+        {
+          "start": 10552,
+          "end": 10653,
+          "text": "// An admin correction made while the call ran wins: the model result is kept only as the raw record."
+        },
+        {
+          "start": 7513,
+          "end": 7611,
+          "text": "/** Application feedback is admitted from its owning ticket; it cannot select business sources. */"
+        },
+        {
+          "start": 6009,
+          "end": 6095,
+          "text": "// Relevance: a problem ranks by its impact, an improvement by how much it would help."
+        },
+        {
+          "start": 4913,
+          "end": 5006,
+          "text": "/** Policy lives here, not in the model: raw answers stay reusable if a threshold changes. */"
+        },
+        {
+          "start": 807,
+          "end": 907,
+          "text": "/** Starting thresholds from the TypeSafe confidence-routing guidance; calibrate on real tickets. */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/google/connections.ts",
+      "beforeHash": "f16129936d357d35331562427df0745831f883a7e18937b0e86eeea6920595b9",
+      "afterHash": "04428a1bd5edbc107a1b3f4117183b9c129116b6c07cca6b3a858bfafe56b77d",
+      "tokens": 11,
+      "comments": [
+        {
+          "start": 25025,
+          "end": 25059,
+          "text": "// ---------- API calls ----------"
+        },
+        {
+          "start": 22634,
+          "end": 22727,
+          "text": "// A client configuration failure is not a revoked grant. Keep tokens and queued work intact."
+        },
+        {
+          "start": 18581,
+          "end": 18619,
+          "text": "// ---------- Access tokens ----------"
+        },
+        {
+          "start": 17668,
+          "end": 17711,
+          "text": "/* the local erase already stops all use */"
+        },
+        {
+          "start": 12904,
+          "end": 12998,
+          "text": "// Incremental consent keeps the connection id, so calendars, files and history stay attached."
+        },
+        {
+          "start": 11008,
+          "end": 11124,
+          "text": "// The transport refuses redirects and oversized bodies itself; those are Google answering, not the network failing."
+        },
+        {
+          "start": 8854,
+          "end": 8951,
+          "text": "// The runtime's own error class (TypeError, AbortError) says whether fetch refused or timed out."
+        },
+        {
+          "start": 8651,
+          "end": 8755,
+          "text": "/** A failed connection used to leave no trace; the reason goes to logs and Sentry, never token data. */"
+        },
+        {
+          "start": 8106,
+          "end": 8209,
+          "text": "/** OAuth error codes Google documents for the token endpoint; anything else is reported as `other`. */"
+        },
+        {
+          "start": 4280,
+          "end": 4330,
+          "text": "// ---------- OAuth: start and callback ----------"
+        },
+        {
+          "start": 2469,
+          "end": 2548,
+          "text": "// Missing overrides inherit access; explicit platform blocks remain effective."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/google/gmail/insights.ts",
+      "beforeHash": "967d7a40b3b14069540ddfb8514abf1c7226abc407c2e8eb9802cacd3ad507a1",
+      "afterHash": "b9f4a04306cc79dde0578787e69489e5682461736108cf65714c8b58d7af410f",
+      "tokens": 7,
+      "comments": [
+        {
+          "start": 25316,
+          "end": 25413,
+          "text": "// A message that plainly expects a reply still gets two starting points when no kind stands out."
+        },
+        {
+          "start": 23476,
+          "end": 23551,
+          "text": "/** Jev picks the kinds of reply that fit; the writer only drafts those. */"
+        },
+        {
+          "start": 17772,
+          "end": 17841,
+          "text": "// ---------- One conversation: overview and quick replies ----------"
+        },
+        {
+          "start": 14339,
+          "end": 14437,
+          "text": "// Jev's flags are the contract: a thread it marked keeps its place even if the writer skipped it."
+        },
+        {
+          "start": 6330,
+          "end": 6386,
+          "text": "// ---------- Digest: an overview of a period ----------"
+        },
+        {
+          "start": 4547,
+          "end": 4647,
+          "text": "/** Jev runs only when the platform turned its e-mail judgments on; the features work without it. */"
+        },
+        {
+          "start": 3950,
+          "end": 4053,
+          "text": "/** The model, connection and effort of each writer come from its summary task (Administração › IA). */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/google/gmail/triage.ts",
+      "beforeHash": "146d5f7834b1448534f17538eb71fac610f64e00b55b8d4b20b902c8a2b1a2cc",
+      "afterHash": "639f94670e00b5947697066b2050f440da81d0183a452c6cb370120c1815e2ed",
+      "tokens": 3,
+      "comments": [
+        {
+          "start": 8672,
+          "end": 8762,
+          "text": "// Long evaluations must not outlive the session, membership, consent or platform setting."
+        },
+        {
+          "start": 6598,
+          "end": 6679,
+          "text": "// Small batches keep every independent question below the service context limit."
+        },
+        {
+          "start": 4068,
+          "end": 4178,
+          "text": "// Fetch only this person's mailbox, in bounded batches; never trust text or ownership supplied by the client."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/personal-chat/domain.ts",
+      "beforeHash": "b87e798ac05c7dd32b022f2fdeb518be1e816f1d53ab6e5d5f0436f4fc2dcb23",
+      "afterHash": "e7e76df1f565ef807336ec2a2a75d056f45acb3a3a2f90e4f23ff2719fd9afa9",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 5269,
+          "end": 5360,
+          "text": "// shares single document versions. Old case invitations stay readable in the conversation."
+        },
+        {
+          "start": 5175,
+          "end": 5267,
+          "text": "// A case is shared by including an associate as its participant, inside the case; Mensagens"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/personal-chat/email-worker.ts",
+      "beforeHash": "539ff701eb8aeefbfd2d1dd08f132b34812d229fc4d043382ed29a69c61b0cdc",
+      "afterHash": "34849c083f18dec3352f7a1f575c029582ace6adbac9282470087ac23fd9b429",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 7573,
+          "end": 7663,
+          "text": "// Case invitations by e-mail no longer exist: one still queued from before is never sent."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/research/case-assessment.ts",
+      "beforeHash": "7651f3ddf47c372afcd2bb150591ccdeff7b06946040664c87a12debc109fd2b",
+      "afterHash": "e24456448a073af8efb5ff27252a7ec60c202425740a5d4c1fe3b83a3957d06f",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 4304,
+          "end": 4424,
+          "text": "// A documented fact can cite the document alone. Use one bounded chunk per selected document when no span was selected."
+        },
+        {
+          "start": 2297,
+          "end": 2392,
+          "text": "/** A bounded source set, with coverage declared. The source text is untrusted data for Jev. */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/research/case-content.ts",
+      "beforeHash": "d4994ca60997479ed5f9e2b49a2d038b81f463b3afdf186d3ced1612c9156dbe",
+      "afterHash": "8dc725c4334460bc62d47e06b7d60b100d867692ee0501fe633070a82cb94094",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 12520,
+          "end": 12611,
+          "text": "/** Preparation is called by the canonical command before its sole exact-content review. */"
+        },
+        {
+          "start": 11026,
+          "end": 11119,
+          "text": "// Only shown fields can be deleted. Withheld bytes and their policies survive this revision."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/research/jurisprudence-score.ts",
+      "beforeHash": "de0246e64c8f617ed58b4779cbeadd4a5cb42e3df97d73bfc8a315ad06287f68",
+      "afterHash": "f2d94755cbfb8b9fc88736ce8b83f410a6fa50efadb05a33f9b76431f46a5bef",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 537,
+          "end": 1037,
+          "text": "/**\r\n * Case law the Lume found with its own web search, scored against the case. Three parties, three\r\n * jobs: the model searches and brings the decisions; Jev (TypeSafe) judges how well each one fits\r\n * the case and whether the page is a court decision at all; code checks that each link came back\r\n * from a search in this conversation. Nothing is dropped: the model reports every decision with\r\n * its verdict, so a weak or unverified one is shown as such instead of silently disappearing.\r\n */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/research/retrieval.ts",
+      "beforeHash": "6e96547cdc0312050f9d61ebb700e2dfb3ea050fb5f674916ebc022679153bf5",
+      "afterHash": "b5d23dc349ea0538631308c9917e3fe629f18ff8c5933b3bdd5d2c7dbf9b7ac2",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 4942,
+          "end": 4962,
+          "text": "/* invalid cursor */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/research/trademarks/wipo.ts",
+      "beforeHash": "0e01308c76b2b2acdd16de99f4cd34133e3f264c99595a30069136fb222628be",
+      "afterHash": "ba6a0e8a371311356c7ab29e42e5b7d07345713d6aa1f2390980dba904ae948c",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 9347,
+          "end": 9484,
+          "text": "// Uploading through the portal stores its image in this browser session. The advanced form adds the territory without losing that image."
+        },
+        {
+          "start": 7811,
+          "end": 7923,
+          "text": "// The portal initializes its stored query on the first load. Seed criteria only after that bootstrap completes."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/typesafe/agenda.ts",
+      "beforeHash": "f1eec51dfcf2d1ea27ce1b7fbf57218336ac8d3407c46f87fe7f0069124ac428",
+      "afterHash": "9fcb71f13cb750231c978761c406bed08432194608beac3745598203b99b0ab1",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 7149,
+          "end": 7231,
+          "text": "// This is a conservative proposal threshold, not authority to perform a mutation."
+        },
+        {
+          "start": 3267,
+          "end": 3369,
+          "text": "// Bounded discovery, with explicit coverage. A missing candidate always asks the person to select it."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/typesafe/client.ts",
+      "beforeHash": "f8b321164191f87d7b11a12869bc881efab683e27e6585dde98e7e70c10423d6",
+      "afterHash": "063f7d01e357b459b8b3c065479d87964b4749586812950a10cdbeb1a7b8cd83",
+      "tokens": 3,
+      "comments": [
+        {
+          "start": 8543,
+          "end": 8631,
+          "text": "// Keep the conservative reservation even after timeout: attempted calls can be charged."
+        },
+        {
+          "start": 2953,
+          "end": 3040,
+          "text": "// Serialize reservations across purposes so concurrent email batches cannot overspend."
+        },
+        {
+          "start": 2478,
+          "end": 2553,
+          "text": "// UTF-8 bytes conservatively bound tokens; leave room for service framing."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/typesafe/rerank.ts",
+      "beforeHash": "8b800ff88f7c7be811c6b643bd6057d413312570d72360be60edd18dca48dda7",
+      "afterHash": "1677ee05bd129d80aeb384c8f48630e7427df6395c0e5eed73cea142780f7f73",
+      "tokens": 3,
+      "comments": [
+        {
+          "start": 2524,
+          "end": 2608,
+          "text": "// All batches share the original deadline; a failure preserves the entire baseline."
+        },
+        {
+          "start": 2432,
+          "end": 2520,
+          "text": "// Release each reservation before the next batch, including offices with concurrency=1."
+        },
+        {
+          "start": 1795,
+          "end": 1875,
+          "text": "// Four bounded batches at most; never silently truncate a candidate's evidence."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/typesafe/verification.ts",
+      "beforeHash": "cf9e9f1c725d72e90b8acb6264126a4c736b3318c00fcf40e84aff46a7fb9c70",
+      "afterHash": "98e9654f2e6dd407bfcfccd7c8706c8832c9699b140c0985a53a7405d50236d4",
+      "tokens": 4,
+      "comments": [
+        {
+          "start": 6298,
+          "end": 6406,
+          "text": "// Changed prose does not inherit the previous paragraph's citations. Unbound text is explicitly unverified."
+        },
+        {
+          "start": 5326,
+          "end": 5406,
+          "text": "// persisted job too, never the unused UUID of an insert that lost the conflict."
+        },
+        {
+          "start": 5235,
+          "end": 5322,
+          "text": "// The worker can finish the existing job between the INSERT and this read. Return that"
+        },
+        {
+          "start": 4490,
+          "end": 4592,
+          "text": "// The partial unique index keeps one active job per version: a concurrent enqueue waits and joins it."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/vault.ts",
+      "beforeHash": "b09317b51ea5756d50bb592d7c1462fca80eecb5c4056ca0b66ac7b0adea1b75",
+      "afterHash": "b33cf97fb1b1a712571d0f47855f2d3f78207a519cafc57b8c9c340631e7c92c",
+      "tokens": 38,
+      "comments": [
+        {
+          "start": 51033,
+          "end": 51097,
+          "text": "// Lexical search is already available once extraction finishes."
+        },
+        {
+          "start": 47259,
+          "end": 47360,
+          "text": "// Back to the queue rather than `failed`: the first claim after `retry_at` reads the original again."
+        },
+        {
+          "start": 46611,
+          "end": 46697,
+          "text": "// No embedding profile configured, or the index is unavailable: search stays lexical."
+        },
+        {
+          "start": 46353,
+          "end": 46448,
+          "text": "// continues in the worker, and its absence degrades the search instead of blocking extraction."
+        },
+        {
+          "start": 46255,
+          "end": 46347,
+          "text": "// Lexical search is already available at this point. Semantic indexing is durable work that"
+        },
+        {
+          "start": 43639,
+          "end": 43696,
+          "text": "// reindex can tell a coverage gap from a retrieval miss."
+        },
+        {
+          "start": 43548,
+          "end": 43633,
+          "text": "// What the extractor saw, per run: unit counts and the extractor version, so a later"
+        },
+        {
+          "start": 41811,
+          "end": 41899,
+          "text": "// Each page read by OCR is charged to the office, as the person who added the document."
+        },
+        {
+          "start": 41448,
+          "end": 41541,
+          "text": "// the Cofre from showing 1% for the whole run, and renews the lease while the work advances."
+        },
+        {
+          "start": 41347,
+          "end": 41442,
+          "text": "// A scanned PDF is read page by page, and each page can take seconds. Reporting each one keeps"
+        },
+        {
+          "start": 38604,
+          "end": 39104,
+          "text": "/**\r\n * Takes the lease on the oldest claimable document, or returns nothing when there is none.\r\n *\r\n * One conditional `UPDATE ... RETURNING` rather than a read followed by a write: the sub-select\r\n * picks the row and the outer WHERE re-checks the same condition, both inside a single statement.\r\n * Two workers racing here cannot both come away holding the lease — the loser updates no rows and\r\n * returns nothing — and that holds without an interactive transaction, which D1 does not have.\r\n */"
+        },
+        {
+          "start": 34829,
+          "end": 34927,
+          "text": "// a state this transition accepts, so without it a tombstone could be reprocessed back into view."
+        },
+        {
+          "start": 34731,
+          "end": 34825,
+          "text": "// `deleted_at IS NULL` is the point of the rest: deletion parks the row in `failed`, which is"
+        },
+        {
+          "start": 34725,
+          "end": 34727,
+          "text": "//"
+        },
+        {
+          "start": 34634,
+          "end": 34721,
+          "text": "// row is already in the target state, so this is a no-op that lets the caller kick it."
+        },
+        {
+          "start": 34536,
+          "end": 34630,
+          "text": "// same way as one that threw, and on Workers it stays that way until a request drains it. The"
+        },
+        {
+          "start": 34436,
+          "end": 34532,
+          "text": "// `queued` alongside `failed`: a document whose ingestion never started is stuck in exactly the"
+        },
+        {
+          "start": 29692,
+          "end": 29780,
+          "text": "// cannot be downloaded, and a version pointing at no document cannot be reached at all."
+        },
+        {
+          "start": 29595,
+          "end": 29688,
+          "text": "// The document and its first version are written together: a document with no active version"
+        },
+        {
+          "start": 29210,
+          "end": 29274,
+          "text": "// A folder only exists inside a case, and only inside this one."
+        },
+        {
+          "start": 25348,
+          "end": 25427,
+          "text": "// `null` means the case root, which is a different question from \"any folder\"."
+        },
+        {
+          "start": 24793,
+          "end": 24859,
+          "text": "// The same goes for a document in a folder the viewer cannot see."
+        },
+        {
+          "start": 24692,
+          "end": 24789,
+          "text": "// agent catalog and the run scope, and each of them would otherwise keep offering deleted files."
+        },
+        {
+          "start": 24598,
+          "end": 24688,
+          "text": "// A tombstoned document is invisible here, not merely marked: this list feeds the UI, the"
+        },
+        {
+          "start": 23815,
+          "end": 23872,
+          "text": "// Stored name, office and lease data stay on the server."
+        },
+        {
+          "start": 22049,
+          "end": 22103,
+          "text": "// is left pointing at a folder that no longer exists."
+        },
+        {
+          "start": 21950,
+          "end": 22045,
+          "text": "// One batch: reparenting the children and tombstoning the folder land together, so no document"
+        },
+        {
+          "start": 17896,
+          "end": 17994,
+          "text": "// otherwise a valid id from elsewhere would graft a subtree across cases or into a hidden folder."
+        },
+        {
+          "start": 17797,
+          "end": 17892,
+          "text": "// The parent has to belong to the same case of the same office, and be one the person can see;"
+        },
+        {
+          "start": 12073,
+          "end": 12167,
+          "text": "// its parent's count, and the member list of a folder only reaches the person who created it."
+        },
+        {
+          "start": 11976,
+          "end": 12071,
+          "text": "// Counts and the access fields are computed for the viewer: a hidden subfolder adds nothing to"
+        },
+        {
+          "start": 7293,
+          "end": 7367,
+          "text": "// Build a plain DTO so only the case fields cross into Client Components."
+        },
+        {
+          "start": 6532,
+          "end": 6633,
+          "text": "// The count only includes what the viewer can open, so a hidden folder does not show up as a number."
+        },
+        {
+          "start": 6109,
+          "end": 6191,
+          "text": "// Same list, same reading as the rest of the app: see src/lib/trusted-origins.ts."
+        },
+        {
+          "start": 5740,
+          "end": 5831,
+          "text": "// Lazy: the worker imports this module outside Next, where the session module cannot load."
+        },
+        {
+          "start": 3676,
+          "end": 3972,
+          "text": "/**\r\n * The original could not be read for a reason other than its absence. The person sees the same\r\n * message as before; `cause` keeps the backend's own error (a binding status, a network code) so\r\n * telemetry can name it instead of the static text that left LUME-1E without a diagnosis.\r\n */"
+        },
+        {
+          "start": 2294,
+          "end": 2395,
+          "text": "/** A case is a folder in the office drive: a title, a description and, optionally, who it is for. */"
+        },
+        {
+          "start": 1801,
+          "end": 1872,
+          "text": "/** What a Vault copy made from the chat came from (migration 0065). */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/lib/chat-status.ts",
+      "beforeHash": "d07dd3dc7b4637aee3e84403c729469648a5599e5257e6d9f236d6eb7ffa123a",
+      "afterHash": "16aa24679d116becdf2a15863d1a11f1b8617b265cd0715779784d941d6720b8",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 955,
+          "end": 1024,
+          "text": "/** Where each group of tools works, named as the person knows it. */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/agent-approvals.test.ts",
+      "beforeHash": "57886d3cadd0dc3d6dd84882467ebfa3884efcef515fb59f370597fa561e2bbd",
+      "afterHash": "b7f77be9b35b4144b0273468d7398df4a9c63fc28e6753bce5c7cdd15ed0c01c",
+      "tokens": 3,
+      "comments": [
+        {
+          "start": 6980,
+          "end": 7022,
+          "text": "// so the Confirmar button never appeared."
+        },
+        {
+          "start": 6885,
+          "end": 6976,
+          "text": "// A tool that throws reaches the stream as `tool-error`; the chat read only `tool-result`,"
+        },
+        {
+          "start": 1891,
+          "end": 1980,
+          "text": "/** The gate's refusal carries the proposal id the chat turns into a Confirmar button. */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/artifact-edits.test.ts",
+      "beforeHash": "c38e809ec29693dba5351bb0e3989ad17f134865fdb5f2339a24519306d81b96",
+      "afterHash": "5620b751127bfa13f702a944e7d71d13bb1d3d196083d0f4655cd2d380e8c920",
+      "tokens": 3,
+      "comments": [
+        {
+          "start": 5484,
+          "end": 5561,
+          "text": "// The person's document edited in the editor is theirs; the job's draft too."
+        },
+        {
+          "start": 3108,
+          "end": 3214,
+          "text": "// the conversation consulted is that law. TypeSafe is not configured in tests, so the check is code-only."
+        },
+        {
+          "start": 3004,
+          "end": 3104,
+          "text": "// The agent writes freely: the citation stays, and the check marks it for the lawyer, since nothing"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/capabilities.test.ts",
+      "beforeHash": "50d87897dccd7f7f5ffedbe26f81775a9bbe3874248106c59aaa2adbf85f2cfb",
+      "afterHash": "2bd81ddc5eb4da95542f8a720b2ed5e68dc5e5cccda5ef44ac0eeff1071d699e",
+      "tokens": 55,
+      "comments": [
+        {
+          "start": 43369,
+          "end": 43437,
+          "text": "// Removing a folder moves its contents up instead of deleting them."
+        },
+        {
+          "start": 42786,
+          "end": 42879,
+          "text": "// Siblings cannot share a name, and a folder of another office is not addressable from here."
+        },
+        {
+          "start": 41848,
+          "end": 41899,
+          "text": "// A partial update keeps what it does not mention."
+        },
+        {
+          "start": 40828,
+          "end": 40851,
+          "text": "// 4. Delete connection"
+        },
+        {
+          "start": 40532,
+          "end": 40555,
+          "text": "// 3. Update connection"
+        },
+        {
+          "start": 40334,
+          "end": 40356,
+          "text": "// 2. List connections"
+        },
+        {
+          "start": 39976,
+          "end": 40064,
+          "text": "// The key reached the server through a human form; the tool only carries the reference."
+        },
+        {
+          "start": 39810,
+          "end": 39833,
+          "text": "// 1. Create connection"
+        },
+        {
+          "start": 39721,
+          "end": 39750,
+          "text": "// Make user a platform admin"
+        },
+        {
+          "start": 34761,
+          "end": 34829,
+          "text": "// Bad arguments fail against the same contract the server enforces."
+        },
+        {
+          "start": 34272,
+          "end": 34361,
+          "text": "// A refusal from the server is a typed failure, not a result the agent reads as success."
+        },
+        {
+          "start": 31202,
+          "end": 31238,
+          "text": "// Valid internal case resolves path"
+        },
+        {
+          "start": 30928,
+          "end": 30985,
+          "text": "// Office A attempting to open Office B's case is refused"
+        },
+        {
+          "start": 30011,
+          "end": 30058,
+          "text": "// Set scope second time with same conversation"
+        },
+        {
+          "start": 29872,
+          "end": 29889,
+          "text": "// Set scope once"
+        },
+        {
+          "start": 28737,
+          "end": 28820,
+          "text": "// A tombstoned document is refused even though its vectors are still in the index."
+        },
+        {
+          "start": 28358,
+          "end": 28434,
+          "text": "// Without an embedding profile the search degrades to lexical, and says so."
+        },
+        {
+          "start": 27792,
+          "end": 27870,
+          "text": "// by the caller, so the test drives the adapter the same way the worker does."
+        },
+        {
+          "start": 27696,
+          "end": 27788,
+          "text": "// The index adapter stores float32 blobs; the query vector is produced by the server, never"
+        },
+        {
+          "start": 26017,
+          "end": 26090,
+          "text": "// Attempting to consume with different targetCaseId fails with FORBIDDEN"
+        },
+        {
+          "start": 25747,
+          "end": 25776,
+          "text": "// Proposal with targetCaseId"
+        },
+        {
+          "start": 25451,
+          "end": 25534,
+          "text": "// Attempting to consume proposal intended for c1 to delete c2 fails with FORBIDDEN"
+        },
+        {
+          "start": 25230,
+          "end": 25256,
+          "text": "// Proposal created for c1"
+        },
+        {
+          "start": 21466,
+          "end": 21489,
+          "text": "// Formatting summaries"
+        },
+        {
+          "start": 20713,
+          "end": 20800,
+          "text": "// global logout stays out of it even though a lawyer is allowed to log themselves out."
+        },
+        {
+          "start": 20627,
+          "end": 20709,
+          "text": "// The catalog is the published set, not every capability the person may exercise:"
+        },
+        {
+          "start": 20018,
+          "end": 20049,
+          "text": "// Free conversation and delete"
+        },
+        {
+          "start": 19764,
+          "end": 19794,
+          "text": "// Deletion blocked while busy"
+        },
+        {
+          "start": 19583,
+          "end": 19621,
+          "text": "// Mark conversation busy (processing)"
+        },
+        {
+          "start": 19381,
+          "end": 19400,
+          "text": "// Get conversation"
+        },
+        {
+          "start": 19173,
+          "end": 19195,
+          "text": "// Create conversation"
+        },
+        {
+          "start": 18640,
+          "end": 18710,
+          "text": "// 3. Restore version 1 (generates version 3 with version 1's content)"
+        },
+        {
+          "start": 18379,
+          "end": 18398,
+          "text": "// 2. List versions"
+        },
+        {
+          "start": 18102,
+          "end": 18136,
+          "text": "// 1. Update artifact to version 2"
+        },
+        {
+          "start": 17362,
+          "end": 17390,
+          "text": "// Create a run and artifact"
+        },
+        {
+          "start": 15088,
+          "end": 15178,
+          "text": "// 5. Reindex without an embedding profile is refused instead of falsely reporting success"
+        },
+        {
+          "start": 14879,
+          "end": 14897,
+          "text": "// 4. Index status"
+        },
+        {
+          "start": 14559,
+          "end": 14601,
+          "text": "// 3. Inspect source with adjacent context"
+        },
+        {
+          "start": 14052,
+          "end": 14076,
+          "text": "// 2. Verify audit table"
+        },
+        {
+          "start": 13640,
+          "end": 13745,
+          "text": "// 1. Search knowledge (returns lexical chunks marked degraded: true because no active vector generation)"
+        },
+        {
+          "start": 12740,
+          "end": 12778,
+          "text": "// Create a ready document with chunks"
+        },
+        {
+          "start": 11877,
+          "end": 11913,
+          "text": "// Delete document requires approval"
+        },
+        {
+          "start": 11581,
+          "end": 11604,
+          "text": "// Add document version"
+        },
+        {
+          "start": 11334,
+          "end": 11377,
+          "text": "// Office B cannot access Office A document"
+        },
+        {
+          "start": 11055,
+          "end": 11133,
+          "text": "// Ingest document for Office A through a real, server-issued upload reference"
+        },
+        {
+          "start": 7102,
+          "end": 7140,
+          "text": "// Consumed approval cannot be re-used"
+        },
+        {
+          "start": 6715,
+          "end": 6753,
+          "text": "// 5. Approve proposal and delete case"
+        },
+        {
+          "start": 6430,
+          "end": 6517,
+          "text": "// 4. Delete case without approval -> Fails with APPROVAL_REQUIRED and creates proposal"
+        },
+        {
+          "start": 6214,
+          "end": 6231,
+          "text": "// 3. Update case"
+        },
+        {
+          "start": 6000,
+          "end": 6035,
+          "text": "// 2. Repeat creation -> Idempotent"
+        },
+        {
+          "start": 5793,
+          "end": 5810,
+          "text": "// 1. Create case"
+        },
+        {
+          "start": 4335,
+          "end": 4372,
+          "text": "// Revoke user membership from office"
+        },
+        {
+          "start": 4087,
+          "end": 4144,
+          "text": "// Someone else's office is never reachable by naming it."
+        },
+        {
+          "start": 3012,
+          "end": 3108,
+          "text": "/** Mints a genuine upload reference: bytes through the storage adapter, row in the database. */"
+        },
+        {
+          "start": 1693,
+          "end": 1744,
+          "text": "// Each office has exactly one lawyer, who owns it."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/collaboration.test.ts",
+      "beforeHash": "57a0b3a07cd29cd6d4842d709a6732ecec11ac8ed61afcc63bf46b79ba23d5be",
+      "afterHash": "c03306178b7143278dd5d391f326d9ffef0765b42cbb6e54c30ebdb3872b9f57",
+      "tokens": 7,
+      "comments": [
+        {
+          "start": 25232,
+          "end": 25307,
+          "text": "// Only the creator can deliberately take a file outside the rule they set."
+        },
+        {
+          "start": 18872,
+          "end": 18962,
+          "text": "// Only the creator manages access; the case owner may still delete a folder they can see."
+        },
+        {
+          "start": 16322,
+          "end": 16395,
+          "text": "// The owner cannot change, delete or file into a folder they cannot see."
+        },
+        {
+          "start": 15705,
+          "end": 15809,
+          "text": "// A public subfolder inside a private one stays hidden: every folder on the path must admit the person."
+        },
+        {
+          "start": 12974,
+          "end": 13076,
+          "text": "// The participant may leave on their own; ending the association removes them from both sides' cases."
+        },
+        {
+          "start": 11048,
+          "end": 11146,
+          "text": "// Participants write in the case like its owner does, without being able to take files out of it."
+        },
+        {
+          "start": 9024,
+          "end": 9100,
+          "text": "// A participant cannot bring their own associates into someone else's case."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/documents.test.ts",
+      "beforeHash": "67189994209ea596150134fd6bf16cc6777777936dc6dfe56285277edefaa507",
+      "afterHash": "9aa61ace13363c62a82c97d9d6ee34461935df916be6a21741662fd7bb5c6fd1",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 19078,
+          "end": 19173,
+          "text": "// A document that ends in a table still closes with a paragraph before the section properties."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/google-fixture.ts",
+      "beforeHash": "df959af61a69a2661d1765e001d32ed8486e470acb934cbab5fad8f1a4d9fec1",
+      "afterHash": "9d3f92670db79d294e8b9847fe988691e42a30af0503808389d74a577d7d4dd2",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 6021,
+          "end": 6106,
+          "text": "/** Saves office rules directly (as an administrator would through the interface). */"
+        },
+        {
+          "start": 4087,
+          "end": 4188,
+          "text": "/** Office, member, rollout for every module and an active connection whose access token is valid. */"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/jurisprudence-score.test.ts",
+      "beforeHash": "35c7978e2cef9155a375df719b76655d7a9f0a33d6f76e2b84b2090e05ffd352",
+      "afterHash": "919c95a4339c73519f169487caef357d704032cdcd40d79a11193bf47e9a615f",
+      "tokens": 5,
+      "comments": [
+        {
+          "start": 5301,
+          "end": 5398,
+          "text": "// Jev rated the invented TRF3 ruling highly; its link never came from a search, so it stays low."
+        },
+        {
+          "start": 3553,
+          "end": 3621,
+          "text": "// A tool that echoes what the model wrote never vouches for a link."
+        },
+        {
+          "start": 3166,
+          "end": 3248,
+          "text": "// The provider's own search (OpenAI) and the Exa fallback, both named web_search."
+        },
+        {
+          "start": 2211,
+          "end": 2297,
+          "text": "/** Jev: the STF theme and the STJ ruling fit the case, the blog is not a decision. */"
+        },
+        {
+          "start": 1225,
+          "end": 1271,
+          "text": "// configures the platform TypeSafe connection"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/openai-effort.test.ts",
+      "beforeHash": "7c7bf6be5fb28c43c98bcf990ad6d2dbbccd78740e9e691af4a4f29845fbea45",
+      "afterHash": "da6bf4d36f796cf1e04bd8f2552f58f32c55bec885a63358f21f978d1c977485",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 1476,
+          "end": 1522,
+          "text": "// Provider default: no effort is sent at all."
+        },
+        {
+          "start": 946,
+          "end": 1029,
+          "text": "// Deliberately reject after inspecting the wire request; never contact a provider."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/platform-auth.test.ts",
+      "beforeHash": "f5677a320ad198343b632fb4053006818459507f4608dc6bc16aa9baea79055d",
+      "afterHash": "c44a2d26c65675a010eea2a116fb84f769a82d320ad1811179411ec2b1aafa09",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 1375,
+          "end": 1480,
+          "text": "// Mirrors a platform route handler: authorize with the real Better Auth session, then run the operation."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/research-case.test.ts",
+      "beforeHash": "56b4b425e739637ec2f5276b1aacdcfef29eb38139e479f5dea9d177899523ea",
+      "afterHash": "a9ca443a7229369712e8bd089b25fcadf754084b622a231e3f39d3b7295eb138",
+      "tokens": 2,
+      "comments": [
+        {
+          "start": 20958,
+          "end": 21030,
+          "text": "// Same platform connection, but the cache stays private to each office."
+        },
+        {
+          "start": 14306,
+          "end": 14405,
+          "text": "// The platform connection is shared by every test in this file; research starts switched off here."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/research-core.test.ts",
+      "beforeHash": "8c38937f4f4da31616f28f651f8ec5cee04251b6f64b6599846e15dc03dd3930",
+      "afterHash": "a648ca09bdcb6f9ab64ef7d524e7883edb5893e7f0fc4a6d4062d062ce41ea5d",
+      "tokens": 1,
+      "comments": [
+        {
+          "start": 37835,
+          "end": 37920,
+          "text": "// The result was committed, but the old worker died before enqueueing its full text."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/run-model-plan.test.ts",
+      "beforeHash": "35e9f081e2f9c7b1017f28cf6b00f7a05eeda198fb6e1e559b604f6a0c0cf284",
+      "afterHash": "7c701d50cbf8239fed565a7d69de85c5b2e9eb297f56ed3f67216ba8e48b2b56",
+      "tokens": 3,
+      "comments": [
+        {
+          "start": 4220,
+          "end": 4316,
+          "text": "// The run itself reaches 70% right before the review: that is where the connection is disabled."
+        },
+        {
+          "start": 3711,
+          "end": 3782,
+          "text": "// Extraction already done, so no provider is called before the review."
+        },
+        {
+          "start": 2298,
+          "end": 2383,
+          "text": "// Facts and review on different connections; the review's is the one that goes away."
+        }
+      ]
+    },
+    {
+      "path": "apps/web/tests/typesafe.test.ts",
+      "beforeHash": "92d35a7277c22c7cb129beecf5e05fea14695a1f314da1db66af9364086e584a",
+      "afterHash": "9f077ad9bb5e678ce3ff1a0c2e48ae30c63dd9e4c5c9a39e80272661df5e44ed",
+      "tokens": 4,
+      "comments": [
+        {
+          "start": 28666,
+          "end": 28756,
+          "text": "// No provider timer: hold its promise until the assertions have inspected queue progress."
+        },
+        {
+          "start": 27481,
+          "end": 27571,
+          "text": "// A nonexistent legacy object is still a real deletion-queue item; cleanup must close it."
+        },
+        {
+          "start": 6098,
+          "end": 6157,
+          "text": "// Removing the platform key never re-adopts an office key."
+        },
+        {
+          "start": 5801,
+          "end": 5849,
+          "text": "// Every office now evaluates with that one key."
+        }
+      ]
+    }
+  ]
+}

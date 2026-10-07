@@ -70,6 +70,10 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
   useNavigationSession(href);
 
   useEffect(() => {
+    for (const tab of state.tabs) router.prefetch(tab.href);
+  }, [router, state.tabs]);
+
+  useEffect(() => {
     const showTutorial = (event: Event) => {
       const surface = (event as CustomEvent<unknown>).detail;
       if (surface !== 'chat' && surface !== 'canvas') return;
@@ -210,10 +214,15 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
     controller.dispatch({ type: 'mode', mode: next });
     requestAnimationFrame(() => (next === 'collapsed' ? canvas.current : panel.current)?.focus());
   }
+  const panelControls = <>
+    <button type="button" className="lume-icon" aria-label={state.mode === 'focused' ? 'Voltar ao painel flutuante' : 'Ampliar conversa'} onClick={() => mode(state.mode === 'focused' ? 'floating' : 'focused')}>{state.mode === 'focused' ? <Minimize2 /> : <Maximize2 />}</button>
+    <button type="button" className="lume-icon" aria-label="Recolher o Lume" onClick={() => mode('collapsed')}><PanelLeftClose /></button>
+  </>;
   async function closeTab(resource: CanvasResource) {
     const key = resourceKey(resource);
-    if (state.resource && resourceKey(state.resource) === key) {
-      const next = state.tabs.filter(tab => resourceKey(tab) !== key).at(-1);
+    if (state.href === resource.href) {
+      const index = state.tabs.findIndex(tab => resourceKey(tab) === key);
+      const next = state.tabs[index + 1] ?? state.tabs[index - 1];
       if (!await navigate(next?.href ?? '/app/command-center')) return;
     }
     controller.dispatch({ type: 'close', key });
@@ -240,22 +249,22 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
         requestAnimationFrame(() => document.getElementById('main-content')?.focus());
       }}>Ir para o canvas</a>
       <aside ref={panel} className="lume-panel" aria-label="Lume" tabIndex={-1} inert={chatHidden} aria-hidden={chatHidden}>
-        <header className="lume-panel-header">
+        {!aiNoticeAccepted && <header className="lume-panel-header">
           <LumeMark width={21} height={21} aria-hidden="true" /><span className="font-medium">Lume</span>
           <div className="ml-auto flex gap-1">
             <button type="button" className="lume-icon" aria-label={state.mode === 'focused' ? 'Voltar ao painel flutuante' : 'Ampliar conversa'} onClick={() => mode(state.mode === 'focused' ? 'floating' : 'focused')}>{state.mode === 'focused' ? <Minimize2 /> : <Maximize2 />}</button>
             <button type="button" className="lume-icon" aria-label="Recolher o Lume" onClick={() => mode('collapsed')}><PanelLeftClose /></button>
           </div>
-        </header>
-        {aiNoticeAccepted ? <AgentChat identityKey={`${identity.userId}:${identity.officeId}`} displayName={menu.person.name} modalities={modalities} /> : <div className="min-h-0 flex-1 overflow-y-auto"><AiDataNotice /></div>}
+        </header>}
+        {aiNoticeAccepted ? <AgentChat identityKey={`${identity.userId}:${identity.officeId}`} displayName={menu.person.name} modalities={modalities} panelControls={panelControls} /> : <div className="min-h-0 flex-1 overflow-y-auto"><AiDataNotice /></div>}
         {state.mode === 'focused' && <button type="button" className="lume-open-canvas" onClick={() => mode('floating')}><Columns2 className="size-4" />Abrir canvas</button>}
       </aside>
       <section ref={canvas} className="lume-canvas" aria-label="Canvas do escritório" tabIndex={-1} inert={canvasHidden} aria-hidden={canvasHidden}>
         <WorkspaceMenu {...menu}>
           {state.mode === 'collapsed' && <button type="button" className="lume-orb" aria-label="Abrir o Lume" onClick={() => mode('floating')}><LumeMark width={21} height={21} /></button>}
           <nav className="lume-tabs" aria-label="Abas do canvas">
-            {state.tabs.map(tab => <div className="lume-tab" key={resourceKey(tab)} data-active={state.resource && resourceKey(tab) === resourceKey(state.resource) || undefined}>
-              <button type="button" aria-current={state.resource && resourceKey(tab) === resourceKey(state.resource) ? 'page' : undefined} onClick={() => void openResource(tab.href)} title={tab.title}>{tab.title}</button>
+            {state.tabs.map(tab => <div className="lume-tab" key={resourceKey(tab)} data-active={tab.href === state.href || undefined}>
+              <button type="button" aria-current={tab.href === state.href ? 'page' : undefined} onClick={() => void navigate(tab.href)} onMouseEnter={() => router.prefetch(tab.href)} onFocus={() => router.prefetch(tab.href)} title={tab.title}>{tab.title}</button>
               <button type="button" aria-label={`Fechar aba ${tab.title}`} onClick={() => void closeTab(tab)}><X className="size-3.5" /></button>
             </div>)}
           </nav>

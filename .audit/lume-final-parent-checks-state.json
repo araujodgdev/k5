@@ -1,0 +1,18 @@
+{
+  "pid": 12468,
+  "startedAt": "2026-10-07T15:52:56.756Z",
+  "active": null,
+  "childPid": null,
+  "results": [
+    {
+      "name": "root-build",
+      "exitCode": 0,
+      "finishedAt": "2026-10-07T15:55:16.635Z"
+    },
+    {
+      "name": "affected-e2e",
+      "exitCode": 1,
+      "finishedAt": "2026-10-07T16:21:03.076Z"
+    }
+  ]
+}

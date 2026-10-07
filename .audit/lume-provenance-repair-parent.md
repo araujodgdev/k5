@@ -1,0 +1,17 @@
+# Parent verification of source-policy repair
+
+The repair remains under independent functional review. No production writer is active. The parent read the complete repair result/evidence ledger and traced the updated source snapshot, extraction worker, shared submission/continuation, policy exposure, citation cache, Gmail draft/audience, Calendar confirmation, canonical Vault/annex, collaboration gates and session writers.
+
+Actual logs confirm 124/124 in source-test-1791348944253 and 20/20 in source-test-1791349946989. These are overlapping selections and are not added into a unique test total. The final combined browser report source-e2e-1791350171158 records 43 selected passes. Its session-refresh 429s remain a recorded limitation; no console-clean or live-model claim is made.
+
+The parent reran the read-only evidence manifest at source-repair-manifest-1791350890106. Six applied migration checksums match, no temporary fixture schemas/compatibility trigger remain, and comparison with worker final source-repair-manifest-1791350633474 found zero hash differences across all 63 paths. Applied migration 0080a/0081/0082 compatibility is preserved and explicitly called out for independent review.
+
+After that comparison, parent fixed three text-only encoding defects: chat audio label, Calendar review labels, and extraction error accents. The comment pass accepted six narrative-line removals in four test/browser files. No behavioral implementation changed. Both scoped lint selections passed. Root pnpm typecheck passed. Root pnpm lint passed with one existing warning for unused _bytes in src/lib/judicial/connectors/transport.ts, outside this repair. Full root tests/build are still pending for the wider refactor.
+
+Parent inspected the worker's mobile continuation screenshot, then used the T3 browser on the owned app to navigate from Início to an actual shared page via its retained canvas tab and inspect desktop/mobile rendering. This checks actual navigation and display, not live generation or private source correctness. Service/provider tests provide those distinct evidence levels. No real external message was sent.
+
+Parent recording is C:/Users/douglas.araujo/.t3/userdata/attachments/36799375-22e8-4ee2-8675-8d16f7ff7ab6-03e813be-9c57-426e-b839-4bd916384536-mp4.mp4. Final mobile screenshot is C:/Users/douglas.araujo/.t3/userdata/browser-artifacts/browser-screenshot-localhost-muxoaarv-fd60f90b.png. Browser measurements confirm innerWidth/clientWidth/scrollWidth 390, height 844 and exactly one contenteditable with the actual shared-page text. Initial resize metadata returned the previous viewport until the next observation; do not use that initial value as mobile evidence.
+
+The parent's saved mobile image visibly contains two repeated narrow views, despite the live DOM reporting one editor and one 390px main. This capture mismatch is unresolved and the image is not clean visual proof. The parent retains it honestly rather than attributing a second application editor without DOM evidence. The earlier worker mobile screenshot was separately inspected and shows a single coherent 390px layout. Parent navigation and DOM measurements remain valid but have this screenshot limitation.
+
+Three fresh read-only Sol High/Fast reviews A/B/C now receive identical full intent/rubric, original and repair inventory, all prior findings/parent judgments, author responses, current evidence and remaining limitations. Later unit 3 waits for this judgment. No new human approval is needed under the original implementation authorization.

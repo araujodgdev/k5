@@ -1,0 +1,26 @@
+import { spawn } from 'node:child_process';
+import { existsSync, readFileSync, mkdirSync, createWriteStream } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const pointer = JSON.parse(readFileSync(join(tmpdir(), 'lume-verify-current.json'), 'utf8'));
+const state = JSON.parse(readFileSync(join(pointer.runDir, 'state.json'), 'utf8'));
+if (state.runId !== '20261007T165940-c7eeda' || state.port !== 55713 || state.pgPort !== 55714 || state.status !== 'ready') throw new Error('Wrong isolated instance.');
+const web = fileURLToPath(new URL('../apps/web', import.meta.url));
+const [command, ...args] = process.argv.slice(2);
+if (command === 'test' && args.some(file => !existsSync(join(web, file)))) throw new Error('Requested test file does not exist.');
+const output = join(state.evidenceDir, `source-${command}-${Date.now()}`);
+mkdirSync(output, { recursive: true });
+const env = { ...process.env, TEST_DATABASE_URL: state.databaseUrl, K5_ENV_FILE: join(pointer.runDir, 'verify.env'), K5_E2E_URL: state.baseURL, DATABASE_URL: state.databaseUrl, E2E_EMAIL: state.account.email, E2E_PASSWORD: state.account.password, E2E_OFFICE_NAME: state.account.officeName };
+const pkg = JSON.parse(readFileSync(join(web, 'node_modules/e2e/package.json'), 'utf8'));
+const cli = command === 'migrate' ? ['--import', 'tsx', 'scripts/setup.ts'] : command === 'test' ? ['--import', '../../.audit/lume-no-external-test-traffic.mjs', '--import', 'tsx', '--test', '--test-concurrency=1', ...args]
+  : command === 'e2e' ? [join(web, 'node_modules/e2e', pkg.bin.e2e), 'run', ...args, '--output', output, '--video', 'on', '--workers', '1'] : null;
+if (!cli) throw new Error('Use migrate, test or e2e.');
+const log = createWriteStream(join(output, 'output.log'));
+const child = spawn(process.execPath, cli, { cwd: web, stdio: ['ignore','pipe','pipe'], windowsHide: true, env });
+child.stdout.on('data', bytes => { process.stdout.write(bytes); log.write(bytes); });
+child.stderr.on('data', bytes => { process.stderr.write(bytes); log.write(bytes); });
+const code = await new Promise<number | null>((resolve, reject) => { child.on('error', reject); child.on('exit', resolve); });
+log.end();
+console.log(JSON.stringify({ output, exitCode: code }));
+process.exitCode = code ?? 1;

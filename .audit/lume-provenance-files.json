@@ -1,0 +1,1596 @@
+{
+  "base": "apps/web",
+  "finalization": {
+    "writer": "GPT-6.1 Sol High",
+    "productionEditsDuringFinalization": [],
+    "applicationEditsDuringFinalization": [
+      "tests/content-policy.test.ts"
+    ],
+    "auditEditsDuringFinalization": [
+      ".audit/lume-provenance-implementation.md",
+      ".audit/lume-provenance-implementation.tsv",
+      ".audit/lume-provenance-files.json",
+      ".audit/source-handoff-checks.mts"
+    ],
+    "finalPolicyTestEvidence": "source-test-1791344311665",
+    "finalStaticEvidence": "source-static-1791344384974",
+    "inheritedImplementationRemainsUnaccepted": true
+  },
+  "groups": {
+    "Migration and policy": [
+      "db/postgres/0076_content_policy.sql",
+      "db/postgres/0077_content_policy_validation.sql",
+      "src/lib/content-policy.ts",
+      "src/lib/documents/service.ts",
+      "src/lib/documents/shared-writing.ts",
+      "src/lib/case-pages/contracts.ts",
+      "src/lib/case-pages/provenance.ts",
+      "src/lib/case-pages/service.ts"
+    ],
+    "Admission and private writers": [
+      "src/app/api/chat/route.ts",
+      "src/app/api/artifacts/[id]/route.ts",
+      "src/lib/ai-store.ts",
+      "src/lib/ai-runtime.ts",
+      "src/lib/chat-prompt.ts",
+      "src/lib/chat-turn.ts",
+      "src/lib/agent-guard.ts",
+      "src/lib/agent-tools/index.ts",
+      "src/lib/agent-instructions.ts",
+      "src/lib/agent-knowledge.ts",
+      "src/lib/agent-profile.ts",
+      "src/lib/document-workflows.ts",
+      "src/lib/application/context.ts",
+      "src/lib/application/artifacts-service.ts",
+      "src/lib/application/approvals-service.ts",
+      "src/lib/application/agent-approvals.ts",
+      "src/lib/application/agent-settings-service.ts",
+      "src/lib/application/knowledge-service.ts",
+      "src/lib/application/runs-service.ts",
+      "src/lib/application/workspace-agent-service.ts",
+      "src/lib/capabilities/contracts.ts",
+      "src/lib/capabilities/research.ts",
+      "src/lib/capabilities/workspace.ts",
+      "src/lib/knowledge/retrieval.ts",
+      "src/lib/research/case-assessment.ts",
+      "src/lib/research/case-profile.ts",
+      "src/lib/research/case-material.ts",
+      "src/lib/typesafe/verification.ts",
+      "src/lib/collaboration/access.ts"
+    ],
+    "Copies and exits": [
+      "src/app/api/artifacts/[id]/export/route.ts",
+      "src/lib/application/vault-service.ts",
+      "src/lib/vault.ts",
+      "src/lib/artifact-file.ts",
+      "src/lib/conversation-artifacts.ts",
+      "src/lib/client-portal/service.ts",
+      "src/lib/honorarios/charges.ts",
+      "src/lib/personal-chat/shares.ts",
+      "src/lib/personal-chat/service.ts",
+      "src/lib/personal-chat/email-worker.ts",
+      "src/lib/capabilities/google.ts",
+      "src/lib/capabilities/whatsapp.ts",
+      "src/lib/google/operations.ts",
+      "src/lib/google/drive/import.ts",
+      "src/lib/google/drive/service.ts",
+      "src/lib/google/gmail/service.ts",
+      "src/lib/google/gmail/insights.ts",
+      "src/lib/google/gmail/insights-contracts.ts",
+      "src/lib/google/calendar/service.ts",
+      "src/lib/whatsapp/send.ts"
+    ],
+    "UI": [
+      "src/app/api/approvals/[id]/page/route.ts",
+      "src/components/document/page-approval-review.tsx",
+      "src/components/agent-chat.tsx",
+      "src/components/google/email-smart.tsx",
+      "src/components/google/gmail-panel.tsx",
+      "src/components/lume/lume-workspace.tsx"
+    ],
+    "Tests": [
+      "tests/shared-writing-fixture.ts",
+      "tests/document-writes.ts",
+      "tests/chat-source-boundary.test.ts",
+      "tests/content-policy.test.ts",
+      "tests/content-exits.test.ts",
+      "tests/case-pages.test.ts",
+      "tests/ai-store.test.ts",
+      "tests/agent-capabilities.test.ts",
+      "tests/agent-files-review.test.ts",
+      "tests/agent-knowledge.test.ts",
+      "tests/agent-profile.test.ts",
+      "tests/conversation-artifacts.test.ts",
+      "tests/google-email-insights.test.ts",
+      "tests/personal-chat.test.ts",
+      "tests/run-model-plan.test.ts",
+      "tests/whatsapp-send.test.ts",
+      "tests/research-case.test.ts",
+      "e2e/workspace.e2e.ts",
+      "e2e/source-policy.e2e.ts"
+    ]
+  },
+  "repair": {
+    "writer": "codex/gpt-6.1-sol, high, priority",
+    "production": [
+      "src/lib/acl-transaction.ts",
+      "src/lib/application/context.ts",
+      "src/lib/collaboration/service.ts",
+      "src/lib/office-deletion.ts",
+      "src/lib/db/postgres.ts",
+      "src/lib/content-policy.ts",
+      "src/lib/vault.ts",
+      "src/lib/application/vault-service.ts",
+      "src/lib/annexes.ts",
+      "src/lib/documents/shared-writing.ts",
+      "src/app/api/chat/route.ts",
+      "src/lib/chat-contract.ts",
+      "src/components/agent-chat.tsx",
+      "src/lib/application/artifacts-service.ts",
+      "src/lib/documents/service.ts",
+      "src/lib/case-pages/service.ts",
+      "src/lib/case-pages/provenance.ts",
+      "src/lib/application/knowledge-service.ts",
+      "src/lib/knowledge/retrieval.ts",
+      "src/lib/agent-tools/index.ts",
+      "src/lib/citations/sources.ts",
+      "src/lib/citations/artifact-review.ts",
+      "src/lib/google/gmail/insights.ts",
+      "src/lib/google/gmail/service.ts",
+      "src/components/google/gmail-panel.tsx",
+      "src/lib/capabilities/google.ts",
+      "src/lib/google/calendar/service.ts",
+      "src/lib/google/approval-review.ts",
+      "src/app/api/approvals/[id]/route.ts",
+      "src/lib/chat-run.ts",
+      "src/app/api/vault/documents/route.ts",
+      "src/lib/google/drive/import.ts",
+      "src/lib/research/case-references.ts",
+      "src/lib/personal-chat/service.ts",
+      "src/lib/personal-chat/shares.ts",
+      "src/lib/personal-chat/email-worker.ts",
+      "src/lib/client-portal/service.ts",
+      "src/lib/research/case-profile.ts"
+    ],
+    "testsAndBrowser": [
+      "tests/source-acl.test.ts",
+      "tests/source-session-expiry.test.ts",
+      "tests/source-extraction.test.ts",
+      "tests/chat-audio-source.test.ts",
+      "tests/source-repair-behavior.test.ts",
+      "tests/source-archive.test.ts",
+      "tests/google-calendar.test.ts",
+      "tests/auth.test.ts",
+      "tests/annexes.test.ts",
+      "tests/content-policy.test.ts",
+      "tests/content-exits.test.ts",
+      "tests/google-email-insights.test.ts",
+      "tests/research-case.test.ts",
+      "tests/agent-knowledge.test.ts",
+      "tests/google-drive.test.ts",
+      "tests/shared-writing-fixture.ts",
+      "e2e/source-policy.e2e.ts",
+      "e2e/document-saving.e2e.ts",
+      "e2e/lume-shell.e2e.ts"
+    ],
+    "additiveMigrations": [
+      "db/postgres/0078_source_policy_repair.sql",
+      "db/postgres/0079_citation_source_policy.sql",
+      "db/postgres/0080_calendar_share_review.sql",
+      "db/postgres/0081_source_capture_upgrade.sql",
+      "db/postgres/0080a_capture_upgrade_compat.sql",
+      "db/postgres/0082_capture_upgrade_compat_cleanup.sql"
+    ]
+  },
+  "round2": {
+    "writer": "GPT-6.1 Sol High / priority Fast; sole production writer",
+    "status": "implemented; frozen checks complete; independent parent acceptance pending",
+    "runId": "20261006T234247-d88728",
+    "production": [
+      "src/lib/documents/shared-writing.ts",
+      "src/lib/application/idempotency-service.ts",
+      "src/lib/application/capability-replay.ts",
+      "src/lib/application/agent-settings-service.ts",
+      "src/lib/application/research-service.ts",
+      "src/lib/agent-tools/index.ts",
+      "src/lib/capabilities/contracts.ts",
+      "src/lib/capabilities/annexes.ts",
+      "src/lib/capabilities/http-client.ts",
+      "src/lib/collaboration/capability-access.ts",
+      "src/lib/application/context.ts",
+      "src/lib/application/annexes-service.ts",
+      "src/lib/annexes.ts",
+      "src/components/vault-annexes.tsx",
+      "src/app/api/vault/cases/[id]/annexes/route.ts",
+      "src/lib/knowledge/retrieval.ts",
+      "src/lib/citations/sources.ts",
+      "src/lib/citations/review.ts",
+      "src/lib/google/gmail/service.ts",
+      "src/lib/google/operations.ts",
+      "src/lib/client-portal/service.ts",
+      "src/lib/client-portal/invitations.ts",
+      "src/lib/client-portal/http.ts",
+      "src/app/api/client-portal/invitations/[token]/route.ts",
+      "src/lib/chat-turn.ts",
+      "src/lib/auth-core.ts"
+    ],
+    "testsAndBrowser": [
+      "tests/source-round2.test.ts",
+      "tests/source-annex-plan.test.ts",
+      "tests/source-catalog-cache.test.ts",
+      "tests/source-gmail-binding.test.ts",
+      "tests/client-portal.test.ts",
+      "tests/chat-source-boundary.test.ts",
+      "tests/shared-writing-fixture.ts",
+      "tests/security.test.ts",
+      "tests/agent-profile.test.ts",
+      "tests/citations.test.ts",
+      "tests/auth.test.ts",
+      "tests/server-only-fixture.ts",
+      "e2e/annex-plan.e2e.ts",
+      "e2e/private-chat-readiness.e2e.ts",
+      "e2e/client-portal.e2e.ts"
+    ],
+    "additiveMigrations": [
+      "db/postgres/0083_retained_source_bindings.sql"
+    ],
+    "workspaceArtifacts": [
+      ".audit/lume-source-boundary-census.mts",
+      ".audit/lume-source-boundary-census.json",
+      ".audit/lume-annex-browser-fixture.mts",
+      ".audit/lume-round2-preview-setup.mts",
+      ".audit/lume-round2-inventory.mts",
+      ".audit/lume-source-round2-evidence.mts",
+      ".audit/lume-round2-root-checks.mts",
+      ".agents/skills/verify-lume/features/vault-annexes.md",
+      ".claude/skills/verify-lume/features/vault-annexes.md",
+      ".agents/skills/verify-lume/features/agent-chat.md",
+      ".claude/skills/verify-lume/features/agent-chat.md"
+    ],
+    "negativeEvidence": [
+      "source-test-1791351730088",
+      "source-test-1791352050518"
+    ],
+    "frozenAt": "2026-10-07T06:33:48.806Z",
+    "frozenFiles": [
+      {
+        "path": "apps/web/src/lib/documents/shared-writing.ts",
+        "sha256": "55c8158648a4148545c35a03c15580b0e0105246be974bcdc5a37e2f32b01db6"
+      },
+      {
+        "path": "apps/web/src/lib/application/idempotency-service.ts",
+        "sha256": "286d2eaca30d369da424de1cf27ad2b34e06e92aec0c0bb84e94aa9e98fa131a"
+      },
+      {
+        "path": "apps/web/src/lib/application/capability-replay.ts",
+        "sha256": "baa6e9c1c56e3be6729a9ea5cb0087d27debbebb77b1fa761756b59ca780f65b"
+      },
+      {
+        "path": "apps/web/src/lib/application/agent-settings-service.ts",
+        "sha256": "3fa2c81bce68c113ce8c65388d1ada59a26234f9f4c883f79bdffe978758ace6"
+      },
+      {
+        "path": "apps/web/src/lib/application/research-service.ts",
+        "sha256": "58b2e9c5894f6af11d2c76a7c1a581de8829f3606a61cd0620072ddc54ec936d"
+      },
+      {
+        "path": "apps/web/src/lib/agent-tools/index.ts",
+        "sha256": "a5baa238291055956560508a89f735e7cf9a67eafd4021f734c30f5e724bb24f"
+      },
+      {
+        "path": "apps/web/src/lib/capabilities/contracts.ts",
+        "sha256": "ea27724c7c0ae2b3af45201a451f12746eb57f0bc1b6150cb1e3061c69dc6fb8"
+      },
+      {
+        "path": "apps/web/src/lib/capabilities/annexes.ts",
+        "sha256": "14123e72684b3fb72a6c792c728800b4db44f7fb99e569e13ad87c8d03e9df89"
+      },
+      {
+        "path": "apps/web/src/lib/capabilities/http-client.ts",
+        "sha256": "0a615548a48f5b20a007e001f26f7d1db873c66489c76fa0485728d81e5792fa"
+      },
+      {
+        "path": "apps/web/src/lib/collaboration/capability-access.ts",
+        "sha256": "6a00b65c87efc85820a4925c9a4094957838159b087168e10f7033958ce9916a"
+      },
+      {
+        "path": "apps/web/src/lib/application/context.ts",
+        "sha256": "01d67af3761a4f8e43a90754e850fa5483992fee5e9d61f33dff7e8b6ff9d227"
+      },
+      {
+        "path": "apps/web/src/lib/application/annexes-service.ts",
+        "sha256": "db529b9abde4449cf48751872b0b05cafd0d5802462910c0955e43cb65b691ca"
+      },
+      {
+        "path": "apps/web/src/lib/annexes.ts",
+        "sha256": "3a0188404a0af98ead830f4381c04cb1e59d0aa9d7b0c3caa3ae40c5a8537f4c"
+      },
+      {
+        "path": "apps/web/src/components/vault-annexes.tsx",
+        "sha256": "43b65175f9498411e6067fa7d66739bbc5ab2f7472a6b5a8649991a6b13f5cbd"
+      },
+      {
+        "path": "apps/web/src/app/api/vault/cases/[id]/annexes/route.ts",
+        "sha256": "5a5b6efb6ebd9d7249cac3ec51e92cf5a68320c1e98858609e6fb048b785a82f"
+      },
+      {
+        "path": "apps/web/src/lib/knowledge/retrieval.ts",
+        "sha256": "175b696f2cfad5405e660045356add8761478feec8a900e01b11e700da3dc6dd"
+      },
+      {
+        "path": "apps/web/src/lib/citations/sources.ts",
+        "sha256": "2e0bc61b353d746d870865b15275e2437e0aade4cb61b47306fb767326d4d765"
+      },
+      {
+        "path": "apps/web/src/lib/citations/review.ts",
+        "sha256": "ff0ee920ff734635fd7891912db3f1a06280a22b3cb5e043f8141d86cdc03535"
+      },
+      {
+        "path": "apps/web/src/lib/google/gmail/service.ts",
+        "sha256": "8d304d0f6cb9bff4fe016d6a4f6afd30b51614fd4491bd5c3f83d191f7164d89"
+      },
+      {
+        "path": "apps/web/src/lib/google/operations.ts",
+        "sha256": "6f5a8ef7c0e669e913c5374e90b712d77f372a1de9dc8dec2c86acc8cb96fda6"
+      },
+      {
+        "path": "apps/web/src/lib/client-portal/service.ts",
+        "sha256": "4cac9636fff197b3d67521077f9468abd00e49d95085ed6b6c7d09fcf35fa370"
+      },
+      {
+        "path": "apps/web/src/lib/client-portal/invitations.ts",
+        "sha256": "f68ea163b3fa9a0e10f9c6f81aceec94aabfad833cdb588d4a2c6e60fb80d65b"
+      },
+      {
+        "path": "apps/web/src/lib/client-portal/http.ts",
+        "sha256": "f8b0a08fc922af96480dea277732fea375b58717c9f7c4019b2c7ea40026de45"
+      },
+      {
+        "path": "apps/web/src/app/api/client-portal/invitations/[token]/route.ts",
+        "sha256": "45d01c6e908361ec9d717d6fe6d9f8b3a6b0a17a9367bc2a8d1c3a761d800823"
+      },
+      {
+        "path": "apps/web/src/lib/chat-turn.ts",
+        "sha256": "2b166b30cf604cef539d7fccaf1fec03e282c2470500f1c4500b5b4bae851900"
+      },
+      {
+        "path": "apps/web/src/lib/auth-core.ts",
+        "sha256": "b93effe926678f4cf714e78dee976e82afca36a29aaff8c32ebe1ca48820c604"
+      },
+      {
+        "path": "apps/web/tests/source-round2.test.ts",
+        "sha256": "7bad97cfda790593ffc0ee1ab81d0aa26b88af70664d0805645daf70d9b4ffc8"
+      },
+      {
+        "path": "apps/web/tests/source-annex-plan.test.ts",
+        "sha256": "6f603855d350946a7783db948e89545a894b96bb4e24b64702b7d76e616209e9"
+      },
+      {
+        "path": "apps/web/tests/source-catalog-cache.test.ts",
+        "sha256": "5d0411813fe4576b405bb9571d6328666def155a6983ab4909973bb1528bd31f"
+      },
+      {
+        "path": "apps/web/tests/source-gmail-binding.test.ts",
+        "sha256": "7d49c800c59bd682d161dd353c511b81369b6187be42d5bf9d7d00b466798ffb"
+      },
+      {
+        "path": "apps/web/tests/client-portal.test.ts",
+        "sha256": "55e37eb387dca23236c7d4c1064b21c6812aa3cfd2a17af5875f85545ec28ca2"
+      },
+      {
+        "path": "apps/web/tests/chat-source-boundary.test.ts",
+        "sha256": "bdb72eb9a8db4aa78eb978eaf54d270472e6b17ab89317f27f6c1509c758008e"
+      },
+      {
+        "path": "apps/web/tests/shared-writing-fixture.ts",
+        "sha256": "77ba58e0d4ad453136f83349308218e9c83fc77e4bfc501d3e7ee8c767fcf209"
+      },
+      {
+        "path": "apps/web/tests/security.test.ts",
+        "sha256": "e9f517d15da0e7eb12bc8d16faabb7491f834e59e72def0a61620c6f5ee497e8"
+      },
+      {
+        "path": "apps/web/tests/agent-profile.test.ts",
+        "sha256": "dcf639fb8c039ab78d4987f68451f8e5c97d6cdc3aa0f596c27dfa892eb9747b"
+      },
+      {
+        "path": "apps/web/tests/citations.test.ts",
+        "sha256": "ee4856a2c4023962742df0728397abf774412e7f2e91720882a08b36df673b1e"
+      },
+      {
+        "path": "apps/web/tests/auth.test.ts",
+        "sha256": "5c10e7bd2e87ecad21de1979fe588ee8027a3ba5b88c6bd3bbbbd04c0c0bae19"
+      },
+      {
+        "path": "apps/web/tests/server-only-fixture.ts",
+        "sha256": "14927ad18455aadb31c8db761b6e60a5fd556162064f113baf20a726d5bf977c"
+      },
+      {
+        "path": "apps/web/e2e/annex-plan.e2e.ts",
+        "sha256": "d814f0697b423553ad07c12e64561b228061f80830d4d673083ec606db320c3e"
+      },
+      {
+        "path": "apps/web/e2e/private-chat-readiness.e2e.ts",
+        "sha256": "8d0172b98b84af36763f323ccf97ea1ec58bea2f5ba3cdecdaf1fbc108a3d82b"
+      },
+      {
+        "path": "apps/web/e2e/client-portal.e2e.ts",
+        "sha256": "029b37d6df0d5aa3393556aecfc38457be0c04ab3759d52f65a67ad9f72b259a"
+      },
+      {
+        "path": "apps/web/db/postgres/0083_retained_source_bindings.sql",
+        "sha256": "cdf5ff0c84e5e438eace8fea2f94b7f8f9b6b0a4aaad7809066e3e8e63277169"
+      },
+      {
+        "path": ".audit/lume-source-boundary-census.mts",
+        "sha256": "516f1eae888972bcc7e767614c69f63eafb3d0bfd53b8b9e85c8d87e6181ff03"
+      },
+      {
+        "path": ".audit/lume-source-boundary-census.json",
+        "sha256": "d896a3f8d5049c6ee1104830939810204e112f16828f4a3f761f0594413f5e2b"
+      },
+      {
+        "path": ".audit/lume-annex-browser-fixture.mts",
+        "sha256": "5e1b733113f5c917ddad2ab12c7c57e68742fefe268c53b7286489e1f70b6775"
+      },
+      {
+        "path": ".audit/lume-round2-preview-setup.mts",
+        "sha256": "fa6cccdb786b169257e8ef7f2dac867bc5a261799b75f0ef8adfe7ce49a9d0ee"
+      },
+      {
+        "path": ".audit/lume-round2-inventory.mts",
+        "sha256": "4569031fede496b219148fd4dc380ab0c8cdcf42a79edf87cb1457439a65ad44"
+      },
+      {
+        "path": ".audit/lume-source-round2-evidence.mts",
+        "sha256": "d22ff2bfa8b986c9d2130eac04740c2ea264577a90885a3daa038a42289be727"
+      },
+      {
+        "path": ".audit/lume-round2-root-checks.mts",
+        "sha256": "e0b2b2f33ea666a8f40da40a897b9d327610a9c0901d5aa4b3acb61edaaa5d9e"
+      },
+      {
+        "path": ".agents/skills/verify-lume/features/vault-annexes.md",
+        "sha256": "e0febe2b9bebff757e60e058ff4e12dba44b03705e53a2b03a4852c079a34fa5"
+      },
+      {
+        "path": ".claude/skills/verify-lume/features/vault-annexes.md",
+        "sha256": "e0febe2b9bebff757e60e058ff4e12dba44b03705e53a2b03a4852c079a34fa5"
+      },
+      {
+        "path": ".agents/skills/verify-lume/features/agent-chat.md",
+        "sha256": "93dc8cc05970802c1b41f62e9afdd6092ad1af15a66976b2c4f0732ed714b130"
+      },
+      {
+        "path": ".claude/skills/verify-lume/features/agent-chat.md",
+        "sha256": "93dc8cc05970802c1b41f62e9afdd6092ad1af15a66976b2c4f0732ed714b130"
+      }
+    ],
+    "appliedMigrationChecksums": [
+      {
+        "name": "0075_case_pages.sql",
+        "checksum": "8e5af994789712bcc2fe690ed80fe23212d0f69a97c21dccd0110cc5633fbae2"
+      },
+      {
+        "name": "0076_content_policy.sql",
+        "checksum": "5eea413d5b8bb17345ac1e31e2c7a467c50a9062e3bf7fae718bd1ee3d472f16"
+      },
+      {
+        "name": "0077_content_policy_validation.sql",
+        "checksum": "703a97f950768a570e0473ad45aed62925505a95a1bc720bc7636937a68d065e"
+      },
+      {
+        "name": "0078_source_policy_repair.sql",
+        "checksum": "025b590e1477b87ade0033bbde0903d5492784a45b7d89d4722ff4d8d2d0f0b2"
+      },
+      {
+        "name": "0079_citation_source_policy.sql",
+        "checksum": "eba09e0dddc75f17a2884c22a8c8347f651e1786029f3a85a7e262751b278981"
+      },
+      {
+        "name": "0080_calendar_share_review.sql",
+        "checksum": "b21a348ffeb0de3431a834ab23b5c35b7d5c38a648e50594de2ef5e007bc287f"
+      },
+      {
+        "name": "0080a_capture_upgrade_compat.sql",
+        "checksum": "721220799b71f505d5becee57c2a744ebb27274885c96c5991499f2eb0f9f12d"
+      },
+      {
+        "name": "0081_source_capture_upgrade.sql",
+        "checksum": "00f152e215b23eb8e0a423577b9f57539f44ddaa875f07d652c69c1dbe0c5877"
+      },
+      {
+        "name": "0082_capture_upgrade_compat_cleanup.sql",
+        "checksum": "1b58271f27df8f01dc80b48d4b0bef01336f6eca05e1bad617f7c94e046de5e7"
+      },
+      {
+        "name": "0083_retained_source_bindings.sql",
+        "checksum": "cdf5ff0c84e5e438eace8fea2f94b7f8f9b6b0a4aaad7809066e3e8e63277169"
+      }
+    ],
+    "finalEvidence": {
+      "postgres": {
+        "path": "apps/web/.e2e/verify/20261006T234247-d88728/source-test-1791355088952/output.log",
+        "passed": 219,
+        "failed": 0,
+        "files": 28,
+        "workers": 1
+      },
+      "originalParentRepro": {
+        "path": "apps/web/.e2e/verify/20261006T234247-d88728/source-test-1791355903270/output.log",
+        "passed": 2,
+        "failed": 0
+      },
+      "browser": {
+        "path": "apps/web/.e2e/verify/20261006T234247-d88728/source-e2e-1791355147204/report.json",
+        "passed": 49,
+        "failed": 0,
+        "files": 12,
+        "workers": 1,
+        "traceAudit": "apps/web/.e2e/verify/20261006T234247-d88728/source-e2e-1791355147204/source-trace-audit.json",
+        "traceSummary": "apps/web/.e2e/verify/20261006T234247-d88728/source-e2e-1791355147204/source-trace-summary.json"
+      },
+      "scopedLint": {
+        "path": "apps/web/.e2e/verify/20261006T234247-d88728/source-round2-scoped-lint.log",
+        "files": 41,
+        "exitCode": 0
+      },
+      "rootTypecheck": {
+        "path": "apps/web/.e2e/verify/20261006T234247-d88728/source-checks-1791354854864/output.log",
+        "exitCode": 0
+      },
+      "manifest": "apps/web/.e2e/verify/20261006T234247-d88728/source-round2-manifest-1791355915691/manifest.json",
+      "previewManifest": "apps/web/.e2e/verify/20261006T234247-d88728/source-round2-preview/manifest.json",
+      "fixtureSchemas": 0,
+      "compatibilityTriggers": 0,
+      "acceptance": "pending parent comment pass and three independent reviewers",
+      "fullRootChecks": "parent-owned lint/test/build delivery pending"
+    },
+    "negativeEvidenceFiles": [
+      {
+        "path": ".audit/lume-source-round2-repro.test.ts",
+        "sha256": "96a5f2fea667b3367898c958d9f92bddc010345ede2ee68526f34be34b94d4a7"
+      }
+    ],
+    "deliveryArtifacts": [
+      {
+        "path": ".audit/lume-provenance-repair-round2.md",
+        "sha256": "885d56a3770e2b70d588057b3e8c8f71c7f1de393c2b20c3da8c299087121e6d"
+      },
+      {
+        "path": ".audit/lume-provenance-repair-round2.tsv",
+        "sha256": "e72cd80baa7857a657b80195c52f978a6c446cca275f0eda0d01c5b3b0131bae"
+      },
+      {
+        "path": "apps/web/.e2e/verify/20261006T234247-d88728/source-round2-manifest-1791355915691/manifest.json",
+        "sha256": "7f98a5aef2a5a1775630320b88023d4a56b13cee1c6caf2caf8ed9d433c0a8bd"
+      },
+      {
+        "path": "apps/web/.e2e/verify/20261006T234247-d88728/source-round2-preview/manifest.json",
+        "sha256": "bcc39e08c8049a15fe4129c114692e36ecd91e141e85744d0ed31faf685d3a51"
+      },
+      {
+        "path": "apps/web/.e2e/verify/20261006T234247-d88728/source-e2e-1791355147204/source-trace-summary.json",
+        "sha256": "209f241ba51b420239cf5a7ba0c4211abafb1f2c9f2843979a6ee4d6006e51d7"
+      }
+    ],
+    "limits": [
+      "External provider/Google/TypeSafe stubs prove admission and guards, not live model quality or Gmail behavior.",
+      "No pre-edit portal40P01 runtime reproduction; original inverse-lock finding remains static.",
+      "Final browser trace includes22 actual sessionendpoint429 responses,85 console error records and4 navigationcontextdestroyed operation records;zero pageError.",
+      "Prior diagnostic editor navigation failure remains unexplained;unchanged16-test editor suite passed frozen run.",
+      "Legacy protected JSON without binding fails closed;ambiguous effects remain unknown and crashed reservations pending to prevent duplicate writes."
+    ],
+    "parentReview": {
+      "notes": ".audit/lume-provenance-round2-parent.md",
+      "commentReport": ".audit/lume-provenance-round2-comments.md",
+      "changedProduction": [
+        "apps/web/src/lib/annexes.ts",
+        "apps/web/src/lib/annexes-contract.ts"
+      ],
+      "commentsAndMechanicalNames": true,
+      "freeze": ".audit/lume-source-round2-parent-freeze.json",
+      "files": 54,
+      "status": "independent acceptance and current checks pending",
+      "proof": {
+        "negative": "source-test-1791356158582",
+        "positive": "source-test-1791356417604",
+        "positiveTests": 18
+      }
+    }
+  },
+  "round3": {
+    "writer": "GPT-6.1 Sol high/priority",
+    "status": "Implementation handoff: all nine owned groups complete; unit2 unaccepted pending parent review; root suite has one out-of-scope chat-status integration failure",
+    "runId": "20261006T234247-d88728",
+    "appPort": 62541,
+    "pgPort": 62542,
+    "freeze": ".audit/lume-provenance-round3-freeze-complete.json",
+    "files": [
+      {
+        "path": "apps/web/db/postgres/0084_research_content_admission.sql",
+        "sha256": "0ae31d8ba17fd803f172a038d149cb172f873b2407b3129f638fff3c3f05116e"
+      },
+      {
+        "path": "apps/web/db/postgres/0085_verification_admission.sql",
+        "sha256": "3a9f444b2274fe98865eefd70f42e62cfaf50c79d411457d839039895280630e"
+      },
+      {
+        "path": "apps/web/db/postgres/0086_retained_web_and_share_files.sql",
+        "sha256": "7bc96ea6c0a72d3b53b9f41858e18206b2e4655a67663b8664c34d318dc991ae"
+      },
+      {
+        "path": "apps/web/db/postgres/0087_research_search_input_policy.sql",
+        "sha256": "3b489bc0870c671a2c8b8a07f8102e4f394f35ba49885316d47a63e0701ccf26"
+      },
+      {
+        "path": "apps/web/db/postgres/0088_folder_identity_admission.sql",
+        "sha256": "2492bf531f001a8998e4174b534833ba9b0e38fe5a35f3eaba575a18c655abe3"
+      },
+      {
+        "path": "apps/web/db/postgres/0089_research_metadata_admission.sql",
+        "sha256": "8caec927a02e7d8da18cd59725594fbfc3952c29890fb8b90c7f5bf3f14d75b1"
+      },
+      {
+        "path": "apps/web/e2e/research-source-round3.e2e.ts",
+        "sha256": "5454b7b02f514fedd82dbb70ef8d5124bfa826b36108f629d196eab3c7fd4909"
+      },
+      {
+        "path": "apps/web/e2e/source-round3.e2e.ts",
+        "sha256": "ccebf1c227c728d7d97a31f7ff3bbd1090d8bd17ff1a6361b5f6f0347ccb959f"
+      },
+      {
+        "path": "apps/web/eslint.config.mjs",
+        "sha256": "317f6af1400183e2cf76da37caa96a9e4dc7faca5bf520502a035c6bf508c4e5"
+      },
+      {
+        "path": "apps/web/package.json",
+        "sha256": "1600d3c8087da232bdb6812ce76b68834dbf7f8512ba4daec80215b3387e2d27"
+      },
+      {
+        "path": "apps/web/scripts/typesafe-eval.ts",
+        "sha256": "7f6646ce6c4656ea176d3f60129f274268024ba22c8746330f7b3c6e03a1c275"
+      },
+      {
+        "path": "apps/web/src/app/api/approvals/[id]/page/route.ts",
+        "sha256": "ac0cd6707406606169a382aaf8edf392225f76351fc482d7f3b2f6cd4bc1efd9"
+      },
+      {
+        "path": "apps/web/src/app/api/platform/typesafe/route.ts",
+        "sha256": "7f869270fa43122b4d88b80dbe139c23cb8edd90f8512694bc7e6d10fa2a0d16"
+      },
+      {
+        "path": "apps/web/src/components/agent-chat.tsx",
+        "sha256": "e28683ad109fe89bf288c93bef0ff794fbf9be7729134201197d335bad45b7c3"
+      },
+      {
+        "path": "apps/web/src/components/document/page-approval-review.tsx",
+        "sha256": "31580e7445d1daad150db812ca54c93b0303c31f349714565bd30727df571f0f"
+      },
+      {
+        "path": "apps/web/src/components/research-case-linker.tsx",
+        "sha256": "44186d8837ae8f42455f3e2cb4b67e256a5fad4e6f6bf8d85bec601f37d37451"
+      },
+      {
+        "path": "apps/web/src/components/research-case-references.tsx",
+        "sha256": "2734553c952019ce2d30c4ebcaadf3d91666f16ec6e3d04e822d5e9f0c24c8dc"
+      },
+      {
+        "path": "apps/web/src/components/vault-annexes.tsx",
+        "sha256": "fcf5ec52e8bc3f08685414a2fe2011239bc1a7aade2fff48f025e64e07d99375"
+      },
+      {
+        "path": "apps/web/src/lib/agent-instructions.ts",
+        "sha256": "9315f5ff41367dc51dfee050e06157eaf0f0d267588ecb44e19bb210a9fd7bce"
+      },
+      {
+        "path": "apps/web/src/lib/agent-knowledge.ts",
+        "sha256": "59ff6857acd2d59e3dfac7a66672617c3fc587b5447f1b5e32ebb314263c32b5"
+      },
+      {
+        "path": "apps/web/src/lib/agent-profile.ts",
+        "sha256": "92e1d4d66ff2224855820b8752999887b63ed04e57ea20212785829f665cec11"
+      },
+      {
+        "path": "apps/web/src/lib/agent-tools/index.ts",
+        "sha256": "7db2c54b0fd495f80414298e23bc40607b2d8dc8aaa71a692f22db4d729984b2"
+      },
+      {
+        "path": "apps/web/src/lib/ai-policy.ts",
+        "sha256": "60b7c804a959653408297593e14334582da9bd3537c1ab6548e69448f48dad56"
+      },
+      {
+        "path": "apps/web/src/lib/ai-providers.ts",
+        "sha256": "c74ee375685ee8ba90c5f1745c45ada972a56aa001a264178556027c0d82e0b2"
+      },
+      {
+        "path": "apps/web/src/lib/ai-runtime.ts",
+        "sha256": "b88317128f5d5008c906af9dfaf9acdea209adb77d34b0826fc6d532592a8af0"
+      },
+      {
+        "path": "apps/web/src/lib/ai-sources.ts",
+        "sha256": "fad54f54ce8285701c48801cce5ebafbc182812624026372c7dbbddc328991dd"
+      },
+      {
+        "path": "apps/web/src/lib/ai-store.ts",
+        "sha256": "c9d29cb916e574fcdec0b358573fa67206d879d3cd81b9d444d01792e0d3e964"
+      },
+      {
+        "path": "apps/web/src/lib/annexes.ts",
+        "sha256": "583600b8e8ab07bf869ee4ae8ed2df362b22cee2d73f92bcd70523a141f1d724"
+      },
+      {
+        "path": "apps/web/src/lib/application/agent-approvals.ts",
+        "sha256": "ee67af17747590f02973b4308b3991bf3cf739b1686e60e94948c0cc1474938c"
+      },
+      {
+        "path": "apps/web/src/lib/application/agent-settings-service.ts",
+        "sha256": "0d3605366379e592abd2092a78fea8571cd0e638fc9f3afb6557ff0de369a990"
+      },
+      {
+        "path": "apps/web/src/lib/application/approvals-service.ts",
+        "sha256": "213b821d03fceef2b5f73b7730018fafc6068330238c3e4162f58fe85844ec6e"
+      },
+      {
+        "path": "apps/web/src/lib/application/capability-replay.ts",
+        "sha256": "a49059ed3e4cc1cc871d392ba2ead0a1e7d8d6d9d962c92e74dc2e1477ac7a6e"
+      },
+      {
+        "path": "apps/web/src/lib/application/research-capability-service.ts",
+        "sha256": "1ca8d2d2f8e6326c476df910806a673749f0b2e27d730ca60eae075ba511187e"
+      },
+      {
+        "path": "apps/web/src/lib/application/research-service.ts",
+        "sha256": "9a39f82bd1b0542dc4d83dbf0f5bb403148d350a0d7be06c3d5ab5e71f5c5bdc"
+      },
+      {
+        "path": "apps/web/src/lib/application/runs-service.ts",
+        "sha256": "ee7f1fefe1462595704613ed2010acccdaa3334cec8836e40779f62be45b5a33"
+      },
+      {
+        "path": "apps/web/src/lib/application/vault-service.ts",
+        "sha256": "6480f3f6f6c8b69a24b737d2675f688f9c7fe2a558e6765413d03a12bda80c21"
+      },
+      {
+        "path": "apps/web/src/lib/artifact-file.ts",
+        "sha256": "7c777929de86da87eb22971a2039e10d68151f06702afe77a3f1f3eec6a1d6cd"
+      },
+      {
+        "path": "apps/web/src/lib/capabilities/contracts.ts",
+        "sha256": "d22cddb7849d85850eb7e9c5dec31c9edbe8769c3eeb4e6731596cd0ca38d940"
+      },
+      {
+        "path": "apps/web/src/lib/capabilities/research-case.ts",
+        "sha256": "d8927555f3105ab2d4db5b8c84ff1e5b978221ed5a290cd723b2e35170ced9ee"
+      },
+      {
+        "path": "apps/web/src/lib/capabilities/research.ts",
+        "sha256": "96217bb30b8d10e8c73c155071e1a6678d9355494ea0b4e7ed00278a40095fa6"
+      },
+      {
+        "path": "apps/web/src/lib/case-pages/contracts.ts",
+        "sha256": "87d1d07748c6de7a45f78ad93647ca67d677e17a6fa3221eff47685568f30d2e"
+      },
+      {
+        "path": "apps/web/src/lib/chat-turn.ts",
+        "sha256": "c181fb94b2e35496e51f98a0322f9dedfbcf9b369fe760f8ca62ab9ee31190cc"
+      },
+      {
+        "path": "apps/web/src/lib/citations/review.ts",
+        "sha256": "0ea03edfd6636df8bb25aedda76163268e0f27e8a9b97b555d4976121ec49ee3"
+      },
+      {
+        "path": "apps/web/src/lib/content-admission.ts",
+        "sha256": "1747c6aaad9180154f08b76cf348dd953cd23104f64cd573f2634164e139224c"
+      },
+      {
+        "path": "apps/web/src/lib/content-policy.ts",
+        "sha256": "0bce565deb3202cf6841af66d3655889adc445cae636e6e07b688d4f02b88888"
+      },
+      {
+        "path": "apps/web/src/lib/content-result.ts",
+        "sha256": "75e38a86a9eb837587343cc76e47e154d1f47a3827df8597569824e6ce4a21e6"
+      },
+      {
+        "path": "apps/web/src/lib/document-workflows.ts",
+        "sha256": "8fe9966658fd95126409adec4170f4abc14619f35d926b7dd66009dba51c6ec8"
+      },
+      {
+        "path": "apps/web/src/lib/documents/managed-file.ts",
+        "sha256": "bfc2792f67ebd08bebafc6adf27445f3bea2c3a6b57c44295fa8fdf9e1c75c3e"
+      },
+      {
+        "path": "apps/web/src/lib/documents/shared-writing.ts",
+        "sha256": "a68450868c29b307975daa00f3961f85da47bb40cb8684a5b9bbd9c138e80f99"
+      },
+      {
+        "path": "apps/web/src/lib/feedback-triage.ts",
+        "sha256": "e81985207f0ef5657d47a240212e640677cf45cb67674943d84380b17cd6bb21"
+      },
+      {
+        "path": "apps/web/src/lib/google/connections.ts",
+        "sha256": "f16129936d357d35331562427df0745831f883a7e18937b0e86eeea6920595b9"
+      },
+      {
+        "path": "apps/web/src/lib/google/drive/service.ts",
+        "sha256": "8e5af45c729676dde4361387b5918033b377390305408dc4278342df131ca3a4"
+      },
+      {
+        "path": "apps/web/src/lib/google/gmail/insights.ts",
+        "sha256": "967d7a40b3b14069540ddfb8514abf1c7226abc407c2e8eb9802cacd3ad507a1"
+      },
+      {
+        "path": "apps/web/src/lib/google/gmail/service.ts",
+        "sha256": "4946e3a0674081ea4bc98a285c43f9aae2fe2ee58292e4df1049225ca471452c"
+      },
+      {
+        "path": "apps/web/src/lib/google/gmail/triage.ts",
+        "sha256": "146d5f7834b1448534f17538eb71fac610f64e00b55b8d4b20b902c8a2b1a2cc"
+      },
+      {
+        "path": "apps/web/src/lib/knowledge/retrieval.ts",
+        "sha256": "1c7a762329eb46b3ebd92441e2a11e0782075a79bb6fd6c6ef29d2f05e790abc"
+      },
+      {
+        "path": "apps/web/src/lib/personal-chat/domain.ts",
+        "sha256": "b87e798ac05c7dd32b022f2fdeb518be1e816f1d53ab6e5d5f0436f4fc2dcb23"
+      },
+      {
+        "path": "apps/web/src/lib/personal-chat/email-worker.ts",
+        "sha256": "539ff701eb8aeefbfd2d1dd08f132b34812d229fc4d043382ed29a69c61b0cdc"
+      },
+      {
+        "path": "apps/web/src/lib/personal-chat/service.ts",
+        "sha256": "11e57a2488ae0419738ee0dba0839e3b1cb38a17923d8812ce848cd6b9d2e197"
+      },
+      {
+        "path": "apps/web/src/lib/personal-chat/shares.ts",
+        "sha256": "427efad8823c070a1da79668d01eb50be7827ef4b1be9b8224f423226ee42e3a"
+      },
+      {
+        "path": "apps/web/src/lib/research/case-assessment.ts",
+        "sha256": "7651f3ddf47c372afcd2bb150591ccdeff7b06946040664c87a12debc109fd2b"
+      },
+      {
+        "path": "apps/web/src/lib/research/case-content-contract.ts",
+        "sha256": "7ce20e7e1efde753a5e782b70d3abd12ee3eff8eb99f967e32612f4a12f13857"
+      },
+      {
+        "path": "apps/web/src/lib/research/case-content.ts",
+        "sha256": "d4994ca60997479ed5f9e2b49a2d038b81f463b3afdf186d3ced1612c9156dbe"
+      },
+      {
+        "path": "apps/web/src/lib/research/case-profile.ts",
+        "sha256": "4f0b8d3556aefe6da2ab8cbdfd9c94af76d39d5986e76d0d2c266b05256fa5e5"
+      },
+      {
+        "path": "apps/web/src/lib/research/case-references.ts",
+        "sha256": "f9cea9f977fb95e08c76a8b285e4fbbc4346cdb03e52b907b6fb3900a0fca6e4"
+      },
+      {
+        "path": "apps/web/src/lib/research/jurisprudence-score.ts",
+        "sha256": "de0246e64c8f617ed58b4779cbeadd4a5cb42e3df97d73bfc8a315ad06287f68"
+      },
+      {
+        "path": "apps/web/src/lib/research/retrieval.ts",
+        "sha256": "6e96547cdc0312050f9d61ebb700e2dfb3ea050fb5f674916ebc022679153bf5"
+      },
+      {
+        "path": "apps/web/src/lib/research/trademarks/logo-analysis.ts",
+        "sha256": "67f8623a04129e728a980b5c6813214311507ba396faeb762b089a6a1857761c"
+      },
+      {
+        "path": "apps/web/src/lib/research/trademarks/wipo.ts",
+        "sha256": "0e01308c76b2b2acdd16de99f4cd34133e3f264c99595a30069136fb222628be"
+      },
+      {
+        "path": "apps/web/src/lib/typesafe/agenda.ts",
+        "sha256": "f1eec51dfcf2d1ea27ce1b7fbf57218336ac8d3407c46f87fe7f0069124ac428"
+      },
+      {
+        "path": "apps/web/src/lib/typesafe/client.ts",
+        "sha256": "f8b321164191f87d7b11a12869bc881efab683e27e6585dde98e7e70c10423d6"
+      },
+      {
+        "path": "apps/web/src/lib/typesafe/connection-probe.ts",
+        "sha256": "d7868a616361d1814688fd5c28842c42fbfdb2bf350a2530e08c4a5d9ad1952c"
+      },
+      {
+        "path": "apps/web/src/lib/typesafe/rerank.ts",
+        "sha256": "8b800ff88f7c7be811c6b643bd6057d413312570d72360be60edd18dca48dda7"
+      },
+      {
+        "path": "apps/web/src/lib/typesafe/research-rerank.ts",
+        "sha256": "00e5c9b1f4b8d70cb27d5d34929886e8a741db6a99f41cb518ea7254907512bc"
+      },
+      {
+        "path": "apps/web/src/lib/typesafe/verification.ts",
+        "sha256": "cf9e9f1c725d72e90b8acb6264126a4c736b3318c00fcf40e84aff46a7fb9c70"
+      },
+      {
+        "path": "apps/web/src/lib/vault.ts",
+        "sha256": "b09317b51ea5756d50bb592d7c1462fca80eecb5c4056ca0b66ac7b0adea1b75"
+      },
+      {
+        "path": "apps/web/tests/agent-approvals.test.ts",
+        "sha256": "57886d3cadd0dc3d6dd84882467ebfa3884efcef515fb59f370597fa561e2bbd"
+      },
+      {
+        "path": "apps/web/tests/agent-module-access.test.ts",
+        "sha256": "218756c16833d0e81b5d7155c988d807daa2ca9fdfefe0c677bbd3ea4306de4c"
+      },
+      {
+        "path": "apps/web/tests/artifact-edits.test.ts",
+        "sha256": "c38e809ec29693dba5351bb0e3989ad17f134865fdb5f2339a24519306d81b96"
+      },
+      {
+        "path": "apps/web/tests/capabilities.test.ts",
+        "sha256": "50d87897dccd7f7f5ffedbe26f81775a9bbe3874248106c59aaa2adbf85f2cfb"
+      },
+      {
+        "path": "apps/web/tests/case-pages.test.ts",
+        "sha256": "175e8cc9d4c8034cfcb8924b993885659d49787be3bf3b1c241609409d7db346"
+      },
+      {
+        "path": "apps/web/tests/citations.test.ts",
+        "sha256": "ba388eac3f40bd0372c2025043cd23253e3ffb7e0a64e3f9384873566bfad233"
+      },
+      {
+        "path": "apps/web/tests/collaboration.test.ts",
+        "sha256": "57a0b3a07cd29cd6d4842d709a6732ecec11ac8ed61afcc63bf46b79ba23d5be"
+      },
+      {
+        "path": "apps/web/tests/content-policy.test.ts",
+        "sha256": "333e12d978537752bcbd3b0f683e6d516da89280197c61f57558730e8f24033d"
+      },
+      {
+        "path": "apps/web/tests/documents.test.ts",
+        "sha256": "67189994209ea596150134fd6bf16cc6777777936dc6dfe56285277edefaa507"
+      },
+      {
+        "path": "apps/web/tests/google-calendar.test.ts",
+        "sha256": "568cd5c0d9d57c64ba17f6016c09e8bb5251e4e33601d11e3586967c8e807158"
+      },
+      {
+        "path": "apps/web/tests/google-drive.test.ts",
+        "sha256": "5ea7ad3acc67cb2272d466d43125276ed71c97180c2952658296bd64c79ce41d"
+      },
+      {
+        "path": "apps/web/tests/google-fixture.ts",
+        "sha256": "df959af61a69a2661d1765e001d32ed8486e470acb934cbab5fad8f1a4d9fec1"
+      },
+      {
+        "path": "apps/web/tests/honorario-charges.test.ts",
+        "sha256": "ab87b072c447737c6544898dd7c582928a58001733c10776696b6598c068fa04"
+      },
+      {
+        "path": "apps/web/tests/jurisprudence-score.test.ts",
+        "sha256": "35c7978e2cef9155a375df719b76655d7a9f0a33d6f76e2b84b2090e05ffd352"
+      },
+      {
+        "path": "apps/web/tests/openai-effort.test.ts",
+        "sha256": "7c7bf6be5fb28c43c98bcf990ad6d2dbbccd78740e9e691af4a4f29845fbea45"
+      },
+      {
+        "path": "apps/web/tests/personal-chat-share-state.test.ts",
+        "sha256": "e7d1bdbe8219ad12cd8aaad392e1ff56f3a4e4131a791d7dd71498257fb38483"
+      },
+      {
+        "path": "apps/web/tests/personal-chat.test.ts",
+        "sha256": "a9b6fc0cd4de1218f796ac441a793265d7ccbfe20295519ed47caf772bdcbef1"
+      },
+      {
+        "path": "apps/web/tests/platform-auth.test.ts",
+        "sha256": "f5677a320ad198343b632fb4053006818459507f4608dc6bc16aa9baea79055d"
+      },
+      {
+        "path": "apps/web/tests/research-capabilities.test.ts",
+        "sha256": "da021d78027041701d00a8093c63a80b7c572f05a49fde0858191d1d1e384766"
+      },
+      {
+        "path": "apps/web/tests/research-case.test.ts",
+        "sha256": "56b4b425e739637ec2f5276b1aacdcfef29eb38139e479f5dea9d177899523ea"
+      },
+      {
+        "path": "apps/web/tests/research-core.test.ts",
+        "sha256": "8c38937f4f4da31616f28f651f8ec5cee04251b6f64b6599846e15dc03dd3930"
+      },
+      {
+        "path": "apps/web/tests/run-model-plan.test.ts",
+        "sha256": "35e9f081e2f9c7b1017f28cf6b00f7a05eeda198fb6e1e559b604f6a0c0cf284"
+      },
+      {
+        "path": "apps/web/tests/security.test.ts",
+        "sha256": "029951b7b1aa8fafb71c6d5767ee982fd0d814d413cf775d8ccc818659fb48ee"
+      },
+      {
+        "path": "apps/web/tests/session-fixture.ts",
+        "sha256": "55822e2ddc5cbf86a0c87c5dbd4f39b201dd656b90a4dc689ae2fc0f5517d322"
+      },
+      {
+        "path": "apps/web/tests/source-catalog-cache.test.ts",
+        "sha256": "c086c2b39f7477cc436dceb95475ff93cc7cf94785bec662a6c421d4eb22a7b0"
+      },
+      {
+        "path": "apps/web/tests/source-dispatch-round3.test.ts",
+        "sha256": "59d88c6e6fd9b3a8be75094a35001a106610220284bb41b81e315799a841040b"
+      },
+      {
+        "path": "apps/web/tests/source-gmail-binding.test.ts",
+        "sha256": "9e9ed5f751ca1f2863635885baef9776a3eeb291ebb59d91516222ec49126269"
+      },
+      {
+        "path": "apps/web/tests/source-handoff-round3.test.ts",
+        "sha256": "00e8410f0f7b90f375ea3026841849589ac7a76e23bad69444fb8a834eb08645"
+      },
+      {
+        "path": "apps/web/tests/source-provider-round3.test.ts",
+        "sha256": "eb2196b8d27345d35223b40f4cc150193e28da20038309ebc4cf78c5530870ab"
+      },
+      {
+        "path": "apps/web/tests/source-round3.test.ts",
+        "sha256": "306b8920e8fb9110ba28a83f1e852e441ac4f0debc0cb61057b8ff2b6ee2f785"
+      },
+      {
+        "path": "apps/web/tests/typesafe.test.ts",
+        "sha256": "92d35a7277c22c7cb129beecf5e05fea14695a1f314da1db66af9364086e584a"
+      },
+      {
+        "path": "apps/web/tests/whatsapp-media.test.ts",
+        "sha256": "f7efbeb07c5f3c84adec3ffe5317357b8f0412a01fe729229260eaf6dc3bbc19"
+      },
+      {
+        "path": "apps/web/tests/workspace-capability-inputs.ts",
+        "sha256": "1a8c10957feab271bcb2b8dc386193d075e4cc6632f0ff7b0585b2d8a4cd0b56"
+      },
+      {
+        "path": "apps/web/tsconfig.json",
+        "sha256": "7c06e57f79dd9a29481a394d6af83be979f4d71441067f3c21c8fccdfd3688d1"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "sha256": "fe0ab9bb3a60761aed913a35e49347e415728eae87100aee380937bf91770e5a"
+      }
+    ],
+    "groups": [
+      {
+        "group": "1 complete research replay",
+        "owners": [
+          "src/lib/content-result.ts",
+          "src/lib/application/capability-replay.ts",
+          "src/lib/application/research-capability-service.ts",
+          "src/lib/research/retrieval.ts",
+          "src/lib/application/research-service.ts",
+          "src/lib/case-pages/contracts.ts",
+          "db/postgres/0089_research_metadata_admission.sql"
+        ],
+        "tests": [
+          "tests/source-round3.test.ts",
+          "tests/source-catalog-cache.test.ts",
+          "tests/research-capabilities.test.ts"
+        ],
+        "evidence": [
+          "source-test-1791364312976",
+          "source-test-1791365235847",
+          "source-test-1791365804112",
+          "source-test-1791366708486",
+          "round3-root-test-1791367752737"
+        ],
+        "behavior": "Owned exact payload, explicit root mappings and both Zod parses preserve nested policies. Incomplete legacy replay withholds bytes and never reexecutes consumed effects. Metadata-only catalog guard added in0089. Empty case reference lists retain the consulted case guard, including private derivation."
+      },
+      {
+        "group": "2 admitted profile and notes",
+        "owners": [
+          "src/lib/research/case-content-contract.ts",
+          "src/lib/research/case-content.ts",
+          "src/lib/research/case-profile.ts",
+          "src/lib/research/case-references.ts",
+          "src/lib/documents/shared-writing.ts",
+          "src/lib/agent-tools/index.ts",
+          "src/components/research-case-linker.tsx",
+          "src/components/research-case-references.tsx",
+          "src/components/document/page-approval-review.tsx"
+        ],
+        "tests": [
+          "tests/source-round3.test.ts",
+          "e2e/research-source-round3.e2e.ts"
+        ],
+        "evidence": [
+          "source-test-1791365235847",
+          "source-e2e-1791365358778",
+          "round3-root-test-1791367752737"
+        ],
+        "behavior": "Finite person/request/confirm change, complete/restricted ProfileView, stable entry IDs and readToken/standalone content_seed. Canonical SQL/CAS retained; hidden parts survive and independent new entries omit unrelated source unions. Prepare once then one exact persisted profile/notes review; unknown legacy author withheld."
+      },
+      {
+        "group": "3 exact assessment input/result",
+        "owners": [
+          "src/lib/research/case-assessment.ts",
+          "db/postgres/0084_research_content_admission.sql"
+        ],
+        "tests": [
+          "tests/source-round3.test.ts",
+          "tests/research-case.test.ts"
+        ],
+        "evidence": [
+          "source-test-1791364312976",
+          "source-test-1791365235847",
+          "round3-root-test-1791367752737"
+        ],
+        "behavior": "Immutable policy-bearing input and original user/session/invocation/request stored. Execution identity separates retry coalescing from content fingerprint. Worker lease/recovery retains original authority; current access precedes freshness. New session can request same content independently."
+      },
+      {
+        "group": "4 structured dispatch after waits",
+        "owners": [
+          "src/lib/content-admission.ts",
+          "src/lib/ai-providers.ts",
+          "src/lib/ai-runtime.ts",
+          "src/lib/documents/shared-writing.ts",
+          "src/lib/document-workflows.ts",
+          "src/lib/google/gmail/insights.ts"
+        ],
+        "tests": [
+          "tests/source-dispatch-round3.test.ts",
+          "tests/source-provider-round3.test.ts",
+          "tests/source-session-expiry.test.ts",
+          "tests/run-model-plan.test.ts"
+        ],
+        "evidence": [
+          "source-test-1791364591938",
+          "round3-root-test-1791367752737"
+        ],
+        "behavior": "All8 compatible public native factories receive guarded fetch. Exact inputs snapshot before staging/config/credits; concrete transport admits after local waits and before HTTP outside ACL transaction. Original-error request-local denial latch survives SDK wrapping/retry/accounting. maxSteps1 and schema warn prevent autonomous unguarded repair; actual secondary calls use same guard."
+      },
+      {
+        "group": "5 managed access versus disclosure",
+        "owners": [
+          "src/lib/documents/managed-file.ts",
+          "src/lib/google/gmail/service.ts",
+          "src/lib/google/drive/service.ts",
+          "src/lib/google/connections.ts",
+          "src/lib/personal-chat/shares.ts",
+          "src/lib/personal-chat/service.ts",
+          "src/lib/personal-chat/email-worker.ts",
+          "src/lib/personal-chat/domain.ts",
+          "src/lib/agent-profile.ts",
+          "src/lib/artifact-file.ts",
+          "src/lib/vault.ts",
+          "db/postgres/0086_retained_web_and_share_files.sql"
+        ],
+        "tests": [
+          "tests/source-handoff-round3.test.ts",
+          "tests/source-gmail-binding.test.ts",
+          "tests/google-gmail.test.ts",
+          "tests/google-drive.test.ts",
+          "tests/personal-chat.test.ts",
+          "tests/personal-chat-share-state.test.ts",
+          "tests/agent-profile.test.ts",
+          "tests/content-policy.test.ts"
+        ],
+        "evidence": [
+          "source-test-1791364591938",
+          "source-test-1791364958385",
+          "source-test-1791364312976",
+          "source-test-1791366053000",
+          "round3-root-test-1791367752737"
+        ],
+        "behavior": "Exact versionId/version/hash/size/storage metadata and actual independent contributor evidence. Actor access always retained; only proven own original can omit own container obligations for disclosure. Remote draft attachment bytes and stored bindings match; Drive final lease/source guard; full share metadata/claim/read/deferred email binding, sender continuing access versus recipient session. Missing/contradictory legacy bindings withheld."
+      },
+      {
+        "group": "6 complete settings exposure",
+        "owners": [
+          "src/lib/agent-instructions.ts",
+          "src/lib/agent-knowledge.ts",
+          "src/lib/agent-profile.ts",
+          "src/lib/application/agent-settings-service.ts",
+          "src/lib/application/capability-replay.ts"
+        ],
+        "tests": [
+          "tests/source-handoff-round3.test.ts",
+          "tests/source-round2.test.ts",
+          "tests/agent-instructions.test.ts",
+          "tests/agent-knowledge.test.ts",
+          "tests/agent-profile.test.ts",
+          "e2e/agent-settings.e2e.ts"
+        ],
+        "evidence": [
+          "source-test-1791364591938",
+          "source-e2e-1791366505950",
+          "round3-root-test-1791367752737"
+        ],
+        "behavior": "Text and policy read together including disabled instructions, notes and template metadata; aggregation and parses retain complete ownership. Disabled getter -> private artifact preserves revocation."
+      },
+      {
+        "group": "7 TypeSafe final admission",
+        "owners": [
+          "src/lib/typesafe/client.ts",
+          "src/lib/typesafe/rerank.ts",
+          "src/lib/typesafe/research-rerank.ts",
+          "src/lib/typesafe/verification.ts",
+          "src/lib/typesafe/connection-probe.ts",
+          "src/lib/knowledge/retrieval.ts",
+          "db/postgres/0085_verification_admission.sql"
+        ],
+        "tests": [
+          "tests/typesafe.test.ts",
+          "tests/research-case.test.ts",
+          "tests/source-session-expiry.test.ts"
+        ],
+        "evidence": [
+          "source-test-1791364591938",
+          "round3-root-test-1791367752737"
+        ],
+        "behavior": "Mandatory owner admission after actual budget reservation; maxRetries0. Original denial propagates, evaluation records safe denied reason/no response, unused reservation released, attempted calls conservatively charged, no provider failure counter. Fixed admin probe has separate trusted authority."
+      },
+      {
+        "group": "8 annex current request fence",
+        "owners": [
+          "src/components/vault-annexes.tsx"
+        ],
+        "tests": [
+          "e2e/source-round3.e2e.ts",
+          "e2e/source-policy.e2e.ts",
+          "e2e/annex-plan.e2e.ts",
+          "tests/source-annex-plan.test.ts",
+          "tests/annexes.test.ts"
+        ],
+        "evidence": [
+          "source-e2e-1791364937532",
+          "source-test-1791364591938",
+          ".audit/lume-source-round3-native-proof.md",
+          "round3-root-test-1791367752737"
+        ],
+        "behavior": "Case/scan/selection epoch plus operation sequence governs reopen/analyze/generate success/error/finally/busy. Generate binds plan and edited signature. A/B/A cannot resurrect first A. Independent server plans and authorized reopen remain intact; native T3 controlled HTTP proof restored unmocked."
+      },
+      {
+        "group": "9 immutable research pairing",
+        "owners": [
+          "src/lib/research/case-material.ts",
+          "src/lib/content-policy.ts",
+          "src/lib/ai-sources.ts",
+          "src/lib/ai-policy.ts",
+          "src/lib/knowledge/retrieval.ts",
+          "src/lib/citations/review.ts",
+          "src/lib/research/retrieval.ts"
+        ],
+        "tests": [
+          "tests/source-round3.test.ts",
+          "tests/source-catalog-cache.test.ts",
+          "tests/citations.test.ts",
+          "tests/research-case.test.ts"
+        ],
+        "evidence": [
+          "source-test-1791364312976",
+          "source-test-1791365235847",
+          "source-test-1791365804112",
+          "round3-root-test-1791367752737"
+        ],
+        "behavior": "Reference resolves version once in ACL transaction; text/chunks/hash/citation identity/policy remain paired with immutable V1 when pointer advances to V2. Catalog metadata revision and canonical payload are retained independently of absent materials."
+      }
+    ],
+    "judgeObjections": [
+      {
+        "objection": 1,
+        "contract": "Actual public factories for all eight providers",
+        "groups": [
+          4
+        ],
+        "evidence": [
+          "source-test-1791364591938",
+          "round3-root-test-1791367752737"
+        ],
+        "notes": "Pinned provider4-compatible packages; native Google createGoogleGenerativeAI/generateContent, Gatewayv4, OpenAI Responses. No router fetch member/private Mastra imports."
+      },
+      {
+        "objection": 2,
+        "contract": "Required admission and original denial identity",
+        "groups": [
+          4,
+          7
+        ],
+        "evidence": [
+          "source-test-1791364591938",
+          "round3-root-test-1791367752737"
+        ],
+        "notes": "Request-local latch, maxRetries0 TypeSafe; denied accounting release only before actual entry. SDK retry and real held reservation source/expiry proofs."
+      },
+      {
+        "objection": 3,
+        "contract": "Assessment execution identity distinct from content fingerprint",
+        "groups": [
+          3
+        ],
+        "evidence": [
+          "source-test-1791365235847",
+          "round3-root-test-1791367752737"
+        ],
+        "notes": "Original session/request is retained, same request retry coalesces; independent later session creates separate attempt, expired old authority cannot send."
+      },
+      {
+        "objection": 4,
+        "contract": "One exact review after preparation",
+        "groups": [
+          2
+        ],
+        "evidence": [
+          "source-test-1791365235847",
+          "source-e2e-1791365358778",
+          "round3-root-test-1791367752737"
+        ],
+        "notes": "Prepared persisted profile/notes receipt, exact output preview and keyboard confirm. No selector-only initial review, human form remains one save."
+      },
+      {
+        "objection": 5,
+        "contract": "Concrete profile/edit/result contracts",
+        "groups": [
+          1,
+          2,
+          6,
+          9
+        ],
+        "evidence": [
+          "source-test-1791365235847",
+          "source-test-1791365804112",
+          "source-e2e-1791365358778",
+          "round3-root-test-1791367752737"
+        ],
+        "notes": "Explicit complete/restricted union, stable IDs/read tokens, hidden preservation/moves/reorder/CAS. Complete nested root maps through both parses and replay."
+      },
+      {
+        "objection": 6,
+        "contract": "Legacy authorship and exact delivery versions",
+        "groups": [
+          2,
+          5
+        ],
+        "evidence": [
+          "source-test-1791365235847",
+          "source-test-1791364591938",
+          "source-test-1791364958385",
+          "round3-root-test-1791367752737",
+          "source-test-1791366053000"
+        ],
+        "notes": "Unknown legacy author withheld for all rather than latest-editor attribution. Exact managed binding includes access/disclosure and reused remote draft bytes; own-original positive."
+      }
+    ],
+    "migrationChecks": {
+      "runId": "20261006T234247-d88728",
+      "port": 62541,
+      "pgPort": 62542,
+      "migrations": [
+        {
+          "name": "0075_case_pages.sql",
+          "checksum": "8e5af994789712bcc2fe690ed80fe23212d0f69a97c21dccd0110cc5633fbae2",
+          "verified": true
+        },
+        {
+          "name": "0076_content_policy.sql",
+          "checksum": "5eea413d5b8bb17345ac1e31e2c7a467c50a9062e3bf7fae718bd1ee3d472f16",
+          "verified": true
+        },
+        {
+          "name": "0077_content_policy_validation.sql",
+          "checksum": "703a97f950768a570e0473ad45aed62925505a95a1bc720bc7636937a68d065e",
+          "verified": true
+        },
+        {
+          "name": "0078_source_policy_repair.sql",
+          "checksum": "025b590e1477b87ade0033bbde0903d5492784a45b7d89d4722ff4d8d2d0f0b2",
+          "verified": true
+        },
+        {
+          "name": "0079_citation_source_policy.sql",
+          "checksum": "eba09e0dddc75f17a2884c22a8c8347f651e1786029f3a85a7e262751b278981",
+          "verified": true
+        },
+        {
+          "name": "0080_calendar_share_review.sql",
+          "checksum": "b21a348ffeb0de3431a834ab23b5c35b7d5c38a648e50594de2ef5e007bc287f",
+          "verified": true
+        },
+        {
+          "name": "0080a_capture_upgrade_compat.sql",
+          "checksum": "721220799b71f505d5becee57c2a744ebb27274885c96c5991499f2eb0f9f12d",
+          "verified": true
+        },
+        {
+          "name": "0081_source_capture_upgrade.sql",
+          "checksum": "00f152e215b23eb8e0a423577b9f57539f44ddaa875f07d652c69c1dbe0c5877",
+          "verified": true
+        },
+        {
+          "name": "0082_capture_upgrade_compat_cleanup.sql",
+          "checksum": "1b58271f27df8f01dc80b48d4b0bef01336f6eca05e1bad617f7c94e046de5e7",
+          "verified": true
+        },
+        {
+          "name": "0083_retained_source_bindings.sql",
+          "checksum": "cdf5ff0c84e5e438eace8fea2f94b7f8f9b6b0a4aaad7809066e3e8e63277169",
+          "verified": true
+        },
+        {
+          "name": "0084_research_content_admission.sql",
+          "checksum": "0ae31d8ba17fd803f172a038d149cb172f873b2407b3129f638fff3c3f05116e",
+          "verified": true
+        },
+        {
+          "name": "0085_verification_admission.sql",
+          "checksum": "3a9f444b2274fe98865eefd70f42e62cfaf50c79d411457d839039895280630e",
+          "verified": true
+        },
+        {
+          "name": "0086_retained_web_and_share_files.sql",
+          "checksum": "7bc96ea6c0a72d3b53b9f41858e18206b2e4655a67663b8664c34d318dc991ae",
+          "verified": true
+        },
+        {
+          "name": "0087_research_search_input_policy.sql",
+          "checksum": "3b489bc0870c671a2c8b8a07f8102e4f394f35ba49885316d47a63e0701ccf26",
+          "verified": true
+        },
+        {
+          "name": "0088_folder_identity_admission.sql",
+          "checksum": "2492bf531f001a8998e4174b534833ba9b0e38fe5a35f3eaba575a18c655abe3",
+          "verified": true
+        },
+        {
+          "name": "0089_research_metadata_admission.sql",
+          "checksum": "86d1d198dbf1cbe8139a55c167212835b244fe5bad0facaceb3f5b019067c36f",
+          "verified": true
+        }
+      ]
+    },
+    "nativeProof": ".audit/lume-source-round3-native-proof.md",
+    "limitations": [
+      "Parent independent acceptance remains required.",
+      "Generic pending/unknown reservation recovery remains open.",
+      "Session-ended editor navigation failed in earlier broad e2e; cause and prior session429 are unclaimed.",
+      "External stubs prove admissions/request shape, not model quality.",
+      "Current ACL cannot retract bytes already admitted or sent before later revocation.",
+      "Final root test: eight case-pages tools lack chat-status activity labels in unchanged chat-status.ts; pending unit3 integration is outside this repair."
+    ],
+    "deviations": [
+      "Domain-owned ContentResult carrier uses server WeakMap to preserve DTO API; exact canonical digest and immutable policy/identity snapshots are retained through explicit mappings, not generic JSON traversal.",
+      "Provider versions pinned for installed Mastra provider4.0.4 compatibility rather than latest incompatible release.",
+      "0088 fixes actual NULL-reader folder visibility SQL boundary, preserving64-ancestor bound.",
+      "0089 finite research-judgment guard covers metadata-only/null-material result; complete exposure does not depend on nonexistent material versions.",
+      "Generated .e2e/build output excluded from lint/TypeScript; authored tests remain checked."
+    ],
+    "finalChecks": {
+      "typecheck": {
+        "command": "pnpm --dir apps/web exec tsx ../../.audit/lume-round3-root-checks.mts typecheck",
+        "evidence": "round3-root-typecheck-1791366740490",
+        "exitCode": 0
+      },
+      "lint": {
+        "command": "pnpm --dir apps/web exec tsx ../../.audit/lume-round3-root-checks.mts lint",
+        "evidence": "round3-root-lint-1791366819941",
+        "exitCode": 0,
+        "warnings": [
+          "judicial/connectors/transport.ts:416 unused _bytes"
+        ]
+      },
+      "build": {
+        "command": "pnpm --dir apps/web exec tsx ../../.audit/lume-round3-root-checks.mts build",
+        "evidence": "round3-root-build-1791366901334",
+        "exitCode": 0,
+        "staticPages": 138,
+        "warnings": 3
+      },
+      "test": {
+        "command": "pnpm --dir apps/web exec tsx ../../.audit/lume-round3-root-checks.mts test",
+        "evidence": "round3-root-test-1791367752737",
+        "outputLog": "apps/web/.e2e/verify/20261006T234247-d88728/round3-root-test-1791367752737/output.log",
+        "exitCode": 1,
+        "tests": 946,
+        "pass": 945,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "durationMs": 1007093.8886,
+        "failure": {
+          "test": "chat status: every tool the agent can call says where it is working",
+          "path": "apps/web/tests/chat-status.test.ts:9",
+          "unchangedOwner": "apps/web/src/lib/chat-status.ts",
+          "missingTools": [
+            "k5_case_pages_list",
+            "k5_case_pages_get",
+            "k5_case_pages_create",
+            "k5_case_pages_update",
+            "k5_case_pages_publish",
+            "k5_case_pages_versions",
+            "k5_case_pages_restore",
+            "k5_case_pages_export"
+          ],
+          "scope": "Pending activity/final integration (unit3), explicitly excluded from owned repair; no production or test modification to silence it"
+        }
+      },
+      "freeze": {
+        "manifest": ".audit/lume-provenance-round3-freeze-complete.json",
+        "filesVerified": 111,
+        "mismatches": 0,
+        "at": "2026-10-07T10:27:24.596234+00:00"
+      },
+      "migrations": {
+        "command": "pnpm --dir apps/web exec tsx ../../.audit/lume-round3-migrations-check.mts",
+        "exitCode": 0,
+        "verified": 16,
+        "at": "2026-10-07T10:27:24.596234+00:00",
+        "details": ".audit/lume-provenance-round3-migration-checks.json"
+      },
+      "affectedE2e": {
+        "broadFlow": {
+          "evidence": "source-e2e-1791364063232",
+          "tests": 30,
+          "pass": 28,
+          "fail": 2,
+          "subsequentProfileClosure": "source-e2e-1791365358778",
+          "remainingFailure": "Ended-session editor navigation stayed on case page; cause remains unclaimed"
+        },
+        "annexAndPolicy": {
+          "evidence": "source-e2e-1791364937532",
+          "tests": 5,
+          "pass": 4,
+          "fail": 1,
+          "subsequentProfileClosure": "source-e2e-1791365358778",
+          "diagnosticFailure": "Cold notes PATCH exceeded existing timeout; actual route warmed, no timeout widened"
+        },
+        "researchProfileNotesApproval": {
+          "evidence": "source-e2e-1791365358778",
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "video": true,
+          "desktopMobileKeyboard": true
+        },
+        "agentSettings": {
+          "evidence": "source-e2e-1791366505950",
+          "tests": 1,
+          "pass": 1,
+          "fail": 0,
+          "video": true,
+          "desktopMobile": true
+        },
+        "nativeAnnex": {
+          "report": ".audit/lume-source-round3-native-proof.md",
+          "controlledHttp": true,
+          "realServerGeneration": false,
+          "restoredUnmocked": true
+        }
+      }
+    },
+    "doctor": {
+      "ok": true,
+      "healthy": true,
+      "supervisorPid": 31032,
+      "nextPid": 38616,
+      "appPort": 62541,
+      "pgPort": 62542,
+      "at": "2026-10-07T10:27:24.596234+00:00",
+      "command": "pnpm --silent --dir apps/web exec tsx ../../.agents/skills/verify-lume/scripts/lume-verify.mts doctor"
+    },
+    "rootHarnessDiagnostics": [
+      {
+        "evidence": "round3-root-test-1791367664187",
+        "tests": 12,
+        "pass": 2,
+        "fail": 10,
+        "reason": "Blank test fixture Google configuration; NOT_READY before transport"
+      },
+      {
+        "evidence": "round3-root-test-1791367719333",
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "reason": "Same root command after synthetic test-only Google defaults"
+      }
+    ],
+    "auditHarness": {
+      ".audit/lume-source-checks.mts": "377310c80e2332c69eca7c5eaae82020309e1f98bdef519e364349680b716bed",
+      ".audit/lume-round3-root-checks.mts": "50d627616a5be84ce84b6396895ff6bc8a1ffb171608b41a66ede79c0cb14caf",
+      ".audit/lume-round3-migrations-check.mts": "eed608eed2b823e6681cbca4adee6cf3fdea8747ecc508a6bd6ef4b09a3ae6f6"
+    },
+    "filePathBase": "repository root",
+    "ownerPathBase": "apps/web"
+  }
+}

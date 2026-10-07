@@ -1,0 +1,70 @@
+pnpm.exe : $ tsx scripts/test-postgres.ts "tests/case-pages.test.ts" "tests/lume-workspace.test.ts" 
+"tests/document-drafts.test.ts" "tests/chat-route.test.ts" "tests/agent-capabilities.test.ts"
+No C:\nvm4w\nodejs\pnpm.ps1:14 caractere:3
++   & "$basedir/node_modules/pnpm/pnpm.exe"   $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ($ tsx scripts/t...lities.test.ts":String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+✔ working memory persists per person and office, without copying the conversation (6459.4974ms)
+✔ third-party tool results with instructions are withheld before the model reads them (153.0919ms)
+✔ resultText reads every string, in order, and nothing else (0.6074ms)
+✔ shared page text and selected excerpts use the injection boundary before reaching the model (89.407ms)
+✔ web search: provider search for OpenAI and Anthropic, Exa for the others when configured (1.4242ms)
+✔ Exa search sends only the query and keeps http(s) pages (40.0943ms)
+✔ agent spans keep tool names and counts, never content (0.9578ms)
+✔ memory capabilities are the chat agent's, not the browser adapter's (0.7991ms)
+✔ the guard fails closed: an unchecked or oversized third-party result is withheld and marks the turn (107.0595ms)
+(node:34188) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ participants from different offices edit, conflict without lost work, restore with CAS and never gain private artifacts (16552.5213ms)
+✔ nested folders and current participation protect every read and mutation, including the page creator (733.766ms)
+✔ publication reviews exact own private version and destination, preserves original isolation, and replays once (805.7054ms)
+✔ durable source restrictions survive publication, human edits, restores and source revocation (2028.7908ms)
+✔ agent writes share the human boundary and exact durable approvals, including a deferred participant edit (3597.2708ms)
+✔ incomplete model provenance cannot be laundered by a later human save or approval (165.0154ms)
+✔ shared document scopes authorize the page separately from a private artifact id (428.246ms)
+✔ a failed version insert rolls back the page and approval, then a retry commits one recoverable result (436.32ms)
+✔ tool reads persist source restrictions across conversations, private drafts and deferred approvals (523.9351ms)
+✔ folder removal preserves public pages and refuses to broaden protected pages or silently transfer a case (485.5286ms)
+(node:25076) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-10-07T00:49:53.473Z WARN [Better Auth]: Rate limiting could not determine a client IP and is falling back to a single shared per-path bucket. Ensure your runtime forwards a trusted client IP header, then set `advanced.ipAddress.ipAddressHeaders` or `advanced.ipAddress.trustedProxies` so the address can be resolved.
+✔ POST rereads history after admission when the preceding turn finished after the first read (36342.3767ms)
+✔ POST returns 409 for a busy conversation and 429 for the fourth without storing an unanswered message (1851.4561ms)
+✔ POST stores authorized scope and regeneration ignores the new canvas, reauthorizing the original case (973.1857ms)
+✔ POST refuses an unowned focused artifact before storing the message (285.9124ms)
+✔ POST regenerates the stored shared page selection and refuses it after current case access disappears (1128.2524ms)
+✔ unsaved document survives leaving and reopening, then a retry saves the retained text (4.3839ms)
+✔ successive editors serialize writes and use the acknowledged version for newer edits (2.7322ms)
+✔ a remotely changed version preserves edits and requires explicit conflict resolution (1.3356ms)
+✔ a lost response is reconciled with stored content; separate scopes never share drafts (0.9062ms)
+✔ revocation clears cached document text and a pending saved write cannot restore it (1.7783ms)
+✔ revocation clears cached document text and a pending failed write cannot restore it (0.9727ms)
+✔ shared page send freezes namespaced document and selection; a late result cannot replace the new canvas (9.221ms)
+✔ legacy stored artifact focus is deliberately translated, while v2 regeneration keeps the original shared page (19.9388ms)
+✔ a send copies the authorized destination and sources; a pending case cannot reuse the previous case (2.878ms)
+✔ panel modes and mobile switching retain sources and do not invalidate the current run target (1.1216ms)
+✔ a selected document excerpt is copied once and is cleared when leaving the document (1.29ms)
+✔ tab identity keeps one case folder and restores only application URLs in the current identity namespace (2.8615ms)
+✔ regeneration and admitted retries use server-stored scope, never the new canvas or submitted labels (3.8421ms)
+✔ restricted history cannot use a cache fallback; transient failures can keep the draft (0.6681ms)
+✔ canvas 403 removes its authorized tab and scope, while loader cleanup only suspends sending (1.9055ms)
+✔ canvas 404 removes its authorized tab and scope, while loader cleanup only suspends sending (1.0519ms)
+✔ canvas network and server failures retain the authorized scope and tabs (3.078ms)
+✔ a background denial removes only that tab, preserving the newer canvas and its sources (1.1689ms)
+✔ an old denial cannot revoke a resource authorized again after leaving and returning (1.8189ms)
+✔ an old success cannot restore a tab after a newer denial (1.1803ms)
+✔ revoked document selection cannot leak into a later authorized message (1.4359ms)
+✔ a confirmed case denial removes its folder and file tabs, but a folder denial leaves other case resources authorized (1.4686ms)
+✔ a stale case denial cannot poison a file authorized in that case since the request began (1.2411ms)
+✔ parallel restores keep independent folder tabs, and a file result predating case revocation stays discarded (1.5798ms)
+✔ a denied URL variant invalidates the same resource identity and protects a newer authorization (1.1481ms)
+ℹ tests 49
+ℹ suites 0
+ℹ pass 49
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53268.3767

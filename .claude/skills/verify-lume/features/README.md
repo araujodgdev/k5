@@ -53,6 +53,8 @@ Cada arquivo tem H1, introdução e quatro H2: Sub-features; How to get to it (u
 
 ### Lume e documentos
 
+- [Abas e controles do Lume](./workspace-tabs.md) - `workspace-tabs`; persistent navigation and centered desktop/mobile dialogs.
+
 - [Artefatos e cópias no Cofre](./conversation-artifacts.md) — `conversation-artifacts`; 9 itens; testes existentes, cobertura parcial a conferir.
 - [Provedor de IA e chat real](./cliproxyapi.md) — `cliproxyapi`; 5 itens; testes existentes, cobertura parcial a conferir.
 - [Conversas, anexos e voz](./agent-chat.md) — `agent-chat`; 5 itens; testes existentes, cobertura parcial a conferir.

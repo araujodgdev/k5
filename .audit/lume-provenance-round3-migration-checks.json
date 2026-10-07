@@ -1,0 +1,87 @@
+{
+  "runId": "20261006T234247-d88728",
+  "port": 62541,
+  "pgPort": 62542,
+  "migrations": [
+    {
+      "name": "0075_case_pages.sql",
+      "checksum": "8e5af994789712bcc2fe690ed80fe23212d0f69a97c21dccd0110cc5633fbae2",
+      "verified": true
+    },
+    {
+      "name": "0076_content_policy.sql",
+      "checksum": "5eea413d5b8bb17345ac1e31e2c7a467c50a9062e3bf7fae718bd1ee3d472f16",
+      "verified": true
+    },
+    {
+      "name": "0077_content_policy_validation.sql",
+      "checksum": "703a97f950768a570e0473ad45aed62925505a95a1bc720bc7636937a68d065e",
+      "verified": true
+    },
+    {
+      "name": "0078_source_policy_repair.sql",
+      "checksum": "025b590e1477b87ade0033bbde0903d5492784a45b7d89d4722ff4d8d2d0f0b2",
+      "verified": true
+    },
+    {
+      "name": "0079_citation_source_policy.sql",
+      "checksum": "eba09e0dddc75f17a2884c22a8c8347f651e1786029f3a85a7e262751b278981",
+      "verified": true
+    },
+    {
+      "name": "0080_calendar_share_review.sql",
+      "checksum": "b21a348ffeb0de3431a834ab23b5c35b7d5c38a648e50594de2ef5e007bc287f",
+      "verified": true
+    },
+    {
+      "name": "0080a_capture_upgrade_compat.sql",
+      "checksum": "721220799b71f505d5becee57c2a744ebb27274885c96c5991499f2eb0f9f12d",
+      "verified": true
+    },
+    {
+      "name": "0081_source_capture_upgrade.sql",
+      "checksum": "00f152e215b23eb8e0a423577b9f57539f44ddaa875f07d652c69c1dbe0c5877",
+      "verified": true
+    },
+    {
+      "name": "0082_capture_upgrade_compat_cleanup.sql",
+      "checksum": "1b58271f27df8f01dc80b48d4b0bef01336f6eca05e1bad617f7c94e046de5e7",
+      "verified": true
+    },
+    {
+      "name": "0083_retained_source_bindings.sql",
+      "checksum": "cdf5ff0c84e5e438eace8fea2f94b7f8f9b6b0a4aaad7809066e3e8e63277169",
+      "verified": true
+    },
+    {
+      "name": "0084_research_content_admission.sql",
+      "checksum": "0ae31d8ba17fd803f172a038d149cb172f873b2407b3129f638fff3c3f05116e",
+      "verified": true
+    },
+    {
+      "name": "0085_verification_admission.sql",
+      "checksum": "3a9f444b2274fe98865eefd70f42e62cfaf50c79d411457d839039895280630e",
+      "verified": true
+    },
+    {
+      "name": "0086_retained_web_and_share_files.sql",
+      "checksum": "7bc96ea6c0a72d3b53b9f41858e18206b2e4655a67663b8664c34d318dc991ae",
+      "verified": true
+    },
+    {
+      "name": "0087_research_search_input_policy.sql",
+      "checksum": "3b489bc0870c671a2c8b8a07f8102e4f394f35ba49885316d47a63e0701ccf26",
+      "verified": true
+    },
+    {
+      "name": "0088_folder_identity_admission.sql",
+      "checksum": "2492bf531f001a8998e4174b534833ba9b0e38fe5a35f3eaba575a18c655abe3",
+      "verified": true
+    },
+    {
+      "name": "0089_research_metadata_admission.sql",
+      "checksum": "86d1d198dbf1cbe8139a55c167212835b244fe5bad0facaceb3f5b019067c36f",
+      "verified": true
+    }
+  ]
+}

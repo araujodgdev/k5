@@ -11,7 +11,7 @@ Receita derivada do código para validação futura. Nenhum cenário desta revis
 
 ## How to get to it (user POV)
 
-- `/app/agents/settings`
+- Meu perfil -> Personalizar Lume (`/app/profile/lume`). `/app/agents/settings` redirects here.
 
 ## Driving it with e2e
 

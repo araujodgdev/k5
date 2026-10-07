@@ -1,0 +1,104 @@
+﻿[
+    {
+        "ProcessId":  40964,
+        "ParentProcessId":  45836,
+        "Name":  "node.exe",
+        "CommandLine":  "C:\\nvm4w\\nodejs\\node.exe --require C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\node_modules\\.pnpm\\tsx@4.23.13\\node_modules\\tsx\\dist\\preflight.cjs --import file:///C:/Users/douglas.araujo/Documents/dgstack/k5/node_modules/.pnpm/tsx@4.23.13/node_modules/tsx/dist/loader.mjs ../../.audit/lume-round3-parent-checks.mts"
+    },
+    {
+        "ProcessId":  50316,
+        "ParentProcessId":  40964,
+        "Name":  "esbuild.exe",
+        "CommandLine":  "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\node_modules\\.pnpm\\@esbuild+win32-x64@0.28.2\\node_modules\\@esbuild\\win32-x64\\esbuild.exe --service=0.28.2 --ping"
+    },
+    {
+        "ProcessId":  37596,
+        "ParentProcessId":  40964,
+        "Name":  "node.exe",
+        "CommandLine":  "C:\\nvm4w\\nodejs\\node.exe --import tsx C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\.audit\\lume-round3-root-checks.mts test"
+    },
+    {
+        "ProcessId":  6572,
+        "ParentProcessId":  37596,
+        "Name":  "cmd.exe",
+        "CommandLine":  "C:\\windows\\system32\\cmd.exe /d /s /c \"pnpm test --env-mode=loose\""
+    },
+    {
+        "ProcessId":  45796,
+        "ParentProcessId":  6572,
+        "Name":  "conhost.exe",
+        "CommandLine":  "\\??\\C:\\windows\\system32\\conhost.exe 0x4"
+    },
+    {
+        "ProcessId":  46500,
+        "ParentProcessId":  6572,
+        "Name":  "pnpm.exe",
+        "CommandLine":  "\"C:\\nvm4w\\nodejs\\\\node_modules\\pnpm\\pnpm.exe\"    test --env-mode=loose"
+    },
+    {
+        "ProcessId":  47336,
+        "ParentProcessId":  46500,
+        "Name":  "cmd.exe",
+        "CommandLine":  "\"C:\\windows\\system32\\cmd.exe\" /d /s /c turbo run test \"--env-mode=loose\""
+    },
+    {
+        "ProcessId":  37196,
+        "ParentProcessId":  47336,
+        "Name":  "node.exe",
+        "CommandLine":  "node   \"C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\node_modules\\.bin\\\\..\\turbo\\bin\\turbo\" run test \"--env-mode=loose\""
+    },
+    {
+        "ProcessId":  21940,
+        "ParentProcessId":  37196,
+        "Name":  "turbo.exe",
+        "CommandLine":  "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\node_modules\\.pnpm\\@turbo+windows-64@2.10.13\\node_modules\\@turbo\\windows-64\\bin\\turbo.exe run test --env-mode=loose"
+    },
+    {
+        "ProcessId":  43176,
+        "ParentProcessId":  21940,
+        "Name":  "cmd.exe",
+        "CommandLine":  "cmd.exe /e:ON /v:OFF /d /c \"\"C:\\nvm4w\\nodejs\\pnpm.cmd\" run test\""
+    },
+    {
+        "ProcessId":  42712,
+        "ParentProcessId":  43176,
+        "Name":  "pnpm.exe",
+        "CommandLine":  "\"C:\\nvm4w\\nodejs\\\\node_modules\\pnpm\\pnpm.exe\"    run test"
+    },
+    {
+        "ProcessId":  48032,
+        "ParentProcessId":  42712,
+        "Name":  "cmd.exe",
+        "CommandLine":  "\"C:\\windows\\system32\\cmd.exe\" /d /s /c tsx scripts/test-postgres.ts"
+    },
+    {
+        "ProcessId":  46116,
+        "ParentProcessId":  48032,
+        "Name":  "node.exe",
+        "CommandLine":  "node   \"C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\apps\\web\\node_modules\\.bin\\\\..\\tsx\\dist\\cli.mjs\" scripts/test-postgres.ts"
+    },
+    {
+        "ProcessId":  50240,
+        "ParentProcessId":  46116,
+        "Name":  "node.exe",
+        "CommandLine":  "C:\\nvm4w\\nodejs\\node.exe --require C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\node_modules\\.pnpm\\tsx@4.23.13\\node_modules\\tsx\\dist\\preflight.cjs --import file:///C:/Users/douglas.araujo/Documents/dgstack/k5/node_modules/.pnpm/tsx@4.23.13/node_modules/tsx/dist/loader.mjs scripts/test-postgres.ts"
+    },
+    {
+        "ProcessId":  37688,
+        "ParentProcessId":  50240,
+        "Name":  "node.exe",
+        "CommandLine":  "C:\\nvm4w\\nodejs\\node.exe --import tsx --test --test-concurrency=1 tests/ads.test.ts tests/agenda.test.ts tests/agent-approvals.test.ts tests/agent-budget.test.ts tests/agent-capabilities.test.ts tests/agent-files-review.test.ts tests/agent-instructions.test.ts tests/agent-knowledge.test.ts tests/agent-module-access.test.ts tests/agent-profile.test.ts tests/ai-assignments.test.ts tests/ai-providers.test.ts tests/ai-store.test.ts tests/animation-ssr.test.ts tests/annexes.test.ts tests/artifact-edits.test.ts tests/asaas.test.ts tests/associate-migration.test.ts tests/audit.test.ts tests/auth.test.ts tests/billing.test.ts tests/calc-engine.test.ts tests/calc-service.test.ts tests/calendar-days.test.ts tests/capabilities.test.ts tests/case-pages.test.ts tests/chat-attachments.test.ts tests/chat-audio-source.test.ts tests/chat-contract.test.ts tests/chat-lease.test.ts tests/chat-route.test.ts tests/chat-run.test.ts tests/chat-source-boundary.test.ts tests/chat-status.test.ts tests/citations.test.ts tests/client-portal.test.ts tests/cliproxyapi.test.ts tests/collaboration.test.ts tests/content-exits.test.ts tests/content-policy.test.ts tests/conversation-artifacts.test.ts tests/conversation-time.test.ts tests/credential-rotation.test.ts tests/credits.test.ts tests/deploy-database.test.ts tests/document-drafts.test.ts tests/document-extraction.test.ts tests/document-panel.test.ts tests/document-pdf.test.ts tests/documents.test.ts tests/feedback-tickets.test.ts tests/feedback.test.ts tests/google-calendar.test.ts tests/google-default-access.test.ts tests/google-drive.test.ts tests/google-email-insights.test.ts tests/google-email-triage.test.ts tests/google-foundation.test.ts tests/google-gmail.test.ts tests/honcho-memory.test.ts tests/honorario-charges.test.ts tests/honorarios-editor.test.ts tests/honorarios.test.ts tests/indexing.test.ts tests/integration-pass.test.ts tests/judicial-connector.test.ts tests/judicial-normalization.test.ts tests/judicial-pipeline.test.ts tests/judicial-transport.test.ts tests/jurisprudence-score.test.ts tests/lume-workspace.test.ts tests/monitoring-run.test.ts tests/multipart-limit.test.ts tests/notifications.test.ts tests/observability.test.ts tests/office-deletion.test.ts tests/office-export.test.ts tests/openai-effort.test.ts tests/operational-diagnostics.test.ts tests/personal-chat-email.test.ts tests/personal-chat-share-state.test.ts tests/personal-chat.test.ts tests/platform-auth.test.ts tests/platform-whatsapp.test.ts tests/platform.test.ts tests/postgres.test.ts tests/preview-config.test.ts tests/processors.test.ts tests/profile.test.ts tests/pwa.test.ts tests/queue-health.test.ts tests/research-capabilities.test.ts tests/research-case.test.ts tests/research-core.test.ts tests/research-stj.test.ts tests/restore-check.test.ts tests/run-model-plan.test.ts tests/schedule-observability.test.ts tests/security-headers.test.ts tests/security.test.ts tests/source-acl.test.ts tests/source-annex-plan.test.ts tests/source-archive.test.ts tests/source-catalog-cache.test.ts tests/source-dispatch-round3.test.ts tests/source-extraction.test.ts tests/source-gmail-binding.test.ts tests/source-handoff-round3.test.ts tests/source-provider-round3.test.ts tests/source-repair-behavior.test.ts tests/source-round2.test.ts tests/source-round3.test.ts tests/source-session-expiry.test.ts tests/time-zone-label.test.ts tests/trademarks.test.ts tests/turnstile.test.ts tests/tutorial-library.test.ts tests/tutorial-video.test.ts tests/typesafe.test.ts tests/vault-ingestion-retry.test.ts tests/vault-observability.test.ts tests/vectorize-contract.test.ts tests/web-references.test.ts tests/whatsapp-connection.test.ts tests/whatsapp-history.test.ts tests/whatsapp-media.test.ts tests/whatsapp-provider-repairs.test.ts tests/whatsapp-rollout.test.ts tests/whatsapp-send.test.ts tests/whatsapp-transport.test.ts tests/whatsapp-webhooks.test.ts tests/worker-scheduler.test.ts"
+    },
+    {
+        "ProcessId":  38156,
+        "ParentProcessId":  37688,
+        "Name":  "node.exe",
+        "CommandLine":  "C:\\nvm4w\\nodejs\\node.exe --use-largepages=off --trace-event-file-pattern=node_trace.${rotation}.log --v8-pool-size=4 --node-snapshot --cpu-prof-interval=1000 --report-signal=SIGUSR2 --tls-cipher-list=TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA256:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA --secure-heap=0 --secure-heap-min=2 --stack-trace-limit=10 --test-isolation=process --network-family-autoselection-attempt-timeout=500 --experimental-addon-modules --heapsnapshot-near-heap-limit=0 --heap-prof-interval=524288 --max-http-header-size=16384 --test-concurrency=1 --test-timeout=0 --test-coverage-branches=0 --test-coverage-functions=0 --test-coverage-lines=0 --watch-kill-signal=SIGTERM --import=tsx --inspect-port=127.0.0.1:9229 --inspect-publish-uid=stderr,http --import tsx tests\\jurisprudence-score.test.ts"
+    },
+    {
+        "ProcessId":  35044,
+        "ParentProcessId":  38156,
+        "Name":  "esbuild.exe",
+        "CommandLine":  "C:\\Users\\douglas.araujo\\Documents\\dgstack\\k5\\node_modules\\.pnpm\\@esbuild+win32-x64@0.28.2\\node_modules\\@esbuild\\win32-x64\\esbuild.exe --service=0.28.2 --ping"
+    }
+]

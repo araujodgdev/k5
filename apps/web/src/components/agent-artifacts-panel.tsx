@@ -46,15 +46,16 @@ function Copies({ copies }: { copies: VaultCopy[] }) {
  * Where a document or an attachment goes in the Vault. The cases and folders come from the
  * person's own access; the server checks the destination again before copying.
  */
-function SaveForm({ conversationId, source, onSaved, onCancel }: {
+export function SaveForm({ conversationId, source, onSaved, onCancel, initialCaseId }: {
   conversationId: string;
   source: Source;
   onSaved: (copy: { name: string; href: string; place: string }) => void;
   onCancel: () => void;
+  initialCaseId?: string;
 }) {
   const id = useId();
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
-  const [target, setTarget] = useState(LIBRARY);
+  const [target, setTarget] = useState(initialCaseId ?? LIBRARY);
   const [folder, setFolder] = useState(CASE_ROOT);
   const [cases, setCases] = useState<Array<{ id: string; name: string }> | null>(null);
   const [folders, setFolders] = useState<Array<{ id: string; name: string }>>([]);

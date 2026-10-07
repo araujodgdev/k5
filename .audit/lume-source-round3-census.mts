@@ -1,0 +1,17 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+const families = [
+  { owner: 'research persisted freeform text', paths: ['src/lib/research/case-profile.ts','src/lib/research/case-references.ts','src/lib/research/case-assessment.ts'], patterns: { inputs: /allegedFacts|legalQuestion|notes|thesis|gaps|result_json/, policies: /content_policy|ContentPolicy|exposeContent|privateGenerationPolicy|prepareSharedWriting|assertPolicyAccess/ } },
+  { owner: 'research adapters and replay', paths: ['src/lib/application/research-capability-service.ts','src/lib/application/capability-replay.ts','src/lib/capabilities/research-case.ts'], patterns: { boundaries: /profile|assessment|reference|\.result\?\.excerpts|captureCapabilityReplay/, policies: /exposeContent|exposedPolicies|content_policy|assertPolicyAccess/ } },
+  { owner: 'managed file delivery', paths: ['src/lib/google/gmail/service.ts','src/lib/google/drive/service.ts','src/lib/personal-chat/shares.ts','src/lib/artifact-file.ts'], patterns: { policy: /vaultPolicy|observeVaultFile|contentPolicy|content_policy/, authorship: /created_by|original.*owner|owner.userId|original.userId/ } },
+  { owner: 'settings exposure', paths: ['src/lib/application/agent-settings-service.ts','src/lib/agent-instructions.ts','src/lib/agent-knowledge.ts','src/lib/case-pages/provenance.ts'], patterns: { retained: /content_policy|note_policy|settingsReplayPolicies/, exposure: /exposeContent|exposedPolicies|contentSources/ } },
+  { owner: 'research pinning', paths: ['src/lib/knowledge/retrieval.ts','src/lib/ai-sources.ts','src/lib/research/case-references.ts'], patterns: { versions: /materialVersionId|material_version_id|observeResearch|selectedResearchSources|selectedPinnedResearchSources/ } },
+  { owner: 'annex UI requests', paths: ['src/components/vault-annexes.tsx'], patterns: { selection: /scanId|scanDocumentId|setPlan|setBusy/, cancellation: /abort|AbortController|generation.current/ } },
+  { owner: 'provider dispatch', paths: ['src/lib/documents/shared-writing.ts','src/lib/ai-runtime.ts','src/lib/typesafe/rerank.ts','src/lib/typesafe/client.ts','src/lib/citations/review.ts'], patterns: { waits: /await |agent.generate/, authorization: /assertPolicyAccess|assertCapabilityAllowed|assertSourcesAdmitted|assertWorkspaceSession|sendDecision/ } },
+];
+const rows = families.map(({ owner, paths, patterns }) => ({ owner, paths: paths.map(path => {
+  const lines = readFileSync(new URL('../apps/web/' + path, import.meta.url), 'utf8').split(/\r?\n/);
+  return { path, sites: Object.fromEntries(Object.entries(patterns).map(([kind, pattern]) => [kind, lines.flatMap((text, index) => pattern.test(text) ? [{ line: index + 1, text: text.trim() }] : [])])) };
+}) }));
+const result = { premise: 'A replay adapter or individual output writer can reconstruct complete provenance from selected top-level fields. Nested research DTOs and durable freeform text disprove this premise; domain owners must retain and expose the complete policy.', limitation: 'Bounded handoff census, not a completeness scanner or automatic vulnerability proof.', rows };
+writeFileSync(new URL('./lume-source-round3-census.json', import.meta.url), JSON.stringify(result, null, 2) + '\n');
+console.log(JSON.stringify(rows.map(row => ({ owner: row.owner, paths: row.paths.map(path => ({ path: path.path, matches: Object.fromEntries(Object.entries(path.sites).map(([key, value]) => [key, value.length])) })) }))));

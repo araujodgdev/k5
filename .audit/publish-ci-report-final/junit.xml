@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="e2e" tests="108" failures="3" errors="0" skipped="2" time="626.667">
+  <testsuite name="e2e/agent-approvals.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="6.800">
+    <testcase name="ações financeiras do agente esperam confirmação no chat, e o agente consulta a ajuda sem acessar Integrações [web]" classname="e2e/agent-approvals.e2e.ts" time="6.800"/>
+  </testsuite>
+  <testsuite name="e2e/agent-settings.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="7.370">
+    <testcase name="personalização do Lume reúne legados e novos itens em uma lista no desktop e celular [web]" classname="e2e/agent-settings.e2e.ts" time="7.370"/>
+  </testsuite>
+  <testsuite name="e2e/agent/office-clients.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="11.635">
+    <testcase name="o agente cadastra um cliente, abre a ficha e corrige o nome [web]" classname="e2e/agent/office-clients.e2e.ts" time="11.635"/>
+  </testsuite>
+  <testsuite name="e2e/agent/vault-cases.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="29.961">
+    <testcase name="o agente cria um caso no Cofre com dados do cliente e abre a página do caso [web]" classname="e2e/agent/vault-cases.e2e.ts" time="29.961"/>
+  </testsuite>
+  <testsuite name="e2e/annex-plan.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="9.133">
+    <testcase name="plano persistido: revisão editada mantém vínculo, teclado e geração real em desktop e 390px [web]" classname="e2e/annex-plan.e2e.ts" time="9.133"/>
+  </testsuite>
+  <testsuite name="e2e/app-shell.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="3.457">
+    <testcase name="o shell mantém a marca Lume e todos os destinos no desktop e no celular [web]" classname="e2e/app-shell.e2e.ts" time="3.457"/>
+  </testsuite>
+  <testsuite name="e2e/asaas.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="3.416">
+    <testcase name="o Asaas aparece em Integrações, recusa uma chave inválida e orienta a cobrança da parcela [web]" classname="e2e/asaas.e2e.ts" time="3.416"/>
+  </testsuite>
+  <testsuite name="e2e/auth.setup.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="3.867">
+    <testcase name="administrador entra pelo formulário [web]" classname="e2e/auth.setup.e2e.ts" time="3.867">
+      <system-out>flaky: 1 failed attempt before passing</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="e2e/calc.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="9.176">
+    <testcase name="Calc: consumidor, versões, tributo federal, proposta OAB e parcelas no desktop e celular [web]" classname="e2e/calc.e2e.ts" time="9.176"/>
+  </testsuite>
+  <testsuite name="e2e/case-collaboration.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="19.393">
+    <testcase name="caso compartilhado: tarefas reais, conflito preservado, honorários, atividade e política no celular [web]" classname="e2e/case-collaboration.e2e.ts" time="19.393"/>
+  </testsuite>
+  <testsuite name="e2e/case-pages.e2e.ts" tests="3" failures="0" errors="0" skipped="0" time="20.581">
+    <testcase name="páginas: criar no caso, editar, recarregar, restaurar e usar o canvas móvel [web]" classname="e2e/case-pages.e2e.ts" time="9.598"/>
+    <testcase name="publicação: revisar uma cópia exata, manter o original particular e colaborar com conflito e revogação [web]" classname="e2e/case-pages.e2e.ts" time="6.630"/>
+    <testcase name="contrato frontend: página enviada fica congelada e resultado tardio não toma o outro editor [web]" classname="e2e/case-pages.e2e.ts" time="4.353"/>
+  </testsuite>
+  <testsuite name="e2e/chat-feedback.e2e.ts" tests="2" failures="2" errors="0" skipped="0" time="26.281">
+    <testcase name="citações e duas aprovações independentes continuam visíveis depois de remontar o chat em 1280px [web]" classname="e2e/chat-feedback.e2e.ts" time="13.926">
+      <failure message="expect.toBeVisible failed&#10;locator: getByLabel(&quot;Atividade do Lume&quot;) &gt;&gt; getByText(&quot;Pesquisou na web: primeiro resultado&quot;)&#10;expected: visible&#10;observed: no node (match count 0)" type="ASSERTION_FAILED">ASSERTION_FAILED (body): expect.toBeVisible failed
+locator: getByLabel(&quot;Atividade do Lume&quot;) &gt;&gt; getByText(&quot;Pesquisou na web: primeiro resultado&quot;)
+expected: visible
+observed: no node (match count 0)</failure>
+    </testcase>
+    <testcase name="citações e duas aprovações independentes continuam visíveis depois de remontar o chat em 390px [web]" classname="e2e/chat-feedback.e2e.ts" time="12.355">
+      <failure message="expect.toBeVisible failed&#10;locator: getByLabel(&quot;Atividade do Lume&quot;) &gt;&gt; getByText(&quot;Pesquisou na web: primeiro resultado&quot;)&#10;expected: visible&#10;observed: no node (match count 0)" type="ASSERTION_FAILED">ASSERTION_FAILED (body): expect.toBeVisible failed
+locator: getByLabel(&quot;Atividade do Lume&quot;) &gt;&gt; getByText(&quot;Pesquisou na web: primeiro resultado&quot;)
+expected: visible
+observed: no node (match count 0)</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="e2e/client-portal.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="9.350">
+    <testcase name="o portal do cliente: convite, conta sem escritório, PDF e cobrança publicados, comprovante e revogação [web]" classname="e2e/client-portal.e2e.ts" time="9.350"/>
+  </testsuite>
+  <testsuite name="e2e/cliproxyapi.e2e.ts" tests="3" failures="1" errors="0" skipped="2" time="35.667">
+    <testcase name="seleção do CLIProxyAPI &gt; administra CLIProxyAPI e escolhe uma tarefa pelo teclado em 1280px [web]" classname="e2e/cliproxyapi.e2e.ts" time="35.667">
+      <failure message="expected {&quot;status&quot;:&quot;unconfigured&quot;,&quot;message&quot;:&quot;O CLIProxyAPI atende só as tarefas em que for escolhido. Escolha uma conexão e um modelo para esta tarefa.&quot;} to equal {&quot;status&quot;:&quot;unconfigured&quot;,&quot;message&quot;:&quot;Nenhuma conexão de IA ativa na plataforma.&quot;}" type="ASSERTION_FAILED">ASSERTION_FAILED (body): expected {&quot;status&quot;:&quot;unconfigured&quot;,&quot;message&quot;:&quot;O CLIProxyAPI atende só as tarefas em que for escolhido. Escolha uma conexão e um modelo para esta tarefa.&quot;} to equal {&quot;status&quot;:&quot;unconfigured&quot;,&quot;message&quot;:&quot;Nenhuma conexão de IA ativa na plataforma.&quot;}</failure>
+    </testcase>
+    <testcase name="seleção do CLIProxyAPI &gt; administra CLIProxyAPI e escolhe uma tarefa pelo teclado em 390px [web]" classname="e2e/cliproxyapi.e2e.ts" time="0.000">
+      <skipped message="member 0 failed in this group attempt"/>
+    </testcase>
+    <testcase name="novo usuário conversa pelo proxy, recarrega o histórico e mantém isolamento [web]" classname="e2e/cliproxyapi.e2e.ts" time="0.000">
+      <skipped message="Requer K5_E2E_REAL_AI=1 e uma chave de teste do CLIProxyAPI."/>
+    </testcase>
+  </testsuite>
+  <testsuite name="e2e/collaboration.e2e.ts" tests="2" failures="0" errors="0" skipped="0" time="26.154">
+    <testcase name="associados e pastas: convite, colaboração e revogação no desktop [web]" classname="e2e/collaboration.e2e.ts" time="14.269"/>
+    <testcase name="associados e pastas: convite, colaboração e revogação no celular [web]" classname="e2e/collaboration.e2e.ts" time="11.885"/>
+  </testsuite>
+  <testsuite name="e2e/conversation-artifacts.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="3.738">
+    <testcase name="Artefatos lista o que a conversa criou e recebeu e salva no Cofre pela interface [web]" classname="e2e/conversation-artifacts.e2e.ts" time="3.738"/>
+  </testsuite>
+  <testsuite name="e2e/credits.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="2.268">
+    <testcase name="um escritório novo vê os créditos iniciais e o extrato no Plano, no desktop e no celular [web]" classname="e2e/credits.e2e.ts" time="2.268"/>
+  </testsuite>
+  <testsuite name="e2e/document-human-review.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="6.308">
+    <testcase name="decisão humana persiste, permite correção e pede nova revisão quando o texto muda [web]" classname="e2e/document-human-review.e2e.ts" time="6.308"/>
+  </testsuite>
+  <testsuite name="e2e/document-pdf.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="3.831">
+    <testcase name="exportar PDF baixa o texto salvo, recusa versão antiga e sessão ausente, e mostra a falha de conversão [web]" classname="e2e/document-pdf.e2e.ts" time="3.831"/>
+  </testsuite>
+  <testsuite name="e2e/document-saving.e2e.ts" tests="12" failures="0" errors="0" skipped="0" time="31.835">
+    <testcase name="salvamento de documentos &gt; esconder a aba salva uma vez e deixa as edições seguintes salváveis [web]" classname="e2e/document-saving.e2e.ts" time="3.219"/>
+    <testcase name="salvamento de documentos &gt; salvar explicitamente grava uma versão mesmo depois do salvamento automático [web]" classname="e2e/document-saving.e2e.ts" time="3.324"/>
+    <testcase name="salvamento de documentos &gt; restaurar para quando salvar o texto atual falha [web]" classname="e2e/document-saving.e2e.ts" time="1.413"/>
+    <testcase name="salvamento de documentos &gt; documentos grandes terminam de salvar antes de o painel fechar [web]" classname="e2e/document-saving.e2e.ts" time="1.916"/>
+    <testcase name="salvamento de documentos &gt; uma revisão do Lume preserva o texto local depois de uma falha ao salvar [web]" classname="e2e/document-saving.e2e.ts" time="3.446"/>
+    <testcase name="salvamento de documentos &gt; uma revisão do Lume preserva o texto local depois de um conflito ao salvar [web]" classname="e2e/document-saving.e2e.ts" time="3.078"/>
+    <testcase name="salvamento de documentos &gt; no celular o chat oculto é inerte e alternar superfícies preserva o editor [web]" classname="e2e/document-saving.e2e.ts" time="2.139"/>
+    <testcase name="salvamento de documentos &gt; voltar à conversa para quando o documento em página inteira não salva [web]" classname="e2e/document-saving.e2e.ts" time="1.940"/>
+    <testcase name="salvamento de documentos &gt; o menu de módulos espera o salvamento e tentar de novo recupera uma falha [web]" classname="e2e/document-saving.e2e.ts" time="2.005"/>
+    <testcase name="salvamento de documentos &gt; uma falha ao salvar nunca prende o logout global e descartar exige escolha explícita em 1280px [web]" classname="e2e/document-saving.e2e.ts" time="2.761"/>
+    <testcase name="salvamento de documentos &gt; uma falha ao salvar nunca prende o logout global e descartar exige escolha explícita em 390px [web]" classname="e2e/document-saving.e2e.ts" time="2.296"/>
+    <testcase name="salvamento de documentos &gt; voltar e avançar mantém edições que falharam em 390px [web]" classname="e2e/document-saving.e2e.ts" time="4.298"/>
+  </testsuite>
+  <testsuite name="e2e/editor-repair.e2e.ts" tests="16" failures="0" errors="0" skipped="0" time="83.715">
+    <testcase name="restauração pendente particular preserva título e texto posteriores [web]" classname="e2e/editor-repair.e2e.ts" time="4.581"/>
+    <testcase name="recarga explícita particular preserva digitação durante a leitura [web]" classname="e2e/editor-repair.e2e.ts" time="3.649"/>
+    <testcase name="restauração pendente compartilhada preserva título e texto posteriores [web]" classname="e2e/editor-repair.e2e.ts" time="4.931"/>
+    <testcase name="recarga explícita compartilhada preserva digitação durante a leitura [web]" classname="e2e/editor-repair.e2e.ts" time="4.333"/>
+    <testcase name="restauração particular preserva uma edição já autosalva depois do clique [web]" classname="e2e/editor-repair.e2e.ts" time="4.065"/>
+    <testcase name="restauração compartilhada preserva uma edição já autosalva depois do clique [web]" classname="e2e/editor-repair.e2e.ts" time="3.856"/>
+    <testcase name="acesso removido descoberto por save limpa editor e contexto e libera navegação [web]" classname="e2e/editor-repair.e2e.ts" time="5.054"/>
+    <testcase name="acesso removido descoberto por versions limpa editor e contexto e libera navegação [web]" classname="e2e/editor-repair.e2e.ts" time="3.645"/>
+    <testcase name="acesso removido descoberto por restore limpa editor e contexto e libera navegação [web]" classname="e2e/editor-repair.e2e.ts" time="4.495"/>
+    <testcase name="acesso removido descoberto por export limpa editor e contexto e libera navegação [web]" classname="e2e/editor-repair.e2e.ts" time="5.234"/>
+    <testcase name="acesso removido descoberto por read limpa editor e contexto e libera navegação [web]" classname="e2e/editor-repair.e2e.ts" time="6.659"/>
+    <testcase name="uma resposta de save real pendente não ressuscita a página invalidada pelo histórico [web]" classname="e2e/editor-repair.e2e.ts" time="6.593"/>
+    <testcase name="navegação que aguarda save negado segue após a invalidação [web]" classname="e2e/editor-repair.e2e.ts" time="6.353"/>
+    <testcase name="revogação libera uma saída já aguardando save sem esperar a resposta anterior [web]" classname="e2e/editor-repair.e2e.ts" time="7.195"/>
+    <testcase name="falha transitória compartilhada preserva rascunho e permite retry real [web]" classname="e2e/editor-repair.e2e.ts" time="7.727"/>
+    <testcase name="um save com sessão encerrada retorna ao acesso em vez de invalidar como revogação do caso [web]" classname="e2e/editor-repair.e2e.ts" time="5.345"/>
+  </testsuite>
+  <testsuite name="e2e/honorario-charge.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="5.722">
+    <testcase name="a cobrança de uma parcela com PIX e boleto gera o PDF, registra o envio e trava depois da quitação [web]" classname="e2e/honorario-charge.e2e.ts" time="5.722"/>
+  </testsuite>
+  <testsuite name="e2e/honorarios.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="9.180">
+    <testcase name="honorários pela interface: parcelamento, baixas integral e parcial, correção, abas, cancelamento, erro e celular [web]" classname="e2e/honorarios.e2e.ts" time="9.180"/>
+  </testsuite>
+  <testsuite name="e2e/legal-acceptance.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="2.690">
+    <testcase name="termos e aviso de IA: aceite antes do escritório e ciência antes da primeira conversa [web]" classname="e2e/legal-acceptance.e2e.ts" time="2.690"/>
+  </testsuite>
+  <testsuite name="e2e/lume-composition.e2e.ts" tests="2" failures="0" errors="0" skipped="0" time="18.515">
+    <testcase name="composição real do Início e Tudo preserva contexto, paginação, rascunhos e compartilhamento em 390px [web]" classname="e2e/lume-composition.e2e.ts" time="14.924"/>
+    <testcase name="contrato de apresentação local usa uma linha por chamada e mantém a confirmação precisa [web]" classname="e2e/lume-composition.e2e.ts" time="3.591"/>
+  </testsuite>
+  <testsuite name="e2e/lume-shell.e2e.ts" tests="6" failures="0" errors="0" skipped="0" time="23.180">
+    <testcase name="a conversa e o rascunho sobrevivem aos modos, módulos e alternância móvel [web]" classname="e2e/lume-shell.e2e.ts" time="3.350"/>
+    <testcase name="contrato frontend: o transporte envia o caso visível e uma saída tardia abre só uma aba de fundo [web]" classname="e2e/lume-shell.e2e.ts" time="3.309"/>
+    <testcase name="links privados canônicos e abas restauradas conservam autorização e rascunhos [web]" classname="e2e/lume-shell.e2e.ts" time="5.037"/>
+    <testcase name="a revogação real de um caso remove a aba, o conteúdo e o contexto sem apagar o pedido privado [web]" classname="e2e/lume-shell.e2e.ts" time="6.317"/>
+    <testcase name="contrato frontend: a conversa restrita por 403 não reaparece pelo cache [web]" classname="e2e/lume-shell.e2e.ts" time="2.795"/>
+    <testcase name="contrato frontend: a conversa restrita por 404 não reaparece pelo cache [web]" classname="e2e/lume-shell.e2e.ts" time="2.372"/>
+  </testsuite>
+  <testsuite name="e2e/office-activity.e2e.ts" tests="2" failures="0" errors="0" skipped="0" time="10.662">
+    <testcase name="a atividade do escritório mostra quem fez o quê, com filtros, no desktop [web]" classname="e2e/office-activity.e2e.ts" time="5.622"/>
+    <testcase name="a atividade do escritório mostra quem fez o quê, com filtros, no celular [web]" classname="e2e/office-activity.e2e.ts" time="5.040"/>
+  </testsuite>
+  <testsuite name="e2e/office-data.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="5.610">
+    <testcase name="seus dados: exportar o escritório e agendar e cancelar a exclusão [web]" classname="e2e/office-data.e2e.ts" time="5.610"/>
+  </testsuite>
+  <testsuite name="e2e/office-tasks.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="5.422">
+    <testcase name="uma tarefa criada em Escritório é gravada no escritório, concluída e arquivada [web]" classname="e2e/office-tasks.e2e.ts" time="5.422"/>
+  </testsuite>
+  <testsuite name="e2e/onboarding.e2e.ts" tests="9" failures="0" errors="0" skipped="0" time="40.375">
+    <testcase name="leitor dos tutoriais entra com sessão autenticada [web]" classname="e2e/onboarding.e2e.ts" time="2.058"/>
+    <testcase name="o tutorial percorre todas as etapas, pausa e retoma em 1440px [web]" classname="e2e/onboarding.e2e.ts" time="14.718"/>
+    <testcase name="o tutorial percorre todas as etapas, pausa e retoma em 390px [web]" classname="e2e/onboarding.e2e.ts" time="10.230"/>
+    <testcase name="o tour leva à biblioteca de vídeos por módulo [web]" classname="e2e/onboarding.e2e.ts" time="2.203"/>
+    <testcase name="a biblioteca filtra módulos e abre vídeos independentes em 1440px [web]" classname="e2e/onboarding.e2e.ts" time="3.691"/>
+    <testcase name="a biblioteca filtra módulos e abre vídeos independentes em 390px [web]" classname="e2e/onboarding.e2e.ts" time="4.028"/>
+    <testcase name="cada tutorial tem vídeo, legenda e capa publicados [web]" classname="e2e/onboarding.e2e.ts" time="0.276"/>
+    <testcase name="falha de carregamento oferece tentar novamente e download [web]" classname="e2e/onboarding.e2e.ts" time="1.756"/>
+    <testcase name="um endereço de vídeo desconhecido retorna página não encontrada [web]" classname="e2e/onboarding.e2e.ts" time="1.415"/>
+  </testsuite>
+  <testsuite name="e2e/password-recovery.e2e.ts" tests="2" failures="0" errors="0" skipped="0" time="6.492">
+    <testcase name="recuperação de senha volta ao login do escritório em 1280px [web]" classname="e2e/password-recovery.e2e.ts" time="3.348"/>
+    <testcase name="recuperação de senha volta ao login do cliente em 390px [web]" classname="e2e/password-recovery.e2e.ts" time="3.144"/>
+  </testsuite>
+  <testsuite name="e2e/private-chat-readiness.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="3.674">
+    <testcase name="arquivo com falha não impede conversa particular: compositor chega à configuração do provedor [web]" classname="e2e/private-chat-readiness.e2e.ts" time="3.674"/>
+  </testsuite>
+  <testsuite name="e2e/profile.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="13.682">
+    <testcase name="perfil, foto, credenciais e convite de associado com o card do perfil [web]" classname="e2e/profile.e2e.ts" time="13.682"/>
+  </testsuite>
+  <testsuite name="e2e/public-site.e2e.ts" tests="3" failures="0" errors="0" skipped="0" time="6.384">
+    <testcase name="o site público entrega SEO no HTML do servidor e mantém as áreas privadas fora do índice [web]" classname="e2e/public-site.e2e.ts" time="0.198"/>
+    <testcase name="a página inicial funciona pelo teclado e nos dois temas em 390px [web]" classname="e2e/public-site.e2e.ts" time="2.452"/>
+    <testcase name="a página inicial funciona pelo teclado e nos dois temas em 1440px [web]" classname="e2e/public-site.e2e.ts" time="3.734"/>
+  </testsuite>
+  <testsuite name="e2e/pwa.e2e.ts" tests="2" failures="0" errors="0" skipped="0" time="2.500">
+    <testcase name="o manifesto, os ícones e o service worker do Lume estão publicados para instalação [web]" classname="e2e/pwa.e2e.ts" time="0.031"/>
+    <testcase name="instalar o Lume usa o convite do navegador ou explica como instalar, e o tema escuro ajusta a cor da barra [web]" classname="e2e/pwa.e2e.ts" time="2.469"/>
+  </testsuite>
+  <testsuite name="e2e/research-linker-race.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="11.423">
+    <testcase name="resposta de perfil do caso anterior não substitui o caso selecionado [web]" classname="e2e/research-linker-race.e2e.ts" time="11.423"/>
+  </testsuite>
+  <testsuite name="e2e/research-source-round3.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="16.821">
+    <testcase name="perfil e anotação restritos preservam bytes; conteúdo preparado tem uma revisão exata [web]" classname="e2e/research-source-round3.e2e.ts" time="16.821"/>
+  </testsuite>
+  <testsuite name="e2e/source-policy.e2e.ts" tests="2" failures="0" errors="0" skipped="0" time="8.069">
+    <testcase name="revisão no chat: carregamento, erro, nova tentativa e confirmação exata pelo teclado [web]" classname="e2e/source-policy.e2e.ts" time="3.972"/>
+    <testcase name="seleção explícita de proposta e novo pedido independente pelo teclado, desktop e mobile [web]" classname="e2e/source-policy.e2e.ts" time="4.097"/>
+  </testsuite>
+  <testsuite name="e2e/source-round3.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="5.318">
+    <testcase name="anexos: A/B/A mantém a resposta, erro, busy e geração da seleção atual [web]" classname="e2e/source-round3.e2e.ts" time="5.318"/>
+  </testsuite>
+  <testsuite name="e2e/task-board-persistence.e2e.ts" tests="1" failures="0" errors="0" skipped="0" time="9.609">
+    <testcase name="arrastar uma tarefa no quadro grava a coluna no escritório: mouse, teclado e celular [web]" classname="e2e/task-board-persistence.e2e.ts" time="9.609"/>
+  </testsuite>
+  <testsuite name="e2e/task-board.e2e.ts" tests="6" failures="0" errors="0" skipped="0" time="20.108">
+    <testcase name="o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e se recupera de vazio e erro [web]" classname="e2e/task-board.e2e.ts" time="6.084"/>
+    <testcase name="arrastar com o mouse move a tarefa de coluna; fora do quadro, na mesma coluna e com Esc nada muda [web]" classname="e2e/task-board.e2e.ts" time="3.777"/>
+    <testcase name="a tarefa troca de coluna antes da resposta e cada cartão salva sozinho [web]" classname="e2e/task-board.e2e.ts" time="2.629"/>
+    <testcase name="uma falha devolve só aquele cartão e a nova tentativa usa a versão atual [web]" classname="e2e/task-board.e2e.ts" time="3.273"/>
+    <testcase name="movimentos seguidos usam a versão devolvida e o teclado anda coluna a coluna [web]" classname="e2e/task-board.e2e.ts" time="2.722"/>
+    <testcase name="no celular o arrasto fica no quadro e o teclado leva a tarefa de coluna em coluna [web]" classname="e2e/task-board.e2e.ts" time="1.623"/>
+  </testsuite>
+  <testsuite name="e2e/task-details.e2e.ts" tests="3" failures="0" errors="0" skipped="0" time="18.873">
+    <testcase name="cada tarefa do Kanban abre a própria página, que edita título e observações sem mudar a situação [web]" classname="e2e/task-details.e2e.ts" time="10.470"/>
+    <testcase name="uma reunião e um id inexistente mostram a tarefa indisponível sem revelar o título [web]" classname="e2e/task-details.e2e.ts" time="7.016"/>
+    <testcase name="a página da tarefa mostra a falha de carregamento e tenta de novo [web]" classname="e2e/task-details.e2e.ts" time="1.387"/>
+  </testsuite>
+  <testsuite name="e2e/vault-pagination.e2e.ts" tests="2" failures="0" errors="0" skipped="0" time="10.655">
+    <testcase name="arquivos antigos do Cofre são alcançáveis e falhas de paginação se recuperam em 390px [web]" classname="e2e/vault-pagination.e2e.ts" time="3.355"/>
+    <testcase name="arquivos antigos continuam selecionáveis em anexos, e-mail e Drive em 1280px [web]" classname="e2e/vault-pagination.e2e.ts" time="7.300"/>
+  </testsuite>
+  <testsuite name="e2e/vault-upload.e2e.ts" tests="2" failures="0" errors="0" skipped="0" time="3.679">
+    <testcase name="o Cofre recebe arquivo de 100 MB e recusa um byte a mais [web]" classname="e2e/vault-upload.e2e.ts" time="3.103"/>
+    <testcase name="envio direto ao Cofre preserva nome, pasta e processamento do arquivo [web]" classname="e2e/vault-upload.e2e.ts" time="0.576"/>
+  </testsuite>
+  <testsuite name="e2e/workspace.e2e.ts" tests="3" failures="0" errors="0" skipped="0" time="14.088">
+    <testcase name="área de trabalho &gt; o menu da conta no celular alterna o tema e devolve o foco ao fechar [web]" classname="e2e/workspace.e2e.ts" time="2.041"/>
+    <testcase name="área de trabalho &gt; o compositor do chat fica visível numa conversa longa e o rascunho sobrevive à rolagem [web]" classname="e2e/workspace.e2e.ts" time="2.289"/>
+    <testcase name="área de trabalho &gt; Início, calendário e ficha do cliente com dados controlados, estados vazios e de erro [web]" classname="e2e/workspace.e2e.ts" time="9.758"/>
+  </testsuite>
+</testsuites>

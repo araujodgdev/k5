@@ -1,0 +1,11 @@
+decision	reason	evidence	status
+Separate case pages and versions	Keep private artifact ownership unchanged	0075_case_pages.sql and real publication isolation test	implemented
+DocumentRef adapter and namespaced state	Reuse the existing editor without private/shared ID aliasing	49 scoped tests; real pages and private-editor suites	verified
+Durable monotonic provenance	Approval waits and subsequent turns cannot discard protected sources	Source revoke/regrant, deferred incomplete source and rollback tests	verified
+Fail closed for incomplete model inputs	Citations and transient reads cannot establish all model provenance	Memory processor storage observer; artifact and approval tests	implemented with explicit conservative boundary
+Transactional approval result	A lost response must be recoverable and must not duplicate publication	Concurrent replay and forced version-insert rollback test	verified
+Shared text uses injection guard	Shared text is third-party data, including title and selected excerpt	Scripted external model test checks withheld text never enters the next prompt	verified without live provider
+Protected artifact cannot flatten into a Vault file	The file copy path cannot represent page dependency restrictions	Artifact-to-Vault rejection test	implemented
+Reject whole-case transfer containing pages	The old flattening flow has no reviewed page audience transfer	Case transfer and folder preservation tests	explicit integration limitation
+Preserve supplied disposable instance	Parent owns final checks and needs the current migrated instance	Doctor healthy; ports62541/62542; no down/dev database action	handoff
+Separate frontend contract from provider proof	Internal chat mocks do not exercise the real runtime	case-pages 4/4 includes two real flows, one frontend contract, one auth setup	no live provider claim

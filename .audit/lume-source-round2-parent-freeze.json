@@ -1,0 +1,221 @@
+{
+  "at": "2026-10-07T07:05:33.124Z",
+  "files": [
+    {
+      "path": ".agents/skills/verify-lume/features/agent-chat.md",
+      "sha256": "93dc8cc05970802c1b41f62e9afdd6092ad1af15a66976b2c4f0732ed714b130"
+    },
+    {
+      "path": ".agents/skills/verify-lume/features/vault-annexes.md",
+      "sha256": "e0febe2b9bebff757e60e058ff4e12dba44b03705e53a2b03a4852c079a34fa5"
+    },
+    {
+      "path": ".audit/lume-annex-browser-fixture.mts",
+      "sha256": "5e1b733113f5c917ddad2ab12c7c57e68742fefe268c53b7286489e1f70b6775"
+    },
+    {
+      "path": ".audit/lume-round2-inventory.mts",
+      "sha256": "4569031fede496b219148fd4dc380ab0c8cdcf42a79edf87cb1457439a65ad44"
+    },
+    {
+      "path": ".audit/lume-round2-preview-setup.mts",
+      "sha256": "fa6cccdb786b169257e8ef7f2dac867bc5a261799b75f0ef8adfe7ce49a9d0ee"
+    },
+    {
+      "path": ".audit/lume-round2-root-checks.mts",
+      "sha256": "e0b2b2f33ea666a8f40da40a897b9d327610a9c0901d5aa4b3acb61edaaa5d9e"
+    },
+    {
+      "path": ".audit/lume-source-boundary-census.json",
+      "sha256": "d896a3f8d5049c6ee1104830939810204e112f16828f4a3f761f0594413f5e2b"
+    },
+    {
+      "path": ".audit/lume-source-boundary-census.mts",
+      "sha256": "516f1eae888972bcc7e767614c69f63eafb3d0bfd53b8b9e85c8d87e6181ff03"
+    },
+    {
+      "path": ".audit/lume-source-round2-evidence.mts",
+      "sha256": "d22ff2bfa8b986c9d2130eac04740c2ea264577a90885a3daa038a42289be727"
+    },
+    {
+      "path": ".claude/skills/verify-lume/features/agent-chat.md",
+      "sha256": "93dc8cc05970802c1b41f62e9afdd6092ad1af15a66976b2c4f0732ed714b130"
+    },
+    {
+      "path": ".claude/skills/verify-lume/features/vault-annexes.md",
+      "sha256": "e0febe2b9bebff757e60e058ff4e12dba44b03705e53a2b03a4852c079a34fa5"
+    },
+    {
+      "path": "apps/web/db/postgres/0083_retained_source_bindings.sql",
+      "sha256": "cdf5ff0c84e5e438eace8fea2f94b7f8f9b6b0a4aaad7809066e3e8e63277169"
+    },
+    {
+      "path": "apps/web/e2e/annex-plan.e2e.ts",
+      "sha256": "d814f0697b423553ad07c12e64561b228061f80830d4d673083ec606db320c3e"
+    },
+    {
+      "path": "apps/web/e2e/client-portal.e2e.ts",
+      "sha256": "61f21a25112c3449fd5e9f53cf99d9e82156cf2001f75a679b06c9c4b225f78b"
+    },
+    {
+      "path": "apps/web/e2e/private-chat-readiness.e2e.ts",
+      "sha256": "8d0172b98b84af36763f323ccf97ea1ec58bea2f5ba3cdecdaf1fbc108a3d82b"
+    },
+    {
+      "path": "apps/web/src/app/api/client-portal/invitations/[token]/route.ts",
+      "sha256": "1bc4382c72e76630cc31a058a549e2ca4727c259c77aeddedf51b6cf7f40d745"
+    },
+    {
+      "path": "apps/web/src/app/api/vault/cases/[id]/annexes/route.ts",
+      "sha256": "5a5b6efb6ebd9d7249cac3ec51e92cf5a68320c1e98858609e6fb048b785a82f"
+    },
+    {
+      "path": "apps/web/src/components/vault-annexes.tsx",
+      "sha256": "7b9584628ec23cd5f2670ab70d86cf6d8b627993eb83bed34525d98361816db7"
+    },
+    {
+      "path": "apps/web/src/lib/agent-tools/index.ts",
+      "sha256": "5232db12d97f79bb5dcdb7792cdbe1cad85c71252a03fbaab6eae82c6307b51e"
+    },
+    {
+      "path": "apps/web/src/lib/annexes-contract.ts",
+      "sha256": "a10b5de4888e61e50e8577c744e347fb45e0b2e578344cbcc10516b8a5a1b7d0"
+    },
+    {
+      "path": "apps/web/src/lib/annexes.ts",
+      "sha256": "a43f2048ac5e8f97233a43014c9aa4f00108207bd57546383b069e5279a687d1"
+    },
+    {
+      "path": "apps/web/src/lib/application/agent-settings-service.ts",
+      "sha256": "3fa2c81bce68c113ce8c65388d1ada59a26234f9f4c883f79bdffe978758ace6"
+    },
+    {
+      "path": "apps/web/src/lib/application/annexes-service.ts",
+      "sha256": "db529b9abde4449cf48751872b0b05cafd0d5802462910c0955e43cb65b691ca"
+    },
+    {
+      "path": "apps/web/src/lib/application/capability-replay.ts",
+      "sha256": "baa6e9c1c56e3be6729a9ea5cb0087d27debbebb77b1fa761756b59ca780f65b"
+    },
+    {
+      "path": "apps/web/src/lib/application/context.ts",
+      "sha256": "8016043144597d00937f64bc7492984ea448cfd39701b25c800e52de2a035a90"
+    },
+    {
+      "path": "apps/web/src/lib/application/idempotency-service.ts",
+      "sha256": "81e00575d2b86c0f29727144b18a80a90f4dd58f4f85e9e128e539bef487875f"
+    },
+    {
+      "path": "apps/web/src/lib/application/research-service.ts",
+      "sha256": "17757924c0d1b11514c7167a8b5f590705c088f0f8ccf4ca63447340a7e81cd9"
+    },
+    {
+      "path": "apps/web/src/lib/auth-core.ts",
+      "sha256": "2a41b72e8c356dd1d045fb356c1488095fcc5091e23a722dace062df0469f78d"
+    },
+    {
+      "path": "apps/web/src/lib/capabilities/annexes.ts",
+      "sha256": "14123e72684b3fb72a6c792c728800b4db44f7fb99e569e13ad87c8d03e9df89"
+    },
+    {
+      "path": "apps/web/src/lib/capabilities/contracts.ts",
+      "sha256": "efd2c213b73813b391acd3f580239940fd3058c61a9ba293d6af3406eea8f7a2"
+    },
+    {
+      "path": "apps/web/src/lib/capabilities/http-client.ts",
+      "sha256": "95f07f99d37fb4a0b3b3058806f2a0dd5c8ff53bd1a6d3e344d4ee992bce2204"
+    },
+    {
+      "path": "apps/web/src/lib/chat-turn.ts",
+      "sha256": "7f96bb139574b1ac7832acb15b14aae3c6c0ae9165befa93fec15a57c14f164f"
+    },
+    {
+      "path": "apps/web/src/lib/citations/review.ts",
+      "sha256": "895c78abc468cfff1a2d1d7da1da4dae3c4fad61daa9f05c5ce39ba4e3cd352d"
+    },
+    {
+      "path": "apps/web/src/lib/citations/sources.ts",
+      "sha256": "0c51936a15063ef723c2739b626222821cad91b16be4ddf72c56df000d1b32b7"
+    },
+    {
+      "path": "apps/web/src/lib/client-portal/http.ts",
+      "sha256": "f8b0a08fc922af96480dea277732fea375b58717c9f7c4019b2c7ea40026de45"
+    },
+    {
+      "path": "apps/web/src/lib/client-portal/invitations.ts",
+      "sha256": "f68ea163b3fa9a0e10f9c6f81aceec94aabfad833cdb588d4a2c6e60fb80d65b"
+    },
+    {
+      "path": "apps/web/src/lib/client-portal/service.ts",
+      "sha256": "dd85cc3dffb380d8a6c624be589fd043886f9e062ed3079b07f197b1061168e9"
+    },
+    {
+      "path": "apps/web/src/lib/collaboration/capability-access.ts",
+      "sha256": "f829c74ffba778dfd243a69e99afe08c0e70f8bc7680067c4da74edfecaca2b6"
+    },
+    {
+      "path": "apps/web/src/lib/documents/shared-writing.ts",
+      "sha256": "55c8158648a4148545c35a03c15580b0e0105246be974bcdc5a37e2f32b01db6"
+    },
+    {
+      "path": "apps/web/src/lib/google/gmail/service.ts",
+      "sha256": "70dc1d0dd78de3d2fc29999475c00226513b83c005e3acd46ad60be0f884a1f7"
+    },
+    {
+      "path": "apps/web/src/lib/google/operations.ts",
+      "sha256": "f6cabf5240c7611e6b5c8dde7c95e34cbc8ab45fde44e3d019c148c2b13a5462"
+    },
+    {
+      "path": "apps/web/src/lib/knowledge/retrieval.ts",
+      "sha256": "714d25a7d67cb06dc77a41eb04fb3ee763a89f568a431798456a8e97d4e2897d"
+    },
+    {
+      "path": "apps/web/tests/agent-profile.test.ts",
+      "sha256": "dcf639fb8c039ab78d4987f68451f8e5c97d6cdc3aa0f596c27dfa892eb9747b"
+    },
+    {
+      "path": "apps/web/tests/auth.test.ts",
+      "sha256": "5c10e7bd2e87ecad21de1979fe588ee8027a3ba5b88c6bd3bbbbd04c0c0bae19"
+    },
+    {
+      "path": "apps/web/tests/chat-source-boundary.test.ts",
+      "sha256": "bdb72eb9a8db4aa78eb978eaf54d270472e6b17ab89317f27f6c1509c758008e"
+    },
+    {
+      "path": "apps/web/tests/citations.test.ts",
+      "sha256": "db6966507e250ae20465e482c57be837a056ac4fdee1d6c3ae876b96758e6a1c"
+    },
+    {
+      "path": "apps/web/tests/client-portal.test.ts",
+      "sha256": "55e37eb387dca23236c7d4c1064b21c6812aa3cfd2a17af5875f85545ec28ca2"
+    },
+    {
+      "path": "apps/web/tests/security.test.ts",
+      "sha256": "d07855a398ee6889b495b634f6fab2c498a59f6a9de2462baedbb1f7a4502a66"
+    },
+    {
+      "path": "apps/web/tests/server-only-fixture.ts",
+      "sha256": "14927ad18455aadb31c8db761b6e60a5fd556162064f113baf20a726d5bf977c"
+    },
+    {
+      "path": "apps/web/tests/shared-writing-fixture.ts",
+      "sha256": "77ba58e0d4ad453136f83349308218e9c83fc77e4bfc501d3e7ee8c767fcf209"
+    },
+    {
+      "path": "apps/web/tests/source-annex-plan.test.ts",
+      "sha256": "d8bbcd3c631ae2fef4c162ba9fd8f6f28fe2f791537251542d8cf3a9b5614d99"
+    },
+    {
+      "path": "apps/web/tests/source-catalog-cache.test.ts",
+      "sha256": "5d0411813fe4576b405bb9571d6328666def155a6983ab4909973bb1528bd31f"
+    },
+    {
+      "path": "apps/web/tests/source-gmail-binding.test.ts",
+      "sha256": "7d49c800c59bd682d161dd353c511b81369b6187be42d5bf9d7d00b466798ffb"
+    },
+    {
+      "path": "apps/web/tests/source-round2.test.ts",
+      "sha256": "7bad97cfda790593ffc0ee1ab81d0aa26b88af70664d0805645daf70d9b4ffc8"
+    }
+  ]
+}

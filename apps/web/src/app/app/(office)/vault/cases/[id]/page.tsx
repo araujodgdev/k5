@@ -60,7 +60,7 @@ export default async function VaultCasePage({ params, searchParams }: Props) {
         folderId={folderId}
         external={!office.owner}
         initialTask={task}
-        initialSection={(folderId ? ['all','pages','files'] : ['all','pages','files','tasks','honorarios','activity','participants','references','annexes',...(office.owner ? ['processes'] : [])]).includes(section ?? '') ? section as CaseSection : 'all'}
+        initialSection={(folderId ? ['all','pages','files'] : ['all','pages','files','artifacts','tasks','honorarios','activity','participants','references','annexes',...(office.owner ? ['processes'] : [])]).includes(section ?? '') ? section as CaseSection : 'all'}
       />
     </Reveal>
   );

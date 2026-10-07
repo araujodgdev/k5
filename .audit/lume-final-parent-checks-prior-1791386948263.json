@@ -1,0 +1,18 @@
+{
+  "pid": 28120,
+  "startedAt": "2026-10-07T14:20:31.416Z",
+  "active": null,
+  "childPid": null,
+  "results": [
+    {
+      "name": "root-lint",
+      "exitCode": 0,
+      "finishedAt": "2026-10-07T14:24:03.605Z"
+    },
+    {
+      "name": "root-typecheck",
+      "exitCode": 2,
+      "finishedAt": "2026-10-07T14:25:39.142Z"
+    }
+  ]
+}

@@ -36,7 +36,9 @@ test('personalização do Lume reúne legados e novos itens em uma lista no desk
   });
   await api.json('/api/agent/template', { method: 'PUT', json: { scope: 'office', documentId: uploaded[1].id } });
 
-  await app.open('/app/agents/settings');
+  await app.open('/app/profile');
+  await screen.getByRole('link', 'Personalizar Lume').tap();
+  await expect(browser).toHaveURL('/app/profile/lume');
   await expect(screen.getByRole('heading', 'Personalizar Lume')).toBeVisible();
   await expect(screen.getByRole('button', 'Nova regra')).toHaveCount(1);
   await expect(screen.getByLabel('Adicionar do Cofre')).toHaveCount(1);

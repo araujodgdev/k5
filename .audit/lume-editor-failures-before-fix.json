@@ -1,0 +1,49 @@
+{
+  "restore": {
+    "afterRelease": "Texto original da versão um.",
+    "beforeRelease": "Texto novo digitado enquanto a restauração ainda está pendente.",
+    "events": [
+      {
+        "event": "restore-real-response",
+        "status": 201
+      }
+    ],
+    "lost": true,
+    "persisted": "Texto original da versão um.",
+    "version": 3
+  },
+  "restoreFixture": {
+    "caseId": "44068df6-9be2-4c2b-bd0a-d254611985d8",
+    "href": "/app/vault/cases/44068df6-9be2-4c2b-bd0a-d254611985d8/pages/b0cbb86f-649c-4bb9-8cac-564c6a1b175e",
+    "page": {
+      "caseId": "44068df6-9be2-4c2b-bd0a-d254611985d8",
+      "content": "Texto da versão dois antes de restaurar.",
+      "folderId": null,
+      "id": "b0cbb86f-649c-4bb9-8cac-564c6a1b175e",
+      "title": "Restauração com edição pendente",
+      "updatedAt": "2026-10-07T01:16:11.579Z",
+      "version": 2
+    }
+  },
+  "revocation": {
+    "url": "http://localhost:62541/app/vault/cases/3187111f-52f9-4ef2-9086-8a12de0759f3/pages/cf4e8c53-a5ea-4736-a335-e290c4f36ff2",
+    "visibleText": "Ir para o canvas\nLume\nConversa privada\n\nPeça o que precisar. O Lume consulta os documentos do escritório e cria tarefas, reuniões e casos por você.\n\nPágina para reproduzir revogação\n\nPágina para reproduzir revogação\nInício\nCofre\nRestauração com edição pendente\nVL\n\nNão foi possível salvar o documento. Suas alterações continuam no editor.\n\nTítulo do documento\nNão salvo\nExportar\n\nCompartilhado com quem tem acesso à pasta e às fontes utilizadas.\n\nEditar\nPágina\nSem modelo de documento\n\nCaso não encontrado ou acesso removido.\nTentar salvar novamente\n\nTexto local após a remoção da participante.",
+    "network": [
+      {
+        "url": "http://localhost:62541/api/cases/3187111f-52f9-4ef2-9086-8a12de0759f3/pages/cf4e8c53-a5ea-4736-a335-e290c4f36ff2",
+        "method": "PUT",
+        "status": 404,
+        "failed": false,
+        "timestamp": "2026-10-07T01:18:08.634Z"
+      },
+      {
+        "url": "http://localhost:62541/api/cases/3187111f-52f9-4ef2-9086-8a12de0759f3/pages/cf4e8c53-a5ea-4736-a335-e290c4f36ff2",
+        "method": "PUT",
+        "status": 404,
+        "failed": false,
+        "timestamp": "2026-10-07T01:18:22.968Z"
+      }
+    ]
+  },
+  "scope": "Owned disposable instance http://localhost:62541; actual authenticated APIs and PostgreSQL; only restore response delivery was delayed, no result/status/body replaced."
+}
