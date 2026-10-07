@@ -1,4 +1,5 @@
 import { testDb } from './test-setup';
+import { contextForCase } from '../src/lib/collaboration/access';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -63,13 +64,15 @@ test('charges cannot select or keep exposing an associate private boleto', async
   const caseId = randomUUID(), documentId = randomUUID();
   await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId, f.context.officeId, 'Caso da cliente', f.context.userId);
   await testDb.prepare('INSERT INTO case_participant(office_id,case_id,user_id,invited_by) VALUES(?,?,?,?)').run(f.context.officeId, caseId, guest.context.userId, f.context.userId);
-  const folder = await createVaultFolder(f.context.officeId, guest.context.userId, caseId, 'Documentos', null, { visibility: 'public' });
+  const guestCase=await contextForCase(guest.context,caseId);
+  const folder = await createVaultFolder(f.context.officeId, guest.context.userId, caseId, 'Documentos', null, { visibility: 'public' },guestCase);
   await testDb.prepare(`INSERT INTO vault_document(id,office_id,case_id,folder_id,scope,original_name,stored_name,mime_type,byte_size,sha256,status,created_by)
     VALUES(?,?,?,?,'case','boleto.pdf',?,'application/pdf',100,?,'ready',?)`).run(documentId, f.context.officeId, caseId, folder.id, `${documentId}.pdf`, 'a'.repeat(64), guest.context.userId);
   const input = { ...prepare(f.installmentId), boletoDocumentId: documentId };
+  await testDb.prepare('INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active) SELECT ?,office_id,id,1,original_name,stored_name,mime_type,byte_size,sha256,created_by,1 FROM vault_document WHERE id=?').run(randomUUID(),documentId);
   const prepared = await charges.prepareCharge(f.context, input);
   assert.equal(prepared.boleto?.id, documentId);
-  await updateVaultFolderAccess(f.context.officeId, folder.id, guest.context.userId, { visibility: 'private' });
+  await updateVaultFolderAccess(f.context.officeId, folder.id, guest.context.userId, { visibility: 'private' },guestCase);
   assert.equal((await charges.getCharge(f.context, { installmentId: f.installmentId })).boleto, null);
   assert.equal((await charges.prepareCharge(f.context, input)).boleto, null, 'idempotent replay also checks current folder access');
   await assert.rejects(charges.prepareCharge(f.context, { ...prepare(f.installmentId, 1), boletoDocumentId: documentId }), { code: 'INVALID' });

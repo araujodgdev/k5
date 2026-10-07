@@ -6,7 +6,7 @@ export const agentHistoryScript = `try{var h=localStorage.getItem('${KEY}');if(h
 
 export function readListOpen() {
   const saved = document.documentElement.dataset.agentListOpen;
-  return saved === '1' || (saved !== '0' && window.matchMedia('(min-width: 768px)').matches);
+  return saved === '1';
 }
 
 export function subscribeListOpen(onChange: () => void) {

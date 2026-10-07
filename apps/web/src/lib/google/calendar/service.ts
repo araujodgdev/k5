@@ -1,9 +1,13 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
+import { outboundText } from '@/lib/documents/shared-writing';
+import { documentTransaction } from '@/lib/documents/service';
+import { assertExternalDelivery, parsePolicy } from '@/lib/content-policy';
 import { database } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { CapabilityInput as Input } from '@/lib/capabilities/contracts';
-import type { WorkspaceContext } from '@/lib/application/context';
+import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/application/context';
+import { createApprovalProposal, canonicalInput, type ApprovalRow } from '@/lib/application/approvals-service';
 import { googleJson, googleRequest, requireConnection, type ConnectionRow } from '../connections';
 import { checkpointOperation, markOperationEffect, runGoogleOperation, type Reconciler, type RunningOperation } from '../operations';
 import { GoogleApiError } from '../transport';
@@ -173,9 +177,11 @@ async function createdEvent(operation:RunningOperation,calendar:CalendarRow) {
 export async function createEvent(context: WorkspaceContext, input: Input<'k5_calendar_create_event'>) {
   const connection = await requireConnection(context, 'calendar');
   const calendar = await ownCalendar(context, input.calendarId, connection); assertWritable(calendar); validateEventTime(input);
+  const writing = await outboundText(context, 'k5_calendar_create_event', { calendarId: calendar.id, attendees: input.attendees ?? [], idempotencyKey: input.idempotencyKey }, input.title, input.description ?? '');
+  if (context.invocation) input = { ...input, title: writing.title, description: writing.content, location: writing.location ?? '' };
   const outcome = await runGoogleOperation(context, { module: 'calendar', actions: ['calendar.create'], capabilityName: 'k5_calendar_create_event',
     input, targetResourceId: calendar.id, describe: `Criar ${input.title} em ${calendar.summary}`,
-    bound:{review:review([['Calendário',calendar.summary],['Título',input.title],['Descrição',input.description||'Sem descrição'],
+    bound:{contentPolicy:writing.policy,review:review([['Calendário',calendar.summary],['Título',input.title],['Descrição',input.description||'Sem descrição'],
       ['Local',input.location||'Sem local'],['Dia inteiro',input.allDay??false],['Início',input.startsAt??input.startDate],
       ['Fim exclusivo',input.endsAt??input.endDate],['Fuso',input.timeZone],['Recorrência',input.recurrence?.join(', ')||'Nenhuma'],
       ['Convidados',input.attendees?.map(a=>`${a.email}${a.optional?' (opcional)':''}`).join(', ')||'Nenhum'],['Google Meet',input.addMeet??false]])},
@@ -369,9 +375,16 @@ export async function updateEvent(context: WorkspaceContext, input: Input<'k5_ca
   const parent=input.scope==='following'&&row.recurring_event_id?await remoteEvent(connection,calendar,row.recurring_event_id):remote;
   const exceptions=input.scope==='following'?await futureExceptions(connection,calendar,parent.id,input.occurrenceStart!):[];
   const audience=JSON.stringify({parent:recipients(parent),exceptions:exceptions.map(e=>[original(e),recipients(e)])});
+  const writing = context.invocation && ['title','description','location'].some(key => key in input.changes)
+    ? await outboundText(context, 'k5_calendar_update_event', { eventId: row.id, version: input.version, scope: input.scope }, '', '') : null;
+  if (writing) input = { ...input, changes: { ...input.changes,
+    ...('title' in input.changes ? { title: writing.title } : {}),
+    ...('description' in input.changes ? { description: writing.content } : {}),
+    ...('location' in input.changes ? { location: writing.location ?? '' } : {}),
+  } };
   const outcome = await runGoogleOperation(context,{module:'calendar',actions:['calendar.update'],capabilityName:'k5_calendar_update_event',
     input,targetResourceId:row.id,effectKey:`calendar:${calendar.id}:event:${row.recurring_event_id??row.google_event_id}`,
-    bound:{etag:remote.etag,reviewedRecipients,audience,
+    bound:{...(writing ? { contentPolicy: writing.policy } : {}),etag:remote.etag,reviewedRecipients,audience,
       review:[...review([['Calendário',calendar.summary],['Evento',row.summary],['Escopo',scopeLabel[input.scope??'series']],
         ['Ocorrência',input.occurrenceStart],['Convidados atuais',recipientReview(parent)],
         ['Convidados em exceções futuras',exceptions.flatMap(e=>recipients(e)).join(', ')||'Nenhum'],
@@ -499,20 +512,68 @@ type Share={id:string;owner_name:string;owner_user_id:string;title:string;notes:
 const shareDto=(row:Share,context:Owner)=>({id:row.id,ownerName:row.owner_name,mine:row.owner_user_id===context.userId,title:row.title,notes:row.notes,
   location:row.location,allDay:Boolean(row.all_day),startsAt:row.starts_at,endsAt:row.ends_at,startDate:row.start_date,endDate:row.end_date,version:row.version});
 export async function shareEvent(context:WorkspaceContext,input:Input<'k5_calendar_share_event'>) {
+  const { approvalId, ...originalInput } = input;
+  if (approvalId) return documentTransaction(context, async tx => {
+    await assertCapabilityAllowed(context, 'k5_calendar_share_event', tx);
+    const approval = await tx.prepare('SELECT * FROM capability_approval WHERE id=? AND office_id=? AND user_id=? FOR UPDATE')
+      .get<ApprovalRow & { content_policy: unknown }>(approvalId, context.officeId, context.userId);
+    if (!approval || approval.capability_name !== 'k5_calendar_share_event' || approval.normalized_input !== canonicalInput(originalInput))
+      throw new CapabilityError('FORBIDDEN', 'Esta confirmação não corresponde ao compartilhamento.');
+    const policy = parsePolicy(approval.content_policy);
+    await assertExternalDelivery(context.userId, policy, tx);
+    if (approval.status === 'consumed' && approval.content_result) return approval.content_result as { share: ReturnType<typeof shareDto> };
+    if (approval.status !== 'approved' || approval.expires_at < Date.now()) throw new CapabilityError('APPROVAL_REQUIRED', 'Revise e confirme este compartilhamento.');
+    const payload = approval.calendar_share_payload;
+    if (!payload) throw new CapabilityError('CONFLICT', 'Prepare uma nova proposta com o texto exato.');
+    const connection = await tx.prepare("SELECT 1 FROM google_connection WHERE id=? AND office_id=? AND user_id=? AND status='active' AND authorization_generation=? FOR SHARE")
+      .get(payload.connectionId, context.officeId, context.userId, payload.generation);
+    const event = await tx.prepare("SELECT 1 FROM personal_event WHERE id=? AND office_id=? AND user_id=? AND version=? AND status<>'cancelled' AND sync_state NOT IN ('remote_deleted','permission_lost') FOR SHARE")
+      .get(payload.event.id, context.officeId, context.userId, payload.event.version);
+    if (!connection || !event) throw new CapabilityError('CONFLICT', 'O evento ou a conexão mudou. Prepare uma nova proposta.');
+    await assertCapabilityAllowed(context, 'k5_calendar_share_event', tx);
+    const result = await commitShare(tx, context, payload.event, input.occurrenceStart, payload);
+    await tx.prepare("UPDATE capability_approval SET status='consumed',consumed_at=clock_timestamp(),content_result=?::jsonb WHERE id=?")
+      .run(JSON.stringify(result), approvalId);
+    return result;
+  });
   await requireMember(context);
-  const connection=await requireConnection(context,'calendar');
-  const event=await ownEvent(context,input.eventId,connection);
-  const calendar=await ownCalendar(context,event.calendar_id,connection);
-  if(privateHidden(calendar,event))throw new CapabilityError('NOT_FOUND','Evento não encontrado.');
-  if(input.occurrenceStart&&input.occurrenceStart!==event.original_start)throw new CapabilityError('NOT_FOUND','Ocorrência não encontrada.');
-  const row=await database.prepare(`INSERT INTO personal_event_share(id,office_id,owner_user_id,event_id,occurrence_start,title,notes,location,all_day,starts_at,ends_at,start_date,end_date)
+  const connection = await requireConnection(context,'calendar');
+  const event = await ownEvent(context,input.eventId,connection);
+  const calendar = await ownCalendar(context,event.calendar_id,connection);
+  if (privateHidden(calendar,event) || input.occurrenceStart && input.occurrenceStart !== event.original_start)
+    throw new CapabilityError('NOT_FOUND','Evento não encontrado.');
+  const writing = await outboundText(context, 'k5_calendar_share_event', { eventId: event.id, occurrenceStart: input.occurrenceStart }, input.title, input.notes ?? '');
+  const payload = { title: writing.title, notes: writing.content, location: context.invocation ? writing.location ?? '' : input.location ?? '',
+    connectionId: connection.id, generation: connection.authorization_generation, event };
+  const result = await documentTransaction(context, async tx => {
+    await assertCapabilityAllowed(context, 'k5_calendar_share_event', tx);
+    await assertExternalDelivery(context.userId, writing.policy, tx);
+    const liveConnection = await tx.prepare("SELECT 1 FROM google_connection WHERE id=? AND office_id=? AND user_id=? AND status='active' AND authorization_generation=? FOR SHARE")
+      .get(connection.id, context.officeId, context.userId, connection.authorization_generation);
+    const liveEvent = await tx.prepare("SELECT 1 FROM personal_event WHERE id=? AND office_id=? AND user_id=? AND version=? AND status<>'cancelled' AND sync_state NOT IN ('remote_deleted','permission_lost') FOR SHARE")
+      .get(event.id, context.officeId, context.userId, event.version);
+    if (!liveConnection || !liveEvent) throw new CapabilityError('CONFLICT', 'O evento ou a conexão mudou. Prepare uma nova proposta.');
+    await assertCapabilityAllowed(context, 'k5_calendar_share_event', tx);
+    if (context.invocation) {
+      const proposal = await createApprovalProposal(context, 'k5_calendar_share_event', originalInput, event.id, event.version, 600_000, tx);
+      await tx.prepare('UPDATE capability_approval SET content_policy=?::jsonb,calendar_share_payload=?::jsonb WHERE id=?')
+        .run(JSON.stringify(writing.policy), JSON.stringify(payload), proposal.id);
+      return { approvalId: proposal.id };
+    }
+    return commitShare(tx, context, event, input.occurrenceStart, payload);
+  });
+  if ('approvalId' in result) throw new CapabilityError('APPROVAL_REQUIRED', `Revise o texto exato antes de compartilhar. Proposta registrada [id: ${result.approvalId}].`);
+  return result;
+}
+async function commitShare(tx: import('@/lib/database').Transaction, context: WorkspaceContext, event: EventRow, occurrenceStart: string | undefined, payload: { title: string; notes: string; location: string }) {
+  const row = await tx.prepare(`INSERT INTO personal_event_share(id,office_id,owner_user_id,event_id,occurrence_start,title,notes,location,all_day,starts_at,ends_at,start_date,end_date)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(event_id,occurrence_start) WHERE revoked_at IS NULL DO UPDATE SET
     title=EXCLUDED.title,notes=EXCLUDED.notes,location=EXCLUDED.location,all_day=EXCLUDED.all_day,
     starts_at=EXCLUDED.starts_at,ends_at=EXCLUDED.ends_at,start_date=EXCLUDED.start_date,end_date=EXCLUDED.end_date,
     version=personal_event_share.version+1,updated_at=CURRENT_TIMESTAMP
     RETURNING *, (SELECT name FROM "user" WHERE id=owner_user_id) AS owner_name`).get<Share>(randomUUID(),context.officeId,context.userId,event.id,
-      input.occurrenceStart??'',input.title,input.notes,input.location,event.all_day,event.start_at,event.end_at,event.start_date,event.end_date);
-  return {share:shareDto(row!,context)};
+      occurrenceStart??'',payload.title,payload.notes,payload.location,event.all_day,event.start_at,event.end_at,event.start_date,event.end_date);
+  return { share: shareDto(row!,context) };
 }
 export async function unshareEvent(context:WorkspaceContext,input:Input<'k5_calendar_unshare_event'>) {
   await requireMember(context);

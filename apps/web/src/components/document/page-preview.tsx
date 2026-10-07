@@ -8,7 +8,7 @@ import { LoaderCircle } from "lucide-react";
  * the same path as Exportar, and docx-preview draws its pages. Read-only by design; editing
  * happens in Editar, where the text is the source of truth.
  */
-export function PagePreview({ artifactId, version }: { artifactId: string; version: number }) {
+export function PagePreview({ api, version, request = fetch }: { api: string; version: number; request?: (url: string, init?: RequestInit) => Promise<Response> }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -18,7 +18,7 @@ export function PagePreview({ artifactId, version }: { artifactId: string; versi
     async function render() {
       setState("loading");
       try {
-        const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/export`, { signal: controller.signal, cache: "no-store" });
+        const response = await request(`${api}/export?version=${version}`, { signal: controller.signal, cache: "no-store" });
         if (!response.ok) throw new Error("export");
         const blob = await response.blob();
         const { renderAsync } = await import("docx-preview");
@@ -38,7 +38,7 @@ export function PagePreview({ artifactId, version }: { artifactId: string; versi
     }
     void render();
     return () => controller.abort();
-  }, [artifactId, version]);
+  }, [api, version, request]);
 
   // Pages keep their real size and are scaled down to the panel, so line breaks match Word.
   function fit() {

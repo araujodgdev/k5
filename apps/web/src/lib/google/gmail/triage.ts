@@ -1,3 +1,5 @@
+import { contentAdmission } from '@/lib/content-admission';
+import { privateGenerationPolicy } from '@/lib/content-policy';
 import 'server-only';
 import type { Questions } from '@typesafe-ai/sdk';
 import { database } from '@/lib/database';
@@ -44,7 +46,7 @@ export async function triageMail(context: WorkspaceContext, raw: unknown, option
   const results = new Map<string, EmailTriageItem>();
   const pending: { id: string; key: string; state: { subject: string; from: string; snippet: string; date: string; fromSelf: boolean } }[] = [];
   const ids = [...new Set(threadIds)];
-  // Fetch only this person's mailbox, in bounded batches; never trust text or ownership supplied by the client.
+
   for (let offset = 0; offset < ids.length; offset += 4) {
     signal.throwIfAborted();
     await Promise.all(ids.slice(offset, offset + 4).map(async id => {
@@ -76,7 +78,7 @@ export async function triageMail(context: WorkspaceContext, raw: unknown, option
   }
   let failure: EmailTriageResult['status'] | undefined;
   const generated: { id: string; key: string; item: EmailTriageItem }[] = [];
-  // Small batches keep every independent question below the service context limit.
+
   for (let offset = 0; offset < pending.length; offset += 4) {
     await assertCapabilityAllowed(context, 'k5_gmail_get_thread');
     const allowed = await requireConnection(context, 'gmail');
@@ -87,7 +89,7 @@ export async function triageMail(context: WorkspaceContext, raw: unknown, option
     const batch = pending.slice(offset, offset + 4);
     const result = await evaluate(context, 'email', {
       state: { today, emails: batch.map(item => item.state) }, questions: emailTriageQuestions(batch.length), questionVersion: emailTriageVersion,
-    }, { send: options.send, signal, deadlineMs: 10_000 });
+    }, { send: options.send, signal, deadlineMs: 10_000, admission: contentAdmission(context, batch, [await privateGenerationPolicy(context)], { capability: 'k5_gmail_get_thread' }) });
     if (result.status !== 'evaluated' || !result.response) { failure = result.status === 'evaluated' ? 'unavailable' : result.status; break; }
     batch.forEach((entry, i) => {
       const category = result.response!.answers[`category_${i}`];
@@ -102,7 +104,7 @@ export async function triageMail(context: WorkspaceContext, raw: unknown, option
       generated.push({ ...entry, item });
     });
   }
-  // Long evaluations must not outlive the session, membership, consent or platform setting.
+
   await assertCapabilityAllowed(context, 'k5_gmail_get_thread');
   const live = await requireConnection(context, 'gmail');
   const current = await getConnection();

@@ -1,7 +1,10 @@
 import 'server-only';
-import { database } from '@/lib/database';
+import { database, type Transaction } from '@/lib/database';
 import { corpusQuerySchema, ResearchError, type CorpusPage, type JudgmentDetail, type JudgmentSummary,
   type ResearchMaterialVersion, type ResearchChunk, type ResearchMaterial, type SearchFilters } from './contracts';
+import { aclReadTransaction } from '@/lib/acl-transaction';
+import { contentResult, mapContentResult, canonicalContent, payloadDigest } from '@/lib/content-result';
+import { personPolicy } from '@/lib/content-policy';
 import { supportsDirectResearchMaterial } from './policy';
 
 const ADMITTED = `i.purpose='jurisprudence' AND i.auth_kind='none' AND i.enabled=1
@@ -12,12 +15,12 @@ export const RESEARCH_PAGE_SIZE = 20;
 type SummaryRow = {
   id: string; installation_id: string; source_judgment_id: string; tribunal: string; court_unit: string | null;
   case_number: string | null; title: string; decision_date: string | null; source_url: string | null;
-  status: string; ementa: string | null; ementa_version_id: string | null;
+  status: string; ementa: string | null; ementa_version_id: string | null; ementa_sha256: string | null;
   full_text_status: string | null; full_text_version_id: string | null; permission_documents: string;
-  source_kind: string; source_court_code: string;
+  source_kind: string; source_court_code: string; metadata_revision: number;
 };
 const SUMMARY_COLUMNS = `j.id,j.installation_id,j.source_judgment_id,j.tribunal,j.court_unit,j.case_number,j.title,
-  j.decision_date,j.source_url,j.status,v.text_content AS ementa,v.id AS ementa_version_id,
+  j.decision_date,j.source_url,j.status,j.metadata_revision,v.text_content AS ementa,v.id AS ementa_version_id,v.sha256 AS ementa_sha256,
   fm.status AS full_text_status,fm.current_version_id AS full_text_version_id,i.permission_documents,
   i.kind AS source_kind,i.court_code AS source_court_code`;
 const SUMMARY_JOINS = `FROM research_judgment j
@@ -27,7 +30,7 @@ const SUMMARY_JOINS = `FROM research_judgment j
   LEFT JOIN research_material fm ON fm.judgment_id=j.id AND fm.kind='full_text'`;
 
 export function toJudgmentSummary(row: SummaryRow, excerpt = true): JudgmentSummary {
-  return {
+  const value: JudgmentSummary = {
     id: row.id, installationId: row.installation_id, sourceJudgmentId: row.source_judgment_id,
     tribunal: row.tribunal, courtUnit: row.court_unit, caseNumber: row.case_number, title: row.title,
     decisionDate: row.decision_date, sourceUrl: row.source_url,
@@ -40,6 +43,18 @@ export function toJudgmentSummary(row: SummaryRow, excerpt = true): JudgmentSumm
       : (row.full_text_status ?? 'unavailable') as JudgmentSummary['fullTextStatus'],
     fullTextVersionId: row.permission_documents !== 'permitido' ? null : row.full_text_version_id,
   };
+  const metadataDigest = payloadDigest(value);
+  const metadataPolicy = { ...personPolicy('', canonicalContent(value)),
+    guards: [{ kind: 'research-judgment' as const, id: row.id }],
+    observed: [{ kind: 'research' as const, id: row.id, version: String(row.metadata_revision), digest: metadataDigest }] };
+  return contentResult(value, [metadataPolicy, ...row.ementa_version_id ? [materialPolicy(row.ementa_version_id, row.ementa_sha256 ?? '', row.ementa ?? '')] : []],
+    [{ kind: 'research-judgment', id: row.id, version: row.metadata_revision, digest: metadataDigest },
+      ...row.ementa_version_id ? [{ kind: 'research-material', id: row.ementa_version_id, version: row.ementa_version_id, digest: row.ementa_sha256 ?? '' }] : []]);
+}
+
+export function materialPolicy(versionId: string, sha256: string, text: string) {
+  return { ...personPolicy('', text), guards: [{ kind: 'research-material' as const, id: versionId }],
+    observed: [{ kind: 'research' as const, id: versionId, version: versionId, digest: sha256 }] };
 }
 
 function ftsQuery(theme: string): string {
@@ -52,13 +67,14 @@ function decodeOffset(cursor?: string): number {
   try {
     const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as { offset?: number };
     if (Number.isSafeInteger(parsed.offset) && parsed.offset! >= 0 && parsed.offset! <= 100_000) return parsed.offset!;
-  } catch { /* invalid cursor */ }
+  } catch {  }
   throw new ResearchError('invalid_input', 'Cursor inválido.');
 }
 
 /** PostgreSQL's GIN index covers every current public material, without a recent-documents cap. */
 export async function searchCorpus(input: { theme: string; filters?: SearchFilters; cursor?: string;
-  excludeSearchId?: string; candidateLimit?: number }): Promise<CorpusPage> {
+  excludeSearchId?: string; candidateLimit?: number }, db: Transaction = database): Promise<CorpusPage> {
+  if (db === database) return aclReadTransaction(tx => searchCorpus(input, tx));
   const parsed = corpusQuerySchema.parse(input);
   const offset = decodeOffset(parsed.cursor);
   const limit = input.candidateLimit === 30 ? 30 : RESEARCH_PAGE_SIZE;
@@ -82,25 +98,27 @@ export async function searchCorpus(input: { theme: string; filters?: SearchFilte
     WHERE research_fts.search_vector @@ q AND ${where}
       AND (indexed_material.kind='ementa' OR i.permission_documents='permitido')
     GROUP BY research_fts.judgment_id`;
-  const rows = await database.prepare(`WITH matched AS (${matched})
+  const rows = await db.prepare(`WITH matched AS (${matched})
     SELECT ${SUMMARY_COLUMNS} ${SUMMARY_JOINS} JOIN matched m ON m.judgment_id=j.id
     ORDER BY m.score DESC,j.decision_date DESC NULLS LAST,j.id ASC LIMIT ? OFFSET ?`)
     .all<SummaryRow>(match, ...params, limit + 1, offset);
-  const totalRow = await database.prepare(`WITH matched AS (${matched}) SELECT COUNT(*) AS total FROM matched`)
+  const totalRow = await db.prepare(`WITH matched AS (${matched}) SELECT COUNT(*) AS total FROM matched`)
     .get<{ total: number }>(match, ...params);
   const hasMore = rows.length > limit;
-  return { results: rows.slice(0, limit).map((row) => toJudgmentSummary(row)),
+  const results = rows.slice(0, limit).map(row => toJudgmentSummary(row));
+  return mapContentResult({ results,
     nextCursor: hasMore ? Buffer.from(JSON.stringify({ offset: offset + limit })).toString('base64url') : null,
-    total: totalRow?.total ?? 0 };
+    total: totalRow?.total ?? 0 }, ...results);
 }
 
-export async function findResearchJudgment(judgmentId: string): Promise<JudgmentDetail | null> {
-  const row = await database.prepare(`SELECT ${SUMMARY_COLUMNS},j.class_name,j.rapporteur,j.metadata_revision,j.source_updated_at,j.collected_at
+export async function findResearchJudgment(judgmentId: string, db: Transaction = database): Promise<JudgmentDetail | null> {
+  if (db === database) return aclReadTransaction(tx => findResearchJudgment(judgmentId,tx));
+  const row = await db.prepare(`SELECT ${SUMMARY_COLUMNS},j.class_name,j.rapporteur,j.source_updated_at,j.collected_at
     ${SUMMARY_JOINS} WHERE j.id=? AND j.status='active' AND ${ADMITTED}`)
     .get<SummaryRow & { class_name: string | null; rapporteur: string | null; metadata_revision: number;
       source_updated_at: string | null; collected_at: string }>(judgmentId);
   if (!row) return null;
-  const materials = await database.prepare(`SELECT m.id,m.judgment_id,m.kind,m.status,m.current_version_id,m.unavailable_reason,
+  const materials = await db.prepare(`SELECT m.id,m.judgment_id,m.kind,m.status,m.current_version_id,m.unavailable_reason,
     v.id AS version_id,v.material_id,v.sha256,v.mime_type,v.byte_size,v.storage_key,v.text_content,
     v.parser_version,v.citation_metadata_json,v.metadata_revision AS version_metadata_revision,v.source_url,
     v.collected_at,v.published_at
@@ -117,36 +135,41 @@ export async function findResearchJudgment(judgmentId: string): Promise<Judgment
       citationMetadata: JSON.parse(String(raw.citation_metadata_json)), metadataRevision: Number(raw.version_metadata_revision),
       sourceUrl: raw.source_url as string | null, collectedAt: String(raw.collected_at), publishedAt: raw.published_at as string | null,
     } : null;
-    const chunks = versionId ? await database.prepare(`SELECT id,material_version_id,ordinal,text_content,reference
+    const chunks = versionId ? await db.prepare(`SELECT id,material_version_id,ordinal,text_content,reference
       FROM research_chunk WHERE material_version_id=? ORDER BY ordinal`).all<{
       id: string; material_version_id: string; ordinal: number; text_content: string; reference: string;
     }>(versionId) : [];
     const permissionRestricted = raw.status === 'restricted' || (raw.kind === 'full_text' && row.permission_documents !== 'permitido');
     const importRequired = raw.kind === 'full_text' && raw.status === 'pending' && !versionId &&
       !supportsDirectResearchMaterial({kind:row.source_kind,courtCode:row.source_court_code});
-    detailMaterials.push({ id, judgmentId, kind: raw.kind as ResearchMaterial['kind'],
+    const material = { id, judgmentId, kind: raw.kind as ResearchMaterial['kind'],
       status: permissionRestricted ? 'restricted' : importRequired ? 'unavailable' : raw.status as ResearchMaterial['status'],
       currentVersionId: permissionRestricted ? null : versionId,
       unavailableReason: importRequired ? 'source_import_required' : raw.unavailable_reason as string | null,
       version: permissionRestricted ? null : version,
       chunks: permissionRestricted ? [] : chunks.map((chunk): ResearchChunk => ({ id: chunk.id, materialVersionId: chunk.material_version_id,
-        ordinal: chunk.ordinal, textContent: chunk.text_content, reference: chunk.reference })) });
+        ordinal: chunk.ordinal, textContent: chunk.text_content, reference: chunk.reference })) } as JudgmentDetail['materials'][number];
+    detailMaterials.push(contentResult(material, !permissionRestricted && version ? [materialPolicy(version.id,version.sha256,version.textContent ?? '')] : [],
+      !permissionRestricted && version ? [{ kind: 'research-material', id: version.id, version: version.id, digest: version.sha256 }] : []));
   }
-  return { ...toJudgmentSummary(row, false), className: row.class_name, rapporteur: row.rapporteur,
+  const summary = toJudgmentSummary(row,false);
+  return mapContentResult({ ...summary, className: row.class_name, rapporteur: row.rapporteur,
     metadataRevision: row.metadata_revision, sourceUpdatedAt: row.source_updated_at,
-    collectedAt: row.collected_at, materials: detailMaterials };
+    collectedAt: row.collected_at, materials: detailMaterials }, summary, ...detailMaterials);
 }
 
-export async function findResearchMaterialVersion(versionId: string): Promise<ResearchMaterialVersion | null> {
-  const row = await database.prepare(`SELECT v.* FROM research_material_version v
+export async function findResearchMaterialVersion(versionId: string, db: Transaction = database): Promise<ResearchMaterialVersion | null> {
+  if (db === database) return aclReadTransaction(tx => findResearchMaterialVersion(versionId,tx));
+  const row = await db.prepare(`SELECT v.* FROM research_material_version v
     JOIN research_material m ON m.id=v.material_id JOIN research_judgment j ON j.id=m.judgment_id
     JOIN judicial_source_installation i ON i.id=j.installation_id
     WHERE v.id=? AND v.published_at IS NOT NULL AND m.status='ready' AND j.status='active' AND ${ADMITTED}
       AND (m.kind='ementa' OR i.permission_documents='permitido')`).get<Record<string, unknown>>(versionId);
   if (!row) return null;
-  return { id: String(row.id), materialId: String(row.material_id), sha256: String(row.sha256),
+  const value = { id: String(row.id), materialId: String(row.material_id), sha256: String(row.sha256),
     mimeType: String(row.mime_type), byteSize: Number(row.byte_size), storageKey: row.storage_key as string | null,
     textContent: row.text_content as string | null, parserVersion: String(row.parser_version),
     citationMetadata: JSON.parse(String(row.citation_metadata_json)), metadataRevision: Number(row.metadata_revision),
     sourceUrl: row.source_url as string | null, collectedAt: String(row.collected_at), publishedAt: row.published_at as string | null };
+  return contentResult(value, [materialPolicy(value.id,value.sha256,value.textContent ?? '')], [{ kind: 'research-material', id: value.id, version: value.id, digest: value.sha256 }]);
 }

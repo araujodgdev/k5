@@ -190,12 +190,13 @@ function ArtifactRow({ icon, title, detail, copies, actions, saving, conversatio
  * Everything the Lume created or received in this conversation — its documents and the files sent
  * in the messages — with their Vault copies, plus the Vault material selected as context.
  */
-export function AgentArtifactsPanel({ conversationId, context, onChange, onOpenDocument, onClose }: {
+export function AgentArtifactsPanel({ conversationId, context, onChange, onOpenDocument, onClose, lockedCase = false }: {
   conversationId: string | null;
   context: AgentContext;
   onChange: (context: AgentContext) => void;
   onOpenDocument: (id: string) => void;
   onClose: () => void;
+  lockedCase?: boolean;
 }) {
   const [artifacts, setArtifacts] = useState<ConversationArtifacts | null>(null);
   const [loading, setLoading] = useState(Boolean(conversationId));
@@ -289,7 +290,7 @@ export function AgentArtifactsPanel({ conversationId, context, onChange, onOpenD
           </section>
         )}
 
-        <VaultContextSection context={context} onChange={onChange} />
+        <VaultContextSection key={context.caseId ?? 'office'} context={context} onChange={onChange} lockedCase={lockedCase} />
       </div>
     </div>
   );

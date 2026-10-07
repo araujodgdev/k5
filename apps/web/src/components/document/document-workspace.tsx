@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { documentApi, documentHref, documentKey, type DocumentRef } from "@/lib/document-ref";
+import { CanvasResourceReadError } from "@/lib/lume-workspace";
+import { PublishDocument } from "./publish-document";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore, type CSSProperties, type Ref } from "react";
-import { ArrowLeft, CircleAlert, Download, History, LoaderCircle, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { ArrowLeft, CircleAlert, Download, History, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -12,8 +15,9 @@ import type { Typography } from "@/lib/document-export";
 import type { RichEditorHandle } from "./rich-editor";
 import { DocumentReview, type ArtifactReference, type StoredCitations, type ValidationIssue } from "./document-review";
 import { toReview } from "@/lib/citations/labels";
-import { DocumentConflictError } from '@/lib/document-drafts';
+import { DocumentConflictError, type DocumentDraftRevision } from '@/lib/document-drafts';
 import { useDocumentDraft, useDocumentDrafts } from './document-drafts-provider';
+import { useLumeState, useLumeWorkspace } from '@/components/lume/workspace-context';
 
 // The editor and the page renderer are the heavy parts; they load when a document opens.
 const RichEditor = dynamic(() => import("./rich-editor").then((module) => module.RichEditor), {
@@ -32,7 +36,8 @@ const AUTOSAVE_MS = 1500;
 const emptyDraft = () => null;
 
 function unwrap(value: unknown): Artifact | null {
-  const record = (value as { artifact?: Partial<Artifact> } | null)?.artifact;
+  const body = value as { artifact?: Partial<Artifact>; page?: Partial<Artifact> } | null;
+  const record = body?.artifact ?? body?.page;
   if (!record || typeof record.id !== "string") return null;
   return {
     id: record.id, title: record.title || "Documento sem título", content: record.content ?? "", version: record.version ?? 1,
@@ -60,25 +65,24 @@ function typographyStyle(typography: Typography | null): CSSProperties {
   } as CSSProperties;
 }
 
-export type DocumentAsk = { artifactId: string; title: string; excerpt: string; instruction: string };
-export type DocumentWorkspaceHandle = { close: () => Promise<void> };
+export type DocumentAsk = { document: DocumentRef; title: string; excerpt: string; instruction: string };
+export function DocumentWorkspace({ resource }: { resource: DocumentRef }) {
+  return <DocumentEditor key={documentKey(resource)} resource={resource} />;
+}
 
-export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revision = 0, ref }: {
-  artifactId: string;
-  variant: "panel" | "page";
-  onClose?: () => void;
-  /** Present beside the chat: sends a request about a selected excerpt to the conversation. */
-  onAsk?: (request: DocumentAsk) => Promise<void>;
-  /** Bumped by the chat when the Lume changed this document. */
-  revision?: number;
-  ref?: Ref<DocumentWorkspaceHandle>;
-}) {
+function DocumentEditor({ resource }: { resource: DocumentRef }) {
   const router = useRouter();
-  const draft = useDocumentDraft(artifactId);
+  const api = documentApi(resource);
+  const key = documentKey(resource);
+  const shared = resource.kind === "case-page";
+  const workspace = useLumeWorkspace();
+  const canvasState = useLumeState();
+  const revision = canvasState.revisions[key] ?? 0;
+  const draft = useDocumentDraft(key);
   const { register } = useDocumentDrafts();
   const draftState = useSyncExternalStore(draft.subscribe, draft.getSnapshot, emptyDraft);
   const [storedArtifact, setArtifact] = useState<Artifact | null>(null);
-  const artifact = storedArtifact && draftState ? { ...storedArtifact, version: draftState.version } : storedArtifact;
+  const artifact = storedArtifact && draftState ? { ...storedArtifact, version: draftState.version } : null;
   const [phase, setPhase] = useState<"loading" | "ready" | "missing">("loading");
   const title = draftState?.title ?? '';
   const saveState = draftState?.state ?? 'saved';
@@ -103,9 +107,27 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
 
   const editorRef = useRef<RichEditorHandle>(null);
 
-  const apply = useCallback((next: Artifact) => {
+  const request = useCallback(async (url: string, init?: RequestInit) => {
+    const read = draft.captureRevision();
+    const access = workspace.controller.captureResourceAccess({ kind: 'document', document: resource, href: documentHref(resource), title: draft.getSnapshot()?.title ?? '' });
+    if (!draft.isValid(read)) throw new DOMException('Recurso invalidado.', 'AbortError');
+    const response = await fetch(url, init);
+    if (!draft.isValid(read)) throw new DOMException('Recurso invalidado.', 'AbortError');
+    if (response.status === 401) { router.replace('/sign-in'); router.refresh(); throw new CanvasResourceReadError(401); }
+    if (shared && (response.status === 403 || response.status === 404)) {
+      workspace.invalidateResource(access);
+      throw new CanvasResourceReadError(response.status);
+    }
+    if (response.status === 409) {
+      draft.conflict();
+      throw new DocumentConflictError('Este documento mudou em outro lugar. Suas alterações foram preservadas. Escolha qual versão manter.');
+    }
+    return response;
+  }, [draft, resource, router, shared, workspace]);
+
+  const apply = useCallback((next: Artifact, read: DocumentDraftRevision) => {
+    if (!draft.replace(next, read)) return;
     setArtifact(next);
-    draft.replace(next);
     setEditorSeed(next.content);
     setEditorKey((key) => key + 1);
     setLumeChanged(false);
@@ -114,74 +136,77 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   }, [draft]);
 
   const fetchArtifact = useCallback(async (signal?: AbortSignal) => {
-    const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}`, { signal, cache: "no-store" });
+    const read = draft.captureRevision();
+    const response = await request(`${api}`, { signal, cache: "no-store" });
     if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível abrir o documento."));
     const next = unwrap(await response.json());
+    if (!draft.isValid(read)) throw new DOMException('Recurso invalidado.', 'AbortError');
     if (!next) throw new Error("O documento retornou dados incompletos.");
     return next;
-  }, [artifactId]);
+  }, [api, draft, request]);
 
   const fail = useCallback((cause: unknown) => {
+    if (cause instanceof DOMException && cause.name === 'AbortError') return;
     setError(cause instanceof Error ? cause.message : "Não foi possível abrir o documento.");
     setPhase((current) => current === "ready" ? current : "missing");
   }, []);
 
-  const load = useCallback((highlight = false, preserveEdits = false) => {
+  const load = useCallback((highlight = false, read = draft.captureRevision()) => {
     const previous = highlight ? editorRef.current?.blockTexts() ?? null : null;
     return draft.waitForSave().then(() => fetchArtifact()).then((next) => {
-      if (preserveEdits && draft.getSnapshot()?.state !== "saved") { setLumeChanged(true); return; }
-      apply(next); setHighlightAgainst(previous);
+      apply(next, read); setHighlightAgainst(previous);
     }, fail);
   }, [draft, fetchArtifact, apply, fail]);
 
   useEffect(() => {
-    // The panel and the page are keyed by document, so a new id always starts from "loading".
     const controller = new AbortController();
+    const read = draft.captureRevision();
     void draft.waitForSave().then(() => fetchArtifact(controller.signal)).then(next => {
-      if (controller.signal.aborted) return;
-      draft.open(next);
+      if (controller.signal.aborted || !draft.isValid(read)) return;
+      draft.open(next, read);
       const current = draft.getSnapshot();
       setArtifact(next);
       setEditorSeed(current?.content ?? next.content);
       setEditorKey(key => key + 1);
       setPhase('ready');
     }, (cause) => { if (!controller.signal.aborted) fail(cause); });
-    fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/format`, { signal: controller.signal, cache: "no-store" })
+    request(`${api}/format`, { signal: controller.signal, cache: "no-store" })
       .then(async (response) => response.ok ? await response.json() as { typography: Typography | null; templateName: string | null } : null)
-      .then((body) => { if (body) { setTypography(body.typography); setTemplateName(body.templateName); } })
+      .then((body) => { if (body && !controller.signal.aborted && draft.isValid(read)) { setTypography(body.typography); setTemplateName(body.templateName); } })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [artifactId, draft, fetchArtifact, fail]);
+  }, [api, draft, fetchArtifact, fail, request]);
 
   // The citation check of the stored text; the Lume's writes refresh it on the server.
   const storedVersion = artifact?.version;
   useEffect(() => {
-    if (!storedVersion) return;
+    if (!storedVersion || shared) return;
     const controller = new AbortController();
-    fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/citations`, { signal: controller.signal, cache: "no-store" })
+    fetch(`${api}/citations`, { signal: controller.signal, cache: "no-store" })
       .then(async (response) => response.ok ? await response.json() as StoredCitations : null)
       .then((body) => { if (body) setCitations(body); })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [artifactId, storedVersion]);
+  }, [api, storedVersion, shared]);
 
   /** Saves what is on screen. `snapshot` also records a version in the history. */
   const save = useCallback((snapshot: boolean, leaving = false) => draft.save(async sent => {
+    const read = draft.captureRevision();
     const body = JSON.stringify(sent);
-    const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}`, {
+    const response = await request(`${api}`, {
       method: 'PUT', headers: { 'content-type': 'application/json' }, cache: 'no-store', body,
       keepalive: leaving && new TextEncoder().encode(body).byteLength <= 64 * 1024,
     });
-    if (response.status === 409) throw new DocumentConflictError('Este documento mudou em outro lugar. Suas alterações foram preservadas. Escolha qual versão manter.');
     if (!response.ok) throw new Error(await errorMessage(response, 'Não foi possível salvar o documento.'));
     const next = unwrap(await response.json());
+    if (!draft.isValid(read)) throw new DOMException('Recurso invalidado.', 'AbortError');
     if (!next) throw new Error('O documento retornou dados incompletos.');
     setArtifact(next);
     setError('');
     return { version: next.version };
-  }, snapshot), [artifactId, draft]);
+  }, snapshot), [api, draft, request]);
 
-  useEffect(() => register(artifactId, () => save(true)), [artifactId, register, save]);
+  useEffect(() => register(key, () => save(true)), [key, register, save]);
 
   // Autosave after a pause in typing.
   useEffect(() => {
@@ -190,10 +215,6 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     return () => clearTimeout(timer);
   }, [saveState, draftState?.content, draftState?.title, save, editorKey]);
 
-  const close = useCallback(async () => {
-    if (await save(true)) onClose?.();
-  }, [save, onClose]);
-  useImperativeHandle(ref, () => ({ close }), [close]);
 
   // Lifecycle saves share the autosave lock and update its version, including when the
   // page is restored from the back/forward cache. Unmount still finishes a queued save.
@@ -217,7 +238,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     const frame = requestAnimationFrame(() => {
       setAsked(false);
       if (draft.getSnapshot()?.state !== "saved") setLumeChanged(true);
-      else void load(true, true);
+      else void load(true);
     });
     return () => cancelAnimationFrame(frame);
   }, [revision, draft, load]);
@@ -225,6 +246,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   async function keepMine() {
     // The Lume's version stays in the history; the person's text becomes the newest version.
     try {
+      await draft.waitForSave();
       const latest = await fetchArtifact();
       draft.rebase(latest.version);
       setLumeChanged(false);
@@ -234,9 +256,8 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
 
   // The Lume reads the stored text, so what is on screen is saved as a version first.
   async function ask(request: { excerpt: string; instruction: string }) {
-    if (!onAsk) return;
     if (!await save(true)) throw new Error("Salve o documento antes de pedir ao Lume.");
-    await onAsk({ artifactId, title: draft.getSnapshot()?.title.trim() || "Documento sem título", ...request });
+    await workspace.ask({ document: resource, title: draft.getSnapshot()?.title.trim() || "Documento sem título", ...request });
     setAsked(true);
   }
 
@@ -244,7 +265,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     setRechecking(true);
     try {
       if (!await save(true)) return;
-      const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/citations`, { method: "POST", cache: "no-store" });
+      const response = await fetch(`${api}/citations`, { method: "POST", cache: "no-store" });
       if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível conferir as citações."));
       setCitations(await response.json() as StoredCitations);
     } catch (cause) {
@@ -270,10 +291,13 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     setExporting(format);
     setExportError("");
     try {
+      const read = draft.captureRevision();
       if (!await save(true)) return;
-      const response = await fetch(`/api/artifacts/${encodeURIComponent(artifact.id)}/export?format=${format}&version=${draft.getSnapshot()?.version}`, { cache: "no-store" });
+      const response = await request(`${api}/export?format=${format}&version=${draft.getSnapshot()?.version}`, { cache: "no-store" });
       if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível exportar o documento."));
-      const url = URL.createObjectURL(await response.blob());
+      const blob = await response.blob();
+      if (!draft.isValid(read)) return;
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `${draft.getSnapshot()?.title.replace(/[\\/:*?"<>|]/g, "-") || "documento"}.${format}`;
@@ -293,8 +317,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
       <div className="grid flex-1 place-items-center px-6 text-center">
         <div>
           <p className="text-sm text-destructive">{error || "Documento não encontrado."}</p>
-          {onClose ? <Button variant="outline" className="mt-4" onClick={onClose}>Fechar</Button>
-            : <Button asChild variant="outline" className="mt-4"><Link href="/app/agents">Voltar ao Lume</Link></Button>}
+          <Button asChild variant="outline" className="mt-4"><Link href="/app/agents">Voltar ao Lume</Link></Button>
         </div>
       </div>
     );
@@ -305,23 +328,23 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   const reviewCount = humanPending?.version === artifact.version ? humanPending.count : issues.length + pendingCitations;
   const status = saveState === "saving" ? "Salvando…" : saveState === "dirty" ? "Alterações não salvas" : saveState === "conflict" ? "Conflito de versão"
     : saveState === "error" ? "Não salvo" : "Salvo";
-  const backHref = artifact.conversationId ? `/app/agents?conversationId=${encodeURIComponent(artifact.conversationId)}` : "/app/agents";
+  const backHref = shared ? `/app/vault/cases/${encodeURIComponent(resource.caseId)}?section=pages` : artifact.conversationId ? `/app/agents?conversationId=${encodeURIComponent(artifact.conversationId)}` : "/app/agents";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <header className="flex min-h-14 shrink-0 items-center gap-1.5 border-b px-2 md:px-4">
-        {variant === "page"
-          ? <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Voltar à conversa"><Link href={backHref}
-            onNavigate={event => { event.preventDefault(); void save(true).then(saved => { if (saved) router.push(backHref); }); }}><ArrowLeft /></Link></Button>
-          : <Button variant="ghost" size="icon" className="size-11 lg:hidden" aria-label="Voltar à conversa" onClick={() => void close()}><ArrowLeft /></Button>}
+        <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Voltar à conversa"><Link href={backHref}><ArrowLeft /></Link></Button>
         <label className="min-w-0 flex-1">
           <span className="sr-only">Título do documento</span>
           <input value={title} onChange={(event) => changeTitle(event.target.value)} maxLength={200} placeholder="Título do documento"
-            className={cn("w-full truncate bg-transparent outline-none placeholder:text-subtle-foreground focus-visible:underline focus-visible:decoration-brand focus-visible:underline-offset-4",
-              variant === "page" ? "display text-[22px] md:text-[26px]" : "text-[15px] font-medium")} />
+            className="display w-full truncate bg-transparent text-[22px] outline-none placeholder:text-subtle-foreground focus-visible:underline focus-visible:decoration-brand focus-visible:underline-offset-4 md:text-[26px]" />
         </label>
         <span className={cn("hidden shrink-0 text-xs sm:inline", saveState === "conflict" || saveState === "error" ? "text-destructive" : "text-muted-foreground")} aria-live="polite">{status}</span>
-        <Versions artifactId={artifact.id} current={artifact.version} beforeRestore={() => save(true)} onRestored={() => void load(true, true)} />
+        <Versions api={api} request={request} current={artifact.version} beforeRestore={async () => {
+          const read = draft.captureRevision();
+          return await save(true) && draft.isValid(read) ? { version: draft.getSnapshot()?.version ?? artifact.version, read } : null;
+        }} onRestored={(read) => void load(true, read)} />
+        {!shared && <PublishDocument artifactId={artifact.id} beforePublish={() => save(true)} />}
         <Popover open={exportMenuOpen} onOpenChange={setExportMenuOpen}>
           <PopoverTrigger asChild><Button className="min-h-11 md:min-h-9" disabled={exporting !== null} aria-label={exporting ? `Exportando ${exporting.toUpperCase()}` : "Exportar documento"}>{exporting ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Download aria-hidden="true" />}<span className="hidden sm:inline">{exporting ? "Exportando…" : "Exportar"}</span></Button></PopoverTrigger>
           <PopoverContent align="end" className="grid w-44 gap-1 p-1">
@@ -329,12 +352,12 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
             <Button variant="ghost" className="min-h-11 justify-start" onClick={() => void download("docx")}>Exportar DOCX</Button>
           </PopoverContent>
         </Popover>
-        {variant === "panel" && <Button variant="ghost" size="icon" className="hidden size-9 lg:inline-flex" aria-label="Fechar documento" onClick={() => void close()}><X /></Button>}
       </header>
+      <p className="border-b px-4 py-2 text-xs text-muted-foreground">{shared ? "Compartilhado com quem tem acesso à pasta e às fontes utilizadas." : "Particular. Só você pode acessar este documento."}</p>
       {exportError && <p role="alert" className="border-b px-4 py-3 text-sm text-destructive">{exportError}</p>}
 
       <div className="flex shrink-0 items-center gap-1 border-b px-2 md:px-4" role="tablist" aria-label="Modo do documento">
-        {([["edit", "Editar"], ["page", "Página"], ["review", reviewCount ? `Revisão (${reviewCount})` : "Revisão"]] as const).map(([value, label]) => (
+        {([["edit", "Editar"], ["page", "Página"], ["review", reviewCount ? `Revisão (${reviewCount})` : "Revisão"]] as const).filter(([value]) => !shared || value !== "review").map(([value, label]) => (
           <button key={value} type="button" role="tab" aria-selected={tab === value} aria-controls={`document-${value}`} id={`document-tab-${value}`}
             onClick={() => void openTab(value)}
             className={cn("relative min-h-11 px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:min-h-10",
@@ -348,7 +371,6 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
       {asked && !lumeChanged && (
         <div className="flex flex-wrap items-center gap-2 border-b border-l-2 border-l-brand px-4 py-2 text-sm" role="status">
           <span className="min-w-0 flex-1">Pedido enviado ao Lume. A alteração aparece aqui quando ele terminar.</span>
-          {onClose && <Button size="sm" variant="ghost" className="min-h-11 lg:hidden" onClick={() => void close()}>Ver conversa</Button>}
         </div>
       )}
       {(lumeChanged || saveState === 'conflict') && (
@@ -367,11 +389,11 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
 
       <div id="document-edit" role="tabpanel" aria-labelledby="document-tab-edit" hidden={tab !== "edit"} className="flex min-h-0 flex-1 flex-col data-[hidden]:hidden" data-hidden={tab !== "edit" || undefined}>
         <RichEditor key={editorKey} ref={editorRef} initialMarkdown={editorSeed} onChange={changeContent} onSave={() => void save(true)}
-          style={typographyStyle(typography)} label="Texto do documento" onAsk={onAsk ? ask : undefined} highlightAgainst={highlightAgainst} />
+          style={typographyStyle(typography)} label="Texto do documento" onAsk={ask} highlightAgainst={highlightAgainst} />
       </div>
       {tab === "page" && (
         <div id="document-page" role="tabpanel" aria-labelledby="document-tab-page" className="flex min-h-0 flex-1 flex-col">
-          <PagePreview artifactId={artifact.id} version={artifact.version} />
+          <PagePreview api={api} version={artifact.version} request={request} />
         </div>
       )}
       {tab === "review" && (
@@ -384,7 +406,11 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   );
 }
 
-function Versions({ artifactId, current, beforeRestore, onRestored }: { artifactId: string; current: number; beforeRestore: () => Promise<boolean>; onRestored: () => void }) {
+function Versions({ api, current, request, beforeRestore, onRestored }: {
+  api: string; current: number; request: (url: string, init?: RequestInit) => Promise<Response>;
+  beforeRestore: () => Promise<{ version: number; read: DocumentDraftRevision } | null>;
+  onRestored: (read: DocumentDraftRevision) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [versions, setVersions] = useState<Version[] | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
@@ -393,29 +419,30 @@ function Versions({ artifactId, current, beforeRestore, onRestored }: { artifact
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/versions`, { signal: controller.signal, cache: "no-store" })
+    request(`${api}/versions`, { signal: controller.signal, cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível listar as versões."));
         setVersions(((await response.json()) as { versions: Version[] }).versions);
       })
       .catch((cause) => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Não foi possível listar as versões."); });
     return () => controller.abort();
-  }, [open, artifactId]);
+  }, [open, api, request]);
 
   async function restore(version: number) {
     setBusy(version);
     setError("");
     try {
-      if (!await beforeRestore()) {
+      const saved = await beforeRestore();
+      if (saved === null) {
         setError("Salve as alterações antes de restaurar uma versão.");
         return;
       }
-      const response = await fetch(`/api/artifacts/${encodeURIComponent(artifactId)}/restore`, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ version }),
+      const response = await request(`${api}/restore`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(api.startsWith('/api/cases/') ? { version: saved.version, restoreVersion: version } : { version }),
       });
       if (!response.ok) throw new Error(await errorMessage(response, "Não foi possível restaurar a versão."));
       setOpen(false);
-      onRestored();
+      onRestored(saved.read);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível restaurar a versão.");
     } finally { setBusy(null); }

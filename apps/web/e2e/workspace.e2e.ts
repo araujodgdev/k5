@@ -6,50 +6,29 @@ import { overflowsHorizontally } from './support/fixtures';
 
 // Controlled UI fixtures only: these tests never add or edit the office's business data.
 describe('área de trabalho', { session: 'admin' }, () => {
-  test('o menu Mais no celular prende o foco, alterna o tema e devolve o foco ao fechar', async ({ app, screen, browser }) => {
+  test('o menu da conta no celular alterna o tema e devolve o foco ao fechar', async ({ app, screen, browser }) => {
     await browser.setViewport({ width: 390, height: 844 });
     await app.open('/app/command-center');
-    await screen.getByRole('button', 'Mais').tap();
-    const sheet = screen.getByRole('dialog', 'Mais opções');
-    await expect(sheet).toBeVisible();
-    // Focus lands on the title, then moves through the sheet's actions.
-    await expect(sheet.getByRole('heading', 'Mais opções')).toBeFocused();
-    await browser.keyboard.press('Tab');
-    await expect(sheet.getByRole('button', 'Tutorial do Lume')).toBeFocused();
-    const dark = await browser.evaluate(() => document.documentElement.classList.contains('dark'));
-    await sheet.getByRole('button', dark ? 'Usar tema claro' : 'Usar tema escuro').tap();
-    await expect(browser).toHaveClass(browser.locator('html'), dark ? /^(?!.*dark)/ : /dark/);
-    await sheet.getByRole('button', dark ? 'Usar tema escuro' : 'Usar tema claro').tap();
+    await screen.getByRole('navigation', 'Alternar conversa e canvas').getByRole('button', 'Canvas').tap();
+    const account = screen.getByRole('button', /^Conta de /);
+    await account.tap();
+    const wasDark = await browser.evaluate(() => document.documentElement.classList.contains('dark'));
+    await screen.getByRole('button', wasDark ? 'Usar tema claro' : 'Usar tema escuro').tap();
+    await expect.poll(() => browser.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(!wasDark);
     await browser.keyboard.press('Escape');
-    await expect(sheet).toBeHidden();
-    await expect(screen.getByRole('button', 'Mais')).toBeFocused();
+    await expect(account).toBeFocused();
   });
 
   test('o compositor do chat fica visível numa conversa longa e o rascunho sobrevive à rolagem', async ({ app, screen, browser }) => {
     await browser.setViewport({ width: 390, height: 844 });
     const conversation = { id: 'ui-scroll-fixture', title: 'Conversa de verificação', updatedAt: new Date().toISOString() };
-    // The page is server-rendered with the latest real conversation; "Nova conversa" switches to the fixture.
-    let created = 0;
-    await browser.route('**/api/conversations', route => {
-      if (route.request.method !== 'POST') return route.continue();
-      // A new id per request, as the server would: re-creating with the same id clears the
-      // messages without reloading them, which a real new conversation never does.
-      created++;
-      return route.fulfill({ json: { conversation: { ...conversation, id: `ui-scroll-fixture-${created}` } } });
-    });
-    await browser.route(/\/api\/conversations\/ui-scroll-fixture-\d+$/, route => route.fulfill({ json: { conversation, messages: Array.from({ length: 30 }, (_, i) => ({
+    await browser.route('**/api/conversations', route => route.fulfill({ json: { conversations: [conversation] } }));
+    await browser.route('**/api/conversations/ui-scroll-fixture', route => route.fulfill({ json: { conversation, messages: Array.from({ length: 30 }, (_, i) => ({
       id: `fixture-${i}`, role: i % 2 ? 'assistant' : 'user',
       parts: [{ type: 'text', text: `Mensagem ${i}. ` + 'Conteúdo da conversa para verificar rolagem e acesso ao campo de mensagem. '.repeat(8) }],
     })) } }));
-    await browser.route(/\/api\/chat\/ui-scroll-fixture-\d+\/stream/, route => route.fulfill({ status: 204 }));
-    await app.open('/app/agents');
-    // The button is server-rendered; a tap that lands before hydration does nothing, so tap again
-    // until the app asks for the conversation (the mock always returns the same one).
-    const before = created;
-    await expect.poll(async () => {
-      if (created === before) await screen.getByRole('button', 'Nova conversa', { visible: true }).tap();
-      return created;
-    }).toBeGreaterThan(before);
+    await browser.route('**/api/chat/ui-scroll-fixture/stream**', route => route.fulfill({ status: 204 }));
+    await app.open('/app/agents?conversationId=ui-scroll-fixture');
     const input = screen.getByRole('textbox', 'Pergunte ao Lume');
     const bottomOf = async () => { const box = (await input.boundingBox())!; return box.y + box.height; };
     const latest = screen.getByRole('button', 'Voltar ao mais recente');
@@ -61,9 +40,9 @@ describe('área de trabalho', { session: 'admin' }, () => {
     }).toBe(true);
     await expect(screen.getByText('Mensagem 29.', { exact: false })).toBeVisible();
     // Above the bottom navigation bar.
-    expect(await bottomOf()).toBeLessThan(844 - 64);
+    expect(await bottomOf()).toBeLessThan(844 - 54);
     await scrollToTop();
-    expect(await bottomOf()).toBeLessThan(780);
+    expect(await bottomOf()).toBeLessThan(790);
     expect((await input.boundingBox())!.y).toBeGreaterThan(100);
     await input.fill('Rascunho preservado durante a rolagem');
     await latest.tap();
@@ -71,7 +50,7 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await expect(input).toHaveValue('Rascunho preservado durante a rolagem');
     // A short viewport, as with the on-screen keyboard open.
     await browser.setViewport({ width: 390, height: 540 });
-    await expect.poll(bottomOf).toBeLessThan(476);
+    await expect.poll(bottomOf).toBeLessThan(486);
     await browser.setViewport({ width: 1440, height: 900 });
     await scrollToTop();
     expect(await bottomOf()).toBeLessThan(900);
@@ -84,9 +63,12 @@ describe('área de trabalho', { session: 'admin' }, () => {
     const client = crmClientDto.parse({ ...stamp, id: 'ui-client', name: 'Marina Albuquerque', stage: 'active', email: 'marina@example.test', phone: '(11) 99999-0000', notes: 'Cliente acompanhado pelo escritório.', caseIds: ['ui-case'] });
     const task = activityDto.parse({ ...stamp, id: 'ui-task', title: 'Revisar contrato de prestação de serviços', kind: 'task', dueOn: day, clientId: client.id, caseId: 'ui-case' });
     const meeting = activityDto.parse({ ...task, id: 'ui-meeting', title: 'Reunião com Marina', kind: 'meeting', dueOn: null, startsAt: new Date(year, month, 12, 23).toISOString(), endsAt: new Date(year, month, 14).toISOString() });
-    let completed = false; let failMonth = false; let empty = false;
+    let completed = false; let failMonth = false; let empty = false; let failHome = false;
     const unexpected: string[] = [];
     await browser.route('**/api/vault/cases', route => route.fulfill({ json: { cases: empty ? [] : [{ id: 'ui-case', name: 'Albuquerque · Contratos' }] } }));
+    await browser.route('**/api/home?*', route => failHome ? route.fulfill({ status: 503, json: { error: 'Falha temporária da fixture local.' } }) : route.fulfill({ json: { cases: empty ? [] : [{ id: 'ui-case', name: 'Albuquerque · Contratos', description: 'Caso da fixture de apresentação.', updatedAt: stamp.updatedAt }], tasks: [], activity: [], partial: { tasks: false, activity: false } } }));
+    await browser.route('**/api/honorarios/list', route => route.fulfill({ json: { installments: [], total: 0 } }));
+    await browser.route('**/api/capabilities/k5_notifications_list', route => route.fulfill({ json: { notifications: [] } }));
     await browser.route('**/api/agenda/members/list', route => route.fulfill({ json: { members: [] } }));
     await browser.route('**/api/agenda/clients/list', route => route.fulfill({ json: { clients: empty ? [] : [client], total: empty ? 0 : 1 } }));
     await browser.route('**/api/agenda/clients/get', route => route.fulfill({ json: { client } }));
@@ -121,9 +103,9 @@ describe('área de trabalho', { session: 'admin' }, () => {
     const markedDays = browser.locator('[data-calendar-day][aria-label*="atividade"]');
 
     await app.open('/app/command-center');
-    await expect(screen.getByRole('heading', 'Início')).toBeVisible();
+    await expect(screen.getByRole('heading', 'Hoje', { exact: true })).toBeVisible();
     await screen.getByRole('checkbox', `Concluir ${task.title}`).tap();
-    await expect(screen.getByText('Tudo em dia. Nenhuma tarefa pendente até hoje.')).toBeVisible();
+    await expect(screen.getByText('Tudo em dia. Nenhuma tarefa, parcela ou notificação pendente neste recorte.')).toBeVisible();
     await screen.getByRole('link', 'Nova atividade').tap();
     await expect(screen.getByRole('dialog')).toBeVisible();
     await expect(screen.getByLabel('Título')).toBeVisible();
@@ -168,7 +150,8 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await browser.setViewport({ width: 390, height: 844 });
     for (const path of pages) {
       await app.open(path);
-      await expect(screen.getByRole('heading', { level: 1 })).toBeVisible();
+      await screen.getByRole('button', 'Canvas', { exact: true }).tap();
+      await expect(screen.getByRole('heading', path === '/app/command-center' ? { name: 'Hoje', exact: true } : { level: 1 })).toBeVisible();
       await expect(screen.getByRole('status')).toHaveCount(0);
       expect(await browser.evaluate(overflowsHorizontally), path).toBe(false);
     }
@@ -176,6 +159,7 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await browser.setViewport({ width: 320, height: 740 });
     for (const path of pages) {
       await app.open(path);
+      await screen.getByRole('button', 'Canvas', { exact: true }).tap();
       await expect(browser).toHaveClass(browser.locator('html'), /dark/);
       await expect(screen.getByRole('status')).toHaveCount(0);
       expect(await browser.evaluate(overflowsHorizontally), path).toBe(false);
@@ -183,7 +167,14 @@ describe('área de trabalho', { session: 'admin' }, () => {
     empty = true;
     await screen.getByRole('button', 'Atualizar').tap();
     await expect(screen.getByText('Nenhuma reunião agendada.')).toBeVisible();
-    await expect(screen.getByText('Nenhum cliente ativo cadastrado.')).toBeVisible();
-    await expect(screen.getByText('Seus casos e documentos aparecerão aqui.')).toBeVisible();
+    await expect(screen.getByText('Seus casos aparecerão aqui. Crie um caso no Cofre para começar.')).toBeVisible();
+    await expect(screen.getByText('Nenhuma atividade disponível nos casos recentes.')).toBeVisible();
+    failHome = true;
+    await screen.getByRole('button', 'Atualizar').tap();
+    await expect(screen.getByText('Não foi possível carregar casos e tarefas compartilhadas. Use Atualizar para tentar novamente.')).toBeVisible();
+    await expect(screen.getByText('Nenhuma reunião agendada.')).toBeVisible();
+    failHome = false;
+    await screen.getByRole('button', 'Atualizar').tap();
+    await expect(screen.getByText('Seus casos aparecerão aqui. Crie um caso no Cofre para começar.')).toBeVisible();
   });
 });

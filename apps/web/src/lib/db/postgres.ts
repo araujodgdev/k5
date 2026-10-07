@@ -84,6 +84,7 @@ export function postgresDatabase(pool: Pool): Database {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended('lume:content-acl:' || current_schema(),0))");
         const results = [];
         for (const statement of statements) {
           const result = await client.query(postgresSql(statement.sql), [...statement.params]);

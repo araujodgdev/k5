@@ -1,5 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createGoogle } from '@ai-sdk/google';
+import { createDeepSeek } from '@ai-sdk/deepseek';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { createGateway } from '@ai-sdk/gateway';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { PROVIDER_REGISTRY, type MastraModelConfig } from '@mastra/core/llm';
 import { AI_PROVIDERS, providerLabels, type AiProvider } from './ai-provider-names';
 import { supportsReasoningEffort, type ReasoningEffort } from './ai-tasks';
@@ -13,14 +19,14 @@ export const CLIPROXYAPI_BASE_URL = 'https://api.lume.software/v1';
 
 export function modelProviderOptions(provider: AiProvider, effort: ReasoningEffort | null | undefined) {
   const reasoning = effort && supportsReasoningEffort(provider) ? { reasoningEffort: effort } : undefined;
-  // store:false avoids replaying references to response items the stateless proxy cannot retrieve.
+
   if (provider === 'cliproxyapi') return { openai: { ...reasoning, store: false } };
   return reasoning ? { openai: reasoning } : undefined;
 }
 
 /** Model ids the router knows for each provider; the admin may still type one that is not listed. */
 export function providerCatalog(): Record<AiProvider, string[]> {
-  // The installed Mastra registry can lag newly released API model IDs, and has no entry for the proxy.
+
   const additions: Partial<Record<AiProvider, string[]>> = { openai: ['gpt-6-sol', 'gpt-6-luna'], cliproxyapi: ['gpt-6-luna', 'gpt-6.1-sol'] };
   return Object.fromEntries(AI_PROVIDERS.map((provider) => [
     provider,
@@ -35,6 +41,22 @@ export function conversationSession(owner: { officeId: string; userId: string },
 
 export const taskSession = () => `lume-task-${randomUUID()}`;
 
+/** Public V4 adapters preserve each native wire protocol and guard every concrete request. */
+export function protectedModelFor(config: ModelCredential, fetch: typeof globalThis.fetch): ReturnType<ReturnType<typeof createOpenAI>['responses']> {
+  switch (config.provider) {
+    case 'openai': return createOpenAI({ apiKey: config.apiKey, fetch }).responses(config.modelId);
+    case 'cliproxyapi': return createOpenAI({ apiKey: config.apiKey, baseURL: CLIPROXYAPI_BASE_URL,
+      headers: { 'Session-Id': config.session ?? taskSession() }, fetch }).responses(config.modelId);
+    case 'anthropic': return createAnthropic({ apiKey: config.apiKey, fetch })(config.modelId);
+    case 'google': return createGoogle({ apiKey: config.apiKey, fetch }).generativeAI(config.modelId);
+    case 'deepseek': return createDeepSeek({ apiKey: config.apiKey, fetch })(config.modelId);
+    case 'inception': return createOpenAICompatible({ name: 'inception', apiKey: config.apiKey,
+      baseURL: 'https://api.inceptionlabs.ai/v1/', supportsStructuredOutputs: true, fetch }).chatModel(config.modelId);
+    case 'openrouter': return createOpenRouter({ apiKey: config.apiKey, fetch })(config.modelId);
+    case 'vercel': return createGateway({ apiKey: config.apiKey, fetch })(config.modelId);
+  }
+}
+
 const fetchProxyWithoutRedirects: typeof fetch = async (input, init) => {
   const response = await globalThis.fetch(input, { ...init, redirect: 'manual' });
   if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
@@ -44,17 +66,14 @@ const fetchProxyWithoutRedirects: typeof fetch = async (input, init) => {
   return response;
 };
 
-// Each call binds the model to this credential; no global env key or shared client is used.
 export function modelFor(config: ModelCredential & { provider: Exclude<AiProvider, 'cliproxyapi'> }): RouterModel;
 export function modelFor(config: ModelCredential & { provider: 'cliproxyapi' }): ReturnType<ReturnType<typeof createOpenAI>['responses']>;
 export function modelFor(config: ModelCredential): MastraModelConfig;
 export function modelFor(config: ModelCredential): MastraModelConfig {
   if (!AI_PROVIDERS.includes(config.provider)) throw new Error('Provider não suportado.');
-  // The router would turn a custom URL into Chat Completions; the proxy keeps the Responses API that
-  // tools, structured output and native search were proven on.
+
   if (config.provider === 'cliproxyapi') {
-    return createOpenAI({ baseURL: CLIPROXYAPI_BASE_URL, apiKey: config.apiKey, headers: { 'Session-Id': config.session ?? taskSession() }, fetch: fetchProxyWithoutRedirects })
-      .responses(config.modelId);
+    return protectedModelFor(config, fetchProxyWithoutRedirects);
   }
   return { providerId: config.provider, modelId: config.modelId, apiKey: config.apiKey };
 }

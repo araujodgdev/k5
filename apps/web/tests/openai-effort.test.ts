@@ -1,3 +1,7 @@
+import './test-setup';
+import { fixtureSession } from './session-fixture';
+import {contentAdmission} from '../src/lib/content-admission';
+import {personPolicy} from '../src/lib/content-policy';
 import {testDb} from './test-setup';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,13 +15,13 @@ test('OpenAI requests carry the task effort through the Mastra adapter to the HT
   let body:Record<string,unknown>|undefined;
   t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
     body=JSON.parse(typeof init?.body==='string'?init.body:await new Request(input,init).text());
-    // Deliberately reject after inspecting the wire request; never contact a provider.
+
     return Response.json({error:{message:'Controlled provider rejection',type:'invalid_request_error',code:'invalid_api_key'}},{status:400});
   });
   await assert.rejects(testModelCredential({provider:'openai',modelId:'gpt-5.6-luna',apiKey:'test-only'},'xhigh'));
   assert.ok(body,'The provider adapter must perform an HTTP request');
   assert.equal((body.reasoning as {effort?:string}|undefined)?.effort??body.reasoning_effort,'xhigh');
-  // Provider default: no effort is sent at all.
+
   body=undefined;
   await assert.rejects(testModelCredential({provider:'openai',modelId:'gpt-5.6-luna',apiKey:'test-only'},null));
   const sent=body as Record<string,unknown>|undefined;
@@ -29,11 +33,13 @@ test('a structured answer that fails the schema is recorded as a failure with th
   const office=randomUUID(),user=randomUUID();
   await testDb.prepare('INSERT INTO user (id,email,name) VALUES (?,?,?)').run(user,`${user}@example.test`,'Advogada');
   await testDb.prepare('INSERT INTO office (id,name) VALUES (?,?)').run(office,'Escritório');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(),office,user);
+  const sessionId=await fixtureSession(user);
   t.mock.method(globalThis,'fetch',async()=>Response.json({id:'resp_1',object:'response',created_at:1,model:'gpt-6-luna',status:'completed',incomplete_details:null,
     output:[{type:'message',id:'msg_1',status:'completed',role:'assistant',content:[{type:'output_text',text:'{"wrong":1}',annotations:[]}]}],
     usage:{input_tokens:11,output_tokens:5,total_tokens:16}}));
   const config={task:'summary.email_digest' as const,provider:'openai' as const,modelId:'gpt-6-luna',apiKey:'test-only',connectionId:'c1',effort:null,modelSource:'group:summary',effortSource:'default'};
-  await assert.rejects(generateStructured(office,user,config,'Resuma.',z.object({ok:z.boolean()})),/A análise falhou/);
+  await assert.rejects(generateStructured(office,user,config,'Resuma.',z.object({ok:z.boolean()}),{admission:contentAdmission({officeId:office,userId:user,sessionId},'Resuma.',[personPolicy('','Resuma.')])}),/A análise falhou/);
   const rows=await testDb.prepare('SELECT task,status,input_tokens,output_tokens,error_class FROM ai_usage WHERE office_id=?').all(office);
   assert.deepEqual(rows,[{task:'summary.email_digest',status:'failed',input_tokens:11,output_tokens:5,error_class:'invalid_output'}]);
 });
@@ -42,6 +48,8 @@ test('structured vision sends the original image and a typed JSON schema through
   const office=randomUUID(),user=randomUUID();
   await testDb.prepare('INSERT INTO user (id,email,name) VALUES (?,?,?)').run(user,`${user}@example.test`,'Advogada');
   await testDb.prepare('INSERT INTO office (id,name) VALUES (?,?)').run(office,'Escritório');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(),office,user);
+  const sessionId=await fixtureSession(user);
   const bytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jkX8AAAAASUVORK5CYII=','base64');
   let requestBody:Record<string,unknown>|undefined;
   const originalFetch=globalThis.fetch;
@@ -53,7 +61,7 @@ test('structured vision sends the original image and a typed JSON schema through
       usage:{input_tokens:21,output_tokens:9,total_tokens:30}});
   });
   const config={task:'classification.trademark_logo' as const,provider:'openai' as const,modelId:'gpt-6-sol',apiKey:'test-only',connectionId:'c1',effort:null,modelSource:'group:classification',effortSource:'default'};
-  const result=await generateStructured(office,user,config,'Classifique.',z.object({code:z.string().regex(/^\d{1,2}\.\d{1,2}\.\d{1,2}$/)}),{image:{bytes,mimeType:'image/png'}});
+  const result=await generateStructured(office,user,config,'Classifique.',z.object({code:z.string().regex(/^\d{1,2}\.\d{1,2}\.\d{1,2}$/)}),{admission:contentAdmission({officeId:office,userId:user,sessionId},'Classifique.',[personPolicy('','Classifique.')]),image:{bytes,mimeType:'image/png'}});
   assert.deepEqual(result,{code:'27.5.1'});
   assert.ok(requestBody);
   const messages=requestBody.input as Array<{content:Array<{type:string;image_url?:string}>}>;

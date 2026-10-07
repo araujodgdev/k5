@@ -1,4 +1,5 @@
 import { FakeWhatsApp, testDb, whatsappFixture, whatsappIdentity, whatsappJson, whatsappThread } from './whatsapp-send-fixture';
+import {personRequestContext,recordingWriter} from './shared-writing-fixture';
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -92,22 +93,27 @@ test('multipart sends exact immutable bytes once and keeps authorized local prev
   }));
 });
 
-test('agent approval binds the attachment digest, filename, type, bytes and caption', async () => {
+test('agent approval binds the attachment digest, filename, type, bytes and admitted caption', async t => {
   const fixture = await whatsappFixture(), provider = new FakeWhatsApp(fixture);
   await provider.run(async () => {
     const uploaded = await uploadWhatsAppAttachment(fixture.context, fixture.threadId, file()); assert.ok(uploaded.id);
     const input = { threadId: fixture.threadId, text: 'Legenda aprovada', attachmentId: uploaded.id, idempotencyKey: randomUUID() };
-    const agent = { ...fixture.context, invocation: 'agent' as const };
+    const agent = await personRequestContext({ ...fixture.context, invocation: 'agent' as const },'Encaminhe a imagem com a legenda aprovada.');
+    const wire=await recordingWriter(t,fixture.userId,[{title:'Mensagem',content:'Legenda aprovada'}]);
     let approvalId = '';
     try { await sendWhatsAppText(agent, input); assert.fail('human approval required'); }
     catch (error) { assert.ok(error instanceof CapabilityError); assert.equal(error.code, 'APPROVAL_REQUIRED'); approvalId = approvalIdFromMessage(error.message) ?? ''; }
     assert.ok(approvalId);
     const proposal = await getApprovalProposal(fixture.context, approvalId); assert.ok(proposal);
+    const original=await testDb.prepare('SELECT sha256 FROM whatsapp_attachment WHERE id=?').get<{sha256:string}>(uploaded.id);assert.ok(original);
     assert.match(proposal.normalized_input, /sha256/); assert.match(proposal.normalized_input, /foto.png/);
     await approveProposal(fixture.context, approvalId);
-    await assert.rejects(sendWhatsAppText(agent, { ...input, text: 'Legenda alterada', approvalId }), { code: 'FORBIDDEN' });
+    await testDb.prepare('UPDATE whatsapp_attachment SET sha256=? WHERE id=?').run('b'.repeat(64),uploaded.id);
+    await assert.rejects(sendWhatsAppText(agent, { ...input, approvalId }), { code: 'FORBIDDEN' });
+    await testDb.prepare('UPDATE whatsapp_attachment SET sha256=? WHERE id=?').run(original.sha256,uploaded.id);
     assert.equal(provider.sends.length, 0);
-    assert.equal((await sendWhatsAppText(agent, { ...input, approvalId })).status, 'accepted');
+    assert.equal((await sendWhatsAppText(agent, { ...input, text:'PRIVATE_PLANNER_CHANGED', approvalId })).status, 'accepted');
+    assert.equal(wire.length,1);assert.doesNotMatch(JSON.stringify(provider.sends),/PRIVATE_PLANNER_CHANGED/);
   });
 });
 

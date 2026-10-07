@@ -1,3 +1,4 @@
+import { fixtureSession } from './session-fixture';
 import { testDb } from './test-setup';
 import { randomUUID } from 'node:crypto';
 import { encryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
@@ -57,7 +58,6 @@ export function installFakeGoogle() { const fake = new FakeGoogle(); setGoogleTr
 
 export type GoogleFixture = { context: WorkspaceContext; officeId: string; userId: string; connectionId: string; email: string };
 
-/** Office, member, rollout for every module and an active connection whose access token is valid. */
 export async function googleFixture(options: {
   modules?: GoogleModule[]; grantedModules?: GoogleModule[]; connect?: boolean; accessValid?: boolean;
 } = {}): Promise<GoogleFixture> {
@@ -79,10 +79,9 @@ export async function googleFixture(options: {
       encryptCredential(`refresh-${userId}`, ring), encryptCredential(`access-initial-${userId}`, ring),
       new Date(Date.now() + (options.accessValid === false ? -60_000 : 3_600_000)).toISOString());
   }
-  return { context: { officeId, userId }, officeId, userId, connectionId, email };
+  return { context: { officeId, userId, sessionId: await fixtureSession(userId) }, officeId, userId, connectionId, email };
 }
 
-/** Saves office rules directly (as an administrator would through the interface). */
 export async function setRule(officeId: string, action: string, rule: Partial<{ mode: 'blocked' | 'confirmation' | 'automatic'; dailyLimit: number | null; maxRecipients: number | null; maxAttachments: number | null; maxAttachmentBytes: number | null }>) {
   const { readPolicy, savePolicy } = await import('../src/lib/google/policy');
   const current = await readPolicy(officeId, testDb);

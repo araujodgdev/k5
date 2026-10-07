@@ -117,8 +117,8 @@ test('honorários pela interface: parcelamento, baixas integral e parcial, corre
   await app.open('/app/honorarios');
   await expect(screen.getByText('Acompanhamento processual').first()).toBeVisible();
   await noOverflow('lista celular');
-  await screen.getByRole('button', 'Mais').tap();
-  await expect(screen.getByRole('dialog').getByRole('link', 'Honorários')).toBeVisible();
+  await screen.getByRole('button', 'Abrir módulos').tap();
+  await expect(screen.getByRole('navigation', 'Módulos').getByRole('button', 'Honorários')).toBeVisible();
   await browser.keyboard.press('Escape');
   const create = screen.getByRole('button', 'Novo honorário');
   await create.tap();

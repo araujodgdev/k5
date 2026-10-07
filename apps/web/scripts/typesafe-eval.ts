@@ -1,4 +1,4 @@
-// Opt-in network evaluation. Uses an isolated PostgreSQL schema and synthetic data only.
+
 import { testDb } from './typesafe-eval-store';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -6,6 +6,8 @@ import { randomUUID } from 'node:crypto';
 import { ragCorpus, documentCorpus, agendaCorpus } from '../tests/fixtures/typesafe-corpus';
 import { saveConnection } from '../src/lib/typesafe/config';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
+import { contentAdmission } from '../src/lib/content-admission';
+import { personPolicy } from '../src/lib/content-policy';
 import { evaluate } from '../src/lib/typesafe/client';
 import { supportQuestions, supportVersion } from '../src/lib/typesafe/verification';
 import { interpretAgenda } from '../src/lib/typesafe/agenda';
@@ -50,7 +52,7 @@ for (const sample of ragCorpus.slice(0, limit)) {
 }
 for (let i = 0; i < Math.min(documentCorpus.length, limit); i += 4) {
   await budget(); const samples = documentCorpus.slice(i, Math.min(i + 4, limit));
-  const start = performance.now(); const result = await evaluate(context, 'documents', { state: { units: samples.map(sample => ({ text: sample.text, evidence: [{ quote: sample.evidence, text: sample.evidence }] })) }, questions: supportQuestions(samples.length), questionVersion: supportVersion });
+  const start = performance.now(); const result = await evaluate(context, 'documents', { state: { units: samples.map(sample => ({ text: sample.text, evidence: [{ quote: sample.evidence, text: sample.evidence }] })) }, questions: supportQuestions(samples.length), questionVersion: supportVersion }, { admission: contentAdmission(context,samples,[personPolicy('',JSON.stringify(samples))]) });
   samples.forEach((sample, n) => {
     const answer = result.response?.answers[`unit_${n}`]; const actual = answer?.type === 'choice' ? answer.choice : result.status;
     rows.push({ id: sample.id, split: sample.split, purpose: 'documents', expected: sample.expected, actual, correct: actual === sample.expected, falseSupport: actual === 'supported' && sample.expected !== 'supported', ms: Math.round(performance.now() - start) });

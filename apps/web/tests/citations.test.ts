@@ -1,3 +1,4 @@
+import { fixtureSession } from './session-fixture';
 import { testDb } from './test-setup';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -12,6 +13,9 @@ import type { DecisionRequest } from '../src/lib/typesafe/client';
 import { createConversation } from '../src/lib/ai-store';
 import { recordedWebSources } from '../src/lib/citations/web-step';
 import { runCapability } from '../src/lib/agent-tools';
+import { createUploadRef } from '../src/lib/application/uploads-service';
+import { createVaultDocument, processDocument } from '../src/lib/vault';
+import { personPolicy } from '../src/lib/content-policy';
 
 const text = [
   'Dos fatos. O réu, no processo 1234567-89.2024.8.26.0100, não pagou.',
@@ -26,7 +30,7 @@ test('web sources saved at the end of a search step are available to the next do
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Revisora');
   await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId, 'Fontes');
   await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
-  const owner = { officeId, userId };
+  const owner = { officeId, userId, sessionId: await fixtureSession(userId) };
   const chat = await createConversation(testDb, owner);
   await recordSources(owner, chat.id, recordedWebSources({ toolResults: [{ toolName: 'web_search', result: { results: [
     { url: 'https://example.test/cc', title: 'Código Civil', text: 'Art. 113 do Código Civil. Os negócios jurídicos devem ser interpretados conforme a boa-fé.' },
@@ -47,7 +51,6 @@ test('citations: a source matches on the main number and the named code or court
   ];
   assert.deepEqual(candidateSources('REsp 1.234.567/SP', sources).map(s => s.id), ['a']);
   assert.deepEqual(candidateSources('Lei 8.078/1990', sources).map(s => s.id), ['b']);
-  // Same article number in another code is not the same authority.
   assert.deepEqual(candidateSources('art. 319, IV, do CPC', sources).map(s => s.id), ['d']);
   assert.deepEqual(candidateSources('Súmula 54 do STJ', sources), []);
 });
@@ -76,18 +79,21 @@ async function fixture() {
   await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@test.local`, 'Advogada');
   await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId);
   await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId);
-  return { officeId, userId };
+  return { officeId, userId, sessionId: await fixtureSession(userId) };
 }
 
 test('citations: Jev decides what is a citation and whether the consulted source backs it', async () => {
   const owner = await fixture();
   await saveConnection(owner.userId, connectionSettings.parse({ apiKey: `fake-${owner.officeId}`, enabled: true, documents: 'enabled', version: (await connectionView()).version }));
   const conversation = await createConversation(testDb, owner);
-  // The Lume searched case law and read one excerpt of the Cofre during the conversation.
+  const upload = await createUploadRef(owner, new File(['O art. 319 do CPC lista os requisitos da petição inicial.'], 'manual.txt', { type: 'text/plain' }));
+  const document = await createVaultDocument(owner, upload, { scope: 'library', policy: personPolicy('', '') });
+  await processDocument(document.id, owner.officeId);
+  const consulted = await runCapability(owner, 'k5_knowledge_search', { query: 'requisitos petição inicial' });
   await recordSources(owner, conversation.id, [
     ...sourcesFromTool('k5_research_score_jurisprudence', { results: [{ title: 'REsp 1.234.567/SP', court: 'STJ', caseNumber: '1.234.567', url: 'https://stj.jus.br/resp', summary: 'Dano moral presumido em negativação indevida.', linkFound: true },
       { title: 'REsp inventado', court: 'STJ', caseNumber: '9.999.999', url: 'https://stj.jus.br/inventado', summary: 'Sem fonte.', linkFound: false }] }),
-    ...sourcesFromTool('k5_knowledge_search', { sources: [{ sourceId: 'chunk-1', sourceLabel: 'manual.pdf — página 3', text: 'O art. 319 do CPC lista os requisitos da petição inicial.' }] }),
+    ...sourcesFromTool('k5_knowledge_search', consulted),
   ]);
   const sources = await conversationSources(owner, conversation.id);
   assert.equal(sources.length, 2);
@@ -98,7 +104,6 @@ test('citations: Jev decides what is a citation and whether the consulted source
     asked.push(...Object.keys(request.questions));
     const state = request.state as { citations: Array<{ text: string; paragraph: string }> };
     sentCitations.push(...state.citations);
-    // A well-formed choice spreads its probability over every criterion, as the service does.
     const pick = (name: string, value: string, confidence: number) => {
       const keys = Object.keys((request.questions[name] as { criteria: Record<string, string> }).criteria);
       const rest = (1 - confidence) / (keys.length - 1);
@@ -109,7 +114,6 @@ test('citations: Jev decides what is a citation and whether the consulted source
       const citation = state.citations[Number(index)].text;
       if (kind === 'kind') return [name, citation.includes('-89.2024') ? pick(name, 'mention', 0.95) : pick(name, citation.startsWith('REsp') || citation.startsWith('Súmula') ? 'precedent' : 'statute', 0.9)];
       if (kind === 'match') return [name, noul(0.92)];
-      // The case law source backs the paragraph; the manual only lists requirements, so it backs it in part.
       return [name, citation.startsWith('REsp') ? pick(name, 'supports', 0.93) : pick(name, 'partial', 0.8)];
     }));
     return { model: request.model, usage: { input_tokens: 10, output_tokens: 0 }, answers };
@@ -122,16 +126,13 @@ test('citations: Jev decides what is a citation and whether the consulted source
   assert.match(sentCitations.find(citation => citation.text === 'art. 319, IV, do CPC')!.paragraph, /^Requer a citação/);
   assert.equal(review.mentions, 1, 'the client case number is not a citation');
   assert.deepEqual(review.items.map(item => [item.text, item.kind, item.status, item.source?.title ?? null]), [
-    ['art. 319, IV, do CPC', 'statute', 'weak', 'manual.pdf — página 3'],
+    ['art. 319, IV, do CPC', 'statute', 'weak', sources.find(source => source.kind === 'vault')!.title],
     ['Súmula 54 do STJ', 'precedent', 'no_source', null],
     ['REsp 1.234.567/SP', 'precedent', 'verified', 'REsp 1.234.567/SP'],
     ['Lei 8.078/1990', 'statute', 'no_source', null],
   ]);
-  // Only citations with a candidate source ask whether that source is the one cited.
   assert.equal(asked.filter(name => name.startsWith('match_')).length, 2);
 
-  // Without Jev, nothing is judged: spans with a matching source become "unchecked", the rest
-  // "no_source", and nothing can be ruled out as a mere mention (the client's case number stays).
   await saveConnection(owner.userId, connectionSettings.parse({ enabled: true, documents: 'off', version: (await connectionView()).version }));
   const offline = await reviewCitations(owner, text, sources, { send });
   assert.equal(offline.status, 'disabled');

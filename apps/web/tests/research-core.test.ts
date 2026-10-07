@@ -1,3 +1,4 @@
+import { fixtureSession } from './session-fixture';
 import { testDb } from './test-setup';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -51,7 +52,7 @@ async function actor(): Promise<WorkspaceContext> {
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@test.invalid`,'Pesquisador'));
   (await testDb.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Escritório de teste'));
   (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(),officeId,userId));
-  return {officeId,userId};
+  return {officeId,userId,sessionId:await fixtureSession(userId)};
 }
 async function source() {
   return upsertInstallation({kind:'jurisprudence_api',courtCode:'TJDFT',courtName:'Tribunal de Justiça do Distrito Federal',
@@ -521,7 +522,7 @@ test('replay reconstitui job de material após queda entre resultado e fila',asy
   const judgmentId=await upsertSourceJudgment(installation,{
     ...record(native,`${theme} guarda`),fullTextStatus:'pending',
   });
-  // The result was committed, but the old worker died before enqueueing its full text.
+
   (await testDb.prepare(`INSERT INTO research_search_result
     (id,search_id,page_id,judgment_id,position,origin) VALUES(?,?,?,?,0,'source')`)
     .run(randomUUID(),search.id,page.id,judgmentId));

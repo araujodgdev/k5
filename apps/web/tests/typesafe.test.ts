@@ -1,11 +1,14 @@
+import { fixtureSession } from './session-fixture';
 import { testDb, testDatabase } from './test-setup';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { saveConnection, connectionView, removeConnection } from '../src/lib/typesafe/config';
 import { connectionSettings } from '../src/lib/typesafe/contracts';
-import { evaluate, type DecisionTransport, type DecisionRequest } from '../src/lib/typesafe/client';
-import { rerank } from '../src/lib/typesafe/rerank';
+import { contentAdmission } from '../src/lib/content-admission';
+import { personPolicy, observePage } from '../src/lib/content-policy';
+import { evaluate as evaluateProtected, type DecisionTransport, type DecisionRequest } from '../src/lib/typesafe/client';
+import { rerank as rerankProtected } from '../src/lib/typesafe/rerank';
 import { localInstant, temporalCandidates } from '../src/lib/typesafe/agenda-time';
 import { interpretAgenda } from '../src/lib/typesafe/agenda';
 import { enqueueVerification, processNextVerification, getVerification } from '../src/lib/typesafe/verification';
@@ -19,6 +22,14 @@ import { decryptCredential, encryptCredential, parseCredentialKeyring } from '..
 import { runWorkerQueues } from '../src/lib/worker-scheduler';
 import { enqueueDeletion, processNextDeletion } from '../src/lib/knowledge/indexing';
 import { withTransaction } from '../src/lib/database';
+import { createPage } from '../src/lib/case-pages/service';
+
+function evaluate(context: WorkspaceContext, purpose: Parameters<typeof evaluateProtected>[1], request: Parameters<typeof evaluateProtected>[2], options: Omit<Parameters<typeof evaluateProtected>[3],'admission'>) {
+  return evaluateProtected(context,purpose,request,{ ...options,admission: contentAdmission(context,request,[personPolicy('',JSON.stringify(request))]) });
+}
+function rerank(context: WorkspaceContext, query: string, sources: Parameters<typeof rerankProtected>[2], options: Omit<Parameters<typeof rerankProtected>[3],'policies'>) {
+  return rerankProtected(context,query,sources,{ ...options,policies: source => [personPolicy('',source.text)] });
+}
 
 async function fixture() {
   const officeId = randomUUID(); const userId = randomUUID();
@@ -26,7 +37,7 @@ async function fixture() {
   (await testDb.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId, `${userId}@example.test`, 'Advogado'));
   (await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES(?,?,?)').run(randomUUID(), officeId, userId));
   (await testDb.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(userId));
-  return { officeId, userId } as WorkspaceContext;
+  return { officeId, userId, sessionId: await fixtureSession(userId) } as WorkspaceContext;
 }
 async function configure(context: WorkspaceContext, patch: Record<string, unknown> = {}) {
   return saveConnection(context.userId, connectionSettings.parse({ apiKey: `fake-${context.officeId}`, enabled: true, rag: 'enabled', documents: 'enabled', agenda: 'enabled', version: (await connectionView()).version, ...patch }));
@@ -54,12 +65,12 @@ test('typesafe: an existing office key is adopted once as the platform connectio
   const row = (await testDb.prepare('SELECT encrypted_api_key,adopted_from_office_id FROM typesafe_platform_connection WHERE id=1').get<{ encrypted_api_key: string; adopted_from_office_id: string }>())!;
   assert.equal(decryptCredential(row.encrypted_api_key, parseCredentialKeyring()), 'legacy-office-key');
   assert.equal(row.adopted_from_office_id, b.officeId);
-  // Every office now evaluates with that one key.
+
   for (const context of [a, b]) {
     const result = await evaluate(context, 'rag', request, { send: async (key, req) => { assert.equal(key, 'legacy-office-key'); return response(req); } });
     assert.equal(result.status, 'evaluated');
   }
-  // Removing the platform key never re-adopts an office key.
+
   await removeConnection(a.userId);
   assert.equal((await connectionView()).hasKey, false);
 });
@@ -88,7 +99,7 @@ test('typesafe: one platform credential serves every office and provider failure
   const audits = (await testDb.prepare('SELECT * FROM typesafe_evaluation WHERE office_id=?').all(b.officeId));
   assert.ok(!JSON.stringify(audits).includes('Texto de teste privado'));
 });
-test('typesafe: concurrent reservations bound spend and timeout remains charged', async () => {
+test('typesafe: concurrent reservations bound spend and attempted cancellation remains charged', async () => {
   const context = (await fixture()); await configure(context, { concurrency: 1 });
   let release!: () => void;
   const waiting = new Promise<void>(resolve => { release = resolve; });
@@ -97,22 +108,24 @@ test('typesafe: concurrent reservations bound spend and timeout remains charged'
   await ready;
   assert.equal((await evaluate(context, 'rag', request, { send })).status, 'budget_exceeded');
   release(); assert.equal((await first).status, 'evaluated');
-  const timed = await evaluate(context, 'rag', request, { deadlineMs: 5, send: async (_key, _req, signal) => new Promise((_resolve, reject) => {
-    signal.addEventListener('abort', () => reject(new Error('timeout')), { once: true });
-    setTimeout(() => reject(new Error('transport timeout')), 30);
+  const controller=new AbortController(),entered=Promise.withResolvers<void>();
+  const timed = evaluate(context, 'rag', request, { signal:controller.signal,send: async (_key, _req, signal) => new Promise((_resolve, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });entered.resolve();
   }) });
-  assert.equal(timed.status, 'unavailable');
-  const row = (await testDb.prepare('SELECT reserved_tokens,input_tokens FROM typesafe_evaluation WHERE id=?').get(timed.evaluationId!))!;
+  const stopped=assert.rejects(timed,{name:'AbortError'});
+  await entered.promise;controller.abort();await stopped;
+  const row = (await testDb.prepare('SELECT reserved_tokens,input_tokens FROM typesafe_evaluation WHERE user_id=? ORDER BY started_at DESC LIMIT 1').get(context.userId))!;
   assert.ok(Number(row.reserved_tokens) > 0); assert.equal(row.input_tokens, null);
 });
 test('typesafe: mudança de configuração durante reserva distingue desativação de indisponibilidade', async () => {
   const context = await fixture(); await configure(context);
-  async function race(update: string) {
+  async function race(update: string, queued = false) {
     let evaluation!: ReturnType<typeof evaluate>;
     let providerCalled = false;
+    const expected = await testDb.prepare('SELECT version,model FROM typesafe_platform_connection WHERE id=1').get<{version:number;model:string}>();
     await withTransaction(async tx => {
       await tx.prepare('SELECT id FROM typesafe_platform_connection WHERE id=1 FOR UPDATE').get();
-      evaluation = evaluate(context, 'rag', request, { send: async () => { providerCalled = true; throw new Error('provider called'); } });
+      evaluation = evaluate(context, 'rag', request, { expectedConfiguration: queued ? expected : undefined, send: async () => { providerCalled = true; throw new Error('provider called'); } });
       const deadline = Date.now() + 5000;
       while (true) {
         const waiting = await testDb.prepare(`SELECT count(*) AS count FROM pg_stat_activity
@@ -133,6 +146,10 @@ test('typesafe: mudança de configuração durante reserva distingue desativaç�
   const changed = await race('UPDATE typesafe_platform_connection SET version=version+1 WHERE id=1');
   assert.equal(changed.status, 'unavailable');
   assert.equal(changed.reason, 'configuration_changed');
+  await configure(context);
+  const queuedDisabled = await race('UPDATE typesafe_platform_connection SET enabled=0,version=version+1 WHERE id=1', true);
+  assert.equal(queuedDisabled.status, 'unavailable');
+  assert.equal(queuedDisabled.reason, 'configuration_changed');
 });
 test('typesafe: invalid answers, context limit, changed configuration and circuit breaker', async () => {
   const context = (await fixture()); await configure(context);
@@ -171,14 +188,14 @@ test('typesafe: two rerank batches can share an office with concurrency one', as
   assert.deepEqual(ranked.sources.map(source => source.sourceId), ['b', 'a']);
 });
 
-test('typesafe: cancelling a multi-batch rerank preserves the baseline and skips remaining calls', async () => {
+test('typesafe: cancelling a multi-batch rerank preserves the cancellation and skips remaining calls', async () => {
   const context = (await fixture()); await configure(context, { concurrency: 1 });
   const sources = [{ sourceId: 'a', text: 'a'.repeat(12000) }, { sourceId: 'b', text: 'b'.repeat(12000) }];
   const controller = new AbortController(); let calls = 0;
-  const result = await rerank(context, 'consulta', sources, { signal: controller.signal, send: async (_key, req) => {
+  await assert.rejects(rerank(context, 'consulta', sources, { signal: controller.signal, send: async (_key, req) => {
     calls++; controller.abort(); return response(req);
-  } });
-  assert.equal(calls, 1); assert.equal(result.applied, false); assert.deepEqual(result.sources, sources);
+  } }),{name:'AbortError'});
+  assert.equal(calls, 1);
 });
 test('agenda interpretation: no mutation, no invented meeting end, owner-scoped suggestions', async () => {
   const context = (await fixture()); const other = (await fixture()); await configure(context);
@@ -204,7 +221,7 @@ test('agenda autonomy: the Lume saves activities itself, WebMCP only suggests', 
 });
 test('agenda confirmation: concurrent retries and changed payload, receipt survives missing idempotency cache', async () => {
   const context = (await fixture());
-  const { proposal } = await interpretAgenda(context, { message: 'Revisar contrato' });
+  const { proposal } = await interpretAgenda(context, { message: 'Revisar contrato' }, send);
   const input = { proposalId: proposal.id, version: 1, payload: { kind: 'task', title: 'Revisar contrato' } };
   const [a, b] = await Promise.all([runCapability(context, 'k5_agenda_apply_proposal', input), runCapability(context, 'k5_agenda_apply_proposal', input)]);
   assert.deepEqual(a, b);
@@ -214,7 +231,7 @@ test('agenda confirmation: concurrent retries and changed payload, receipt survi
   await assert.rejects(runCapability(context, 'k5_agenda_apply_proposal', { ...input, payload: { ...input.payload, title: 'Outro título' } }), { code: 'CONFLICT' });
 });
 test('agenda confirmation: receipt and activity roll back together on persistence failure', async () => {
-  const context = (await fixture()); const { proposal } = await interpretAgenda(context, { message: 'Revisar minuta' });
+  const context = (await fixture()); const { proposal } = await interpretAgenda(context, { message: 'Revisar minuta' }, send);
   (await testDb.exec("CREATE FUNCTION fail_proposal_receipt_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'receipt failure'; END $$; CREATE TRIGGER fail_proposal_receipt BEFORE UPDATE OF result ON agenda_proposal FOR EACH ROW WHEN (NEW.result IS NOT NULL) EXECUTE FUNCTION fail_proposal_receipt_fn()"));
   try {
     await assert.rejects(runCapability(context, 'k5_agenda_apply_proposal', { proposalId: proposal.id, version: 1, payload: { kind: 'task', title: 'Revisar minuta' } }));
@@ -236,6 +253,8 @@ async function documentFixture(context: WorkspaceContext) {
   (await testDb.prepare("INSERT INTO vault_document_chunk(id,document_id,office_id,ordinal,stable_reference,content) VALUES(?,?,?,0,'parágrafo:1',?)").run(sourceId, docId, context.officeId, quote));
   (await testDb.prepare("INSERT INTO ai_run(id,office_id,user_id,kind,input,status) VALUES(?,?,?,'draft','{}','completed')").run(runId, context.officeId, context.userId));
   (await testDb.prepare("INSERT INTO ai_artifact(id,office_id,user_id,run_id,title,content) VALUES(?,?,?,?,'Minuta','O valor foi de R$ 700.')").run(artifactId, context.officeId, context.userId, runId));
+  await testDb.prepare(`INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active) SELECT ?,office_id,id,1,original_name,stored_name,mime_type,byte_size,sha256,created_by,1 FROM vault_document WHERE id=?`).run(randomUUID(),docId);
+  await testDb.prepare('UPDATE vault_document SET extracted_version=1,extracted_sha256=sha256 WHERE id=?').run(docId);
   return { artifact: (await ownedArtifact(testDatabase, context, artifactId))!, docId, sourceId, units: [{ id: 'p1', text: 'O valor foi de R$ 700.', evidence: [{ sourceId, quote }] }] };
 }
 test('document verification: semantic contradiction, incomplete coverage, no automatic approval and version invalidation', async () => {
@@ -292,7 +311,7 @@ test('document verification: revocation during a provider call discards the judg
 test('agenda confirmation: changed target version and foreign-office links require correction', async () => {
   const context = (await fixture()); const other = (await fixture());
   const { activity } = agendaCapabilities.k5_agenda_create_activity.output.parse(await runCapability(context, 'k5_agenda_create_activity', { kind: 'task', title: 'Atividade original' }));
-  const { proposal } = await interpretAgenda(context, { message: 'Concluir atividade original' });
+  const { proposal } = await interpretAgenda(context, { message: 'Concluir atividade original' }, send);
   await runCapability(context, 'k5_agenda_update_activity', { activityId: activity.id, version: activity.version, title: 'Editada por outra sessão' });
   await assert.rejects(runCapability(context, 'k5_agenda_apply_proposal', { proposalId: proposal.id, version: 1, activityId: activity.id, activityVersion: activity.version, payload: { kind: 'task', title: activity.title, status: 'completed' } }), { code: 'CONFLICT' });
   assert.equal((await testDb.prepare('SELECT status FROM agenda_activity WHERE id=?').get(activity.id))!.status, 'pending');
@@ -313,7 +332,7 @@ test('typesafe: an incomplete reranking batch leaves the entire baseline unchang
 test('worker scheduling: a blocked verification does not delay pending deletion or subsequent work', async () => {
   const context = (await fixture()); await configure(context); const data = await documentFixture(context);
   await enqueueVerification(context, data.artifact, Array.from({ length: 9 }, (_, i) => ({ ...data.units[0], id: `p${i}` })));
-  // A nonexistent legacy object is still a real deletion-queue item; cleanup must close it.
+
   await enqueueDeletion(context.officeId, 'object', `missing-${randomUUID()}.txt`);
   let release!: () => void; const blocked = new Promise<void>(resolve => { release = resolve; });
   let entered!: () => void; const started = new Promise<void>(resolve => { entered = resolve; });
@@ -334,7 +353,7 @@ test('worker scheduling: a blocked verification does not delay pending deletion 
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await started;
-    // No provider timer: hold its promise until the assertions have inspected queue progress.
+
     await Promise.race([progress, new Promise<never>((_resolve, reject) => {
       timer = setTimeout(() => reject(new Error('Subsequent worker passes remained blocked')), 1000);
     })]);
@@ -356,4 +375,31 @@ test('typesafe: simultaneous reservations respect platform concurrency', async (
   assert.ok(calls >= 1 && calls < 6);
   assert.equal(results.filter(result => result.status === 'evaluated').length, calls);
   assert.equal(results.filter(result => result.status === 'budget_exceeded').length, 6 - calls);
+});
+
+for(const denial of ['source','expiry'] as const) test(`TypeSafe final admission rejects ${denial} while the real reservation row is held`,async () => {
+  const context=await fixture();await configure(context);
+  const caseId=randomUUID();await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId,context.officeId,'Reserva protegida',context.userId);
+  const page=(await createPage(context,{caseId,title:'Fonte',content:'HELD_RESERVATION_PROTECTED_TEXT'})).page;
+  const source=await observePage(context.userId,page.id,caseId);
+  const request={state:source.content,questionVersion:'held-v1',questions:{present:{type:'noul' as const,instructions:'Existe texto?'}}};
+  const admission=contentAdmission(context,request,[source.policy]);
+  const ready=Promise.withResolvers<void>(),release=Promise.withResolvers<void>();
+  const lock=withTransaction(async tx=>{await tx.prepare('SELECT 1 FROM typesafe_platform_connection WHERE id=1 FOR UPDATE').get();ready.resolve();await release.promise;});
+  await ready.promise;
+  let calls=0;
+  const pending=evaluateProtected(context,'rag',request,{admission,send:async (_key,payload)=>{calls++;return response(payload);}});
+  const result=pending.then(value=>({value}),error=>({error}));
+  try {
+    const deadline=Date.now()+5000;
+    while(!await testDb.prepare("SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE '%typesafe_platform_connection%FOR UPDATE%'").get()) {
+      assert.ok(Date.now()<deadline,'real reservation reached its row lock');await new Promise<void>(resolve=>setTimeout(resolve,5));
+    }
+    if(denial==='source')await testDb.prepare('UPDATE vault_case SET deleted_at=CURRENT_TIMESTAMP WHERE id=?').run(caseId);
+    else {await testDb.prepare('UPDATE session SET "expiresAt"=clock_timestamp()+interval \'40 milliseconds\' WHERE id=?').run(context.sessionId);await testDb.prepare('SELECT pg_sleep(0.06)').get();}
+  } finally {release.resolve();await lock;}
+  const outcome=await result;assert.ok('error' in outcome);assert.equal((outcome.error as {code:string}).code,denial==='source'?'NOT_FOUND':'UNAUTHENTICATED');
+  assert.equal(calls,0);
+  assert.deepEqual(await testDb.prepare('SELECT status,reason,reserved_tokens FROM typesafe_evaluation WHERE user_id=?').all(context.userId),[{status:'unavailable',reason:'denied',reserved_tokens:0}]);
+  assert.equal((await testDb.prepare('SELECT failures FROM typesafe_platform_connection WHERE id=1').get<{failures:number}>())!.failures,0);
 });

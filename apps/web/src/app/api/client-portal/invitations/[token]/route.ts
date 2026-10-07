@@ -13,9 +13,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const { token } = await params;
     const invitation = await portalInvitation(database, token);
     const session = await auth.api.getSession({ headers: request.headers, query: { disableCookieCache: true } });
-    if (session) { await acceptPortalInvitation(database, token, session.user); return Response.json({ accepted: true }); }
+    if (session) { await acceptPortalInvitation(database, token, session.user, { id: session.session.id, signal: request.signal }); return Response.json({ accepted: true }); }
     const input = z.object({ name: z.string().trim().min(2).max(120), password: z.string().min(8).max(128), acceptedLegalVersion: z.string().max(20).optional() }).parse(await limitedJson(request, 4096));
-    // The response carries Better Auth's signed session cookie; password hashing remains its responsibility.
     const headers = new Headers(request.headers); headers.delete('content-length'); headers.set('content-type', 'application/json');
     const response = await withClientRegistration(token, () => auth.handler(new Request(new URL('/api/auth/sign-up/email', request.url), {
       method: 'POST', headers, body: JSON.stringify({ ...input, email: invitation.email, officeName: 'Portal do cliente', callbackURL: '/client' }),

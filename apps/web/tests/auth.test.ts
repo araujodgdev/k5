@@ -1,3 +1,4 @@
+import './server-only-fixture';
 import { postgresFixture } from './postgres-fixture';
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -11,6 +12,20 @@ import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 const origin = "http://localhost:3000";
 const password = "Senha-teste-2026!";
+
+test('a real Better Auth session expires naturally without an update or logout', async t => {
+  const { db, request, signup } = await fixture(undefined, undefined, undefined, undefined, 2);
+  t.after(() => db.close());
+  const result = await signup();
+  assert.ok((await request('/get-session', undefined, result.cookie)).data?.user);
+  for (let n = 0; ; n++) {
+    const row = await db.prepare('SELECT expiresAt<clock_timestamp() AS expired FROM session WHERE userId=?').get<{ expired: boolean }>(result.data.user.id);
+    if (row?.expired) break;
+    assert.ok(n < 150, 'The endpoint-issued session must reach its natural expiry');
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  assert.equal((await request('/get-session', undefined, result.cookie)).data, null);
+});
 
 test('portal registration binds the invitation through Better Auth without office provisioning', async () => {
   const { db, database, request, signup } = await fixture();
@@ -144,9 +159,9 @@ test('cada advogado tem um único escritório, e ninguém entra no escritório d
   assert.equal((await request('/get-session', undefined, first.cookie)).data, null);
 });
 
-async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof createAuth>[2]['passwordReset'], emailVerification?: Parameters<typeof createAuth>[2]['emailVerification'], signUpChallenge?: Parameters<typeof createAuth>[2]['signUpChallenge']) {
+async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof createAuth>[2]['passwordReset'], emailVerification?: Parameters<typeof createAuth>[2]['emailVerification'], signUpChallenge?: Parameters<typeof createAuth>[2]['signUpChallenge'], idleSeconds = 3600) {
   const { db, database, pool } = await postgresFixture({seedDefaults:false});
-  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds: 3600, ipHeaders, passwordReset, emailVerification, signUpChallenge });
+  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds, ipHeaders, passwordReset, emailVerification, signUpChallenge });
   async function request(path: string, body?: object, cookie = "", requestOrigin = origin, connectingIp?: string) {
     const response = await auth.handler(new Request(`${origin}/api/auth${path}`, {
       method: body ? "POST" : "GET",

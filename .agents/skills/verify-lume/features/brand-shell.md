@@ -37,6 +37,9 @@ Preconditions:
 
 ## Gotchas
 
+- The canvas tab is registered by the hydrated workspace. Wait for its Início button before opening modules. A visible SSR panel and the redirected URL do not prove that the menu is interactive.
+- The sign-in helper waits for `/app/command-center` and the registered canvas tab before dismissing the tutorial. Starting the optional tutorial wait on `/app` can lose its execution context during the redirect or finish before hydration, leaving the welcome dialog in the saved session.
+
 - The instance has no AI connection, so `/app/agents` may show the unavailable state instead of the composer. Assert the title, not an answer.
 - Mensagens keeps a request open, so `networkidle` never arrives; wait for `main` or a heading instead.
 - `/app` redirects; wait for `/app/command-center` before the next `app.open`, or the redirect can land on top of it.

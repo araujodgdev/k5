@@ -28,7 +28,8 @@ test('termos e aviso de IA: aceite antes do escritório e ciência antes da prim
   await screen.getByRole('button', 'Entendi').tap();
   await expect(screen.getByRole('heading', 'Antes de usar o Lume')).toBeHidden();
   // Without an AI connection the chat may show its unavailable state; the page itself is what opens.
-  await expect(screen.getByRole('heading', { name: 'Lume', level: 1 })).toBeAttached();
+  await expect(screen.getByRole('complementary', 'Lume', { exact: true })).toBeVisible();
+  await expect(screen.getByRole('textbox', 'Pergunte ao Lume')).toBeVisible();
 
   const rows = await sql<{ document: string }>(`SELECT a.document FROM legal_acceptance a JOIN "user" u ON u.id = a.user_id
     WHERE u.email = $1 ORDER BY a.document`, [account.email]);

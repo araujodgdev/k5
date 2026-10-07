@@ -117,7 +117,7 @@ export async function startChatRun(turn: ChatTurn) {
   if (!run) return;
   void executeChatRun(run, turn).finally(() => setTimeout(() => {
     if (processRuns.get(turn.conversationId) === run) processRuns.delete(turn.conversationId);
-  }, FINISHED_RUN_MS));
+  }, FINISHED_RUN_MS).unref?.());
 }
 
 /** Callers check that the conversation belongs to the person before following or cancelling it. */

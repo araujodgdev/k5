@@ -17,6 +17,7 @@ test('o manifesto, os ícones e o service worker do Lume estão publicados para 
 
 test('instalar o Lume usa o convite do navegador ou explica como instalar, e o tema escuro ajusta a cor da barra', { session: 'admin' }, async ({ app, screen, browser }) => {
   await app.open('/app/command-center');
+  await screen.getByRole('button', /^Conta de /).tap();
   const install = screen.getByRole('button', 'Instalar Lume', { visible: true });
   await expect(install).toBeVisible();
   // Chromium only offers the prompt to an installable, engaged page; fire it as the browser would.

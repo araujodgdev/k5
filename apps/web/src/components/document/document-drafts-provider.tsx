@@ -1,8 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ComponentProps, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { DocumentDrafts } from '@/lib/document-drafts';
 
 function createDraftContext() {
@@ -14,9 +12,16 @@ function createDraftContext() {
       saves.set(id, save);
       return () => { if (saves.get(id) === save) saves.delete(id); };
     },
-    hasOpenDraft() { return saves.size > 0; },
+    invalidate(id: string) {
+      saves.delete(id);
+      drafts.invalidate(id);
+    },
     async saveOpen() {
-      const results = await Promise.all([...saves.values()].map(save => save()));
+      const results = await Promise.all([...saves.entries()].map(async ([id, save]) => {
+        const draft = drafts.get(id);
+        const saved = await save();
+        return saved || draft.getSnapshot() === null;
+      }));
       return results.every(Boolean);
     },
   };
@@ -52,19 +57,4 @@ export function useDocumentDraft(id: string) {
 export function useSaveDocumentsBeforeExit() {
   const { drafts, saveOpen } = useDocumentDrafts();
   return useCallback(async () => await saveOpen() && !drafts.hasUnsaved(), [drafts, saveOpen]);
-}
-
-export function DocumentNavigationLink({ href, replace, scroll, ...props }: Omit<ComponentProps<typeof Link>, 'href' | 'onNavigate'> & { href: string }) {
-  const router = useRouter();
-  const { hasOpenDraft, saveOpen } = useDocumentDrafts();
-  return <Link {...props} href={href} replace={replace} scroll={scroll} onNavigate={event => {
-    if (!hasOpenDraft()) return;
-    event.preventDefault();
-    void saveOpen().then(saved => {
-      if (saved) {
-        if (replace) router.replace(href, { scroll });
-        else router.push(href, { scroll });
-      }
-    });
-  }} />;
 }

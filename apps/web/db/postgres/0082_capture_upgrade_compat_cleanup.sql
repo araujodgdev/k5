@@ -1,0 +1,2 @@
+DROP TRIGGER capture_upgrade_preserve_approval ON capability_approval;
+DROP FUNCTION lume_capture_upgrade_preserve_approval();

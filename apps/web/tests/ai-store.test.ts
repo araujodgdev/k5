@@ -1,3 +1,4 @@
+import { updateArtifact } from './document-writes';
 import { postgresFixture } from './postgres-fixture';
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -5,11 +6,12 @@ import test from "node:test";
 import type { UIMessage } from "ai";
 import {
   claimRun, conversation, conversationBootstrap, createConversation, mergeHistory, ownedArtifact, ownedRun,
-  publicArtifact, publicRun, saveMessages, updateArtifact,
+  publicArtifact, publicRun, saveMessages,
 } from "../src/lib/ai-store";
 
 async function fixture() {
-  const { db } = await postgresFixture();
+  const { db, pool } = await postgresFixture();
+  (globalThis as unknown as { k5Database: Promise<unknown> }).k5Database = Promise.resolve({ database: db, store: pool });
   const userA = randomUUID(), userB = randomUUID(), officeA = randomUUID(), officeB = randomUUID();
   (await db.prepare("INSERT INTO user (id,email,name) VALUES (?,?,?),(?,?,?)").run(userA, "a@example.test", "A", userB, "b@example.test", "B"));
   (await db.prepare("INSERT INTO office (id,name) VALUES (?,?),(?,?)").run(officeA, "Alfa Advocacia", officeB, "Beta Advocacia"));

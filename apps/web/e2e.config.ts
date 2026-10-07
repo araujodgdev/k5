@@ -52,7 +52,7 @@ export default {
       system: 'Você é um QA cuidadoso testando o Lume, um aplicativo de escritório de advocacia em português do Brasil. '
         + 'Use os rótulos exatamente como aparecem na tela e confirme cada resultado antes de terminar.',
       context: 'Lume é o assistente e o nome do produto. "Escritório" reúne Tarefas, Clientes e Associados em /app/agenda; '
-        + '"Cofre" guarda casos e arquivos em /app/vault. No celular, as seções extras ficam no botão "Mais".',
+        + '"Cofre" guarda casos e arquivos em /app/vault. "Abrir módulos" abre as seções. No celular, Lume e Canvas alternam os espaços.',
     },
   },
 } satisfies E2EConfig;

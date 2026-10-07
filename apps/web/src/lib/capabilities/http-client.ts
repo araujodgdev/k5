@@ -10,15 +10,23 @@ type Route = {
 
 const id = (value: unknown) => encodeURIComponent(String(value ?? ''));
 
-/**
- * One route per capability. Nothing is synthesised on the client: a download link that the server
- * never confirmed is a result the agent cannot distinguish from a real one, for a document that
- * may not exist or may not belong to this office.
- */
 const googleRoutes = Object.fromEntries<Route>(Object.entries(googleOperations).map(([operation, name]) =>
   [name, { method: 'POST', path: () => googleOperationPath(operation as GoogleOperation), body: (i: Record<string, unknown>) => i } satisfies Route])) as Record<GoogleCapabilityName, Route>;
 
 const routes: Record<CapabilityName, Route> = {
+  k5_case_tasks_list: {method:'GET',path:i=>'/api/cases/'+id(i.caseId)+'/tasks'},
+  k5_case_tasks_get: {method:'GET',path:i=>'/api/cases/'+id(i.caseId)+'/tasks/'+id(i.activityId)},
+  k5_case_tasks_create: {method:'POST',path:i=>'/api/cases/'+id(i.caseId)+'/tasks',body:i=>i},
+  k5_case_tasks_update: {method:'PUT',path:i=>'/api/cases/'+id(i.caseId)+'/tasks/'+id(i.activityId),body:i=>i},
+  k5_case_pages_list: { method: 'POST', path: () => '/api/capabilities/k5_case_pages_list', body: i => i },
+  k5_case_pages_get: { method: 'POST', path: () => '/api/capabilities/k5_case_pages_get', body: i => i },
+  k5_case_pages_create: { method: 'POST', path: () => '/api/capabilities/k5_case_pages_create', body: i => i },
+  k5_case_pages_update: { method: 'POST', path: () => '/api/capabilities/k5_case_pages_update', body: i => i },
+  k5_case_pages_publish: { method: 'POST', path: () => '/api/capabilities/k5_case_pages_publish', body: i => i },
+  k5_case_pages_versions: { method: 'POST', path: () => '/api/capabilities/k5_case_pages_versions', body: i => i },
+  k5_case_pages_restore: { method: 'POST', path: () => '/api/capabilities/k5_case_pages_restore', body: i => i },
+  k5_case_pages_export: { method: 'POST', path: () => '/api/capabilities/k5_case_pages_export', body: i => i },
+
   k5_research_analyze_trademark_logo: { method: 'POST', path: () => '/api/capabilities/k5_research_analyze_trademark_logo', body: i => i },
   k5_research_start_trademark_search: { method: 'POST', path: () => '/api/capabilities/k5_research_start_trademark_search', body: i => i },
   k5_research_get_trademark_search: { method: 'POST', path: () => '/api/capabilities/k5_research_get_trademark_search', body: i => i },
@@ -118,6 +126,7 @@ const routes: Record<CapabilityName, Route> = {
   },
   k5_vault_create_folder: { method: 'POST', path: () => '/api/vault/folders', body: (i) => i },
   k5_vault_update_folder_access: { method: 'PATCH', path: (i) => `/api/vault/folders/${id(i.folderId)}`, body: (i) => i },
+  k5_vault_get_annex_plan: { method: 'GET', path: i => `/api/vault/cases/${id(i.caseId)}/annexes?scanDocumentId=${id(i.scanDocumentId)}` },
   k5_vault_plan_annexes: { method: 'POST', path: i => `/api/vault/cases/${id(i.caseId)}/annexes`, body: i => i },
   k5_vault_generate_annexes: { method: 'POST', path: i => `/api/vault/cases/${id(i.caseId)}/annexes/files`, body: i => i },
   k5_vault_delete_folder: { method: 'DELETE', path: (i) => `/api/vault/folders/${id(i.folderId)}`, body: (i) => i },
@@ -204,8 +213,6 @@ const routes: Record<CapabilityName, Route> = {
     },
   },
   k5_judicial_link_case: { method: 'POST', path: () => '/api/judicial/links', body: (i) => i },
-  // Unpublished to both adapters, but the map is exhaustive by design: a capability that later
-  // becomes publishable must not reach this table without a route already written for it.
   k5_judicial_confirm_link: { method: 'PATCH', path: (i) => `/api/judicial/links/${id(i.linkId)}`, body: (i) => i },
   k5_judicial_unlink_case: { method: 'DELETE', path: (i) => `/api/judicial/links/${id(i.linkId)}`, body: (i) => i },
   k5_judicial_list_publications: {
@@ -275,8 +282,6 @@ export async function requestCapability(
 
     const payload = response.status === 204 ? null : await response.json().catch(() => null);
 
-    // A 403 body is not a result. Returning it as one is how an agent concludes that a refused
-    // operation succeeded.
     if (!response.ok) {
       const body = payload as { error?: string; code?: string } | null;
       if (response.status === 401) return { ok: false, code: 'UNAUTHENTICATED', error: 'Sua sessão expirou. Entre novamente no Lume para continuar.' };

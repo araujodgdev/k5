@@ -1,5 +1,6 @@
 import { FakeWhatsApp, testDb, whatsappFixture, whatsappIdentity, whatsappJson, whatsappThread, type WhatsAppFixture } from './whatsapp-send-fixture';
 import test from 'node:test';
+import { personRequestContext, recordingWriter } from './shared-writing-fixture';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { sendWhatsAppText } from '../src/lib/whatsapp/send';
@@ -162,13 +163,14 @@ test('WhatsApp send: a known rejection needs a new user intent, while changed te
 
 const invocations: NonNullable<WorkspaceContext['invocation']>[] = ['agent', 'webmcp'];
 for (const invocation of invocations) {
-  test(`WhatsApp send: ${invocation} waits for the person's exact text, recipient and intent approval`, async () => {
+  test(`WhatsApp send: ${invocation} waits for the person's exact text, recipient and intent approval`, async t => {
     const fixture = await whatsappFixture();
     const colleague = await whatsappIdentity();
     const otherThread = await whatsappThread(fixture, { participantName: 'Outra cliente' });
     const provider = new FakeWhatsApp(fixture);
     const input = intent(fixture);
-    const agent: WorkspaceContext = { ...fixture.context, invocation };
+    const agent: WorkspaceContext = await personRequestContext({ ...fixture.context, invocation }, 'Envie a mensagem de confirmação.');
+    await recordingWriter(t, fixture.userId, [{ title: 'Confirmação', content: input.text }]);
     await provider.run(async () => {
       const approvalId = await proposal(sendWhatsAppText(agent, input));
       const pending = await getApprovalProposal(fixture.context, approvalId);
@@ -179,10 +181,9 @@ for (const invocation of invocations) {
       await assert.rejects(approveProposal(colleague.context, approvalId), { code: 'NOT_FOUND' });
       assert.equal(provider.sends.length, 0);
       assert.equal((await approveProposal(fixture.context, approvalId)).status, 'approved');
-      for (const changed of [{ ...input, text: 'Outro texto.' }, { ...input, threadId: otherThread.threadId }, { ...input, idempotencyKey: randomUUID() }]) {
-        await assert.rejects(sendWhatsAppText(agent, { ...changed, approvalId }), { code: 'FORBIDDEN' });
-      }
-      const result = await sendWhatsAppText(agent, { ...input, approvalId });
+      await assert.rejects(sendWhatsAppText(agent, { ...input, threadId: otherThread.threadId, approvalId }), { code: 'CONFLICT' });
+      await assert.rejects(sendWhatsAppText(agent, { ...input, idempotencyKey: randomUUID(), approvalId }), { code: 'FORBIDDEN' });
+      const result = await sendWhatsAppText(agent, { ...input, text: 'PRIVATE_PLANNER_CANNOT_REPLACE_APPROVED_TEXT', approvalId });
       assert.equal(result.status, 'accepted');
       assert.equal((await getApprovalProposal(fixture.context, approvalId)).status, 'consumed');
       assert.deepEqual(provider.sends[0]?.body, { accountId: fixture.accountId, message: input.text });
@@ -192,11 +193,12 @@ for (const invocation of invocations) {
   });
 }
 
-test('WhatsApp send: reconnecting the same account invalidates approvals from the previous generation', async () => {
+test('WhatsApp send: reconnecting the same account invalidates approvals from the previous generation', async t => {
   const fixture = await whatsappFixture();
   const provider = new FakeWhatsApp(fixture);
   const input = intent(fixture);
-  const agent: WorkspaceContext = { ...fixture.context, invocation: 'agent' };
+  const agent = await personRequestContext({ ...fixture.context, invocation: 'agent' }, 'Envie uma confirmação.');
+  await recordingWriter(t, fixture.userId, [{ title: 'Confirmação', content: input.text }]);
   await provider.run(async () => {
     const oldApproval = await proposal(sendWhatsAppText(agent, input));
     await approveProposal(fixture.context, oldApproval);

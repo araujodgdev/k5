@@ -1,3 +1,4 @@
+import { personPolicy } from '@/lib/content-policy';
 import { after } from "next/server";
 import { assertSameOrigin, createVaultDocument, drainQueuedDocument, publicDocument, requireVaultWorkspace, VaultHttpError } from "@/lib/vault";
 import { vaultErrorResponse } from "@/lib/vault-api";
@@ -48,7 +49,8 @@ export async function POST(request: Request) {
     // Consumed here, in the same request that created it: an unclaimed reference is garbage the
     // sweeper is entitled to delete, and it would take this document's bytes with it.
     await consumeUploadRef(context, upload.id);
-    const document = await createVaultDocument(context.officeId, context.userId, upload, {
+    const document = await createVaultDocument(context, upload, {
+      policy: personPolicy(upload.originalName, upload.sha256),
       scope: String(form.get("scope") ?? ""),
       caseId: typeof form.get("caseId") === "string" ? String(form.get("caseId")) : null,
       folderId: typeof form.get("folderId") === "string" ? String(form.get("folderId")) : null,

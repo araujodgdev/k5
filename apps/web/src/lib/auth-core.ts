@@ -1,9 +1,10 @@
-import type { BetterAuthOptions } from "better-auth";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { z } from "zod";
 import { signUpSchema } from "./auth-validation";
 import type { Database } from "./database";
+import { withPostgres } from './database';
+import type { Pool } from 'pg';
 import { ensureOfficeForUser } from "./offices";
 import { revokePushSubscriptionsForUser } from "./notifications/revocation";
 import { clientRegistration } from './client-portal/registration';
@@ -12,7 +13,7 @@ import { recordAcceptance } from './legal-acceptance';
 import { LEGAL_VERSION } from './legal-version';
 
 /** Better Auth uses the same PostgreSQL pool as the business-data adapter. */
-export type AuthStore = NonNullable<BetterAuthOptions["database"]>;
+export type AuthStore = Pool;
 
 /**
  * Better Auth owns its own tables and reaches them through `store`, while the office provisioning
@@ -25,8 +26,6 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
   signUpChallenge?: { enabled: () => boolean; verify: (token: string, remoteIp: string | null) => Promise<boolean> };
   /** `change` is set when the link confirms a new address for an existing account. */
   emailVerification?: { enabled: () => boolean; send: (input: { user: { id: string; email: string }; url: string; change?: { previousEmail: string } }) => Promise<void> } }) {
-  // Verification is required wherever e-mail can actually be delivered. Without a sender (local
-  // development, the e2e runner) nobody could ever confirm, so sign-up keeps working as before.
   const verifyEmail = settings.emailVerification?.enabled() ?? false;
   return betterAuth({
     appName: "Lume",
@@ -46,7 +45,6 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
         await settings.emailVerification!.send({ user: { id: user.id, email: user.email }, url, ...(change ? { change } : {}) });
       },
       sendOnSignUp: true,
-      // Signing in with an unconfirmed address sends a fresh link instead of a dead end.
       sendOnSignIn: true,
       autoSignInAfterVerification: true,
       expiresIn: 24 * 60 * 60,
@@ -57,7 +55,6 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       // hook below asks for the current password, so a borrowed session cannot move the account.
       changeEmail: { enabled: true, updateEmailWithoutVerification: true },
       additionalFields: {
-        // Retained to recover office provisioning after an interrupted registration.
         officeName: { type: "string", required: true, validator: { input: z.string().trim().min(2).max(160) } },
         accountKind: { type: 'string', required: false, defaultValue: 'office', input: false },
       },
@@ -81,12 +78,10 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       max: 100,
       customRules: {
         "/sign-in/email": { window: 60, max: 10 },
-        // Each sign-up and each verification request sends an e-mail against a daily sending quota.
         "/sign-up/email": { window: 60, max: 10 },
         '/send-verification-email': { window: 60, max: 3 },
         '/request-password-reset': { window: 60, max: 5 },
         '/reset-password': { window: 60, max: 10 },
-        // Both check the current password, so they get the sign-in budget.
         "/change-password": { window: 60, max: 10 },
         "/change-email": { window: 60, max: 10 },
       },
@@ -121,8 +116,6 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
         if (ctx.path === "/sign-out") {
           const session = await getSessionFromCtx(ctx, { disableCookieCache: true });
           if (session) {
-            // Server revocation wins the race with a stale in-flight subscription request because
-            // it advances the authorization generation before deleting every session.
             try {
               await revokePushSubscriptionsForUser(db, session.user.id);
             } finally {
@@ -134,11 +127,10 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
     },
     databaseHooks: {
       user: { create: { before: async (user) => ({ data: { ...user, accountKind: clientRegistration() ? 'client' : 'office' } }), after: async (user, ctx) => {
-        // The sign-up forms send the version the person ticked; the app asks anyone else on entry.
         if ((ctx?.body as { acceptedLegalVersion?: unknown } | undefined)?.acceptedLegalVersion === LEGAL_VERSION)
           await recordAcceptance(db, user.id, 'terms', ctx?.request?.headers ?? ctx?.headers);
         const registration = clientRegistration();
-        if (registration) { await acceptPortalInvitation(db, registration.token, user); return; }
+        if (registration) { await withPostgres(store, () => acceptPortalInvitation(db, registration.token, user)); return; }
         await ensureOfficeForUser(db, { id: user.id, officeName: (user as typeof user & { officeName: string }).officeName });
       } } },
     },

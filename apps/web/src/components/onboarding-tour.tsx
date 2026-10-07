@@ -65,16 +65,18 @@ export function OnboardingTour({ children, userId, officeId, whatsappEnabled, ad
     setIndex(next);
     save(nextStep.id);
     setView('tour');
+    window.dispatchEvent(new CustomEvent('lume:tutorial-surface', { detail: nextStep.module === 'agents' ? 'chat' : 'canvas' }));
     if (currentHref !== nextStep.href) router.push(nextStep.href, { scroll: true });
   }
 
   useEffect(() => {
     if (view !== 'tour' || !step) return;
+    if (ready) window.dispatchEvent(new CustomEvent('lume:tutorial-surface', { detail: step.module === 'agents' ? 'chat' : 'canvas' }));
     let frame = 0;
     const measure = () => {
       const findVisible = (selector: string) => Array.from(document.querySelectorAll<HTMLElement>(selector))
         .find(element => { const box = element.getBoundingClientRect(); return box.width > 4 && box.height > 4 && box.bottom > 0 && box.top < innerHeight; });
-      const visible = ready ? findVisible(step.target) ?? findVisible('header.md\\:hidden') : undefined;
+      const visible = ready ? findVisible(step.target) ?? findVisible('[aria-label="Barra do escritório"]') : undefined;
       const rect = visible?.getBoundingClientRect();
       const width = Math.min(380, innerWidth - 24);
       const height = card.current?.offsetHeight ?? 300;

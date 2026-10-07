@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { messageScopeSchema } from './chat-scope';
 
 const messageSchema = z.object({ id: z.string(), role: z.enum(['user', 'assistant', 'system']), parts: z.array(z.object({ type: z.string(), text: z.string().refine((text) => text.length <= 20000, 'Escreva uma mensagem de até 20 mil caracteres.').optional() }).passthrough()).max(100) });
 // Audio belongs to one turn and is never stored as a document.
@@ -14,8 +15,9 @@ export const chatRequestSchema = z.object({
   message: messageSchema,
   trigger: z.enum(['submit-message', 'regenerate-message']).optional(),
   messageId: z.string().optional(),
+  sharedProposalId: z.string().uuid().nullish(),
   timeZone: z.string().max(80).optional(),
-  // The document open beside the chat, and a selection a request was made from; both are checked against the owner.
-  openDocumentId: z.string().min(1).max(64).optional(),
-  selection: z.object({ artifactId: z.string().min(1).max(64), excerpt: z.string().trim().min(1).max(4000) }).optional(),
+  canvasHref: z.string().max(2048).optional(),
+  document: messageScopeSchema.shape.document,
+  selection: messageScopeSchema.shape.selection,
 });

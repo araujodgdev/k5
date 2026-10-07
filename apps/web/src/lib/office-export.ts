@@ -18,7 +18,7 @@ const EXPORTS: Export[] = [
   { file: 'pastas', table: 'vault_folder', columns: ['id', 'case_id', 'parent_id', 'name', 'created_at', 'updated_at'], where: 'deleted_at IS NULL' },
   { file: 'documentos', table: 'vault_document', columns: ['id', 'case_id', 'folder_id', 'scope', 'original_name', 'mime_type', 'byte_size', 'status', 'created_at', 'updated_at'], where: 'deleted_at IS NULL' },
   { file: 'documentos-versoes', table: 'vault_document_version', columns: ['id', 'document_id', 'version', 'original_name', 'mime_type', 'byte_size', 'is_active', 'created_at'] },
-  { file: 'agenda', table: 'agenda_activity', columns: ['id', 'kind', 'title', 'notes', 'status', 'due_on', 'starts_at', 'ends_at', 'client_id', 'case_id', 'created_at', 'updated_at'] },
+  { file: 'agenda', table: 'agenda_activity', where: "visibility='personal'", columns: ['id', 'kind', 'title', 'notes', 'status', 'due_on', 'starts_at', 'ends_at', 'client_id', 'case_id', 'created_at', 'updated_at'] },
   { file: 'honorarios', table: 'honorario_agreement', columns: ['id', 'client_id', 'case_id', 'title', 'notes', 'pricing', 'created_at', 'cancelled_at', 'cancel_reason'] },
   { file: 'calculos', table: 'legal_calculation', columns: ['id', 'title', 'kind', 'version', 'total_cents', 'updated_at'] },
   { file: 'calculos-versoes', table: 'legal_calculation_version', columns: ['calculation_id', 'version', 'title', 'client_id', 'case_id', 'notes', 'input', 'result', 'created_at'], byId: false },

@@ -1,4 +1,5 @@
 import 'server-only';
+import { capabilities, type Capability } from './capabilities/contracts';
 import { randomUUID } from 'node:crypto';
 import { PromptInjectionDetector } from '@mastra/core/processors';
 import type { Processor, ProcessToolResultArgs } from '@mastra/core/processors';
@@ -22,18 +23,7 @@ import { captureOperationalError } from './observability/report';
  * text (`onUntrusted`); actions an office set to run without confirmation then ask for it.
  */
 export const GUARDED_TOOLS: ReadonlySet<string> = new Set([
-  'k5_messages_read', 'k5_messages_list',
-  'k5_research_web_search', 'k5_research_get_web_search',
-  'k5_research_start_trademark_search', 'k5_research_get_trademark_search', 'k5_research_get_trademark', 'k5_research_next_trademark_page', 'k5_research_analyze_trademark_logo',
-  'k5_whatsapp_list_threads',
-  'k5_whatsapp_read_thread',
-  'k5_gmail_list_threads',
-  'k5_gmail_get_thread',
-  'k5_docs_read',
-  'k5_knowledge_search',
-  'k5_knowledge_get_source',
-  'k5_judicial_list_publications',
-  'k5_judicial_get_publication',
+  ...Object.entries(capabilities).filter(([, capability]) => (capability as Capability).untrustedResult).map(([name]) => name),
   'web_search',
 ]);
 
@@ -153,11 +143,9 @@ export class UntrustedToolResultGuard implements Processor<'k5-untrusted-tool-re
 
   constructor(private readonly detect: Detect, private readonly onUntrusted: () => void = () => undefined) {}
 
-  async processToolResult({ toolName, toolCallId, args, result, providerExecuted, messageList }: ProcessToolResultArgs) {
-    if (providerExecuted) { this.onUntrusted(); return; }
-    if (!GUARDED_TOOLS.has(toolName)) return;
+  async check(result: unknown): Promise<string | null> {
     const text = resultText(result).join('\n');
-    if (!text.trim()) return;
+    if (!text.trim()) return null;
     // Marked before the verdict: a clean verdict is a probability, not proof the text is harmless.
     this.onUntrusted();
     let notice: string | null = null;
@@ -166,6 +154,13 @@ export class UntrustedToolResultGuard implements Processor<'k5-untrusted-tool-re
       try { if (await this.detect(text)) notice = WITHHELD_NOTICE; }
       catch (error) { captureOperationalError(error, 'agent.guard'); notice = UNVERIFIED_NOTICE; }
     }
+    return notice;
+  }
+
+  async processToolResult({ toolName, toolCallId, args, result, providerExecuted, messageList }: ProcessToolResultArgs) {
+    if (providerExecuted) { this.onUntrusted(); return; }
+    if (!GUARDED_TOOLS.has(toolName)) return;
+    const notice = await this.check(result);
     if (!notice) return;
     this.withheld.add(toolCallId);
     const replacement: WithheldResult = { withheld: true, notice };

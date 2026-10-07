@@ -12,11 +12,16 @@ let lastRetentionWindow: string | null = null;
 
 type ClaimedEvent = {
   id: string; office_id: string; event_type: NotificationEventType; source_kind: string;
-  source_id: string | null; intended_recipients_json: string; created_at: string;
+  source_id: string | null; source_version: number | null; data_json: string; intended_recipients_json: string; created_at: string;
   expires_at: string | null; historical: number; push_eligible: number; lease_token: string;
 };
 
 async function sourceAllowed(db: Database, event: ClaimedEvent, userId: string) {
+  if (event.source_kind === 'activity' && event.source_id) {
+    const row = await db.prepare('SELECT lume_activity_notification_allowed(?,?,?,?,?) AS allowed')
+      .get<{ allowed: boolean }>(event.source_id,userId,event.event_type,event.source_version,event.data_json);
+    return Boolean(row?.allowed);
+  }
   if (!await db.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(event.office_id, userId)) return false;
   if (!event.source_id || event.source_kind === 'system') return true;
   const lookups: Record<string, { sql: string; params: unknown[] }> = {
@@ -52,7 +57,7 @@ export async function projectNextNotification(db: Database = defaultDatabase, no
       WHERE (projection_state='pending' OR (projection_state='leased' AND lease_until<?))
         AND COALESCE((SELECT capture_enabled FROM notification_rollout ro WHERE ro.office_id=notification_event.office_id),1)=1
       ORDER BY created_at,id LIMIT 1 FOR UPDATE SKIP LOCKED)
-    RETURNING id,office_id,event_type,source_kind,source_id,intended_recipients_json,created_at,
+    RETURNING id,office_id,event_type,source_kind,source_id,source_version,data_json,intended_recipients_json,created_at,
       expires_at,historical,push_eligible,lease_token`).get<ClaimedEvent>(token, leaseUntil, now);
   if (!event) return false;
   try {
@@ -65,9 +70,13 @@ export async function projectNextNotification(db: Database = defaultDatabase, no
     const groupKey = `${category}:${event.created_at.slice(0, 16)}`;
     const writes: BoundStatement[] = [];
     for (const userId of recipients) {
+      const membership = await db.prepare('SELECT office_id FROM office_member WHERE user_id=?')
+        .get<{ office_id: string }>(userId);
+      if (!membership) continue;
+      const recipientOffice = membership.office_id;
       writes.push(db.prepare(`INSERT INTO notification_recipient(event_id,office_id,user_id,created_at)
-        VALUES(?,?,?,?) ON CONFLICT(event_id,user_id) DO NOTHING`)
-        .bind(event.id, event.office_id, userId, event.created_at));
+        SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM notification_event e WHERE e.id=? AND (e.source_kind<>'activity' OR lume_activity_notification_allowed(e.source_id,?,e.event_type,e.source_version,e.data_json))) ON CONFLICT(event_id,user_id) DO NOTHING`)
+        .bind(event.id, recipientOffice, userId, event.created_at,event.id,userId));
       if (!event.historical && event.push_eligible) {
         writes.push(db.prepare(`INSERT INTO notification_delivery(
           id,event_id,office_id,user_id,subscription_id,group_key,state,next_attempt_at,expires_at,created_at,updated_at
@@ -77,8 +86,9 @@ export async function projectNextNotification(db: Database = defaultDatabase, no
           WHERE s.office_id=? AND s.user_id=? AND s.state='active'
             AND s.auth_generation=p.revocation_generation AND p.push_enabled=1 AND ro.push_enabled=1
             AND ${categoryPreferenceSql(category)}
+            AND EXISTS(SELECT 1 FROM notification_recipient r WHERE r.event_id=? AND r.user_id=? AND r.office_id=s.office_id)
           ON CONFLICT(event_id,user_id,subscription_id) DO NOTHING`)
-          .bind(randomUUID(), event.id, event.office_id, userId, groupKey, now, expiresAt, now, now, event.office_id, userId));
+          .bind(randomUUID(), event.id, recipientOffice, userId, groupKey, now, expiresAt, now, now, recipientOffice, userId,event.id,userId));
       }
     }
     writes.push(db.prepare(`UPDATE notification_event SET projection_state='projected',projected_at=?,lease_token=NULL,lease_until=NULL,last_error=NULL
@@ -96,7 +106,7 @@ export async function projectNextNotification(db: Database = defaultDatabase, no
 
 type ActivityReminderRow = {
   id: string; office_id: string; kind: 'task' | 'meeting'; title: string; status: string;
-  due_on: string | null; starts_at: string | null; assignee_id: string | null; created_by: string; version: number;
+  due_on: string | null; starts_at: string | null; assignee_id: string | null; created_by: string; version: number; visibility: string;
 };
 
 export async function reconcileNotificationReminders(db: Database = defaultDatabase, now = new Date().toISOString(), limit = 100) {
@@ -104,13 +114,13 @@ export async function reconcileNotificationReminders(db: Database = defaultDatab
     AND EXISTS(SELECT 1 FROM agenda_activity a WHERE a.id=notification_reminder.activity_id
       AND a.office_id=notification_reminder.office_id AND a.status NOT IN ('pending','in_progress'))`).run(now);
   const activities = await db.prepare(`SELECT a.id,a.office_id,a.kind,a.title,a.status,a.due_on,a.starts_at,
-    a.assignee_id,a.created_by,a.version FROM agenda_activity a
+    a.assignee_id,a.created_by,a.version,a.visibility FROM agenda_activity a
     JOIN notification_rollout ro ON ro.office_id=a.office_id AND ro.reminders_enabled=1
     WHERE a.status IN ('pending','in_progress') AND ((a.kind='task' AND a.due_on IS NOT NULL) OR (a.kind='meeting' AND a.starts_at IS NOT NULL))
       AND (
         EXISTS(SELECT 1 FROM office_member m
           LEFT JOIN notification_preference p ON p.office_id=m.office_id AND p.user_id=m.user_id
-          WHERE m.office_id=a.office_id
+          WHERE (a.visibility='personal' AND m.office_id=a.office_id OR a.visibility='case' AND lume_activity_visible(a.id,m.user_id))
             AND (m.user_id=COALESCE(a.assignee_id,a.created_by) OR (a.kind='meeting' AND m.user_id=a.created_by))
             AND NOT EXISTS(SELECT 1 FROM notification_reminder r
               WHERE r.office_id=a.office_id AND r.activity_id=a.id AND r.user_id=m.user_id
@@ -120,7 +130,7 @@ export async function reconcileNotificationReminders(db: Database = defaultDatab
           WHERE r.office_id=a.office_id AND r.activity_id=a.id AND r.state='scheduled'
             AND NOT EXISTS(SELECT 1 FROM office_member m
               LEFT JOIN notification_preference p ON p.office_id=m.office_id AND p.user_id=m.user_id
-              WHERE m.office_id=a.office_id AND m.user_id=r.user_id
+              WHERE (a.visibility='personal' AND m.office_id=a.office_id OR a.visibility='case' AND lume_activity_visible(a.id,m.user_id)) AND m.user_id=r.user_id
                 AND (m.user_id=COALESCE(a.assignee_id,a.created_by) OR (a.kind='meeting' AND m.user_id=a.created_by))
                 AND r.rule=CASE a.kind WHEN 'task' THEN 'task_due' ELSE 'meeting_soon' END
                 AND r.schedule_key=CAST(a.version AS TEXT)||':'||COALESCE(p.timezone,?)))
@@ -131,8 +141,8 @@ export async function reconcileNotificationReminders(db: Database = defaultDatab
     const userIds = [...new Set([activity.assignee_id ?? activity.created_by, ...(activity.kind === 'meeting' ? [activity.created_by] : [])])];
     const preferences = await db.prepare(`SELECT m.user_id,COALESCE(p.timezone,?) AS timezone
       FROM office_member m LEFT JOIN notification_preference p ON p.office_id=m.office_id AND p.user_id=m.user_id
-      WHERE m.office_id=? AND m.user_id IN (${userIds.map(() => '?').join(',')})`)
-      .all<{ user_id: string; timezone: string }>(DEFAULT_TIMEZONE, activity.office_id, ...userIds);
+      WHERE (m.office_id=? OR ?='case' AND lume_activity_visible(?,m.user_id)) AND m.user_id IN (${userIds.map(() => '?').join(',')})`)
+      .all<{ user_id: string; timezone: string }>(DEFAULT_TIMEZONE, activity.office_id, activity.visibility, activity.id, ...userIds);
     const existing = await db.prepare(`SELECT id,user_id,rule,schedule_key,state FROM notification_reminder
       WHERE office_id=? AND activity_id=?`).all<{
         id: string; user_id: string; rule: string; schedule_key: string; state: string;
@@ -240,10 +250,11 @@ export async function deliverNextNotification(
     FROM push_subscription s
     JOIN notification_preference p ON p.office_id=s.office_id AND p.user_id=s.user_id
     JOIN notification_recipient r ON r.office_id=s.office_id AND r.user_id=s.user_id AND r.event_id=?
-    JOIN notification_event e ON e.office_id=r.office_id AND e.id=r.event_id
+    JOIN notification_event e ON e.id=r.event_id
     JOIN notification_rollout ro ON ro.office_id=s.office_id
     JOIN office_member m ON m.office_id=s.office_id AND m.user_id=s.user_id
-    WHERE s.id=? AND s.office_id=? AND s.user_id=?`)
+    WHERE s.id=? AND s.office_id=? AND s.user_id=?
+      AND (e.source_kind<>'activity' OR lume_activity_notification_allowed(e.source_id,s.user_id,e.event_type,e.source_version,e.data_json))`)
     .get<DeliveryContext>(delivery.event_id, delivery.subscription_id, delivery.office_id, delivery.user_id);
   const category = context ? categoryForEvent(context.event_type) : null;
   const categories = context ? JSON.parse(context.categories_json) as Record<string, boolean> : {};
@@ -320,7 +331,7 @@ export async function cleanNotificationRetention(db: Database = defaultDatabase,
     db.prepare(`UPDATE notification_event SET data_json='{}'
       WHERE created_at<? AND projection_state IN ('projected','dead')
         AND NOT EXISTS(SELECT 1 FROM notification_recipient r
-          WHERE r.office_id=notification_event.office_id AND r.event_id=notification_event.id)`).bind(inboxCutoff),
+          WHERE r.event_id=notification_event.id)`).bind(inboxCutoff),
   ]);
   return results.reduce((total, result) => total + result.changes, 0);
 }

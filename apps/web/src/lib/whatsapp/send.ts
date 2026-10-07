@@ -1,4 +1,7 @@
 import 'server-only';
+import { outboundText } from '@/lib/documents/shared-writing';
+import { assertExternalDelivery } from '@/lib/content-policy';
+import { documentTransaction } from '@/lib/documents/service';
 import { createHash, randomUUID } from 'node:crypto';
 import { database, withTransaction } from '@/lib/database';
 import type { WorkspaceContext } from '@/lib/application/context';
@@ -19,6 +22,8 @@ const receipt = (row: SendRow): SendReceipt => ({ id: row.id, threadId: row.thre
 
 export async function sendWhatsAppText(context: WorkspaceContext, rawInput: SendInput): Promise<SendReceipt> {
   const input = sendInput.parse(rawInput);
+  const writing = await outboundText(context, 'k5_whatsapp_send', { threadId: input.threadId }, '', input.text);
+  input.text = writing.content;
   const connection = await requireWhatsApp(context, { write: true });
   const thread = await database.prepare(`SELECT id,provider_id,participant_id,participant_name,last_customer_message_at
     FROM whatsapp_thread WHERE id=? AND office_id=? AND connection_id=? AND account_id=?`)
@@ -44,13 +49,14 @@ export async function sendWhatsAppText(context: WorkspaceContext, rawInput: Send
   await requireAgentApproval(context, 'k5_whatsapp_send', input.approvalId, normalized, thread.id,
     `Enviar pelo WhatsApp para ${thread.participant_name || thread.participant_id} (${thread.participant_id}): ${input.text}${attachment
       ? `\nArquivo: ${attachment.filename} (${attachment.mime_type}, ${attachment.byte_length} bytes). SHA-256: ${attachment.sha256}` : ''}`);
-  const claimed = await withTransaction(async tx => {
+  const claimed = await documentTransaction(context, async tx => {
+    await assertExternalDelivery(context.userId, writing.policy, tx);
     const active = await tx.prepare("SELECT generation FROM whatsapp_connection WHERE id=? AND office_id=? AND status='connected' FOR UPDATE")
       .get<{ generation: number }>(connection.id, context.officeId);
     if (!active || active.generation !== connection.generation) throw new CapabilityError('CONFLICT', 'A conexão mudou. Prepare a resposta novamente.');
-    const row = await tx.prepare(`INSERT INTO whatsapp_send(id,office_id,connection_id,generation,thread_id,user_id,idempotency_key,input_hash,text,status,attachment_id)
-      VALUES(?,?,?,?,?,?,?,?,?,'dispatching',?) ON CONFLICT(office_id,idempotency_key) DO NOTHING RETURNING *`)
-      .get<SendRow>(randomUUID(), context.officeId, connection.id, connection.generation, thread.id, context.userId, input.idempotencyKey, inputHash, input.text, attachment?.id ?? null);
+    const row = await tx.prepare(`INSERT INTO whatsapp_send(id,office_id,connection_id,generation,thread_id,user_id,idempotency_key,input_hash,text,status,attachment_id,content_policy)
+      VALUES(?,?,?,?,?,?,?,?,?,'dispatching',?,?::jsonb) ON CONFLICT(office_id,idempotency_key) DO NOTHING RETURNING *`)
+      .get<SendRow>(randomUUID(), context.officeId, connection.id, connection.generation, thread.id, context.userId, input.idempotencyKey, inputHash, input.text, attachment?.id ?? null, JSON.stringify(writing.policy));
     if (row) {
       if (attachment) {
         const reserved = await tx.prepare(`UPDATE whatsapp_attachment SET send_id=?,expires_at=NULL,updated_at=CURRENT_TIMESTAMP
@@ -78,6 +84,7 @@ export async function sendWhatsAppText(context: WorkspaceContext, rawInput: Send
     if (!current || !current.account_id) throw new CapabilityError('CONFLICT', 'A conexão mudou. Prepare a resposta novamente.');
     if (!latest || !isReplyWindowOpen(latest.last_customer_message_at)) throw new CapabilityError('SCOPE_REQUIRED', 'A janela de atendimento terminou. Continue pelo WhatsApp Business.');
     const credential = connectedCredential(current);
+    await assertExternalDelivery(context.userId, writing.policy);
     dispatched = true;
     const result = file
       ? await sendProviderAttachment(credential, current.account_id, thread.provider_id, file, input.text, claimed.row.id)

@@ -2,6 +2,7 @@ import 'server-only';
 import { resolveEmbeddingConfig } from '@/lib/ai-connections';
 import { AiConnectionError, type AiProvider } from '@/lib/ai-connections-core';
 import { CapabilityError } from '@/lib/capabilities/errors';
+import { admissionTransport, type ContentAdmission } from '@/lib/content-admission';
 
 export type EmbeddingProfile = { provider: AiProvider; modelId: string; apiKey: string; connectionId: string };
 
@@ -50,12 +51,13 @@ export async function embeddingProfile(): Promise<EmbeddingProfile> {
   return config;
 }
 
-async function embedOpenAiCompatible(profile: EmbeddingProfile, url: string, inputs: string[]): Promise<Float32Array[]> {
-  const response = await fetch(url, {
+type EmbeddingTransport = { fetch: typeof fetch; signal?: AbortSignal };
+async function embedOpenAiCompatible(profile: EmbeddingProfile, url: string, inputs: string[], transport: EmbeddingTransport): Promise<Float32Array[]> {
+  const response = await transport.fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${profile.apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: profile.modelId, input: inputs }),
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.any([AbortSignal.timeout(120_000), ...(transport.signal ? [transport.signal] : [])]),
   });
   if (!response.ok) {
     // Provider bodies can echo the request or a masked key; only the status leaves this function.
@@ -68,15 +70,15 @@ async function embedOpenAiCompatible(profile: EmbeddingProfile, url: string, inp
   return ordered.map((row) => Float32Array.from(row.embedding));
 }
 
-async function embedGoogle(profile: EmbeddingProfile, inputs: string[]): Promise<Float32Array[]> {
+async function embedGoogle(profile: EmbeddingProfile, inputs: string[], transport: EmbeddingTransport): Promise<Float32Array[]> {
   const model = profile.modelId.startsWith('models/') ? profile.modelId : `models/${profile.modelId}`;
-  const response = await fetch(
+  const response = await transport.fetch(
     `https://generativelanguage.googleapis.com/v1beta/${model}:batchEmbedContents`,
     {
       method: 'POST',
       headers: { 'x-goog-api-key': profile.apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests: inputs.map((text) => ({ model, content: { parts: [{ text }] } })) }),
-      signal: AbortSignal.timeout(120_000),
+      signal: AbortSignal.any([AbortSignal.timeout(120_000), ...(transport.signal ? [transport.signal] : [])]),
     },
   );
   if (!response.ok) throw new EmbeddingUnavailableError(`O provedor de embedding respondeu ${response.status}.`);
@@ -86,11 +88,11 @@ async function embedGoogle(profile: EmbeddingProfile, inputs: string[]): Promise
   return rows.map((row) => Float32Array.from(row.values));
 }
 
-export async function embedTexts(profile: EmbeddingProfile, inputs: string[]): Promise<Float32Array[]> {
+export async function embedTexts(profile: EmbeddingProfile, inputs: string[], transport: EmbeddingTransport = { fetch: globalThis.fetch }): Promise<Float32Array[]> {
   if (!inputs.length) return [];
   const url = OPENAI_COMPATIBLE[profile.provider];
   if (!url && profile.provider !== 'google') throw new EmbeddingUnavailableError('O provedor configurado para embedding não é compatível.');
-  const vectors = url ? await embedOpenAiCompatible(profile, url, inputs) : await embedGoogle(profile, inputs);
+  const vectors = url ? await embedOpenAiCompatible(profile, url, inputs, transport) : await embedGoogle(profile, inputs, transport);
   const dimension = vectors[0]?.length ?? 0;
   if (!dimension) throw new EmbeddingUnavailableError('O provedor de embedding devolveu um vetor vazio.');
   if (vectors.some((vector) => vector.length !== dimension)) {
@@ -100,9 +102,12 @@ export async function embedTexts(profile: EmbeddingProfile, inputs: string[]): P
 }
 
 /** One query vector. The model never supplies this: the server embeds the query it was given. */
-export async function embedQuery(query: string): Promise<{ embedding: Float32Array; profile: EmbeddingProfile }> {
+export async function embedQuery(query: string, options: { admission: ContentAdmission; signal?: AbortSignal }): Promise<{ embedding: Float32Array; profile: EmbeddingProfile }> {
+  const transport = admissionTransport(options.admission);
+  options.signal?.throwIfAborted();
   const profile = await embeddingProfile();
-  const [embedding] = await embedTexts(profile, [query]);
+  const [embedding] = await embedTexts(profile, [query], { fetch: transport.fetch, signal: options.signal });
+  transport.throwIfDenied();
   if (!embedding) throw new EmbeddingUnavailableError('Não foi possível gerar o vetor da consulta.');
   return { embedding, profile };
 }

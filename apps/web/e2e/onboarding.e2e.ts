@@ -37,7 +37,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
         await expect(dialog).toBeHidden();
         await browser.reload();
         await expect(screen.getByRole('dialog')).toHaveCount(0);
-        if (mobile) await screen.getByRole('button', 'Mais').tap();
+        if (mobile) await screen.getByRole('navigation', 'Alternar conversa e canvas').getByRole('button', 'Canvas').tap();
+        await screen.getByRole('button', 'Abrir módulos').tap();
         await screen.getByRole('button', 'Tutorial do Lume', { visible: true }).tap();
         await screen.getByRole('button', 'Continuar tutorial').tap();
         await expect(dialog).toBeVisible();
@@ -57,6 +58,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
 
 test('o tour leva à biblioteca de vídeos por módulo', { session: 'tutorial-reader' }, async ({ app, screen, browser }) => {
   await app.open('/app/command-center');
+  await screen.getByRole('button', 'Abrir módulos').tap();
   await screen.getByRole('button', 'Tutorial do Lume', { visible: true }).tap();
   await screen.getByRole('link', 'Ver vídeos por módulo').tap();
   await expect(browser).toHaveURL(/\/app\/tutorial$/);

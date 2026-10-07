@@ -8,6 +8,10 @@ import { setGoogleTransport } from '../src/lib/google/transport';
 import { cancelEvent, createEvent, getEvent, listCalendars, listEvents, listShared, selectCalendars, shareEvent, updateEvent } from '../src/lib/google/calendar/service';
 import { acceptCalendarNotification, syncCalendar } from '../src/lib/google/calendar/sync';
 import type { GoogleJob } from '../src/lib/google/jobs';
+import { recordingWriter, personRequestContext } from './shared-writing-fixture';
+import { runCapability } from '../src/lib/agent-tools';
+import { decideAgentApproval } from '../src/lib/application/agent-approvals';
+import { getApprovalProposal } from '../src/lib/application/approvals-service';
 
 afterEach(() => setGoogleTransport(undefined));
 async function fixture() {
@@ -30,6 +34,40 @@ function remote(id:string,summary='Original',etag='"1"') {
     end:{dateTime:'2026-09-23T11:00:00-03:00',timeZone:'America/Sao_Paulo'},
     attendees:[{email:'guest@example.com',responseStatus:'accepted'}]};
 }
+test('actual Calendar capability reviews exact writer bytes before approval and consumed retries never regenerate', async t => {
+  const f = await fixture();
+  const eventId = await event(f, { title: 'PRIVATE_EVENT_SENTINEL' });
+  const wire = await recordingWriter(t, f.userId, [{ title: 'EXACT_WRITER_TITLE', content: 'EXACT_WRITER_NOTES', location: 'EXACT_WRITER_LOCATION' }]);
+  const context = await personRequestContext({ ...f.context, invocation: 'agent' }, 'PERSON_CALENDAR_INSTRUCTION: compartilhe minha disponibilidade.');
+  await assert.rejects(runCapability(context, 'k5_calendar_share_event', { eventId, title: 'PRIVATE_PLANNER_TITLE', notes: 'PRIVATE_PLANNER_NOTES', location: 'PRIVATE_PLANNER_LOCATION' }), { code: 'APPROVAL_REQUIRED' });
+  const approval = await testDb.prepare("SELECT id FROM capability_approval WHERE user_id=? AND capability_name='k5_calendar_share_event'").get<{ id: string }>(f.userId);
+  const prepared = (await getApprovalProposal(f.context, approval!.id)).calendar_share_payload;
+  assert.deepEqual({ title: prepared?.title, notes: prepared?.notes, location: prepared?.location }, { title: 'EXACT_WRITER_TITLE', notes: 'EXACT_WRITER_NOTES', location: 'EXACT_WRITER_LOCATION' });
+  assert.equal(await testDb.prepare('SELECT 1 FROM personal_event_share WHERE event_id=?').get(eventId), undefined);
+  assert.match(JSON.stringify(wire[0].body), /PERSON_CALENDAR_INSTRUCTION/);
+  assert.doesNotMatch(JSON.stringify(wire[0].body), /PRIVATE_/);
+  assert.equal((await decideAgentApproval(f.context, approval!.id, 'confirm')).state, 'confirmed');
+  const saved = (await getApprovalProposal(f.context, approval!.id)).content_result;
+  assert.equal((await decideAgentApproval(f.context, approval!.id, 'confirm')).state, 'confirmed');
+  assert.deepEqual((await getApprovalProposal(f.context, approval!.id)).content_result, saved);
+  assert.deepEqual(await testDb.prepare('SELECT title,notes,location,version FROM personal_event_share WHERE event_id=?').get(eventId), { title: 'EXACT_WRITER_TITLE', notes: 'EXACT_WRITER_NOTES', location: 'EXACT_WRITER_LOCATION', version: 1 });
+  assert.equal(wire.length, 1);
+});
+
+test('Calendar writer failure and cancelled exact proposal leave destination and approval outcome unchanged', async t => {
+  const f = await fixture(), eventId = await event(f);
+  const context = await personRequestContext({ ...f.context, invocation: 'agent' }, 'Compartilhe minha disponibilidade.');
+  const outputs = [{ title: 'Revisar', content: 'Texto exato.' }];
+  const wire = await recordingWriter(t, f.userId, outputs);
+  await assert.rejects(runCapability(context, 'k5_calendar_share_event', { eventId, title: 'Planner' }), { code: 'APPROVAL_REQUIRED' });
+  const approval = await testDb.prepare("SELECT id FROM capability_approval WHERE user_id=? AND capability_name='k5_calendar_share_event'").get<{ id: string }>(f.userId);
+  assert.equal((await decideAgentApproval(f.context, approval!.id, 'cancel')).state, 'cancelled');
+  await assert.rejects(runCapability({ ...context, generationId: randomUUID() }, 'k5_calendar_share_event', { eventId, title: 'Novo planner' }));
+  assert.equal(wire.length, 4, 'the failed subsequent generation uses its two bounded SDK retries');
+  assert.equal((await getApprovalProposal(f.context, approval!.id)).status, 'rejected');
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM capability_approval WHERE user_id=?').get<{ n: number }>(f.userId))!.n, 1);
+  assert.equal(await testDb.prepare('SELECT 1 FROM personal_event_share WHERE event_id=?').get(eventId), undefined);
+});
 test('private calendars and events cannot cross owner, even when the other owner is administrator',async()=>{
   const first=await fixture();
   const second=await googleFixture({modules:['calendar'],grantedModules:['calendar']});

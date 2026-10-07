@@ -70,3 +70,123 @@ test('a lost response is reconciled with stored content; separate scopes never s
   first.clear();
   assert.equal(first.get('document').getSnapshot(), null);
 });
+
+for (const outcome of ['saved', 'failed'] as const) {
+  test(`revocation clears cached document text and a pending ${outcome} write cannot restore it`, async () => {
+    const drafts = new DocumentDrafts();
+    const editor = drafts.get('revoked');
+    editor.open(original);
+    editor.edit({ content: 'Rascunho privado revogado' });
+    const other = drafts.get('allowed');
+    other.open({ title: 'Outro documento', content: 'Texto ainda autorizado', version: 1 });
+    const pending = Promise.withResolvers<{ version: number }>();
+    const saving = editor.save(() => pending.promise, true);
+    await Promise.resolve();
+    drafts.invalidate('revoked');
+    if (outcome === 'saved') pending.resolve({ version: 2 });
+    else pending.reject(new Error('Acesso removido'));
+    assert.equal(await saving, false);
+    assert.equal(editor.getSnapshot(), null);
+    assert.equal(drafts.get('revoked').getSnapshot(), null);
+    assert.equal(other.getSnapshot()?.content, 'Texto ainda autorizado');
+    assert.equal(drafts.hasUnsaved(), false);
+  });
+}
+
+for (const field of ['title', 'content'] as const) {
+  for (const autosaved of [false, true]) {
+    test(`a pending replacement preserves intervening ${field} edits even when autosaved=${autosaved}`, async () => {
+      const draft = new DocumentDrafts().get('page');
+      draft.open(original);
+      const read = draft.captureRevision();
+      draft.edit({ [field]: 'Edição depois de restaurar' });
+      if (autosaved) assert.equal(await draft.save(async () => ({ version: 2 }), false), true);
+      assert.equal(draft.replace({ ...original, version: 3 }, read), false);
+      assert.equal(draft.getSnapshot()?.[field], 'Edição depois de restaurar');
+      assert.equal(draft.getSnapshot()?.state, 'conflict');
+      const explicitReload = draft.captureRevision();
+      assert.equal(draft.replace({ ...original, version: 3 }, explicitReload), true);
+      assert.equal(draft.getSnapshot()?.[field], original[field]);
+    });
+  }
+}
+
+test('a pending reopen preserves newer saved edits and an invalidated draft cannot reopen or replace', async () => {
+  const drafts = new DocumentDrafts();
+  const draft = drafts.get('page');
+  draft.open(original);
+  const pendingRead = draft.captureRevision();
+  draft.edit({ title: 'Título digitado durante a leitura' });
+  await draft.save(async () => ({ version: 2 }), false);
+  draft.open({ ...original, version: 2 }, pendingRead);
+  assert.equal(draft.getSnapshot()?.title, 'Título digitado durante a leitura');
+  assert.equal(draft.getSnapshot()?.state, 'conflict');
+  const beforeRevocation = draft.captureRevision();
+  drafts.invalidate('page');
+  draft.open(original, beforeRevocation);
+  assert.equal(draft.replace(original, beforeRevocation), false);
+  draft.open(original);
+  assert.equal(draft.replace(original), false);
+  assert.equal(draft.isValid(beforeRevocation), false);
+  assert.equal(draft.getSnapshot(), null);
+  assert.equal(drafts.hasUnsaved(), false);
+  const reopened = drafts.get('page');
+  reopened.open(original);
+  assert.equal(reopened.getSnapshot()?.content, 'Texto original');
+});
+
+test('revocation before a queued writer starts cancels it without retaining a navigation blocker', async () => {
+  const drafts = new DocumentDrafts();
+  const draft = drafts.get('page');
+  draft.open(original);
+  draft.edit({ content: 'Texto que perdeu acesso' });
+  const saving = draft.save(async () => { assert.fail('A revoked resource cannot start another write'); }, true);
+  drafts.invalidate('page');
+  assert.equal(await saving, false);
+  assert.equal(drafts.hasUnsaved(), false);
+  const authorized = drafts.get('other-page');
+  authorized.open(original);
+  authorized.edit({ content: 'Outro texto autorizado' });
+  assert.equal(await authorized.save(async () => ({ version: 2 }), true), true);
+  assert.equal(authorized.getSnapshot()?.content, 'Outro texto autorizado');
+});
+
+for (const outcome of ['successful', 'failed'] as const) {
+  test(`a pending ${outcome} save cannot dismiss a conflict discovered by another editor operation`, async () => {
+    const draft = new DocumentDrafts().get('page');
+    draft.open(original);
+    draft.edit({ content: 'Texto autosalvo enquanto a restauração conflita' });
+    const pending = Promise.withResolvers<{ version: number }>();
+    const saving = draft.save(() => pending.promise, false);
+    await Promise.resolve();
+    draft.conflict();
+    if (outcome === 'successful') pending.resolve({ version: 2 });
+    else pending.reject(new TypeError('Resposta perdida depois do conflito'));
+    assert.equal(await saving, false);
+    assert.equal(draft.getSnapshot()?.state, 'conflict');
+    assert.equal(draft.getSnapshot()?.content, 'Texto autosalvo enquanto a restauração conflita');
+    draft.rebase(2);
+    assert.equal(await draft.save(async () => ({ version: 3 }), true), true);
+    assert.equal(draft.getSnapshot()?.state, 'saved');
+  });
+}
+
+test('revocation releases a pending save, queued exit save and read without waiting for the old response', { timeout: 1000 }, async () => {
+  const drafts = new DocumentDrafts();
+  const draft = drafts.get('page');
+  draft.open(original);
+  draft.edit({ content: 'Texto salvo antes de perder acesso' });
+  const pending = Promise.withResolvers<{ version: number }>();
+  const saving = draft.save(() => pending.promise, false);
+  await Promise.resolve();
+  const exiting = draft.save(async () => { assert.fail('A revoked exit cannot start a queued write'); }, true);
+  const reading = draft.waitForSave();
+  drafts.invalidate('page');
+  assert.equal(await saving, false);
+  assert.equal(await exiting, true);
+  await reading;
+  assert.equal(drafts.hasUnsaved(), false);
+  pending.resolve({ version: 2 });
+  await pending.promise;
+  assert.equal(draft.getSnapshot(), null);
+});

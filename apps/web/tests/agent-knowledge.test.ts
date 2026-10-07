@@ -19,6 +19,9 @@ async function office() {
     await testDb.prepare(`INSERT INTO vault_document (id, office_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, extracted_characters, created_by)
       VALUES (?, ?, 'library', ?, ?, 'text/plain', 10, 'sha', ?, ?, ?)`)
       .run(id, officeId, name, `stored-${id}`, status, chunks.join('\n').length, admin.userId);
+    await testDb.prepare(`INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active)
+      SELECT ?,office_id,id,1,original_name,stored_name,mime_type,byte_size,sha256,created_by,1 FROM vault_document WHERE id=?`).run(randomUUID(), id);
+    if (status === 'ready') await testDb.prepare('UPDATE vault_document SET extracted_version=1,extracted_sha256=sha256 WHERE id=?').run(id);
     for (const [ordinal, content] of chunks.entries()) {
       await testDb.prepare('INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, ?, ?, ?)')
         .run(randomUUID(), id, officeId, ordinal, `linha:${ordinal + 1}`, content);
@@ -110,8 +113,9 @@ test('agent knowledge: associate folder access applies to candidates, settings a
     .run(caseId, owner.officeId, 'Caso compartilhado', owner.admin.userId);
   await testDb.prepare('INSERT INTO case_participant(office_id,case_id,user_id,invited_by) VALUES(?,?,?,?)')
     .run(owner.officeId, caseId, associate.admin.userId, owner.admin.userId);
-  const parent = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Reservado', null, { visibility: 'private' });
-  const child = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Pública', parent.id);
+  const guest = { ...associate.admin, officeId: owner.officeId, caseScope: { caseId, homeOfficeId: associate.officeId } };
+  const parent = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Reservado', null, { visibility: 'private' }, guest);
+  const child = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Pública', parent.id, { visibility: 'public' }, guest);
   const documentId = await owner.document('segredo-do-associado.txt', ['conteúdo confidencial do associado']);
   await testDb.prepare("UPDATE vault_document SET scope='case',case_id=?,folder_id=?,created_by=? WHERE id=?")
     .run(caseId, child.id, associate.admin.userId, documentId);
@@ -121,18 +125,18 @@ test('agent knowledge: associate folder access applies to candidates, settings a
     await assert.rejects(addKnowledge(owner.admin, scope, documentId, 'always'), { code: 'NOT_FOUND' });
   assert.deepEqual((await knowledgeCandidates({ officeId: owner.officeId, userId: associate.admin.userId })).map(item => item.id), [documentId]);
 
-  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'restricted', memberIds: [owner.admin.userId] });
+  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'restricted', memberIds: [owner.admin.userId] }, guest);
   assert.deepEqual((await knowledgeCandidates(owner.admin)).map(item => item.id), [documentId]);
   const saved = await addKnowledge(owner.admin, 'office', documentId, 'always');
   await addKnowledge(owner.admin, 'personal', documentId, 'search');
   assert.match(await knowledgePrompt(owner.admin), /conteúdo confidencial do associado/);
 
-  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'private' });
+  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'private' }, guest);
   assert.deepEqual(await listKnowledge(owner.admin), { office: [], personal: [] });
   assert.deepEqual(await knowledgeCandidates(owner.admin), []);
   assert.equal(await knowledgePrompt(owner.admin), '');
   await assert.rejects(updateKnowledge(owner.admin, 'office', saved.id, saved.version, 'always'), { code: 'NOT_FOUND' });
 
-  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'public' });
+  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'public' }, guest);
   assert.match(await knowledgePrompt(owner.admin), /conteúdo confidencial do associado/);
 });

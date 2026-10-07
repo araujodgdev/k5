@@ -1,3 +1,4 @@
+import './server-only-fixture';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CommentRangeEnd, CommentRangeStart, CommentReference, Document, FootnoteReferenceRun, Header, Packer, Paragraph, TextRun } from "docx";
@@ -243,6 +244,6 @@ test("export: Markdown tables become Word tables on both paths, header row repea
   assert.equal(xml.match(/<w:gridCol w:w="4500"\/>/g)?.length, 2);
   assert.match(xml, /<w:tr><w:trPr><w:tblHeader\/><\/w:trPr><w:tc>[\s\S]*?<w:b\/>[\s\S]*?Parcela/);
   assert.match(xml, /w:ascii="Garamond"[^]*?10\/02\/2026/);
-  // A document that ends in a table still closes with a paragraph before the section properties.
+
   assert.match(xml, /<\/w:tbl><w:p\/><w:sectPr/);
 });

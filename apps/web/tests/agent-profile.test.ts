@@ -19,6 +19,8 @@ async function office() {
     const id = randomUUID();
     await testDb.prepare(`INSERT INTO vault_document (id, office_id, scope, original_name, stored_name, mime_type, byte_size, sha256, status, created_by)
       VALUES (?, ?, 'library', ?, ?, ?, 10, 'sha', 'ready', ?)`).run(id, officeId, name, `stored-${id}`, mimeType, admin.userId);
+    await testDb.prepare(`INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active)
+      VALUES(?,?,?,1,?,?,?,10,'sha',?,1)`).run(randomUUID(), officeId, id, name, `stored-${id}`, mimeType, admin.userId);
     return id;
   };
   return { officeId, admin, document };
@@ -62,25 +64,27 @@ test('agent profile: templates stay inside the office and must be Word files', a
   assert.deepEqual((await templateCandidates(b.admin)).map(item => item.id), [foreign]);
 });
 
-test('agent profile: a template deleted in the Cofre stops applying', async () => {
+test('agent profile: a deleted template stays selected so rendering fails instead of silently falling back', async () => {
   const { admin, document } = await office();
   const letterhead = await document('timbrado.docx');
   await setDocumentTemplate(admin, 'office', letterhead);
   await testDb.prepare('UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP WHERE id=?').run(letterhead);
-  assert.equal(await resolveDocumentTemplateId(admin), undefined);
+  assert.equal(await resolveDocumentTemplateId(admin), letterhead);
   assert.equal((await documentTemplates(admin)).office, null);
 });
 
 test('agent profile: private ancestor folders hide Word candidates and revoke saved templates', async () => {
   const owner = await office();
   const associate = await office();
+  await testDb.prepare('INSERT INTO office_associate(office_id,user_id,created_by) VALUES(?,?,?)').run(owner.officeId, associate.admin.userId, owner.admin.userId);
   const caseId = randomUUID();
   await testDb.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)')
     .run(caseId, owner.officeId, 'Caso compartilhado', owner.admin.userId);
   await testDb.prepare('INSERT INTO case_participant(office_id,case_id,user_id,invited_by) VALUES(?,?,?,?)')
     .run(owner.officeId, caseId, associate.admin.userId, owner.admin.userId);
-  const parent = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Reservado', null, { visibility: 'private' });
-  const child = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Pública', parent.id);
+  const context = { officeId: owner.officeId, userId: associate.admin.userId, caseScope: { caseId, homeOfficeId: associate.officeId } };
+  const parent = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Reservado', null, { visibility: 'private' }, context);
+  const child = await createVaultFolder(owner.officeId, associate.admin.userId, caseId, 'Pública', parent.id, { visibility: 'public' }, context);
   const documentId = await owner.document('modelo-confidencial.docx');
   await testDb.prepare("UPDATE vault_document SET scope='case',case_id=?,folder_id=?,created_by=? WHERE id=?")
     .run(caseId, child.id, associate.admin.userId, documentId);
@@ -90,16 +94,16 @@ test('agent profile: private ancestor folders hide Word candidates and revoke sa
     await assert.rejects(setDocumentTemplate(owner.admin, scope, documentId), { code: 'NOT_FOUND' });
   assert.deepEqual((await templateCandidates({ officeId: owner.officeId, userId: associate.admin.userId })).map(item => item.id), [documentId]);
 
-  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'restricted', memberIds: [owner.admin.userId] });
+  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'restricted', memberIds: [owner.admin.userId] }, context);
   await setDocumentTemplate(owner.admin, 'office', documentId);
   await setDocumentTemplate(owner.admin, 'personal', documentId);
   assert.equal(await resolveDocumentTemplateId(owner.admin), documentId);
 
-  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'private' });
+  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'private' }, context);
   assert.deepEqual(await templateCandidates(owner.admin), []);
   assert.deepEqual(await documentTemplates(owner.admin), { office: null, personal: null });
-  assert.equal(await resolveDocumentTemplateId(owner.admin), undefined);
+  assert.equal(await resolveDocumentTemplateId(owner.admin), documentId);
 
-  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'public' });
+  await updateVaultFolderAccess(owner.officeId, parent.id, associate.admin.userId, { visibility: 'public' }, context);
   assert.equal(await resolveDocumentTemplateId(owner.admin), documentId);
 });

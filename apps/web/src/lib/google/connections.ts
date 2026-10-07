@@ -1,3 +1,4 @@
+import { admissionTransport, type ContentAdmission } from '@/lib/content-admission';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { database, type Database } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
@@ -31,7 +32,7 @@ export async function findLiveConnection(owner: Owner, db: Pick<Database, 'prepa
 
 export async function rolloutFor(officeId: string, db: Pick<Database, 'prepare'> = database): Promise<Record<GoogleModule, boolean>> {
   const rows = await db.prepare('SELECT module, enabled FROM google_rollout WHERE office_id=?').all<{ module: GoogleModule; enabled: number }>(officeId);
-  // Missing overrides inherit access; explicit platform blocks remain effective.
+
   const disabled = new Set(rows.filter(row => !row.enabled).map(row => row.module));
   return { gmail: !disabled.has('gmail'), calendar: !disabled.has('calendar'), drive: !disabled.has('drive'), docs: !disabled.has('docs') };
 }
@@ -54,8 +55,6 @@ export async function requireConnection(owner: Owner, module: GoogleModule, db: 
   }
   return connection;
 }
-
-// ---------- OAuth: start and callback ----------
 
 function base64url(buffer: Buffer) { return buffer.toString('base64url'); }
 
@@ -107,7 +106,6 @@ function idTokenClaims(idToken: string, clientId: string) {
   return { subject: payload.sub, email: payload.email.toLowerCase(), name: payload.name ?? null };
 }
 
-/** OAuth error codes Google documents for the token endpoint; anything else is reported as `other`. */
 const tokenErrorCodes = new Set(['invalid_request', 'invalid_client', 'invalid_grant', 'unauthorized_client', 'unsupported_grant_type', 'invalid_scope', 'redirect_uri_mismatch', 'access_denied']);
 function tokenErrorCode(body: Uint8Array) {
   try {
@@ -116,9 +114,8 @@ function tokenErrorCode(body: Uint8Array) {
   } catch { return 'unreadable'; }
 }
 
-/** A failed connection used to leave no trace; the reason goes to logs and Sentry, never token data. */
 function connectFailure(reason: string, error?: unknown, tags: Record<string, string> = {}) {
-  // The runtime's own error class (TypeError, AbortError) says whether fetch refused or timed out.
+
   const cause = error instanceof Error && error.cause instanceof Error ? error.cause.name : undefined;
   console.warn(`google.oauth.callback failed: ${reason}`, cause ? { ...tags, cause } : tags);
   captureOperationalError(error ?? new Error(reason), 'google.oauth.callback', { reason, ...tags });
@@ -143,7 +140,7 @@ export async function completeGoogleConnect(
     code: params.code, client_id: config.clientId, client_secret: config.clientSecret, redirect_uri: config.redirectUri,
     grant_type: 'authorization_code', code_verifier: decryptCredential(state.encrypted_verifier, keyring()),
   }).catch((error: unknown) => {
-    // The transport refuses redirects and oversized bodies itself; those are Google answering, not the network failing.
+
     if (error instanceof GoogleApiError) connectFailure('token_rejected', error, { status: String(error.status), google_error: ['redirect', 'too_large'].includes(error.reason) ? error.reason : 'other' });
     else connectFailure('token_network', error);
     return null;
@@ -175,7 +172,7 @@ export async function completeGoogleConnect(
   const expiresAt = new Date(Date.now() + Math.max(60, token.expires_in - 60) * 1000).toISOString();
   try {
     if (existing) {
-      // Incremental consent keeps the connection id, so calendars, files and history stay attached.
+
       const changed = await db.prepare(`UPDATE google_connection SET status='active',email=?,display_name=?,granted_scopes=?,encrypted_refresh_token=?,
         encrypted_access_token=?,access_expires_at=?,token_generation=token_generation+1,refresh_lease_token=NULL,refresh_lease_until=NULL,
         authorization_generation=authorization_generation+1,last_error_code=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=? AND authorization_generation=? AND status IN ('active','reauth_required')
@@ -230,7 +227,7 @@ export async function closeConnection(connectionId: string, status: 'disconnecte
     db.prepare(`UPDATE google_drive_import SET status='failed',error_code='connection_closed',error_message='A conta Google foi desconectada antes da importação.' WHERE status IN ('queued','running') AND job_id IN (SELECT id FROM google_job WHERE connection_id=?)`).bind(connectionId),
   ]);
   if (row.encrypted_refresh_token) {
-    try { await revokeAtGoogle(decryptCredential(row.encrypted_refresh_token, keyring())); } catch { /* the local erase already stops all use */ }
+    try { await revokeAtGoogle(decryptCredential(row.encrypted_refresh_token, keyring())); } catch {  }
   }
   return true;
 }
@@ -248,8 +245,6 @@ export async function sweepRemovedMembers(db: Database = database, limit = 20) {
   for (const row of rows) await closeConnection(row.id, 'member_removed', db);
   return rows.length;
 }
-
-// ---------- Access tokens ----------
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -296,7 +291,7 @@ export async function accessToken(connectionId: string, options: { forceRefresh?
         await markReauth(connectionId, lease, 'invalid_grant', db);
         throw new CapabilityError('SCOPE_REQUIRED', 'A conexão com o Google foi revogada ou expirou. Reconecte a conta em Integrações.');
       }
-      // A client configuration failure is not a revoked grant. Keep tokens and queued work intact.
+
       await db.prepare('UPDATE google_connection SET refresh_lease_token=NULL,refresh_lease_until=NULL WHERE id=? AND refresh_lease_token=?').run(connectionId, lease);
       captureOperationalError(new Error('OAuth refresh rejected'), 'google.oauth.refresh');
       throw new CapabilityError('NOT_READY', 'A integração Google está temporariamente indisponível. Fale com o suporte da plataforma.');
@@ -325,8 +320,6 @@ export async function accessToken(connectionId: string, options: { forceRefresh?
   throw new CapabilityError('NOT_READY', 'A conexão com o Google está ocupada. Tente novamente em instantes.');
 }
 
-// ---------- API calls ----------
-
 export type GoogleRequest = {
   service: GoogleService;
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -338,6 +331,7 @@ export type GoogleRequest = {
   headers?: Record<string, string>;
   timeoutMs?: number;
   maxBytes?: number;
+  admission?: ContentAdmission;
 };
 
 function buildUrl(request: GoogleRequest) {
@@ -354,8 +348,11 @@ function buildUrl(request: GoogleRequest) {
 
 /** Authorized call on behalf of a connection. A 401 refreshes once; Google errors become GoogleApiError. */
 export async function googleRequest(connection: Pick<ConnectionRow, 'id'>, request: GoogleRequest, db: Database = database): Promise<TransportResponse> {
+  const admission = request.admission ? admissionTransport(request.admission) : undefined;
   const send = async (token: string) => {
     if (request.method && request.method !== 'GET') await checkGoogleWrite();
+    const body = request.json !== undefined ? JSON.stringify(request.json) : request.body;
+    await admission?.admit();
     return googleTransport().request({
     url: buildUrl(request), method: request.method ?? 'GET',
     headers: {
@@ -363,7 +360,7 @@ export async function googleRequest(connection: Pick<ConnectionRow, 'id'>, reque
       ...(request.json !== undefined ? { 'content-type': 'application/json' } : request.contentType ? { 'content-type': request.contentType } : {}),
       ...request.headers,
     },
-    body: request.json !== undefined ? JSON.stringify(request.json) : request.body,
+    body,
     timeoutMs: request.timeoutMs ?? 20_000, maxBytes: request.maxBytes ?? 8_000_000,
     });
   };

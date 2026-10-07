@@ -4,6 +4,16 @@ import type { CapabilityName } from '../src/lib/capabilities/contracts';
 const id = randomUUID();
 const calculation = { kind: 'correction', asOf: '2026-09-02', entries: [{ description: 'Parcela', dueOn: '2026-09-01', amountCents: 10000 }], payments: [], index: 'none', interest: { kind: 'none' }, penaltyPercent: '0' };
 export const workspaceCapabilityInputs: Partial<Record<CapabilityName, Record<string, unknown>>> = {
+  k5_case_tasks_list: { caseId: id }, k5_case_tasks_get: { caseId: id, activityId: id },
+  k5_case_tasks_create: { caseId: id, title: 'Tarefa compartilhada', idempotencyKey: id },
+  k5_case_tasks_update: { caseId: id, activityId: id, title: 'Tarefa revisada', version: 1 },
+  k5_case_pages_get: { caseId:id,pageId:id }, k5_case_pages_list: { caseId:id },
+  k5_case_pages_create: { caseId:id,title:'Página',content:'Texto' },
+  k5_case_pages_update: { caseId:id,pageId:id,title:'Página',content:'Texto',version:1 },
+  k5_case_pages_versions: { caseId:id,pageId:id },
+  k5_case_pages_restore: { caseId:id,pageId:id,version:1,restoreVersion:1 },
+  k5_case_pages_publish: { caseId:id,artifactId:id,artifactVersion:1 },
+  k5_case_pages_export: { caseId:id,pageId:id,version:1,format:'docx' },
   k5_calc_list: {}, k5_calc_get: { id }, k5_calc_preview: { input: calculation },
   k5_calc_save: { title: 'Cálculo de teste', expectedVersion: 0, input: calculation, idempotencyKey: id },
   k5_honorarios_quote_list: {}, k5_honorarios_quote_get: { id },

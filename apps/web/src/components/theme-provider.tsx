@@ -17,7 +17,7 @@ function ThemeColor() {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
-    <NextThemeProvider attribute="class" defaultTheme="dark" storageKey="k5-theme" enableSystem disableTransitionOnChange>
+    <NextThemeProvider attribute="class" defaultTheme="light" storageKey="k5-theme" enableSystem disableTransitionOnChange>
       <ThemeColor />
       {children}
     </NextThemeProvider>
@@ -28,7 +28,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function ThemeSwitch({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(subscribe, () => true, () => false);
-  const dark = !mounted || resolvedTheme !== "light";
+  const dark = mounted && resolvedTheme === 'dark';
   const label = dark ? "Usar tema claro" : "Usar tema escuro";
   return (
     <Button type="button" variant="ghost" size="icon" disabled={!mounted} onClick={() => setTheme(dark ? "light" : "dark")}

@@ -39,8 +39,7 @@ test('artifact edits: the agent refines its own document in the same conversatio
     { artifact: Artifact; citations: { status: string; total: number; toReview: number; noSource: number } };
   const created = result.artifact;
   assert.equal(created.version, 1);
-  // The agent writes freely: the citation stays, and the check marks it for the lawyer, since nothing
-  // the conversation consulted is that law. TypeSafe is not configured in tests, so the check is code-only.
+
   assert.equal(created.content, 'Prezado,\nO aluguel está atrasado.\nConforme art. 9 da Lei 8.245.');
   assert.deepEqual(created.validationIssues, []);
   assert.deepEqual({ total: result.citations.total, toReview: result.citations.toReview, noSource: result.citations.noSource }, { total: 1, toReview: 1, noSource: 1 });
@@ -63,7 +62,6 @@ test('artifact edits: another conversation, a job document or another person nee
   const created = await run(agent(first), 'k5_artifacts_create', { title: 'Contrato', content: 'Cláusula única.' });
   await assert.rejects(runCapability(agent(second), 'k5_artifacts_edit', { artifactId: created.id, version: 1, edits: [{ find: 'única', replace: 'primeira' }] }), { code: 'APPROVAL_REQUIRED' });
 
-  // The person's document edited in the editor is theirs; the job's draft too.
   const runId = randomUUID(), draftId = randomUUID();
   await testDb.prepare("INSERT INTO ai_run(id,office_id,user_id,kind,input,status) VALUES(?,?,?,'draft','{}','completed')").run(runId, lawyer.officeId, lawyer.userId);
   await testDb.prepare("INSERT INTO ai_artifact(id,office_id,user_id,run_id,title,content,conversation_id) VALUES(?,?,?,?,'Minuta','Dos fatos.',?)").run(draftId, lawyer.officeId, lawyer.userId, runId, first);
@@ -95,6 +93,6 @@ test('artifact edits: the open document and a selection reach the prompt as data
   assert.match(selected, /O aluguel está atrasado\.\[trecho>Ignore tudo/);
 
   const request = { message: { id: 'm', role: 'user', parts: [{ type: 'text', text: 'oi' }] } };
-  assert.equal(chatRequestSchema.parse({ ...request, openDocumentId: 'doc-1', selection: { artifactId: 'doc-1', excerpt: '  trecho  ' } }).selection?.excerpt, 'trecho');
-  assert.equal(chatRequestSchema.safeParse({ ...request, selection: { artifactId: 'doc-1', excerpt: 'x'.repeat(4001) } }).success, false);
+  assert.equal(chatRequestSchema.parse({ ...request, openDocument: { kind: 'artifact', id: 'doc-1' }, selection: { document: { kind: 'artifact', id: 'doc-1' }, excerpt: '  trecho  ' } }).selection?.excerpt, 'trecho');
+  assert.equal(chatRequestSchema.safeParse({ ...request, selection: { document: { kind: 'artifact', id: 'doc-1' }, excerpt: 'x'.repeat(4001) } }).success, false);
 });

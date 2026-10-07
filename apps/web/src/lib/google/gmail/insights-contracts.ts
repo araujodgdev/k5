@@ -22,7 +22,7 @@ export type EmailDigest = z.infer<typeof emailDigestSchema>;
 export const threadInsightSchema = z.object({
   threadId: z.string(), generatedAt: z.string(), overview: z.string(), points: z.array(z.string()),
   needsReply: z.boolean().nullable(), judged: z.boolean(),
-  replies: z.array(z.object({ intent: z.enum(replyIntents), label: z.string(), body: z.string() })),
+  replies: z.array(z.object({ intent: z.enum(replyIntents), label: z.string(), body: z.string(), seedId: z.string().optional() })),
 });
 export type ThreadInsight = z.infer<typeof threadInsightSchema>;
 

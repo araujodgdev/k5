@@ -1,4 +1,11 @@
+import { database } from '@/lib/database';
+import { mapContentResult } from '@/lib/content-result';
+import { assertPolicyAccess, exposedPolicies } from '@/lib/content-policy';
+import { aclReadTransaction } from '@/lib/acl-transaction';
 import 'server-only';
+import * as pages from '@/lib/case-pages/service';
+import * as caseTasks from '@/lib/case-tasks/service';
+import { recordToolProvenance } from '@/lib/case-pages/provenance';
 import { createTool } from '@mastra/core/tools';
 import {
   capabilities,
@@ -9,7 +16,7 @@ import {
 } from '@/lib/capabilities/contracts';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { InsufficientCreditsError } from '@/lib/billing/credits';
-import { assertCapabilityAllowed, type WorkspaceContext } from '@/lib/application/context';
+import { assertCapabilityAllowed, assertSourcesAdmitted, type WorkspaceContext } from '@/lib/application/context';
 import { approvalIdFromMessage } from '@/lib/application/approvals-service';
 import * as vault from '@/lib/application/vault-service';
 import * as runs from '@/lib/application/runs-service';
@@ -48,8 +55,19 @@ import { centrallyConfirmed, requireAgentApproval } from '@/lib/application/appr
 
 type Executor = (context: WorkspaceContext, input: never) => unknown;
 
-/** One executor per contract; the compiler fails if a capability is published without one. */
 const executors: { [N in CapabilityName]: Executor } = {
+  k5_case_tasks_list: caseTasks.listCaseTasks,
+  k5_case_tasks_get: caseTasks.getCaseTask,
+  k5_case_tasks_create: caseTasks.createCaseTask,
+  k5_case_tasks_update: caseTasks.updateCaseTask,
+  k5_case_pages_list: pages.listPages,
+  k5_case_pages_get: pages.getPage,
+  k5_case_pages_create: pages.createPage,
+  k5_case_pages_update: pages.updatePage,
+  k5_case_pages_publish: pages.publishPage,
+  k5_case_pages_versions: pages.listVersions,
+  k5_case_pages_restore: pages.restorePage,
+  k5_case_pages_export: pages.exportPage,
   k5_calc_preview: calc.calculatePreview,
   k5_calc_save: calc.saveCalculation,
   k5_calc_get: calc.getCalculation,
@@ -141,6 +159,7 @@ const executors: { [N in CapabilityName]: Executor } = {
   k5_vault_create_folder: vault.createFolder,
   k5_vault_update_folder_access: vault.updateFolderAccess,
   k5_vault_plan_annexes: annexes.planAnnexes,
+  k5_vault_get_annex_plan: annexes.readAnnexPlan,
   k5_vault_generate_annexes: annexes.createAnnexFiles,
   k5_vault_delete_folder: vault.deleteFolder,
   k5_vault_list_documents: vault.listDocuments,
@@ -237,13 +256,10 @@ const executors: { [N in CapabilityName]: Executor } = {
 export type ToolEvent = { name: CapabilityName; state: 'completed' | 'failed'; summary: string };
 
 import { withIdempotency } from '@/lib/application/idempotency-service';
+import { captureCapabilityReplay, replayCapabilityResult } from '@/lib/application/capability-replay';
+import { capabilityIdempotency } from '@/lib/capabilities/contracts';
 import { scopeCapability } from '@/lib/collaboration/capability-access';
 
-/**
- * Single execution path for a capability, whatever called it. The Mastra tool and the HTTP route
- * both land here, so authorization, idempotency and the DTO fence cannot drift between the two
- * adapters the way they do when each route re-implements its own checks.
- */
 export async function runCapability<N extends CapabilityName>(
   context: WorkspaceContext,
   name: N,
@@ -255,38 +271,44 @@ export async function runCapability<N extends CapabilityName>(
     throw new CapabilityError('FORBIDDEN', 'Esta ação da Pesquisa precisa ser feita na interface.');
   }
   await assertCapabilityAllowed(context, name);
-  const parsed = capability.input.safeParse(rawInput);
+  const confirming = rawInput && typeof rawInput === 'object' && 'approvalId' in rawInput;
+  const parsed = (context.invocation && !confirming ? capability.agentInput ?? capability.input : capability.input).safeParse(rawInput);
   if (!parsed.success) throw parsed.error;
   const input = parsed.data as Record<string, unknown>;
   if (name === 'k5_knowledge_search' && !input.caseId && context.allowedResearchCaseId) input.caseId = context.allowedResearchCaseId;
-  // A case shared by another lawyer moves the data office to the case owner's, bounded to that case.
   const scoped = await scopeCapability(context, name, input);
   const authorized = await assertCapabilityAllowed(scoped, name);
 
   const execute = async () => {
-    if (centrallyConfirmed(name)) {
+    if (centrallyConfirmed(name) && !(capability.preparation === 'research-content' && input.change)) {
       const { approvalId, ...proposal } = input;
       await requireAgentApproval(authorized, name, typeof approvalId === 'string' ? approvalId : undefined, proposal, null, capability.description);
     }
     const result = await (executors[name] as (context: WorkspaceContext, input: unknown) => unknown)(authorized, input);
-    // Zod strips anything the contract does not declare, so an internal column added to a row
-    // later cannot reach the model or the browser by accident.
-    return capability.output.parse(result);
+
+    const dto = capability.output.parse(result);
+    return dto && typeof dto === 'object' ? mapContentResult(dto, result) : dto;
   };
 
   const key = typeof input.idempotencyKey === 'string' ? input.idempotencyKey : undefined;
-  // Google owns durable pending/unknown states and reconciliation; caching an unknown response
-  // in the generic idempotency store would prevent later reads from observing its outcome.
-  if (capability.effect === 'write' && key && capability.module !== 'google' && capability.module !== 'whatsapp' && capability.module !== 'honorarios' && capability.module !== 'calc') return withIdempotency(authorized, name, key, input, execute);
-  return execute();
+  const result = capability.effect === 'write' && key && capabilityIdempotency[capability.module] === 'cache'
+    ? await withIdempotency(authorized, name, key, input, execute,
+      result => captureCapabilityReplay(authorized, capability, result),
+      (result, binding) => replayCapabilityResult(authorized, result, binding)) : await execute();
+  const dto = capability.output.parse(result);
+  const returned = dto && typeof dto === 'object' ? mapContentResult(dto, result) : dto;
+  if (authorized.invocation) await aclReadTransaction(async tx => {
+    await assertCapabilityAllowed(authorized, name, tx);
+    for (const policy of exposedPolicies(returned) ?? []) {
+      await assertPolicyAccess(authorized.userId, policy, tx);
+      await assertSourcesAdmitted(policy, tx);
+    }
+  });
+  await recordToolProvenance(authorized, name, input, returned);
+  return returned;
 }
 
-/**
- * Builds the tools for one authenticated request. The office and the user come from the
- * session and are re-checked inside every call, so a revoked membership stops the next step.
- * Capabilities marked unpublished are absent from the catalog entirely.
- */
-export type ApprovalRequest = { toolCallId?: string; capability: CapabilityName; approvalId: string; input: Record<string, unknown> };
+export type ApprovalRequest = { preparedContent?: boolean; toolCallId?: string; capability: CapabilityName; approvalId: string; input: Record<string, unknown> };
 
 export function agentTools(context: WorkspaceContext, onApproval?: (request: ApprovalRequest) => void, options: { whatsappEnabled?: boolean } = {}) {
   const reads = new ToolReadGuard();
@@ -300,14 +322,12 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, reads: ToolRea
   return createTool({
     id: name,
     description: capability.description,
-    inputSchema: capability.input,
+    inputSchema: capability.agentInput ?? capability.input,
     outputSchema: capability.output,
     execute: async (input: unknown, execution?: { agent?: { toolCallId?: string } }) => {
       try {
-        reads.before(name, capability.input.parse(input), capability.effect);
+        reads.before(name, (capability.agentInput ?? capability.input).parse(input), capability.effect);
         const result = await traceToolCall(name, () => runCapability({ ...context, invocation: 'agent' }, name, input));
-        // What the Lume read is kept before it sees it, so a document it writes next in this same
-        // turn is checked against these sources too.
         if (context.conversationId) {
           await recordSources(context, context.conversationId, sourcesFromTool(name, result))
             .catch(error => captureOperationalError(error, 'citations.sources'));
@@ -315,11 +335,11 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, reads: ToolRea
         return result;
       }
       catch (error) {
-        // A gated action is not a failure: the chat turns it into a Confirmar button that runs it.
-        // The call id pairs the button with this call when the model asks for two in one step.
         const approvalId = error instanceof CapabilityError && error.code === 'APPROVAL_REQUIRED' ? approvalIdFromMessage(error.message) : null;
         if (approvalId && onApproval) {
-          onApproval({ toolCallId: execution?.agent?.toolCallId, capability: name, approvalId, input: input as Record<string, unknown> });
+          const proposal = await database.prepare('SELECT normalized_input FROM capability_approval WHERE id=?').get<{ normalized_input: string }>(approvalId);
+          const change = proposal ? JSON.parse(proposal.normalized_input).change : undefined;
+          onApproval({ preparedContent: change?.kind === 'confirm' && typeof change.generationAttemptId === 'string', toolCallId: execution?.agent?.toolCallId, capability: name, approvalId, input: input as Record<string, unknown> });
           throw new CapabilityError('APPROVAL_REQUIRED', 'Aguardando a pessoa pressionar Confirmar no chat; a ação roda quando ela confirmar. Não repita esta chamada.');
         }
         throw error;
@@ -328,7 +348,6 @@ function toolFor(name: CapabilityName, context: WorkspaceContext, reads: ToolRea
   });
 }
 
-/** Platform tools catalog, separated from office agent tools (Section 5.3) */
 export function platformAgentTools(context: WorkspaceContext) {
   return {
     k5_platform_list_offices: createTool({
@@ -466,6 +485,14 @@ export function toolSummary(name: string, result: unknown, failed: boolean): str
     k5_documents_start_draft: 'Iniciou uma minuta',
     k5_citations_list_candidates: 'Consultou citações candidatas',
     k5_artifacts_create: 'Criou o documento',
+    k5_case_pages_list: 'Consultou as páginas do caso',
+    k5_case_pages_get: 'Leu a página compartilhada',
+    k5_case_pages_create: 'Criou a página compartilhada',
+    k5_case_pages_update: 'Salvou a página compartilhada',
+    k5_case_pages_publish: 'Publicou a cópia no caso',
+    k5_case_pages_versions: 'Consultou as versões da página',
+    k5_case_pages_restore: 'Restaurou a página compartilhada',
+    k5_case_pages_export: 'Preparou a exportação da página',
     k5_artifacts_edit: 'Alterou o documento',
     k5_artifacts_list: 'Consultou os documentos',
     k5_artifacts_get: 'Leu um documento',
@@ -566,13 +593,10 @@ function describe(name: string, result: unknown): string {
   if (Array.isArray(value.drafts)) return `${value.drafts.length} rascunho(s)`;
   if (Array.isArray(value.files)) return `${value.files.length} arquivo(s)`;
   if (Array.isArray(value.calendars)) return `${value.calendars.length} calendário(s)`;
-  // The provider's own search reports what it did: a search with the pages found, or a page opened.
   if (name === 'web_search' && value.action && typeof value.action === 'object') {
     if ((value.action as { type?: unknown }).type === 'openPage') return 'abriu uma página';
     if (Array.isArray(value.sources)) return `${value.sources.length} página(s)`;
   }
-  // `sources` means retrieved excerpts for knowledge search and court installations for the
-  // judicial catalog, so the capability name settles it before the shape is read.
   if (Array.isArray(value.sources)) {
     return name === 'k5_judicial_list_sources' ? `${value.sources.length} fonte(s)` : `${value.sources.length} trecho(s)`;
   }
@@ -611,7 +635,6 @@ function describe(name: string, result: unknown): string {
 /** Failures reach the model as a short, stable domain message; never a stack or a provider error. */
 export function toolFailureMessage(error: unknown) {
   if (error instanceof CapabilityError) return `${error.code}: ${error.message}`;
-  // The person needs to know the credits ran out, not that something broke.
   if (error instanceof InsufficientCreditsError) return `NO_CREDITS: ${error.message}`;
   return 'INTERNAL: a operação não pôde ser concluída.';
 }

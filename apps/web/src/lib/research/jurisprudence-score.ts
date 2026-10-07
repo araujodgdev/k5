@@ -1,16 +1,12 @@
+import { contentAdmission } from '@/lib/content-admission';
+import { privateGenerationPolicy } from '@/lib/content-policy';
+import {contentResult} from '@/lib/content-result';
 import 'server-only';
 import type { Questions } from '@typesafe-ai/sdk';
 import { conversationSources } from '@/lib/citations/sources';
 import { evaluate, type DecisionTransport } from '@/lib/typesafe/client';
 import { foundDecision, MAX_DECISIONS, type FoundDecisionInput, type Reliability, type ScoredDecision } from './jurisprudence-score-contract';
 
-/**
- * Case law the Lume found with its own web search, scored against the case. Three parties, three
- * jobs: the model searches and brings the decisions; Jev (TypeSafe) judges how well each one fits
- * the case and whether the page is a court decision at all; code checks that each link came back
- * from a search in this conversation. Nothing is dropped: the model reports every decision with
- * its verdict, so a weak or unverified one is shown as such instead of silently disappearing.
- */
 export const jurisprudenceScoreVersion = 'jurisprudence-score-pt-BR-v1';
 
 const fitCriteria = [
@@ -69,11 +65,12 @@ function verdict(linkFound: boolean, score: number | null, isDecision: number | 
 const order: Record<Reliability, number> = { alta: 0, média: 1, 'não avaliada': 2, baixa: 3 };
 
 export async function scoreJurisprudence(
-  context: { officeId: string; userId: string; signal?: AbortSignal; conversationId?: string; consultedLinks?: ReadonlySet<string> },
+  context: import('@/lib/application/context').WorkspaceContext,
   input: { question: string; caseFacts?: string; decisions: FoundDecisionInput[] },
   options: { send?: DecisionTransport } = {},
 ) {
   const decisions = input.decisions.slice(0, MAX_DECISIONS).map(item => foundDecision.parse(item));
+  const policy = await privateGenerationPolicy(context);
   const earlier = (await conversationSources(context, context.conversationId)).flatMap(source => source.url ? [source.url] : []);
   const consulted = new Set([...(context.consultedLinks ?? []), ...earlier].map(comparableUrl).filter(Boolean));
   const found = decisions.map(item => consulted.has(comparableUrl(item.url)));
@@ -90,7 +87,7 @@ export async function scoreJurisprudence(
       decisions: decisions.map(({ title, court, caseNumber, date, summary, url }) => ({ title, court, caseNumber, date, summary: summary.slice(0, 900), host: new URL(url).hostname })),
     },
     questions, questionVersion: jurisprudenceScoreVersion,
-  }, { signal: context.signal, send: options.send, deadlineMs: 15_000 }) : null;
+  }, { signal: context.signal, send: options.send, deadlineMs: 15_000, admission: contentAdmission(context, input, [policy]) }) : null;
   const answers = evaluation?.status === 'evaluated' ? evaluation.response?.answers : undefined;
 
   const results: ScoredDecision[] = decisions.map((item, i) => {
@@ -101,10 +98,10 @@ export async function scoreJurisprudence(
     return { ...item, score, isDecision, linkFound: found[i], ...verdict(found[i], score, isDecision) };
   }).sort((a, b) => order[a.reliability] - order[b.reliability] || (b.score ?? 0) - (a.score ?? 0));
 
-  return {
+  return contentResult({
     results, evaluated: Boolean(answers),
     note: !decisions.length ? 'Nenhum julgado foi enviado para avaliação.'
       : answers ? 'Aderência ao caso avaliada pelo Jev (0 a 4); links conferidos com as buscas desta conversa.'
         : 'O Jev não avaliou estes julgados; só os links foram conferidos com as buscas desta conversa.',
-  };
+  },[policy]);
 }

@@ -72,9 +72,6 @@ test('uploads: aceita 100 MB e recusa um byte a mais antes de armazenar', async 
 test("storage: a caller-supplied key cannot escape the vault root", async () => {
   const { lawyer, officeA } = (await seedOffices());
 
-  // Ingest used to write `${uploadRef}.pdf` straight into stored_name, so a traversal sequence in
-  // the reference became a readable path on the next download. References are uuids the server
-  // minted, and anything else is refused before a row exists.
   for (const hostile of ["../../../../etc/passwd", "..\\..\\..\\windows\\win.ini", "../uploads/outro-escritorio"]) {
     await assert.rejects(
       () => vaultService.ingestUpload(lawyer, { uploadRef: hostile, scope: "library" }),
@@ -82,13 +79,11 @@ test("storage: a caller-supplied key cannot escape the vault root", async () => 
     );
   }
 
-  // A well-formed but unknown reference is equally refused: existence is checked, not assumed.
   await assert.rejects(
     () => vaultService.ingestUpload(lawyer, { uploadRef: randomUUID(), scope: "library" }),
     (error: unknown) => error instanceof CapabilityError && error.code === "NOT_FOUND",
   );
 
-  // The storage adapter rejects any key it did not mint, including a bare legacy-looking name.
   assert.throws(() => assertStorageKey("../../segredo.pdf"), /inválida/);
   assert.throws(() => assertStorageKey("arquivo-solto.pdf"), /inválida/);
   assert.ok(assertStorageKey(storageKey(officeA, randomUUID(), ".pdf")));
@@ -172,8 +167,6 @@ test("tombstone: a deleted document cannot be resurrected through retry", async 
   await approvalsService.approveProposal(lawyer, proposal.id);
   await vaultService.deleteDocument(lawyer, { documentId, approvalId: proposal.id });
 
-  // Deletion parks the row in `failed`, which is exactly the state retry accepts. Without the
-  // tombstone check the worker would re-extract the original and put it back into search.
   await assert.rejects(
     () => retryVaultDocument(officeA, documentId),
     (error: unknown) => error instanceof VaultHttpError && error.status === 409,
@@ -196,14 +189,10 @@ test("retry: a document left in the queue can be requeued, a live one cannot", a
   const upload = await seedUpload(lawyer, "parado.pdf");
   const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "library" })).document.id;
 
-  // Ingestion on Workers is kicked by the request that queues the document. When that kick never
-  // lands the row sits in `queued`, and rejecting it here would leave the interface with a stuck
-  // document and no button that does anything about it.
   assert.equal((await findVaultDocument(officeA, documentId, null))?.status, "queued");
   await retryVaultDocument(officeA, documentId);
   assert.equal((await findVaultDocument(officeA, documentId, null))?.status, "queued", "still claimable");
 
-  // `processing` is someone else's lease, and `ready` is work that is done. Neither is stuck.
   (await testDb.prepare("UPDATE vault_document SET status='processing' WHERE id=?").run(documentId));
   await assert.rejects(
     () => retryVaultDocument(officeA, documentId),
@@ -211,7 +200,6 @@ test("retry: a document left in the queue can be requeued, a live one cannot", a
   );
 });
 
-/** Proposes and approves in one step, the way a confirmation dialog in the interface does. */
 async function approved(context: WorkspaceContext, capability: string, input: Record<string, unknown>) {
   const proposal = await approvalsService.createApprovalProposal(context, capability, input);
   await approvalsService.approveProposal(context, proposal.id);
@@ -228,14 +216,11 @@ test("case deletion: the documents filed in a case go with it", async () => {
 
   await vaultService.deleteCase(lawyer, { caseId: created.id, approvalId: await approved(lawyer, "k5_vault_delete_case", { caseId: created.id }) });
 
-  // Not reassigned to the library: a case that is gone does not leave its filings behind.
   assert.equal(await findVaultDocument(officeA, documentId, null), undefined, "gone from every live lookup");
   assert.equal((await listVaultDocuments(officeA, null, {})).length, 0, "and from the list the interface renders");
   const chunks = (await testDb.prepare("SELECT count(*) AS n FROM vault_document_chunk WHERE document_id=?").get(documentId)) as { n: number };
   assert.equal(Number(chunks.n), 0, "searchability is lost in the same batch as the tombstone");
 
-  // Bytes and vectors are chased afterwards, by a queue that can retry without ever making the
-  // document visible again.
   const queued = (await testDb.prepare("SELECT target_kind AS kind FROM vault_deletion_queue WHERE office_id=? AND completed_at IS NULL").all(officeA)) as Array<{ kind: string }>;
   assert.ok(queued.some((row) => row.kind === "vector_document"), "the index entry is queued for removal");
   assert.ok(queued.some((row) => row.kind === "object"), "so are the stored bytes");
@@ -263,7 +248,6 @@ test("case deletion: no approval, no deletion", async () => {
   const upload = await seedUpload(lawyer, "sigiloso.pdf");
   const documentId = (await vaultService.ingestUpload(lawyer, { uploadRef: upload.id, scope: "case", caseId: created.id })).document.id;
 
-  // An agent reaching for this gets a proposal to show the person, never a deleted case.
   await assert.rejects(
     () => vaultService.deleteCase(lawyer, { caseId: created.id }),
     (error: unknown) => error instanceof CapabilityError && error.code === "APPROVAL_REQUIRED",
@@ -278,24 +262,22 @@ test("idempotency: a reused key with different arguments conflicts instead of re
   const run = () => { calls += 1; return Promise.resolve({ calls, value: "ok" }); };
   const key = `key-${randomUUID()}`;
 
-  assert.equal((await withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Alfa" }, run)).calls, 1);
-  assert.equal((await withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Alfa" }, run)).calls, 1);
+  assert.equal((await withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Alfa" }, run, async () => ({ format: 2, payloadDigest: 'test-only', contentIdentities: [], identities: [], policies: [] }), async result => result)).calls, 1);
+  assert.equal((await withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Alfa" }, run, async () => ({ format: 2, payloadDigest: 'test-only', contentIdentities: [], identities: [], policies: [] }), async result => result)).calls, 1);
   assert.equal(calls, 1, "a replay returns the stored response without running again");
 
   await assert.rejects(
-    () => withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Beta" }, run),
+    () => withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Beta" }, run, async () => ({ format: 2, payloadDigest: 'test-only', contentIdentities: [], identities: [], policies: [] }), async result => result),
     (error: unknown) => error instanceof CapabilityError && error.code === "CONFLICT",
     "different arguments under the same key is a conflict, not a stale replay",
   );
   await assert.rejects(
-    () => withIdempotency(lawyer, "k5_conversations_create", key, { name: "Alfa" }, run),
+    () => withIdempotency(lawyer, "k5_conversations_create", key, { name: "Alfa" }, run, async () => ({ format: 2, payloadDigest: 'test-only', contentIdentities: [], identities: [], policies: [] }), async result => result),
     (error: unknown) => error instanceof CapabilityError && error.code === "CONFLICT",
     "a key minted for one capability does not answer for another",
   );
 
-  // Keys are scoped per person: a colleague reusing the same string runs their own call rather
-  // than receiving someone else's stored response body.
-  assert.equal((await withIdempotency(admin, "k5_vault_create_case", key, { name: "Gama" }, run)).calls, 2);
+  assert.equal((await withIdempotency(admin, "k5_vault_create_case", key, { name: "Gama" }, run, async () => ({ format: 2, payloadDigest: 'test-only', contentIdentities: [], identities: [], policies: [] }), async result => result)).calls, 2);
 });
 
 test("approval: a nested argument change invalidates the approval", async () => {
@@ -307,8 +289,6 @@ test("approval: a nested argument change invalidates the approval", async () => 
   });
   await approvalsService.approveProposal(lawyer, proposal.id);
 
-  // `JSON.stringify(obj, Object.keys(obj).sort())` reads like a sort but is a recursive property
-  // filter, so nested fields dropped out of the canonical form and changing one went unnoticed.
   await assert.rejects(
     () => approvalsService.requireAndConsumeApproval(lawyer, "k5_vault_delete_document", proposal.id, {
       documentId: "doc-1",
@@ -317,7 +297,6 @@ test("approval: a nested argument change invalidates the approval", async () => 
     (error: unknown) => error instanceof CapabilityError && error.code === "FORBIDDEN",
   );
 
-  // Reordering the same values is still the same request.
   await approvalsService.requireAndConsumeApproval(lawyer, "k5_vault_delete_document", proposal.id, {
     options: { keepHistory: true, mode: "replace" },
     documentId: "doc-1",
@@ -347,8 +326,6 @@ test("approval: concurrent decisions cannot overwrite the first transition", asy
   const { lawyer } = (await seedOffices());
   const proposal = await approvalsService.createApprovalProposal(lawyer, "k5_vault_delete_document", { documentId: "doc-race" });
 
-  // Both calls reach their first await before either continuation runs. Rejection is deliberately
-  // started first, so an unconditional approval update would overwrite it on the next microtask.
   const [rejected, approved] = await Promise.allSettled([
     approvalsService.rejectProposal(lawyer, proposal.id),
     approvalsService.approveProposal(lawyer, proposal.id),
@@ -364,37 +341,29 @@ test("publication: no adapter may offer a capability marked unpublished", () => 
   const agentNames = publishedCapabilities("agent");
   const browserNames = publishedCapabilities("webmcp");
 
-  // Terminal, irreversible, and triggerable from text the agent is reading. The interface keeps
-  // the button; neither adapter gets a tool for it.
   assert.ok(!agentNames.includes("k5_session_end_global"));
   assert.ok(!browserNames.includes("k5_session_end_global"));
   assert.ok(agentNames.includes("k5_knowledge_search"));
 
-  // Destructive tools remain available to the lawyer, with confirmation checked on execution.
   assert.ok(agentNames.includes("k5_vault_delete_document"));
 });
 
 test("origins: the wildcard the tunnel default declares is honoured, and nothing wider", () => {
   const patterns = ["http://localhost:3000", "https://*.trycloudflare.com"];
 
-  // The exact app URL and a quick tunnel of the configured zone.
   assert.equal(isTrustedOrigin("http://localhost:3000", patterns), true);
   assert.equal(isTrustedOrigin("https://going-officials-kenny-axis.trycloudflare.com", patterns), true);
 
-  // One label only: neither the apex nor a deeper subdomain is covered by `*.`.
   assert.equal(isTrustedOrigin("https://trycloudflare.com", patterns), false);
   assert.equal(isTrustedOrigin("https://a.b.trycloudflare.com", patterns), false);
 
-  // A suffix that merely ends in the same characters is a different host.
   assert.equal(isTrustedOrigin("https://eviltrycloudflare.com", patterns), false);
   assert.equal(isTrustedOrigin("https://trycloudflare.com.evil.test", patterns), false);
 
-  // Scheme and port are part of an origin and are never wildcarded.
   assert.equal(isTrustedOrigin("http://tunnel.trycloudflare.com", patterns), false);
   assert.equal(isTrustedOrigin("https://tunnel.trycloudflare.com:8443", patterns), false);
   assert.equal(isTrustedOrigin("http://localhost:3001", patterns), false);
 
-  // A missing header, a path, or anything that is not an origin fails closed.
   assert.equal(isTrustedOrigin(null, patterns), false);
   assert.equal(isTrustedOrigin("", patterns), false);
   assert.equal(isTrustedOrigin("http://localhost:3000/api/chat", patterns), false);
@@ -411,7 +380,6 @@ test("approval responses omit tenant ids and the stored input", () => {
   assert.equal(dto.expiresAt, "1970-01-01T00:00:00.000Z");
 });
 
-// apiError shows the first Zod issue only when it is `custom`, so person-facing rules must stay custom.
 test("meeting ending before it starts fails with a custom pt-BR issue", () => {
   const parsed = activityData.safeParse({ kind: "meeting", title: "Reunião", startsAt: "2026-09-23T10:00:00Z", endsAt: "2026-09-23T09:00:00Z" });
   assert.ok(!parsed.success);

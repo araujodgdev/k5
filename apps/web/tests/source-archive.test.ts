@@ -1,0 +1,97 @@
+import { testDb as db } from './test-setup';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { PDFDocument } from 'pdf-lib';
+import { authStore, withPostgres } from '../src/lib/database';
+import { createAuth } from '../src/lib/auth-core';
+import { googleFixture, installFakeGoogle, respond, setRule } from './google-fixture';
+import { createPrivateDocument } from '../src/lib/documents/service';
+import { runCapability } from '../src/lib/agent-tools';
+import { objectStorage } from '../src/lib/storage';
+import { createUploadRef } from '../src/lib/application/uploads-service';
+import { createVaultDocument, createVaultFolder, readVaultDocumentFile, listVaultDocuments } from '../src/lib/vault';
+import { personPolicy } from '../src/lib/content-policy';
+import { changeAccess } from '../src/lib/collaboration/service';
+import { generateAnnexes } from '../src/lib/annexes';
+import { sendMail } from '../src/lib/google/gmail/service';
+
+test('actual capability archive reauthorizes after stored rendering on real logout and cancellation, retaining legitimate retries', async t => {
+  const pool = await authStore();
+  const origin = 'http://localhost:3000';
+  const auth = createAuth(pool, db, { secret: randomBytes(48).toString('base64url'), baseURL: origin, idleSeconds: 3600 });
+  const password = 'Archive-2026-safe!';
+  const email = `${randomUUID()}@test.local`;
+  const request = (path: string, body: object, cookie = '') => withPostgres(pool, () => auth.handler(new Request(`${origin}/api/auth/${path}`, {
+    method: 'POST', headers: { origin, cookie, 'content-type': 'application/json' }, body: JSON.stringify(body),
+  })));
+  const signup = await request('sign-up/email', { email, password, name: 'Arquivista', officeName: 'Arquivo' });
+  assert.equal(signup.status, 200);
+  let cookie = signup.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
+  const { user } = await signup.json();
+  const member = await db.prepare('SELECT office_id FROM office_member WHERE user_id=?').get<{ office_id: string }>(user.id);
+  const session = await db.prepare('SELECT id FROM session WHERE userId=?').get<{ id: string }>(user.id);
+  let context = { officeId: member!.office_id, userId: user.id, sessionId: session!.id };
+  const artifact = await createPrivateDocument(context, { title: 'Arquivo', content: 'ARCHIVE_BYTES' });
+  const input = { artifactId: artifact.id, version: 1, format: 'docx', scope: 'library' };
+  const storage = await objectStorage(), put = storage.put.bind(storage);
+  let entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  t.mock.method(storage, 'put', async (key: string, bytes: Buffer) => { await put(key, bytes); entered.resolve(); await release.promise; });
+  const denied = assert.rejects(runCapability(context, 'k5_vault_save_artifact', input), { code: 'UNAUTHENTICATED' });
+  await entered.promise;
+  assert.equal((await request('sign-out', {}, cookie)).status, 200);
+  release.resolve(); await denied;
+  assert.equal(await db.prepare('SELECT 1 FROM vault_agent_origin WHERE source_id=?').get(artifact.id), undefined);
+  const login = await request('sign-in/email', { email, password });
+  cookie = login.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
+  const renewed = await db.prepare('SELECT id FROM session WHERE userId=?').get<{ id: string }>(user.id);
+  context = { ...context, sessionId: renewed!.id };
+  entered = Promise.withResolvers<void>(); release = Promise.withResolvers<void>();
+  const abort = new AbortController();
+  const cancelled = assert.rejects(runCapability({ ...context, signal: abort.signal }, 'k5_vault_save_artifact', input), /cancel|abort/i);
+  await entered.promise; abort.abort(new Error('Archive cancelled')); release.resolve(); await cancelled;
+  assert.equal(await db.prepare('SELECT 1 FROM vault_agent_origin WHERE source_id=?').get(artifact.id), undefined);
+  t.mock.restoreAll();
+  const first = await runCapability(context, 'k5_vault_save_artifact', input);
+  assert.deepEqual(await runCapability(context, 'k5_vault_save_artifact', input), first);
+  await request('sign-out', {}, cookie);
+  await assert.rejects(runCapability(context, 'k5_vault_save_artifact', input), { code: 'UNAUTHENTICATED' });
+});
+
+test('actual annex transformation keeps A/B/C folder access through list, download, search and connector delivery; revocation while storing cannot publish', async t => {
+  const a = await googleFixture(), b = await googleFixture(), c = await googleFixture();
+  const caseId = randomUUID();
+  await db.prepare('INSERT INTO vault_case(id,office_id,name,created_by) VALUES(?,?,?,?)').run(caseId, a.officeId, 'Anexos protegidos', a.userId);
+  for (const person of [b, c]) {
+    await db.prepare('INSERT INTO office_associate(office_id,user_id,created_by) VALUES(?,?,?)').run(a.officeId, person.userId, a.userId);
+    await changeAccess(a.context, { action: 'participant', caseId, userId: person.userId, add: true });
+  }
+  const folder = await createVaultFolder(a.officeId, a.userId, caseId, 'Reservada', null, { visibility: 'restricted', memberIds: [b.userId] }, a.context);
+  const pdf = await PDFDocument.create(); pdf.addPage(); pdf.addPage();
+  const upload = await createUploadRef(a.context, new File([new Uint8Array(await pdf.save())], 'protegido.pdf', { type: 'application/pdf' }));
+  const original = await createVaultDocument(a.context, upload, { scope: 'case', caseId, folderId: folder.id, policy: personPolicy('', '') });
+  const input = { caseId, scanDocumentId: original.id, folderName: 'Anexos protegidos', items: [{ label: 'Identificação', startPage: 1, endPage: 1 }] };
+  const generated = await generateAnnexes(a.context, input);
+  const id = generated.documents[0].id;
+  const guest = (f: typeof b) => ({ ...f.context, officeId: a.officeId, caseScope: { caseId, homeOfficeId: f.officeId } });
+  assert.ok((await listVaultDocuments(a.officeId, b.userId, { caseId })).some(doc => doc.id === id));
+  assert.ok(!(await listVaultDocuments(a.officeId, c.userId, { caseId })).some(doc => doc.id === id));
+  assert.ok((await readVaultDocumentFile(a.officeId, id, b.userId)).buffer.length > 0);
+  await assert.rejects(readVaultDocumentFile(a.officeId, id, c.userId));
+  assert.match(JSON.stringify(await runCapability(guest(b), 'k5_vault_list_documents', { caseId, search: 'identificacao', limit: 20 })), /01_identificacao/);
+  assert.doesNotMatch(JSON.stringify(await runCapability(guest(c), 'k5_vault_list_documents', { caseId, search: 'identificacao', limit: 20 })), /01_identificacao/);
+  await setRule(a.officeId, 'gmail.send', { mode: 'automatic' });
+  await setRule(a.officeId, 'gmail.send_attachments', { mode: 'automatic' });
+  const google = installFakeGoogle(); google.on('POST', /\/users\/me\/messages\/send$/, () => respond(200, { id: 'annex-sent' }));
+  await assert.rejects(sendMail(a.context, { to: ['outside@example.test'], subject: 'Anexo', body: 'Anexo', cc: [], bcc: [], attachments: [{ kind: 'vault', documentId: id }], idempotencyKey: randomUUID() }), { code: 'FORBIDDEN' });
+  assert.equal(google.count('POST', /\/messages\/send$/), 0);
+  const storage = await objectStorage(), put = storage.put.bind(storage);
+  const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  t.mock.method(storage, 'put', async (key: string, bytes: Buffer) => { await put(key, bytes); entered.resolve(); await release.promise; });
+  const denial = assert.rejects(generateAnnexes(a.context, { ...input, folderName: 'Anexos revogados durante armazenamento' }), { code: 'NOT_FOUND' });
+  await entered.promise;
+  await db.prepare('UPDATE vault_document SET deleted_at=CURRENT_TIMESTAMP WHERE id=?').run(original.id);
+  release.resolve(); await denial;
+  assert.equal((await db.prepare('SELECT count(*)::int AS n FROM vault_document WHERE office_id=? AND id<>?').get<{ n: number }>(a.officeId, original.id))?.n, 1);
+  await assert.rejects(readVaultDocumentFile(a.officeId, id, b.userId));
+});

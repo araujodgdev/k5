@@ -1,3 +1,7 @@
+import { outboundText } from '@/lib/documents/shared-writing';
+import { assertExternalDelivery } from '@/lib/content-policy';
+import { contentAdmission } from '@/lib/content-admission';
+import { managedFile, stageManagedFile, assertManagedDisclosure } from '@/lib/documents/managed-file';
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
@@ -5,7 +9,7 @@ import type { CapabilityInput as Input } from '@/lib/capabilities/contracts';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import { UPLOAD_SIZE_ERROR } from '@/lib/vault-upload-contract';
 import type { WorkspaceContext } from '@/lib/application/context';
-import { findVaultDocument, readVaultOriginal } from '@/lib/vault';
+import { findVaultDocument } from '@/lib/vault';
 import { googleJson, googleRequest, requireConnection, type ConnectionRow } from '../connections';
 import { GoogleApiError } from '../transport';
 import { runGoogleOperation, checkpointOperation, type Reconciler, type RunningOperation } from '../operations';
@@ -101,10 +105,12 @@ async function vaultSnapshot(officeId: string, documentId: string) {
   return { sha256: row.sha256, byteSize: Number(row.byte_size), version: row.version };
 }
 export async function renameFile(c: WorkspaceContext, i: Input<'k5_drive_rename_file'>) {
+  const writing = await outboundText(c, 'k5_drive_rename_file', { fileId: i.fileId }, i.name, i.name);
+  i = { ...i, name: c.invocation ? writing.title : i.name };
   const { file, meta } = await selected(c, 'drive', i.fileId);
   need(meta, 'canRename');
   const outcome = await runGoogleOperation(c, { module: 'drive', actions: ['drive.rename'], capabilityName: 'k5_drive_rename_file', effectKey: `drive:${file.google_file_id}`,
-    input: { ...i, ...core(file) }, bound: { version: meta.version, review: [{ label: 'Arquivo', value: meta.name }, { label: 'Novo nome', value: i.name }] },
+    input: { ...i, ...core(file) }, bound: { contentPolicy: writing.policy, version: meta.version, review: [{ label: 'Arquivo', value: meta.name }, { label: 'Novo nome', value: i.name }] },
     targetResourceId: file.id, describe: `Renomear “${meta.name}” para “${i.name}” no Google Drive`,
     execute: async op => { await checkpointOperation(op, { googleFileId: file.google_file_id, oldName: meta.name, newName: i.name });
       const m = await googleJson<DriveMetadata>(op.connection, { service: 'drive', method: 'PATCH', path: `/files/${pathId(file.google_file_id)}`,
@@ -123,14 +129,23 @@ export async function uploadVersion(c: WorkspaceContext, i: Input<'k5_drive_uplo
   if (!doc) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado no Cofre.');
   if (doc.byteSize > MAX_IMPORT_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
   const vault = await vaultSnapshot(c.officeId, doc.id);
-  const bound = { driveVersion: meta.version, documentSha256: vault.sha256, documentVersion: vault.version, documentByteSize: vault.byteSize,
+  const managed = await managedFile(c, doc.id, vault.version ?? undefined);
+  const contentPolicy = managed.disclosurePolicy;
+  await assertExternalDelivery(c.userId, contentPolicy);
+    const bound = { contentPolicy, file:managed,driveVersion: meta.version, documentSha256: vault.sha256, documentVersion: vault.version, documentByteSize: vault.byteSize,
     review: [{ label: 'Arquivo Google', value: meta.name }, { label: 'Versão Google', value: meta.version ?? 'não informada' },
       { label: 'Documento do Cofre', value: doc.name }, { label: 'Versão Cofre', value: vault.version === null ? 'não informada' : String(vault.version) },
       { label: 'Tamanho', value: `${vault.byteSize} bytes` }, { label: 'SHA-256 Cofre', value: vault.sha256 }] };
-  const outcome = await runGoogleOperation(c, { module: 'drive', actions: ['drive.replace'], capabilityName: 'k5_drive_upload_version', effectKey: `drive:${file.google_file_id}`,
+    let executing:RunningOperation|undefined;
+    const admission=contentAdmission(c,bound,[managed.accessPolicy,contentPolicy],{capability:'k5_drive_upload_version',lease:async tx=>{
+      if(!executing || !await tx.prepare("SELECT 1 FROM google_operation WHERE id=? AND status='running' AND lease_token=? AND lease_until>clock_timestamp()").get(executing.id,executing.leaseToken))throw new CapabilityError('CONFLICT','A licença desta operação expirou.');
+      await assertManagedDisclosure(c,managed,undefined,tx);
+    }});
+    const outcome = await runGoogleOperation(c, { module: 'drive', actions: ['drive.replace'], capabilityName: 'k5_drive_upload_version', effectKey: `drive:${file.google_file_id}`,
     input: { ...i, ...core(file) }, bound, targetResourceId: file.id, metrics: { attachmentBytes: vault.byteSize },
     describe: `Enviar “${doc.name}” como versão de “${meta.name}”`,
-    execute: async op => {
+      execute: async op => {
+        executing=op;
       const current = await fetchMetadata(op.connection, file.google_file_id);
       if (current.version !== bound.driveVersion) throw new CapabilityError('CONFLICT', 'O arquivo mudou no Google. Atualize antes de substituir.');
       need(current, 'canModifyContent');
@@ -139,14 +154,14 @@ export async function uploadVersion(c: WorkspaceContext, i: Input<'k5_drive_uplo
       const currentVault = await vaultSnapshot(c.officeId, doc.id);
       if (currentVault.sha256 !== bound.documentSha256 || currentVault.version !== bound.documentVersion ||
         currentVault.byteSize !== bound.documentByteSize) throw new CapabilityError('CONFLICT', 'O documento do Cofre mudou.');
-      const bytes = await readVaultOriginal(fresh);
+      const bytes = await stageManagedFile(c, managed);
       if (bytes.length !== bound.documentByteSize || createHash('sha256').update(bytes).digest('hex') !== bound.documentSha256)
         throw new CapabilityError('CONFLICT', 'Os bytes do documento do Cofre não correspondem à versão revisada.');
       await checkpointOperation(op, { googleFileId: file.google_file_id, beforeVersion: bound.driveVersion,
         md5Checksum: createHash('md5').update(bytes).digest('hex') });
       const m = await googleJson<DriveMetadata>(op.connection, { service: 'upload', method: 'PATCH', path: `/files/${pathId(file.google_file_id)}`,
         query: { uploadType: 'media', supportsAllDrives: true, fields: FILE_FIELDS }, body: bytes,
-        contentType: fresh.mimeType, maxBytes: 1_000_000, timeoutMs: 120_000 });
+          contentType: fresh.mimeType, maxBytes: 1_000_000, timeoutMs: 120_000, admission });
       return { externalRef: file.google_file_id, result: await resultFile(c, op.connection, m) };
     },
     reconcile: reconcileReplace,
@@ -175,11 +190,13 @@ export async function listPermissions(c: WorkspaceContext, i: Input<'k5_drive_li
   return { permissions: await permissions(conn, file, !!meta.capabilities?.canShare) };
 }
 export async function shareFile(c: WorkspaceContext, i: Input<'k5_drive_share_file'>) {
+  const writing = await outboundText(c, 'k5_drive_share_file', { fileId: i.fileId, email: i.email }, '', i.message ?? '');
+  if (c.invocation) i = { ...i, message: writing.content };
   const { file, meta } = await selected(c, 'drive', i.fileId);
   need(meta, 'canShare');
   const email = i.email.toLowerCase();
   const outcome = await runGoogleOperation(c, { module: 'drive', actions: ['drive.share'], capabilityName: 'k5_drive_share_file', effectKey: `drive:${file.google_file_id}`,
-    input: { ...i, email, ...core(file) }, bound: { version: meta.version, review: [{ label: 'Arquivo', value: meta.name }, { label: 'Pessoa', value: email },
+    input: { ...i, email, ...core(file) }, bound: { contentPolicy: writing.policy, version: meta.version, review: [{ label: 'Arquivo', value: meta.name }, { label: 'Pessoa', value: email },
       { label: 'Permissão', value: { reader: 'Leitor', commenter: 'Comentarista', writer: 'Editor' }[i.role] },
       { label: 'Notificação por e-mail', value: i.notify ? 'Sim' : 'Não' }, { label: 'Mensagem', value: i.message ?? '' }] },
     targetResourceId: file.id, metrics: { recipients: 1 },
@@ -230,6 +247,9 @@ export async function readDoc(c: WorkspaceContext, i: Input<'k5_docs_read'>) {
   return { document: { fileId: file.id, title: doc.title ?? meta.name, revisionId: doc.revisionId, text: documentText(doc).text }, untrustedContent: true as const };
 }
 export async function editDoc(c: WorkspaceContext, i: Input<'k5_docs_edit'>) {
+  if (c.invocation && i.edits.length !== 1) throw new CapabilityError('INVALID', 'Peça uma alteração de texto por vez para revisar o conteúdo exato.');
+  const writing = await outboundText(c, 'k5_docs_edit', { fileId: i.fileId, revisionId: i.revisionId }, '', i.edits[0]?.replace ?? '');
+  if (c.invocation) i = { ...i, edits: [{ ...i.edits[0], replace: writing.content }] };
   const { file, meta } = await selected(c, 'docs', i.fileId);
   if (meta.mimeType !== GOOGLE_DOC_MIME) throw new CapabilityError('INVALID', 'Escolha um documento nativo do Google Docs.');
   need(meta, 'canEdit');
@@ -239,7 +259,7 @@ export async function editDoc(c: WorkspaceContext, i: Input<'k5_docs_edit'>) {
   const resolved = resolveEdits(documentText(doc), i.edits, doc.revisionId !== i.revisionId);
   if (doc.revisionId !== i.revisionId && !i.approvalId)
     throw new CapabilityError('CONFLICT', 'O documento mudou. Leia a revisão atual e confirme novamente os trechos propostos.');
-  const bound = { originalRevision: i.revisionId, currentRevision: doc.revisionId, resolved,
+  const bound = { contentPolicy: writing.policy, originalRevision: i.revisionId, currentRevision: doc.revisionId, resolved,
     review: [{ label: 'Documento', value: meta.name }, { label: 'Revisão', value: doc.revisionId },
       ...i.edits.flatMap((e, n) => [{ label: `Trecho ${n + 1}`, value: e.find }, { label: `Substituir por ${n + 1}`, value: e.replace }])] };
   const outcome = await runGoogleOperation(c, { module: 'docs', actions: ['docs.edit'], capabilityName: 'k5_docs_edit', effectKey: `drive:${file.google_file_id}`,

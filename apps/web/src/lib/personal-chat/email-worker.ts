@@ -1,4 +1,7 @@
 import 'server-only';
+import { assertExternalDelivery, assertPolicyAccess, parsePolicy } from '@/lib/content-policy';
+import { CapabilityError } from '@/lib/capabilities/errors';
+import { parseManagedFile, assertManagedAccess } from '@/lib/documents/managed-file';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { database, withTransaction, type Transaction } from '@/lib/database';
@@ -56,7 +59,7 @@ async function claim(): Promise<ClaimedEmail | undefined> {
 }
 
 async function authorized(tx: Transaction, row: ClaimedEmail) {
-  if (!row.sender_session_id || !await tx.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>CURRENT_TIMESTAMP').get(row.sender_session_id, row.sender_user_id)) return false;
+  if (!row.sender_session_id || !await tx.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>clock_timestamp()').get(row.sender_session_id, row.sender_user_id)) return false;
   if (!await tx.prepare('SELECT 1 FROM personal_thread_participant WHERE thread_id=? AND user_id=? AND blocked_at IS NULL').get(row.thread_id, row.sender_user_id)) return false;
   if (await tx.prepare('SELECT 1 FROM personal_thread_participant WHERE thread_id=? AND blocked_at IS NOT NULL').get(row.thread_id)) return false;
   const invitation = await tx.prepare('SELECT normalized_email,state,expires_at FROM personal_thread_invitation WHERE id=? AND thread_id=?')
@@ -65,16 +68,27 @@ async function authorized(tx: Transaction, row: ClaimedEmail) {
   const body = bodySchema.parse(typeof row.body_json === 'string' ? JSON.parse(row.body_json) : row.body_json);
   if (row.action_kind === 'thread_claim') return body.kind === 'text' && invitation.state === 'pending' && Date.parse(invitation.expires_at) > Date.now();
   if (row.action_kind === 'document_claim' && body.kind === 'document_share') {
-    return Boolean(await tx.prepare(`SELECT 1 FROM vault_document_share s
+    const share = await tx.prepare(`SELECT d.id,v.id AS version_id,v.version,v.sha256,v.byte_size,s.office_id,s.access_policy,s.disclosure_policy,s.file_binding FROM vault_document_share s
       JOIN vault_document d ON d.id=s.document_id AND d.office_id=s.office_id AND d.deleted_at IS NULL
       JOIN vault_document_version v ON v.id=s.document_version_id AND v.document_id=d.id AND v.office_id=d.office_id
       JOIN office_member m ON m.office_id=s.office_id AND m.user_id=s.granted_by
-      WHERE s.id=? AND s.invitation_id=? AND vault_folder_visible(d.folder_id, s.granted_by) AND s.conversation_id=? AND s.granted_by=? AND s.state='pending'
+      WHERE s.id=? AND s.invitation_id=? AND lume_vault_visible(d.id, s.granted_by, v.version) AND s.conversation_id=? AND s.granted_by=? AND s.state='pending'
         AND s.expires_at>CURRENT_TIMESTAMP AND s.revoked_at IS NULL AND d.case_id IS NOT DISTINCT FROM s.source_case_id
         AND (s.source_case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case c WHERE c.id=s.source_case_id AND c.deleted_at IS NULL))`)
-      .get(body.shareId, row.invitation_id, row.thread_id, row.sender_user_id));
+      .get<{ id: string; version_id:string; version: number;sha256:string;byte_size:number;office_id:string; access_policy: unknown; disclosure_policy: unknown;file_binding:unknown }>(body.shareId, row.invitation_id, row.thread_id, row.sender_user_id);
+    if (!share) return false;
+    if (!share.access_policy || !share.disclosure_policy) return false;
+    try {
+      const file=parseManagedFile(share.file_binding);
+      if(file.documentId!==share.id || file.versionId!==share.version_id || file.sha256!==share.sha256 || file.byteSize!==Number(share.byte_size))return false;
+      await assertManagedAccess({officeId:share.office_id,userId:row.sender_user_id,sessionId:row.sender_session_id},file,tx);
+      await assertPolicyAccess(row.sender_user_id,parsePolicy(share.access_policy),tx);
+      await assertExternalDelivery(row.sender_user_id,parsePolicy(share.disclosure_policy),tx);
+    }
+    catch (error) { if (error instanceof CapabilityError) return false; throw error; }
+    return true;
   }
-  // Case invitations by e-mail no longer exist: one still queued from before is never sent.
+
   return false;
 }
 
@@ -98,10 +112,12 @@ export async function runPersonalEmailPass({ max = 10 }: { max?: number } = {}):
     try { message = content(row); }
     catch { await finish(row, 'failed', null, 'invalid_content_or_configuration'); continue; }
     const dispatch = await withTransaction(async tx => {
-      const lease = await tx.prepare(`SELECT 1 FROM personal_email_outbox WHERE id=? AND state='leased' AND lease_token=? AND lease_until>CURRENT_TIMESTAMP FOR UPDATE`)
+      await tx.prepare("SELECT pg_advisory_xact_lock_shared(hashtextextended('lume:content-acl:' || current_schema(),0))").get();
+      const lease = await tx.prepare(`SELECT 1 FROM personal_email_outbox WHERE id=? AND state='leased' AND lease_token=? AND lease_until>clock_timestamp() FOR UPDATE`)
         .get(row.id, row.leaseToken);
       if (!lease) return false;
       if (!await authorized(tx, row)) return false;
+      if(!await tx.prepare('SELECT 1 FROM session WHERE id=? AND "userId"=? AND "expiresAt">clock_timestamp()').get(row.sender_session_id,row.sender_user_id))return false;
       await tx.prepare('UPDATE personal_email_outbox SET dispatched_at=CURRENT_TIMESTAMP WHERE id=? AND lease_token=?').run(row.id, row.leaseToken);
       return true;
     });

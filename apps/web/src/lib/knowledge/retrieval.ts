@@ -1,12 +1,15 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
-import { database } from '@/lib/database';
+import { documentTransaction } from '@/lib/documents/service';
+import { exposeContent, observeDocument, exposedPolicies, privateGenerationPolicy, type ContentPolicy } from '@/lib/content-policy';
+import { database, type Transaction } from '@/lib/database';
+import { contentAdmission } from '@/lib/content-admission';
 import { getDocumentChunks } from '@/lib/vault';
 import { selectedResearchSources } from '@/lib/ai-sources';
 import { CapabilityError } from '@/lib/capabilities/errors';
 import type { WorkspaceContext } from '@/lib/application/context';
-import { assertCapabilityAllowed } from '@/lib/application/context';
+import { assertCapabilityAllowed, assertLumeAdmission, assertSourcesAdmitted } from '@/lib/application/context';
 import type { CapabilityInput, CapabilityOutput } from '@/lib/capabilities/contracts';
 
 import { embedQuery, EmbeddingUnavailableError } from './embedding-provider';
@@ -36,15 +39,21 @@ type ScoredSource = {
 export async function searchKnowledgeEngine(
   context: WorkspaceContext,
   input: CapabilityInput<'k5_knowledge_search'>,
+  options: { lease?: (tx: Transaction) => Promise<void> } = {},
 ): Promise<SearchKnowledgeResult> {
   if (context.caseScope) input = { ...input, caseId: context.caseScope.caseId };
   const { query } = input;
+  const queryPolicy = await privateGenerationPolicy(context);
+  const queryAdmission = contentAdmission(context, { query }, [queryPolicy], { capability: 'k5_knowledge_search', lease: options.lease });
   const limit = input.limit ?? 8;
   const researchReferenceIds = input.researchReferenceIds ?? [];
   if (researchReferenceIds.length && !input.caseId)
     throw new CapabilityError('SCOPE_REQUIRED', 'Selecione o caso das referências.');
+  const researchPolicies = new Map<string, ContentPolicy>();
+
   const researchChunks = researchReferenceIds.length
     ? await selectedResearchSources(context, input.caseId!, researchReferenceIds, query) : [];
+  for (const chunk of researchChunks) researchPolicies.set(chunk.researchReferenceId!, exposedPolicies(chunk)![0]);
   const researchOrdered = [
     ...[...new Set(researchReferenceIds)].flatMap(id => researchChunks.find(chunk => chunk.researchReferenceId === id) ?? []),
     ...researchChunks.filter(chunk => !researchReferenceIds.some(id => researchChunks.find(first => first.researchReferenceId === id)?.id === chunk.id)),
@@ -58,44 +67,41 @@ export async function searchKnowledgeEngine(
     usedReferences: new Set(used.map(item => item.researchReferenceId)).size,
     partial: used.length < researchChunks.length || new Set(used.map(item => item.researchReferenceId)).size < new Set(researchReferenceIds).size });
 
-  /**
-   * Without an explicit list the scope is the office's own Cofre — every case and the library —
-   * because that is what the assistant is expected to know. It is still an office-scoped read:
-   * the ids are selected here, from this office's ready documents the person can see (a folder
-   * of a case may be private to someone else), never taken from the caller.
-   */
-  const documentIds = input.documentIds?.length
+  const scopedDocumentIds = input.documentIds?.length
     ? input.documentIds
     : researchReferenceIds.length ? []
     : (await database.prepare(
         `SELECT id FROM vault_document
-         WHERE office_id = ? AND deleted_at IS NULL AND status = 'ready' AND vault_folder_visible(folder_id, ?)${input.caseId ? ' AND case_id = ?' : ''}
+         WHERE office_id = ? AND deleted_at IS NULL AND status = 'ready' AND lume_vault_visible(id, ?)${context.invocation ? ' AND (case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case c WHERE c.id=vault_document.case_id AND c.deleted_at IS NULL AND c.lume_enabled))' : ''}${input.caseId ? ' AND case_id = ?' : ''}
          ORDER BY updated_at DESC LIMIT 400`,
       ).all(context.officeId, context.userId, ...(input.caseId ? [input.caseId] : [])) as Array<{ id: string }>).map((row) => String(row.id));
 
-  if (!documentIds.length) {
+  if (!scopedDocumentIds.length) {
     if (researchDto.length) {
       await assertCapabilityAllowed(context, 'k5_knowledge_search');
       const selected = researchDto.slice(0, limit);
-      return { sources: selected, degraded: false, reranking: { status: 'disabled' as const, applied: false },
-        researchCoverage: coverage(selected) };
+      return exposeContent({ sources: selected, degraded: false, reranking: { status: 'disabled' as const, applied: false },
+        researchCoverage: coverage(selected) }, selected.map(source => researchPolicies.get(source.researchReferenceId!)!),
+        Object.fromEntries(selected.map(source => [source.sourceId, researchPolicies.get(source.researchReferenceId!)!])));
     }
     throw new CapabilityError('SCOPE_REQUIRED', input.documentIds?.length
       ? 'Informe ao menos um documento autorizado no escopo.'
       : 'Não há documentos processados no Cofre deste escritório.');
   }
 
-  const unique = [...new Set(documentIds)];
+  const unique = [...new Set(scopedDocumentIds)];
   const marks = unique.map(() => '?').join(',');
   const validDocs = await database.prepare(
-    `SELECT id, original_name AS name, status FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?) AND id IN (${marks})${input.caseId ? ' AND case_id=?' : ''}`,
+    `SELECT id, original_name AS name, status, case_id FROM vault_document WHERE office_id = ? AND deleted_at IS NULL AND lume_vault_visible(id, ?) AND id IN (${marks})${input.caseId ? ' AND case_id=?' : ''}`,
   ).all(context.officeId, context.userId, ...unique, ...(input.caseId ? [input.caseId] : [])) as Array<{ id: string; name: string; status: string }>;
 
   if (validDocs.length !== unique.length) {
     throw new CapabilityError('NOT_FOUND', 'Um ou mais documentos selecionados não pertencem a este escritório ou foram excluídos.');
   }
-  // A document still in extraction has no chunks yet. It is left out of this search instead of
-  // failing it, so a fresh upload does not block questions about everything already processed.
+  if (context.invocation) for (const doc of validDocs) {
+    const caseId = (doc as typeof doc & {case_id:string|null}).case_id;
+    if (caseId) await assertLumeAdmission(caseId);
+  }
   const readyDocs = validDocs.filter((doc) => doc.status === 'ready');
   if (!readyDocs.length) throw new CapabilityError('NOT_READY', `O documento "${validDocs[0].name}" ainda está em processamento.`);
   const readyIds = readyDocs.map((doc) => doc.id);
@@ -103,7 +109,6 @@ export async function searchKnowledgeEngine(
   const nameMap = new Map(readyDocs.map((doc) => [doc.id, doc.name]));
   const scoreMap = new Map<string, ScoredSource>();
 
-  // 1. Lexical (FTS5/BM25).
   let lexicalChunks: Awaited<ReturnType<typeof getDocumentChunks>> = [];
   try {
     lexicalChunks = await getDocumentChunks(context.officeId, context.userId, readyIds, query);
@@ -121,7 +126,6 @@ export async function searchKnowledgeEngine(
     });
   });
 
-  // 2. Semantic. The query is embedded here; the caller never supplies a vector or a filter.
   let degraded = true;
   let strategy = 'lexical';
   let degradedReason: string | undefined;
@@ -131,7 +135,7 @@ export async function searchKnowledgeEngine(
     degradedReason = 'Nenhum índice semântico ativo para este escritório.';
   } else {
     try {
-      const { embedding } = await embedQuery(query);
+      const { embedding } = await embedQuery(query, { admission: queryAdmission, signal: context.signal });
       const hits = await (await vectorIndex()).query(context.officeId, generation.id, embedding, {
         documentIds: readyIds,
         topK: Math.max(limit * 3, 24),
@@ -140,8 +144,6 @@ export async function searchKnowledgeEngine(
       if (hits.length) {
         const hitIds = hits.map((hit) => hit.chunkId);
         const hitMarks = hitIds.map(() => '?').join(',');
-        // Re-read from the business database: the index is derived data and never the authority
-        // on what this office may currently see.
         const rows = await database.prepare(
           `SELECT c.id, c.document_id AS documentId, c.stable_reference AS stableReference, c.content
            FROM vault_document_chunk c
@@ -173,6 +175,7 @@ export async function searchKnowledgeEngine(
         degradedReason = 'Os documentos selecionados ainda não têm vetores publicados.';
       }
     } catch (error) {
+      if (error instanceof CapabilityError || context.signal?.aborted) throw error;
       if (error instanceof EmbeddingUnavailableError) degradedReason = error.message;
       else degradedReason = 'A busca semântica falhou; a consulta usou apenas o índice lexical.';
     }
@@ -182,25 +185,29 @@ export async function searchKnowledgeEngine(
     .sort((a, b) => b.score - a.score)
     .slice(0, Math.max(limit, 24))
     .map(({ sourceId, documentId, documentName, sourceLabel, text }) => ({ sourceId, documentId, documentName, sourceLabel, text }));
-  // Exclusion/version changes during retrieval must not send obsolete text to another provider.
-  const currentCandidates = async () => {
+  const candidatePolicies = new Map<string, ContentPolicy>();
+  const currentCandidates = async () => documentTransaction(context, async tx => {
     if (!candidates.length) return new Map<string, string>();
     const ids = candidates.map(source => source.sourceId);
-    const fresh = await database.prepare(`SELECT c.id,c.content FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
-      WHERE d.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND vault_folder_visible(d.folder_id, ?) AND c.id IN (${ids.map(() => '?').join(',')})${input.caseId ? ' AND d.case_id=?' : ''}`)
+    for (const id of [...new Set(candidates.map(source => source.documentId))].sort()) {
+      const policy = (await observeDocument(context.userId, id, tx)).policy;
+      if(context.invocation)await assertSourcesAdmitted(policy,tx);
+      if (!candidatePolicies.has(id)) candidatePolicies.set(id, policy);
+    }
+    const fresh = await tx.prepare(`SELECT c.id,c.content FROM vault_document_chunk c JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
+      WHERE d.office_id=? AND d.deleted_at IS NULL AND d.status='ready' AND lume_vault_visible(d.id, ?) AND c.id IN (${ids.map(() => '?').join(',')})${input.caseId ? ' AND d.case_id=?' : ''}`)
       .all<{ id: string; content: string }>(context.officeId, context.userId, ...ids, ...(input.caseId ? [input.caseId] : []));
     return new Map(fresh.map(row => [row.id, row.content.slice(0, MAX_TEXT)]));
-  };
+  });
   const current = await currentCandidates();
   await assertCapabilityAllowed(context, 'k5_knowledge_search');
-  const ranked = await rerank(context, query, candidates.filter(source => current.get(source.sourceId) === source.text), { signal: context.signal });
+  const ranked = await rerank(context, query, candidates.filter(source => current.get(source.sourceId) === source.text), { signal: context.signal, lease: options.lease, policies: source => [candidatePolicies.get(source.documentId)!] });
   await assertCapabilityAllowed(context, 'k5_knowledge_search');
   const after = await currentCandidates();
   const vaultSources = ranked.sources.filter(source => after.get(source.sourceId) === source.text);
   const selectedResearch = researchDto.slice(0, Math.min(limit, researchReferenceIds.length ? Math.max(1, Math.ceil(limit / 2)) : 0));
   const sources = [...vaultSources.slice(0, limit - selectedResearch.length).map(source => ({ ...source, sourceType: 'vault' as const })), ...selectedResearch];
 
-  // The query itself is not retained: a hash identifies repeats without storing what was asked.
   try {
     await database.prepare(`
       INSERT INTO knowledge_retrieval_audit (id, office_id, user_id, query, strategy, degraded, document_count, source_count)
@@ -211,10 +218,12 @@ export async function searchKnowledgeEngine(
       strategy, degraded ? 1 : 0, unique.length, sources.length,
     );
   } catch {
-    // Retrieval audit must never fail the user query.
   }
 
-  return { sources, degraded, reranking: { status: ranked.status, applied: ranked.applied, ...(ranked.reason ? { reason: ranked.reason } : {}) },
+  return exposeContent({ sources, degraded, reranking: { status: ranked.status, applied: ranked.applied, ...(ranked.reason ? { reason: ranked.reason } : {}) },
     ...(researchReferenceIds.length ? { researchCoverage: coverage(selectedResearch) } : {}),
-    ...(degraded && degradedReason ? { degradedReason } : {}) };
+    ...(degraded && degradedReason ? { degradedReason } : {}) }, sources.map(source => source.sourceType === 'vault'
+      ? candidatePolicies.get(source.documentId)! : researchPolicies.get(source.researchReferenceId!)!),
+    Object.fromEntries(sources.map(source => [source.sourceId, source.sourceType === 'vault'
+      ? candidatePolicies.get(source.documentId)! : researchPolicies.get(source.researchReferenceId!)!])));
 }

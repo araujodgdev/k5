@@ -2,14 +2,15 @@ import { database } from '@/lib/database';
 import { apiWorkspace, apiError, ApiError } from '@/lib/workspace-api';
 import { ownedArtifact } from '@/lib/ai-store';
 import { reviewArtifactCitations, storedCitationReview } from '@/lib/citations/artifact-review';
+import { workspaceContext } from '@/lib/application/context';
 
 export const runtime = 'nodejs';
 
 type Context = { params: Promise<{ id: string }> };
 
 async function owned(request: Request, context: Context, write: boolean) {
-  const { office, user } = await apiWorkspace(request, write);
-  const owner = { officeId: office.officeId, userId: user.id };
+  const workspace = await apiWorkspace(request, write);
+  const owner = { ...workspaceContext(workspace), signal: request.signal };
   const artifact = await ownedArtifact(database, owner, (await context.params).id);
   if (!artifact) throw new ApiError(404, 'Documento não encontrado.');
   return { owner, artifact };

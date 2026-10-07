@@ -1,3 +1,5 @@
+import { assertPolicyAccess } from '@/lib/content-policy';
+import { parseManagedFile, assertManagedAccess } from '@/lib/documents/managed-file';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { database, withTransaction, type Database, type Transaction } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
@@ -58,7 +60,7 @@ function preview(body: MessageBody) {
   return `Caso: ${body.caseName}`.slice(0, 240);
 }
 async function assertLiveSession(tx: Transaction, context: PersonContext) {
-  if (context.sessionId && !await tx.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>CURRENT_TIMESTAMP').get(context.sessionId, context.userId))
+  if (context.sessionId && !await tx.prepare('SELECT 1 FROM session WHERE id=? AND userId=? AND expiresAt>clock_timestamp()').get(context.sessionId, context.userId))
     throw new CapabilityError('UNAUTHENTICATED', 'Sua sessão foi encerrada.');
 }
 async function participant(db: Database | Transaction, threadId: string, userId: string, lock = false) {
@@ -81,13 +83,13 @@ async function threadDto(db: Database | Transaction, threadId: string, userId: s
   if (!thread)
     throw notFound();
   const invite = await invitation(db, threadId);
-  const last = await db.prepare(`SELECT id,body_json,created_at FROM personal_message WHERE thread_id=? AND sequence>=?
+  const last = await db.prepare(`SELECT * FROM personal_message WHERE thread_id=? AND sequence>=?
   ORDER BY sequence DESC LIMIT 1`).get<{
     id: string;
     body_json: MessageBody | string;
     created_at: string;
   }>(threadId, membership.visible_from_sequence);
-  const lastMessage = last ? { id: last.id, preview: preview(bodyOf(last.body_json)), createdAt: new Date(last.created_at).toISOString() } : null;
+  const lastMessage = last ? { id: last.id, preview: preview((await messageDto(last as MessageRow, userId)).body), createdAt: new Date(last.created_at).toISOString() } : null;
   if (invite && thread.created_by === userId && invite.state !== 'claimed')
     return {
       id: thread.id, channel: 'email_outbound', peer: { kind: 'external_email', email: invite.normalized_email, outboundOnly: true },
@@ -111,19 +113,37 @@ async function threadDto(db: Database | Transaction, threadId: string, userId: s
 async function messageDto(row: MessageRow, viewerId: string): Promise<PersonalMessage> {
   const body = bodyOf(row.body_json);
   if (body.kind === 'document_share') {
-    const share = await database.prepare(`SELECT s.state,s.granted_by,
+    const share = await database.prepare(`SELECT s.state,s.granted_by,s.document_id,s.version,s.file_binding,s.office_id,
     (EXISTS(SELECT 1 FROM office_member m WHERE m.office_id=s.office_id AND m.user_id=s.granted_by)
-      AND EXISTS(SELECT 1 FROM vault_document d WHERE d.id=s.document_id AND vault_folder_visible(d.folder_id, s.granted_by))) AS owner_live,
+      AND EXISTS(SELECT 1 FROM vault_document d WHERE d.id=s.document_id AND lume_vault_visible(d.id, s.granted_by, s.version))) AS owner_live,
     EXISTS(SELECT 1 FROM vault_document d WHERE d.id=s.document_id AND d.office_id=s.office_id AND d.deleted_at IS NULL
     AND d.case_id IS NOT DISTINCT FROM s.source_case_id AND (s.source_case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case c WHERE c.id=s.source_case_id AND c.deleted_at IS NULL))) AS source_live
     FROM vault_document_share s WHERE s.id=?`).get<{
       state: string;
+      document_id: string;
+      version: number;
       granted_by: string;
       owner_live: boolean;
       source_live: boolean;
+      file_binding: unknown;
+      office_id: string;
     }>(body.shareId);
-    body.state = !share || !share.source_live || (share.state === 'pending' && !share.owner_live) ? 'unavailable' : share.state === 'revoked' ? 'revoked'
+    if (share) {
+      try {
+        const file = parseManagedFile(share.file_binding);
+        if (file.documentId !== share.document_id || file.version !== Number(share.version)) throw notFound();
+        await assertManagedAccess({officeId:share.office_id,userId:share.granted_by},file);
+        await assertPolicyAccess(viewerId,file.disclosurePolicy);
+      } catch (error) {
+        if (!(error instanceof CapabilityError)) throw error;
+        share.source_live = false;
+      }
+    }
+    body.state = !share || !share.source_live || !share.owner_live ? 'unavailable' : share.state === 'revoked' ? 'revoked'
       : share.state === 'pending' && share.granted_by !== viewerId ? 'pending_claim' : 'active';
+    if (body.state === 'unavailable' || body.state === 'revoked') {
+      body.name = 'Documento indisponível'; body.contentUrl = '';
+    }
     body.canRevoke = share?.granted_by === viewerId && share.state !== 'revoked' && share.owner_live && share.source_live;
   }
   else if (body.kind === 'case_invitation') {
@@ -387,10 +407,10 @@ export async function claimAddress(context: PersonContext, token: string) {
     await assertLiveSession(tx, context);
     const tokenHash = digest(token);
     const documentGrant = await tx.prepare(`SELECT s.id,s.state,s.recipient_user_id,s.expires_at,i.id AS invitation_id,i.thread_id,i.normalized_email,i.state AS invitation_state,i.claimed_by,
-    v.original_name,v.mime_type,v.version FROM vault_document_share s JOIN personal_thread_invitation i ON i.id=s.invitation_id
+    v.original_name,v.mime_type,v.version,s.file_binding,s.office_id,s.granted_by FROM vault_document_share s JOIN personal_thread_invitation i ON i.id=s.invitation_id
     JOIN vault_document_version v ON v.id=s.document_version_id JOIN vault_document d ON d.id=s.document_id AND d.office_id=s.office_id
     JOIN office_member owner ON owner.office_id=s.office_id AND owner.user_id=s.granted_by
-    WHERE s.token_hash=? AND d.deleted_at IS NULL AND vault_folder_visible(d.folder_id, s.granted_by) AND d.case_id IS NOT DISTINCT FROM s.source_case_id
+    WHERE s.token_hash=? AND d.deleted_at IS NULL AND lume_vault_visible(d.id, s.granted_by, s.version) AND d.case_id IS NOT DISTINCT FROM s.source_case_id
     AND (s.source_case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case c WHERE c.id=s.source_case_id AND c.office_id=s.office_id AND c.deleted_at IS NULL))
     FOR UPDATE OF s,i`).get<{
       id: string;
@@ -405,6 +425,7 @@ export async function claimAddress(context: PersonContext, token: string) {
       original_name: string;
       mime_type: string;
       version: string | number;
+      file_binding:unknown;office_id:string;granted_by:string;
     }>(tokenHash);
     const invite = documentGrant ? {
       id: documentGrant.invitation_id, thread_id: documentGrant.thread_id, normalized_email: documentGrant.normalized_email,
@@ -424,6 +445,11 @@ export async function claimAddress(context: PersonContext, token: string) {
       throw new CapabilityError('NOT_FOUND', 'Este compartilhamento não está mais disponível.');
     if (documentGrant?.state === 'active' && documentGrant.recipient_user_id !== context.userId)
       throw new CapabilityError('NOT_FOUND', 'Link inválido ou destinado a outra conta.');
+    if(documentGrant) {
+      const file=parseManagedFile(documentGrant.file_binding);
+      await assertManagedAccess({officeId:documentGrant.office_id,userId:documentGrant.granted_by},file,tx);
+      await assertPolicyAccess(context.userId,file.disclosurePolicy,tx);
+    }
     const thread = await tx.prepare('SELECT next_sequence FROM personal_thread WHERE id=? FOR UPDATE').get<{
       next_sequence: string | number;
     }>(invite.thread_id);

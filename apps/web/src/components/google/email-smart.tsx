@@ -84,7 +84,7 @@ export function DigestView({ period, state, onPeriod, onOpenThread, onRetry, onC
 }
 
 export function ThreadInsightView({ state, onUseReply, onRetry, onClose }: {
-  state: Pending<ThreadInsight>; onUseReply: (body: string) => void; onRetry: () => void; onClose: () => void;
+  state: Pending<ThreadInsight>; onUseReply: (body: string, seedId?: string) => void; onRetry: () => void; onClose: () => void;
 }) {
   if (state.status === 'loading') return <div className="border-b"><Working>Lendo a conversa…</Working></div>;
   if (state.status === 'failed') return <div className="border-b py-5"><p role="alert" className="text-sm text-destructive">{state.error}</p>
@@ -102,7 +102,7 @@ export function ThreadInsightView({ state, onUseReply, onRetry, onClose }: {
     </div>
     {insight.replies.length > 0 && <div className="mt-6">
       <p className="label-mono mb-1 text-subtle-foreground">Respostas rápidas</p>
-      {insight.replies.map(reply => <button key={reply.intent} type="button" onClick={() => onUseReply(reply.body)}
+      {insight.replies.map(reply => <button key={reply.intent} type="button" onClick={() => onUseReply(reply.body, reply.seedId)}
         className="group hover-rise flex w-full items-start justify-between gap-4 border-b px-1 py-3 text-left transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
         <span className="min-w-0">
           <span className="block text-sm font-medium">{reply.label}</span>

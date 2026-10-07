@@ -2,16 +2,18 @@ import 'server-only';
 import { database } from '@/lib/database';
 import type { CapabilityName } from '@/lib/capabilities/contracts';
 import { CapabilityError } from '@/lib/capabilities/errors';
-import type { WorkspaceContext } from '@/lib/application/context';
+import { assertLumeAdmission, type WorkspaceContext } from '@/lib/application/context';
 import { contextForCase, documentAccess } from './access';
 
-// Only operations whose entire data surface can be bounded to a single case may use a guest grant.
 export const sharedCaseCapabilities = new Set<CapabilityName>([
+  'k5_case_tasks_list', 'k5_case_tasks_get', 'k5_case_tasks_create', 'k5_case_tasks_update',
+  'k5_case_pages_list', 'k5_case_pages_get', 'k5_case_pages_create', 'k5_case_pages_update',
+  'k5_case_pages_publish', 'k5_case_pages_versions', 'k5_case_pages_restore', 'k5_case_pages_export',
   'k5_vault_update_case', 'k5_vault_list_folders', 'k5_vault_create_folder', 'k5_vault_update_folder_access', 'k5_vault_delete_folder',
   'k5_vault_list_documents', 'k5_vault_get_document', 'k5_vault_update_document', 'k5_vault_delete_document',
   'k5_vault_add_document_version', 'k5_vault_download_document', 'k5_vault_retry_ingestion', 'k5_vault_ingest_upload',
   'k5_knowledge_search', 'k5_knowledge_get_source', 'k5_knowledge_get_index_status', 'k5_knowledge_reindex',
-  'k5_vault_plan_annexes', 'k5_vault_generate_annexes',
+  'k5_vault_plan_annexes', 'k5_vault_generate_annexes', 'k5_vault_get_annex_plan',
   'k5_vault_import_chat_attachment', 'k5_vault_save_artifact',
   'k5_research_get_profile', 'k5_research_save_profile', 'k5_research_list_references',
   'k5_research_assess_material', 'k5_research_get_assessment',
@@ -20,12 +22,14 @@ export const sharedCaseCapabilities = new Set<CapabilityName>([
 
 /** Resolve every supplied resource before switching the data office, including secondary targets. */
 export async function scopeCapability(context: WorkspaceContext, name: CapabilityName, input: Record<string, unknown>) {
-  if (!sharedCaseCapabilities.has(name)) return context;
+  const shared = sharedCaseCapabilities.has(name);
+  if (!shared && !context.invocation) return context;
   let scoped = context;
   const caseIds: string[] = [];
   const documents = [input.documentId, input.scanDocumentId, input.petitionDocumentId, ...(Array.isArray(input.documentIds) ? input.documentIds : [])].filter((v): v is string => typeof v === 'string');
   const folders = [input.folderId, input.parentId].filter((v): v is string => typeof v === 'string');
   if (typeof input.caseId === 'string') caseIds.push(input.caseId);
+  if (context.invocation && typeof input.targetCaseId === 'string') caseIds.push(input.targetCaseId);
   for (const id of documents) {
     const row = await database.prepare('SELECT case_id FROM vault_document WHERE id=? AND deleted_at IS NULL').get<{ case_id: string | null }>(id);
     if (!row) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
@@ -49,9 +53,11 @@ export async function scopeCapability(context: WorkspaceContext, name: Capabilit
     if (!row) throw new CapabilityError('NOT_FOUND', 'Avaliação não encontrada.');
     caseIds.push(row.case_id);
   }
-  for (const caseId of new Set(caseIds)) scoped = await contextForCase(scoped, caseId);
-  if (scoped.caseScope) {
-    // All documents must really live in the one authorized case, including a library item seen before the scope changed.
+  for (const caseId of new Set(caseIds)) {
+    scoped = await contextForCase(scoped, caseId);
+    if (context.invocation) await assertLumeAdmission(caseId);
+  }
+  if (shared && scoped.caseScope) {
     for (const id of documents) {
       if (!await database.prepare('SELECT 1 FROM vault_document WHERE id=? AND office_id=? AND case_id=? AND deleted_at IS NULL')
         .get(id, scoped.officeId, scoped.caseScope.caseId)) throw new CapabilityError('FORBIDDEN', 'Selecione apenas documentos do caso compartilhado.');
@@ -59,5 +65,5 @@ export async function scopeCapability(context: WorkspaceContext, name: Capabilit
     if (input.scope === 'library' || input.caseId === null || (typeof input.targetCaseId === 'string' && input.targetCaseId !== scoped.caseScope.caseId))
       throw new CapabilityError('FORBIDDEN', 'Os arquivos devem permanecer no caso compartilhado.');
   }
-  return scoped;
+  return shared ? scoped : context;
 }

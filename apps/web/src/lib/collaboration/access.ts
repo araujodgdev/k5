@@ -19,7 +19,7 @@ export async function caseAccess(userId: string, caseId: string, db: Reader = da
 
 /** A document in a folder the person cannot see is answered exactly like one that does not exist. */
 export async function documentAccess(context: WorkspaceContext, documentId: string) {
-  const row = await database.prepare('SELECT office_id,case_id FROM vault_document WHERE id=? AND deleted_at IS NULL AND vault_folder_visible(folder_id, ?)')
+  const row = await database.prepare('SELECT office_id,case_id FROM vault_document WHERE id=? AND deleted_at IS NULL AND lume_vault_visible(id, ?)')
     .get<{ office_id: string; case_id: string | null }>(documentId, context.userId);
   if (!row) throw new CapabilityError('NOT_FOUND', 'Documento não encontrado.');
   if (row.office_id === context.officeId && !context.caseScope) return { ...context };

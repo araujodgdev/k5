@@ -20,6 +20,7 @@ Receita derivada do código para validação futura. Nenhum cenário desta revis
 
 Test: `apps/web/e2e/workspace.e2e.ts`
 Test: `apps/web/e2e/cliproxyapi.e2e.ts`
+Test: `apps/web/e2e/private-chat-readiness.e2e.ts`
 
 Preconditions: instância isolada saudável segundo `doctor`, contas descartáveis e dados do cenário. Preparar os resultados de [legal-acceptance](./legal-acceptance.md). Dependências adicionais de cenários: `ai-provider`. Consultar [o catálogo e o escopo das dependências](../coverage/README.md); elas não bloqueiam automaticamente os cenários locais.
 

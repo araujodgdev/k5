@@ -24,7 +24,7 @@ type DraftSummary = CapabilityOutput<'k5_gmail_list_drafts'>['drafts'][number];
 type Draft = CapabilityOutput<'k5_gmail_get_draft'>['draft'];
 type AttachmentRef = { kind: 'vault'; documentId: string; name: string } | { kind: 'upload'; uploadId: string; name: string } | {
   kind: 'draft'; partId: string; name: string };
-type Editor = { draftId?: string; to: string; cc: string; bcc: string; subject: string; body: string;
+type Editor = { composeId?: string; seedId?: string; draftId?: string; to: string; cc: string; bcc: string; subject: string; body: string;
   replyToMessageId: string | null; attachments: AttachmentRef[] };
 type VaultCase = { id: string; name: string };
 const blank = (): Editor => ({ to: '', cc: '', bcc: '', subject: '', body: '', replyToMessageId: null, attachments: [] });
@@ -194,19 +194,19 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
       const { draft } = await googleCall<{ draft: Draft }>('draft', { draftId: id });
       if (request !== detailRequest.current) return;
       setEditor({ draftId: draft.id, to: draft.to.join(', '), cc: draft.cc.join(', '), bcc: draft.bcc.join(', '),
-        subject: draft.subject, body: draft.body, replyToMessageId: draft.replyToMessageId,
+        composeId: draft.composeId, subject: draft.subject, body: draft.body, replyToMessageId: draft.replyToMessageId,
         attachments: draft.attachments.map(a => ({ kind: 'draft', partId: a.partId, name: a.filename })) });
       setThread(null);
     } catch (error) { if (request === detailRequest.current) setFailure(message(error)); }
     finally { if (request === detailRequest.current) setDetailLoading(false); }
   };
-  const reply = (mail: Thread['messages'][number], body = '') => {
+  const reply = (mail: Thread['messages'][number], body = '', seedId?: string) => {
     if (detailScroller.current) detailScroller.current.scrollTop = 0;
     // Following up on one's own message goes back to the people it was sent to.
     const own = status?.connection?.email.toLowerCase();
     const to = own && address(mail.from).toLowerCase() === own ? mail.to.join(', ') : address(mail.from);
     setThread(null); setInsightOpen(null);
-    setEditor({ ...blank(), to, body, subject: /^re:/i.test(mail.subject) ? mail.subject : `Re: ${mail.subject}`,
+    setEditor({ ...blank(), to, body, seedId, composeId: seedId, subject: /^re:/i.test(mail.subject) ? mail.subject : `Re: ${mail.subject}`,
       replyToMessageId: mail.id });
     requestAnimationFrame(() => detailHeading.current?.focus());
   };
@@ -215,7 +215,7 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
     let active = true;
     if (initialDraftId) googleCall<{ draft: Draft }>('draft', { draftId: initialDraftId }).then(({ draft }) => {
       if (active) setEditor({ draftId: draft.id, to: draft.to.join(', '), cc: draft.cc.join(', '), bcc: draft.bcc.join(', '),
-        subject: draft.subject, body: draft.body, replyToMessageId: draft.replyToMessageId,
+        composeId: draft.composeId, subject: draft.subject, body: draft.body, replyToMessageId: draft.replyToMessageId,
         attachments: draft.attachments.map(a => ({ kind: 'draft', partId: a.partId, name: a.filename })) });
     }).catch(error => { if (active) setFailure(message(error)); });
     else if (initialThreadId) fetchThread(initialThreadId).then(value => {
@@ -295,7 +295,7 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
     setShowVault(false); setVaultDocumentId('');
   };
   const payload = (value: Editor) => ({
-    draftId: value.draftId, to: splitAddresses(value.to), cc: splitAddresses(value.cc), bcc: splitAddresses(value.bcc),
+    composeId: value.composeId, seedId: value.seedId, draftId: value.draftId, to: splitAddresses(value.to), cc: splitAddresses(value.cc), bcc: splitAddresses(value.bcc),
     subject: value.subject, body: value.body, replyToMessageId: value.replyToMessageId,
     attachments: value.attachments.map(ref => ref.kind === 'vault' ? { kind: 'vault', documentId: ref.documentId }
       : ref.kind === 'upload' ? { kind: 'upload', uploadId: ref.uploadId } : { kind: 'draft', partId: ref.partId }),
@@ -481,7 +481,7 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
         {thread && <div className="pb-10">
           {insightOpen === thread.id && insights[thread.id] && <ThreadInsightView state={insights[thread.id]}
             onRetry={() => loadInsight(thread.id, true)} onClose={() => setInsightOpen(null)}
-            onUseReply={body => { const latest = thread.messages.at(-1); if (latest) reply(latest, body); }} />}
+            onUseReply={(body, seedId) => { const latest = thread.messages.at(-1); if (latest) reply(latest, body, seedId); }} />}
           {thread.messages.map(mail => <article key={mail.id} className="border-b py-5">
             <p className="text-sm font-medium">{mail.from}</p>
             <p className="mt-1 text-xs text-muted-foreground">Para: {mail.to.join(', ')}{mail.cc.length ? ` · Cc: ${mail.cc.join(', ')}` : ''} · {formatDate(mail.date)}</p>

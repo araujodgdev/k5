@@ -1,4 +1,6 @@
 import 'server-only';
+import { requireAgentApproval } from './approvals-service';
+import { outboundText } from '@/lib/documents/shared-writing';
 import { z } from 'zod';
 import { database } from '@/lib/database';
 import { CapabilityError } from '@/lib/capabilities/errors';
@@ -27,7 +29,12 @@ export const contacts = async (context: WorkspaceContext, input: CapabilityInput
 export const listMessages = async (context: WorkspaceContext, input: CapabilityInput<'k5_messages_list'>) => messages.listThreads(await person(context), { ...input, limit: input.limit ?? 30 });
 export const readMessages = async (context: WorkspaceContext, input: CapabilityInput<'k5_messages_read'>) => messages.listMessages(await person(context), input.threadId, { ...input, limit: input.limit ?? 50 });
 export const startMessageThread = async (context: WorkspaceContext, input: CapabilityInput<'k5_messages_start'>) => messages.startThread(await person(context), context.officeId, input);
-export const sendMessage = async (context: WorkspaceContext, input: CapabilityInput<'k5_messages_send'>) => messages.sendMessage(await person(context), input.threadId, { clientMessageId: input.clientMessageId, body: input.body });
+export const sendMessage = async (context: WorkspaceContext, input: CapabilityInput<'k5_messages_send'>) => {
+  const writing = await outboundText(context, 'k5_messages_send', { threadId: input.threadId }, '', input.body.text);
+  const { approvalId, ...payload } = { ...input, body: { ...input.body, text: writing.content } };
+  await requireAgentApproval(context, 'k5_messages_send', approvalId, payload, input.threadId, 'Revise o destinatário e o texto antes de enviar.');
+  return messages.sendMessage(await person(context), input.threadId, { clientMessageId: input.clientMessageId, body: payload.body });
+};
 export const markMessagesRead = async (context: WorkspaceContext, input: CapabilityInput<'k5_messages_mark_read'>) => messages.markRead(await person(context), input.threadId, input.throughMessageId);
 export const documentOptions = (context: WorkspaceContext, input: CapabilityInput<'k5_messages_document_options'>) => shares.listDocumentPicks(context, { ...input, query: input.query ?? '', limit: input.limit ?? 30 });
 export const shareMessage = async (context: WorkspaceContext, input: CapabilityInput<'k5_messages_share'>) => shares.createShare(await person(context), context, input.threadId, input.share);
