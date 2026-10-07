@@ -2,25 +2,37 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';
+import { CanvasMeta } from '@/components/shell/shell-context';
 import { agendaCall, type Choice } from '@/lib/agenda-client';
 import { localDate } from '@/lib/calendar-days';
 import type { AgendaActivity, CrmClient } from '@/lib/capabilities/agenda';
 import { Button } from './ui/button';
+import { LumeMark } from './lume-mark';
+import { BackLink, Facts } from './agenda-detail';
+import { dayWord, statusWords } from './agenda-rows';
 
 const AgendaEditor = dynamic(() => import('./agenda-forms').then(module => module.AgendaEditor));
 
-const statuses = { pending: 'Pendente', in_progress: 'Em andamento', completed: 'Concluída', cancelled: 'Cancelada' };
 const dateLabel = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
 const instantLabel = (value: string) => new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+const linkClass = 'underline decoration-border-strong underline-offset-4 hover:decoration-current';
 
 type TaskState =
   | { phase: 'loading' }
   | { phase: 'failed'; message: string }
   | { phase: 'ready'; activity: AgendaActivity; members: Choice[]; cases: Choice[]; client: CrmClient | null; partial: boolean };
 
-export function TaskDetail({ taskId }: { taskId: string }) {
+function when(activity: AgendaActivity, today: string) {
+  if (!activity.dueOn) return statusWords[activity.status];
+  const open = activity.status === 'pending' || activity.status === 'in_progress';
+  if (!open) return `${statusWords[activity.status]} · ${dateLabel(activity.dueOn)}`;
+  return `${statusWords[activity.status]} · ${activity.dueOn < today ? 'venceu' : 'vence'} ${dayWord(activity.dueOn, today, { withDate: true })}`;
+}
+
+/** A task as its own page in the canvas: what it is about, who has it, and its notes. */
+export function TaskDetail({ taskId, from = 'list' }: { taskId: string; from?: 'list' | 'kanban' }) {
   const [state, setState] = useState<TaskState>({ phase: 'loading' });
   const [revision, setRevision] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -51,31 +63,40 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   }, [taskId, revision]);
   const retry = () => setRevision(value => value + 1);
 
-  const ready = state.phase === 'ready' ? state : null;
-  const activity = ready?.activity;
-  return <div className="min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
-    <Link href="/app/agenda?layout=kanban" className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:underline"><ArrowLeft className="size-4" />Voltar ao Kanban</Link>
-    {state.phase === 'failed' ? <div className="space-y-3"><h1 className="page-title">Tarefa indisponível</h1><p role="alert" className="text-sm text-destructive">{state.message}</p><Button variant="outline" size="lg" onClick={retry}>Tentar novamente</Button></div>
-      : state.phase === 'loading' ? <p role="status" className="py-8 text-muted-foreground">Carregando tarefa…</p>
-      : ready && activity && <>
-        <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6"><h1 className="page-title min-w-0 break-words">{activity.title}</h1><Button variant="outline" size="lg" onClick={() => { setNotice(''); setEditing(true); }}>Editar tarefa</Button></header>
-        {notice && <p role="status" className="mt-4 border-l-2 border-brand pl-3 text-sm">{notice}</p>}
-        {ready.partial && <div className="mt-4 flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-destructive">Alguns vínculos não puderam ser carregados e aparecem sem nome.</p><Button variant="outline" size="lg" onClick={retry}>Tentar novamente</Button></div>}
-        <div className="grid gap-10 py-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <section aria-labelledby="task-info"><h2 id="task-info" className="mb-4 font-medium">Detalhes</h2><dl className="space-y-4 text-sm">
-            <div><dt className="mb-1 text-xs text-muted-foreground">Situação</dt><dd>{statuses[activity.status]}</dd></div>
-            <div><dt className="mb-1 text-xs text-muted-foreground">Data</dt><dd>{activity.dueOn ? dateLabel(activity.dueOn) : 'Sem data'}</dd></div>
-            <div><dt className="mb-1 text-xs text-muted-foreground">Responsável</dt><dd className="break-words">{activity.assigneeId ? ready.members.find(member => member.id === activity.assigneeId)?.name ?? 'Responsável anterior' : 'Sem responsável'}</dd></div>
-            <div><dt className="mb-1 text-xs text-muted-foreground">Cliente</dt><dd className="break-words">{activity.clientId ? <Link href={`/app/agenda/clients/${encodeURIComponent(activity.clientId)}`} className="underline underline-offset-4">{ready.client?.name ?? 'Abrir cliente'}</Link> : 'Sem cliente'}</dd></div>
-            <div><dt className="mb-1 text-xs text-muted-foreground">Caso do Cofre</dt><dd className="break-words">{activity.caseId ? <Link href={`/app/vault/cases/${encodeURIComponent(activity.caseId)}`} className="underline underline-offset-4">{ready.cases.find(item => item.id === activity.caseId)?.name ?? 'Abrir caso'}</Link> : 'Sem caso'}</dd></div>
-            <div><dt className="mb-1 text-xs text-muted-foreground">Criada em</dt><dd>{instantLabel(activity.createdAt)}</dd></div>
-            <div><dt className="mb-1 text-xs text-muted-foreground">Atualizada em</dt><dd>{instantLabel(activity.updatedAt)}</dd></div>
-          </dl></section>
-          <section aria-labelledby="task-notes"><h2 id="task-notes" className="mb-3 font-medium">Observações</h2><p className="whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">{activity.notes || 'Sem observações.'}</p>
-            {activity.agentConversationId && <Link href={`/app/agents?conversationId=${encodeURIComponent(activity.agentConversationId)}${activity.caseId ? `&caseId=${encodeURIComponent(activity.caseId)}` : ''}`} className="mt-6 flex min-h-11 items-center text-sm text-brand-ink underline underline-offset-4">Abrir sessão do Lume</Link>}
-          </section>
-        </div>
-      </>}
-    {editing && ready && activity && <AgendaEditor mode="activity" fields="task-details" activity={activity} cases={ready.cases} clients={ready.client ? [ready.client] : []} members={ready.members} day={localDate(new Date())} caseId="" clientId="" timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} close={() => setEditing(false)} saved={() => { setEditing(false); setNotice('Tarefa atualizada.'); retry(); }} />}
-  </div>;
+  const back = from === 'kanban' ? <BackLink href="/app/agenda?view=tasks&layout=kanban">Voltar ao quadro</BackLink> : <BackLink href="/app/agenda?view=tasks">Tarefas</BackLink>;
+  if (state.phase === 'loading') return <CanvasPage>{back}<p role="status" className="text-[13.5px] text-muted-foreground">Carregando tarefa…</p></CanvasPage>;
+  if (state.phase === 'failed') return <CanvasPage className="gap-5 md:gap-5">{back}<CanvasHeader title="Tarefa indisponível" />
+    <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-[13.5px] text-destructive">{state.message}</p><Button variant="outline" onClick={retry}>Tentar novamente</Button></div></CanvasPage>;
+
+  const { activity, members, cases, client } = state;
+  const today = localDate(new Date());
+  const caseName = cases.find(item => item.id === activity.caseId)?.name;
+  return <CanvasPage className="gap-6 md:gap-8">
+    <CanvasMeta title={activity.title} subject={{ kind: 'module', slug: 'agenda', title: activity.title }} />
+    <div className="flex flex-col gap-3">
+      {back}
+      <CanvasHeader eyebrow={when(activity, today)} title={<span className="break-words">{activity.title}</span>}
+        actions={<Button variant="outline" size="lg" className="max-md:h-11" onClick={() => { setNotice(''); setEditing(true); }}>Editar tarefa</Button>} />
+    </div>
+    {notice && <p role="status" className="-mt-3 text-[13px] text-muted-foreground">{notice}</p>}
+    {state.partial && <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-[13.5px] text-destructive">Alguns vínculos não puderam ser carregados e aparecem sem nome.</p><Button variant="outline" onClick={retry}>Tentar novamente</Button></div>}
+    <CanvasSection title="Detalhes">
+      <Facts items={[
+        { label: 'Situação', value: statusWords[activity.status] },
+        { label: 'Data', value: activity.dueOn ? dateLabel(activity.dueOn) : 'Sem data', mono: Boolean(activity.dueOn) },
+        { label: 'Responsável', value: activity.assigneeId ? members.find(member => member.id === activity.assigneeId)?.name ?? 'Responsável anterior' : 'Sem responsável' },
+        { label: 'Cliente', value: activity.clientId ? <Link href={`/app/agenda/clients/${encodeURIComponent(activity.clientId)}`} className={linkClass}>{client?.name ?? 'Abrir cliente'}</Link> : 'Sem cliente' },
+        { label: 'Caso do Cofre', value: activity.caseId ? <Link href={`/app/vault/cases/${encodeURIComponent(activity.caseId)}`} className={linkClass}>{caseName ?? 'Abrir caso'}</Link> : 'Sem caso' },
+        { label: 'Criada em', value: instantLabel(activity.createdAt), mono: true },
+        { label: 'Atualizada em', value: instantLabel(activity.updatedAt), mono: true },
+      ]} />
+    </CanvasSection>
+    <CanvasSection title="Observações">
+      <p className="max-w-[68ch] text-[14.5px] leading-relaxed break-words whitespace-pre-wrap text-muted-foreground">{activity.notes || 'Sem observações.'}</p>
+    </CanvasSection>
+    {activity.agentConversationId && <Link href={`/app/agents?conversationId=${encodeURIComponent(activity.agentConversationId)}${activity.caseId ? `&caseId=${encodeURIComponent(activity.caseId)}` : ''}`}
+      className="inline-flex min-h-11 items-center gap-2 self-start rounded-md text-[13.5px] text-brand-ink hover:underline focus-visible:outline-2 focus-visible:outline-ring md:min-h-8"><LumeMark aria-hidden="true" className="size-4" />Abrir sessão do Lume</Link>}
+    {editing && <AgendaEditor mode="activity" fields="task-details" activity={activity} cases={cases} clients={client ? [client] : []} members={members} day={today} caseId="" clientId="" timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone}
+      close={() => setEditing(false)} saved={() => { setEditing(false); setNotice('Tarefa atualizada.'); retry(); }} />}
+  </CanvasPage>;
 }

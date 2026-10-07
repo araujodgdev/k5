@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { LUME_MARK } from "@/components/lume-mark";
 import { cn } from "@/lib/utils";
 
 export type HalftoneMood = "idle" | "focus" | "submit" | "error";
 
 type Mark = { x: number; y: number; size: number };
 
-// The Lume symbol, the same paths as src/components/lume-mark.tsx, on its 24-unit grid.
-const MARK_PATHS = ["M5 4h3v10.5l-3 3V4Z", "m6.5 19 3-3H20v3H6.5Z", "m11 11.5 6.5-6.5L19 6.5 12.5 13 11 11.5Z"];
+// The halves fill the 94-unit square in the middle of LUME_MARK's 100-unit box; `mark.size` sets its height.
+const MARK_BOX = { offset: 3, span: 94 };
 // Ordered dithering: a 4×4 Bayer matrix turns a smooth value into a pattern of square pixels.
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + .5) / 16);
 
@@ -40,8 +41,7 @@ function colorWord(ctx: CanvasRenderingContext2D, value: string) {
 /**
  * A dithered field of square ink pixels drifting over paper, with the Lume mark cut out of it.
  * A grey mark is drawn in the field's own pixels; a peach mark is a vector laid over a paper
- * cut-out, so it stays sharp and draws itself in with the Traço (`.lume-trace` in globals.css).
- * It leans toward the pointer; `mood` lets a form answer through it.
+ * cut-out, so it stays sharp. It leans toward the pointer; `mood` lets a form answer through it.
  * Decorative: aria-hidden, paused off screen, one still frame under reduced motion.
  */
 export function Halftone({ className, mood = "idle", mark = null, markTone = "panel", seed = 1, cell = 3, density = 0 }: {
@@ -49,7 +49,7 @@ export function Halftone({ className, mood = "idle", mark = null, markTone = "pa
   mood?: HalftoneMood;
   /** Where the mark sits, as fractions of the field: centre x, centre y and height. */
   mark?: Mark | null;
-  /** `panel`: grey pixels, where text sits over the field. `brand`: a peach vector with the Traço, where the mark stands alone. */
+  /** `panel`: grey pixels, where text sits over the field. `brand`: a peach vector, where the mark stands alone. */
   markTone?: "panel" | "brand";
   seed?: number;
   /** CSS pixels per dither pixel. */
@@ -110,11 +110,12 @@ export function Halftone({ className, mood = "idle", mark = null, markTone = "pa
       shape.width = cols;
       shape.height = rows;
       const sctx = shape.getContext("2d", { willReadFrequently: true })!;
-      const size = markSize * rows;
-      sctx.translate(markX * cols - size / 2, markY * rows - size / 2);
-      sctx.scale(size / 24, size / 24);
-      sctx.translate(-.5, .5); // the drawn symbol spans 5–20 × 4–19; this centres it
-      for (const d of MARK_PATHS) sctx.fill(new Path2D(d));
+      const scale = (markSize * rows) / MARK_BOX.span;
+      const centre = MARK_BOX.offset + MARK_BOX.span / 2;
+      sctx.translate(markX * cols, markY * rows);
+      sctx.scale(scale, scale);
+      sctx.translate(-centre, -centre);
+      for (const d of LUME_MARK.halves) sctx.fill(new Path2D(d));
       const data = sctx.getImageData(0, 0, cols, rows).data;
       mask = new Uint8Array(cols * rows);
       for (let i = 0; i < mask.length; i++) mask[i] = data[i * 4 + 3] > 110 ? 1 : 0;
@@ -250,11 +251,11 @@ export function Halftone({ className, mood = "idle", mark = null, markTone = "pa
     <div aria-hidden="true" className={cn("relative overflow-hidden bg-background", className)}>
       <canvas ref={canvasRef} className="halftone-canvas absolute inset-0 size-full" />
       {vector && mark && (
-        // Same placement as the cut-out: centred on (x, y), as tall as `size`; the viewBox offset
-        // matches the half-unit shift that centres the symbol in buildMask.
-        <svg viewBox=".5 -.5 24 24" className="lume-trace absolute aspect-square w-auto -translate-1/2 overflow-visible text-brand"
+        // Same placement as the cut-out: centred on (x, y), as tall as `size`.
+        <svg viewBox={`${MARK_BOX.offset} ${MARK_BOX.offset} ${MARK_BOX.span} ${MARK_BOX.span}`} fill="currentColor"
+          className="absolute aspect-square w-auto -translate-1/2 overflow-visible text-brand"
           style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, height: `${mark.size * 100}%` }}>
-          {MARK_PATHS.map((d, i) => <path key={d} d={d} pathLength={1} style={{ "--i": i } as React.CSSProperties} />)}
+          {LUME_MARK.halves.map((d) => <path key={d} d={d} />)}
         </svg>
       )}
     </div>

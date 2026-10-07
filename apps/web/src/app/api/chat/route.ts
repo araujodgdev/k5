@@ -78,7 +78,7 @@ export async function POST(request: Request) {
         conversationId: id,
         lease,
         request: { documentIds: body.documentIds, caseId: body.caseId, researchReferenceIds: body.researchReferenceIds, attachments: body.attachments,
-          timeZone: body.timeZone, openDocumentId: body.openDocumentId, selection: body.selection },
+          timeZone: body.timeZone, openDocumentId: body.openDocumentId, selection: body.selection, canvas: body.canvas },
       });
     } catch (error) {
       await releaseTurn(owner, id, lease);

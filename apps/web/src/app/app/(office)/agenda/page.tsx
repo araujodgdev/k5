@@ -3,9 +3,15 @@ import { AgendaWorkspace } from '@/components/agenda-workspace';
 import { CollaborationPanel } from '@/components/collaboration-panel';
 import { OfficeActivity } from '@/components/office-activity';
 
-export const metadata = { title: 'Escritório' };
+type Params = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+const titles: Record<string, string> = { tasks: 'Tarefas', calendar: 'Agenda', clients: 'Clientes', associates: 'Associados', invites: 'Convites', activity: 'Atividade' };
 
-export default async function AgendaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export async function generateMetadata({ searchParams }: Params) {
+  const { view } = await searchParams;
+  return { title: (typeof view === 'string' && titles[view]) || 'Tarefas' };
+}
+
+export default async function AgendaPage({ searchParams }: Params) {
   const { office } = await requireWorkspace();
   const params = await searchParams;
   const value = (key: string) => typeof params[key] === 'string' ? params[key] as string : '';

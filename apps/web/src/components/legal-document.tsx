@@ -23,8 +23,9 @@ export function LegalDocument({ title, introduction, sections }: {
     <div className="min-h-dvh bg-background text-foreground print:bg-white print:text-black print:[&_*]:text-black">
       <a href="#documento" className="sr-only focus:not-sr-only focus:block focus:p-4">Ir para o documento</a>
       <header className="flex h-15 items-center border-b border-line print:hidden">
-        <Link href="/" aria-label="Lume, página inicial" className="grid h-full w-15 place-items-center bg-foreground text-background focus-visible:outline-2 focus-visible:outline-brand">
-          <LumeMark width={22} height={22} aria-hidden="true" />
+        <Link href="/" aria-label="Lume, página inicial" className="group relative grid h-full w-15 place-items-center text-foreground outline-none">
+          <span aria-hidden="true" className="absolute inset-2 rounded-md transition-colors group-hover:bg-accent group-focus-visible:ring-2 group-focus-visible:ring-ring" />
+          <LumeMark width={22} height={22} className="relative" />
         </Link>
         <Link href="/" className="px-5 text-lg font-medium">Lume</Link>
         <div className="ml-auto flex items-center gap-4 px-5"><Link href="/sign-in" className="inline-flex min-h-11 items-center underline underline-offset-4">Entrar</Link><ThemeSwitch /></div>
@@ -43,7 +44,7 @@ export function LegalDocument({ title, introduction, sections }: {
               {sections.map((section, index) => <li key={section.id}><a href={`#${section.id}`} className="flex min-h-11 items-center gap-3 py-2 text-sm hover:underline focus-visible:outline-2 focus-visible:outline-brand"><span className="font-mono text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>{section.title}</a></li>)}
             </ol>
           </nav>
-          <article className="min-w-0 px-5 md:px-10 lg:px-12 [&_a]:underline [&_a]:underline-offset-4 [&_a:hover]:text-brand-ink [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-brand">
+          <article className="min-w-0 px-5 md:px-10 lg:px-12 [&_a]:underline [&_a]:decoration-foreground/30 [&_a]:underline-offset-4 [&_a:hover]:decoration-current [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-brand">
             {sections.map((section, index) => (
               <section key={section.id} id={section.id} aria-labelledby={`${section.id}-titulo`} className="scroll-mt-6 border-b border-border py-9 last:border-b-0 print:py-4">
                 <h2 id={`${section.id}-titulo`} className="mb-5 text-2xl font-medium tracking-tight print:break-after-avoid">{index + 1}. {section.title}</h2>

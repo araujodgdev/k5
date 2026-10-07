@@ -40,7 +40,7 @@ export function ProfileSummary({ profile }: { profile: ProfileCard }) {
       </div>
       {details && <p className="text-[13px] text-muted-foreground">{details}</p>}
       {profile.bio && <p className="line-clamp-3 text-[13px] whitespace-pre-line">{profile.bio}</p>}
-      <p className="label-mono text-subtle-foreground">No Lume desde {since(profile.memberSince)}</p>
+      <p className="text-xs text-muted-foreground">No Lume desde {since(profile.memberSince)}</p>
     </div>
   );
 }

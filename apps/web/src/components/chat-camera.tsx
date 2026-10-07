@@ -53,7 +53,7 @@ export function ChatCamera({onClose,onPhoto}:{onClose:()=>void;onPhoto:(file:Fil
   return <Dialog open onOpenChange={open=>{if(!open) onClose();}}>
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
       <DialogHeader><DialogTitle>Tirar foto</DialogTitle><DialogDescription>Enquadre o que deseja enviar ao Lume. A foto será anexada à sua mensagem.</DialogDescription></DialogHeader>
-      <div className="relative flex min-h-40 items-center justify-center overflow-hidden rounded-xl bg-muted">
+      <div className="relative flex min-h-40 items-center justify-center overflow-hidden rounded-lg bg-muted">
         {photo ? <img src={photo.url} alt="Foto capturada para conferir antes de anexar" className="max-h-[52dvh] w-full object-contain" /> /* eslint-disable-line @next/next/no-img-element */
           : <video ref={video} autoPlay muted playsInline onLoadedData={()=>setReady(true)} className="max-h-[52dvh] w-full object-contain" aria-label="Prévia da câmera" />}
         {!photo&&!ready&&!error&&<LoaderCircle aria-label="Abrindo câmera" className="absolute size-6 animate-spin motion-reduce:animate-none" />}

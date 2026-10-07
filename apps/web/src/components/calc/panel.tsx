@@ -3,30 +3,38 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { z } from 'zod';
+import { Calculator } from 'lucide-react';
 import { BetaLabel } from '@/components/ads/beta-label';
+import { CanvasCard, CanvasHeader, CanvasPage, CanvasRow, CanvasSection } from '@/components/canvas/canvas-page';
+import { EmptyRows, RowsLoading } from '@/components/agenda-rows';
+import { SearchField } from '@/components/agenda-filters';
+import { VersionTabs } from '@/components/version-tabs';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Failure } from '@/components/honorarios/fields';
 import { money } from '@/components/honorarios/editor';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { calculators, calculationsList, savedCalculation, type CalculationKind, type SavedCalculation } from '@/lib/calc/contracts';
-import { CalcForm, calcCall } from './form';
+import { CalcBack, CalcForm, calcCall } from './form';
 import { CalcResult } from './result';
 
+const PAGE = 50;
 type View = { kind: 'list' } | { kind: 'edit'; calculator: CalculationKind; seed?: SavedCalculation; key: number } | { kind: 'detail'; value: SavedCalculation };
+
+/** Cálculos as a canvas module: the calculators as cards, then the saved calculations as rows. */
 export function CalcPanel() {
   const [view, setView] = useState<View>({ kind: 'list' });
   const [list, setList] = useState<z.infer<typeof calculationsList> | null>(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('');
+  const search = useDebouncedValue(query);
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    void calcCall('list', { query: filter, offset }, calculationsList, controller.signal).then(value => { setList(value); setError(''); }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os cálculos.'); });
+    void calcCall('list', { query: search, offset }, calculationsList, controller.signal).then(value => { setList(value); setError(''); }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os cálculos.'); });
     return () => controller.abort();
-  }, [filter, offset, revision]);
+  }, [search, offset, revision]);
   async function open(id: string, version?: number) {
     setBusy(true); setError('');
     try { const value = await calcCall('get', { id, version }, savedCalculation); setView({ kind: 'detail', value }); }
@@ -34,28 +42,68 @@ export function CalcPanel() {
     finally { setBusy(false); }
   }
   const back = () => { setView({ kind: 'list' }); setRevision(value => value + 1); };
-  return <div className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
-    <header className="border-b border-line pb-6"><p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Calc</p><div className="mt-3 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-medium tracking-tight md:text-4xl">Cálculos jurídicos</h1><BetaLabel /></div></header>
-    <div className="py-3"><Failure message={error} /></div>
-    {view.kind === 'edit' ? <CalcForm key={view.key} kind={view.calculator} seed={view.seed} saved={value => { setView({ kind: 'detail', value }); setRevision(current => current + 1); }} back={back} /> : view.kind === 'detail' ? <>
-      <div className="flex flex-wrap items-center justify-between gap-4 py-4"><div><h2 className="text-xl font-medium">{view.value.title}</h2><p className="mt-1 text-xs text-muted-foreground">Salvo em {new Date(view.value.createdAt).toLocaleString('pt-BR')} · versão {view.value.version}</p></div><Button variant="ghost" onClick={back}>Voltar aos cálculos</Button></div>
-      <div className="flex flex-wrap items-center gap-3 border-y border-line py-4"><Button onClick={() => setView({ kind: 'edit', calculator: view.value.input.kind, seed: view.value, key: Date.now() })}>Revisar parâmetros</Button><Button variant="outline" onClick={() => setView({ kind: 'edit', calculator: view.value.input.kind, seed: { ...view.value, id: '', title: `${view.value.title} · cópia`, latestVersion: 0 }, key: Date.now() })}>Duplicar cenário</Button><label className="flex items-center gap-2 text-sm">Versão<select className="min-h-11 border border-input bg-background" disabled={busy} value={view.value.version} onChange={event => void open(view.value.id, Number(event.target.value))}>{Array.from({ length: view.value.latestVersion }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select></label></div>
-      <CalcResult result={view.value.result} saved={view.value} />
-      {view.value.result.totalCents > 0 && <Link className="inline-flex min-h-11 items-center text-sm underline" href={`/app/honorarios/propostas?calculationId=${view.value.id}&version=${view.value.version}`}>Usar resultado como base de honorários</Link>}
-      <details className="border-t border-line py-4"><summary className="cursor-pointer text-sm">Observações e comparação com a versão anterior</summary><p className="mt-3 whitespace-pre-wrap text-sm">{view.value.notes || 'Sem observações.'}</p>{view.value.version > 1 && <Comparison id={view.value.id} version={view.value.version - 1} current={view.value.result.totalCents} />}</details>
-    </> : <>
-      <section className="grid border-t border-l border-line sm:grid-cols-2 xl:grid-cols-3" aria-label="Novo cálculo">{calculators.map(item => <button key={item.kind} className="min-w-0 border-r border-b border-line p-5 text-left transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring" onClick={() => setView({ kind: 'edit', calculator: item.kind, key: Date.now() })}><span className="block text-lg font-medium">{item.name}</span><span className="mt-3 block text-sm text-muted-foreground">{item.description}</span><span className="mt-5 block text-xs underline">Novo cálculo</span></button>)}</section>
-      <section className="mt-10"><div className="flex flex-wrap items-center justify-between gap-4"><h2 className="text-xl font-medium">Meus cálculos</h2><Button variant="ghost" onClick={() => { setList(null); setRevision(value => value + 1); }}>Atualizar</Button></div>
-        <form className="flex gap-3 py-4" onSubmit={event => { event.preventDefault(); setList(null); setOffset(0); setFilter(query); setRevision(value => value + 1); }}><Input aria-label="Buscar cálculos" value={query} onChange={event => setQuery(event.target.value)} maxLength={180} /><Button variant="outline">Buscar</Button></form>
-        {!list ? <p role="status" className="py-6">{error ? 'A consulta falhou. Use Atualizar para tentar novamente.' : 'Carregando cálculos…'}</p> : list.items.length === 0 ? <p className="border-y py-8 text-sm text-muted-foreground">Nenhum cálculo salvo para esta busca.</p> : <div className="divide-y border-y border-line">{list.items.map(item => <button disabled={busy} key={item.id} onClick={() => void open(item.id)} className="flex min-h-16 w-full flex-wrap items-center justify-between gap-3 py-4 text-left hover:bg-accent"><span className="min-w-0 break-words"><span className="block font-medium">{item.title}</span><span className="mt-1 block text-xs text-muted-foreground">Versão {item.version} · {new Date(item.updatedAt).toLocaleDateString('pt-BR')}</span></span><span className="tabular-nums">{money(item.totalCents)}</span></button>)}</div>}
-        {list && list.total > 50 && <div className="flex items-center gap-3 py-4"><Button variant="outline" disabled={offset === 0} onClick={() => setOffset(value => Math.max(0, value - 50))}>Anterior</Button><span className="text-sm">{offset + 1}–{Math.min(offset + 50, list.total)} de {list.total}</span><Button variant="outline" disabled={offset + 50 >= list.total} onClick={() => setOffset(value => value + 50)}>Próxima</Button></div>}
-      </section>
-    </>}
-  </div>;
+  const title = <span className="inline-flex flex-wrap items-center gap-3">Cálculos<BetaLabel /></span>;
+
+  if (view.kind === 'edit') return <CanvasPage className="gap-5 md:gap-6">
+    <CalcForm key={view.key} kind={view.calculator} seed={view.seed} saved={value => { setView({ kind: 'detail', value }); setRevision(current => current + 1); }} back={back} />
+  </CanvasPage>;
+
+  if (view.kind === 'detail') {
+    const value = view.value;
+    const kindName = calculators.find(item => item.kind === value.input.kind)?.name;
+    return <CanvasPage className="gap-6 md:gap-8">
+      <div className="flex flex-col gap-3">
+        <CalcBack onClick={back} />
+        <CanvasHeader eyebrow={[kindName, `versão ${value.version} de ${value.latestVersion}`, `salvo em ${new Date(value.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`].filter(Boolean).join(' · ')}
+          title={<span className="break-words">{value.title}</span>}
+          actions={<>
+            <Button variant="ghost" size="lg" className="text-muted-foreground max-md:h-11" onClick={() => setView({ kind: 'edit', calculator: value.input.kind, seed: { ...value, id: '', title: `${value.title} · cópia`, latestVersion: 0 }, key: Date.now() })}>Duplicar cenário</Button>
+            <Button variant="outline" size="lg" className="max-md:h-11" onClick={() => setView({ kind: 'edit', calculator: value.input.kind, seed: value, key: Date.now() })}>Revisar parâmetros</Button>
+          </>} />
+      </div>
+      <Failure message={error} />
+      {value.latestVersion > 1 && <div className="flex flex-col gap-2">
+        <VersionTabs label="Versões do cálculo" latest={value.latestVersion} current={value.version} onSelect={version => void open(value.id, version)} />
+        {busy && <span role="status" className="text-[13px] text-muted-foreground">Abrindo versão…</span>}
+      </div>}
+      <CalcResult result={value.result} saved={value} />
+      {value.result.totalCents > 0 && <Link className="inline-flex min-h-11 items-center self-start rounded-sm text-[13.5px] text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring md:min-h-8" href={`/app/honorarios/propostas?calculationId=${value.id}&version=${value.version}`}>Usar resultado como base de honorários</Link>}
+      <CanvasSection title="Observações">
+        <p className="max-w-[68ch] text-[14.5px] leading-relaxed whitespace-pre-wrap text-muted-foreground">{value.notes || 'Sem observações.'}</p>
+        {value.version > 1 && <Comparison id={value.id} version={value.version - 1} current={value.result.totalCents} />}
+      </CanvasSection>
+    </CanvasPage>;
+  }
+
+  return <CanvasPage className="gap-8 md:gap-10">
+    <CanvasHeader eyebrow="Correção, juros, restituições e rescisões, com memória preservada por versão" title={title} />
+    <CanvasSection title="Novo cálculo" label="Novo cálculo">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(240px,100%),1fr))] gap-3">
+        {calculators.map(item => <CanvasCard key={item.kind} onClick={() => setView({ kind: 'edit', calculator: item.kind, key: Date.now() })} className="gap-1.5 p-4">
+          <span className="text-sm font-medium">{item.name}</span>{' '}
+          <span className="text-[12.5px] leading-relaxed text-muted-foreground">{item.description}</span>
+        </CanvasCard>)}
+      </div>
+    </CanvasSection>
+    <CanvasSection title="Meus cálculos">
+      <SearchField label="Buscar cálculos" value={query} onChange={value => { setQuery(value); setOffset(0); }} className="max-md:w-full" />
+      {error && <div className="flex flex-wrap items-center gap-3"><Failure message={error} /><Button variant="outline" onClick={() => { setList(null); setRevision(value => value + 1); }}>Tentar novamente</Button></div>}
+      {!list ? !error && <RowsLoading label="Carregando cálculos" rows={3} />
+        : list.items.length === 0 ? <EmptyRows>{search ? 'Nenhum cálculo salvo para esta busca.' : 'Nenhum cálculo salvo ainda.'}</EmptyRows>
+        : <div className="flex flex-col gap-0.5">{list.items.map(item => <CanvasRow key={item.id} stacked icon={<Calculator />} title={item.title}
+          detail={`Versão ${item.version} · atualizado em ${new Date(item.updatedAt).toLocaleDateString('pt-BR')}`} meta={money(item.totalCents)}
+          onClick={busy ? undefined : () => void open(item.id)} label={item.title} />)}</div>}
+      {list && list.total > PAGE && <div className="flex items-center justify-between gap-3 pt-2">
+        <span className="font-mono text-[12.5px] text-muted-foreground">{offset + 1}–{Math.min(offset + PAGE, list.total)} de {list.total}</span>
+        <div className="flex gap-1"><Button variant="ghost" disabled={offset === 0} onClick={() => setOffset(value => Math.max(0, value - PAGE))}>Anterior</Button><Button variant="ghost" disabled={offset + PAGE >= list.total} onClick={() => setOffset(value => value + PAGE)}>Próxima</Button></div>
+      </div>}
+    </CanvasSection>
+  </CanvasPage>;
 }
+
 function Comparison({ id, version, current }: { id: string; version: number; current: number }) {
   const [previous, setPrevious] = useState<number | null>(null);
   const [error, setError] = useState('');
   useEffect(() => { const controller = new AbortController(); void calcCall('get', { id, version }, savedCalculation, controller.signal).then(value => setPrevious(value.result.totalCents)).catch(() => { if (!controller.signal.aborted) setError('Não foi possível comparar as versões.'); }); return () => controller.abort(); }, [id, version]);
-  return <p className="mt-3 text-sm">{error || (previous === null ? 'Carregando comparação…' : `Versão ${version}: ${money(previous)}. Diferença desta versão: ${money(current - previous)}.`)}</p>;
+  return <p className="text-[13.5px] text-muted-foreground">{error || (previous === null ? 'Carregando comparação…' : <>Versão {version}: <span className="font-mono text-[12.5px] text-foreground">{money(previous)}</span>. Diferença desta versão: <span className="font-mono text-[12.5px] text-foreground">{money(current - previous)}</span>.</>)}</p>;
 }

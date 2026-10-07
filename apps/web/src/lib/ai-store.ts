@@ -106,3 +106,12 @@ export async function updateArtifact(db: Database, owner: Owner, id: string, tit
   if (updated.changes !== 1) return null;
   return { ...current, title, content, version: version + 1, status: 'needs_review' };
 }
+
+/** The owner's own documents from conversations about a case (`knowledge_scope.case_id`), newest first. */
+export async function caseArtifacts(db: Database, owner: Owner, caseId: string) {
+  return await db.prepare(`SELECT a.id,a.title,left(a.content,600) AS excerpt,a.created_by_agent AS "createdByAgent",a.updated_at AS "updatedAt"
+    FROM ai_artifact a WHERE a.office_id=? AND a.user_id=? AND EXISTS (SELECT 1 FROM knowledge_scope s
+      WHERE s.office_id=a.office_id AND s.user_id=a.user_id AND s.conversation_id=a.conversation_id AND s.case_id=?)
+    ORDER BY a.updated_at DESC LIMIT 50`)
+    .all<{ id: string; title: string; excerpt: string; createdByAgent: boolean; updatedAt: string }>(owner.officeId, owner.userId, caseId);
+}

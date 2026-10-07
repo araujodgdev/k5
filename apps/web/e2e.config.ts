@@ -13,7 +13,7 @@ if (!external && !ci && existsSync('.env.local')) process.loadEnvFile('.env.loca
 
 // The server process gets only these variables; model keys and test credentials stay out of the app.
 const serverEnv = Object.fromEntries(['DATABASE_URL', 'BETTER_AUTH_SECRET', 'BETTER_AUTH_URL', 'K5_CREDENTIALS_KEY',
-  'SENTRY_ENABLED', 'NEXT_PUBLIC_SENTRY_ENABLED', 'K5_NEXT_DIST_DIR']
+  'SENTRY_ENABLED', 'NEXT_PUBLIC_SENTRY_ENABLED', 'K5_NEXT_DIST_DIR', 'K5_CANVAS_SHELL']
   .flatMap(name => process.env[name] ? [[name, process.env[name]!]] : []));
 
 // Each worker is one client with its own address on the test server's auth rate limits, as each
@@ -39,7 +39,8 @@ export default {
         args: ['node_modules/next/dist/bin/next', ci ? 'start' : 'dev', '--port', '{port}'],
         // Auth rate limits key on a trusted client-IP header; without one every test shares a single
         // bucket. Only this test server trusts it, and each ApiSession sends its own value.
-        env: { ...serverEnv, K5_CLIENT_IP_HEADER: 'x-e2e-client', NEXT_TELEMETRY_DISABLED: '1' },
+        // The suite covers the canvas shell, so the server it starts has it on unless the environment says otherwise.
+        env: { K5_CANVAS_SHELL: 'on', ...serverEnv, K5_CLIENT_IP_HEADER: 'x-e2e-client', NEXT_TELEMETRY_DISABLED: '1' },
         startupTimeout: 180_000,
         log: '.e2e/logs/app.log',
         reuseExisting: true,

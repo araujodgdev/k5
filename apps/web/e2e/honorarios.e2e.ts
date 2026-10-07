@@ -50,9 +50,8 @@ test('honorários pela interface: parcelamento, baixas integral e parcial, corre
   const created = await get(listed.installments[0].agreementId);
   expect(created.agreement).toMatchObject({ totalCents: 300000, caseId: caseRecord.id });
   expect(created.installments.map(row => row.dueOn)).toEqual(['2026-01-31', '2026-02-28', '2026-03-31']);
-  await expect(screen.getByText('Acompanhamento processual').first()).toBeVisible();
-
   const agreement = screen.getByRole('button', /^Abrir Acompanhamento processual,/);
+  await expect(agreement.first()).toBeVisible();
   await agreement.first().tap();
   await screen.getByRole('button', 'Registrar recebimento da parcela 1').tap();
   await screen.getByLabel('Valor recebido (R$)').fill('1.000,00');
@@ -77,9 +76,14 @@ test('honorários pela interface: parcelamento, baixas integral e parcial, corre
   await browser.keyboard.press('Escape');
   await expect(screen.getByRole('dialog')).toBeHidden();
 
-  await screen.getByRole('button', 'Recebidas').tap();
+  // The situation is a filter menu; its chip names the current one.
+  const situation = async (current: string, next: string) => {
+    await screen.getByRole('button', `Situação: ${current}`).tap();
+    await screen.getByRole('menuitemradio', next).tap();
+  };
+  await situation('A receber', 'Recebidas');
   await expect(agreement).toHaveCount(1);
-  await screen.getByRole('button', 'A receber').tap();
+  await situation('Recebidas', 'A receber');
   await expect(agreement).toHaveCount(2);
 
   const toCancel = honorarioDetailDto.parse(await api.json('/api/honorarios/create', {
@@ -93,7 +97,7 @@ test('honorários pela interface: parcelamento, baixas integral e parcial, corre
   await expect(screen.getByText('Honorário cancelado. O histórico permanece disponível.')).toBeVisible();
   expect((await get(toCancel.agreement.id)).agreement.status).toBe('cancelled');
   await browser.keyboard.press('Escape');
-  await screen.getByRole('button', 'Canceladas').tap();
+  await situation('A receber', 'Canceladas');
   await expect(screen.getByRole('button', /^Abrir Cadastro para cancelar,/)).toBeVisible();
 
   // Loading, then a failed query, then recovery.
@@ -105,7 +109,7 @@ test('honorários pela interface: parcelamento, baixas integral e parcial, corre
   });
   await browser.goto('/app/honorarios', { waitUntil: 'domcontentloaded' });
   // The route's loading screen and the list's own state can show the text at the same time.
-  await expect(screen.getByText('Carregando honorários…').first()).toBeVisible();
+  await expect(screen.getByRole('status', 'Carregando honorários').first()).toBeVisible();
   release();
   await expect(screen.getByRole('alert').filter({ hasText: 'Falha de consulta simulada' })).toBeVisible();
   await browser.unroute('**/api/honorarios/list');
@@ -115,10 +119,10 @@ test('honorários pela interface: parcelamento, baixas integral e parcial, corre
 
   await browser.setViewport({ width: 390, height: 844 });
   await app.open('/app/honorarios');
-  await expect(screen.getByText('Acompanhamento processual').first()).toBeVisible();
+  await expect(agreement.first()).toBeVisible();
   await noOverflow('lista celular');
-  await screen.getByRole('button', 'Mais').tap();
-  await expect(screen.getByRole('dialog').getByRole('link', 'Honorários')).toBeVisible();
+  await screen.getByRole('button', /^Mais opções/).tap();
+  await expect(screen.getByRole('dialog', 'Mais opções').getByRole('link', 'Honorários')).toBeVisible();
   await browser.keyboard.press('Escape');
   const create = screen.getByRole('button', 'Novo honorário');
   await create.tap();

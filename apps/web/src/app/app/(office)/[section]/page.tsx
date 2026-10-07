@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AgentChat } from "@/components/agent-chat";
-import { Reveal } from "@/components/reveal";
 import { appNavigation } from "@/lib/navigation";
 import { requireWorkspace } from "@/lib/session";
 import { database } from "@/lib/database";
@@ -11,8 +10,9 @@ import { planReadsImages } from "@/lib/ai-assignments-core";
 import { caseAccess } from '@/lib/collaboration/access';
 import { AiDataNotice } from '@/components/legal-gate';
 import { hasAcceptedCurrent } from '@/lib/legal-acceptance';
+import { isCanvasShellEnabled } from '@/lib/canvas-shell/rollout';
 
-type Props = { params: Promise<{ section: string }>; searchParams: Promise<{ conversationId?: string; caseId?: string }> };
+type Props = { params: Promise<{ section: string }>; searchParams: Promise<{ conversationId?: string; caseId?: string; doc?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { section } = await params;
@@ -25,10 +25,16 @@ export default async function SectionPage({ params, searchParams }: Props) {
   const item = appNavigation.find((entry) => entry.slug === section);
   if (!item) notFound();
   if (item.slug === "agents") {
+    const { conversationId, caseId, doc } = await searchParams;
+    if (caseId) await caseAccess(user.id, caseId);
+    // In the canvas shell the Lume is the panel beside every page: its links open Início, or the
+    // document they had open beside the chat, and the panel opens the conversation they name.
+    if (await isCanvasShellEnabled(office.officeId)) {
+      const query = new URLSearchParams({ ...(conversationId ? { conversationId } : {}), ...(caseId ? { caseId } : {}) }).toString();
+      redirect(`${doc ? `/app/documents/${encodeURIComponent(doc)}` : "/app/command-center"}${query ? `?${query}` : ""}`);
+    }
     // The first visit to the Lume explains, once, what reaches the AI providers and how.
     if (!await hasAcceptedCurrent(database, user.id, 'ai_notice')) return <AiDataNotice />;
-    const { conversationId, caseId } = await searchParams;
-    if (caseId) await caseAccess(user.id, caseId);
     const [history, chat, transcription] = await Promise.allSettled([
       conversationBootstrap(database, { officeId: office.officeId, userId: user.id }, conversationId),
       planTaskModel('agent.chat'),
@@ -38,14 +44,13 @@ export default async function SectionPage({ params, searchParams }: Props) {
     const modalities = chat.status === 'fulfilled' && transcription.status === 'fulfilled'
       ? { image: planReadsImages(chat.value), audio: transcription.value.status === 'ready' } : undefined;
     // A failed prefetch falls back to the existing API loading/error path in the chat.
-    return <AgentChat key={`${conversationId ?? 'latest'}:${caseId ?? ''}`} initialConversationId={conversationId} initialCaseId={caseId}
-      initialData={history.status === 'fulfilled' ? history.value : undefined}
-      modalities={modalities} />;
+    return <AgentChat key={`${conversationId ?? 'latest'}:${caseId ?? ''}`} mode={{ kind: 'page', initialData: history.status === 'fulfilled' ? history.value : undefined }}
+      userName={user.name} initialConversationId={conversationId} initialCaseId={caseId} modalities={modalities} />;
   }
   return (
-    <Reveal className="w-full max-w-5xl px-5 py-6 md:px-10 md:py-10">
-      <h1 className="page-title max-md:sr-only" data-reveal>{item.label}</h1>
-      <p className="grid min-h-[50dvh] place-items-center text-subtle-foreground" data-reveal>Em breve</p>
-    </Reveal>
+    <div className="w-full max-w-5xl px-5 py-6 md:px-10 md:py-10">
+      <h1 className="page-title max-md:sr-only">{item.label}</h1>
+      <p className="grid min-h-[50dvh] place-items-center text-subtle-foreground">Em breve</p>
+    </div>
   );
 }

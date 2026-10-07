@@ -10,7 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Calendar as CalendarIcon, Plus, Users } from 'lucide-react';
+import { Segmented } from '@/components/agenda-filters';
 import { googleCall, GoogleConnectionNotice, type GoogleStatus, useGoogleAction } from './client';
+
+const quiet = 'h-[30px] text-[13px] text-muted-foreground max-md:h-11';
+const row = '-mx-3 flex flex-wrap items-start gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent';
+const fieldLabel = 'text-xs font-normal text-muted-foreground';
 
 type Calendar = CapabilityOutput<'k5_calendar_list_calendars'>['calendars'][number];
 type Event = CapabilityOutput<'k5_calendar_list_events'>['events'][number];
@@ -216,97 +222,94 @@ export function CalendarPanel({day,initialEventId}:{day:string;initialEventId?:s
     const saved=await perform<CapabilityOutput<'k5_calendar_discard_pending'>>('event-discard',{eventId:event.id});
     if(saved)setNotice('Pendência local descartada. Atualize para buscar o estado do Google.');
   }
-  if(!status&&loading)return <p role="status" className="py-10 text-sm text-muted-foreground">Carregando Agenda Google…</p>;
-  if(!status)return <div className="py-8"><p role="alert" className="text-sm text-destructive">{failure||'Não foi possível carregar a Agenda Google.'}</p>
-    <Button variant="outline" className="mt-3" onClick={()=>window.location.reload()}>Tentar novamente</Button></div>;
-  return <div className="min-w-0 space-y-6 max-md:[&_button]:min-h-11 max-md:[&_button]:min-w-11">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <nav aria-label="Agendas pessoais" className="flex gap-5 border-b">
-        {([['mine','Minha agenda'],['shared','Compartilhados com o escritório']] as const).map(([value,label])=>
-          <button key={value} type="button" onClick={()=>setSection(value)} aria-current={section===value?'page':undefined}
-            className={`min-h-11 border-b-2 px-1 text-sm focus-visible:ring-2 focus-visible:ring-ring ${section===value?'border-foreground font-medium':'border-transparent text-muted-foreground'}`}>{label}</button>)}
-      </nav>
-      <div className="flex flex-wrap gap-2"><Button variant="ghost" disabled={busy} onClick={refresh}>Atualizar</Button>
-        {section==='mine'&&enabled&&<Button variant="outline" disabled={busy} onClick={()=>void sync()}>Sincronizar</Button>}
-        {section==='mine'&&enabled&&calendars.some(c=>c.selected&&!c.readOnly)&&<Button disabled={busy} onClick={startNew}>Novo evento</Button>}</div>
+  if(!status&&loading)return <p role="status" className="py-3 text-[13.5px] text-muted-foreground">Carregando Agenda Google…</p>;
+  if(!status)return <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-[13.5px] text-destructive">{failure||'Não foi possível carregar a Agenda Google.'}</p>
+    <Button variant="outline" onClick={()=>window.location.reload()}>Tentar novamente</Button></div>;
+  return <div className="flex min-w-0 flex-col gap-5 max-md:[&_button]:min-h-11 max-md:[&_button]:min-w-11">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Segmented label="Agendas pessoais" value={section} onChange={setSection} options={[{value:'mine',label:'Minha agenda'},{value:'shared',label:'Compartilhados com o escritório'}]}/>
+      <div className="flex flex-wrap gap-2"><Button variant="ghost" className={quiet} disabled={busy} onClick={refresh}>Atualizar</Button>
+        {section==='mine'&&enabled&&<Button variant="ghost" className={quiet} disabled={busy} onClick={()=>void sync()}>Sincronizar</Button>}
+        {section==='mine'&&enabled&&calendars.some(c=>c.selected&&!c.readOnly)&&<Button variant="outline" size="lg" className="[&_svg]:size-3.5" disabled={busy} onClick={startNew}><Plus aria-hidden="true"/>Novo evento</Button>}</div>
     </div>
-    {failure&&<p role="alert" className="text-sm text-destructive">{failure}</p>}
-    {notice&&<p role="status" className="text-sm text-muted-foreground">{notice}</p>}
-    {section==='mine'&&enabled&&<section aria-label="Calendários Google" className="border-y py-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-medium">Calendários</h3>
-        <Button variant="ghost" disabled={busy} onClick={()=>void select()}>Salvar seleção</Button></div>
-      {calendars.length===0?<p className="text-sm text-muted-foreground">Nenhum calendário carregado. Sincronize para buscar os calendários da sua conta.</p>
-        :<div className="divide-y">{calendars.map(calendar=><label key={calendar.id} className="flex min-h-11 items-center gap-3 py-2 text-sm">
+    {failure&&<p role="alert" className="text-[13.5px] text-destructive">{failure}</p>}
+    {notice&&<p role="status" className="text-[13px] text-muted-foreground">{notice}</p>}
+    {section==='mine'&&enabled&&<section aria-label="Calendários Google" className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-[15px] font-semibold">Calendários</h3>
+        <Button variant="ghost" className={quiet} disabled={busy} onClick={()=>void select()}>Salvar seleção</Button></div>
+      {calendars.length===0?<p className="text-[13.5px] text-muted-foreground">Nenhum calendário carregado. Sincronize para buscar os calendários da sua conta.</p>
+        :<div className="flex flex-col">{calendars.map(calendar=><label key={calendar.id} className="flex min-h-11 items-center gap-3 text-[13.5px] md:min-h-9">
           <input type="checkbox" checked={selection.includes(calendar.id)} onChange={e=>setSelection(current=>e.target.checked?[...current,calendar.id]:current.filter(id=>id!==calendar.id))}
-            className="size-5 accent-primary"/><span className="min-w-0 flex-1 truncate">{calendar.summary}</span>
+            className="size-4 accent-primary"/><span className="min-w-0 flex-1 truncate">{calendar.summary}</span>
           <span className="text-xs text-muted-foreground">{calendar.readOnly?'Somente leitura':calendar.syncState==='error'?'Erro de sincronização':calendar.selected?'Selecionado':'Não selecionado'}</span>
         </label>)}</div>}
     </section>}
     {section==='mine'&&!enabled?<GoogleConnectionNotice status={status} module="calendar"/>
-      :loading?<p role="status" className="py-8 text-sm text-muted-foreground">Carregando eventos…</p>
+      :loading?<p role="status" className="py-3 text-[13.5px] text-muted-foreground">Carregando eventos…</p>
       :section==='shared'
-        ?shared.length===0?<p className="py-8 text-sm text-muted-foreground">Nenhum evento foi compartilhado com o escritório neste dia.</p>
-          :<div className="divide-y border-y">{shared.map(item=><article key={item.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
-            <div><p className="text-sm font-medium">{item.title}</p><p className="mt-1 text-[13px] text-muted-foreground">{item.ownerName}{item.location?` · ${item.location}`:''}</p>
-              {item.notes&&<p className="mt-2 whitespace-pre-wrap text-sm">{item.notes}</p>}</div>
-            {item.mine&&<Button variant="ghost" disabled={busy} onClick={()=>void unshare(item.id)}>Remover compartilhamento</Button>}
+        ?shared.length===0?<p className="py-3 text-[13.5px] text-muted-foreground">Nenhum evento foi compartilhado com o escritório neste dia.</p>
+          :<div className="flex flex-col gap-0.5">{shared.map(item=><article key={item.id} className={row}>
+            <Users aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground"/>
+            <div className="min-w-0 flex-1"><p className="text-sm font-medium">{item.title}</p><p className="text-[12.5px] text-muted-foreground">{item.ownerName}{item.location?` · ${item.location}`:''}</p>
+              {item.notes&&<p className="mt-1 whitespace-pre-wrap text-[13.5px]">{item.notes}</p>}</div>
+            {item.mine&&<Button variant="ghost" className={quiet} disabled={busy} onClick={()=>void unshare(item.id)}>Remover compartilhamento</Button>}
           </article>)}</div>
-        :events.length===0?<p className="py-8 text-sm text-muted-foreground">Nenhum evento pessoal para este dia.</p>
-          :<div className="divide-y border-y">{events.map(event=><article key={event.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
-            <div className="min-w-0"><button type="button" onClick={()=>setEdit({event,draft:fromEvent(event)})}
-              className="text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{event.title||'Sem título'}</button>
-              <p className="mt-1 text-[13px] text-muted-foreground">{detail(event)} · {event.calendarName}</p>
-              {event.location&&<p className="mt-1 text-[13px] text-muted-foreground">{event.location}</p>}
-              {event.syncState!=='synced'&&<p className="mt-1 text-[13px] text-destructive">{syncLabels[event.syncState]}{event.syncError?` · ${event.syncError}`:''}</p>}
-              {event.meetingUrl&&<a href={event.meetingUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[13px] underline">Abrir reunião</a>}
+        :events.length===0?<p className="py-3 text-[13.5px] text-muted-foreground">Nenhum evento pessoal para este dia.</p>
+          :<div className="flex flex-col gap-0.5">{events.map(event=><article key={event.id} className={row}>
+            <CalendarIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground"/>
+            <div className="min-w-0 flex-1"><button type="button" onClick={()=>setEdit({event,draft:fromEvent(event)})}
+              className="rounded-sm text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring">{event.title||'Sem título'}</button>
+              <p className="text-[12.5px] text-muted-foreground">{detail(event)} · {event.calendarName}{event.location?` · ${event.location}`:''}</p>
+              {event.syncState!=='synced'&&<p className="text-[12.5px] text-destructive">{syncLabels[event.syncState]}{event.syncError?` · ${event.syncError}`:''}</p>}
+              {event.meetingUrl&&<a href={event.meetingUrl} target="_blank" rel="noopener noreferrer" className="text-[12.5px] text-brand-ink underline-offset-4 hover:underline">Abrir reunião</a>}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-1">
               {event.selfResponse&&<select aria-label={`Responder a ${event.title}`} value={event.selfResponse}
-                onChange={e=>void respond(event,e.target.value as 'accepted'|'declined'|'tentative')} disabled={busy} className={selectStyle}>
+                onChange={e=>void respond(event,e.target.value as 'accepted'|'declined'|'tentative')} disabled={busy} className={`${selectStyle} w-auto md:h-[30px] md:text-[13px]`}>
                 <option value="needsAction">Responder</option><option value="accepted">Aceitar</option><option value="tentative">Talvez</option><option value="declined">Recusar</option>
               </select>}
-              {<Button variant="ghost" disabled={busy} onClick={()=>openShare(event)}>{event.shareId?'Revisar cópia':'Compartilhar'}</Button>}
-              {event.shareId&&<Button variant="ghost" disabled={busy} onClick={()=>void unshare(event.shareId!)}>Deixar de compartilhar</Button>}
+              {<Button variant="ghost" className={quiet} disabled={busy} onClick={()=>openShare(event)}>{event.shareId?'Revisar cópia':'Compartilhar'}</Button>}
+              {event.shareId&&<Button variant="ghost" className={quiet} disabled={busy} onClick={()=>void unshare(event.shareId!)}>Deixar de compartilhar</Button>}
               {['remote_deleted','permission_lost','conflict','failed'].includes(event.syncState)&&
-                <Button variant="ghost" disabled={busy} onClick={()=>void discard(event)}>Descartar pendência</Button>}
+                <Button variant="ghost" className={quiet} disabled={busy} onClick={()=>void discard(event)}>Descartar pendência</Button>}
             </div>
           </article>)}</div>}
-    {edit&&<Dialog open onOpenChange={open=>{if(!open&&!busy)setEdit(null);}}><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+    {edit&&<Dialog open onOpenChange={open=>{if(!open&&!busy)setEdit(null);}}><DialogContent className="sm:max-w-[600px]">
       <DialogHeader><DialogTitle>{edit.event?'Evento pessoal':'Novo evento pessoal'}</DialogTitle>
         <DialogDescription>{edit.event?.readOnly?'Este calendário permite somente leitura.':'As alterações serão feitas na sua conta Google.'}</DialogDescription></DialogHeader>
       <form onSubmit={event=>void save(event)} className="grid gap-4">
-        {!edit.event&&<label className="grid gap-1.5 text-sm"><span>Calendário</span><select value={edit.draft.calendarId} onChange={e=>changeDraft('calendarId',e.target.value)} className={selectStyle}>
+        {!edit.event&&<label className="grid gap-1.5"><span className={fieldLabel}>Calendário</span><select value={edit.draft.calendarId} onChange={e=>changeDraft('calendarId',e.target.value)} className={selectStyle}>
           {calendars.filter(c=>c.selected&&!c.readOnly).map(c=><option key={c.id} value={c.id}>{c.summary}</option>)}</select></label>}
-        <div className="grid gap-1.5"><Label htmlFor="google-event-title">Título</Label><Input id="google-event-title" required maxLength={500} value={edit.draft.title}
+        <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-event-title">Título</Label><Input id="google-event-title" required maxLength={500} value={edit.draft.title}
           onChange={e=>changeDraft('title',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div>
-        <div className="grid gap-1.5"><Label htmlFor="google-event-description">Descrição</Label><Textarea id="google-event-description" value={edit.draft.description}
+        <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-event-description">Descrição</Label><Textarea id="google-event-description" value={edit.draft.description}
           onChange={e=>changeDraft('description',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div>
-        <div className="grid gap-1.5"><Label htmlFor="google-event-location">Local</Label><Input id="google-event-location" value={edit.draft.location}
+        <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-event-location">Local</Label><Input id="google-event-location" value={edit.draft.location}
           onChange={e=>changeDraft('location',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div>
-        <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={edit.draft.allDay}
+        <label className="flex min-h-11 items-center gap-2.5 text-[13.5px] md:min-h-8"><input type="checkbox" className="size-4 accent-primary" checked={edit.draft.allDay}
           onChange={e=>changeDraft('allDay',e.target.checked)} disabled={Boolean(edit.event?.readOnly)}/>Dia inteiro</label>
         <div className="grid gap-3 sm:grid-cols-2">{edit.draft.allDay
-          ?<><div className="grid gap-1.5"><Label htmlFor="google-start-date">Dia inicial</Label><Input id="google-start-date" type="date" required value={edit.draft.startDate}
+          ?<><div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-start-date">Dia inicial</Label><Input id="google-start-date" type="date" required value={edit.draft.startDate}
             onChange={e=>changeDraft('startDate',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div>
-            <div className="grid gap-1.5"><Label htmlFor="google-end-date">Dia final exclusivo</Label><Input id="google-end-date" type="date" required value={edit.draft.endDate}
+            <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-end-date">Dia final exclusivo</Label><Input id="google-end-date" type="date" required value={edit.draft.endDate}
               onChange={e=>changeDraft('endDate',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div></>
-          :<><div className="grid gap-1.5"><Label htmlFor="google-start-time">Início</Label><Input id="google-start-time" type="datetime-local" required value={edit.draft.startsAt}
+          :<><div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-start-time">Início</Label><Input id="google-start-time" type="datetime-local" required value={edit.draft.startsAt}
             onChange={e=>changeDraft('startsAt',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div>
-            <div className="grid gap-1.5"><Label htmlFor="google-end-time">Fim</Label><Input id="google-end-time" type="datetime-local" required value={edit.draft.endsAt}
+            <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-end-time">Fim</Label><Input id="google-end-time" type="datetime-local" required value={edit.draft.endsAt}
               onChange={e=>changeDraft('endsAt',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div></>}</div>
-        <div className="grid gap-1.5"><Label htmlFor="google-time-zone">Fuso horário IANA</Label><Input id="google-time-zone" required value={edit.draft.timeZone}
+        <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-time-zone">Fuso horário IANA</Label><Input id="google-time-zone" required value={edit.draft.timeZone}
           onChange={e=>changeDraft('timeZone',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div>
-        <div className="grid gap-1.5"><Label htmlFor="google-recurrence">Repetição (uma regra por linha)</Label><Textarea id="google-recurrence" placeholder="RRULE:FREQ=WEEKLY;BYDAY=MO"
+        <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-recurrence">Repetição (uma regra por linha)</Label><Textarea id="google-recurrence" placeholder="RRULE:FREQ=WEEKLY;BYDAY=MO"
           value={edit.draft.recurrence} onChange={e=>changeDraft('recurrence',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div>
-        <div className="grid gap-1.5"><Label htmlFor="google-attendees">Convidados (e-mails separados por vírgula)</Label><Input id="google-attendees" value={edit.draft.attendees}
+        <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="google-attendees">Convidados (e-mails separados por vírgula)</Label><Input id="google-attendees" value={edit.draft.attendees}
           onChange={e=>changeDraft('attendees',e.target.value)} readOnly={Boolean(edit.event?.readOnly)}/></div>
-        {!edit.event&&<label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={edit.draft.addMeet}
+        {!edit.event&&<label className="flex min-h-11 items-center gap-2.5 text-[13.5px] md:min-h-8"><input type="checkbox" className="size-4 accent-primary" checked={edit.draft.addMeet}
           onChange={e=>changeDraft('addMeet',e.target.checked)}/>Criar link do Google Meet</label>}
-        {edit.event?.recurring&&<label className="grid gap-1.5 text-sm"><span>Aplicar a</span><select className={selectStyle} value={edit.draft.scope}
+        {edit.event?.recurring&&<label className="grid gap-1.5"><span className={fieldLabel}>Aplicar a</span><select className={selectStyle} value={edit.draft.scope}
           onChange={e=>changeDraft('scope',e.target.value as Scope)} disabled={edit.event.readOnly}>
           <option value="occurrence">Só esta ocorrência</option><option value="following">Esta e as próximas</option><option value="series">Série inteira</option>
         </select></label>}
-        {edit.event?.htmlLink&&<Link href={edit.event.htmlLink} target="_blank" rel="noopener noreferrer" className="text-sm underline">Abrir no Google Calendar</Link>}
+        {edit.event?.htmlLink&&<Link href={edit.event.htmlLink} target="_blank" rel="noopener noreferrer" className="self-start text-[13.5px] text-brand-ink underline-offset-4 hover:underline">Abrir no Google Calendar</Link>}
         <DialogFooter><Button type="button" variant="outline" onClick={()=>setEdit(null)}>Fechar</Button>
           {edit.event&&!edit.event.readOnly&&<Button type="button" variant="ghost" disabled={busy} onClick={()=>void cancel()}>Cancelar evento</Button>}
           {!edit.event?.readOnly&&<Button type="submit" disabled={busy}>{busy?'Salvando…':edit.event?'Salvar alterações':'Criar evento'}</Button>}
@@ -316,12 +319,12 @@ export function CalendarPanel({day,initialEventId}:{day:string;initialEventId?:s
     {sharing&&<Dialog open onOpenChange={open=>{if(!open&&!busy)setSharing(null);}}><DialogContent>
       <DialogHeader><DialogTitle>Compartilhar com o escritório</DialogTitle><DialogDescription>Revise só o que os colegas poderão ver. O evento Google continua privado.</DialogDescription></DialogHeader>
       <form onSubmit={event=>void saveShare(event)} className="grid gap-4">
-        <p className="text-sm text-muted-foreground">Horário visível ao escritório: {detail(sharing)}</p>
-        <div className="grid gap-1.5"><Label htmlFor="shared-title">Título visível</Label><Input id="shared-title" required maxLength={180} value={shareFields.title}
+        <p className="text-[13.5px] text-muted-foreground">Horário visível ao escritório: {detail(sharing)}</p>
+        <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="shared-title">Título visível</Label><Input id="shared-title" required maxLength={180} value={shareFields.title}
           onChange={e=>setShareFields(current=>({...current,title:e.target.value}))}/></div>
-        <div className="grid gap-1.5"><Label htmlFor="shared-notes">Observações visíveis</Label><Textarea id="shared-notes" value={shareFields.notes}
+        <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="shared-notes">Observações visíveis</Label><Textarea id="shared-notes" value={shareFields.notes}
           onChange={e=>setShareFields(current=>({...current,notes:e.target.value}))}/></div>
-        <div className="grid gap-1.5"><Label htmlFor="shared-location">Local visível</Label><Input id="shared-location" value={shareFields.location}
+        <div className="grid gap-1.5"><Label className={fieldLabel} htmlFor="shared-location">Local visível</Label><Input id="shared-location" value={shareFields.location}
           onChange={e=>setShareFields(current=>({...current,location:e.target.value}))}/></div>
         <DialogFooter><Button type="button" variant="outline" onClick={()=>setSharing(null)}>Cancelar</Button>
           <Button type="submit" disabled={busy}>Compartilhar cópia</Button></DialogFooter>

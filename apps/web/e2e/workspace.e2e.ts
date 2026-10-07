@@ -6,51 +6,44 @@ import { overflowsHorizontally } from './support/fixtures';
 
 // Controlled UI fixtures only: these tests never add or edit the office's business data.
 describe('área de trabalho', { session: 'admin' }, () => {
-  test('o menu Mais no celular prende o foco, alterna o tema e devolve o foco ao fechar', async ({ app, screen, browser }) => {
+  test('o menu Mais opções no celular prende o foco, alterna o tema e devolve o foco ao fechar', async ({ app, screen, browser }) => {
     await browser.setViewport({ width: 390, height: 844 });
     await app.open('/app/command-center');
-    await screen.getByRole('button', 'Mais').tap();
+    // On a phone the Lume comes first; the menu sits in the canvas's header.
+    await screen.getByRole('button', 'Abrir o canvas do escritório').tap();
+    const more = screen.getByRole('button', /^Mais opções/);
+    await more.tap();
     const sheet = screen.getByRole('dialog', 'Mais opções');
     await expect(sheet).toBeVisible();
-    // Focus lands on the title, then moves through the sheet's actions.
-    await expect(sheet.getByRole('heading', 'Mais opções')).toBeFocused();
+    // Focus lands on the first place, and Tab wraps around inside the sheet.
+    const first = sheet.getByRole('link', 'Todos os casos');
+    await expect(first).toBeFocused();
+    await browser.keyboard.press('Shift+Tab');
+    await expect(sheet.getByRole('button', 'Fechar')).toBeFocused();
     await browser.keyboard.press('Tab');
-    await expect(sheet.getByRole('button', 'Tutorial do Lume')).toBeFocused();
+    await expect(first).toBeFocused();
+    await expect(sheet.getByRole('button', 'Tutorial do Lume')).toBeVisible();
     const dark = await browser.evaluate(() => document.documentElement.classList.contains('dark'));
     await sheet.getByRole('button', dark ? 'Usar tema claro' : 'Usar tema escuro').tap();
-    await expect(browser).toHaveClass(browser.locator('html'), dark ? /^(?!.*dark)/ : /dark/);
+    await expect(browser).toHaveClass(browser.locator('html'), dark ? /^(?!.*\bdark\b)/ : /\bdark\b/);
     await sheet.getByRole('button', dark ? 'Usar tema escuro' : 'Usar tema claro').tap();
+    await expect(browser).toHaveClass(browser.locator('html'), dark ? /\bdark\b/ : /^(?!.*\bdark\b)/);
     await browser.keyboard.press('Escape');
     await expect(sheet).toBeHidden();
-    await expect(screen.getByRole('button', 'Mais')).toBeFocused();
+    await expect(more).toBeFocused();
   });
 
   test('o compositor do chat fica visível numa conversa longa e o rascunho sobrevive à rolagem', async ({ app, screen, browser }) => {
     await browser.setViewport({ width: 390, height: 844 });
-    const conversation = { id: 'ui-scroll-fixture', title: 'Conversa de verificação', updatedAt: new Date().toISOString() };
-    // The page is server-rendered with the latest real conversation; "Nova conversa" switches to the fixture.
-    let created = 0;
-    await browser.route('**/api/conversations', route => {
-      if (route.request.method !== 'POST') return route.continue();
-      // A new id per request, as the server would: re-creating with the same id clears the
-      // messages without reloading them, which a real new conversation never does.
-      created++;
-      return route.fulfill({ json: { conversation: { ...conversation, id: `ui-scroll-fixture-${created}` } } });
-    });
+    const conversation = { id: 'ui-scroll-fixture-1', title: 'Conversa de verificação', updatedAt: new Date().toISOString() };
     await browser.route(/\/api\/conversations\/ui-scroll-fixture-\d+$/, route => route.fulfill({ json: { conversation, messages: Array.from({ length: 30 }, (_, i) => ({
       id: `fixture-${i}`, role: i % 2 ? 'assistant' : 'user',
       parts: [{ type: 'text', text: `Mensagem ${i}. ` + 'Conteúdo da conversa para verificar rolagem e acesso ao campo de mensagem. '.repeat(8) }],
     })) } }));
     await browser.route(/\/api\/chat\/ui-scroll-fixture-\d+\/stream/, route => route.fulfill({ status: 204 }));
-    await app.open('/app/agents');
-    // The button is server-rendered; a tap that lands before hydration does nothing, so tap again
-    // until the app asks for the conversation (the mock always returns the same one).
-    const before = created;
-    await expect.poll(async () => {
-      if (created === before) await screen.getByRole('button', 'Nova conversa', { visible: true }).tap();
-      return created;
-    }).toBeGreaterThan(before);
-    const input = screen.getByRole('textbox', 'Pergunte ao Lume');
+    // A link that names a conversation opens it in the Lume's panel, which a phone shows first.
+    await app.open(`/app/command-center?conversationId=${conversation.id}`);
+    const input = screen.getByRole('textbox', 'Peça algo ao Lume');
     const bottomOf = async () => { const box = (await input.boundingBox())!; return box.y + box.height; };
     const latest = screen.getByRole('button', 'Voltar ao mais recente');
     // The chat sticks to the bottom while late content renders, which can undo one scroll; scroll
@@ -60,10 +53,10 @@ describe('área de trabalho', { session: 'admin' }, () => {
       return latest.isVisible();
     }).toBe(true);
     await expect(screen.getByText('Mensagem 29.', { exact: false })).toBeVisible();
-    // Above the bottom navigation bar.
-    expect(await bottomOf()).toBeLessThan(844 - 64);
+    // The panel fills the phone's screen: the composer stays whole on it, above or below the history.
+    expect(await bottomOf()).toBeLessThanOrEqual(844);
     await scrollToTop();
-    expect(await bottomOf()).toBeLessThan(780);
+    expect(await bottomOf()).toBeLessThanOrEqual(844);
     expect((await input.boundingBox())!.y).toBeGreaterThan(100);
     await input.fill('Rascunho preservado durante a rolagem');
     await latest.tap();
@@ -71,7 +64,7 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await expect(input).toHaveValue('Rascunho preservado durante a rolagem');
     // A short viewport, as with the on-screen keyboard open.
     await browser.setViewport({ width: 390, height: 540 });
-    await expect.poll(bottomOf).toBeLessThan(476);
+    await expect.poll(bottomOf).toBeLessThanOrEqual(540);
     await browser.setViewport({ width: 1440, height: 900 });
     await scrollToTop();
     expect(await bottomOf()).toBeLessThan(900);
@@ -121,10 +114,14 @@ describe('área de trabalho', { session: 'admin' }, () => {
     const markedDays = browser.locator('[data-calendar-day][aria-label*="atividade"]');
 
     await app.open('/app/command-center');
-    await expect(screen.getByRole('heading', 'Início')).toBeVisible();
+    await expect(screen.getByRole('heading', { name: 'Hoje', level: 1 })).toBeVisible();
     await screen.getByRole('checkbox', `Concluir ${task.title}`).tap();
-    await expect(screen.getByText('Tudo em dia. Nenhuma tarefa pendente até hoje.')).toBeVisible();
-    await screen.getByRole('link', 'Nova atividade').tap();
+    // The task leaves the day; the mocked meeting stays.
+    await expect(screen.getByText(`Tarefa concluída: ${task.title}`)).toBeAttached();
+    await expect(screen.getByRole('checkbox', `Concluir ${task.title}`)).toHaveCount(0);
+    expect(completed).toBe(true);
+    // Início has no shortcut of its own for a new task; the address opens the form in Tarefas.
+    await app.open('/app/agenda?view=tasks&action=new');
     await expect(screen.getByRole('dialog')).toBeVisible();
     await expect(screen.getByLabel('Título')).toBeVisible();
     await screen.getByRole('button', 'Cancelar').tap();
@@ -142,10 +139,10 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await expect(markedDays).toHaveCount(0);
     await screen.getByRole('button', 'Mês anterior').tap();
     await expect(calendarDay(12)).toHaveAttribute('aria-label', /1 atividade/);
-    await screen.getByRole('textbox', 'Buscar atividades').fill('Reunião');
+    await screen.getByRole('searchbox', 'Buscar na agenda').fill('Reunião');
     await expect(markedDays).toHaveCount(2);
     failMonth = true;
-    await screen.getByRole('button', 'Atualizar').tap();
+    await browser.reload();
     await expect(screen.getByText('Não foi possível carregar os marcadores do mês.')).toBeVisible();
     failMonth = false;
     await screen.getByRole('button', 'Tentar novamente').tap();
@@ -165,9 +162,13 @@ describe('área de trabalho', { session: 'admin' }, () => {
     expect(unexpected).toEqual([]);
 
     const pages = ['/app/agenda/clients/ui-client', '/app/agenda?view=calendar', '/app/command-center'];
+    // On a phone Início opens on the Lume; a view's own address opens the canvas over it.
+    const home = '/app/command-center';
+    const openCanvas = () => screen.getByRole('button', 'Abrir o canvas do escritório').tap();
     await browser.setViewport({ width: 390, height: 844 });
     for (const path of pages) {
       await app.open(path);
+      if (path === home) await openCanvas();
       await expect(screen.getByRole('heading', { level: 1 })).toBeVisible();
       await expect(screen.getByRole('status')).toHaveCount(0);
       expect(await browser.evaluate(overflowsHorizontally), path).toBe(false);
@@ -180,10 +181,12 @@ describe('área de trabalho', { session: 'admin' }, () => {
       await expect(screen.getByRole('status')).toHaveCount(0);
       expect(await browser.evaluate(overflowsHorizontally), path).toBe(false);
     }
+    // An empty day: no tasks or meetings, no installments due and no publications.
+    await browser.route('**/api/honorarios/list', route => route.fulfill({ json: { installments: [], total: 0, summary: { totalCents: 0, receivedCents: 0, pendingCents: 0, overdueCents: 0 }, today: day } }));
+    await browser.route('**/api/judicial/alerts**', route => route.fulfill({ json: { alerts: [] } }));
     empty = true;
-    await screen.getByRole('button', 'Atualizar').tap();
-    await expect(screen.getByText('Nenhuma reunião agendada.')).toBeVisible();
-    await expect(screen.getByText('Nenhum cliente ativo cadastrado.')).toBeVisible();
-    await expect(screen.getByText('Seus casos e documentos aparecerão aqui.')).toBeVisible();
+    await browser.reload();
+    await openCanvas();
+    await expect(screen.getByText('Nada para hoje.')).toBeVisible();
   });
 });

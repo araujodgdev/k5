@@ -1,11 +1,11 @@
-import { Reveal } from "@/components/reveal";
 import { VaultBrowser } from "@/components/vault-browser";
+import { CanvasMeta } from "@/components/shell/shell-context";
 import { requireWorkspace } from "@/lib/session";
-import { countVaultDocuments, listVaultCases } from "@/lib/vault";
+import { countVaultDocuments, listVaultCases, vaultCasePeopleByCase } from "@/lib/vault";
 import { listCases } from '@/lib/application/vault-service';
 import { workspaceContext } from '@/lib/application/context';
 
-export const metadata = { title: "Cofre" };
+export const metadata = { title: "Casos" };
 
 export default async function VaultPage() {
   const workspace = await requireWorkspace();
@@ -15,13 +15,13 @@ export default async function VaultPage() {
     countVaultDocuments(office.officeId, workspace.user.id, { scope: "library" }),
     listVaultCases(office.officeId, workspace.user.id),
   ]);
+  const ownCaseIds = ownCases.map((item) => item.id);
+  // Cases shared from another office keep their people to that office; their cards say they are shared instead.
+  const people = await vaultCasePeopleByCase(office.officeId, ownCaseIds);
   return (
-    <Reveal className="flex min-h-0 flex-1 flex-col">
-      <VaultBrowser
-        initialCases={result.cases}
-        ownCaseIds={ownCases.map(item => item.id)}
-        libraryCount={libraryCount}
-      />
-    </Reveal>
+    <>
+      <CanvasMeta title="Casos" subject={{ kind: "module", slug: "vault", title: "Casos" }} />
+      <VaultBrowser initialCases={result.cases} ownCaseIds={ownCaseIds} libraryCount={libraryCount} people={people} />
+    </>
   );
 }

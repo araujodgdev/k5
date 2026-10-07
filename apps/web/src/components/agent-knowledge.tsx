@@ -41,10 +41,10 @@ export function AgentKnowledge({ initial, initialCandidates }: { initial: Knowle
   const update = (scope: KnowledgeScope, change: (items: Knowledge[]) => Knowledge[]) => setState((current) => ({ ...current, [scope]: change(current[scope]) }));
 
   return (
-    <section aria-labelledby="knowledge-heading" className="mt-10 border-t pt-8">
-      <h2 id="knowledge-heading" className="font-medium">Conhecimento</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Documentos do Cofre que o Lume consulta. &ldquo;Ler sempre&rdquo; envia o texto em toda conversa; &ldquo;Buscar quando precisar&rdquo; só procura nele quando o assunto pede.</p>
-      <p className="mt-2 text-[13px] text-muted-foreground" aria-live="polite">
+    <section aria-labelledby="knowledge-heading" className="flex flex-col gap-1">
+      <h2 id="knowledge-heading" className="text-[15px] font-semibold">Conhecimento</h2>
+      <p className="text-[13.5px] text-muted-foreground">Documentos do Cofre que o Lume consulta. &ldquo;Ler sempre&rdquo; envia o texto em toda conversa; &ldquo;Buscar quando precisar&rdquo; só procura nele quando o assunto pede.</p>
+      <p className="text-xs text-muted-foreground" aria-live="polite">
         Leitura fixa: {thousands(used)} de {thousands(state.budget)} caracteres.
         {used > state.budget && " Os que passarem do limite serão buscados quando precisar."}
       </p>
@@ -106,9 +106,9 @@ function KnowledgeGroup({ entries, candidates, onChange, onUploaded }: {
   }
 
   return (
-    <div className="mt-4">
-      <div className="mt-3 divide-y border-y">
-        {entries.length === 0 && <p className="py-4 text-sm text-subtle-foreground">Nenhum documento definido.</p>}
+    <div className="mt-1">
+      <div className="divide-y divide-border">
+        {entries.length === 0 && <p className="py-2 text-[13.5px] text-muted-foreground">Nenhum documento definido.</p>}
         {entries.map(({ item, copies }) => (
           <KnowledgeRow key={item.documentId} copies={copies} item={item} editable
             onSaved={(scope, next) => onChange(scope, (list) => list.map((entry) => entry.id === next.id ? next : entry))}
@@ -119,13 +119,13 @@ function KnowledgeGroup({ entries, candidates, onChange, onUploaded }: {
           <label htmlFor={selectId} className="sr-only">Adicionar do Cofre</label>
           <select id={selectId} value="" disabled={Boolean(busy) || available.length === 0}
             onChange={(event) => { if (event.target.value) void choose(event.target.value); }}
-            className="h-11 min-w-0 max-w-full flex-1 rounded-md border bg-background px-3 text-sm md:h-9 md:max-w-72">
+            className="h-11 min-w-0 max-w-full flex-1 rounded-md border bg-background text-[13.5px] md:h-[34px] md:max-w-72">
             <option value="">{available.length ? "Adicionar do Cofre" : "Nenhum outro documento no Cofre"}</option>
             {available.map((item) => <option key={item.id} value={item.id}>{item.caseName ? `${item.name} · ${item.caseName}` : item.name}</option>)}
           </select>
           <input ref={fileRef} type="file" accept={DOCUMENT_ACCEPT} className="sr-only" tabIndex={-1}
             onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} />
-          <Button type="button" variant="outline" className="min-h-11 md:min-h-9" disabled={Boolean(busy)} onClick={() => fileRef.current?.click()}>
+          <Button type="button" variant="outline" size="lg" className="h-11 md:h-[34px]" disabled={Boolean(busy)} onClick={() => fileRef.current?.click()}>
             {busy === "upload" ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload aria-hidden="true" />}Enviar arquivo
           </Button>
           {busy === "add" && <span role="status" className="text-[13px] text-muted-foreground">Adicionando…</span>}

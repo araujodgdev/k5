@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Mail, MessageSquare, Plus } from 'lucide-react';
 import { z } from 'zod';
 import { sendMessageOutput, startThreadOutput, threadPageDto, type PersonalThread as Thread } from '@/lib/personal-chat/domain';
+import { CanvasHeader, CanvasPage, CanvasRow } from '@/components/canvas/canvas-page';
+import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Conversation, type SendAttempt } from './conversation';
-import { jsonPost, messageDate, messageError, messageRequest, MessageRequestError, useMessagePoll } from './client';
+import { jsonPost, messageError, messageRequest, MessageRequestError, messageWhen, useMessagePoll } from './client';
 import { NewConversation } from './new-conversation';
 import { SharePicker } from './share-picker';
 
 type ThreadPage = z.infer<typeof threadPageDto>;
+const threadHref = (id: string) => `/app/messages?thread=${encodeURIComponent(id)}`;
 function mergeThreads(current: Thread[], incoming: Thread[]) {
   return [...new Map([...current, ...incoming].map(thread => [thread.id, thread])).values()]
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || b.id.localeCompare(a.id));
@@ -40,7 +42,7 @@ export function MessagesInbox() {
   useEffect(() => {
     const previous = previousSelected.current;
     previousSelected.current = selectedId;
-    if (!selectedId && previous) document.getElementById(`message-thread-${previous}`)?.focus();
+    if (!selectedId && previous) document.querySelector<HTMLElement>(`a[href="${threadHref(previous)}"]`)?.focus();
   }, [selectedId]);
 
   const load = useCallback(async (signal: AbortSignal) => {
@@ -80,7 +82,7 @@ export function MessagesInbox() {
   function openThread(thread: Thread) {
     setDetail(thread); setFailedDetail(null);
     setThreads(current => ({ threads: mergeThreads(current?.threads ?? [], [thread]), nextCursor: current?.nextCursor ?? null }));
-    router.push(`/app/messages?thread=${encodeURIComponent(thread.id)}`, { scroll: false });
+    router.push(threadHref(thread.id), { scroll: false });
   }
 
   function back() {
@@ -111,29 +113,41 @@ export function MessagesInbox() {
     }
   }
 
-  return <div className="messaging-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-    <header className={cn('flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 max-md:justify-end md:h-(--shell-header) md:px-10 md:py-0', selectedId && 'max-md:hidden')}><h1 className="page-title max-md:sr-only">Mensagens</h1><Button id="new-message-conversation" type="button" className="min-h-11 md:min-h-9" onClick={() => setNewOpen(true)}><Plus aria-hidden="true" />Nova conversa</Button></header>
-    <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden md:grid-cols-[minmax(16rem,21rem)_minmax(0,1fr)]">
-      <section aria-label="Conversas pessoais" className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden border-line md:border-r', selectedId && 'hidden md:flex')}>
-        <div className="shrink-0 border-b px-5 py-3"><h2 className="label-mono text-muted-foreground">Conversas</h2></div>
-        {!threads && !error && <p role="status" className="px-5 py-6 text-sm text-muted-foreground">Carregando conversas…</p>}
-        {error && <div className="space-y-2 border-b px-5 py-4"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={refresh} className="min-h-11 md:min-h-9">Tentar novamente</Button></div>}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {threads?.threads.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">Inicie uma conversa com um associado ou alguém pelo e-mail.</p>}
-          {threads?.threads.map(thread => <button type="button" key={thread.id} id={`message-thread-${thread.id}`} aria-current={selectedId === thread.id ? 'true' : undefined} onClick={() => openThread(thread)} className={cn('group hover-rise block w-full border-b border-l-2 px-5 py-4 text-left outline-none hover:text-brand-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand', selectedId === thread.id ? 'border-l-foreground bg-brand-soft' : 'border-l-transparent')}>
-            <span className="flex items-baseline justify-between gap-3"><span className="min-w-0 truncate text-sm font-medium">{thread.channel === 'in_app' ? thread.peer.name : thread.peer.email}</span><time dateTime={thread.updatedAt} className="shrink-0 text-[11px] text-muted-foreground group-hover:text-brand-foreground">{messageDate(thread.updatedAt)}</time></span>
-            <span className="mt-1 block truncate text-sm text-muted-foreground group-hover:text-brand-foreground">{thread.lastMessage?.preview || 'Conversa iniciada'}</span>
-            {thread.channel === 'email_outbound' && <span className="mt-2 block text-xs">E-mail de saída</span>}
-            {thread.unreadCount > 0 && <span className="mt-2 block text-xs">{thread.unreadCount} {thread.unreadCount === 1 ? 'não lida' : 'não lidas'}</span>}
-          </button>)}
-          {threads?.nextCursor && <div className="p-4"><Button type="button" variant="outline" className="min-h-11 w-full md:min-h-9" disabled={paging} onClick={() => void moreThreads()}>{paging ? 'Carregando…' : 'Mais conversas'}</Button></div>}
+  const status = 'text-[13.5px] text-muted-foreground';
+  return <>
+    <CanvasMeta title="Mensagens" subject={{ kind: 'module', slug: 'messages', title: 'Mensagens' }} />
+    {selected ? <Conversation key={selected.id} thread={selected} draft={drafts[selected.id] ?? ''} attempt={attempts[selected.id]} revision={revision} onDraft={text => updateDraft(selected.id, text)} onSend={text => void send(selected, text)} onBack={back} onShare={() => setShare(current => current ? { ...current, open: true } : { thread: selected, open: true })} onRead={read} onChanged={refresh} />
+      : selectedId ? <CanvasPage>
+        <p role={detailError ? 'alert' : 'status'} className={detailError ? 'text-[13.5px] text-destructive' : status}>{detailError || 'Abrindo conversa…'}</p>
+        <div className="flex flex-wrap gap-2">
+          {detailError && <Button variant="outline" size="lg" onClick={refresh} className="h-11 md:h-[34px]">Tentar novamente</Button>}
+          <Button variant="ghost" size="lg" onClick={back} className="h-11 md:h-[34px]">Voltar para as conversas</Button>
         </div>
-      </section>
-      {selected ? <Conversation key={selected.id} thread={selected} draft={drafts[selected.id] ?? ''} attempt={attempts[selected.id]} revision={revision} onDraft={text => updateDraft(selected.id, text)} onSend={text => void send(selected, text)} onBack={back} onShare={() => setShare(current => current ? { ...current, open: true } : { thread: selected, open: true })} onRead={read} onChanged={refresh} />
-        : selectedId ? <div className="space-y-4 px-5 py-6 md:px-8"><p role={detailError ? 'alert' : 'status'} className={cn('text-sm', detailError ? 'text-destructive' : 'text-muted-foreground')}>{detailError || 'Abrindo conversa…'}</p>{detailError && <Button variant="outline" onClick={refresh} className="min-h-11 md:min-h-9">Tentar novamente</Button>}<Button variant="ghost" onClick={back} className="min-h-11 md:min-h-9">Voltar para as conversas</Button></div>
-          : <div className="hidden items-center justify-center p-10 text-sm text-muted-foreground md:flex">Escolha uma conversa para ler as mensagens.</div>}
-    </div>
+      </CanvasPage>
+      : <CanvasPage className="md:gap-6">
+        <CanvasHeader eyebrow="Equipe, associados e clientes" title="Mensagens" actions={
+          <Button id="new-message-conversation" type="button" variant="outline" size="lg" className="h-11 md:h-[34px]" onClick={() => setNewOpen(true)}><Plus className="size-3.5" aria-hidden="true" />Nova mensagem</Button>} />
+        {!threads && !error && <p role="status" className={status}>Carregando conversas…</p>}
+        {error && <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-[13.5px] text-destructive">{error}</p><Button type="button" variant="outline" size="lg" onClick={refresh} className="h-11 md:h-[34px]">Tentar novamente</Button></div>}
+        {threads?.threads.length === 0 && <p className={status}>Nenhuma conversa ainda. Escreva a um associado ou a alguém pelo e-mail.</p>}
+        {!!threads?.threads.length && <div role="list" aria-label="Conversas" className="flex flex-col gap-0.5">
+          {threads.threads.map(thread => <div role="listitem" key={thread.id}>
+            <ThreadRow thread={thread} />
+          </div>)}
+        </div>}
+        {threads?.nextCursor && <div><Button type="button" variant="ghost" size="lg" className="h-11 md:h-[34px]" disabled={paging} onClick={() => void moreThreads()}>{paging ? 'Carregando…' : 'Mais conversas'}</Button></div>}
+      </CanvasPage>}
     <NewConversation open={newOpen} onOpenChange={setNewOpen} onCreated={openThread} />
     {share && <SharePicker thread={share.thread} open={share.open} onClose={keepAttempt => setShare(current => keepAttempt && current ? { ...current, open: false } : null)} onShared={() => { setShare(null); refresh(); }} />}
-  </div>;
+  </>;
+}
+
+/** A conversation in the list (`Main.dc.html`, mensagens): the person, the last message under it, the time at the end. */
+function ThreadRow({ thread }: { thread: Thread }) {
+  const inApp = thread.channel === 'in_app';
+  const unread = thread.unreadCount > 0;
+  return <CanvasRow stacked href={threadHref(thread.id)} icon={inApp ? <MessageSquare /> : <Mail />} urgent={unread}
+    title={<>{inApp ? thread.peer.name : `${thread.peer.email} · E-mail`}{unread && <span className="sr-only">, {thread.unreadCount} {thread.unreadCount === 1 ? 'não lida' : 'não lidas'}</span>}</>}
+    detail={thread.lastMessage?.preview || 'Conversa iniciada'}
+    meta={<time dateTime={thread.updatedAt}>{messageWhen(thread.updatedAt)}</time>} />;
 }

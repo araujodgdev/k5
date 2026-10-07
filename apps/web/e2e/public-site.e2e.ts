@@ -51,7 +51,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
     await expect(screen.getByRole('link', 'Ir para o conteúdo')).toBeFocused();
     await browser.keyboard.press('Enter');
     expect(new URL(await browser.url()).hash).toBe('#conteudo');
-    for (const label of ['Usar tema claro', 'Usar tema escuro']) {
+    for (const label of ['Usar tema escuro', 'Usar tema claro']) {
       await screen.getByRole('button', label).tap();
       for (const id of ['hero-title', 'modulos-title', 'escritorio-title', 'comecar-title']) {
         const section = browser.locator(`#${id}`);

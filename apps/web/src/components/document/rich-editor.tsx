@@ -39,7 +39,9 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   onAsk?: (request: { excerpt: string; instruction: string }) => Promise<void>;
   /** Block texts of the version before this one; blocks not among them are marked for a moment. */
   highlightAgainst?: string[] | null;
-}>(function RichEditor({ initialMarkdown, onChange, onSave, style, label, onAsk, highlightAgainst }, ref) {
+  /** What sits above the text in the page column: the status line and the title. */
+  before?: ReactNode;
+}>(function RichEditor({ initialMarkdown, onChange, onSave, style, label, onAsk, highlightAgainst, before }, ref) {
   // The editor keeps the callbacks it was created with; these refs hand it the current ones.
   const onChangeRef = useRef(onChange);
   const onSaveRef = useRef(onSave);
@@ -106,7 +108,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b bg-background px-3 py-1.5 md:px-6" role="toolbar" aria-label="Formatação">
+      <div className="sticky top-0 z-10 flex items-center gap-0.5 overflow-x-auto border-b border-border bg-background px-2 py-1 text-muted-foreground [scrollbar-width:none] md:flex-wrap md:justify-center md:overflow-visible md:px-6" role="toolbar" aria-label="Formatação">
         <Tool label="Título de seção" pressed={active?.heading} onClick={() => chain().toggleHeading({ level: 2 }).run()}><Heading2 /></Tool>
         <Tool label="Negrito" pressed={active?.bold} onClick={() => chain().toggleBold().run()}><Bold /></Tool>
         <Tool label="Itálico" pressed={active?.italic} onClick={() => chain().toggleItalic().run()}><Italic /></Tool>
@@ -128,10 +130,13 @@ export const RichEditor = forwardRef<RichEditorHandle, {
           </div>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10">
-        <div className="document-prose mx-auto w-full max-w-full" style={style}>
-          <EditorContent editor={editor} />
-          {onAsk && <AskMenu editor={editor} onAsk={onAsk} />}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-5 pb-24 md:px-10 md:pt-11 md:pb-[120px]">
+        <div className="mx-auto flex w-full max-w-[640px] flex-col gap-[18px]">
+          {before}
+          <div className="document-prose w-full max-w-full" style={style}>
+            <EditorContent editor={editor} />
+            {onAsk && <AskMenu editor={editor} onAsk={onAsk} />}
+          </div>
         </div>
       </div>
     </div>
@@ -144,7 +149,7 @@ function TableAction({ onClick, children }: { onClick: () => void; children: Rea
 
 function Tool({ label, pressed, disabled, onClick, children }: { label: string; pressed?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
   return (
-    <Button type="button" variant="ghost" size="icon-sm" className={cn("size-11 md:size-8", pressed && "bg-accent text-foreground")}
+    <Button type="button" variant="ghost" size="icon-sm" className={cn("size-11 md:size-[30px]", pressed && "bg-selected text-foreground")}
       aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
       {children}
     </Button>
@@ -186,10 +191,10 @@ function AskMenu({ editor, onAsk }: { editor: Editor; onAsk: (request: { excerpt
   return (
     <BubbleMenu editor={editor} options={{ placement: "bottom-start", offset: 8 }}
       shouldShow={({ state }) => asking !== null || (!state.selection.empty && state.doc.textBetween(state.selection.from, state.selection.to).trim().length > 0)}
-      className="z-20 rounded-md border bg-popover text-popover-foreground shadow-[var(--shadow-float)]">
+      className="z-20 rounded-lg border bg-popover text-popover-foreground shadow-[var(--shadow-float)]">
       {asking === null ? (
         <Button type="button" variant="ghost" size="sm" className="min-h-11 md:min-h-8" onMouseDown={(event) => event.preventDefault()} onClick={start}>
-          <LumeMark className="size-4 text-brand" aria-hidden="true" />Pedir ao Lume
+          <LumeMark className="size-4" />Pedir ao Lume
         </Button>
       ) : (
         <form onSubmit={(event) => void submit(event)} className="grid w-[min(22rem,calc(100vw-2rem))] gap-1.5 p-2">

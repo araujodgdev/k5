@@ -7,9 +7,9 @@ import { useReportError } from '@/lib/observability/use-report-error';
 export default function AdminError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useReportError(error);
   return (
-    <section className="py-12">
-      <p className="flex items-start gap-2 text-destructive text-sm" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" />Não foi possível carregar a administração.</p>
-      <Button className="mt-5" variant="outline" onClick={() => retry()}>Tentar novamente</Button>
+    <section className="flex flex-col items-start gap-4 py-10">
+      <p role="alert" className="flex items-start gap-2 text-[13.5px] text-destructive"><CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />Não foi possível carregar a administração.</p>
+      <Button variant="outline" onClick={() => retry()}>Tentar novamente</Button>
     </section>
   );
 }

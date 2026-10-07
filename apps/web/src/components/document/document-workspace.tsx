@@ -4,10 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, useSyncExternalStore, type CSSProperties, type Ref } from "react";
-import { ArrowLeft, CircleAlert, Download, History, LoaderCircle, X } from "lucide-react";
+import { ArrowLeft, CircleAlert, Download, Folder, History, LoaderCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { LumeMark } from "@/components/lume-mark";
+import { CanvasMeta } from "@/components/shell/shell-context";
+import { CanvasPhoneActions, CanvasPhoneBack, phoneBack } from "@/components/shell/phone-canvas";
 import { cn } from "@/lib/utils";
+import { useDocumentCase } from "./document-case";
 import type { Typography } from "@/lib/document-export";
 import type { RichEditorHandle } from "./rich-editor";
 import { DocumentReview, type ArtifactReference, type StoredCitations, type ValidationIssue } from "./document-review";
@@ -46,16 +50,20 @@ async function errorMessage(response: Response, fallback: string) {
   return body?.error ?? fallback;
 }
 
-/** Word's body typography as the editor's CSS; without a template, the plain export's Arial 11. */
+/**
+ * Word's body typography as the editor's CSS. Without a template the page reads like the rest of
+ * the canvas (16px, 1.7); the "Página" tab shows the exported page itself.
+ */
 function typographyStyle(typography: Typography | null): CSSProperties {
   const t = typography;
-  const width = t?.pageWidthCm && t.marginLeftCm != null && t.marginRightCm != null ? t.pageWidthCm - t.marginLeftCm - t.marginRightCm : 16;
+  if (!t) return { "--doc-font": "inherit", "--doc-size": "16px", "--doc-line": "1.7" } as CSSProperties;
+  const width = t.pageWidthCm && t.marginLeftCm != null && t.marginRightCm != null ? t.pageWidthCm - t.marginLeftCm - t.marginRightCm : 16;
   return {
-    "--doc-font": t?.fontFamily ? `"${t.fontFamily.replace(/"/g, "")}", ui-serif, Georgia, serif` : "Arial, Helvetica, sans-serif",
-    "--doc-size": `${t?.fontSizePt ?? 11}pt`,
-    "--doc-line": String(t?.lineHeight ?? 1.5),
-    "--doc-align": t?.textAlign ?? "left",
-    "--doc-indent": `${t?.firstLineIndentCm ?? 0}cm`,
+    "--doc-font": t.fontFamily ? `"${t.fontFamily.replace(/"/g, "")}", ui-serif, Georgia, serif` : "Arial, Helvetica, sans-serif",
+    "--doc-size": `${t.fontSizePt ?? 11}pt`,
+    "--doc-line": String(t.lineHeight ?? 1.5),
+    "--doc-align": t.textAlign ?? "left",
+    "--doc-indent": `${t.firstLineIndentCm ?? 0}cm`,
     maxWidth: `${Math.max(width, 8)}cm`,
   } as CSSProperties;
 }
@@ -74,6 +82,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   ref?: Ref<DocumentWorkspaceHandle>;
 }) {
   const router = useRouter();
+  const documentCase = useDocumentCase();
   const draft = useDocumentDraft(artifactId);
   const { register } = useDocumentDrafts();
   const draftState = useSyncExternalStore(draft.subscribe, draft.getSnapshot, emptyDraft);
@@ -99,7 +108,8 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   const [rechecking, setRechecking] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
   const [exportError, setExportError] = useState("");
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  // Which copy of the export menu is open: the page draws one in its top line and one in the phone header.
+  const [exportMenuAt, setExportMenuAt] = useState<"inline" | "phone" | null>(null);
 
   const editorRef = useRef<RichEditorHandle>(null);
 
@@ -266,7 +276,7 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
 
   async function download(format: "pdf" | "docx") {
     if (exporting || !artifact) return;
-    setExportMenuOpen(false);
+    setExportMenuAt(null);
     setExporting(format);
     setExportError("");
     try {
@@ -307,43 +317,89 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
     : saveState === "error" ? "Não salvo" : "Salvo";
   const backHref = artifact.conversationId ? `/app/agents?conversationId=${encodeURIComponent(artifact.conversationId)}` : "/app/agents";
 
+  const page = variant === "page";
+  const shownTitle = title.trim() || "Documento sem título";
+  const modes = ([["edit", "Editar"], ["page", "Página"], ["review", reviewCount ? `Revisão (${reviewCount})` : "Revisão"]] as const).map(([value, label]) => (
+    <button key={value} type="button" role="tab" aria-selected={tab === value} aria-controls={`document-${value}`} id={`document-tab-${value}`}
+      onClick={() => void openTab(value)}
+      className={page
+        ? cn("h-11 shrink-0 rounded-sm px-2 text-[13px] whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-ring md:h-[30px] md:px-2.5",
+          tab === value ? "bg-selected font-medium text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")
+        : cn("relative min-h-11 px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:min-h-10",
+          tab === value ? "font-medium text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-brand" : "text-muted-foreground hover:text-foreground")}>
+      {label}
+    </button>
+  ));
+  const saveStatus = <span className={cn("hidden shrink-0 text-xs sm:inline", saveState === "conflict" || saveState === "error" ? "text-destructive" : "text-muted-foreground")} aria-live="polite">{status}</span>;
+  const versions = <Versions artifactId={artifact.id} current={artifact.version} beforeRestore={() => save(true)} onRestored={() => void load(true, true)} compact={page} />;
+  const exportMenu = (at: "inline" | "phone" = "inline") => (
+    <Popover open={exportMenuAt === at} onOpenChange={(open) => setExportMenuAt(open ? at : null)}>
+      <PopoverTrigger asChild>
+        <Button variant={page ? "ghost" : "default"} className={page ? "h-11 px-2.5 text-[13px] text-muted-foreground md:h-[30px]" : "min-h-11 md:min-h-9"} disabled={exporting !== null}
+          aria-label={exporting ? `Exportando ${exporting.toUpperCase()}` : "Exportar documento"}>
+          {exporting ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Download aria-hidden="true" className={page ? "size-3.5" : undefined} />}
+          <span className="hidden sm:inline">{exporting ? "Exportando…" : "Exportar"}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="grid w-56 gap-1 p-1">
+        <Button variant="ghost" className="min-h-11 justify-start md:min-h-9" onClick={() => void download("pdf")}>Exportar PDF</Button>
+        <Button variant="ghost" className="min-h-11 justify-start md:min-h-9" onClick={() => void download("docx")}>Exportar DOCX</Button>
+        {page && <p className="truncate border-t border-border px-3 pt-2 pb-1.5 text-xs text-muted-foreground">{templateName ? `Modelo: ${templateName}` : "Sem modelo de documento"}</p>}
+      </PopoverContent>
+    </Popover>
+  );
+  // Leaving the page saves first, so the way back never drops what was typed.
+  const leave = (href: string) => (event: { preventDefault: () => void }) => {
+    event.preventDefault();
+    void save(true).then((saved) => { if (saved) router.push(href); });
+  };
+  const crumbHref = documentCase ? `/app/vault/cases/${encodeURIComponent(documentCase.id)}` : backHref;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <header className="flex min-h-14 shrink-0 items-center gap-1.5 border-b px-2 md:px-4">
-        {variant === "page"
-          ? <Button asChild variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Voltar à conversa"><Link href={backHref}
-            onNavigate={event => { event.preventDefault(); void save(true).then(saved => { if (saved) router.push(backHref); }); }}><ArrowLeft /></Link></Button>
-          : <Button variant="ghost" size="icon" className="size-11 lg:hidden" aria-label="Voltar à conversa" onClick={() => void close()}><ArrowLeft /></Button>}
-        <label className="min-w-0 flex-1">
-          <span className="sr-only">Título do documento</span>
-          <input value={title} onChange={(event) => changeTitle(event.target.value)} maxLength={200} placeholder="Título do documento"
-            className={cn("w-full truncate bg-transparent outline-none placeholder:text-subtle-foreground focus-visible:underline focus-visible:decoration-brand focus-visible:underline-offset-4",
-              variant === "page" ? "display text-[22px] md:text-[26px]" : "text-[15px] font-medium")} />
-        </label>
-        <span className={cn("hidden shrink-0 text-xs sm:inline", saveState === "conflict" || saveState === "error" ? "text-destructive" : "text-muted-foreground")} aria-live="polite">{status}</span>
-        <Versions artifactId={artifact.id} current={artifact.version} beforeRestore={() => save(true)} onRestored={() => void load(true, true)} />
-        <Popover open={exportMenuOpen} onOpenChange={setExportMenuOpen}>
-          <PopoverTrigger asChild><Button className="min-h-11 md:min-h-9" disabled={exporting !== null} aria-label={exporting ? `Exportando ${exporting.toUpperCase()}` : "Exportar documento"}>{exporting ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Download aria-hidden="true" />}<span className="hidden sm:inline">{exporting ? "Exportando…" : "Exportar"}</span></Button></PopoverTrigger>
-          <PopoverContent align="end" className="grid w-44 gap-1 p-1">
-            <Button variant="ghost" className="min-h-11 justify-start" onClick={() => void download("pdf")}>Exportar PDF</Button>
-            <Button variant="ghost" className="min-h-11 justify-start" onClick={() => void download("docx")}>Exportar DOCX</Button>
-          </PopoverContent>
-        </Popover>
-        {variant === "panel" && <Button variant="ghost" size="icon" className="hidden size-9 lg:inline-flex" aria-label="Fechar documento" onClick={() => void close()}><X /></Button>}
-      </header>
+      {page && <CanvasMeta title={shownTitle} subject={{ kind: "document", documentId: artifact.id, title: shownTitle }} />}
+      {page ? (
+        <header className="sticky top-0 z-20 flex h-11 shrink-0 items-center gap-0.5 border-b border-border bg-background px-1 text-[13px] md:gap-1.5 md:px-4">
+          <Link href={crumbHref} onNavigate={leave(crumbHref)} aria-label={documentCase ? undefined : "Voltar à conversa"}
+            className="hidden h-7 max-w-[40%] min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring md:flex">
+            {documentCase ? <Folder aria-hidden="true" className="size-3.5 shrink-0" /> : <ArrowLeft aria-hidden="true" className="size-3.5 shrink-0" />}
+            <span className="truncate">{documentCase?.name ?? "Conversa"}</span>
+          </Link>
+          <span aria-hidden="true" className="text-subtle-foreground max-md:hidden">/</span>
+          <span className="min-w-0 flex-1 truncate font-medium max-md:sr-only">{shownTitle}</span>
+          {saveStatus}
+          <div role="tablist" aria-label="Modo do documento" className="flex shrink-0 items-center">{modes}</div>
+          <span className="flex shrink-0 items-center max-md:hidden">{versions}{exportMenu()}</span>
+          <CanvasPhoneActions>{versions}{exportMenu("phone")}</CanvasPhoneActions>
+          {documentCase && (
+            <CanvasPhoneBack>
+              <Link href={crumbHref} onNavigate={leave(crumbHref)} aria-label={`Voltar ao caso ${documentCase.name}`} className={phoneBack}>
+                <ArrowLeft aria-hidden="true" className="size-[18px]" />Caso
+              </Link>
+            </CanvasPhoneBack>
+          )}
+        </header>
+      ) : (
+        <>
+          <header className="flex min-h-14 shrink-0 items-center gap-1.5 border-b px-2 md:px-4">
+            <Button variant="ghost" size="icon" className="size-11 lg:hidden" aria-label="Voltar à conversa" onClick={() => void close()}><ArrowLeft /></Button>
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Título do documento</span>
+              <input value={title} onChange={(event) => changeTitle(event.target.value)} maxLength={200} placeholder="Título do documento"
+                className="w-full truncate bg-transparent text-[15px] font-medium outline-none placeholder:text-subtle-foreground focus-visible:underline focus-visible:decoration-brand focus-visible:underline-offset-4" />
+            </label>
+            {saveStatus}
+            {versions}
+            {exportMenu()}
+            <Button variant="ghost" size="icon" className="hidden size-9 lg:inline-flex" aria-label="Fechar documento" onClick={() => void close()}><X /></Button>
+          </header>
+          <div className="flex shrink-0 items-center gap-1 border-b px-2 md:px-4" role="tablist" aria-label="Modo do documento">
+            {modes}
+            <span className="ml-auto hidden truncate pl-3 text-xs text-subtle-foreground md:inline">{templateName ? `Modelo: ${templateName}` : "Sem modelo de documento"}</span>
+          </div>
+        </>
+      )}
       {exportError && <p role="alert" className="border-b px-4 py-3 text-sm text-destructive">{exportError}</p>}
-
-      <div className="flex shrink-0 items-center gap-1 border-b px-2 md:px-4" role="tablist" aria-label="Modo do documento">
-        {([["edit", "Editar"], ["page", "Página"], ["review", reviewCount ? `Revisão (${reviewCount})` : "Revisão"]] as const).map(([value, label]) => (
-          <button key={value} type="button" role="tab" aria-selected={tab === value} aria-controls={`document-${value}`} id={`document-tab-${value}`}
-            onClick={() => void openTab(value)}
-            className={cn("relative min-h-11 px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:min-h-10",
-              tab === value ? "font-medium text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-brand" : "text-muted-foreground hover:text-foreground")}>
-            {label}
-          </button>
-        ))}
-        <span className="ml-auto hidden truncate pl-3 text-xs text-subtle-foreground md:inline">{templateName ? `Modelo: ${templateName}` : "Sem modelo de documento"}</span>
-      </div>
 
       {asked && !lumeChanged && (
         <div className="flex flex-wrap items-center gap-2 border-b border-l-2 border-l-brand px-4 py-2 text-sm" role="status">
@@ -367,7 +423,26 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
 
       <div id="document-edit" role="tabpanel" aria-labelledby="document-tab-edit" hidden={tab !== "edit"} className="flex min-h-0 flex-1 flex-col data-[hidden]:hidden" data-hidden={tab !== "edit" || undefined}>
         <RichEditor key={editorKey} ref={editorRef} initialMarkdown={editorSeed} onChange={changeContent} onSave={() => void save(true)}
-          style={typographyStyle(typography)} label="Texto do documento" onAsk={onAsk ? ask : undefined} highlightAgainst={highlightAgainst} />
+          style={typographyStyle(typography)} label="Texto do documento" onAsk={onAsk ? ask : undefined} highlightAgainst={highlightAgainst}
+          before={page && (
+            <>
+              {(reviewCount > 0 || artifact.status === "needs_review") && (
+                <p className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+                  <LumeMark aria-hidden="true" className="size-4 shrink-0" />
+                  {reviewCount > 0
+                    ? <button type="button" onClick={() => void openTab("review")} className="rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+                      {reviewCount === 1 ? "1 ponto para revisar antes de protocolar" : `${reviewCount} pontos para revisar antes de protocolar`}
+                    </button>
+                    : <span>Rascunho do Lume · revise antes de protocolar</span>}
+                </p>
+              )}
+              <label className="block">
+                <span className="sr-only">Título do documento</span>
+                <input value={title} onChange={(event) => changeTitle(event.target.value)} maxLength={200} placeholder="Título do documento"
+                  className="w-full bg-transparent text-[26px] leading-[1.15] font-semibold tracking-[-0.025em] outline-none placeholder:text-subtle-foreground focus-visible:underline focus-visible:decoration-brand focus-visible:decoration-2 focus-visible:underline-offset-8 md:text-[30px]" />
+              </label>
+            </>
+          )} />
       </div>
       {tab === "page" && (
         <div id="document-page" role="tabpanel" aria-labelledby="document-tab-page" className="flex min-h-0 flex-1 flex-col">
@@ -384,7 +459,11 @@ export function DocumentWorkspace({ artifactId, variant, onClose, onAsk, revisio
   );
 }
 
-function Versions({ artifactId, current, beforeRestore, onRestored }: { artifactId: string; current: number; beforeRestore: () => Promise<boolean>; onRestored: () => void }) {
+function Versions({ artifactId, current, beforeRestore, onRestored, compact = false }: {
+  artifactId: string; current: number; beforeRestore: () => Promise<boolean>; onRestored: () => void;
+  /** The page's 30px icon in the top line instead of the panel's 36px one. */
+  compact?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [versions, setVersions] = useState<Version[] | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
@@ -426,7 +505,7 @@ function Versions({ artifactId, current, beforeRestore, onRestored }: { artifact
   return (
     <Popover open={open} onOpenChange={(next) => { if (next) { setVersions(null); setError(""); } setOpen(next); }}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-11 md:size-9" aria-label="Versões"><History /></Button>
+        <Button variant="ghost" size="icon" className={cn("size-11", compact ? "text-muted-foreground md:size-[30px]" : "md:size-9")} aria-label="Versões"><History /></Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <p className="border-b px-4 py-3 text-sm font-medium">Versões</p>

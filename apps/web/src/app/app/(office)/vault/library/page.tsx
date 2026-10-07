@@ -1,4 +1,3 @@
-import { Reveal } from "@/components/reveal";
 import { VaultLibrary } from "@/components/vault-library";
 import { requireWorkspace } from "@/lib/session";
 import { countVaultDocuments, listVaultDocuments } from "@/lib/vault";
@@ -13,9 +12,9 @@ export default async function VaultLibraryPage({ searchParams }: { searchParams:
     countVaultDocuments(office.officeId, user.id, { scope: 'library' }),
   ]);
   return (
-    <Reveal className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <VaultLibrary initialDocuments={initialDocuments} initialTotal={initialTotal}
         initialDriveOpen={query.import === 'drive'} />
-    </Reveal>
+    </div>
   );
 }

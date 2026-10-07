@@ -10,7 +10,8 @@ import { Textarea } from './ui/textarea';
 import { useVaultDocumentOptions, VaultDocumentOptionsMore } from './vault-document-options';
 import type { AnnexItem } from '@/lib/annexes-contract';
 
-const selectStyle = 'h-11 w-full rounded-md border bg-background px-3 text-sm md:h-9';
+const selectStyle = 'h-11 w-full rounded-md border border-border-strong bg-transparent px-2.5 text-base md:h-9 md:text-[13.5px]';
+const labelStyle = 'text-xs font-normal text-muted-foreground';
 
 /** Mirrors the server's rule so the preview matches the file that will be created. */
 function fileName(position: number, label: string) {
@@ -75,18 +76,18 @@ export function VaultAnnexes({ caseId }: { caseId: string }) {
   const included = plan?.items.filter(item => item.include) ?? [];
   const invalid = plan?.items.some(item => item.include && (item.label.trim().length < 2 || item.startPage < 1 || item.endPage > plan.pageCount || item.startPage > item.endPage));
 
-  return <div className="grid max-w-4xl gap-8 py-2">
+  return <div className="grid max-w-[760px] gap-8">
     <form onSubmit={analyze} className="grid gap-4">
-      <div className="grid gap-1.5"><Label htmlFor="annex-scan">PDF digitalizado com os documentos</Label>
+      <div className="grid gap-1.5"><Label htmlFor="annex-scan" className={labelStyle}>PDF digitalizado com os documentos</Label>
         <select id="annex-scan" value={scanId} onChange={event => { setScanId(event.target.value); setPlan(null); }} required className={selectStyle}>
           <option value="">Escolha o arquivo</option>{pdfs.map(document => <option key={document.id} value={document.id} disabled={document.status !== 'ready'}>{document.name}{document.status !== 'ready' ? ' (em processamento)' : ''}</option>)}
         </select>{!options.loading && !options.error && pdfs.length === 0 && <p className="text-xs text-muted-foreground">Envie o PDF em Arquivos. A leitura (OCR) termina em alguns minutos.</p>}</div>
-      <div className="grid gap-1.5"><Label htmlFor="annex-petition">Petição</Label>
+      <div className="grid gap-1.5"><Label htmlFor="annex-petition" className={labelStyle}>Petição</Label>
         <select id="annex-petition" value={petitionId} onChange={event => setPetitionId(event.target.value)} disabled={Boolean(petitionText.trim())} className={selectStyle}>
           <option value="">Escolha a petição no caso</option>{readable.map(document => <option key={document.id} value={document.id} disabled={document.status !== 'ready'}>{document.name}</option>)}
         </select></div>
       <VaultDocumentOptionsMore {...options} />
-      <div className="grid gap-1.5"><Label htmlFor="annex-petition-text">Ou cole o texto da petição</Label>
+      <div className="grid gap-1.5"><Label htmlFor="annex-petition-text" className={labelStyle}>Ou cole o texto da petição</Label>
         <Textarea id="annex-petition-text" value={petitionText} onChange={event => setPetitionText(event.target.value)} rows={4} maxLength={60_000} /></div>
       <Button type="submit" className="justify-self-start" size="lg" disabled={Boolean(busy) || !scanId || (!petitionId && petitionText.trim().length < 50)}>
         {busy === 'plan' && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{busy === 'plan' ? 'Lendo as páginas…' : 'Propor anexos'}</Button>
@@ -97,7 +98,7 @@ export function VaultAnnexes({ caseId }: { caseId: string }) {
     {plan && !result && <section aria-labelledby="annex-review" className="grid gap-4 border-t pt-6">
       <h2 id="annex-review" className="font-medium">Revise antes de gerar</h2>
       <p className="text-sm text-muted-foreground">Ordem de citação na petição. Documentos que a petição não cita começam desmarcados.{plan.uncoveredPages.length ? ` Páginas sem documento identificado: ${plan.uncoveredPages.join(', ')}.` : ''}</p>
-      <div className="divide-y border-y">{plan.items.map((item, index) => {
+      <div>{plan.items.map((item, index) => {
         const position = plan.items.slice(0, index + 1).filter(other => other.include).length;
         return <div key={index} className="grid gap-3 py-4 md:grid-cols-[auto_minmax(0,1fr)_5rem_5rem_auto] md:items-end">
           <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-9"><input type="checkbox" checked={item.include} onChange={event => update(index, { include: event.target.checked })} className="size-4 accent-primary" /><span className="sr-only">Incluir {item.label}</span></label>
@@ -109,7 +110,7 @@ export function VaultAnnexes({ caseId }: { caseId: string }) {
             <Button type="button" variant="ghost" size="icon" disabled={index === plan.items.length - 1} onClick={() => move(index, 1)} aria-label={`Descer ${item.label}`}><ArrowDown aria-hidden="true" /></Button></div>
         </div>;
       })}</div>
-      <div className="grid gap-1.5 sm:max-w-sm"><Label htmlFor="annex-folder">Pasta de destino</Label><Input id="annex-folder" value={folderName} maxLength={120} onChange={event => setFolderName(event.target.value)} className="h-11 md:h-9" /></div>
+      <div className="grid gap-1.5 sm:max-w-sm"><Label htmlFor="annex-folder" className={labelStyle}>Pasta de destino</Label><Input id="annex-folder" value={folderName} maxLength={120} onChange={event => setFolderName(event.target.value)} className="h-11 md:h-9" /></div>
       <Button type="button" size="lg" className="justify-self-start" disabled={Boolean(busy) || !included.length || invalid} onClick={() => void generate()}>
         {busy === 'files' && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{busy === 'files' ? 'Gerando…' : `Gerar ${included.length} ${included.length === 1 ? 'anexo' : 'anexos'}`}</Button>
       {invalid && <p className="text-xs text-destructive">Confira os nomes e as páginas: o PDF tem {plan.pageCount} páginas.</p>}
@@ -117,7 +118,7 @@ export function VaultAnnexes({ caseId }: { caseId: string }) {
 
     {result && <section aria-labelledby="annex-done" className="grid gap-3 border-t pt-6">
       <h2 id="annex-done" className="font-medium">Anexos gerados</h2>
-      <div className="divide-y border-y">{result.documents.map(document => <a key={document.id} href={`/api/vault/documents/${document.id}/download`} className="flex min-h-11 items-center text-sm underline-offset-4 hover:underline">{document.name}</a>)}</div>
+      <div className="flex flex-col">{result.documents.map(document => <a key={document.id} href={`/api/vault/documents/${document.id}/download`} className="flex min-h-11 items-center text-sm underline-offset-4 hover:underline">{document.name}</a>)}</div>
       <div className="flex flex-wrap gap-3"><Button asChild variant="outline"><Link href={`/app/vault/cases/${encodeURIComponent(caseId)}?folder=${encodeURIComponent(result.folderId)}`}>Abrir a pasta</Link></Button>
         <Button type="button" variant="ghost" onClick={() => { setResult(null); setPlan(null); }}>Separar outro PDF</Button></div>
     </section>}

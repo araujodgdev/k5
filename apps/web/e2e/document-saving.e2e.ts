@@ -33,7 +33,6 @@ const hideTab = (browser: Browser) => browser.evaluate(() => {
   document.dispatchEvent(new Event('visibilitychange'));
   return null;
 });
-const focusInsidePanel = () => !!document.activeElement?.closest('#document-panel');
 
 describe('salvamento de documentos', { session: 'admin' }, () => {
   test('esconder a aba salva uma vez e deixa as edições seguintes salváveis', async ({ app, screen, browser }) => {
@@ -70,21 +69,24 @@ describe('salvamento de documentos', { session: 'admin' }, () => {
     await expect(editor(screen)).toContainText('Texto humano ainda não salvo');
   });
 
-  test('documentos grandes terminam de salvar antes de o painel fechar', async ({ app, screen, browser }) => {
+  test('documentos grandes terminam de salvar antes de a aba do documento fechar', async ({ app, screen, browser }) => {
     const data = await documentFixture(browser, 'a'.repeat(70_000));
-    await app.open('/app/agents?doc=saving-regression');
+    await app.open('/app/documents/saving-regression');
     await editor(screen).fill('a'.repeat(70_000) + ' último trecho');
     await hideTab(browser);
     await expect.poll(() => data.artifact.content.trimEnd().endsWith('último trecho')).toBe(true);
-    await screen.getByRole('button', 'Fechar documento').tap();
-    await expect(browser.locator('#document-panel')).toHaveCount(0);
+    // The document is a canvas tab: closing it saves first, then shows the tab before it.
+    await screen.getByRole('button', 'Fechar aba Documento de teste').tap();
+    await expect(browser).toHaveURL(/\/app\/command-center$/);
+    await expect(editor(screen)).toHaveCount(0);
     await expect.poll(() => data.artifact.content.trimEnd().endsWith('último trecho')).toBe(true);
   });
 
   for (const failure of ['error', 'conflict'] as const) {
     test(`uma revisão do Lume preserva o texto local depois de ${failure === 'error' ? 'uma falha' : 'um conflito'} ao salvar`, async ({ app, screen, browser }) => {
       const data = await documentFixture(browser);
-      await app.open('/app/agents?doc=saving-regression');
+      // The document opens in the canvas, with the Lume's panel beside it.
+      await app.open('/app/documents/saving-regression');
       await expect(editor(screen)).toBeVisible();
       if (failure === 'error') data.fail();
       else data.artifact.version++;
@@ -96,6 +98,8 @@ describe('salvamento de documentos', { session: 'admin' }, () => {
         const chunks = [
           { type: 'start', messageId: `qa-${failure}` },
           { type: 'data-tool', id: `qa-tool-${failure}`, data: { callId: `qa-call-${failure}`, name: 'k5_artifacts_edit', state: 'completed', summary: 'Documento alterado', href: '/app/documents/saving-regression' } },
+          // The server tells the canvas to bring the changed page up; the one on screen reloads instead.
+          { type: 'data-canvas', data: { action: 'open', href: '/app/documents/saving-regression' }, transient: true },
           { type: 'text-start', id: 'text' },
           { type: 'text-delta', id: 'text', delta: 'Documento atualizado.' },
           { type: 'text-end', id: 'text' },
@@ -104,31 +108,30 @@ describe('salvamento de documentos', { session: 'admin' }, () => {
         return route.fulfill({ headers: { 'content-type': 'text/event-stream', 'x-vercel-ai-ui-message-stream': 'v1' },
           body: chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n' });
       });
-      await screen.getByRole('textbox', 'Pergunte ao Lume').fill('Atualize o documento');
+      await screen.getByRole('textbox', 'Peça algo ao Lume').fill('Atualize o documento');
       await screen.getByRole('button', 'Enviar mensagem').tap();
       await expect(screen.getByText('O Lume alterou este documento enquanto você editava.', { exact: false })).toBeVisible();
       await expect(editor(screen)).toContainText('Rascunho humano que não pode desaparecer');
     });
   }
 
-  test('o painel no celular prende o foco do teclado, inclusive no menu de versões, e Escape o fecha', async ({ app, screen, browser }) => {
+  test('no celular o menu de versões fica no cabeçalho do canvas, e Escape o fecha e devolve o foco', async ({ app, screen, browser }) => {
     await browser.setViewport({ width: 390, height: 844 });
     await documentFixture(browser);
-    await app.open('/app/agents?doc=saving-regression');
+    await app.open('/app/documents/saving-regression');
     await expect(editor(screen)).toBeVisible();
-    await expect.poll(() => browser.evaluate(focusInsidePanel)).toBe(true);
-    for (let i = 0; i < 25; i++) {
-      await browser.keyboard.press('Tab');
-      expect(await browser.evaluate(focusInsidePanel)).toBe(true);
-    }
-    await screen.getByRole('button', 'Versões').tap();
-    await expect(screen.getByRole('button', 'Restaurar')).toBeVisible();
+    // On a phone the document's actions join the canvas's header, beside search and the menu.
+    const versions = screen.getByRole('button', 'Versões', { visible: true });
+    await versions.tap();
+    const restore = screen.getByRole('button', 'Restaurar');
+    await expect(restore).toBeVisible();
     await browser.keyboard.press('Escape');
-    await expect(screen.getByRole('button', 'Restaurar')).toBeHidden();
-    await expect(screen.getByRole('button', 'Versões')).toBeFocused();
-    await expect(browser.locator('#document-panel')).toBeVisible();
+    await expect(restore).toBeHidden();
+    await expect(versions).toBeFocused();
+    // The document is the canvas itself, not a panel over the chat: Escape leaves it open.
     await browser.keyboard.press('Escape');
-    await expect(browser.locator('#document-panel')).toHaveCount(0);
+    await expect(editor(screen)).toBeVisible();
+    await expect(browser).toHaveURL(/\/app\/documents\/saving-regression$/);
   });
 
   test('voltar à conversa para quando o documento em página inteira não salva', async ({ app, screen, browser }) => {
@@ -142,23 +145,27 @@ describe('salvamento de documentos', { session: 'admin' }, () => {
     await expect(editor(screen)).toContainText('Rascunho pendente na página inteira');
   });
 
-  test('a navegação lateral espera o salvamento e tentar de novo recupera uma falha', async ({ app, screen, browser }) => {
+  test('a navegação pelo canvas espera o salvamento e tentar de novo recupera uma falha', async ({ app, screen, browser }) => {
     const data = await documentFixture(browser);
     await app.open('/app/documents/saving-regression');
     data.fail();
     await editor(screen).fill('Edição preservada ao usar o menu');
-    await screen.getByRole('link', 'Cofre').first().tap();
+    const openCases = async () => {
+      await screen.getByRole('button', 'Casos e módulos').tap();
+      await screen.getByRole('navigation', 'Casos e módulos').getByRole('link', 'Todos os casos').tap();
+    };
+    await openCases();
     await expect(screen.getByRole('button', 'Tentar salvar novamente')).toBeVisible();
     await expect(browser).toHaveURL(/\/app\/documents\/saving-regression/);
     data.recover();
     await screen.getByRole('button', 'Tentar salvar novamente').tap();
     await expect(screen.getByText('Salvo')).toBeVisible();
-    await screen.getByRole('link', 'Cofre').first().tap();
+    await openCases();
     await expect(browser).toHaveURL(/\/app\/vault$/);
     expect(data.artifact.content).toContain('Edição preservada');
   });
 
-  // On a phone "Sair" sits behind "Mais", a separate path from the desktop sidebar.
+  // On a phone "Sair" sits in the canvas's menu, a separate path from the desktop account menu.
   for (const width of [1280, 390]) {
     test(`uma falha ao salvar nunca prende o logout global e descartar exige escolha explícita em ${width}px`, async ({ app, screen, browser }) => {
       await browser.setViewport({ width, height: 844 });
@@ -171,16 +178,23 @@ describe('salvamento de documentos', { session: 'admin' }, () => {
       await app.open('/app/documents/saving-regression');
       data.fail();
       await editor(screen).fill('Rascunho antes de sair');
-      if (width < 768) await screen.getByRole('button', 'Mais').tap();
-      await screen.getByRole('button', 'Sair').tap();
+      const signOut = async () => {
+        if (width < 768) {
+          await screen.getByRole('button', /^Mais opções/).tap();
+          await screen.getByRole('dialog', 'Mais opções').getByRole('button', 'Sair').tap();
+        } else {
+          await screen.getByRole('button', /^Conta de /).tap();
+          await screen.getByRole('menuitem', 'Sair').tap();
+        }
+      };
+      await signOut();
       const dialog = screen.getByRole('alertdialog', 'Sair sem salvar?');
       await expect(dialog).toBeVisible();
       expect(logoutAttempts).toBe(0);
       await dialog.getByRole('button', 'Continuar editando').tap();
       await expect(editor(screen)).toContainText('Rascunho antes de sair');
       expect(logoutAttempts).toBe(0);
-      if (width < 768) await screen.getByRole('button', 'Mais').tap();
-      await screen.getByRole('button', 'Sair').tap();
+      await signOut();
       await dialog.getByRole('button', 'Sair sem salvar').tap();
       await expect.poll(() => logoutAttempts).toBe(1);
       await expect(screen.getByRole('alert').filter({ hasText: 'Não foi possível sair.' })).toBeVisible();
@@ -191,17 +205,21 @@ describe('salvamento de documentos', { session: 'admin' }, () => {
   test('voltar e avançar no histórico mantém edições que falharam em 390px', async ({ app, screen, browser }) => {
     await browser.setViewport({ width: 390, height: 844 });
     const data = await documentFixture(browser);
-    await app.open('/app/agents?doc=saving-regression');
+    await app.open('/app/documents/saving-regression');
     await expect(editor(screen)).toBeVisible();
-    await browser.evaluate(() => { history.replaceState(null, '', '/app/agents'); return null; });
-    await expect(browser.locator('#document-panel')).toHaveCount(0);
-    await browser.evaluate(() => { history.pushState(null, '', '/app/agents?doc=saving-regression'); return null; });
+    // A place opened from the canvas's menu adds the history entry the document comes back from.
+    await screen.getByRole('button', /^Mais opções/).tap();
+    await screen.getByRole('dialog', 'Mais opções').getByRole('link', 'Plano').tap();
+    await expect(browser).toHaveURL(/\/app\/billing$/);
+    await browser.back();
+    await expect(editor(screen)).toBeVisible();
     data.fail();
     await editor(screen).fill('Rascunho preservado no histórico');
     await expect(screen.getByRole('button', 'Tentar salvar novamente')).toBeVisible();
-    await browser.back();
-    await expect(browser.locator('#document-panel')).toHaveCount(0);
     await browser.forward();
+    await expect(browser).toHaveURL(/\/app\/billing$/);
+    await expect(editor(screen)).toHaveCount(0);
+    await browser.back();
     await expect(editor(screen)).toContainText('Rascunho preservado no histórico');
     data.recover();
     await screen.getByRole('button', 'Tentar salvar novamente').tap();

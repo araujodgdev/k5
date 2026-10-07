@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { AiTaskModels } from '@/components/ai-task-models';
 import { PlatformConnections } from '@/components/platform-connections';
 import { TypesafeSettings } from '@/components/typesafe-settings';
+import { AdminGrid } from '@/components/admin/admin-blocks';
+import { AdminMeta } from '@/components/admin/admin-meta';
 import { assignmentOverview } from '@/lib/ai-assignments-core';
 import { AI_PROVIDERS, listAiConnections, type AiProvider } from '@/lib/ai-connections-core';
 import { isChatModel } from '@/lib/ai-defaults';
@@ -37,18 +39,12 @@ export default async function PlatformAiPage() {
       (usage[connectionId] ??= []).push(label);
     }
   }
-  return (
-    <div className="grid gap-12">
-      <section aria-labelledby="ai-agent-title">
-        <h2 id="ai-agent-title" className="text-2xl">Lume</h2>
-        <p className="mt-1 mb-8 max-w-3xl text-sm text-muted-foreground">Os modelos e os provedores que respondem em todos os escritórios: conversas, e-mails, cronologias, minutas, anexos e a busca do Cofre.</p>
-        <AiTaskModels initial={overview} catalogs={{ chat, transcription }} />
-        <PlatformConnections initialConnections={connections} usage={usage} />
-      </section>
-      <section aria-labelledby="ai-typesafe-title" className="border-t border-line pt-10">
-        <h2 id="ai-typesafe-title" className="text-2xl">TypeSafe</h2>
-        <TypesafeSettings initial={typesafe} />
-      </section>
-    </div>
-  );
+  return <>
+    <AdminMeta title="IA" />
+    <AdminGrid>
+      <AiTaskModels initial={overview} catalogs={{ chat, transcription }} />
+      <PlatformConnections initialConnections={connections} usage={usage} />
+      <TypesafeSettings initial={typesafe} />
+    </AdminGrid>
+  </>;
 }

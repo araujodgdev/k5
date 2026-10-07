@@ -4,7 +4,13 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { z } from 'zod';
+import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { BetaLabel } from '@/components/ads/beta-label';
+import { CanvasHeader, CanvasPage, CanvasRow, CanvasSection } from '@/components/canvas/canvas-page';
+import { Kpi, KpiRow } from '@/components/canvas/canvas-controls';
+import { BackLink } from '@/components/agenda-detail';
+import { EmptyRows, RowsLoading } from '@/components/agenda-rows';
+import { VersionTabs } from '@/components/version-tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,20 +57,64 @@ export function FeeQuotePanel() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível abrir a versão.'); }
     finally { setLoadingVersion(false); }
   }
-  return <div className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8"><header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6"><div><Link href="/app/honorarios" className="text-xs underline">Honorários</Link><div className="mt-3 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-medium tracking-tight">Propostas e contratos</h1><BetaLabel /></div></div><Button onClick={() => { setActive(null); setCalculation(null); setEditing(true); }}>Nova proposta</Button></header>
-    <div className="py-3"><Failure message={error} /></div>
-    {editing ? <QuoteEditor key={active?.id ?? calculation?.id ?? 'new'} seed={active} calculation={calculation} saved={save} back={() => setEditing(false)} /> : active ? <>
-      <div className="flex flex-wrap justify-between gap-3 py-4"><h2 className="text-xl font-medium">{active.title}</h2><div className="flex flex-wrap gap-3"><Button variant="ghost" onClick={() => setActive(null)}>Voltar às propostas</Button><Button variant="outline" disabled={loadingVersion || active.billed.length > 0 || active.version !== active.latestVersion} onClick={() => setEditing(true)}>Revisar proposta</Button></div></div>
-      <label className="flex items-center gap-3 text-sm">Versão da proposta<select className={controlClass} disabled={loadingVersion} value={active.version} onChange={event => void openVersion(active.id, Number(event.target.value))}>{Array.from({ length: active.latestVersion }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select></label>
-      {active.version !== active.latestVersion && <p className="mt-3 text-sm text-muted-foreground">Versão histórica. Abra a versão atual para registrar contratação ou êxito.</p>}
-      <PricingSummary pricing={active.pricing} />
-      <div className="flex flex-wrap gap-4 border-y border-line py-4 text-sm underline"><a href={`/api/honorarios/${active.id}/proposal?format=pdf&version=${active.version}`}>Baixar proposta PDF</a><a href={`/api/honorarios/${active.id}/proposal?format=json&version=${active.version}`}>Baixar dados da proposta</a></div>
-      <div className="divide-y">{active.pricing.components.map((component, index) => {
+  const title = <span className="inline-flex flex-wrap items-center gap-3">Propostas e contratos<BetaLabel /></span>;
+  const toList = () => { setActive(null); setEditing(false); };
+  if (editing) return <CanvasPage className="gap-6 md:gap-8">
+    <div className="flex flex-col gap-3">
+      <QuoteBack onClick={() => setEditing(false)} />
+      <CanvasHeader eyebrow={active ? `Revisão da versão ${active.version}` : calculation ? `Base trazida do Calc: ${calculation.title}` : 'Nova proposta'} title={active ? <span className="break-words">{active.title}</span> : 'Nova proposta'} />
+    </div>
+    <Failure message={error} />
+    <QuoteEditor key={active?.id ?? calculation?.id ?? 'new'} seed={active} calculation={calculation} saved={save} back={() => setEditing(false)} />
+  </CanvasPage>;
+  if (active) return <CanvasPage className="gap-6 md:gap-8">
+    <div className="flex flex-col gap-3">
+      <QuoteBack onClick={toList} />
+      <CanvasHeader eyebrow={`${active.pricing.terms.uf === 'PE' ? 'Pernambuco' : 'Rio Grande do Sul'} · versão ${active.version} de ${active.latestVersion}`} title={<span className="break-words">{active.title}</span>}
+        actions={<Button variant="outline" size="lg" className="max-md:h-11" disabled={loadingVersion || active.billed.length > 0 || active.version !== active.latestVersion} onClick={() => setEditing(true)}>Revisar proposta</Button>} />
+    </div>
+    <Failure message={error} />
+    {active.latestVersion > 1 && <VersionTabs label="Versões da proposta" latest={active.latestVersion} current={active.version} onSelect={version => void openVersion(active.id, version)} />}
+    <div className="flex flex-wrap items-center gap-2">
+      <a className={download} href={`/api/honorarios/${active.id}/proposal?format=pdf&version=${active.version}`}><Download aria-hidden="true" />Baixar proposta PDF</a>
+      <a className={download} href={`/api/honorarios/${active.id}/proposal?format=json&version=${active.version}`}><Download aria-hidden="true" />Baixar dados da proposta</a>
+    </div>
+    {active.version !== active.latestVersion && <p className="text-[13.5px] text-muted-foreground">Versão histórica. Abra a versão atual para registrar contratação ou êxito.</p>}
+    <PricingSummary pricing={active.pricing} />
+    <CanvasSection title="Componentes">
+      <div className="flex flex-col gap-6">{active.pricing.components.map((component, index) => {
         const billed = active.billed.find(item => item.component === index);
-        return <section key={index} className="py-5"><div className="flex flex-wrap justify-between gap-3"><h3 className="font-medium">{component.label}</h3><span className="tabular-nums">{money(component.totalCents)}{component.due === 'success' ? ' estimados' : ''}</span></div>{billed ? <p className="mt-3 text-sm">Parcelas geradas: {money(billed.amountCents)}. <Link className="underline" href={`/app/honorarios?agreementId=${billed.agreementId}`}>Abrir recebimentos</Link></p> : active.version === active.latestVersion && <BillComponent quote={active} index={index} saved={save} />}</section>;
+        return <section key={index} aria-label={component.label} className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-3"><h3 className="text-sm font-medium">{component.label}</h3><span className="font-mono text-[12.5px]">{money(component.totalCents)}{component.due === 'success' ? <span className="ml-1 font-sans text-xs text-muted-foreground">estimados</span> : ''}</span></div>
+          {billed ? <p className="text-[13.5px] text-muted-foreground">Parcelas geradas: <span className="font-mono text-[12.5px] text-foreground">{money(billed.amountCents)}</span>. <Link className="text-foreground underline underline-offset-4" href={`/app/honorarios?agreementId=${billed.agreementId}`}>Abrir recebimentos</Link></p>
+            : active.version === active.latestVersion && <BillComponent quote={active} index={index} saved={save} />}
+        </section>;
       })}</div>
-    </> : <section className="divide-y border-y border-line">{quotes === null ? <p role="status" className="py-8">{error ? 'Use Atualizar para tentar novamente.' : 'Carregando propostas…'}</p> : quotes.length === 0 ? <p className="py-8 text-sm text-muted-foreground">Nenhuma proposta cadastrada. Consulte as referências de PE e RS e defina a contratação.</p> : quotes.map(quote => <button className="flex w-full flex-wrap justify-between gap-3 py-5 text-left hover:bg-accent" key={quote.id} onClick={() => setActive(quote)}><span><span className="block font-medium">{quote.title}</span><span className="mt-1 block text-xs text-muted-foreground">{quote.pricing.terms.uf} · versão {quote.version} · {quote.billed.length} componentes com parcelas</span></span><span>{money(quote.pricing.totalCents)} estimados</span></button>)}<Button className="my-4" variant="ghost" onClick={() => setRevision(value => value + 1)}>Atualizar</Button><p className="pb-4 text-xs text-muted-foreground">Até 100 propostas recentes. Propostas são privadas; gerar parcelas de um caso permite a consulta dos valores pelos participantes.</p></section>}
-  </div>;
+    </CanvasSection>
+  </CanvasPage>;
+  return <CanvasPage className="gap-5 md:gap-5">
+    <div className="flex flex-col gap-3">
+      <BackLink href="/app/honorarios">Honorários</BackLink>
+      <CanvasHeader eyebrow="Tabelas OAB de PE e RS, edição 2026" title={title}
+        actions={<Button variant="outline" size="lg" className="max-md:h-11" onClick={() => { setActive(null); setCalculation(null); setEditing(true); }}>Nova proposta</Button>} />
+    </div>
+    {error && <div className="flex flex-wrap items-center gap-3"><Failure message={error} /><Button variant="outline" onClick={() => { setQuotes(null); setRevision(value => value + 1); }}>Tentar novamente</Button></div>}
+    {quotes === null ? !error && <RowsLoading label="Carregando propostas" rows={3} />
+      : quotes.length === 0 ? <EmptyRows>Nenhuma proposta cadastrada. Consulte as referências de PE e RS e defina a contratação.</EmptyRows>
+      : <div className="flex flex-col gap-0.5">{quotes.map(quote => <CanvasRow key={quote.id} stacked icon={<FileText />} title={quote.title}
+        detail={`${quote.pricing.terms.uf} · versão ${quote.version} · ${quote.billed.length} ${quote.billed.length === 1 ? 'componente com parcelas' : 'componentes com parcelas'}`}
+        meta={money(quote.pricing.totalCents)} status="estimados" onClick={() => setActive(quote)} label={quote.title} />)}</div>}
+    <p className="text-xs text-subtle-foreground">Até 100 propostas recentes. Propostas são privadas; gerar parcelas de um caso permite a consulta dos valores pelos participantes.</p>
+  </CanvasPage>;
+}
+
+const download = 'inline-flex h-11 items-center gap-1.5 rounded-md px-2 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring md:h-[30px] [&_svg]:size-3.5';
+
+function QuoteBack({ onClick }: { onClick: () => void }) {
+  return <button type="button" onClick={onClick}
+    className="-ml-1.5 inline-flex h-11 items-center gap-1 self-start rounded-sm px-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring md:h-[26px]">
+    <ArrowLeft aria-hidden="true" className="size-3.5" />Propostas
+  </button>;
 }
 
 function QuoteEditor({ seed, calculation, saved, back }: { seed: FeeQuote | null; calculation: SavedCalculation | null; saved: (quote: FeeQuote) => void; back: () => void }) {
@@ -101,30 +151,45 @@ function QuoteEditor({ seed, calculation, saved, back }: { seed: FeeQuote | null
     } catch (cause) { setError(cause instanceof z.ZodError ? cause.issues[0]?.message ?? 'Confira a proposta.' : cause instanceof Error ? cause.message : 'Não foi possível salvar.'); }
     finally { running.current = false; setBusy(false); }
   }
-  return <form ref={form} onSubmit={event => { event.preventDefault(); void submit(true); }} onChange={() => setPreview(null)} className="grid min-w-0 gap-5 py-5"><fieldset disabled={busy} className="grid min-w-0 gap-5">
+  return <form ref={form} onSubmit={event => { event.preventDefault(); void submit(true); }} onChange={() => setPreview(null)} className="grid min-w-0 gap-6"><fieldset disabled={busy} className="grid min-w-0 gap-5">
     <Field label="Título da proposta">{id => <Input id={id} name="title" required minLength={3} maxLength={180} defaultValue={seed?.title ?? 'Proposta de honorários'} />}</Field>
     <div className="grid gap-4 sm:grid-cols-2"><ReferenceSelect kind="clients" value={clientId} onChange={setClientId} /><ReferenceSelect kind="cases" value={caseId} onChange={setCaseId} optional /></div>
     <div className="grid gap-4 sm:grid-cols-2"><Field label="UF do serviço">{id => <select id={id} className={controlClass} value={uf} onChange={event => { const value = event.target.value; if (value === 'PE' || value === 'RS') { setUf(value); setReferenceId(''); } }}><option value="PE">Pernambuco</option><option value="RS">Rio Grande do Sul</option></select>}</Field><Field label="Data de referência do serviço">{id => <Input id={id} name="serviceOn" type="date" required defaultValue={seed?.pricing.terms.serviceOn ?? new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })} />}</Field></div>
     <Field label="Atividade na tabela OAB 2026">{id => <select id={id} className={controlClass} value={referenceId} onChange={event => setReferenceId(event.target.value)}><option value="">Outra atividade, consultar tabela integral</option>{oabCatalog.filter(item => item.uf === uf).map(item => <option key={item.id} value={item.id}>{item.code} · {item.area} · {item.label}</option>)}</select>}</Field>
-    {reference && <div className="border-y border-line py-4 text-sm"><p>{money(reference.fixedCents)}{reference.percent ? ` · referência percentual: ${reference.percent}` : ''}</p><p className="mt-2">{reference.rule}</p><a className="mt-2 block underline" href={reference.source} target="_blank" rel="noreferrer">Abrir OAB-{uf}, edição 2026, página {reference.page}</a><p className="mt-2 text-xs text-muted-foreground">Referência consultada em 04/10/2026. Confira vigência e enquadramento. As colunas da tabela não são somadas automaticamente.</p></div>}
-    {calculation && <p className="border-l-2 border-brand pl-3 text-sm">Base trazida do Calc: {calculation.title}, versão {calculation.version}, {money(calculation.result.totalCents)}.</p>}
+    {reference && <div className="rounded-lg border border-border bg-card px-4 py-3.5 text-[13.5px]"><p>{money(reference.fixedCents)}{reference.percent ? ` · referência percentual: ${reference.percent}` : ''}</p><p className="mt-2">{reference.rule}</p><a className="mt-2 block text-foreground underline underline-offset-4" href={reference.source} target="_blank" rel="noreferrer">Abrir OAB-{uf}, edição 2026, página {reference.page}</a><p className="mt-2 text-xs text-muted-foreground">Referência consultada em 04/10/2026. Confira vigência e enquadramento. As colunas da tabela não são somadas automaticamente.</p></div>}
+    {calculation && <p className="text-[13.5px] text-muted-foreground">Base trazida do Calc: {calculation.title}, versão {calculation.version}, {money(calculation.result.totalCents)}.</p>}
     <Field label="Escopo, atos e instâncias incluídos">{id => <Textarea id={id} name="scope" required minLength={5} maxLength={4000} defaultValue={seed?.pricing.terms.scope} />}</Field>
     <Field label="Condições de pagamento, despesas e hipótese de acordo">{id => <Textarea id={id} name="paymentTerms" required minLength={5} maxLength={4000} defaultValue={seed?.pricing.terms.paymentTerms} />}</Field>
-    <section className="min-w-0 border-y border-line py-4"><h2 className="font-medium">Composição dos honorários</h2><div className="divide-y">{components.map((item, i) => <div key={i} className="grid min-w-0 gap-4 py-5">
+    <section className="flex min-w-0 flex-col gap-3"><h2 className="text-[15px] font-semibold">Composição dos honorários</h2><div className="flex flex-col gap-10">{components.map((item, i) => <div key={i} className="grid min-w-0 gap-4">
       <div className="grid gap-4 sm:grid-cols-2"><Field label={`Componente ${i + 1}: descrição`}>{id => <Input id={id} required value={item.label} onChange={event => update(i, { label: event.target.value })} />}</Field><Field label={`Componente ${i + 1}: modalidade`}>{id => <select id={id} className={controlClass} value={item.kind} onChange={event => { const kind = z.enum(['fixed', 'hours', 'percentage', 'monthly']).parse(event.target.value); update(i, { kind }); }}><option value="fixed">Fixo / fase / ato</option><option value="hours">Por hora</option><option value="percentage">Percentual</option><option value="monthly">Mensalidade por período</option></select>}</Field></div>
       <div className="grid gap-4 sm:grid-cols-3">{item.kind === 'percentage' ? <><Field label={`Componente ${i + 1}: base (R$)`}>{id => <Input id={id} required inputMode="decimal" value={item.base} onChange={event => update(i, { base: event.target.value })} />}</Field><Field label={`Componente ${i + 1}: percentual (%)`}>{id => <Input id={id} required inputMode="decimal" value={item.percent} onChange={event => update(i, { percent: event.target.value })} />}</Field></> : <><Field label={`Componente ${i + 1}: valor ${item.kind === 'hours' ? 'por hora' : item.kind === 'monthly' ? 'mensal' : 'fixo'} (R$)`}>{id => <Input id={id} required inputMode="decimal" value={item.amount} onChange={event => update(i, { amount: event.target.value })} />}</Field>{item.kind !== 'fixed' && <Field label={`Componente ${i + 1}: ${item.kind === 'hours' ? 'horas' : 'meses'}`}>{id => <Input id={id} required inputMode="decimal" value={item.quantity} onChange={event => update(i, { quantity: event.target.value })} />}</Field>}</>}
       <Field label={`Componente ${i + 1}: exigibilidade`}>{id => <select id={id} className={controlClass} value={item.due} onChange={event => update(i, { due: event.target.value === 'success' ? 'success' : 'contract' })}><option value="contract">Conforme contratação</option><option value="success">Condicionado ao êxito</option></select>}</Field></div>
       <Field label={`Componente ${i + 1}: condição ou evento de êxito`}>{id => <Textarea id={id} value={item.condition} required={item.due === 'success'} onChange={event => update(i, { condition: event.target.value })} />}</Field>
       <Button className="justify-self-start" type="button" variant="ghost" disabled={components.length === 1} onClick={() => { setComponents(current => current.filter((_, index) => index !== i)); setPreview(null); }}>Remover componente {i + 1}</Button>
-    </div>)}</div><Button variant="outline" type="button" disabled={components.length >= 20} onClick={() => { setComponents(current => [...current, emptyComponent()]); setPreview(null); }}>Adicionar componente</Button></section>
-    <section className="grid gap-3"><h2 className="font-medium">Rateio previsto</h2><p className="text-xs text-muted-foreground">Planejamento entre profissionais. Não transfere valores nem concede acesso à proposta.</p>{allocations.map((item, i) => <div key={i} className="grid gap-3 sm:grid-cols-3"><Field label={`Rateio ${i + 1}: profissional`}>{id => <Input id={id} required value={item.name} onChange={event => setAllocations(current => current.map((row, index) => index === i ? { ...row, name: event.target.value } : row))} />}</Field><Field label={`Rateio ${i + 1}: percentual`}>{id => <Input id={id} required value={item.percent} onChange={event => setAllocations(current => current.map((row, index) => index === i ? { ...row, percent: event.target.value.replace(',', '.') } : row))} />}</Field><Button className="self-end" type="button" variant="ghost" onClick={() => setAllocations(current => current.filter((_, index) => index !== i))}>Remover rateio {i + 1}</Button></div>)}<Button className="justify-self-start" type="button" variant="outline" onClick={() => setAllocations(current => [...current, { name: '', percent: '' }])}>Adicionar profissional</Button></section>
+    </div>)}</div><Button variant="outline" type="button" className="self-start" disabled={components.length >= 20} onClick={() => { setComponents(current => [...current, emptyComponent()]); setPreview(null); }}>Adicionar componente</Button></section>
+    <section className="grid gap-3"><h2 className="text-[15px] font-semibold">Rateio previsto</h2><p className="text-xs text-muted-foreground">Planejamento entre profissionais. Não transfere valores nem concede acesso à proposta.</p>{allocations.map((item, i) => <div key={i} className="grid gap-3 sm:grid-cols-3"><Field label={`Rateio ${i + 1}: profissional`}>{id => <Input id={id} required value={item.name} onChange={event => setAllocations(current => current.map((row, index) => index === i ? { ...row, name: event.target.value } : row))} />}</Field><Field label={`Rateio ${i + 1}: percentual`}>{id => <Input id={id} required value={item.percent} onChange={event => setAllocations(current => current.map((row, index) => index === i ? { ...row, percent: event.target.value.replace(',', '.') } : row))} />}</Field><Button className="self-end" type="button" variant="ghost" onClick={() => setAllocations(current => current.filter((_, index) => index !== i))}>Remover rateio {i + 1}</Button></div>)}<Button className="justify-self-start" type="button" variant="outline" onClick={() => setAllocations(current => [...current, { name: '', percent: '' }])}>Adicionar profissional</Button></section>
     <Field label="Justificativa e observações da precificação">{id => <Textarea id={id} name="justification" maxLength={2000} defaultValue={seed?.pricing.terms.justification} />}</Field>
-    </fieldset><Failure message={error} /><div className="flex flex-wrap gap-3"><Button disabled={busy}>{busy ? 'Salvando…' : 'Salvar proposta'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => void submit(false)}>Conferir composição</Button><Button type="button" variant="ghost" disabled={busy} onClick={back}>Voltar</Button></div>{preview && <PricingSummary pricing={preview} />}
+    </fieldset><Failure message={error} /><div className="flex flex-wrap gap-2"><Button size="lg" className="max-md:h-11" disabled={busy}>{busy ? 'Salvando…' : 'Salvar proposta'}</Button><Button type="button" variant="outline" size="lg" className="max-md:h-11" disabled={busy} onClick={() => void submit(false)}>Conferir composição</Button><Button type="button" variant="ghost" size="lg" className="max-md:h-11" disabled={busy} onClick={back}>Voltar</Button></div>{preview && <PricingSummary pricing={preview} />}
   </form>;
 }
 
 export function PricingSummary({ pricing }: { pricing: FeePricing }) {
-  return <section className="grid gap-4 py-5"><div className="grid gap-3 border-y border-line py-4 sm:grid-cols-3"><p className="text-sm">Contratação <span className="mt-2 block text-xl tabular-nums">{money(pricing.contractedCents)}</span></p><p className="text-sm">Êxito estimado <span className="mt-2 block text-xl tabular-nums">{money(pricing.contingentCents)}</span></p><p className="text-sm">Total estimado <span className="mt-2 block text-xl tabular-nums">{money(pricing.totalCents)}</span></p></div>{pricing.components.map((item, index) => <p key={index} className="text-sm">{item.label}: {item.formula} = {money(item.totalCents)}.</p>)}<p className="whitespace-pre-wrap text-sm">{pricing.terms.scope}</p><p className="whitespace-pre-wrap text-sm">{pricing.terms.paymentTerms}</p>{pricing.reference && <a className="text-sm underline" target="_blank" rel="noreferrer" href={pricing.reference.source}>OAB-{pricing.reference.uf} 2026 · {pricing.reference.code} · {pricing.reference.label}: {money(pricing.reference.fixedCents)}{pricing.reference.percent ? `; ${pricing.reference.percent}` : ''}</a>}{pricing.warnings.map((warning, i) => <p key={i} className="text-xs text-muted-foreground">{warning}</p>)}{pricing.terms.allocations.map((allocation, i) => <p className="text-sm" key={i}>Rateio previsto: {allocation.name}, {allocation.percent}%.</p>)}{pricing.terms.justification && <p className="text-sm">Justificativa: {pricing.terms.justification}</p>}</section>;
+  return <section aria-label="Formação dos honorários" className="flex min-w-0 flex-col gap-4">
+    <KpiRow>
+      <Kpi label="Contratação" value={money(pricing.contractedCents)} />
+      <Kpi label="Êxito estimado" value={money(pricing.contingentCents)} />
+      <Kpi label="Total estimado" value={money(pricing.totalCents)} />
+    </KpiRow>
+    <div className="flex flex-col gap-2 text-[13.5px]">
+      {pricing.components.map((item, index) => <p key={index}>{item.label}: <span className="text-muted-foreground">{item.formula}</span> = <span className="font-mono text-[12.5px]">{money(item.totalCents)}</span>.</p>)}
+      <p className="whitespace-pre-wrap text-muted-foreground">{pricing.terms.scope}</p>
+      <p className="whitespace-pre-wrap text-muted-foreground">{pricing.terms.paymentTerms}</p>
+      {pricing.reference && <a className="self-start text-foreground underline underline-offset-4" target="_blank" rel="noreferrer" href={pricing.reference.source}>OAB-{pricing.reference.uf} 2026 · {pricing.reference.code} · {pricing.reference.label}: {money(pricing.reference.fixedCents)}{pricing.reference.percent ? `; ${pricing.reference.percent}` : ''}</a>}
+      {pricing.warnings.map((warning, i) => <p key={i} className="text-xs text-muted-foreground">{warning}</p>)}
+      {pricing.terms.allocations.map((allocation, i) => <p key={i}>Rateio previsto: {allocation.name}, {allocation.percent}%.</p>)}
+      {pricing.terms.justification && <p>Justificativa: {pricing.terms.justification}</p>}
+    </div>
+  </section>;
 }
 function BillComponent({ quote, index, saved }: { quote: FeeQuote; index: number; saved: (value: FeeQuote) => void }) {
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const running = useRef(false);
@@ -140,5 +205,5 @@ function BillComponent({ quote, index, saved }: { quote: FeeQuote; index: number
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível gerar as parcelas.'); }
     finally { setBusy(false); running.current = false; }
   }
-  return <details className="mt-4"><summary className="min-h-11 cursor-pointer py-3 text-sm underline">{component.due === 'success' ? 'Confirmar êxito e gerar parcelas' : 'Registrar contratação e gerar parcelas'}</summary><form onSubmit={event => void submit(event)} className="grid gap-4 py-4"><fieldset disabled={busy} className="grid gap-4"><p className="text-sm">{component.condition || 'Registre a contratação aprovada antes de gerar valores a receber.'}</p><div className="grid gap-4 sm:grid-cols-2"><Field label={`Componente ${index + 1}: primeiro vencimento`}>{id => <Input id={id} name="date" type="date" required />}</Field><Field label={`Componente ${index + 1}: parcelas`}>{id => <Input id={id} name="count" type="number" min={1} max={120} defaultValue={component.kind === 'monthly' ? component.months : 1} required />}</Field></div>{component.kind === 'percentage' && component.due === 'success' && <Field label={`Componente ${index + 1}: benefício efetivamente obtido (R$)`}>{id => <Input id={id} name="base" inputMode="decimal" required />}</Field>}<Field label={`Componente ${index + 1}: evidência da contratação ou êxito`}>{id => <Textarea id={id} name="evidence" minLength={5} maxLength={2000} required />}</Field><Button className="justify-self-start" disabled={busy}>{busy ? 'Gerando…' : 'Gerar parcelas deste componente'}</Button></fieldset><Failure message={error} /></form></details>;
+  return <details><summary className="flex min-h-11 cursor-pointer items-center text-[13.5px] text-foreground underline underline-offset-4 md:min-h-8">{component.due === 'success' ? 'Confirmar êxito e gerar parcelas' : 'Registrar contratação e gerar parcelas'}</summary><form onSubmit={event => void submit(event)} className="grid gap-4 py-4"><fieldset disabled={busy} className="grid gap-4"><p className="text-sm">{component.condition || 'Registre a contratação aprovada antes de gerar valores a receber.'}</p><div className="grid gap-4 sm:grid-cols-2"><Field label={`Componente ${index + 1}: primeiro vencimento`}>{id => <Input id={id} name="date" type="date" required />}</Field><Field label={`Componente ${index + 1}: parcelas`}>{id => <Input id={id} name="count" type="number" min={1} max={120} defaultValue={component.kind === 'monthly' ? component.months : 1} required />}</Field></div>{component.kind === 'percentage' && component.due === 'success' && <Field label={`Componente ${index + 1}: benefício efetivamente obtido (R$)`}>{id => <Input id={id} name="base" inputMode="decimal" required />}</Field>}<Field label={`Componente ${index + 1}: evidência da contratação ou êxito`}>{id => <Textarea id={id} name="evidence" minLength={5} maxLength={2000} required />}</Field><Button className="justify-self-start" size="lg" disabled={busy}>{busy ? 'Gerando…' : 'Gerar parcelas deste componente'}</Button></fieldset><Failure message={error} /></form></details>;
 }

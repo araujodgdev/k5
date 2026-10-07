@@ -34,12 +34,12 @@ export function AgentRules({ initial }: { initial: RulesState }) {
   ];
 
   return (
-    <section aria-labelledby="rules-heading" className="mt-8">
-      <h2 id="rules-heading" className="font-medium">Regras de escrita</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Como o Lume escreve: tom, forma, vocabulário. As regras não mudam o cuidado com fontes e citações jurídicas.</p>
-      <p className="mt-2 text-[13px] text-muted-foreground" aria-live="polite">Ativas: {used(entries.map(entry => entry.rule)).toLocaleString("pt-BR")} caracteres</p>
-      <div className="mt-3 divide-y border-y">
-        {entries.length === 0 && editing !== "new" && <p className="py-4 text-sm text-subtle-foreground">Nenhuma regra definida.</p>}
+    <section aria-labelledby="rules-heading" className="flex flex-col gap-1">
+      <h2 id="rules-heading" className="text-[15px] font-semibold">Regras de escrita</h2>
+      <p className="text-[13.5px] text-muted-foreground">Como o Lume escreve: tom, forma, vocabulário. As regras não mudam o cuidado com fontes e citações jurídicas.</p>
+      <p className="text-xs text-muted-foreground" aria-live="polite">Ativas: {used(entries.map(entry => entry.rule)).toLocaleString("pt-BR")} caracteres</p>
+      <div className="mt-2 divide-y divide-border">
+        {entries.length === 0 && editing !== "new" && <p className="py-2 text-[13.5px] text-muted-foreground">Nenhuma regra definida.</p>}
         {entries.map(({ rule, scope }) => editing === rule.id
           ? <RuleForm key={rule.id} scope={scope} rule={rule} placeholder={placeholders[0]} onDone={(next) => {
               setEditing(null);
@@ -55,7 +55,7 @@ export function AgentRules({ initial }: { initial: RulesState }) {
       </div>
 
       {editing !== "new" && (
-        <Button type="button" variant="ghost" className="mt-2 min-h-11 md:min-h-9" onClick={() => setEditing("new")}><Plus aria-hidden="true" />Nova regra</Button>
+        <Button type="button" variant="ghost" size="lg" className="mt-1 h-11 self-start md:h-[34px]" onClick={() => setEditing("new")}><Plus aria-hidden="true" />Nova regra</Button>
       )}
     </section>
   );

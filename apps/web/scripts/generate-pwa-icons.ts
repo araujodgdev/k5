@@ -16,7 +16,7 @@ for (const [name, size, inset] of [
 ] as const) {
   const canvas = createCanvas(size, size);
   const context = canvas.getContext("2d");
-  context.fillStyle = "#1b1b1a";
+  context.fillStyle = "#F3F2EE";
   context.fillRect(0, 0, size, size);
   context.drawImage(await imageAt(size - inset * 2), inset, inset, size - inset * 2, size - inset * 2);
   await writeFile(new URL(name, output), canvas.toBuffer("image/png"));

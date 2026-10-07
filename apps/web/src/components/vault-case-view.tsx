@@ -2,53 +2,38 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
-import { CalendarDays, ChevronDown, ChevronRight, CircleAlert, Ellipsis, FolderClosed, FolderLock, FolderPlus, Import, LayoutGrid, List, LoaderCircle, MessageSquare, Pencil, Trash2, UsersRound } from "lucide-react";
+import { useRef, useState } from "react";
+import { ChevronRight, CircleAlert, FolderPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { DocumentPagination, DocumentRows, UploadControl, usePolledDocuments } from "@/components/vault-files";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { CanvasPage } from "@/components/canvas/canvas-page";
+import { DocumentItems, DocumentPagination, UploadControl, usePolledDocuments } from "@/components/vault-files";
 import { CaseDelete } from "@/components/vault-case-delete";
 import { JudicialCaseLinks } from "@/components/judicial-case-links";
 import { ResearchCaseReferences } from "@/components/research-case-references";
 import { VaultAnnexes } from "@/components/vault-annexes";
 import { DrivePanel } from "@/components/google/drive-panel";
-import { CollaborationPanel } from './collaboration-panel';
-import { FolderAccessDialog, FolderAccessFields, visibilityNote, type FolderAccessValue } from './vault-folder-access';
+import { FolderAccessDialog, type FolderAccessValue } from "@/components/vault-folder-access";
+import { CaseHeader, type CaseProcess } from "@/components/casos/case-header";
+import { CaseSections, type CaseSection } from "@/components/casos/case-sections";
+import { CaseStrip } from "@/components/casos/case-strip";
+import { CaseFormDialog } from "@/components/casos/case-form-dialog";
+import { FolderDialog } from "@/components/casos/folder-dialog";
+import { ShareDialog } from "@/components/casos/share-dialog";
+import { CaseFees, CaseTasks } from "@/components/casos/case-rows";
+import { FolderItem, PageItem, type CasePage } from "@/components/casos/case-items";
+import { ItemGrid } from "@/components/casos/item-card";
+import type { CasePerson } from "@/components/casos/people-stack";
 import type { VaultCase, VaultDocument, VaultFolder } from "@/lib/vault";
 
-type View = "cards" | "list";
-type Section = "files" | "processes" | "references" | "annexes" | "participants";
+type Dialog = "share" | "edit" | "folder" | "delete" | null;
 
-// Joined square options (case sections, view mode): borders overlap by 1px, the chosen one is ink.
-const segment = "-mt-px -ml-px focus-visible:z-10 aria-pressed:bg-foreground aria-pressed:text-background";
-const sectionLabels: [Section, string][] = [["files", "Arquivos"], ["processes", "Processos"], ["references", "Referências"], ["annexes", "Anexos"], ["participants", "Participantes"]];
-
-function countLabel(count: number) {
-  return count === 1 ? "1 arquivo" : `${count} arquivos`;
-}
-
-/** The case's sections: a grid of even rows on phones (3 + 2, or 2 + 2 without Processos), one row from md. */
-function CaseSections({ section, external, onChange, layout }: { section: Section; external: boolean; onChange: (section: Section) => void; layout: "grid" | "row" }) {
-  const grid = external ? "grid w-full grid-cols-2" : "grid w-full grid-cols-6 [&>*]:col-span-2 [&>*:nth-last-child(-n+2)]:col-span-3";
-  return <div className={`pt-px pl-px ${layout === "grid" ? grid : "flex max-w-full"}`} role="group" aria-label="Seção do caso">
-    {sectionLabels.filter(([value]) => !(external && value === "processes")).map(([value, label]) => (
-      <Button key={value} type="button" variant="outline" className={segment} aria-pressed={section === value} onClick={() => onChange(value)}>{label}</Button>
-    ))}
-  </div>;
-}
-
-function ViewToggle({ view, onChange }: { view: View; onChange: (view: View) => void }) {
-  return <div className="flex pt-px pl-px" role="group" aria-label="Modo de exibição">
-    <Button type="button" variant="outline" size="icon-sm" className={`size-11 md:size-8 ${segment}`} aria-pressed={view === "cards"} onClick={() => onChange("cards")} aria-label="Ver em cartões"><LayoutGrid aria-hidden="true" /></Button>
-    <Button type="button" variant="outline" size="icon-sm" className={`size-11 md:size-8 ${segment}`} aria-pressed={view === "list"} onClick={() => onChange("list")} aria-label="Ver em lista"><List aria-hidden="true" /></Button>
-  </div>;
-}
-
-export function VaultCaseView({ vaultCase, folders, path, initialDocuments, initialTotal, folderId, external = false, initialSection = 'files' }: {
+/**
+ * A case as a space (`v.caso`): its header, the Lume's strip while it works here, the sections
+ * and, in Tudo, Páginas and Arquivos, the case's items as cards. A folder opens in place with a
+ * trail back to the case.
+ */
+export function VaultCaseView({ vaultCase, folders, path, initialDocuments, initialTotal, folderId, external = false, people, pages, client, process, initialSection = "all" }: {
   vaultCase: VaultCase;
   folders: VaultFolder[];
   path: VaultFolder[];
@@ -56,303 +41,151 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
   initialTotal: number;
   folderId: string | null;
   external?: boolean;
-  initialSection?: 'files' | 'references' | 'annexes';
+  people: CasePerson[];
+  /** The viewer's own pages about the case; nobody else sees them. */
+  pages: CasePage[];
+  client: { id: string; name: string; area: string | null } | null;
+  process: CaseProcess | null;
+  initialSection?: CaseSection;
 }) {
   const router = useRouter();
   const query = `caseId=${encodeURIComponent(vaultCase.id)}&folderId=${folderId ? encodeURIComponent(folderId) : "root"}`;
   const { documents, setDocuments, refresh, firstPage, pagination } = usePolledDocuments(query, initialDocuments, initialTotal);
-  const [view, setView] = useState<View>("list");
-  const [section, setSection] = useState<Section>(initialSection);
+  const [section, setSection] = useState<CaseSection>(initialSection);
+  const [dialog, setDialog] = useState<Dialog>(null);
   const [failure, setFailure] = useState("");
-  const [folderName, setFolderName] = useState("");
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [savingFolder, setSavingFolder] = useState(false);
-  const [folderAccess, setFolderAccess] = useState<FolderAccessValue>({ visibility: "public", memberIds: [] });
+  const [driveOpen, setDriveOpen] = useState(false);
   const [accessFolder, setAccessFolder] = useState<VaultFolder | null>(null);
   const [accessChanges, setAccessChanges] = useState<Record<string, FolderAccessValue>>({});
   const [addedFolders, setAddedFolders] = useState<VaultFolder[]>([]);
+  const moreActions = useRef<HTMLElement | null>(null);
   // Only this level's new folders, and only until the refreshed list from the server brings them.
   const shownFolders = [...folders, ...addedFolders.filter((added) => added.parentId === folderId && !folders.some((folder) => folder.id === added.id))]
     .map((folder) => ({ ...folder, ...accessChanges[folder.id] }));
-  const [editing, setEditing] = useState(false);
-  const [driveOpen, setDriveOpen] = useState(false);
-
-  const [deleting, setDeleting] = useState(false);
-  const moreActions = useRef<HTMLButtonElement>(null);
 
   const base = `/app/vault/cases/${vaultCase.id}`;
-  const href = (target: string | null) => (target ? `${base}?folder=${encodeURIComponent(target)}` : base);
-  const agendaHref = `/app/agenda?caseId=${encodeURIComponent(vaultCase.id)}`;
-  const chatHref = `/app/agents?caseId=${encodeURIComponent(vaultCase.id)}`;
-  const driveLabel = driveOpen ? "Fechar Google Drive" : "Importar do Google Drive";
-  const deleteProps = { caseId: vaultCase.id, name: vaultCase.name, documentCount: vaultCase.documentCount, onError: setFailure, onDeleted: () => { router.push("/app/vault"); router.refresh(); } };
+  const folderHref = (target: string | null) => (target ? `${base}?folder=${encodeURIComponent(target)}` : base);
+  const pageHref = (page: CasePage) => `/app/documents/${encodeURIComponent(page.id)}?case=${encodeURIComponent(vaultCase.id)}`;
+  const atRoot = !folderId;
+  const shownPages = atRoot ? pages : [];
+  const filesTotal = shownFolders.length + pagination.total;
 
-  // Leaving Arquivos closes what belongs to it, so no button stays marked open over a hidden panel.
-  function changeSection(next: Section) {
-    setSection(next);
-    if (next !== "files") { setCreatingFolder(false); setDriveOpen(false); }
-  }
-
-  // On a phone these two stay in the header whatever section is open, so they bring the files back.
-  function toggleFolderForm() {
-    setFailure("");
-    if (section !== "files") { setSection("files"); setCreatingFolder(true); } else setCreatingFolder((value) => !value);
-  }
-  function toggleDrive() {
-    if (section !== "files") { setSection("files"); setDriveOpen(true); } else setDriveOpen((open) => !open);
-  }
-
-  // The new folder joins the list as soon as the server answers; the page refresh that follows only
-  // brings the rest up to date, so the person never waits on it to see the result.
-  async function submitFolder(event: FormEvent) {
-    event.preventDefault();
-    const name = folderName.trim();
-    if (!name || savingFolder) return;
-    setFailure("");
-    setSavingFolder(true);
-    try {
-      const response = await fetch("/api/vault/folders", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ caseId: vaultCase.id, name, parentId: folderId, visibility: folderAccess.visibility,
-          memberIds: folderAccess.visibility === "restricted" ? folderAccess.memberIds : [] }),
-      });
-      const result = await response.json().catch(() => null) as { error?: string; folder?: VaultFolder } | null;
-      if (!response.ok || !result?.folder) {
-        setFailure(result?.error ?? "Não foi possível criar a pasta.");
-        return;
-      }
-      const created = result.folder;
-      setAddedFolders((current) => [...current, created]);
-      setFolderName("");
-      setFolderAccess({ visibility: "public", memberIds: [] });
-      setCreatingFolder(false);
-      router.refresh();
-    } catch {
-      setFailure("Não foi possível conectar. Confira sua conexão.");
-    } finally {
-      setSavingFolder(false);
-    }
-  }
+  const sections: { id: CaseSection; count?: number }[] = atRoot ? [
+    { id: "all", count: shownPages.length + filesTotal },
+    { id: "pages", count: shownPages.length },
+    { id: "files", count: filesTotal },
+    ...(external ? [] : [{ id: "tasks" as const }, { id: "fees" as const }, { id: "processes" as const }]),
+    { id: "references" }, { id: "annexes" },
+  ] : [];
+  const current: CaseSection = atRoot ? section : "files";
+  const showsFiles = current === "all" || current === "files";
 
   async function removeFolder(id: string) {
     setFailure("");
-    const response = await fetch(`/api/vault/folders/${id}`, { method: "DELETE" });
-    if (!response.ok) {
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      setFailure(result?.error ?? "Não foi possível remover a pasta.");
-      return;
-    }
-    setAddedFolders((current) => current.filter((folder) => folder.id !== id));
-    router.refresh();
-  }
-
-  return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10">
-    <nav aria-label="Trilha" className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground" data-reveal>
-      <Link href="/app/vault" className="rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cofre</Link>
-      <ChevronRight className="size-3.5" aria-hidden="true" />
-      <Link href={base} className="max-w-56 truncate rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-current={folderId ? undefined : "page"}>{vaultCase.name}</Link>
-      {path.map((folder, index) => (
-        <span key={folder.id} className="flex items-center gap-1">
-          <ChevronRight className="size-3.5" aria-hidden="true" />
-          <Link href={href(folder.id)} aria-current={index === path.length - 1 ? "page" : undefined} className="max-w-48 truncate rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{folder.name}</Link>
-        </span>
-      ))}
-    </nav>
-
-    <div className="mt-3 flex flex-wrap items-end justify-between gap-4 border-b pb-5" data-reveal>
-      <div className="min-w-0">
-        {/* The record's name stays whole on a phone (DESIGN.md, "Mobile"); one line from md up. */}
-        <h1 className="page-title leading-tight break-words md:truncate md:leading-none">{vaultCase.name}</h1>
-        {vaultCase.description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{vaultCase.description}</p>}
-      </div>
-      {/* Phones: the case's actions in two short rows (a menu for where the case leads, the buttons
-          used most, then "•••" for deleting), the sections as a 3 + 2 grid and the file tools under
-          them. Every control is 44px (DESIGN.md) and nothing is wider than the screen. */}
-      <div className="flex w-full min-w-0 flex-col gap-3 md:hidden [&_[data-slot=button]]:h-11">
-        <div className="flex flex-wrap gap-2 [&>[data-slot=button]]:px-2">
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild><Button type="button" variant="outline" className="h-11 px-2"><LayoutGrid aria-hidden="true" />Ações<ChevronDown aria-hidden="true" /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {!external && <DropdownMenuItem asChild><Link href={agendaHref}><CalendarDays aria-hidden="true" />Tarefas e Agenda</Link></DropdownMenuItem>}
-              <DropdownMenuItem asChild><Link href={chatHref}><MessageSquare aria-hidden="true" />Conversar sobre o caso</Link></DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button type="button" variant="outline" aria-expanded={creatingFolder} onClick={toggleFolderForm}><FolderPlus aria-hidden="true" />Nova pasta</Button>
-          <Button type="button" variant="outline" aria-expanded={editing} onClick={() => setEditing((value) => !value)}><Pencil aria-hidden="true" />{editing ? "Fechar edição" : "Editar caso"}</Button>
-        </div>
-        {!external && <div className="flex flex-wrap gap-2 [&>[data-slot=button]]:px-2">
-          <Button type="button" variant="outline" aria-expanded={driveOpen} onClick={toggleDrive}><Import aria-hidden="true" />{driveLabel}</Button>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild><Button ref={moreActions} type="button" variant="outline" size="icon" className="size-11" aria-label="Mais ações do caso"><Ellipsis aria-hidden="true" /></Button></DropdownMenuTrigger>
-            {/* The confirmation takes the focus as the menu closes; the menu must not pull it back. */}
-            <DropdownMenuContent align="end" onCloseAutoFocus={(event) => { if (deleting) event.preventDefault(); }}>
-              <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}><Trash2 aria-hidden="true" />Excluir caso</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>}
-        {!folderId && <CaseSections section={section} external={external} onChange={changeSection} layout="grid" />}
-        {section === "files" && <div className="flex items-center gap-3">
-          <ViewToggle view={view} onChange={setView} />
-          <span aria-hidden="true" className="h-6 w-px bg-border" />
-          <UploadControl scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={() => void firstPage()} />
-        </div>}
-      </div>
-      {/* From md, one row that wraps. min-w-0 lets it shrink instead of widening the page. */}
-      <div className="hidden min-w-0 flex-wrap items-center gap-2 md:flex">
-        {!external && <Button variant="outline" asChild><Link href={agendaHref}>Tarefas e Agenda</Link></Button>}
-        {!folderId && <CaseSections section={section} external={external} onChange={changeSection} layout="row" />}
-        {section === "files" && (
-          <>
-            <ViewToggle view={view} onChange={setView} />
-            <Button type="button" variant="outline" aria-expanded={creatingFolder} onClick={toggleFolderForm}><FolderPlus aria-hidden="true" />Nova pasta</Button>
-            <UploadControl scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={() => void firstPage()} />
-            {!external && <Button type="button" variant="outline" aria-expanded={driveOpen} onClick={toggleDrive}>{driveLabel}</Button>}
-          </>
-        )}
-        <Button type="button" variant="outline" aria-expanded={editing} onClick={() => setEditing((value) => !value)}>{editing ? "Fechar detalhes" : "Detalhes"}</Button>
-        <Button asChild variant="outline"><Link href={chatHref}>Conversar sobre o caso</Link></Button>
-        {!external && <CaseDelete className="border-input" {...deleteProps} />}
-      </div>
-    </div>
-    {/* The phone's "•••" menu opens the same confirmation. */}
-    {!external && <CaseDelete open={deleting} onOpenChange={setDeleting} returnFocusTo={moreActions} {...deleteProps} />}
-
-    {section === "files" && creatingFolder && <form onSubmit={submitFolder} className="grid gap-4 border-b py-4 sm:grid-cols-2 sm:items-start">
-      <div className="grid gap-1.5"><Label htmlFor="folder-name">Nome da pasta</Label><Input id="folder-name" value={folderName} onChange={(event) => setFolderName(event.target.value)} maxLength={120} className="min-w-0" required /></div>
-      <FolderAccessFields caseId={vaultCase.id} value={folderAccess} onChange={setFolderAccess} idPrefix="new-folder" />
-      <Button type="submit" className="justify-self-start" disabled={!folderName.trim() || savingFolder || (folderAccess.visibility === "restricted" && !folderAccess.memberIds.length)}>{savingFolder && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{savingFolder ? "Criando…" : "Criar pasta"}</Button>
-    </form>}
-    {accessFolder && <FolderAccessDialog key={accessFolder.id} caseId={vaultCase.id} folder={accessFolder} open onOpenChange={(open) => { if (!open) setAccessFolder(null); }} onSaved={(folder) => {
-      setAccessChanges((current) => ({ ...current, [folder.id]: { visibility: folder.visibility, memberIds: folder.memberIds } }));
+    try {
+      const response = await fetch(`/api/vault/folders/${id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { error?: string } | null;
+        setFailure(result?.error ?? "Não foi possível remover a pasta.");
+        return;
+      }
+      setAddedFolders((list) => list.filter((folder) => folder.id !== id));
       router.refresh();
-    }} />}
-
-    {editing && <CaseDetailsForm vaultCase={vaultCase} onSaved={() => { setEditing(false); router.refresh(); }} onError={setFailure} />}
-
-    {failure && <p className="mt-4 flex items-start gap-2 text-sm text-destructive" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{failure}</p>}
-
-    <div className="mt-5 min-h-0 overflow-auto">
-      {section === 'participants' && <CollaborationPanel caseId={vaultCase.id} />}
-      {section === "files" && driveOpen && <DrivePanel initialCaseId={vaultCase.id} initialFolderId={folderId} onImported={firstPage} />}
-      {!folderId && section === "processes" && <JudicialCaseLinks caseId={vaultCase.id} />}
-      {!folderId && section === "references" && <ResearchCaseReferences caseId={vaultCase.id} external={external} />}
-      {!folderId && section === "annexes" && <VaultAnnexes caseId={vaultCase.id} />}
-
-      {section === "files" && shownFolders.length > 0 && (view === "cards" ? (
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {shownFolders.map((folder) => (
-            <div key={folder.id} className="relative min-w-0">
-              <Link href={href(folder.id)} className="grid min-h-24 min-w-0 grid-cols-1 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
-                <span className="flex min-w-0 items-center gap-2 font-medium"><FolderIcon folder={folder} /><span className={`min-w-0 truncate ${folder.owned ? "pr-20" : "pr-8"}`}>{folder.name}</span></span>
-                <span className="mt-auto text-[13px] text-subtle-foreground">{[countLabel(folder.documentCount), visibilityNote(folder)].filter(Boolean).join(" · ")}</span>
-              </Link>
-              <div className="absolute top-2 right-2 flex">
-                {folder.owned && <FolderAccessButton name={folder.name} onClick={() => setAccessFolder(folder)} />}
-                {(folder.owned || !external) && <FolderDelete name={folder.name} hidden={folder.visibility !== "public"} onConfirm={() => void removeFolder(folder.id)} />}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="mb-6">
-          {shownFolders.map((folder) => (
-            <div key={folder.id} className="flex items-center border-b">
-              <Link href={href(folder.id)} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
-                <FolderIcon folder={folder} /><span className="truncate">{folder.name}</span>
-                <span className="ml-auto shrink-0 pr-2 pl-3 text-[13px] whitespace-nowrap text-subtle-foreground">{[visibilityNote(folder), countLabel(folder.documentCount)].filter(Boolean).join(" · ")}</span>
-              </Link>
-              {folder.owned && <FolderAccessButton name={folder.name} onClick={() => setAccessFolder(folder)} />}
-              {(folder.owned || !external) && <FolderDelete name={folder.name} hidden={folder.visibility !== "public"} onConfirm={() => void removeFolder(folder.id)} />}
-            </div>
-          ))}
-        </div>
-      ))}
-
-      {section === "files" && (<>
-      <DocumentRows
-        documents={documents}
-        onError={setFailure}
-        onRetried={(documentId) => setDocuments((current) => current.map((item) => item.id === documentId ? { ...item, status: "queued", progress: 0, errorMessage: null } : item))}
-        onDeleted={() => void refresh()}
-        empty={folderId ? "Esta pasta está vazia." : "Nenhum arquivo neste caso ainda."}
-      />
-      <DocumentPagination {...pagination} />
-      </>)}
-    </div>
-  </div>;
-}
-
-function FolderIcon({ folder }: { folder: VaultFolder }) {
-  const Icon = folder.visibility === "private" ? FolderLock : folder.visibility === "restricted" ? UsersRound : FolderClosed;
-  return <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />;
-}
-
-function FolderAccessButton({ name, onClick }: { name: string; onClick: () => void }) {
-  return <Button type="button" variant="ghost" size="icon-sm" className="size-11 shrink-0 md:size-8" aria-label={`Quem vê a pasta ${name}`} onClick={onClick}><UsersRound aria-hidden="true" /></Button>;
-}
-
-/** Reserved folders must be emptied before removal so their access rule is preserved. */
-function FolderDelete({ name, hidden = false, onConfirm, className }: { name: string; hidden?: boolean; onConfirm: () => void; className?: string }) {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button type="button" variant="ghost" size="icon-sm" className={`size-11 shrink-0 md:size-8 ${className ?? ""}`} aria-label={`Remover pasta ${name}`}><Trash2 aria-hidden="true" /></Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Remover a pasta {name}?</AlertDialogTitle>
-          <AlertDialogDescription>{hidden ? "Para preservar o acesso reservado, mova o conteúdo ou altere quem vê a pasta antes de removê-la. Pastas privadas ou restritas só podem ser removidas quando estão vazias." : "Os arquivos e as subpastas sobem um nível. Nada é excluído."}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onConfirm}>Remover pasta</AlertDialogAction></AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
-function CaseDetailsForm({ vaultCase, onSaved, onError }: { vaultCase: VaultCase; onSaved: () => void; onError: (message: string) => void }) {
-  const [name, setName] = useState(vaultCase.name);
-  const [description, setDescription] = useState(vaultCase.description ?? "");
-  const [client, setClient] = useState({
-    name: vaultCase.client.name ?? "", document: vaultCase.client.document ?? "", email: vaultCase.client.email ?? "",
-    phone: vaultCase.client.phone ?? "", notes: vaultCase.client.notes ?? "",
-  });
-  const [advanced, setAdvanced] = useState(Object.values(vaultCase.client).some(Boolean));
-  const [busy, setBusy] = useState(false);
-
-  async function save(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    onError("");
-    const response = await fetch(`/api/vault/cases/${vaultCase.id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), description: description.trim() || null, client }),
-    });
-    setBusy(false);
-    if (!response.ok) {
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      onError(result?.error ?? "Não foi possível salvar o caso.");
-      return;
-    }
-    onSaved();
+    } catch { setFailure("Não foi possível conectar. Confira sua conexão."); }
   }
 
+  const menu = (
+    <>
+      <DropdownMenuItem onSelect={() => setDialog("edit")}>Editar caso</DropdownMenuItem>
+      <DropdownMenuItem asChild><Link href={`/app/agents?caseId=${encodeURIComponent(vaultCase.id)}`}>Conversar sobre o caso</Link></DropdownMenuItem>
+      {!external && <DropdownMenuItem asChild><Link href={`/app/agenda?caseId=${encodeURIComponent(vaultCase.id)}`}>Tarefas e Agenda</Link></DropdownMenuItem>}
+      {!external && <DropdownMenuItem onSelect={() => { setSection(atRoot && !showsFiles ? "files" : section); setDriveOpen((open) => !open); }}>
+        {driveOpen ? "Fechar Google Drive" : "Importar do Google Drive"}
+      </DropdownMenuItem>}
+      {!external && <DropdownMenuItem variant="destructive" onSelect={() => setDialog("delete")}>Excluir caso</DropdownMenuItem>}
+    </>
+  );
+
+  const fileTools = showsFiles && (
+    <>
+      <Button type="button" variant="ghost" className="text-muted-foreground max-md:h-11" onClick={() => { setFailure(""); setDialog("folder"); }}>
+        <FolderPlus aria-hidden="true" className="size-3.5" />Nova pasta
+      </Button>
+      <UploadControl scope="case" caseId={vaultCase.id} folderId={folderId} onError={setFailure} onUploaded={() => void firstPage()} />
+    </>
+  );
+
   return (
-    <form onSubmit={save} className="grid gap-4 border-b py-5">
-      <div className="grid gap-1.5"><Label htmlFor="edit-case-name">Título</Label><Input id="edit-case-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={180} required /></div>
-      <div className="grid gap-1.5"><Label htmlFor="edit-case-description">Descrição</Label><Textarea id="edit-case-description" value={description} onChange={(event) => setDescription(event.target.value)} className="min-h-20 resize-y" maxLength={4000} /></div>
-      <button type="button" className="flex min-h-11 w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8" aria-expanded={advanced} onClick={() => setAdvanced((value) => !value)}>
-        <ChevronRight className={`size-4 transition-transform ${advanced ? "rotate-90" : ""}`} aria-hidden="true" />Dados do cliente (opcional)
-      </button>
-      {advanced && <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5"><Label htmlFor="edit-client-name">Nome</Label><Input id="edit-client-name" value={client.name} onChange={(event) => setClient({ ...client, name: event.target.value })} maxLength={180} /></div>
-        <div className="grid gap-1.5"><Label htmlFor="edit-client-document">CPF ou CNPJ</Label><Input id="edit-client-document" value={client.document} onChange={(event) => setClient({ ...client, document: event.target.value })} maxLength={40} /></div>
-        <div className="grid gap-1.5"><Label htmlFor="edit-client-email">E-mail</Label><Input id="edit-client-email" type="email" value={client.email} onChange={(event) => setClient({ ...client, email: event.target.value })} maxLength={200} /></div>
-        <div className="grid gap-1.5"><Label htmlFor="edit-client-phone">Telefone</Label><Input id="edit-client-phone" value={client.phone} onChange={(event) => setClient({ ...client, phone: event.target.value })} maxLength={40} /></div>
-        <div className="grid gap-1.5 sm:col-span-2"><Label htmlFor="edit-client-notes">Observações</Label><Textarea id="edit-client-notes" value={client.notes} onChange={(event) => setClient({ ...client, notes: event.target.value })} className="min-h-20 resize-y" maxLength={4000} /></div>
-      </div>}
-      <div><Button type="submit" disabled={busy}>{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}Salvar caso</Button></div>
-    </form>
+    <CanvasPage width="wide" className="md:gap-5">
+      <CaseHeader title={vaultCase.name} client={client?.name ?? vaultCase.client.name} note={external ? "compartilhado com você" : client?.area ?? undefined}
+        process={process} people={people} onShare={() => setDialog("share")} menu={menu} menuOpenerRef={moreActions}
+        onMenuClose={(event) => { if (dialog) event.preventDefault(); }} />
+      <CaseStrip caseId={vaultCase.id} />
+
+      {atRoot ? (
+        <CaseSections sections={sections} current={current} onChange={(next) => { setSection(next); if (next !== "all" && next !== "files") setDriveOpen(false); }} actions={fileTools || undefined} />
+      ) : (
+        <div className="flex min-w-0 flex-wrap items-center gap-3 border-b border-border pb-2 md:flex-nowrap">
+          <nav aria-label="Trilha" className="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-[13.5px] text-muted-foreground">
+            <Link href={base} className="max-w-56 truncate rounded-sm hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">{vaultCase.name}</Link>
+            {path.map((folder, index) => (
+              <span key={folder.id} className="flex min-w-0 items-center gap-1">
+                <ChevronRight aria-hidden="true" className="size-3.5 shrink-0" />
+                <Link href={folderHref(folder.id)} aria-current={index === path.length - 1 ? "page" : undefined}
+                  className="max-w-48 truncate rounded-sm hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:font-medium aria-[current=page]:text-foreground">{folder.name}</Link>
+              </span>
+            ))}
+          </nav>
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:gap-1">{fileTools}</div>
+        </div>
+      )}
+
+      {failure && <p role="alert" className="flex items-start gap-2 text-[13px] text-destructive"><CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />{failure}</p>}
+      {showsFiles && driveOpen && !external && <DrivePanel initialCaseId={vaultCase.id} initialFolderId={folderId} onImported={firstPage} />}
+
+      {current === "pages" && (
+        <p className="-mt-1 text-[13px] text-muted-foreground">
+          {shownPages.length ? "Páginas que você escreveu com o Lume nas conversas sobre este caso. Só você as vê." : "Nenhuma página ainda. O que você escrever com o Lume sobre este caso aparece aqui, só para você."}
+        </p>
+      )}
+
+      {(showsFiles || current === "pages") && (
+        <ItemGrid label={current === "pages" ? "Páginas do caso" : "Itens do caso"}>
+          {(current === "all" || current === "pages") && shownPages.map((page) => <PageItem key={page.id} page={page} href={pageHref(page)} />)}
+          {showsFiles && shownFolders.map((folder) => (
+            <FolderItem key={folder.id} folder={folder} href={folderHref(folder.id)} canRemove={folder.owned || !external}
+              onAccess={() => setAccessFolder(folder)} onRemove={() => void removeFolder(folder.id)} />
+          ))}
+          {showsFiles && (
+            <DocumentItems documents={documents} onError={setFailure} onDeleted={() => void refresh()}
+              onRetried={(documentId) => setDocuments((list) => list.map((item) => item.id === documentId ? { ...item, status: "queued", progress: 0, errorMessage: null } : item))} />
+          )}
+        </ItemGrid>
+      )}
+      {showsFiles && !pagination.loading && !pagination.error && pagination.total === 0 && shownFolders.length === 0 && (current === "files" || shownPages.length === 0) && (
+        <p className="text-[13.5px] text-muted-foreground">{folderId ? "Esta pasta está vazia." : current === "all"
+          ? "Nada neste caso ainda. Envie os primeiros arquivos ou peça ao Lume para começar uma página." : "Nenhum arquivo neste caso ainda."}</p>
+      )}
+      {showsFiles && <DocumentPagination {...pagination} />}
+
+      {current === "tasks" && <CaseTasks caseId={vaultCase.id} />}
+      {current === "fees" && <CaseFees caseId={vaultCase.id} />}
+      {current === "processes" && <JudicialCaseLinks caseId={vaultCase.id} />}
+      {current === "references" && <ResearchCaseReferences caseId={vaultCase.id} external={external} />}
+      {current === "annexes" && <VaultAnnexes caseId={vaultCase.id} />}
+
+      <ShareDialog caseId={vaultCase.id} caseName={vaultCase.name} client={client} open={dialog === "share"} onOpenChange={(open) => setDialog(open ? "share" : null)} />
+      <CaseFormDialog record={vaultCase} open={dialog === "edit"} onOpenChange={(open) => setDialog(open ? "edit" : null)} onSaved={() => router.refresh()} />
+      <FolderDialog caseId={vaultCase.id} parentId={folderId} open={dialog === "folder"} onOpenChange={(open) => setDialog(open ? "folder" : null)}
+        onCreated={(folder) => { setAddedFolders((list) => [...list, folder]); router.refresh(); }} />
+      {!external && (
+        <CaseDelete caseId={vaultCase.id} name={vaultCase.name} documentCount={vaultCase.documentCount} open={dialog === "delete"} returnFocusTo={moreActions}
+          onOpenChange={(open) => setDialog(open ? "delete" : null)} onError={setFailure} onDeleted={() => { router.push("/app/vault"); router.refresh(); }} />
+      )}
+      {accessFolder && (
+        <FolderAccessDialog key={accessFolder.id} caseId={vaultCase.id} folder={accessFolder} open onOpenChange={(open) => { if (!open) setAccessFolder(null); }}
+          onSaved={(folder) => { setAccessChanges((changes) => ({ ...changes, [folder.id]: { visibility: folder.visibility, memberIds: folder.memberIds } })); router.refresh(); }} />
+      )}
+    </CanvasPage>
   );
 }

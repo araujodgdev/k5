@@ -2,17 +2,18 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, File, Inbox, Mails, Paperclip, PenLine, Search, Send, Star, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, File, Inbox, Mail, Mails, Paperclip, PenLine, Search, Send, Star, type LucideIcon } from 'lucide-react';
+import { CanvasTrail, Chip, Field } from '@/components/canvas/canvas-controls';
+import { CanvasHeader, CanvasPage, CanvasRow } from '@/components/canvas/canvas-page';
+import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SmartOptions, type SmartOption } from '@/components/smart-options';
 import type { CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { EmailTriageItem, EmailTriageResult } from '@/lib/google/gmail/triage-contracts';
 import type { DigestPeriod, EmailDigest, ThreadInsight } from '@/lib/google/gmail/insights-contracts';
-import { cn } from '@/lib/utils';
 import { googleCall, GoogleClientError, GoogleConnectionNotice, type GoogleStatus, useGoogleAction } from './client';
 import { EmailFrame } from './email-frame';
 import { DigestView, periodNames, requestInsight, ThreadInsightView, type Pending } from './email-smart';
@@ -50,7 +51,7 @@ const listDate = (value: string | null) => {
     ? date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     : date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 };
-const selectClass = 'mt-1 h-11 w-full border border-input bg-background px-2 text-sm text-foreground md:h-9';
+const selectClass = 'h-11 w-full rounded-md border bg-background text-[13.5px] text-foreground md:h-9';
 
 /** The reader's thread comes from its own route, which adds each message's HTML for the sandboxed frame. */
 async function fetchThread(threadId: string): Promise<Thread> {
@@ -105,7 +106,7 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
   const listScroller = useRef<HTMLDivElement>(null);
   const detailScroller = useRef<HTMLDivElement>(null);
   const detailHeading = useRef<HTMLHeadingElement>(null);
-  const hadMobileDetail = useRef(false);
+  const hadDetail = useRef(false);
   const detailVisible = Boolean(thread || editor || detailLoading || digestPeriod);
   const pageKey = JSON.stringify([folder, search, pageToken ?? '', revision]);
   const visibleTriage = useMemo(() => triage?.pageKey === pageKey ? triage.items : [], [triage, pageKey]);
@@ -120,13 +121,12 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
       (priorityOrder[triageById.get(a.id)?.priority ?? 'normal'] - priorityOrder[triageById.get(b.id)?.priority ?? 'normal'])) : filtered;
   }, [threads, triageById, categoryFilter, priorityFilter, sortOrder]);
   useEffect(() => {
-    if (!window.matchMedia('(max-width: 1023px)').matches) return;
     if (detailVisible) {
       (detailHeading.current ?? detailScroller.current)?.focus();
-      hadMobileDetail.current = true;
-    } else if (hadMobileDetail.current) {
+      hadDetail.current = true;
+    } else if (hadDetail.current) {
       listScroller.current?.focus();
-      hadMobileDetail.current = false;
+      hadDetail.current = false;
     }
   }, [detailVisible]);
   useEffect(() => { const requests = smartRequests.current; return () => requests.forEach(controller => controller.abort()); }, []);
@@ -367,189 +367,168 @@ export function GmailPanel({ initialThreadId, initialDraftId }: { initialThreadI
     }
   }
 
-  const folderButton = (item: Folder, rail: boolean) => {
-    const Icon = folderIcons[item];
-    const active = folder === item && !digestPeriod;
-    const button = <button key={item} type="button" aria-current={folder === item ? 'page' : undefined} aria-label={rail ? labels[item] : undefined}
-      onClick={() => chooseFolder(item)}
-      className={cn('hover-rise flex h-10 w-full items-center gap-3 text-sm transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-        rail ? 'justify-center' : 'px-4', active ? 'bg-foreground font-medium text-background before:hidden' : 'text-muted-foreground')}>
-      <Icon aria-hidden="true" className="size-4 shrink-0" />{!rail && labels[item]}
-    </button>;
-    return rail ? <Tooltip key={item}><TooltipTrigger asChild>{button}</TooltipTrigger><TooltipContent side="right">{labels[item]}</TooltipContent></Tooltip> : button;
+  const quiet = 'text-[13.5px] text-muted-foreground';
+  const control = 'h-11 md:h-[34px]';
+  const sender = (from: string) => from.replace(/<[^<>]*>/g, '').replace(/"/g, '').trim() || from;
+  const turnPage = (direction: 'previous' | 'next') => {
+    invalidateTriage(); setListLoading(true);
+    if (direction === 'previous') { setPageToken(previous.at(-1)); setPrevious(items => items.slice(0, -1)); }
+    else { setPrevious(items => [...items, pageToken]); setPageToken(nextToken ?? undefined); }
   };
+  const detailTitle = thread ? thread.subject || '(sem assunto)' : editor ? editor.draftId ? 'Editar rascunho' : editor.replyToMessageId ? 'Responder' : 'Novo e-mail'
+    : digestPeriod ? { day: 'Resumo do dia', week: 'Resumo da semana', month: 'Resumo do mês' }[digestPeriod] : 'Mensagem';
+  const messages = <>
+    {failure && <p role="alert" className="text-[13.5px] text-destructive">{failure}</p>}
+    {notice && <p role="status" className={quiet}>{notice}</p>}
+  </>;
 
-  return <div className="gmail-workspace flex min-h-0 flex-1 flex-col overflow-hidden max-md:[&_button]:min-h-11 max-md:[&_button]:min-w-11">
-    {/* On a phone the title is hidden (the header names the module); without actions the bar has
-        nothing to show, so it takes no room instead of leaving an empty strip. */}
-    <div className={cn('flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-3 md:h-(--shell-header) md:px-10 md:py-0', !enabled && 'max-md:border-b-0 max-md:p-0')}>
-      <h1 className="page-title leading-none max-md:sr-only">E-mails</h1>
-      {enabled && <div className="flex items-center gap-1 lg:hidden">
-        <SmartOptions options={mailboxOptions} onSelect={onMailboxOption} busy={digestBusy || triageBusy} align="end" />
-        <Button type="button" onClick={compose}><PenLine aria-hidden="true" />Escrever</Button>
-      </div>}
-    </div>
-    {status && !enabled ? <div className="px-5 md:px-10"><GoogleConnectionNotice status={status} module="gmail" /></div> : null}
-    {loading && !status ? <p className="px-5 py-8 text-sm text-muted-foreground md:px-10">Carregando conexão…</p> : null}
-    {failure && <p role="alert" className="shrink-0 px-5 py-2 text-sm text-destructive md:px-10">{failure}</p>}
-    {notice && <p role="status" className="shrink-0 px-5 py-2 text-sm text-muted-foreground md:px-10">{notice}</p>}
-    {enabled && <div className="flex min-h-0 flex-1 overflow-hidden">
-      {/* Gmail-like folder column: labels from xl, an icon rail on narrower desktops, a strip on phones. */}
-      <TooltipProvider delayDuration={300}><aside aria-label="Caixa de e-mail" className="hidden w-14 shrink-0 flex-col border-r border-line lg:flex xl:w-56">
-        <div className="flex items-center gap-1 border-b p-2 max-xl:flex-col">
-          <><Tooltip><TooltipTrigger asChild><Button type="button" size="icon" aria-label="Escrever" className="xl:hidden" onClick={compose}><PenLine aria-hidden="true" /></Button></TooltipTrigger>
-            <TooltipContent side="right">Escrever</TooltipContent></Tooltip>
-            <Button type="button" className="hidden flex-1 justify-start xl:flex" onClick={compose}><PenLine aria-hidden="true" />Escrever</Button></>
-          <SmartOptions options={mailboxOptions} onSelect={onMailboxOption} busy={digestBusy || triageBusy} />
-        </div>
-        <nav aria-label="Pastas de e-mail" className="py-2">
-          <div className="xl:hidden">{(Object.keys(labels) as Folder[]).map(item => folderButton(item, true))}</div>
-          <div className="hidden xl:block">{(Object.keys(labels) as Folder[]).map(item => folderButton(item, false))}</div>
-        </nav>
-      </aside></TooltipProvider>
-      <div className={cn('min-h-0 min-w-0 flex-1 flex-col lg:flex lg:w-80 lg:flex-none lg:border-r lg:border-line xl:w-96', detailVisible ? 'max-lg:hidden' : 'flex')}>
-        <nav aria-label="Pastas de e-mail" className="flex shrink-0 gap-1 overflow-x-auto border-b px-3 py-2 lg:hidden">
-          {(Object.keys(labels) as Folder[]).map(item => { const Icon = folderIcons[item]; return <Button key={item} variant="ghost" type="button" aria-current={folder === item ? 'page' : undefined}
-            className={folder === item ? 'bg-foreground text-background hover:bg-foreground hover:text-background' : 'text-muted-foreground'} onClick={() => chooseFolder(item)}>
-            <Icon aria-hidden="true" />{labels[item]}</Button>; })}
-        </nav>
-        {folder !== 'DRAFT' && <form onSubmit={(event: FormEvent) => { event.preventDefault(); invalidateTriage(); if (listScroller.current) listScroller.current.scrollTop = 0; setListLoading(true); setSearch(query.trim()); setPageToken(undefined); setPrevious([]); setRevision(current => current + 1); }}
-          className="flex shrink-0 gap-2 border-b px-4 py-3"><Input aria-label="Buscar e-mails" placeholder="Buscar no Gmail" value={query}
-            onChange={event => setQuery(event.target.value)} maxLength={500} />
-          <Button type="submit" variant="outline" size="icon" aria-label="Buscar"><Search aria-hidden="true" /></Button></form>}
-        {folder !== 'DRAFT' && (triageBusy || triageMessage || visibleTriage.length > 0) && <div className="shrink-0 border-b px-4 py-3">
-          {triageBusy && <p role="status" className="text-xs text-muted-foreground">Classificando esta página…</p>}
-          {triageMessage && <p role="status" className="text-xs text-muted-foreground">{triageMessage}</p>}
-          {visibleTriage.length > 0 && <div className="mt-3 grid grid-cols-3 gap-2">
-            <label className="text-xs text-muted-foreground">Categoria
-              <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value as typeof categoryFilter)} className={selectClass}>
-                <option value="all">Todas</option>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select></label>
-            <label className="text-xs text-muted-foreground">Prioridade
-              <select value={priorityFilter} onChange={event => setPriorityFilter(event.target.value as typeof priorityFilter)} className={selectClass}>
-                <option value="all">Todas</option>{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select></label>
-            <label className="text-xs text-muted-foreground">Ordenar
-              <select value={sortOrder} onChange={event => setSortOrder(event.target.value as typeof sortOrder)} className={selectClass}>
-                <option value="recent">Mais recentes</option><option value="priority">Prioridade</option>
-              </select></label>
-            <p className="col-span-3 text-xs text-muted-foreground">Filtros e ordem valem apenas para esta página.</p>
-          </div>}
-        </div>}
-        <div ref={listScroller} tabIndex={0} role="region" aria-label="Lista de e-mails" className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-        {listLoading ? <p className="px-4 py-6 text-sm text-muted-foreground">Carregando e-mails…</p>
-          : folder === 'DRAFT' ? drafts.length ? <div>{drafts.map(item => <button key={item.id} type="button"
-            onClick={() => void openDraft(item.id)} className={cn('block w-full border-b px-4 py-4 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring', editor?.draftId === item.id && 'bg-accent')}>
-            <span className="block truncate text-sm font-medium">{item.subject || '(sem assunto)'}</span>
-            <span className="block truncate text-xs text-muted-foreground">{item.to.join(', ') || 'Sem destinatário'} · {item.snippet}</span>
-          </button>)}</div> : <p className="px-4 py-6 text-sm text-muted-foreground">Nenhum rascunho.</p>
-            : threads.length ? visibleThreads.length ? <div>{visibleThreads.map(item => <button key={item.id} type="button"
-              aria-current={thread?.id === item.id ? 'true' : undefined}
-              onClick={() => void openThread(item.id)} className={cn('relative block w-full border-b px-4 py-4 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                thread?.id === item.id && 'bg-accent before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-foreground')}>
-              <span className="flex items-baseline justify-between gap-3">
-                <span className={cn('min-w-0 truncate text-sm', item.unread ? 'font-semibold' : 'text-muted-foreground')}>{item.from.replace(/<[^<>]*>/g, '').replace(/"/g, '').trim() || item.from}</span>
-                <span className="label-mono shrink-0 text-subtle-foreground">{listDate(item.date)}</span>
-              </span>
-              <span className={cn('mt-0.5 block truncate text-sm', item.unread ? 'font-semibold' : 'font-medium')}>{item.subject || '(sem assunto)'}</span>
-              <span className="block truncate text-xs text-muted-foreground">{item.snippet}{item.hasAttachments ? ' · Anexo' : ''}</span>
-              {triageById.has(item.id) && <span className="mt-1 block text-xs text-muted-foreground">{categoryLabels[triageById.get(item.id)!.category]} · Prioridade {priorityLabels[triageById.get(item.id)!.priority]}
-                {triageById.get(item.id)!.uncertain ? ' · A conferir' : ''}{triageById.get(item.id)!.needsReply ? ' · Resposta sugerida' : ''}</span>}
-            </button>)}</div> : <p className="px-4 py-6 text-sm text-muted-foreground">Nenhum e-mail corresponde aos filtros desta página.</p>
-              : <p className="px-4 py-6 text-sm text-muted-foreground">Nenhuma conversa nesta pasta.</p>}
-        </div>
-        <div className="flex shrink-0 items-center justify-end gap-1 border-t px-2 py-2">
-          <Button type="button" variant="ghost" size="icon" aria-label="Página anterior" disabled={!previous.length}
-            onClick={() => { invalidateTriage(); if (listScroller.current) listScroller.current.scrollTop = 0; setListLoading(true); setPageToken(previous.at(-1)); setPrevious(items => items.slice(0, -1)); }}><ChevronLeft /></Button>
-          <Button type="button" variant="ghost" size="icon" aria-label="Próxima página" disabled={!nextToken}
-            onClick={() => { invalidateTriage(); if (listScroller.current) listScroller.current.scrollTop = 0; setListLoading(true); setPrevious(items => [...items, pageToken]); setPageToken(nextToken ?? undefined); }}><ChevronRight /></Button>
-        </div>
-      </div>
-      <section className={cn('min-h-0 min-w-0 flex-1 flex-col px-5 lg:flex lg:px-8', detailVisible ? 'flex' : 'max-lg:hidden')} aria-label="Mensagem selecionada">
-        {detailVisible && <Button type="button" variant="ghost" className="my-2 shrink-0 self-start lg:hidden" onClick={resetDetail}>
-          <ArrowLeft aria-hidden="true" />Voltar à lista</Button>}
-        {thread && <div className="flex shrink-0 items-center justify-between gap-3 border-b py-4">
-          <h2 ref={detailHeading} tabIndex={-1} className="min-w-0 text-lg font-medium outline-none">{thread.subject || '(sem assunto)'}</h2>
-          <SmartOptions options={threadOptions} onSelect={() => { if (thread) loadInsight(thread.id); }} busy={threadBusy} align="end" />
-        </div>}
-        {editor && <h2 ref={detailHeading} tabIndex={-1} className="shrink-0 border-b py-4 text-lg font-medium outline-none">{editor.draftId ? 'Editar rascunho' : editor.replyToMessageId ? 'Responder' : 'Novo e-mail'}</h2>}
-        <div ref={detailScroller} tabIndex={0} role="region" aria-label="Conteúdo do e-mail" className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-        {detailLoading && <p className="py-6 text-sm text-muted-foreground">Carregando mensagem…</p>}
-        {digestPeriod && <DigestView period={digestPeriod} state={digests[digestPeriod]} headingRef={detailHeading}
-          onPeriod={period => { setDigestPeriod(period); loadDigest(period); }} onRetry={() => loadDigest(digestPeriod, true)}
-          onOpenThread={id => void openThread(id)} onClose={resetDetail} />}
-        {thread && <div className="pb-10">
-          {insightOpen === thread.id && insights[thread.id] && <ThreadInsightView state={insights[thread.id]}
-            onRetry={() => loadInsight(thread.id, true)} onClose={() => setInsightOpen(null)}
-            onUseReply={body => { const latest = thread.messages.at(-1); if (latest) reply(latest, body); }} />}
-          {thread.messages.map(mail => <article key={mail.id} className="border-b py-5">
+  if (enabled && detailVisible) return <>
+    <CanvasMeta title="E-mails" subject={{ kind: 'module', slug: 'email', title: 'E-mails' }} />
+    <CanvasTrail back={{ label: labels[folder], onClick: resetDetail }} icon={<Mail />} current={detailTitle}
+      actions={thread && <SmartOptions options={threadOptions} onSelect={() => { if (thread) loadInsight(thread.id); }} busy={threadBusy} align="end" />} />
+    <div ref={detailScroller} tabIndex={-1} className="mx-auto flex outline-none w-full max-w-[760px] flex-col gap-6 px-4 pt-6 pb-24 md:px-10 md:pt-10 md:pb-16">
+      {messages}
+      {detailLoading && <p role="status" className={quiet}>Carregando mensagem…</p>}
+      {digestPeriod && <DigestView period={digestPeriod} state={digests[digestPeriod]} headingRef={detailHeading}
+        onPeriod={period => { setDigestPeriod(period); loadDigest(period); }} onRetry={() => loadDigest(digestPeriod, true)}
+        onOpenThread={id => void openThread(id)} onClose={resetDetail} />}
+      {thread && <>
+        <h1 ref={detailHeading} tabIndex={-1} className="text-[24px] leading-[1.3] font-semibold tracking-[-0.02em] outline-none md:text-[26px]">{thread.subject || '(sem assunto)'}</h1>
+        {insightOpen === thread.id && insights[thread.id] && <ThreadInsightView state={insights[thread.id]}
+          onRetry={() => loadInsight(thread.id, true)} onClose={() => setInsightOpen(null)}
+          onUseReply={body => { const latest = thread.messages.at(-1); if (latest) reply(latest, body); }} />}
+        {thread.messages.map(mail => <article key={mail.id} className="flex flex-col gap-3 border-t border-border pt-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
             <p className="text-sm font-medium">{mail.from}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Para: {mail.to.join(', ')}{mail.cc.length ? ` · Cc: ${mail.cc.join(', ')}` : ''} · {formatDate(mail.date)}</p>
-            {mail.html ? <EmailFrame html={mail.html} title={`Mensagem de ${mail.from}`} />
-              : <div className="mt-5 whitespace-pre-wrap break-words text-sm leading-6">{mail.text || 'Esta mensagem não tem texto legível.'}</div>}
-            {!!mail.attachments.length && <div className="mt-5 border-t pt-4">
-              <p className="mb-2 text-sm font-medium">Anexos</p>
-              <div className="mb-3 grid max-w-sm gap-1.5"><Label htmlFor={`email-case-${mail.id}`}>Importar para o caso</Label>
-                <select id={`email-case-${mail.id}`} value={selectedCase} onChange={event => setSelectedCase(event.target.value)}
-                  className="h-11 border border-input bg-background px-3 text-sm md:h-9">
-                  <option value="">Escolha um caso</option>{cases.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                <p className="text-xs text-muted-foreground">A cópia passa a seguir as permissões e a retenção do Cofre.</p></div>
-              {mail.attachments.map(file => <div key={file.partId} className="flex min-h-11 items-center justify-between gap-3 border-b py-2 text-sm">
-                <span className="min-w-0 truncate"><Paperclip aria-hidden="true" className="mr-2 inline size-4" />{file.filename} · {Math.ceil(file.size / 1024)} KB</span>
-                {file.importable && <Button type="button" variant="outline" disabled={busy || !selectedCase}
-                  onClick={() => void importPart(mail.id, file.partId)}>Importar</Button>}
-              </div>)}
-            </div>}
-            <Button type="button" variant="outline" className="mt-5" onClick={() => reply(mail)}>Responder</Button>
-          </article>)}
-        </div>}
-        {editor && <div className="pb-10">
-          <fieldset disabled={busy} className="grid gap-4 py-5">
-            {(['to', 'cc', 'bcc'] as const).map(field => <div key={field} className="grid gap-1.5">
-              <Label htmlFor={`mail-${field}`}>{field === 'to' ? 'Para' : field === 'cc' ? 'Cc' : 'Cco'}</Label>
-              <Input id={`mail-${field}`} type="text" autoComplete="off" value={editor[field]} onChange={event => setEditor({ ...editor, [field]: event.target.value })}
-                placeholder="nome@exemplo.com, outro@exemplo.com" /></div>)}
-            <div className="grid gap-1.5"><Label htmlFor="mail-subject">Assunto</Label>
-              <Input id="mail-subject" value={editor.subject} maxLength={998} onChange={event => setEditor({ ...editor, subject: event.target.value })} /></div>
-            <div className="grid gap-1.5"><Label htmlFor="mail-body">Mensagem</Label>
-              <Textarea id="mail-body" className="min-h-52 resize-y" value={editor.body} maxLength={200000}
-                onChange={event => setEditor({ ...editor, body: event.target.value })} /></div>
-            {!!editor.attachments.length && <div><p className="mb-2 text-sm font-medium">Anexos</p>
-              {editor.attachments.map((ref, index) => <div key={index} className="flex items-center justify-between border-b py-2 text-sm">
-                <span className="truncate">{ref.name}</span><Button type="button" variant="ghost" onClick={() => setEditor({ ...editor,
-                  attachments: editor.attachments.filter((_, i) => i !== index) })}>Remover</Button></div>)}</div>}
-            <div className="flex flex-wrap items-center gap-2">
-              <Label htmlFor="mail-upload" className="inline-flex h-9 cursor-pointer items-center gap-2 border border-input px-3 text-sm hover:bg-accent">
-                <Paperclip aria-hidden="true" className="size-4" />Anexar arquivo</Label>
-              <Input id="mail-upload" type="file" className="sr-only" onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ''; }} />
-              <Button type="button" variant="outline" onClick={() => setShowVault(value => !value)}>Anexar do Cofre</Button>
-            </div>
-            {showVault && <div className="grid max-w-lg gap-3 border-t pt-4">
-              <div className="grid gap-1.5"><Label htmlFor="mail-vault-case">Caso</Label>
-                <select id="mail-vault-case" className="h-11 border border-input bg-background px-3 text-sm md:h-9"
-                  value={selectedCase} onChange={event => { setSelectedCase(event.target.value); setVaultDocumentId(''); }}>
-                  <option value="">Escolha um caso</option>{cases.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-              <div className="grid gap-1.5"><Label htmlFor="mail-vault-document">Documento</Label>
-                <select id="mail-vault-document" className="h-11 border border-input bg-background px-3 text-sm md:h-9"
-                  value={vaultDocumentId} onChange={event => setVaultDocumentId(event.target.value)}>
-                  <option value="">Escolha um documento</option>{vaultDocuments.filter(item => item.status === 'ready').map(item =>
-                    <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-              <VaultDocumentOptionsMore {...vaultOptions} />
-              <Button type="button" variant="outline" disabled={!vaultDocumentId} onClick={attachVault}>Adicionar documento</Button>
-            </div>}
-            <div className="flex flex-wrap gap-2 border-t pt-5">
-              <Button type="button" disabled={busy} onClick={() => void submit('send')}>Enviar</Button>
-              <Button type="button" variant="outline" disabled={busy} onClick={() => void submit('draft-save')}>Salvar rascunho</Button>
-              {editor.draftId && <Button type="button" variant="ghost" disabled={busy} onClick={() => void deleteDraft()}>Excluir rascunho</Button>}
-              <Button type="button" variant="ghost" disabled={busy} onClick={() => setEditor(null)}>Fechar</Button>
-            </div>
-          </fieldset>
-        </div>}
-        {!detailVisible && <div className="hidden py-12 text-sm text-muted-foreground lg:block">Escolha uma conversa para ler.</div>}
+            <time dateTime={mail.date ?? undefined} className="font-mono text-[12.5px] text-muted-foreground">{formatDate(mail.date)}</time>
+          </div>
+          <p className="-mt-2 text-[12.5px] text-muted-foreground">Para: {mail.to.join(', ')}{mail.cc.length ? ` · Cc: ${mail.cc.join(', ')}` : ''}</p>
+          {mail.html ? <EmailFrame html={mail.html} title={`Mensagem de ${mail.from}`} />
+            : <div className="whitespace-pre-wrap break-words text-[14.5px] leading-[1.7]">{mail.text || 'Esta mensagem não tem texto legível.'}</div>}
+          {!!mail.attachments.length && <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+            <p className="text-[13.5px] font-medium">Anexos</p>
+            <Field label="Importar para o caso" htmlFor={`email-case-${mail.id}`} className="max-w-sm">
+              <select id={`email-case-${mail.id}`} value={selectedCase} onChange={event => setSelectedCase(event.target.value)} className={selectClass}>
+                <option value="">Escolha um caso</option>{cases.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            </Field>
+            <p className="-mt-1 text-xs text-muted-foreground">A cópia passa a seguir as permissões e a retenção do Cofre.</p>
+            <div className="flex flex-col">{mail.attachments.map(file => <div key={file.partId} className="flex min-h-11 items-center justify-between gap-3 text-[13.5px]">
+              <span className="flex min-w-0 items-center gap-2"><Paperclip aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" /><span className="truncate">{file.filename}</span><span className="shrink-0 font-mono text-[12.5px] text-muted-foreground">{Math.ceil(file.size / 1024)} KB</span></span>
+              {file.importable && <Button type="button" variant="outline" className="h-11 md:h-8" disabled={busy || !selectedCase}
+                onClick={() => void importPart(mail.id, file.partId)}>Importar</Button>}
+            </div>)}</div>
+          </div>}
+          <div><Button type="button" variant="outline" size="lg" className={control} onClick={() => reply(mail)}>Responder</Button></div>
+        </article>)}
+      </>}
+      {editor && <>
+        <h1 ref={detailHeading} tabIndex={-1} className="text-[24px] leading-[1.3] font-semibold tracking-[-0.02em] outline-none md:text-[26px]">{detailTitle}</h1>
+        <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
+          <legend className="sr-only">{detailTitle}</legend>
+          {(['to', 'cc', 'bcc'] as const).map(field => <Field key={field} label={field === 'to' ? 'Para' : field === 'cc' ? 'Cc' : 'Cco'} htmlFor={`mail-${field}`}>
+            <Input id={`mail-${field}`} type="text" autoComplete="off" value={editor[field]} onChange={event => setEditor({ ...editor, [field]: event.target.value })}
+              placeholder="nome@exemplo.com, outro@exemplo.com" className="h-11 md:h-9" /></Field>)}
+          <Field label="Assunto" htmlFor="mail-subject">
+            <Input id="mail-subject" value={editor.subject} maxLength={998} onChange={event => setEditor({ ...editor, subject: event.target.value })} className="h-11 md:h-9" /></Field>
+          <Field label="Mensagem" htmlFor="mail-body">
+            <Textarea id="mail-body" className="min-h-52 resize-y text-[14.5px] leading-[1.6]" value={editor.body} maxLength={200000}
+              onChange={event => setEditor({ ...editor, body: event.target.value })} /></Field>
+          {!!editor.attachments.length && <div className="flex flex-col gap-1"><p className="text-xs text-muted-foreground">Anexos</p>
+            {editor.attachments.map((ref, index) => <div key={index} className="flex min-h-11 items-center justify-between gap-3 text-[13.5px] md:min-h-9">
+              <span className="flex min-w-0 items-center gap-2"><Paperclip aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" /><span className="truncate">{ref.name}</span></span>
+              <Button type="button" variant="ghost" className="h-11 text-muted-foreground md:h-8" onClick={() => setEditor({ ...editor,
+                attachments: editor.attachments.filter((_, i) => i !== index) })}>Remover</Button></div>)}</div>}
+          <div className="flex flex-wrap items-center gap-2">
+            <Label htmlFor="mail-upload" className="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-sm border border-input px-3 text-[13.5px] font-normal transition-colors hover:bg-accent has-[+input:focus-visible]:outline-2 has-[+input:focus-visible]:outline-ring md:h-[34px]">
+              <Paperclip aria-hidden="true" className="size-4" />Anexar arquivo</Label>
+            <Input id="mail-upload" type="file" className="sr-only" onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ''; }} />
+            <Button type="button" variant="outline" size="lg" className={control} onClick={() => setShowVault(value => !value)}>Anexar do Cofre</Button>
+          </div>
+          {showVault && <div className="flex max-w-lg flex-col gap-3 rounded-lg border border-border bg-card p-4">
+            <Field label="Caso" htmlFor="mail-vault-case">
+              <select id="mail-vault-case" className={selectClass} value={selectedCase} onChange={event => { setSelectedCase(event.target.value); setVaultDocumentId(''); }}>
+                <option value="">Escolha um caso</option>{cases.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
+            <Field label="Documento" htmlFor="mail-vault-document">
+              <select id="mail-vault-document" className={selectClass} value={vaultDocumentId} onChange={event => setVaultDocumentId(event.target.value)}>
+                <option value="">Escolha um documento</option>{vaultDocuments.filter(item => item.status === 'ready').map(item =>
+                  <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
+            <VaultDocumentOptionsMore {...vaultOptions} />
+            <div><Button type="button" variant="outline" size="lg" className={control} disabled={!vaultDocumentId} onClick={attachVault}>Adicionar documento</Button></div>
+          </div>}
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button type="button" size="lg" className={control} disabled={busy} onClick={() => void submit('send')}><Send aria-hidden="true" />Enviar</Button>
+            <Button type="button" variant="outline" size="lg" className={control} disabled={busy} onClick={() => void submit('draft-save')}>Salvar rascunho</Button>
+            {editor.draftId && <Button type="button" variant="ghost" size="lg" className={control} disabled={busy} onClick={() => void deleteDraft()}>Excluir rascunho</Button>}
+            <Button type="button" variant="ghost" size="lg" className={control} disabled={busy} onClick={() => setEditor(null)}>Fechar</Button>
+          </div>
+        </fieldset>
+      </>}
+    </div>
+    {approvalDialog}
+  </>;
+
+  return <CanvasPage className="md:gap-6">
+    <CanvasMeta title="E-mails" subject={{ kind: 'module', slug: 'email', title: 'E-mails' }} />
+    <CanvasHeader eyebrow={status?.connection?.email ?? 'Gmail'} title="E-mails" actions={enabled && <>
+      <SmartOptions options={mailboxOptions} onSelect={onMailboxOption} busy={digestBusy || triageBusy} align="end" />
+      <Button type="button" variant="outline" size="lg" className={control} onClick={compose}><PenLine className="size-3.5" aria-hidden="true" />Escrever</Button>
+    </>} />
+    {status && !enabled && <GoogleConnectionNotice status={status} module="gmail" />}
+    {loading && !status && <p role="status" className={quiet}>Carregando conexão…</p>}
+    {messages}
+    {enabled && <>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div role="group" aria-label="Pastas de e-mail" className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0">
+          {(Object.keys(labels) as Folder[]).map(item => { const Icon = folderIcons[item]; return <Chip key={item} pressed={folder === item} onClick={() => chooseFolder(item)}>
+            <Icon aria-hidden="true" className="size-3.5" />{labels[item]}</Chip>; })}
         </div>
-      </section>
-    </div>}
+        {folder !== 'DRAFT' && <form role="search" className="md:w-64" onSubmit={(event: FormEvent) => { event.preventDefault(); invalidateTriage(); setListLoading(true); setSearch(query.trim()); setPageToken(undefined); setPrevious([]); setRevision(current => current + 1); }}>
+          <label className="flex h-11 items-center gap-2 rounded-md border border-input px-2.5 text-muted-foreground focus-within:ring-3 focus-within:ring-ring/50 md:h-[34px]">
+            <Search aria-hidden="true" className="size-3.5 shrink-0" />
+            <input type="search" aria-label="Buscar e-mails" placeholder="Buscar no Gmail" value={query} maxLength={500} onChange={event => setQuery(event.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-subtle-foreground" />
+          </label>
+        </form>}
+      </div>
+      {folder !== 'DRAFT' && (triageBusy || triageMessage || visibleTriage.length > 0) && <div className="flex flex-col gap-3">
+        {triageBusy && <p role="status" className={quiet}>Classificando esta página…</p>}
+        {triageMessage && <p role="status" className={quiet}>{triageMessage}</p>}
+        {visibleTriage.length > 0 && <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Field label="Categoria" htmlFor="mail-filter-category">
+            <select id="mail-filter-category" value={categoryFilter} onChange={event => setCategoryFilter(event.target.value as typeof categoryFilter)} className={selectClass}>
+              <option value="all">Todas</option>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select></Field>
+          <Field label="Prioridade" htmlFor="mail-filter-priority">
+            <select id="mail-filter-priority" value={priorityFilter} onChange={event => setPriorityFilter(event.target.value as typeof priorityFilter)} className={selectClass}>
+              <option value="all">Todas</option>{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select></Field>
+          <Field label="Ordenar" htmlFor="mail-filter-order">
+            <select id="mail-filter-order" value={sortOrder} onChange={event => setSortOrder(event.target.value as typeof sortOrder)} className={selectClass}>
+              <option value="recent">Mais recentes</option><option value="priority">Prioridade</option>
+            </select></Field>
+          <p className="text-xs text-muted-foreground sm:col-span-3">Filtros e ordem valem apenas para esta página.</p>
+        </div>}
+      </div>}
+      <div ref={listScroller} role="region" aria-label="Lista de e-mails" tabIndex={-1} className="flex flex-col gap-0.5 outline-none">
+        {listLoading ? <p role="status" className={quiet}>Carregando e-mails…</p>
+          : folder === 'DRAFT' ? drafts.length ? drafts.map(item => <CanvasRow key={item.id} stacked icon={<File />} onClick={() => void openDraft(item.id)}
+            title={item.subject || '(sem assunto)'} detail={`${item.to.join(', ') || 'Sem destinatário'} · ${item.snippet}`} />)
+            : <p className={quiet}>Nenhum rascunho.</p>
+          : threads.length ? visibleThreads.length ? visibleThreads.map(item => {
+            const triaged = triageById.get(item.id);
+            return <CanvasRow key={item.id} stacked icon={item.hasAttachments ? <Paperclip /> : <Mail />} urgent={item.unread} onClick={() => void openThread(item.id)}
+              title={<>{item.subject || '(sem assunto)'}{item.unread && <span className="sr-only">, não lido</span>}</>}
+              detail={`${sender(item.from)} · ${item.snippet}`} meta={listDate(item.date)}
+              status={triaged && `${categoryLabels[triaged.category]} · ${priorityLabels[triaged.priority]}${triaged.needsReply ? ' · responder' : ''}${triaged.uncertain ? ' · a conferir' : ''}`} />;
+          }) : <p className={quiet}>Nenhum e-mail corresponde aos filtros desta página.</p>
+            : <p className={quiet}>Nenhuma conversa nesta pasta.</p>}
+      </div>
+      {(previous.length > 0 || nextToken) && <div className="flex items-center justify-end gap-1">
+        <Button type="button" variant="ghost" size="icon" className="size-11 md:size-8" aria-label="Página anterior" disabled={!previous.length} onClick={() => turnPage('previous')}><ChevronLeft /></Button>
+        <Button type="button" variant="ghost" size="icon" className="size-11 md:size-8" aria-label="Próxima página" disabled={!nextToken} onClick={() => turnPage('next')}><ChevronRight /></Button>
+      </div>}
+    </>}
     {approvalDialog}
     {enabled && !cases.length && <p className="sr-only">Nenhum caso do Cofre disponível para importar anexos. <Link href="/app/vault">Abrir Cofre</Link></p>}
-  </div>;
+  </CanvasPage>;
 }

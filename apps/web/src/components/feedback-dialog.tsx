@@ -101,9 +101,9 @@ export function FeedbackDialog({ open, onOpenChange, initialView = 'form', pathn
   }
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    {/* A panel beside the menu, over a softly blurred page: feedback without leaving the screen. */}
-    <DialogContent overlayClassName="bg-overlay/20 backdrop-blur-[6px]"
-      className="feedback-panel top-auto right-2 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+.5rem)] left-2 max-h-[calc(100dvh-6rem)] w-auto max-w-none translate-x-0 translate-y-0 gap-5 overflow-y-auto p-5 sm:max-w-none md:right-auto md:max-h-[calc(100dvh-1.5rem)] md:w-[23rem] data-open:slide-in-from-bottom-3 data-open:zoom-in-100 data-closed:zoom-out-100"
+    {/* A panel beside the menu, over a dimmed page: feedback without leaving the screen. */}
+    <DialogContent
+      className="feedback-panel rounded-xl top-auto right-2 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+.5rem)] left-2 max-h-[calc(100dvh-6rem)] w-auto max-w-none translate-x-0 translate-y-0 gap-5 overflow-y-auto p-5 sm:max-w-none md:right-auto md:max-h-[calc(100dvh-1.5rem)] md:w-[23rem]"
       onCloseAutoFocus={event => { event.preventDefault(); onCloseFocus(); }}>
       {view === 'form' ? <>
         <div className="grid gap-1 pr-8">
@@ -125,7 +125,7 @@ export function FeedbackDialog({ open, onOpenChange, initialView = 'form', pathn
             <div className="grid grid-cols-3 gap-2">
               {reportKinds.map(value => {
                 const { Icon, label } = kindChoices[value];
-                return <label key={value} className={cn('flex min-h-[4.5rem] cursor-pointer flex-col items-center justify-center gap-1.5 border px-1.5 py-2 text-center text-[13px] leading-tight transition-colors duration-300 ease-(--ease) has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                return <label key={value} className={cn('flex min-h-[4.5rem] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-2 text-center text-[13px] leading-tight transition-colors ease-(--ease) has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
                   kind === value ? 'border-foreground bg-foreground font-medium text-background' : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground')}>
                   <input type="radio" name="feedback-kind" value={value} checked={kind === value} onChange={() => setKind(value)} className="sr-only" disabled={busy} />
                   <Icon className="size-4" aria-hidden="true" />{label}
@@ -139,7 +139,7 @@ export function FeedbackDialog({ open, onOpenChange, initialView = 'form', pathn
               maxLength={MAX_FEEDBACK_MESSAGE} rows={4} disabled={busy} aria-describedby="feedback-privacy"
               placeholder={kindChoices[kind].question} className="min-h-28" />
           </div>
-          <div className="flex gap-3 border border-border p-3">
+          <div className="flex gap-3 rounded-lg border border-border p-3">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div className="grid min-w-0 gap-1 text-[13px] leading-snug">
               <p className="font-medium">
@@ -153,7 +153,7 @@ export function FeedbackDialog({ open, onOpenChange, initialView = 'form', pathn
               <p id="feedback-privacy" className="text-muted-foreground">Só a tela vai junto. Não inclua dados de clientes, como nomes, CPF ou números de processo.</p>
             </div>
           </div>
-          <div className="flex min-w-0 items-center gap-3 border border-border p-3">
+          <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border p-3">
             <input ref={fileInput} id="feedback-image" type="file" accept={FEEDBACK_IMAGE_TYPES.join(',')} className="sr-only" tabIndex={-1}
               onChange={event => attach(event.target.files?.[0])} disabled={busy} />
             {image ? <>
@@ -187,7 +187,7 @@ export function FeedbackDialog({ open, onOpenChange, initialView = 'form', pathn
         {historyError ? <p role="alert" className="flex items-start gap-2 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />Não foi possível carregar seus relatos.</p>
           : tickets === null ? <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Carregando…</p>
             : tickets.length === 0 ? <p className="text-sm text-subtle-foreground">Você ainda não enviou nenhum relato.</p>
-              : <div className="-mx-5 divide-y border-y px-5">{tickets.map(ticket => <article key={ticket.id} className="py-3">
+              : <div className="flex flex-col gap-5">{tickets.map(ticket => <article key={ticket.id}>
                 <p className="text-xs text-muted-foreground">{[`#${ticket.number}`, dateFormat.format(new Date(ticket.createdAt)), ticket.kind && reportKindLabels[ticket.kind],
                   ticket.module && ticket.module in reportModuleLabels ? reportModuleLabels[ticket.module as keyof typeof reportModuleLabels] : null, authorStatusLabels[ticket.status]].filter(Boolean).join(' · ')}</p>
                 <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-sm">{ticket.message}</p>

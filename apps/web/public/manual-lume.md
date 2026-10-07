@@ -24,7 +24,9 @@ Administração da plataforma, em `/app/admin`, é um acesso separado para opera
 
 ## Conversar com o assistente
 
-O assistente fica em `/app/agents`. Faça pedidos concretos, como "liste as parcelas pendentes da Maria", "crie uma tarefa para revisar o contrato sexta-feira" ou "resuma os documentos deste caso". O Lume usa ferramentas para consultar e alterar dados. Só deve afirmar que executou uma ação depois de receber um resultado de sucesso.
+No novo layout do escritório, o Lume é o painel à esquerda e o canvas à direita mostra o trabalho em abas: Início, casos, páginas e módulos. Cada mensagem leva ao Lume o que está aberto no canvas, então "este caso" ou "esta página" se referem ao que está na tela. Peça para abrir algo ("abra o caso Silva", "mostre os honorários") e a aba abre no canvas. O que o Lume cria ou altera também aparece ali, e a aba do que ele está consultando ganha a marca do Lume enquanto ele trabalha. No celular, o que o Lume abre espera atrás da conversa; toque em Abrir o canvas do escritório para ver. Ctrl J recolhe ou abre o painel, e Ctrl K busca casos, módulos e abas. Escritórios que ainda usam o layout anterior encontram o assistente em `/app/agents`.
+
+Faça pedidos concretos, como "liste as parcelas pendentes da Maria", "crie uma tarefa para revisar o contrato sexta-feira" ou "resuma os documentos deste caso". O Lume usa ferramentas para consultar e alterar dados. Só deve afirmar que executou uma ação depois de receber um resultado de sucesso.
 
 O assistente consegue operar Cofre, Escritório, Honorários, Pesquisa, documentos, suas conversas e preferências, Mensagens, Notificações, e-mail e agenda Google conectados e WhatsApp habilitado. As operações respeitam o acesso ao recurso e as regras de cada módulo. Integrações e Plano ficam fora da administração pelo chat. Para conectar um serviço, alterar permissões OAuth, cadastrar credenciais ou contratar o plano, use as respectivas telas.
 

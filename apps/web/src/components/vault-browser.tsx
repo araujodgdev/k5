@@ -1,141 +1,122 @@
 "use client";
 
-import Link from "next/link";
-import { useState, type FormEvent } from "react";
-import { ChevronRight, CircleAlert, FolderClosed, LayoutGrid, Library, List, LoaderCircle, Plus } from "lucide-react";
+import { useRef, useState } from "react";
+import { CircleAlert, Folder, Layers, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { CanvasPage, CanvasRow } from "@/components/canvas/canvas-page";
 import { CaseDelete } from "@/components/vault-case-delete";
+import { CaseCard, CaseGrid } from "@/components/casos/case-card";
+import { ItemMenu } from "@/components/casos/item-card";
+import { ago, dayMonth, fileCount } from "@/components/casos/labels";
+import { CaseFormDialog } from "@/components/casos/case-form-dialog";
+import type { CasePerson } from "@/components/casos/people-stack";
+import { ViewToggle, type ItemView } from "@/components/casos/view-toggle";
 import type { VaultCase } from "@/lib/vault";
 
-type View = "cards" | "list";
+const LIBRARY_HREF = "/app/vault/library";
+const LIBRARY_TITLE = "Biblioteca do escritório";
 
-const dateFormat = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-function formatDate(value: string) {
-  const date = new Date(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
-  return Number.isNaN(date.getTime()) ? "" : dateFormat.format(date);
-}
-
-function countLabel(count: number) {
-  return count === 1 ? "1 arquivo" : `${count} arquivos`;
+function matches(item: VaultCase, query: string) {
+  const needle = query.trim().toLocaleLowerCase("pt-BR");
+  if (!needle) return true;
+  return [item.name, item.client.name, item.description].some((text) => text?.toLocaleLowerCase("pt-BR").includes(needle));
 }
 
 /**
- * The office drive. A case is a folder with its own page; the library is where documents that
- * belong to no case live. Nothing here decides what will be done with a file.
+ * Casos (`v.casos`): every case the person can open, as cards or rows, and the office library
+ * for files that belong to no case. A case opens as its own canvas tab.
  */
-export function VaultBrowser({ initialCases, libraryCount, ownCaseIds }: { initialCases: VaultCase[]; libraryCount: number; ownCaseIds?: string[] }) {
+export function VaultBrowser({ initialCases, libraryCount, ownCaseIds, people }: {
+  initialCases: VaultCase[];
+  libraryCount: number;
+  ownCaseIds: string[];
+  people: Record<string, CasePerson[]>;
+}) {
   const [cases, setCases] = useState(initialCases);
   const [ownedIds, setOwnedIds] = useState(ownCaseIds);
-  const isShared = (id: string) => Boolean(ownedIds && !ownedIds.includes(id));
-  const [view, setView] = useState<View>("cards");
+  const [view, setView] = useState<ItemView>("grid");
+  const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
-  const [advanced, setAdvanced] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [client, setClient] = useState({ name: "", document: "", email: "", phone: "", notes: "" });
-  const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState<VaultCase | null>(null);
   const [failure, setFailure] = useState("");
-  const drop = (caseId: string) => setCases((current) => current.filter((item) => item.id !== caseId));
+  const searchRef = useRef<HTMLInputElement>(null);
+  const isShared = (id: string) => !ownedIds.includes(id);
+  const shown = cases.filter((item) => matches(item, query));
+  const href = (item: VaultCase) => `/app/vault/cases/${item.id}`;
+  const updated = (item: VaultCase) => isShared(item.id) ? "compartilhado com você" : `atualizado ${ago(item.updatedAt)}`;
 
-  async function submitCase(event: FormEvent) {
-    event.preventDefault();
-    const clean = name.trim();
-    if (clean.length < 2) { setFailure("Informe um nome de caso com pelo menos 2 caracteres."); return; }
-    setBusy(true); setFailure("");
-    const response = await fetch("/api/vault/cases", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: clean, description: description.trim() || null, client }),
-    });
-    const result = await response.json().catch(() => null) as { error?: string; case?: VaultCase } | null;
-    setBusy(false);
-    if (!response.ok || !result?.case) { setFailure(result?.error ?? "Não foi possível criar o caso."); return; }
-    setCases((current) => [result.case!, ...current.filter((item) => item.id !== result.case!.id)]);
-    setOwnedIds(current => current ? [...current, result.case!.id] : current);
-    setName(""); setDescription(""); setClient({ name: "", document: "", email: "", phone: "", notes: "" });
-    setCreating(false); setAdvanced(false);
+  function created(record: VaultCase) {
+    setCases((current) => [record, ...current.filter((item) => item.id !== record.id)]);
+    setOwnedIds((current) => [...current, record.id]);
   }
 
-  return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10">
-    <div data-reveal className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
-      <h1 className="page-title leading-none max-md:sr-only">Cofre</h1>
-      {/* On a phone the view toggle and "Novo caso" share the first line (the main action stays at the
-          top, on the right like every page's actions) and the import takes the second line whole. */}
-      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
-        <div className="flex gap-1" role="group" aria-label="Modo de exibição">
-          <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "cards"} onClick={() => setView("cards")} aria-label="Ver em cartões"><LayoutGrid aria-hidden="true" /></Button>
-          <Button type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8 aria-pressed:bg-accent aria-pressed:text-foreground" aria-pressed={view === "list"} onClick={() => setView("list")} aria-label="Ver em lista"><List aria-hidden="true" /></Button>
-        </div>
-        <Button variant="outline" asChild className="max-md:order-last max-md:h-11 max-md:w-full"><Link href="/app/vault/library?import=drive">Importar do Google Drive</Link></Button>
-        <Button type="button" className="max-md:ml-auto max-md:h-11" aria-expanded={creating} variant={creating ? "outline" : "default"} onClick={() => { setCreating((value) => !value); setFailure(""); }}>{creating ? "Cancelar" : <><Plus aria-hidden="true" />Novo caso</>}</Button>
-      </div>
-    </div>
+  const menu = (item: VaultCase) => isShared(item.id) ? undefined : (
+    <ItemMenu label={`Mais opções do caso ${item.name}`}>
+      <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(item)}>Excluir caso</DropdownMenuItem>
+    </ItemMenu>
+  );
 
-    {creating && <form data-reveal onSubmit={submitCase} className="grid gap-4 border-b py-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5"><Label htmlFor="case-name">Título</Label><Input id="case-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Silva vs. Construtora Horizonte" maxLength={180} required /></div>
-      </div>
-      <div className="grid gap-1.5"><Label htmlFor="case-description">Descrição</Label><Textarea id="case-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Do que trata este caso." className="min-h-20 resize-y" maxLength={4000} /></div>
-      <button type="button" className="flex min-h-11 w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8" aria-expanded={advanced} onClick={() => setAdvanced((value) => !value)}>
-        <ChevronRight className={`size-4 transition-transform ${advanced ? "rotate-90" : ""}`} aria-hidden="true" />Dados do cliente (opcional)
-      </button>
-      {advanced && <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5"><Label htmlFor="client-name">Nome</Label><Input id="client-name" value={client.name} onChange={(event) => setClient({ ...client, name: event.target.value })} maxLength={180} /></div>
-        <div className="grid gap-1.5"><Label htmlFor="client-document">CPF ou CNPJ</Label><Input id="client-document" value={client.document} onChange={(event) => setClient({ ...client, document: event.target.value })} maxLength={40} /></div>
-        <div className="grid gap-1.5"><Label htmlFor="client-email">E-mail</Label><Input id="client-email" type="email" value={client.email} onChange={(event) => setClient({ ...client, email: event.target.value })} maxLength={200} /></div>
-        <div className="grid gap-1.5"><Label htmlFor="client-phone">Telefone</Label><Input id="client-phone" value={client.phone} onChange={(event) => setClient({ ...client, phone: event.target.value })} maxLength={40} /></div>
-        <div className="grid gap-1.5 sm:col-span-2"><Label htmlFor="client-notes">Observações</Label><Textarea id="client-notes" value={client.notes} onChange={(event) => setClient({ ...client, notes: event.target.value })} className="min-h-20 resize-y" maxLength={4000} /></div>
-      </div>}
-      <div><Button type="submit" disabled={busy}>{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}Criar caso</Button></div>
-    </form>}
+  return (
+    <CanvasPage width="wide" className="md:gap-6 md:pt-9">
+      <header className="flex flex-wrap items-center gap-3">
+        <h1 className="min-w-0 flex-1 text-[24px] leading-[1.45] font-semibold tracking-[-0.02em] md:text-[26px]">Casos</h1>
+        <ViewToggle view={view} onChange={setView} />
+        <label className="flex h-11 items-center gap-2 rounded-md border border-border-strong px-2.5 text-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring max-md:order-last max-md:w-full md:h-[34px] md:w-60">
+          <Search aria-hidden="true" className="size-3.5 shrink-0" />
+          <input ref={searchRef} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar casos" aria-label="Buscar casos"
+            className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-subtle-foreground md:text-[13.5px]" />
+        </label>
+        <Button type="button" size="lg" className="max-md:h-11" onClick={() => { setFailure(""); setCreating(true); }}><Plus aria-hidden="true" className="size-3.5" />Novo caso</Button>
+      </header>
 
-    {failure && <p className="mt-4 flex items-start gap-2 text-sm text-destructive" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{failure}</p>}
+      {failure && <p role="alert" className="flex items-start gap-2 text-[13px] text-destructive"><CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />{failure}</p>}
 
-    <div className="mt-5 min-h-0 overflow-auto" data-reveal>
-      {view === "cards" ? (
-        // One column of min-width 0 on phones: a long name or description ends in an ellipsis inside its
-        // card instead of widening the grid (and pushing the delete button off the screen).
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Link href="/app/vault/library" className="grid min-h-28 min-w-0 grid-cols-1 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
-            <span className="flex items-center gap-2 font-medium"><Library className="size-4 text-muted-foreground" aria-hidden="true" />Biblioteca</span>
-            <span className="text-sm text-muted-foreground">Arquivos fora de um caso</span>
-            <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(libraryCount)}</span>
-          </Link>
-          {cases.map((item) => (
-            <div key={item.id} className="relative min-w-0">
-              <Link href={`/app/vault/cases/${item.id}`} className="grid min-h-28 min-w-0 grid-cols-1 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
-                <span className="flex min-w-0 items-center gap-2 font-medium"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate pr-8">{item.name}</span></span>
-                <span className="line-clamp-2 text-sm break-words text-muted-foreground">{item.description || item.client.name || "Sem descrição"}</span>
-                <span className="mt-auto text-[13px] text-subtle-foreground">{countLabel(item.documentCount)} · {formatDate(item.updatedAt)}{isShared(item.id) ? ' · Compartilhado comigo' : ''}</span>
-              </Link>
-              {!isShared(item.id) && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} className="absolute top-2 right-2" />}
-            </div>
+      {view === "grid" ? (
+        <CaseGrid label="Casos">
+          {shown.map((item) => (
+            <CaseCard key={item.id} href={href(item)} title={item.name} icon={Folder} client={item.client.name} summary={item.description}
+              footer={<span suppressHydrationWarning>{fileCount(item.documentCount)} · {updated(item)}</span>}
+              people={people[item.id]} menu={menu(item)} />
           ))}
-        </div>
+          {!query.trim() && (
+            <CaseCard href={LIBRARY_HREF} title={LIBRARY_TITLE} icon={Layers} client="Arquivos fora de um caso"
+              summary="Modelos, procurações e materiais que servem a mais de um caso." footer={fileCount(libraryCount)} />
+          )}
+        </CaseGrid>
       ) : (
-        <div>
-          <div className="hidden gap-4 border-b pb-2 text-[13px] text-muted-foreground md:grid md:grid-cols-[minmax(240px,1fr)_120px_120px_44px]"><span>Pasta</span><span>Arquivos</span><span>Atualizado</span><span className="sr-only">Ações</span></div>
-          <Link href="/app/vault/library" className="grid min-h-12 grid-cols-[minmax(0,1fr)] items-center gap-4 border-b py-2 text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(240px,1fr)_120px_120px]">
-            <span className="flex min-w-0 items-center gap-2"><Library className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate">Biblioteca</span></span>
-            <span className="hidden text-muted-foreground md:block">{libraryCount}</span>
-            <span className="hidden text-muted-foreground md:block">—</span>
-          </Link>
-          {cases.map((item) => (
-            <div key={item.id} className="flex items-center border-b">
-              <Link href={`/app/vault/cases/${item.id}`} className="grid min-h-12 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] items-center gap-4 py-2 text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(240px,1fr)_120px_120px]">
-                <span className="flex min-w-0 items-center gap-2"><FolderClosed className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0"><span className="block truncate">{item.name}</span>{isShared(item.id) && <span className="block text-[13px] text-muted-foreground">Compartilhado comigo</span>}</span></span>
-                <span className="hidden text-muted-foreground md:block">{item.documentCount}</span>
-                <span className="hidden text-muted-foreground md:block">{formatDate(item.updatedAt)}</span>
-              </Link>
-              {!isShared(item.id) && <CaseDelete caseId={item.id} name={item.name} documentCount={item.documentCount} onError={setFailure} onDeleted={() => drop(item.id)} />}
+        <div role="list" aria-label="Casos" className="flex flex-col gap-0.5 md:max-w-[760px]">
+          {shown.map((item) => (
+            <div key={item.id} role="listitem" className="flex min-w-0 items-center gap-1">
+              <CanvasRow stacked href={href(item)} icon={<Folder />} title={item.name} className="min-w-0 flex-1"
+                detail={[item.client.name, item.description].filter(Boolean).join(" · ") || undefined}
+                meta={<span suppressHydrationWarning>{dayMonth(item.updatedAt)}</span>} status={isShared(item.id) ? "compartilhado" : fileCount(item.documentCount)} />
+              {menu(item) ?? <span aria-hidden="true" className="w-11 shrink-0 md:w-[30px]" />}
             </div>
           ))}
+          {!query.trim() && (
+            <div role="listitem" className="flex min-w-0 items-center gap-1">
+              <CanvasRow stacked href={LIBRARY_HREF} icon={<Layers />} title={LIBRARY_TITLE} detail="Arquivos fora de um caso" status={fileCount(libraryCount)} className="min-w-0 flex-1" />
+              <span aria-hidden="true" className="w-11 shrink-0 md:w-[30px]" />
+            </div>
+          )}
         </div>
       )}
-      {cases.length === 0 && <p className="py-10 text-sm text-subtle-foreground">Nenhum caso ainda. Crie o primeiro para organizar os arquivos por processo.</p>}
-    </div>
-  </div>;
+
+      {cases.length === 0 && <p className="text-[13.5px] text-muted-foreground">Nenhum caso ainda. Crie o primeiro para reunir os arquivos e o trabalho de um processo.</p>}
+      {cases.length > 0 && shown.length === 0 && (
+        <p className="text-[13.5px] text-muted-foreground">
+          Nenhum caso com “{query.trim()}”.{" "}
+          <button type="button" className="rounded-sm text-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
+            onClick={() => { setQuery(""); searchRef.current?.focus(); }}>Limpar busca</button>
+        </p>
+      )}
+
+      <CaseFormDialog open={creating} onOpenChange={setCreating} onSaved={created} />
+      {deleting && (
+        <CaseDelete caseId={deleting.id} name={deleting.name} documentCount={deleting.documentCount} open onOpenChange={(open) => { if (!open) setDeleting(null); }}
+          onError={setFailure} onDeleted={() => { setCases((current) => current.filter((item) => item.id !== deleting.id)); setDeleting(null); }} />
+      )}
+    </CanvasPage>
+  );
 }

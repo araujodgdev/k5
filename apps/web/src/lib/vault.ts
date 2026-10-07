@@ -244,6 +244,23 @@ export async function vaultCasePeople(officeId: string, caseId: string) {
     ORDER BY u.name, u.id`).all<{ id: string; name: string; email: string }>(officeId, officeId, caseId);
 }
 
+/** The same people for several cases at once, the owner first: the initials on the case cards. */
+export async function vaultCasePeopleByCase(officeId: string, caseIds: string[]): Promise<Record<string, { id: string; name: string }[]>> {
+  if (!caseIds.length) return {};
+  const rows = await database.prepare(`SELECT k.id AS "caseId", u.id, u.name, 0 AS rank FROM vault_case k
+      JOIN office_member m ON m.office_id = k.office_id JOIN "user" u ON u.id = m.user_id
+      WHERE k.office_id = ? AND k.id = ANY(?::text[])
+    UNION ALL SELECT p.case_id, u.id, u.name, 1 FROM case_participant p JOIN "user" u ON u.id = p.user_id
+      WHERE p.office_id = ? AND p.case_id = ANY(?::text[]) AND p.revoked_at IS NULL
+    ORDER BY 1, 4, 3`).all<{ caseId: string; id: string; name: string }>(officeId, caseIds, officeId, caseIds);
+  const people: Record<string, { id: string; name: string }[]> = {};
+  for (const row of rows) {
+    const list = (people[row.caseId] ??= []);
+    if (!list.some((person) => person.id === row.id)) list.push({ id: row.id, name: row.name });
+  }
+  return people;
+}
+
 async function cleanAccess(officeId: string, caseId: string, creator: string, access: FolderAccess) {
   if (!["public", "private", "restricted"].includes(access.visibility)) throw new VaultHttpError(400, "Escolha quem pode ver a pasta.");
   if (access.visibility !== "restricted") return { visibility: access.visibility, memberIds: [] };

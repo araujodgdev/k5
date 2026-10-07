@@ -19,8 +19,10 @@ test('Artefatos lista o que a conversa criou e recebeu e salva no Cofre pela int
   await claimChatAttachment(account.email, attachment.id);
 
   await signInWithSession({ app, screen, browser }, api);
-  await app.open('/app/agents');
-  await screen.getByRole('button', /^Artefatos/).tap();
+  // The conversation opens in the Lume's panel; its artifacts are under the previous conversations.
+  await app.open(`/app/command-center?conversationId=${conversation.id}`);
+  await screen.getByRole('button', 'Conversas anteriores').tap();
+  await screen.getByRole('button', /^Artefatos desta conversa/).tap();
   await expect(screen.getByRole('dialog', 'Artefatos desta conversa')).toBeVisible();
   await expect(screen.getByRole('button', 'Parecer societário')).toBeVisible();
   await expect(screen.getByText('contrato-social.txt')).toBeVisible();

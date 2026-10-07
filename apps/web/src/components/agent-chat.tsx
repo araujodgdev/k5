@@ -1,91 +1,70 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { GoogleApprovalReview } from '@/components/google/client';
 import { useSearchParams } from "next/navigation";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { useChat } from "@ai-sdk/react";
-import type { ChatBootstrap } from "@/lib/ai-store";
-import {
-  ActionBarPrimitive,
-  AssistantRuntimeProvider,
-  AuiIf,
-  ComposerPrimitive,
-  MessagePrimitive,
-  ThreadPrimitive,
-  useAui,
-  useAuiState,
-} from "@assistant-ui/react";
+import { AssistantRuntimeProvider, ThreadPrimitive } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
-import {
-  ArrowUp,
-  ArrowDown,
-  Check,
-  CircleAlert,
-  Camera,
-  ExternalLink,
-  Copy,
-  FileStack,
-  FileText,
-  PanelLeftClose,
-  SlidersHorizontal,
-  PanelLeftOpen,
-  Image as ImageIcon,
-  LoaderCircle,
-  MessageSquarePlus,
-  Mic,
-  Plus,
-  RefreshCw,
-  Square,
-  Trash2,
-} from "lucide-react";
-import type { AgentContext } from "@/components/agent-sources-panel";
+import { ArrowDown, CircleAlert, FileStack, LoaderCircle, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
+import type { ChatBootstrap } from "@/lib/ai-store";
+import type { AgentContext } from "@/components/agent-sources-panel";
 import { readListOpen, subscribeListOpen, writeListOpen, serverListOpen } from "@/lib/agent-history";
 import { clampChatShare, DEFAULT_CHAT_SHARE, MAX_CHAT_SHARE, MIN_CHAT_SHARE, readChatShare, serverChatShare, subscribeChatShare, writeChatShare } from "@/lib/document-split";
-import { formatConversationTime } from "@/lib/conversation-time";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { DOCUMENT_ACCEPT, IMAGE_ACCEPT, type Modalities } from "@/lib/ai-modalities";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import type { Modalities } from "@/lib/ai-modalities";
 import { cn } from "@/lib/utils";
-import { ChatCamera } from './chat-camera';
-import { ChatAttachmentView } from './chat-attachment';
-import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, MAX_CHAT_IMAGE_BYTES, type ChatAttachment } from '@/lib/chat-attachment-contract';
-import { useVoiceRecorder, VoiceLevel } from './voice-recorder';
+import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, MAX_CHAT_IMAGE_BYTES, type ChatAttachment } from "@/lib/chat-attachment-contract";
 import type { DocumentAsk, DocumentWorkspaceHandle } from "./document/document-workspace";
 import { DocumentPanel } from "./document/document-panel";
-import type { CitationItem } from "@/lib/citations/verdict";
-import { citationLabel, sourceHref, toReview } from "@/lib/citations/labels";
-import { SmartWorking } from "@/components/smart-options";
 import { THINKING, type ChatStatus } from "@/lib/chat-status";
-import { applyApprovalDecisions, approvalDecision, type ApprovalDecision } from "@/lib/chat-approval-state";
-import { citationMarkdown, webReference } from "@/lib/citations/web-references";
+import { applyApprovalDecisions, type ApprovalDecision } from "@/lib/chat-approval-state";
+import { useShell, type CanvasSubject } from "@/components/shell/shell-context";
+import { placeOf } from "@/components/shell/places";
+import { canvasCommandSchema, type CanvasCommand, type CanvasContext } from "@/lib/canvas-protocol";
+import {
+  ApprovalDecisionsContext, ConversationIdContext, DocumentLinksContext, WorkingContext,
+  documentHref, documentIdFrom, type DocumentLinks, type ThreadLayout,
+} from "./lume-panel/chat-context";
+import { AssistantMessage, UserMessage } from "./lume-panel/messages";
+import { Composer, type ComposerChip, type ComposerToolsProps } from "./lume-panel/composer";
+import { EmptyState } from "./lume-panel/empty-state";
+import { ConversationList, type Conversation } from "./lume-panel/history";
+import { PanelHeader } from "./lume-panel/panel-header";
+import { subjectChip } from "./lume-panel/icons";
+import { buildPlan, panelStatus, type Plan, type PlanPart } from "./lume-panel/plan";
+import { documentChanged, registerDocumentAsk } from "./lume-panel/document-bridge";
+
+/**
+ * The chat runs in two compositions. `page` is /app/agents in the office's old frame: the
+ * conversation list beside the chat and documents in a split. `panel` is the Lume panel the office
+ * shell mounts once, beside the canvas: history inside the panel and documents in the canvas.
+ */
+export type ChatMode =
+  | { kind: "page"; initialData?: ChatBootstrap }
+  | { kind: "panel" };
 
 type Selection = { artifactId: string; excerpt: string };
-/** Read when a message is sent: the document open beside the chat, and a selection spent by that one request. */
-type DocumentFocus = { openDocumentId: () => string | null; takeSelection: () => Selection | null };
+/** Read when a message is sent: the open document, a selection spent by that one request, and the canvas. */
+type TurnFocus = { openDocumentId: () => string | null; takeSelection: () => Selection | null; canvas: () => CanvasContext | null };
+/** The newest turn as the panel header and the shell see it; `place` is the tab it touched last. */
+type TurnStatus = { running: boolean; plan: Plan | null; place?: string };
+
 const DocumentWorkspace = dynamic(() => import("./document/document-workspace").then(module => module.DocumentWorkspace), {
   ssr: false,
   loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Abrindo documento…</p>,
 });
-/** Tool calls that leave a document the person should see: created, edited, rewritten or restored. */
-const DOCUMENT_WRITES = new Set(["k5_artifacts_create", "k5_artifacts_edit", "k5_artifacts_update", "k5_artifacts_restore_version"]);
 const AgentArtifactsPanel = dynamic(() => import("./agent-artifacts-panel").then(module => module.AgentArtifactsPanel), {
   loading: () => <p role="status" className="p-6 text-sm text-muted-foreground">Carregando artefatos…</p>,
 });
-type Conversation = { id: string; title: string; updatedAt: string };
+const EMPTY_TITLE = "Nova conversa";
+/** The panel's conversation for this browser tab: a reload keeps it, a new visit starts fresh. */
+const PANEL_CONVERSATION = "lume:panel:conversation";
 
 function unwrapConversations(value: unknown): Conversation[] {
   if (Array.isArray(value)) return value as Conversation[];
@@ -100,7 +79,7 @@ function unwrapConversation(value: unknown): Conversation | null {
   const record = value as { conversation?: Conversation; id?: string; title?: string; updatedAt?: string };
   if (record.conversation) return record.conversation;
   return typeof record.id === "string"
-    ? { id: record.id, title: record.title || "Nova conversa", updatedAt: record.updatedAt || new Date().toISOString() }
+    ? { id: record.id, title: record.title || EMPTY_TITLE, updatedAt: record.updatedAt || new Date().toISOString() }
     : null;
 }
 
@@ -137,6 +116,15 @@ function storeMessages(id: string, next: UIMessage[]) {
   }
 }
 
+function rememberPanelConversation(id?: string): string | null {
+  try {
+    if (id) sessionStorage.setItem(PANEL_CONVERSATION, id);
+    return sessionStorage.getItem(PANEL_CONVERSATION);
+  } catch {
+    return null;
+  }
+}
+
 function chatErrorMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : "";
   if (raw) {
@@ -150,432 +138,59 @@ function chatErrorMessage(error: unknown): string {
   return raw || "Não foi possível enviar a mensagem.";
 }
 
-function UserMessage() {
-  return (
-    <MessagePrimitive.Root className="mx-auto grid w-full max-w-3xl justify-items-end px-4 py-3 md:px-8">
-      <div className="max-w-[88%] rounded-2xl bg-secondary px-4 py-3 text-sm leading-6 whitespace-pre-wrap md:max-w-[78%]">
-        <MessagePrimitive.Parts components={{data:{by_name:{attachment:ChatAttachmentView}}}} />
-      </div>
-    </MessagePrimitive.Root>
-  );
-}
+const planParts = (message: UIMessage | undefined): PlanPart[] => message?.role !== "assistant" ? [] : message.parts.flatMap(part =>
+  part.type.startsWith("data-") && "data" in part ? [{ name: part.type.slice(5), data: part.data }] : []);
 
-/** The model writes Markdown; this is what turns it into headings, lists and tables. */
-function AssistantText({ text }: { text: string }) {
-  const content = useAuiState(state => state.message.content);
-  const sources = content.flatMap(part => {
-    if (part.type !== 'data' || part.name !== 'web-sources') return [];
-    const parsed = webReference.array().safeParse(part.data && typeof part.data === 'object' && 'sources' in part.data ? part.data.sources : []);
-    return parsed.success ? parsed.data : [];
-  });
-  return <Markdown text={citationMarkdown(text, sources)} />;
-}
-
-type StepData = { callId?: string; name?: string; summary?: string; state?: string; href?: string };
-
-/**
- * Documents open beside the conversation instead of replacing it. `announce` hears every tool line
- * as it renders; a document the Lume created or changed in this turn opens, or reloads if open.
- */
-type DocumentLinks = { open: (id: string) => void; announce: (step: StepData) => void; changed: (id: string) => void };
-const DocumentLinksContext = createContext<DocumentLinks | null>(null);
-const DOCUMENT_PREFIX = "/app/documents/";
-const documentIdFrom = (href?: string) => href?.startsWith(DOCUMENT_PREFIX) ? decodeURIComponent(href.slice(DOCUMENT_PREFIX.length)) : null;
-
-function OpenLink({ href }: { href: string }) {
-  const documents = useContext(DocumentLinksContext);
-  const documentId = documentIdFrom(href);
-  if (href.startsWith('/api/')) return <a href={href} download className="text-brand-ink underline-offset-4 hover:underline focus-visible:underline">Baixar</a>;
-  if (documentId && documents) {
-    return <button type="button" onClick={() => documents.open(documentId)} className="text-brand-ink underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none">Abrir</button>;
-  }
-  return <Link href={href} className="text-brand-ink underline-offset-4 hover:underline">Abrir</Link>;
-}
-
-/** One finished tool call, as a quiet line above the answer, with a link to what it touched. */
-function ToolStep({ data }: { data: StepData }) {
-  const documents = useContext(DocumentLinksContext);
-  useEffect(() => { if (data) documents?.announce(data); }, [data, documents]);
-  if (!data?.summary) return null;
-  const failed = data.state === "failed";
-  return (
-    <p className={cn("mb-2 flex items-start gap-2 text-[13px] leading-5", failed ? "text-destructive" : "text-subtle-foreground")}>
-      {failed ? <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" /> : <Check className="mt-0.5 size-3.5 shrink-0 text-brand-ink" aria-hidden="true" />}
-      <span className="min-w-0">{data.summary}{data.href && <> · <OpenLink href={data.href} /></>}</span>
-    </p>
-  );
-}
-
-const ConversationIdContext = createContext("");
-const ApprovalDecisionsContext = createContext<{
-  decisions: ReadonlyMap<string, ApprovalDecision>;
-  record: (id: string, decision: ApprovalDecision) => void;
-} | null>(null);
-type ApprovalData = { approvalId: string; capability?: string; summary: string; state: "pending" | "confirmed" | "cancelled" | "failed"; result?: string; href?: string };
-
-/**
- * The only thing the Lume asks before acting: deleting, reaching a court, or overwriting a draft.
- * Confirmar runs exactly the action it proposed on the server; nothing is retyped by the model.
- */
-function ApprovalStep({ data }: { data: ApprovalData }) {
-  const conversationId = useContext(ConversationIdContext);
-  const documents = useContext(DocumentLinksContext);
-  const decisions = useContext(ApprovalDecisionsContext);
-  const googleApproval = /^k5_(gmail|calendar|drive|docs)_/.test(data?.capability ?? '') &&
-    !['k5_calendar_discard_pending', 'k5_calendar_share_event', 'k5_calendar_unshare_event'].includes(data.capability ?? '');
-  const [reviewReady, setReviewReady] = useState(false);
-  const [busy, setBusy] = useState<"" | "confirm" | "cancel">("");
-  const [error, setError] = useState("");
-  if (!data?.approvalId) return null;
-  const current = decisions?.decisions.get(data.approvalId) ?? data;
-  async function decide(decision: "confirm" | "cancel") {
-    setBusy(decision); setError("");
-    try {
-      const response = await fetch(`/api/chat/approvals/${encodeURIComponent(data.approvalId)}`, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision, conversationId }),
-      });
-      const body = await response.json().catch(() => ({})) as ApprovalData & { error?: string };
-      if (!response.ok) throw new Error(body.error || "Não foi possível concluir. Peça de novo ao Lume.");
-      decisions?.record(data.approvalId, approvalDecision.parse(body));
-      const changedDocument = body.state === "confirmed" ? documentIdFrom(body.href) : null;
-      if (changedDocument) documents?.changed(changedDocument);
-    } catch (failure) { setError(failure instanceof Error ? failure.message : "Não foi possível concluir."); }
-    finally { setBusy(""); }
-  }
-  return (
-    <div className="mt-3 grid gap-3 border-l-2 border-brand py-1 pl-4" role="group" aria-label="Confirmação">
-      <p className="whitespace-pre-wrap break-words text-sm text-foreground">{data.summary}</p>
-      {googleApproval && current.state === 'pending' && <GoogleApprovalReview approvalId={data.approvalId} onReady={setReviewReady} />}
-      {current.state === "pending" ? <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" className="h-11 md:h-9" disabled={Boolean(busy) || (googleApproval && !reviewReady)} onClick={() => void decide("confirm")}>
-          {busy === "confirm" && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}Confirmar</Button>
-        <Button type="button" size="sm" variant="ghost" className="h-11 md:h-9" disabled={Boolean(busy)} onClick={() => void decide("cancel")}>Cancelar</Button>
-      </div> : <p className={cn("text-[13px]", current.state === "failed" ? "text-destructive" : "text-subtle-foreground")} role="status">
-        {current.state === "confirmed" ? "Confirmado" : current.state === "cancelled" ? "Cancelado" : "Não concluído"}{current.result ? ` · ${current.result}` : ""}
-        {current.href && <> · <OpenLink href={current.href} /></>}
-      </p>}
-      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
-    </div>
-  );
-}
-
-type JurisprudenceData = {
-  results?: Array<{ title: string; court: string; caseNumber: string | null; date: string | null; url: string; summary: string; relevanceLabel: string | null }>;
-  note?: string;
-};
-
-/**
- * Case law the Lume found on the web. It is built from the tool result, not from the model's
- * prose, so every item carries the link the search returned and Jev's relevance, in plain text.
- */
-function JurisprudenceList({ data }: { data: JurisprudenceData }) {
-  const results = data?.results ?? [];
-  const host = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } };
-  return (
-    <section aria-label="Jurisprudência encontrada na web" className="mt-4 grid gap-2">
-      <h3 className="text-sm font-medium">Jurisprudência na web</h3>
-      {results.length ? <ol className="divide-y border-y">
-        {results.map((item) => (
-          <li key={item.url} className="grid gap-1 py-3">
-            <a href={item.url} target="_blank" rel="noopener noreferrer" className="group inline-flex items-start gap-1.5 text-sm font-medium leading-6 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <span className="min-w-0 break-words">{item.title}</span><ExternalLink className="mt-1.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="sr-only"> (abre em nova aba)</span>
-            </a>
-            <p className="text-[13px] leading-5 text-subtle-foreground">
-              {[item.court, item.caseNumber, item.date, host(item.url)].filter(Boolean).join(" · ")}
-              {item.relevanceLabel && <> · <span className="text-brand-ink">{item.relevanceLabel}</span></>}
-            </p>
-            {item.summary && <p className="line-clamp-3 text-[13px] leading-5 text-muted-foreground">{item.summary}</p>}
-          </li>
-        ))}
-      </ol> : null}
-      {data?.note && <p className="text-xs text-subtle-foreground">{data.note} Confira o inteiro teor antes de citar.</p>}
-    </section>
-  );
-}
-
-/**
- * The answer's legal citations, checked against what the conversation consulted. The Lume writes
- * freely; this is where the lawyer sees which citations to confirm before relying on them.
- */
-function CitationsList({ data }: { data: { items?: CitationItem[] } }) {
-  const items = data?.items ?? [];
-  const pending = toReview(items);
-  const confirmed = items.length - pending.length;
-  if (!items.length) return null;
-  return (
-    <section aria-label="Citações da resposta" className="mt-4 grid gap-2">
-      {pending.length > 0 && <>
-        <h3 className="text-sm font-medium">Citações para conferir</h3>
-        <ul className="divide-y border-y">
-          {pending.map((item) => (
-            <li key={item.id} className="grid gap-0.5 py-2.5">
-              <p className="text-sm font-medium leading-6">{item.text}</p>
-              <p className="text-[13px] leading-5 text-subtle-foreground">
-                {citationLabel(item)}
-                {item.source && <> · {sourceHref(item.source.url)
-                  ? <a href={sourceHref(item.source.url)!} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline-offset-4 hover:underline">{item.source.title || "fonte"}<span className="sr-only"> (abre em nova aba)</span></a>
-                  : item.source.title}</>}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </>}
-      {confirmed > 0 && <p className="text-xs text-subtle-foreground">{confirmed === 1 ? "1 citação confere" : `${confirmed} citações conferem`} com as fontes consultadas nesta conversa.</p>}
-    </section>
-  );
-}
-
-function WebSources({ data }: { data: unknown }) {
-  const parsed = webReference.array().safeParse(data && typeof data === 'object' && 'sources' in data ? data.sources : []);
-  if (!parsed.success || !parsed.data.length) return null;
-  const sources = [...new Map(parsed.data.map(source => [source.url, source])).values()];
-  return <details className="mt-3 text-[13px] text-subtle-foreground">
-    <summary className="cursor-pointer focus-visible:outline focus-visible:outline-ring">Fontes da pesquisa ({sources.length})</summary>
-    <div className="mt-2 grid gap-2">{sources.map(source => <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" className="break-words underline underline-offset-4">{source.title || source.url}</a>)}</div>
-  </details>;
-}
-
-function ToolActivity() {
-  const content = useAuiState(state => state.message.content);
-  const groups = new Map<string, StepData[]>();
-  for (const [index, part] of content.entries()) {
-    if (part.type !== 'data' || part.name !== 'tool' || !part.data || typeof part.data !== 'object') continue;
-    const data = part.data;
-    if (!('summary' in data) || typeof data.summary !== 'string') continue;
-    const step: StepData = {
-      summary: data.summary,
-      name: 'name' in data && typeof data.name === 'string' ? data.name : undefined,
-      callId: 'callId' in data && typeof data.callId === 'string' ? data.callId : undefined,
-      href: 'href' in data && typeof data.href === 'string' ? data.href : undefined,
-      state: 'state' in data && typeof data.state === 'string' ? data.state : undefined,
-    };
-    const key = step.name ?? step.callId ?? `unknown-${index}`;
-    const group = groups.get(key) ?? [];
-    group.push(step);
-    groups.set(key, group);
-  }
-  if (!groups.size) return null;
-  return <div aria-label="Atividade do Lume" className="mb-4">
-    {[...groups].map(([key, steps]) => steps.length === 1 ? <ToolStep key={key} data={steps[0]} /> :
-      <details key={key} className="mb-2 text-[13px] leading-5 text-subtle-foreground">
-        <summary className="min-h-11 cursor-pointer py-2 focus-visible:outline focus-visible:outline-ring md:min-h-0 md:py-0">
-          {steps[0].summary?.split(':')[0]} · {steps.length} chamadas{steps.some(step => step.state === 'failed') ? ' · Há falhas' : ''}
-        </summary>
-        <div className="mt-2 border-l pl-3">{steps.map((step, index) => <ToolStep key={step.callId ?? index} data={step} />)}</div>
-      </details>)}
-  </div>;
-}
-
-const assistantParts = { Text: AssistantText, data: { by_name: { tool: () => null, approval: ApprovalStep, jurisprudence: JurisprudenceList, citations: CitationsList, 'web-sources': WebSources } } };
-
-/** What Lume is doing in the running turn ("Consultando o Cofre…"), sent by the server as it goes. */
-const WorkingContext = createContext("");
-
-function AssistantMessage() {
-  const working = useContext(WorkingContext);
-  return (
-    <MessagePrimitive.Root className="group mx-auto w-full max-w-3xl px-4 py-4 md:px-8">
-      <div className="max-w-[72ch] text-sm leading-7 text-foreground">
-        <ToolActivity />
-        <MessagePrimitive.Parts components={assistantParts} />
-        <MessagePrimitive.If last>
-          <AuiIf condition={(state) => state.thread.isRunning}>
-            <SmartWorking className="not-first:mt-3">{working || THINKING}</SmartWorking>
-          </AuiIf>
-        </MessagePrimitive.If>
-        <MessagePrimitive.Error>
-          <p className="mt-2 text-sm text-destructive" role="alert">Não foi possível concluir a resposta. Tente novamente.</p>
-        </MessagePrimitive.Error>
-      </div>
-      <ActionBarPrimitive.Root className="mt-1 flex min-h-7 items-center gap-1 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
-        <ActionBarPrimitive.Copy className="grid size-11 place-items-center md:size-7 rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Copiar resposta">
-          <Copy className="size-3.5" />
-        </ActionBarPrimitive.Copy>
-        <ActionBarPrimitive.Reload className="grid size-11 place-items-center md:size-7 rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Gerar novamente">
-          <RefreshCw className="size-3.5" />
-        </ActionBarPrimitive.Reload>
-      </ActionBarPrimitive.Root>
-    </MessagePrimitive.Root>
-  );
-}
-
-const composerControl = "grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent";
-
-/** A control that stays visible when the model cannot do the thing, and says why. */
-function HintedControl({ hint, children }: { hint?: string; children: React.ReactNode }) {
-  if (!hint) return <>{children}</>;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild><span className="inline-flex">{children}</span></TooltipTrigger>
-      <TooltipContent>{hint}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-type ComposerToolsProps = {
-  modalities: Modalities;
-  /** Files still on their way to the server. */
-  uploading: number;
-  onPickFiles: (files: File[]) => void;
-  onError: (message: string) => void;
-  pendingFiles: ChatAttachment[];
-  onRemoveFile: (id:string) => void;
-};
-
-type Voice = ReturnType<typeof useVoiceRecorder>;
-
-function ComposerTools({ modalities, uploading, onPickFiles, voice }: ComposerToolsProps & { voice: Voice }) {
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [accept, setAccept] = useState(DOCUMENT_ACCEPT);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [cameraOpen,setCameraOpen]=useState(false);
-
-  function pick(kind: "document" | "image") {
-    setAccept(kind === "image" ? IMAGE_ACCEPT : DOCUMENT_ACCEPT);
-    setMenuOpen(false);
-    // The accept attribute has to be applied before the dialog opens.
-    window.setTimeout(() => fileInput.current?.click(), 0);
-  }
-
-  const audioHint = modalities.audio ? undefined : "O Lume não aceita áudio nesta configuração.";
-
-  return (
-    <>
-      <input
-        ref={fileInput}
-        type="file"
-        aria-label="Arquivo para anexar"
-        accept={accept}
-        className="sr-only"
-        multiple
-        onChange={(event) => {
-          const files = [...(event.target.files ?? [])];
-          event.target.value = "";
-          if (files.length) onPickFiles(files);
-        }}
-      />
-      <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-        <PopoverTrigger asChild>
-          <button type="button" className={composerControl} aria-label="Anexar arquivos" disabled={voice.state !== "idle"}>
-            {uploading > 0 ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" /> : <Plus className="size-4.5" />}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" side="top" className="w-64 p-1">
-          <HintedControl hint={modalities.image ? undefined : "O Lume não lê imagens nesta configuração."}>
-            <button type="button" onClick={()=>{setMenuOpen(false);setCameraOpen(true);}} disabled={!modalities.image} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:text-subtle-foreground md:min-h-9"><Camera className="size-4 text-muted-foreground" aria-hidden="true" />Tirar foto</button>
-          </HintedControl>
-          <button type="button" onClick={() => pick("document")} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted md:min-h-9">
-            <FileText className="size-4 text-muted-foreground" aria-hidden="true" />Documento ou planilha
-          </button>
-          <HintedControl hint={modalities.image ? undefined : "O Lume não lê imagens nesta configuração."}>
-            <button type="button" onClick={() => pick("image")} disabled={!modalities.image} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent md:min-h-9">
-              <ImageIcon className="size-4 text-muted-foreground" aria-hidden="true" />Escolher imagem
-            </button>
-          </HintedControl>
-        </PopoverContent>
-      </Popover>
-      {cameraOpen&&<ChatCamera onClose={()=>setCameraOpen(false)} onPhoto={file => onPickFiles([file])} />}
-
-      {voice.state === "recording" ? (
-        <button type="button" onClick={voice.cancel} aria-label="Descartar gravação" title="Descartar gravação" className={composerControl}>
-          <Trash2 className="size-4" />
-        </button>
-      ) : (
-        <HintedControl hint={audioHint}>
-          <button type="button" onClick={() => void voice.start()} disabled={!modalities.audio || voice.state !== "idle"} aria-label="Gravar áudio" title="Gravar áudio" className={composerControl}>
-            <Mic className="size-4.5" />
-          </button>
-        </HintedControl>
-      )}
-    </>
-  );
-}
-
-function LumeThread({ tools }: { tools: ComposerToolsProps }) {
+function LumeThread({ tools, layout, userName, subject, chip }: {
+  tools: ComposerToolsProps; layout: ThreadLayout; userName: string; subject: CanvasSubject | null; chip: ComposerChip | null;
+}) {
   const [away, setAway] = useState(false);
-  const aui = useAui();
-  // The transcript joins whatever was typed and goes out as the person's own message, so the
-  // conversation shows the words that were said. While a reply or an upload is still running,
-  // it waits in the composer instead.
-  const voice = useVoiceRecorder({
-    onError: tools.onError,
-    onText: (spoken) => {
-      const composer = aui.composer();
-      const typed = composer.getState().text.trim();
-      composer.setText(typed ? `${typed}\n\n${spoken}` : spoken);
-      if (!aui.thread().getState().isRunning && !tools.uploading) composer.send();
-    },
-  });
+  const column = layout === "page" ? "mx-auto w-full max-w-[680px] px-6" : "px-5 max-md:px-4";
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
-      <ThreadPrimitive.Viewport data-chat-viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain" turnAnchor="bottom" onScroll={event => {
-        const el = event.currentTarget;
-        setAway(el.scrollHeight - el.scrollTop - el.clientHeight > 240);
-      }}>
-        <ThreadPrimitive.Empty>
-          <div className="mx-auto grid w-full max-w-3xl flex-1 place-items-center px-6 py-14 text-center">
-            <p className="max-w-sm text-sm leading-6 text-subtle-foreground">Peça o que precisar. O Lume consulta os documentos do escritório e cria tarefas, reuniões e casos por você.</p>
+      <ThreadPrimitive.Viewport data-chat-viewport turnAnchor="bottom"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain [scrollbar-color:var(--border-strong)_transparent] [scrollbar-width:thin]"
+        onScroll={event => {
+          const el = event.currentTarget;
+          setAway(el.scrollHeight - el.scrollTop - el.clientHeight > 240);
+        }}>
+        <div className={cn("flex flex-1 flex-col gap-4 max-md:gap-3", column, layout === "page" ? "pt-6 pb-3" : "pt-3 pb-3 max-md:pt-3.5")}>
+          <ThreadPrimitive.Empty><EmptyState userName={userName} subject={subject} /></ThreadPrimitive.Empty>
+          <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+        </div>
+        <ThreadPrimitive.ViewportFooter className={cn("sticky bottom-0 z-10 mt-auto shrink-0", layout === "page" ? "bg-background" : "bg-pane max-md:bg-background")}>
+          {away && <ThreadPrimitive.ScrollToBottom aria-label="Voltar ao mais recente" title="Voltar ao mais recente" behavior="auto"
+            className="absolute -top-12 left-1/2 grid size-9 -translate-x-1/2 place-items-center rounded-full border border-border bg-card shadow-[var(--shadow-float)] outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:hidden max-md:size-11">
+            <ArrowDown className="size-4" />
+          </ThreadPrimitive.ScrollToBottom>}
+          <div className={layout === "page" ? "mx-auto w-full max-w-[680px] px-6 pt-2 pb-7 max-md:px-3 max-md:pb-3" : "px-3.5 pt-2 pb-3.5 max-md:px-3 max-md:pb-3"}>
+            <Composer tools={tools} chip={chip} />
           </div>
-        </ThreadPrimitive.Empty>
-        <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
-
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 z-10 mt-auto shrink-0 bg-background/95 px-4 pb-4 pt-2 md:px-8 md:pb-6">
-          {away && <ThreadPrimitive.ScrollToBottom aria-label="Voltar ao mais recente" title="Voltar ao mais recente" behavior="auto" className="absolute -top-12 left-1/2 grid size-11 -translate-x-1/2 place-items-center rounded-full border bg-background shadow-[var(--shadow-float)] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:hidden"><ArrowDown className="size-4" /></ThreadPrimitive.ScrollToBottom>}
-          <ComposerPrimitive.Root className="mx-auto w-full max-w-3xl rounded-2xl border border-line bg-background p-2 shadow-[var(--shadow-float)] transition focus-within:border-brand">
-            {tools.pendingFiles.length>0&&<div className="flex flex-wrap gap-2 p-2" aria-label="Anexos da próxima mensagem">{tools.pendingFiles.map(file=><ChatAttachmentView key={file.id} data={file} onRemove={()=>tools.onRemoveFile(file.id)} />)}</div>}
-            {tools.uploading>0&&<p role="status" className="px-2 py-1 text-xs text-muted-foreground">{tools.uploading===1?'Preparando anexo…':`Preparando ${tools.uploading} anexos…`}</p>}
-            {voice.state==='transcribing'&&<p role="status" className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />Transcrevendo áudio…</p>}
-            <ComposerPrimitive.Input
-              rows={away ? 1 : 2}
-              placeholder="Pergunte ao Lume"
-              aria-label="Pergunte ao Lume"
-              className={cn("max-h-[25dvh] w-full resize-none bg-transparent px-2 pt-2 pb-1 text-base outline-none transition-[min-height] duration-200 motion-reduce:transition-none placeholder:text-subtle-foreground md:text-sm", away ? "min-h-10" : "min-h-16")}
-            />
-            <div className="flex items-center gap-1">
-              <ComposerTools {...tools} voice={voice} />
-              {voice.state === "recording" && <VoiceLevel analyser={voice.analyser} seconds={voice.seconds} />}
-              <div className="ml-auto flex items-center gap-2">
-                {voice.state === "recording" ? (
-                  <button type="button" onClick={voice.finish} className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none transition hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50" aria-label="Parar gravação e enviar" title="Parar gravação e enviar">
-                    <Square className="size-3.5 fill-current" />
-                  </button>
-                ) : voice.state === "transcribing" ? (
-                  <span className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground opacity-40" aria-hidden="true">
-                    <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
-                  </span>
-                ) : <>
-                <AuiIf condition={(state) => state.thread.isRunning}>
-                  <ComposerPrimitive.Cancel className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50" aria-label="Parar resposta">
-                    <Square className="size-3.5 fill-current" />
-                  </ComposerPrimitive.Cancel>
-                </AuiIf>
-                <AuiIf condition={(state) => !state.thread.isRunning}>
-                  <ComposerPrimitive.Send disabled={tools.uploading > 0} className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none transition hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40" aria-label="Enviar mensagem">
-                    <ArrowUp className="size-4" />
-                  </ComposerPrimitive.Send>
-                </AuiIf>
-                </>}
-              </div>
-            </div>
-          </ComposerPrimitive.Root>
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
 }
 
-function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, onFinish, onError, focus, sendRef }: {
+function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, onFinish, onError, onStatus, onCanvas, focus, sendRef, layout, userName, subject, chip }: {
   conversationId: string;
-  /** What the person has open beside the chat; read when each message is sent. */
-  focus: DocumentFocus;
-  /** Lets the document panel send a message into this thread. */
+  /** What the person has open; read when each message is sent. */
+  focus: TurnFocus;
+  /** What the canvas should do while the Lume works, as the server streams it. */
+  onCanvas: (command: CanvasCommand) => void;
+  /** Lets the document send a message into this thread. */
   sendRef: React.RefObject<((text: string) => void) | null>;
   messages: UIMessage[];
   context: AgentContext;
-  onFilesSent: (ids:string[]) => void;
+  onFilesSent: (ids: string[]) => void;
   tools: ComposerToolsProps;
   onFinish: () => void;
   onError: (message: string) => void;
+  onStatus: (status: TurnStatus) => void;
+  layout: ThreadLayout;
+  userName: string;
+  subject: CanvasSubject | null;
+  chip: ComposerChip | null;
 }) {
   // The newest message on screen: a reopened page asks the server for the turn still running,
   // and gets nothing back when this is already its finished answer.
@@ -590,10 +205,11 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
       // travel over the wire (keeps requests under the server's body-size limit on long
       // conversations, and gives the route what it needs to merge retries/regenerations).
       prepareSendMessagesRequest: async ({ messages: history, trigger, messageId }) => {
-        const message=history.findLast(item=>item.role==='user');
-        const attachmentIds=message?.parts.flatMap(part=>part.type==='data-attachment'&&part.data&&typeof part.data==='object'&&'id' in part.data?[part.data.id]:[])??[];
+        const message = history.findLast(item => item.role === "user");
+        const attachmentIds = message?.parts.flatMap(part => part.type === "data-attachment" && part.data && typeof part.data === "object" && "id" in part.data ? [part.data.id] : []) ?? [];
         const selection = focus.takeSelection();
         const openDocumentId = focus.openDocumentId();
+        const canvas = focus.canvas();
         return {
           body: {
             conversationId,
@@ -607,6 +223,7 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             ...(openDocumentId ? { openDocumentId } : {}),
             ...(selection ? { selection } : {}),
+            ...(canvas ? { canvas } : {}),
           },
         };
       },
@@ -614,6 +231,10 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
     [context.caseId, context.documentIds, context.researchReferenceIds, conversationId, focus, lastMessageId],
   );
   const [working, setWorking] = useState("");
+  // The tab of what the Lume touched last; a turn's mark ends with the turn.
+  const [touched, setTouched] = useState<string | undefined>();
+  const onCanvasRef = useRef(onCanvas);
+  useEffect(() => { onCanvasRef.current = onCanvas; }, [onCanvas]);
   // K5 owns the history and thread IDs. The direct adapter avoids a second cloud thread list.
   const chat = useChat({
     id: conversationId,
@@ -621,9 +242,16 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
     transport,
     // The turn runs on the server whether or not this page is open; coming back picks it up.
     resume: true,
-    onFinish,
-    onError: (error) => onError(chatErrorMessage(error)),
-    onData: (part) => { if (part.type === "data-status") setWorking((part.data as ChatStatus).label); },
+    onFinish: () => { setTouched(undefined); onFinish(); },
+    onError: (error) => { setTouched(undefined); onError(chatErrorMessage(error)); },
+    onData: (part) => {
+      if (part.type === "data-status") setWorking((part.data as ChatStatus).label);
+      if (part.type !== "data-canvas") return;
+      const command = canvasCommandSchema.safeParse(part.data);
+      if (!command.success) return;
+      setTouched(placeOf(command.data.href).tab);
+      onCanvasRef.current(command.data);
+    },
   });
   const [decisions, setDecisions] = useState<ReadonlyMap<string, ApprovalDecision>>(new Map());
   const { setMessages: setChatMessages } = chat;
@@ -638,21 +266,21 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
       });
     },
   }), [decisions, setChatMessages, conversationId]);
-  const sendMessage:typeof chat.sendMessage=async(message,options)=>{
-    if(message&&tools.pendingFiles.length) {
-      const parts='parts' in message&&message.parts ? message.parts : 'text' in message?[{type:'text' as const,text:message.text??''}]:[];
-      const sending=chat.sendMessage({id:'id' in message?message.id:undefined,role:'user',parts:[...parts,...tools.pendingFiles.map(attachmentPart)]},options);
-      onFilesSent(tools.pendingFiles.map(file=>file.id));
+  const sendMessage: typeof chat.sendMessage = async (message, options) => {
+    if (message && tools.pendingFiles.length) {
+      const parts = "parts" in message && message.parts ? message.parts : "text" in message ? [{ type: "text" as const, text: message.text ?? "" }] : [];
+      const sending = chat.sendMessage({ id: "id" in message ? message.id : undefined, role: "user", parts: [...parts, ...tools.pendingFiles.map(attachmentPart)] }, options);
+      onFilesSent(tools.pendingFiles.map(file => file.id));
       return sending;
     }
-    return chat.sendMessage(message,options);
+    return chat.sendMessage(message, options);
   };
   // Parar stops the turn on the server; leaving the page only stops listening to it.
   const stopTurn = async () => {
     await chat.stop();
     await fetch(`/api/chat/${encodeURIComponent(conversationId)}/stop`, { method: "POST" }).catch(() => undefined);
   };
-  const runtime = useAISDKRuntime({...chat,sendMessage,stop:stopTurn});
+  const runtime = useAISDKRuntime({ ...chat, sendMessage, stop: stopTurn });
   const { stop, status, sendMessage: send } = chat;
   useEffect(() => () => { void stop(); }, [stop]);
   useEffect(() => {
@@ -663,14 +291,35 @@ function RuntimeThread({ conversationId, messages, context, onFilesSent, tools, 
     return () => { sendRef.current = null; };
   }, [sendRef, status, send]);
   // Until the new turn says anything, the line from the previous one does not apply.
-  return <ConversationIdContext.Provider value={conversationId}><WorkingContext.Provider value={status === "submitted" ? "" : working}>
+  const workingLabel = status === "submitted" ? "" : working;
+  const running = status === "submitted" || status === "streaming";
+  const newest = chat.messages.at(-1);
+  const plan = useMemo(() => newest?.role === "assistant" || running
+    ? buildPlan(planParts(newest), { running: running ? workingLabel || THINKING : null, decisions }) : null,
+  [newest, running, workingLabel, decisions]);
+  const place = running ? touched : undefined;
+  useEffect(() => { onStatus({ running, plan, place }); }, [onStatus, running, plan, place]);
+  return <ConversationIdContext.Provider value={conversationId}><WorkingContext.Provider value={workingLabel}>
     <ApprovalDecisionsContext.Provider value={approvalDecisions}>
-      <AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} /></AssistantRuntimeProvider>
+      <AssistantRuntimeProvider runtime={runtime}><LumeThread tools={tools} layout={layout} userName={userName} subject={subject} chip={chip} /></AssistantRuntimeProvider>
     </ApprovalDecisionsContext.Provider>
   </WorkingContext.Provider></ConversationIdContext.Provider>;
 }
 
-export function AgentChat({ initialConversationId = '', initialCaseId, initialData, modalities = { image: false, audio: false } }: { initialConversationId?: string; initialCaseId?: string; initialData?: ChatBootstrap; modalities?: Modalities }) {
+const IDLE: TurnStatus = { running: false, plan: null };
+
+export function AgentChat({ mode, userName = "", initialConversationId = "", initialCaseId, modalities = { image: false, audio: false } }: {
+  mode: ChatMode;
+  userName?: string;
+  initialConversationId?: string;
+  initialCaseId?: string;
+  modalities?: Modalities;
+}) {
+  const panel = mode.kind === "panel";
+  const initialData = mode.kind === "page" ? mode.initialData : undefined;
+  const shell = useShell();
+  const shellSubject = shell?.subject;
+  const subject = useMemo<CanvasSubject | null>(() => panel ? shellSubject ?? { kind: "office" } : null, [panel, shellSubject]);
   const [conversations, setConversations] = useState<Conversation[]>(initialData?.conversations ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(initialData?.conversation?.id ?? null);
   const [messages, setMessages] = useState<UIMessage[]>(initialData?.messages ?? []);
@@ -680,11 +329,14 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
   const [error, setError] = useState("");
   const [context, setContext] = useState<AgentContext>({ caseId: initialCaseId ?? null, documentIds: [], researchReferenceIds: [] });
   const [contextOpen, setContextOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [turn, setTurn] = useState<TurnStatus>(IDLE);
   const listOpen = useSyncExternalStore(subscribeListOpen, readListOpen, serverListOpen);
   const [uploading, setUploading] = useState(0);
-  const [draftFiles,setDraftFiles]=useState<Record<string,ChatAttachment[]>>({});
-  // The open document lives in the URL (?doc=), so a reload keeps it and Voltar closes it.
-  const openDocumentId = useSearchParams().get("doc");
+  const [draftFiles, setDraftFiles] = useState<Record<string, ChatAttachment[]>>({});
+  // On the page the open document lives in the URL (?doc=), so a reload keeps it and Voltar closes it.
+  const searchDocument = useSearchParams().get("doc");
+  const openDocumentId = panel ? (subject?.kind === "document" ? subject.documentId : null) : searchDocument;
   const openDocumentRef = useRef(openDocumentId);
   const documentWorkspaceRef = useRef<DocumentWorkspaceHandle>(null);
   useEffect(() => { openDocumentRef.current = openDocumentId; }, [openDocumentId]);
@@ -697,14 +349,17 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
   useEffect(() => () => { document.body.style.userSelect = ""; }, []);
   const selectionRef = useRef<Selection | null>(null);
   const sendRef = useRef<((text: string) => void) | null>(null);
-  const documentFocus = useMemo<DocumentFocus>(() => ({
+  // In the panel each message carries what the canvas shows: the tab on screen and the open ones.
+  const shellPlaces = shell?.places;
+  const canvasContext = useMemo<CanvasContext | null>(() => panel && subject && shellPlaces ? { subject, tabs: [...shellPlaces] } : null,
+    [panel, subject, shellPlaces]);
+  const canvasRef = useRef(canvasContext);
+  useEffect(() => { canvasRef.current = canvasContext; }, [canvasContext]);
+  const turnFocus = useMemo<TurnFocus>(() => ({
     openDocumentId: () => openDocumentRef.current,
     takeSelection: () => { const selection = selectionRef.current; selectionRef.current = null; return selection; },
+    canvas: () => canvasRef.current,
   }), []);
-  const handledCalls = useRef(new Set<string>());
-  function toggleList() {
-    writeListOpen(!listOpen);
-  }
 
   /**
    * Uploads belong to a private conversation, independent from the selected Vault sources. Several
@@ -712,42 +367,42 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
    * cannot be attached are named in a single message.
    */
   const attachFiles = useCallback(async (files: File[]) => {
-    if(!selectedId) return;
+    if (!selectedId) return;
     setError("");
-    const room=MAX_CHAT_ATTACHMENTS-(draftFiles[selectedId]?.length??0)-uploading;
-    const problems:string[]=[];
-    if(files.length>room) problems.push(room>0?`Anexe até seis arquivos por mensagem; ${files.length-room} ficaram de fora.`:'Anexe até seis arquivos por mensagem.');
-    const accepted=files.slice(0,Math.max(0,room)).filter(file=>{
-      const image=file.type.startsWith('image/');
-      if(file.size>(image?MAX_CHAT_IMAGE_BYTES:MAX_CHAT_FILE_BYTES)) {problems.push(`${file.name}: ${image?'a imagem excede 10 MB':'o arquivo excede 25 MB'}.`);return false;}
+    const room = MAX_CHAT_ATTACHMENTS - (draftFiles[selectedId]?.length ?? 0) - uploading;
+    const problems: string[] = [];
+    if (files.length > room) problems.push(room > 0 ? `Anexe até seis arquivos por mensagem; ${files.length - room} ficaram de fora.` : "Anexe até seis arquivos por mensagem.");
+    const accepted = files.slice(0, Math.max(0, room)).filter(file => {
+      const image = file.type.startsWith("image/");
+      if (file.size > (image ? MAX_CHAT_IMAGE_BYTES : MAX_CHAT_FILE_BYTES)) { problems.push(`${file.name}: ${image ? "a imagem excede 10 MB" : "o arquivo excede 25 MB"}.`); return false; }
       return true;
     });
-    const report=()=>{ if(problems.length) setError(problems.join(' ')); };
-    if(!accepted.length) {report();return;}
-    setUploading(count=>count+accepted.length);
-    await Promise.all(accepted.map(async file=>{
+    const report = () => { if (problems.length) setError(problems.join(" ")); };
+    if (!accepted.length) { report(); return; }
+    setUploading(count => count + accepted.length);
+    await Promise.all(accepted.map(async file => {
       try {
         const body = new FormData();
         body.set("file", file);
-        body.set('conversationId',selectedId);
-        const response = await fetch('/api/chat/attachments', { method: 'POST', body });
-        const result = await response.json().catch(()=>({})) as {error?:string;attachment?:ChatAttachment};
-        if(!response.ok||!result.attachment) throw new Error(result.error??'Não foi possível enviar o arquivo.');
-        setDraftFiles(current=>({...current,[selectedId]:[...(current[selectedId]??[]),result.attachment!]}));
+        body.set("conversationId", selectedId);
+        const response = await fetch("/api/chat/attachments", { method: "POST", body });
+        const result = await response.json().catch(() => ({})) as { error?: string; attachment?: ChatAttachment };
+        if (!response.ok || !result.attachment) throw new Error(result.error ?? "Não foi possível enviar o arquivo.");
+        setDraftFiles(current => ({ ...current, [selectedId]: [...(current[selectedId] ?? []), result.attachment!] }));
       } catch (cause) {
-        const reason=cause instanceof Error ? cause.message : "Não foi possível enviar o arquivo.";
-        problems.push(accepted.length>1?`${file.name}: ${reason}`:reason);
+        const reason = cause instanceof Error ? cause.message : "Não foi possível enviar o arquivo.";
+        problems.push(accepted.length > 1 ? `${file.name}: ${reason}` : reason);
       } finally {
-        setUploading(count=>count-1);
+        setUploading(count => count - 1);
       }
     }));
     report();
-  }, [selectedId,draftFiles,uploading]);
+  }, [selectedId, draftFiles, uploading]);
 
-  async function removeDraftFile(id:string) {
-    const response=await fetch(`/api/chat/attachments/${encodeURIComponent(id)}`,{method:'DELETE'});
-    if(!response.ok) {setError('Não foi possível remover o anexo. Tente novamente.');return;}
-    setDraftFiles(current=>Object.fromEntries(Object.entries(current).map(([key,files])=>[key,files.filter(file=>file.id!==id)])));
+  async function removeDraftFile(id: string) {
+    const response = await fetch(`/api/chat/attachments/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!response.ok) { setError("Não foi possível remover o anexo. Tente novamente."); return; }
+    setDraftFiles(current => Object.fromEntries(Object.entries(current).map(([key, files]) => [key, files.filter(file => file.id !== id)])));
   }
 
   const loadConversations = useCallback(async () => {
@@ -777,6 +432,9 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
     return conversation;
   }, []);
 
+  // The page opens the conversation it was asked for, else the latest. The panel keeps this tab's
+  // conversation; a new visit opens on an empty one, reusing one nobody wrote in yet.
+  const requested = useRef(initialConversationId);
   useEffect(() => {
     let cancelled = false;
     if (initialData?.conversation) return;
@@ -784,8 +442,12 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
       try {
         const next = initialData?.conversations ?? await loadConversations();
         if (cancelled) return;
-        if (initialConversationId && next.some(item => item.id === initialConversationId)) setSelectedId(initialConversationId);
-        else if (next[0]) setSelectedId(next[0].id);
+        const wanted = requested.current;
+        const remembered = panel ? rememberPanelConversation() : null;
+        if (wanted && (panel || next.some(item => item.id === wanted))) setSelectedId(wanted);
+        else if (remembered && next.some(item => item.id === remembered)) setSelectedId(remembered);
+        else if (panel && next.some(item => item.title === EMPTY_TITLE)) setSelectedId(next.find(item => item.title === EMPTY_TITLE)!.id);
+        else if (next[0] && !panel) setSelectedId(next[0].id);
         // StrictMode runs this effect twice; both runs share one POST instead of creating two conversations.
         else await (creatingConversation.current ??= createConversation());
       } catch (cause) {
@@ -796,7 +458,16 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
     }
     void initialize();
     return () => { cancelled = true; };
-  }, [createConversation, loadConversations, initialConversationId, initialData]);
+  }, [createConversation, loadConversations, initialData, panel]);
+
+  // A link that names a conversation (Início, a notification, a task) opens it in the mounted panel.
+  const [linked, setLinked] = useState({ conversationId: initialConversationId, caseId: initialCaseId });
+  if (panel && (linked.conversationId !== initialConversationId || linked.caseId !== initialCaseId)) {
+    setLinked({ conversationId: initialConversationId, caseId: initialCaseId });
+    if (initialConversationId && initialConversationId !== linked.conversationId) { setSelectedId(initialConversationId); setHistoryOpen(false); }
+    if (initialCaseId) setContext(current => ({ ...current, caseId: initialCaseId }));
+  }
+  useEffect(() => { if (panel && selectedId) rememberPanelConversation(selectedId); }, [panel, selectedId]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -843,8 +514,8 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
     uploading,
     onPickFiles: (files) => void attachFiles(files),
     onError: setError,
-    pendingFiles:selectedId?draftFiles[selectedId]??[]:[],
-    onRemoveFile:id=>void removeDraftFile(id),
+    pendingFiles: selectedId ? draftFiles[selectedId] ?? [] : [],
+    onRemoveFile: id => void removeDraftFile(id),
   };
 
   // The cache is read during render rather than copied into state by an effect: the conversation
@@ -854,33 +525,35 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
     [selectedId, loadedConversationId, messages, cachedForSelected]);
   const waitingForMessages = Boolean(selectedId && loadedConversationId !== selectedId && !cachedForSelected);
 
-  // Tool lines already in the loaded history are old news; only calls made from here on open a document.
-  const loadedCalls = useMemo(() => new Set(visibleMessages.flatMap(message => message.parts.flatMap(part =>
-    part.type === "data-tool" && part.data && typeof part.data === "object" && "callId" in part.data ? [String(part.data.callId)] : []))), [visibleMessages]);
-
-  const openDocument = useCallback((id: string) => {
+  const shellOpen = shell?.open;
+  const openDocument = useCallback((id: string, title?: string) => {
     if (openDocumentRef.current === id) return;
+    if (panel) { shellOpen?.(documentHref(id), title); return; }
     const url = new URL(window.location.href);
     url.searchParams.set("doc", id);
     window.history.pushState(null, "", url);
-  }, []);
+  }, [panel, shellOpen]);
   const closeDocument = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete("doc");
     window.history.replaceState(null, "", url);
   }, []);
-  const documentLinks = useMemo<DocumentLinks>(() => ({
-    open: openDocument,
-    changed: (id) => { if (openDocumentRef.current === id) setDocumentRevision(value => value + 1); },
-    announce: (step) => {
-      if (!step.callId || loadedCalls.has(step.callId) || handledCalls.current.has(step.callId)) return;
-      handledCalls.current.add(step.callId);
-      const id = step.state === "completed" && step.name && DOCUMENT_WRITES.has(step.name) ? documentIdFrom(step.href) : null;
-      if (!id) return;
-      if (openDocumentRef.current === id) setDocumentRevision(value => value + 1);
-      else openDocument(id);
-    },
-  }), [loadedCalls, openDocument]);
+  const documentChangedHere = useCallback((id: string) => {
+    if (panel) documentChanged(id);
+    else if (openDocumentRef.current === id) setDocumentRevision(value => value + 1);
+  }, [panel]);
+  /**
+   * The canvas follows the Lume: what it opens or changes comes up in a tab, and the page already on
+   * screen reloads instead. On the old page only documents follow, beside the conversation.
+   */
+  const followCanvas = useCallback((command: CanvasCommand) => {
+    if (command.action !== "open") return;
+    const id = documentIdFrom(command.href);
+    if (id && openDocumentRef.current === id) documentChangedHere(id);
+    else if (panel) shellOpen?.(command.href, command.title, "lume");
+    else if (id) openDocument(id, command.title);
+  }, [documentChangedHere, openDocument, panel, shellOpen]);
+  const documentLinks = useMemo<DocumentLinks>(() => ({ open: openDocument, follow: followCanvas }), [openDocument, followCanvas]);
 
   const askAboutDocument = useCallback(async (request: DocumentAsk) => {
     if (!sendRef.current) throw new Error("Abra uma conversa para pedir ao Lume.");
@@ -889,6 +562,116 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
     try { sendRef.current(`No documento “${request.title}”, no trecho “${quote}”:\n${request.instruction}`); }
     catch (cause) { selectionRef.current = null; throw cause; }
   }, []);
+  useEffect(() => panel ? registerDocumentAsk(askAboutDocument) : undefined, [panel, askAboutDocument]);
+
+  // The shell shows what the Lume is doing on the collapsed mark, the tabs and a case's strip.
+  const activity = turn.running ? "working" : turn.plan?.needs ? "attention" : "idle";
+  const activityCase = context.caseId ?? (subject?.kind === "case" ? subject.caseId : undefined);
+  const activityPlace = turn.place;
+  const setActivity = shell?.setActivity;
+  const setActivityRef = useRef(setActivity);
+  useEffect(() => { setActivityRef.current = setActivity; }, [setActivity]);
+  useEffect(() => {
+    if (!panel) return;
+    setActivityRef.current?.(activity === "idle" ? { state: activity }
+      : { state: activity, ...(activityCase ? { caseId: activityCase } : {}), ...(activityPlace ? { place: activityPlace } : {}) });
+  }, [panel, activity, activityCase, activityPlace]);
+
+  function startConversation() {
+    setHistoryOpen(false);
+    if (panel && selectedId && !visibleMessages.length && !waitingForMessages) return;
+    void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."));
+  }
+
+  // Leaving the history puts focus back on the button that opened it.
+  function closeHistory() {
+    setHistoryOpen(false);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('.lume-panel button[aria-label="Conversas anteriores"]')?.focus());
+  }
+
+  function selectConversation(id: string) {
+    setSelectedId(id);
+    setHistoryOpen(false);
+    if (!panel && window.matchMedia("(max-width: 767px)").matches) writeListOpen(false);
+  }
+
+  // A subject's case scopes the turn when the conversation has no case of its own: the chip says so.
+  const turnContext = useMemo(() => panel && !context.caseId && subject?.kind === "case" ? { ...context, caseId: subject.caseId } : context, [panel, context, subject]);
+
+  const artifactsSheet = (trigger: React.ReactNode) => (
+    <Sheet open={contextOpen} onOpenChange={setContextOpen}>
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
+      <SheetContent side="right" showCloseButton={false} className="min-w-0 gap-0 overflow-x-hidden bg-background sm:max-w-md">
+        <SheetHeader className="sr-only"><SheetTitle>Artefatos desta conversa</SheetTitle></SheetHeader>
+        {contextOpen && <AgentArtifactsPanel conversationId={selectedId} context={context} onChange={setContext}
+          onOpenDocument={id => { setContextOpen(false); openDocument(id); }} onClose={() => setContextOpen(false)} />}
+      </SheetContent>
+    </Sheet>
+  );
+
+  const errorLine = error && <p className={cn("flex items-start gap-2 text-sm text-destructive", panel ? "mx-3.5 px-3 py-2" : "border-b px-4 py-2 md:px-8")} role="alert">
+    <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}
+  </p>;
+
+  const thread = loading || waitingForMessages ? (
+    <div className="grid flex-1 place-items-center text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Carregando conversa…</span></div>
+  ) : selectedId ? (
+    <RuntimeThread
+      key={`${selectedId}:${visibleMessages.map((message) => message.id).join(",")}`}
+      conversationId={selectedId}
+      messages={visibleMessages}
+      context={turnContext}
+      onFilesSent={ids => setDraftFiles(current => ({ ...current, [selectedId]: (current[selectedId] ?? []).filter(file => !ids.includes(file.id)) }))}
+      tools={composerTools}
+      onFinish={() => {
+        void loadConversations().catch(() => undefined);
+        void fetch(`/api/conversations/${encodeURIComponent(selectedId)}`)
+          .then(async (response) => {
+            if (!response.ok) return;
+            storeMessages(selectedId, unwrapMessages(await response.json()));
+          })
+          .catch(() => undefined);
+      }}
+      onError={setError}
+      onStatus={setTurn}
+      onCanvas={followCanvas}
+      focus={turnFocus}
+      sendRef={sendRef}
+      layout={panel ? "panel" : "page"}
+      userName={userName}
+      subject={subject}
+      chip={subject ? subjectChip(subject) : null}
+    />
+  ) : (
+    <div className="grid flex-1 place-items-center px-6 text-center text-sm text-muted-foreground">Nenhuma conversa disponível.</div>
+  );
+
+  if (panel) {
+    const status = panelStatus(turn.plan, turn.running);
+    return (
+      <TooltipProvider>
+        <DocumentLinksContext.Provider value={documentLinks}>
+            <div className="lume-panel flex h-full min-h-0 flex-col">
+              <PanelHeader mark={activity === "idle" ? "still" : activity} status={status} historyOpen={historyOpen}
+                onHistory={() => { setHistoryOpen(open => !open); if (!historyOpen) void loadConversations().catch(() => undefined); }}
+                onNew={startConversation} onCollapse={shell ? () => shell.setPanel("collapsed") : undefined} />
+              {errorLine}
+              {historyOpen ? (
+                <div id="lume-history" className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pt-1 pb-3"
+                  onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); closeHistory(); } }}>
+                  <h3 className="px-2.5 pt-2 pb-1.5 text-[13px] font-medium text-muted-foreground">Conversas</h3>
+                  <ConversationList conversations={conversations} selectedId={selectedId} loading={loading} onSelect={selectConversation} onDelete={(id) => void removeConversation(id)} />
+                  <div className="mt-auto flex flex-wrap gap-2 border-t border-border px-1 pt-3">
+                    {artifactsSheet(<Button variant="outline" className="max-md:h-11"><FileStack />Artefatos desta conversa{selectedCount > 0 ? ` (${selectedCount})` : ""}</Button>)}
+                    <Button asChild variant="ghost" className="max-md:h-11"><Link href="/app/agents/settings"><SlidersHorizontal />Personalizar o Lume</Link></Button>
+                  </div>
+                </div>
+              ) : thread}
+            </div>
+        </DocumentLinksContext.Provider>
+      </TooltipProvider>
+    );
+  }
 
   // The divider between conversation and document: pointer drag, arrow keys, double click resets.
   function shareAt(clientX: number) {
@@ -917,13 +700,6 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
     writeChatShare(next);
   }
 
-  function selectConversation(id: string) {
-    setSelectedId(id);
-    if (window.matchMedia("(max-width: 767px)").matches) {
-      writeListOpen(false);
-    }
-  }
-
   return (
     <TooltipProvider>
       <DocumentLinksContext.Provider value={documentLinks}>
@@ -932,7 +708,7 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
           <div className="flex min-w-0 items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="-ml-2 size-11 text-muted-foreground md:ml-0 md:size-9" aria-label={listOpen ? "Ocultar conversas" : "Mostrar conversas"} aria-expanded={listOpen} aria-controls="agent-conversations" onClick={toggleList}>
+                <Button variant="ghost" size="icon" className="-ml-2 size-11 text-muted-foreground md:ml-0 md:size-9" aria-label={listOpen ? "Ocultar conversas" : "Mostrar conversas"} aria-expanded={listOpen} aria-controls="agent-conversations" onClick={() => writeListOpen(!listOpen)}>
                   {listOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
                 </Button>
               </TooltipTrigger>
@@ -941,7 +717,7 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
             <h1 className="page-title truncate max-md:sr-only">Lume</h1>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-11 md:size-9" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
+                <Button variant="ghost" size="icon" className="size-11 md:size-9" onClick={startConversation} aria-label="Nova conversa"><MessageSquarePlus /></Button>
               </TooltipTrigger>
               <TooltipContent>Nova conversa</TooltipContent>
             </Tooltip>
@@ -953,59 +729,19 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
               </TooltipTrigger>
               <TooltipContent>Personalizar Lume</TooltipContent>
             </Tooltip>
-            <Sheet open={contextOpen} onOpenChange={setContextOpen}>
-              <SheetTrigger asChild><Button variant="outline"><FileStack />Artefatos{selectedCount > 0 ? ` (${selectedCount} do Cofre)` : ""}</Button></SheetTrigger>
-              <SheetContent side="right" showCloseButton={false} className="min-w-0 overflow-x-hidden gap-0 bg-background sm:max-w-md">
-                <SheetHeader className="sr-only"><SheetTitle>Artefatos desta conversa</SheetTitle></SheetHeader>
-                {contextOpen && <AgentArtifactsPanel conversationId={selectedId} context={context} onChange={setContext}
-                  onOpenDocument={id => { setContextOpen(false); openDocument(id); }} onClose={() => setContextOpen(false)} />}
-              </SheetContent>
-            </Sheet>
+            {artifactsSheet(<Button variant="outline"><FileStack />Artefatos{selectedCount > 0 ? ` (${selectedCount} do Cofre)` : ""}</Button>)}
           </div>
         </header>
 
-        {error && <p className="flex items-start gap-2 border-b px-4 py-2 text-sm text-destructive md:px-8" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
+        {errorLine}
 
         <div ref={splitRef} className="flex min-h-0 flex-1">
-          <aside id="agent-conversations" aria-label="Conversas" className="agent-chat-history min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b md:w-72 md:border-r md:border-b-0">
-              {loading && conversations.length === 0 ? (
-                <div className="grid gap-2 p-3" aria-hidden="true">
-                  <Skeleton className="h-16 w-full rounded-md" />
-                  <Skeleton className="h-16 w-full rounded-md" />
-                  <Skeleton className="h-16 w-full rounded-md" />
-                </div>
-              ) : (
-                <ConversationCards conversations={conversations} selectedId={selectedId} onSelect={selectConversation} onDelete={(id) => void removeConversation(id)} />
-              )}
+          <aside id="agent-conversations" aria-label="Conversas" className="agent-chat-history min-h-0 w-full shrink-0 flex-col overflow-y-auto border-b p-3 md:w-72 md:border-r md:border-b-0">
+            <ConversationList conversations={conversations} selectedId={selectedId} loading={loading} onSelect={selectConversation} onDelete={(id) => void removeConversation(id)} />
           </aside>
           <div className={cn("agent-chat-content flex min-h-0 min-w-0 flex-1 flex-col", openDocumentId && "lg:min-w-[24rem] lg:flex-none lg:basis-[var(--chat-share)]")}
             style={openDocumentId ? { "--chat-share": `${chatShare}%` } as React.CSSProperties : undefined}>
-            {loading || waitingForMessages ? (
-              <div className="grid flex-1 place-items-center text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true"><span className="flex items-center gap-2"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Carregando conversa…</span></div>
-            ) : selectedId ? (
-              <RuntimeThread
-                key={`${selectedId}:${visibleMessages.map((message) => message.id).join(",")}`}
-                conversationId={selectedId}
-                messages={visibleMessages}
-                context={context}
-                onFilesSent={ids=>setDraftFiles(current=>({...current,[selectedId]:(current[selectedId]??[]).filter(file=>!ids.includes(file.id))}))}
-                tools={composerTools}
-                onFinish={() => {
-                  void loadConversations().catch(() => undefined);
-                  void fetch(`/api/conversations/${encodeURIComponent(selectedId)}`)
-                    .then(async (response) => {
-                      if (!response.ok) return;
-                      storeMessages(selectedId, unwrapMessages(await response.json()));
-                    })
-                    .catch(() => undefined);
-                }}
-                onError={setError}
-                focus={documentFocus}
-                sendRef={sendRef}
-              />
-            ) : (
-              <div className="grid flex-1 place-items-center px-6 text-center text-sm text-subtle-foreground">Nenhuma conversa disponível.</div>
-            )}
+            {thread}
           </div>
           {openDocumentId && (
             <div role="separator" aria-orientation="vertical" aria-label="Largura da conversa" aria-controls="document-panel" tabIndex={0}
@@ -1026,38 +762,5 @@ export function AgentChat({ initialConversationId = '', initialCaseId, initialDa
       </div>
       </DocumentLinksContext.Provider>
     </TooltipProvider>
-  );
-}
-
-function ConversationCards({ conversations, selectedId, onSelect, onDelete }: {
-  conversations: Conversation[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  return (
-    <div className="min-h-0 flex-1 overflow-y-auto p-3">
-      {conversations.length === 0 && <p className="px-2 py-6 text-sm text-subtle-foreground">Seu histórico aparecerá aqui.</p>}
-      <div className="grid gap-0.5">
-        {conversations.map((conversation) => (
-          <div key={conversation.id} className="relative">
-            <button
-              type="button"
-              onClick={() => onSelect(conversation.id)}
-              aria-current={selectedId === conversation.id ? "page" : undefined}
-              className={cn(
-                "grid w-full gap-1 rounded-md p-3 pr-11 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
-                selectedId === conversation.id && "bg-brand-soft hover:bg-brand-soft",
-              )}
-            >
-              <span className="truncate text-sm font-medium">{conversation.title || "Nova conversa"}</span>
-              {/* Relative labels can cross a minute boundary while the HTML is in transit. */}
-              <span suppressHydrationWarning className="text-[13px] text-subtle-foreground">{formatConversationTime(conversation.updatedAt)}</span>
-            </button>
-            <Button variant="ghost" size="icon-sm" className="absolute top-2 right-2 size-11 md:size-7" onClick={() => onDelete(conversation.id)} aria-label={`Excluir ${conversation.title || "conversa"}`}><Trash2 /></Button>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

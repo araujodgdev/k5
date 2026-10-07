@@ -5,6 +5,7 @@ import { Archive, Bell, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { NotificationView } from "@/lib/notifications/contracts";
+import { sectionTab, sectionTabRow } from "@/components/section-tabs";
 import { cn } from "@/lib/utils";
 
 type Page = { notifications: NotificationView[]; nextCursor: string | null };
@@ -110,15 +111,14 @@ export function NotificationPanel({ open, onOpenChange, onCloseFocus }: { open: 
     finally { setBusy(null); }
   }
 
-  const tabStyle = (active: boolean) => cn("min-h-11 border-b-2 px-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-10",
-    active ? "border-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground");
+  const tabStyle = (active: boolean) => sectionTab(active, "max-md:h-11");
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent overlayClassName="bg-overlay/20"
-      className="notification-panel top-auto right-2 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+.5rem)] left-2 flex max-h-[calc(100dvh-6rem)] w-auto max-w-none translate-x-0 translate-y-0 flex-col gap-0 p-0 sm:max-w-none md:right-auto md:max-h-[min(36rem,calc(100dvh-1.5rem))] md:w-[26rem] data-open:slide-in-from-bottom-3 data-open:zoom-in-100 data-closed:zoom-out-100"
+    <DialogContent
+      className="notification-panel rounded-xl top-auto right-2 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+.5rem)] left-2 flex max-h-[calc(100dvh-6rem)] w-auto max-w-none translate-x-0 translate-y-0 flex-col gap-0 p-0 sm:max-w-none md:right-auto md:max-h-[min(36rem,calc(100dvh-1.5rem))] md:w-[26rem]"
       onCloseAutoFocus={event => { event.preventDefault(); onCloseFocus(); }}>
-      <div className="px-5 pt-5 pr-12"><DialogTitle className="font-sans text-base font-medium">Notificações</DialogTitle></div>
-      <div className="flex items-center gap-5 border-b px-5">
+      <div className="px-5 pt-5 pr-12 max-md:pb-3"><DialogTitle className="font-sans text-base font-medium">Notificações</DialogTitle></div>
+      <div className={cn(sectionTabRow, "items-center px-5")}>
         <button type="button" aria-pressed={tab === "new"} onClick={() => changeTab("new")} className={tabStyle(tab === "new")}>Novas</button>
         <button type="button" aria-pressed={tab === "archived"} onClick={() => changeTab("archived")} className={tabStyle(tab === "archived")}>Arquivadas</button>
         {tab === "new" && items.length > 1 && <Button variant="ghost" size="sm" className="ml-auto min-h-11 md:min-h-8" disabled={busy !== null} onClick={() => void archiveAll()}>{busy === "all" ? "Arquivando…" : "Arquivar todas"}</Button>}
@@ -127,11 +127,11 @@ export function NotificationPanel({ open, onOpenChange, onCloseFocus }: { open: 
         {error && <p role="alert" className="py-4 text-sm text-destructive">{error}</p>}
         {loading ? <p role="status" className="py-8 text-sm text-subtle-foreground">Carregando notificações…</p>
           : items.length === 0 ? !error && <p className="py-10 text-center text-sm text-subtle-foreground">{tab === "new" ? "Nada novo por aqui." : "Nenhuma notificação arquivada."}</p>
-          : <div>{items.map(item => <article key={item.id} className="flex items-start gap-2 border-b py-3 last:border-b-0">
+          : <div className="flex flex-col gap-0.5 py-2">{items.map(item => <article key={item.id} className="-mx-2 flex items-start gap-2 rounded-md px-2 py-2.5 transition-colors hover:bg-accent">
             <a href={item.href} onClick={() => onOpenChange(false)} className="min-w-0 flex-1 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <h3 className={tab === "new" ? "text-sm font-medium" : "text-sm text-muted-foreground"}>{item.title}</h3>
               {item.summary && <p className="mt-0.5 line-clamp-2 text-[13px] text-muted-foreground">{item.summary}</p>}
-              <p className="label-mono mt-1 text-subtle-foreground">{timeLabel.format(new Date(item.createdAt))}</p>
+              <p className="mt-1 font-mono text-[12.5px] text-muted-foreground">{timeLabel.format(new Date(item.createdAt))}</p>
             </a>
             {tab === "new" && <Button variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground md:size-8" disabled={busy !== null} onClick={() => void archive(item)} aria-label={`Arquivar ${item.title}`} title="Arquivar">
               {busy === item.id ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Archive aria-hidden="true" />}

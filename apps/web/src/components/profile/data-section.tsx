@@ -5,6 +5,7 @@ import { CircleAlert, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ProfileSectionHead } from './section-head';
 
 export type DeletionRequest = { id: string; status: string; requestedAt: string; scheduledFor: string };
 
@@ -43,44 +44,41 @@ export function DataSection({ initial }: { initial: DeletionRequest | null }) {
   }
 
   return (
-    <section aria-labelledby="profile-data" className="grid gap-8 border-t border-line pt-8 lg:grid-cols-[16rem_1fr]" data-reveal>
-      <div className="grid content-start gap-3">
-        <p className="label-mono flex items-center gap-2.5 text-muted-foreground"><span className="square-dot" aria-hidden="true" /><span id="profile-data">Seus dados</span></p>
-        <p className="text-sm text-muted-foreground">Leve uma cópia de tudo o que o escritório guarda no Lume, ou peça a exclusão da conta.</p>
-      </div>
+    <section aria-labelledby="profile-data" className="grid gap-5 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10">
+      <ProfileSectionHead id="profile-data" title="Seus dados">Leve uma cópia de tudo o que o escritório guarda no Lume, ou peça a exclusão da conta.</ProfileSectionHead>
       <div className="grid gap-10 md:grid-cols-2">
         <div className="grid content-start gap-4">
           <div className="grid gap-1">
-            <h2 className="font-medium">Exportar dados</h2>
-            <p className="text-sm text-muted-foreground">Um arquivo ZIP com clientes, casos, agenda, honorários, conversas e documentos do Lume, além do original de cada documento do Cofre. Pode levar alguns minutos em um acervo grande.</p>
+            <h3 className="text-sm font-medium">Exportar dados</h3>
+            <p className="text-[13.5px] text-muted-foreground">Um arquivo ZIP com clientes, casos, agenda, honorários, conversas e documentos do Lume, além do original de cada documento do Cofre. Pode levar alguns minutos em um acervo grande.</p>
           </div>
-          <Button asChild variant="outline" className="justify-self-start">
+          <Button asChild variant="outline" size="lg" className="justify-self-start">
             <a href="/api/office/export" download><Download className="size-4" aria-hidden="true" />Exportar dados</a>
           </Button>
         </div>
 
         <div className="grid content-start gap-4">
           <div className="grid gap-1">
-            <h2 className="font-medium">Excluir conta e escritório</h2>
+            <h3 className="text-sm font-medium">Excluir conta e escritório</h3>
             {deletion
-              ? <p role="status" className="border-l-2 border-brand pl-3 text-sm">Exclusão agendada para {day(deletion.scheduledFor)}. Até lá, você pode cancelar e continuar usando o Lume normalmente.</p>
-              : <p className="text-sm text-muted-foreground">Apaga clientes, casos, documentos, conversas e o acesso. Você terá 7 dias para cancelar. Registros de pagamento e de auditoria ficam guardados pelo prazo legal. Exporte antes o que quiser manter.</p>}
+              ? <p role="status" className="text-[13.5px]">Exclusão agendada para {day(deletion.scheduledFor)}. Até lá, você pode cancelar e continuar usando o Lume normalmente.</p>
+              : <p className="text-[13.5px] text-muted-foreground">Apaga clientes, casos, documentos, conversas e o acesso. Você terá 7 dias para cancelar. Registros de pagamento e de auditoria ficam guardados pelo prazo legal. Exporte antes o que quiser manter.</p>}
           </div>
-          {error && <p role="alert" className="flex items-center gap-2 text-sm text-destructive"><CircleAlert className="size-4" aria-hidden="true" />{error}</p>}
+          {error && <p role="alert" className="flex items-center gap-2 text-[13.5px] text-destructive"><CircleAlert className="size-4 shrink-0" aria-hidden="true" />{error}</p>}
           {deletion
-            ? <Button variant="outline" disabled={busy} onClick={() => void cancel()} className="justify-self-start">{busy ? 'Cancelando…' : 'Cancelar exclusão'}</Button>
+            ? <Button variant="outline" size="lg" disabled={busy} onClick={() => void cancel()} className="justify-self-start">{busy ? 'Cancelando…' : 'Cancelar exclusão'}</Button>
             : confirming
-              ? <form onSubmit={request} noValidate className="grid gap-4 border-l-2 border-destructive pl-4">
+              ? <form onSubmit={request} noValidate className="grid gap-3 rounded-lg border border-border bg-card p-4">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="deletion-password">Senha atual</Label>
+                    <Label htmlFor="deletion-password" className="text-xs font-normal text-muted-foreground">Senha atual</Label>
                     <Input id="deletion-password" type="password" autoComplete="current-password" maxLength={128} value={password} onChange={event => setPassword(event.target.value)} />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="submit" variant="destructive" disabled={busy}>{busy ? 'Agendando…' : 'Agendar exclusão'}</Button>
-                    <Button type="button" variant="ghost" disabled={busy} onClick={() => { setConfirming(false); setPassword(''); setError(''); }}>Voltar</Button>
+                    <Button type="submit" variant="destructive" size="lg" disabled={busy}>{busy ? 'Agendando…' : 'Agendar exclusão'}</Button>
+                    <Button type="button" variant="ghost" size="lg" disabled={busy} onClick={() => { setConfirming(false); setPassword(''); setError(''); }}>Voltar</Button>
                   </div>
                 </form>
-              : <Button variant="destructive" onClick={() => setConfirming(true)} className="justify-self-start">Excluir conta</Button>}
+              : <Button variant="destructive" size="lg" onClick={() => setConfirming(true)} className="justify-self-start">Excluir conta</Button>}
         </div>
       </div>
     </section>

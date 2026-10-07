@@ -1,54 +1,57 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePlatformPage } from "@/lib/platform";
 import { listAgentTraces } from "@/lib/agent-traces";
-import { traceStatusLabels, traceDuration } from "@/lib/agent-trace-format";
-import { cn } from "@/lib/utils";
+import { traceStatusLabels } from "@/lib/agent-trace-format";
+import { elapsed } from "@/components/admin/admin-format";
+import { DataTable, Pill } from "@/components/canvas/canvas-controls";
+import { AdminBar, AdminBlock, AdminGrid, AdminNote } from "@/components/admin/admin-blocks";
+import { AdminFilterChip } from "@/components/admin/admin-filters";
+import { AdminMeta } from "@/components/admin/admin-meta";
 
 export const metadata = { title: "Execuções · Administração" };
 
-const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: "America/Sao_Paulo" });
+const zone = "America/Sao_Paulo";
+const dayFormat = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: zone });
+const timeFormat = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: zone });
+const fullFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: zone });
 const filters = [["", "Todas"], ["failed", "Com falha"], ["halted", "Interrompidas"], ["running", "Em andamento"]] as const;
 
+/** Today's turns show the time they started; older ones, the day. */
+function started(value: string, today: string) {
+  const date = new Date(value);
+  return <time dateTime={date.toISOString()} title={fullFormat.format(date)}>{dayFormat.format(date) === today ? timeFormat.format(date) : dayFormat.format(date)}</time>;
+}
+
 /** The Lume's recent chat turns, newest first, to open one and follow what the agent did. */
-export default async function PlatformTracesPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function PlatformTracesPage({ searchParams }: PageProps<"/app/admin/traces">) {
   const context = await requirePlatformPage();
   if (!context) notFound();
-  const { status = "" } = await searchParams;
+  const raw = (await searchParams).status;
+  const status = (Array.isArray(raw) ? raw[0] : raw) ?? "";
   const traces = await listAgentTraces(context.db, { status });
-  return (
-    <section>
-      <p className="max-w-3xl text-sm text-muted-foreground">Cada resposta do Lume nos últimos 30 dias: etapas do modelo, ferramentas, buscas e erros. Os registros trazem conteúdo de clientes; use-os só para depurar.</p>
-      <nav aria-label="Filtrar execuções" className="mt-5 flex flex-wrap gap-1">
-        {filters.map(([value, label]) => (
-          <Link key={value} href={value ? `/app/admin/traces?status=${value}` : "/app/admin/traces"} aria-current={status === value ? "page" : undefined}
-            className={cn("inline-flex min-h-11 items-center border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9",
-              status === value ? "border-foreground text-foreground" : "border-line text-muted-foreground hover:text-foreground")}>{label}</Link>
-        ))}
-      </nav>
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <caption className="sr-only">Execuções recentes do Lume</caption>
-          <thead className="border-b text-[13px] text-muted-foreground"><tr>
-            <th className="py-3 pr-4 font-normal">Início</th><th className="px-4 py-3 font-normal">Escritório</th>
-            <th className="hidden px-4 py-3 font-normal md:table-cell">Modelo</th><th className="px-4 py-3 font-normal">Resultado</th>
-            <th className="hidden px-4 py-3 text-right font-normal sm:table-cell">Etapas</th><th className="hidden px-4 py-3 text-right font-normal sm:table-cell">Ferramentas</th>
-            <th className="py-3 pl-4 text-right font-normal">Duração</th>
-          </tr></thead>
-          <tbody>{traces.map(trace => (
-            <tr key={trace.id} className="border-b last:border-0">
-              <td className="py-3 pr-4 whitespace-nowrap"><Link href={`/app/admin/traces/${trace.id}`} className="underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring">{dateFormat.format(new Date(trace.startedAt))}</Link></td>
-              <td className="px-4 py-3">{trace.officeName}<span className="block text-[13px] text-muted-foreground">{trace.userEmail}</span></td>
-              <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{trace.modelId}</td>
-              <td className={cn("px-4 py-3", trace.status === "failed" && "text-destructive")}>{traceStatusLabels[trace.status] ?? trace.status}</td>
-              <td className="hidden px-4 py-3 text-right tabular-nums sm:table-cell">{trace.steps}</td>
-              <td className="hidden px-4 py-3 text-right tabular-nums sm:table-cell">{trace.toolCalls}</td>
-              <td className="py-3 pl-4 text-right tabular-nums text-muted-foreground">{traceDuration(trace.startedAt, trace.finishedAt)}</td>
-            </tr>
-          ))}</tbody>
-        </table>
-        {traces.length === 0 && <p className="py-12 text-subtle-foreground">Nenhuma execução registrada{status ? " com este filtro" : ""}.</p>}
-      </div>
-    </section>
-  );
+  const today = dayFormat.format(new Date());
+  return <>
+    <AdminMeta title="Execuções" />
+    <AdminGrid>
+      <AdminBlock label="Execuções do Lume">
+        <AdminNote>Estes registros guardam conteúdo de clientes. Abra só o necessário para investigar.</AdminNote>
+        <AdminBar label="Filtrar execuções">
+          {filters.map(([value, label]) => (
+            <AdminFilterChip key={value} pressed={status === value} href={value ? `/app/admin/traces?status=${value}` : "/app/admin/traces"}>{label}</AdminFilterChip>
+          ))}
+        </AdminBar>
+        <DataTable label="Execuções recentes do Lume" tall rows={traces} rowKey={trace => trace.id} rowHref={trace => `/app/admin/traces/${trace.id}`}
+          empty={`Nenhuma execução registrada${status ? " com este filtro" : ""}.`} columns={[
+            { header: "Início", width: "52px", mono: true, cell: trace => started(trace.startedAt, today) },
+            { header: "Escritório", width: "minmax(0, 1fr)", strong: true, cell: trace => trace.officeName, sub: trace => trace.userEmail },
+            { header: "Modelo", width: "108px", mono: true, cell: trace => trace.modelId },
+            { header: "Resultado", width: "196px", cell: trace => <Pill tone={trace.status === "failed" ? "accent" : "muted"}>{traceStatusLabels[trace.status] ?? trace.status}</Pill>,
+              sub: trace => trace.error ?? undefined },
+            { header: "Etapas", width: "52px", align: "end", mono: true, phone: false, cell: trace => trace.steps },
+            { header: "Ferramentas", width: "84px", align: "end", mono: true, phone: false, cell: trace => trace.toolCalls },
+            { header: "Duração", width: "64px", align: "end", mono: true, cell: trace => elapsed(trace.startedAt, trace.finishedAt) },
+          ]} />
+      </AdminBlock>
+    </AdminGrid>
+  </>;
 }

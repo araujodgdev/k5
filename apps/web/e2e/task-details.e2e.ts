@@ -15,8 +15,8 @@ test('cada tarefa do Kanban abre a própria página, que edita título e observa
 
   await app.open('/app/agenda?layout=kanban');
   await expect(board).toBeVisible();
-  await screen.getByRole('button', 'Nova atividade').tap();
-  const creating = screen.getByRole('dialog', 'Nova atividade');
+  await screen.getByRole('button', 'Nova tarefa').tap();
+  const creating = screen.getByRole('dialog', 'Nova tarefa');
   await creating.getByLabel('Título').fill(title);
   await creating.getByLabel('Observações').fill(notes);
   await creating.getByRole('button', 'Salvar').tap();
@@ -37,13 +37,17 @@ test('cada tarefa do Kanban abre a própria página, que edita título e observa
   await screen.getByRole('region', 'Em andamento').getByRole('link', title).tap();
   await expect(browser).toHaveURL(`/app/agenda/tasks/${id}?from=kanban`);
   const heading = (name: string) => main.getByRole('heading', { name, level: 1 });
-  const notesText = () => browser.evaluate(() => (document.getElementById('task-notes')!.nextElementSibling as HTMLElement).innerText);
+  // The notes are the text under the page's "Observações" section heading.
+  const notesText = () => browser.evaluate(() => {
+    const heading = [...document.querySelectorAll('#main-content h2')].find(item => item.textContent === 'Observações')!;
+    return (heading.parentElement!.nextElementSibling as HTMLElement).innerText;
+  });
   await expect(heading(title)).toBeVisible();
   await expect(main.getByText('Em andamento', { exact: true })).toBeVisible();
   await expect(main.getByText(created.due, { exact: true })).toBeVisible();
   for (const empty of ['Sem responsável', 'Sem cliente', 'Sem caso']) await expect(main.getByText(empty)).toBeVisible();
   expect(await notesText()).toBe(notes);
-  await expect(main.getByRole('link', 'Voltar ao Kanban')).toHaveAttribute('href', '/app/agenda?layout=kanban');
+  await expect(main.getByRole('link', 'Voltar ao quadro')).toHaveAttribute('href', '/app/agenda?view=tasks&layout=kanban');
   await expect(main.getByRole('combobox')).toHaveCount(0);
   await expect(main.getByRole('menu')).toHaveCount(0);
   await app.screenshot('01-pagina-da-tarefa');
@@ -76,7 +80,7 @@ test('cada tarefa do Kanban abre a própria página, que edita título e observa
   expect(await notesText()).toBe(editedNotes);
 
   await browser.setViewport({ width: 390, height: 844 });
-  await app.open(`/app/agenda/tasks/${id}`);
+  await app.open(`/app/agenda/tasks/${id}?from=kanban`);
   await expect(heading(editedTitle)).toBeVisible();
   expect((await heading(editedTitle).boundingBox())!.height).toBeGreaterThan(24);
   const action = main.getByRole('button', 'Editar tarefa');
@@ -87,8 +91,8 @@ test('cada tarefa do Kanban abre a própria página, que edita título e observa
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
   await app.screenshot('03-pagina-da-tarefa-celular');
 
-  await main.getByRole('link', 'Voltar ao Kanban').tap();
-  await expect(browser).toHaveURL('/app/agenda?layout=kanban');
+  await main.getByRole('link', 'Voltar ao quadro').tap();
+  await expect(browser).toHaveURL('/app/agenda?view=tasks&layout=kanban');
   await expect(board).toBeVisible();
 });
 
@@ -96,9 +100,10 @@ test('uma reunião e um id inexistente mostram a tarefa indisponível sem revela
   const title = `Reunião de alinhamento ${Date.now().toString(36)}`;
   const main = screen.getByRole('main');
   await app.open('/app/agenda?view=tasks');
-  await expect(screen.getByRole('region', 'Atividades')).toHaveAttribute('aria-busy', 'false');
-  await screen.getByRole('button', 'Nova atividade').tap();
-  const dialog = screen.getByRole('dialog', 'Nova atividade');
+  await expect(screen.getByRole('region', 'Tarefas')).toHaveAttribute('aria-busy', 'false');
+  await screen.getByRole('button', 'Nova tarefa').tap();
+  // The dialog's title follows the kind chosen in it.
+  const dialog = screen.getByRole('dialog', /^Nova (tarefa|reunião)$/);
   await dialog.getByLabel('Título').fill(title);
   await dialog.getByLabel('Tipo').selectOption('Reunião');
   await dialog.getByRole('button', 'Salvar').tap();
@@ -110,13 +115,15 @@ test('uma reunião e um id inexistente mostram a tarefa indisponível sem revela
     await expect(main.getByRole('heading', { name: 'Tarefa indisponível', level: 1 })).toBeVisible();
     await expect(main.getByRole('alert')).toContainText('Registro não encontrado');
     await expect(main.getByRole('button', 'Tentar novamente')).toBeVisible();
-    await expect(main.getByRole('link', 'Voltar ao Kanban')).toBeVisible();
+    await expect(main.getByRole('link', 'Tarefas')).toBeVisible();
     await expect(main.getByRole('button', 'Editar tarefa')).toHaveCount(0);
     await expect(main).not.toContainText(title);
   }
   await app.screenshot('01-tarefa-indisponivel');
 
   await browser.setViewport({ width: 390, height: 844 });
+  // The Lume stays open after the resize, and on a phone it covers the canvas.
+  await screen.getByRole('button', 'Abrir o canvas do escritório').tap();
   await expect(main.getByRole('heading', { name: 'Tarefa indisponível', level: 1 })).toBeVisible();
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
 });

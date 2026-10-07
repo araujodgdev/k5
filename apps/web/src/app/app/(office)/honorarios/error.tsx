@@ -1,7 +1,9 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
+import { RouteError } from '@/components/agenda-detail';
+import { useReportError } from '@/lib/observability/use-report-error';
 
-export default function HonorariosError({ retry, reset }: { retry?: () => void; reset?: () => void }) {
-  return <div className="grid justify-items-start gap-5 px-5 py-6 md:px-10 md:py-10"><h1 className="page-title max-md:sr-only">Honorários</h1><p role="alert" className="text-sm text-destructive">Não foi possível abrir os honorários.</p><Button className="min-h-11" variant="outline" onClick={retry ?? reset}>Tentar novamente</Button></div>;
+export default function HonorariosError({ error, retry, reset }: { error: Error & { digest?: string }; retry?: () => void; reset?: () => void }) {
+  useReportError(error);
+  return <RouteError title="Honorários" message="Não foi possível abrir os honorários." retry={retry ?? reset} />;
 }

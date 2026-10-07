@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canvasModuleNames } from '@/lib/canvas-protocol';
 import { agendaCapabilities } from './agenda';
 import { honorariosCapabilities } from './honorarios';
 import { calcCapabilities } from './calc';
@@ -524,12 +525,13 @@ export const capabilities = {
   },
   k5_ui_open_resource: {
     module: 'ui', effect: 'read',
-    description: 'Resolve a URL segura da interface Lume para abrir um recurso no navegador.',
+    description: 'Abre no canvas do escritório, ao lado da conversa, o que a pessoa pediu para ver: um caso (case), uma página do Lume (artifact), um arquivo do Cofre (document), o documento de uma tarefa de minuta ou cronologia (run), um cliente (client), uma atividade da agenda (activity) ou um módulo pelo nome (module). O canvas abre a aba sozinho; devolve o endereço e o título da aba.',
     input: z.object({
-      resourceType: z.enum(['case', 'document', 'run', 'artifact', 'vault', 'agenda', 'client', 'activity']),
+      resourceType: z.enum(['case', 'document', 'run', 'artifact', 'vault', 'agenda', 'client', 'activity', 'module']),
       resourceId: identifier.optional(),
-    }),
-    output: z.object({ path: z.string() }),
+      module: z.enum(canvasModuleNames).optional().describe('Com resourceType module: qual módulo abrir.'),
+    }).refine(input => input.resourceType !== 'module' || !!input.module, 'Informe o módulo.'),
+    output: z.object({ path: z.string(), title: z.string().optional() }),
   },
   k5_judicial_list_sources: {
     module: 'judicial', effect: 'read',

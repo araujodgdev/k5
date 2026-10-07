@@ -2,6 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { z } from 'zod';
+import { ArrowLeft } from 'lucide-react';
+import { CanvasHeader } from '@/components/canvas/canvas-page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,10 +29,18 @@ const amount = (data: FormData, name: string) => {
 };
 const percentage = (data: FormData, name: string) => text(data, name).replace(',', '.');
 function ValueField({ label, name, initial = '', type = 'text' }: { label: string; name: string; initial?: string | number; type?: 'text' | 'date' | 'number' }) {
-  return <Field label={label}>{id => <Input id={id} name={name} className="min-h-11" type={type} inputMode={type === 'text' ? 'decimal' : undefined} defaultValue={initial} required />}</Field>;
+  return <Field label={label}>{id => <Input id={id} name={name} className="max-md:h-11" type={type} inputMode={type === 'text' ? 'decimal' : undefined} defaultValue={initial} required />}</Field>;
 }
 function BasisField({ label, name, initial = '' }: { label: string; name: string; initial?: string }) {
   return <Field label={label}>{id => <Textarea id={id} name={name} defaultValue={initial} minLength={5} maxLength={2000} required />}</Field>;
+}
+
+/** The way back to the list above a calculation, the button form of the detail pages' back link. */
+export function CalcBack({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+  return <button type="button" disabled={disabled} onClick={onClick}
+    className="-ml-1.5 inline-flex h-11 items-center gap-1 self-start rounded-sm px-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50 md:h-[26px]">
+    <ArrowLeft aria-hidden="true" className="size-3.5" />Cálculos
+  </button>;
 }
 
 type EntryDraft = { description: string; dueOn: string; interestFrom: string; amount: string };
@@ -78,11 +88,14 @@ export function CalcForm({ kind, seed, saved, back }: { kind: CalculationKind; s
   const tax = initial?.kind === 'tax' ? initial : null;
   const labor = initial?.kind === 'labor' ? initial : null;
   const revision = initial?.kind === 'revision' ? initial : null;
-  return <div className="min-w-0">
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-4"><div><h2 className="text-xl font-medium">{title}</h2>{seed && <p className="mt-1 text-xs text-muted-foreground">Versão {seed.version} de {seed.latestVersion} · {new Date(seed.createdAt).toLocaleString('pt-BR')}</p>}</div><Button variant="ghost" disabled={busy} onClick={back}>Voltar aos cálculos</Button></div>
-    <form ref={form} onSubmit={event => { event.preventDefault(); void submit(false); }} onChange={() => { setDirty(true); setResult(null); }} className="grid gap-6 py-6">
+  return <div className="flex min-w-0 flex-col gap-8">
+    <div className="flex flex-col gap-3">
+      <CalcBack onClick={back} disabled={busy} />
+      <CanvasHeader eyebrow={seed?.id ? `Versão ${seed.version} de ${seed.latestVersion} · ${new Date(seed.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` : 'Novo cálculo'} title={title} />
+    </div>
+    <form ref={form} onSubmit={event => { event.preventDefault(); void submit(false); }} onChange={() => { setDirty(true); setResult(null); }} className="grid gap-6">
       <fieldset disabled={busy} className="grid min-w-0 gap-6">
-        <Field label="Título do cálculo">{id => <Input id={id} name="título" defaultValue={seed?.title ?? title} minLength={3} maxLength={180} required className="min-h-11" />}</Field>
+        <Field label="Título do cálculo">{id => <Input id={id} name="título" defaultValue={seed?.title ?? title} minLength={3} maxLength={180} required className="max-md:h-11" />}</Field>
         <div className="grid gap-4 sm:grid-cols-2"><ReferenceSelect kind="clients" optional value={clientId} onChange={value => { setClientId(value); setDirty(true); }} /><ReferenceSelect kind="cases" optional value={caseId} onChange={value => { setCaseId(value); setDirty(true); }} /></div>
         <p className="text-xs text-muted-foreground">Cálculo privado. Vincular ao cliente ou a um caso próprio não publica o resultado.</p>
         {(monetary || kind === 'tax') && <ValueField label="Data-base" name="data-base" type="date" initial={initial && 'asOf' in initial ? initial.asOf : today()} />}
@@ -90,14 +103,14 @@ export function CalcForm({ kind, seed, saved, back }: { kind: CalculationKind; s
           {kind === 'consumer' && <><Field label="Forma de restituição">{id => <select id={id} name="restituição" className={controlClass} defaultValue={initial?.kind === 'consumer' ? initial.restitution : 'simple'}><option value="simple">Simples</option><option value="double">Em dobro</option></select>}</Field><BasisField label="Fundamento da restituição e da hipótese escolhida" name="fundamento" initial={initial?.kind === 'consumer' ? initial.legalBasis : ''} /><p className="text-sm text-muted-foreground">Informe somente o excesso efetivamente pago. A devolução em dobro depende da hipótese jurídica; não é aplicada automaticamente.</p></>}
           {kind === 'pension' && <BasisField label="Título, base da pensão e alterações por competência" name="fundamento" initial={initial?.kind === 'pension' ? initial.basis : ''} />}
           {kind === 'rent' && <><BasisField label="Cláusula de reajuste e encargos do contrato" name="fundamento" initial={initial?.kind === 'rent' ? initial.contractBasis : ''} /><div className="grid gap-4 sm:grid-cols-2"><ValueField label="Primeiro aniversário de reajuste" name="aniversário" type="date" initial={initial?.kind === 'rent' ? initial.anniversary : ''} /><ValueField label="Reajuste anual contratado (%)" name="reajuste" initial={initial?.kind === 'rent' ? initial.annualAdjustmentPercent : '0'} /></div><p className="text-sm text-muted-foreground">Informe o aluguel-base anterior ao primeiro reajuste. A taxa fixa será aplicada a cada aniversário. Para contratos com índice variável, informe parcelas já reajustadas e taxa zero.</p></>}
-          <section className="min-w-0 border-y border-line py-4"><h3 className="font-medium">{kind === 'consumer' ? 'Valores pagos indevidamente' : 'Parcelas'}</h3>
-            <div className="divide-y">{entries.map((entry, i) => <div className="grid gap-3 py-4 sm:grid-cols-2 xl:grid-cols-[1fr_10rem_10rem_10rem_auto]" key={i}>
+          <section className="flex min-w-0 flex-col gap-3"><h3 className="text-[15px] font-semibold">{kind === 'consumer' ? 'Valores pagos indevidamente' : 'Parcelas'}</h3>
+            <div>{entries.map((entry, i) => <div className="grid gap-3 py-4 sm:grid-cols-2 xl:grid-cols-[1fr_10rem_10rem_10rem_auto]" key={i}>
               <Field label={`Parcela ${i + 1}: descrição`}>{id => <Input id={id} required maxLength={120} value={entry.description} onChange={event => setEntries(current => current.map((item, index) => index === i ? { ...item, description: event.target.value } : item))} />}</Field>
               <Field label={kind === 'consumer' ? `Parcela ${i + 1}: data do pagamento indevido` : `Parcela ${i + 1}: vencimento`}>{id => <Input id={id} type="date" required value={entry.dueOn} onChange={event => setEntries(current => current.map((item, index) => index === i ? { ...item, dueOn: event.target.value } : item))} />}</Field>
               <Field label={`Parcela ${i + 1}: valor (R$)`}>{id => <Input id={id} inputMode="decimal" required value={entry.amount} onChange={event => setEntries(current => current.map((item, index) => index === i ? { ...item, amount: event.target.value } : item))} />}</Field>
               <Field label={`Parcela ${i + 1}: início dos juros (opcional)`}>{id => <Input id={id} type="date" value={entry.interestFrom} onChange={event => setEntries(current => current.map((item, index) => index === i ? { ...item, interestFrom: event.target.value } : item))} />}</Field>
               <Button type="button" variant="ghost" className="self-end" aria-label={`Remover parcela ${i + 1}`} disabled={entries.length === 1} onClick={() => { setEntries(current => current.filter((_, index) => index !== i)); setPayments(current => current.filter(item => item.installment !== i + 1).map(item => ({ ...item, installment: item.installment > i + 1 ? item.installment - 1 : item.installment }))); setResult(null); setDirty(true); }}>Remover</Button>
-            </div>)}</div><Button type="button" variant="outline" disabled={entries.length >= 240} onClick={() => { setEntries(current => [...current, { description: `Parcela ${current.length + 1}`, dueOn: '', interestFrom: '', amount: '' }]); setResult(null); setDirty(true); }}>Adicionar parcela</Button><p className="mt-3 text-xs text-muted-foreground">Se o início dos juros ficar em branco, será usada a origem da parcela. Informe outro marco, como a citação, quando aplicável.</p>
+            </div>)}</div><Button type="button" variant="outline" className="self-start" disabled={entries.length >= 240} onClick={() => { setEntries(current => [...current, { description: `Parcela ${current.length + 1}`, dueOn: '', interestFrom: '', amount: '' }]); setResult(null); setDirty(true); }}>Adicionar parcela</Button><p className="text-xs text-muted-foreground">Se o início dos juros ficar em branco, será usada a origem da parcela. Informe outro marco, como a citação, quando aplicável.</p>
           </section>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Correção monetária">{id => <select id={id} name="índice" className={controlClass} defaultValue={base?.index ?? 'none'}><option value="none">Sem correção</option><option value="ipca">IPCA · BCB</option><option value="inpc">INPC · BCB</option></select>}</Field>
@@ -106,9 +119,9 @@ export function CalcForm({ kind, seed, saved, back }: { kind: CalculationKind; s
             {kind !== 'consumer' && <ValueField label="Multa única (%)" name="multa" initial={base?.penaltyPercent ?? '0'} />}
           </div>
           <p className="text-xs text-muted-foreground">A taxa informada só é usada com “Taxa mensal simples”. Correção por meses completos após o vencimento, até o mês anterior à data-base. Juros proporcionais aos dias de cada mês, sem capitalização. Confira a convenção do título antes de usar.</p>
-          <section className="min-w-0 border-y border-line py-4"><h3 className="font-medium">{kind === 'consumer' ? 'Restituições já recebidas' : 'Pagamentos e abatimentos'}</h3>{payments.length === 0 && <p className="py-3 text-sm text-muted-foreground">Nenhum pagamento informado.</p>}
-            {payments.map((payment, i) => <div className="grid gap-3 border-b py-4 sm:grid-cols-4" key={i}><Field label={`Pagamento ${i + 1}: parcela`}>{id => <select id={id} className={controlClass} value={payment.installment} onChange={event => setPayments(current => current.map((item, index) => index === i ? { ...item, installment: Number(event.target.value) } : item))}>{entries.map((entry, index) => <option key={index} value={index + 1}>{index + 1}. {entry.description}</option>)}</select>}</Field><Field label={`Pagamento ${i + 1}: data`}>{id => <Input id={id} type="date" required value={payment.paidOn} onChange={event => setPayments(current => current.map((item, index) => index === i ? { ...item, paidOn: event.target.value } : item))} />}</Field><Field label={`Pagamento ${i + 1}: valor (R$)`}>{id => <Input id={id} required inputMode="decimal" value={payment.amount} onChange={event => setPayments(current => current.map((item, index) => index === i ? { ...item, amount: event.target.value } : item))} />}</Field><Button type="button" variant="ghost" className="self-end" aria-label={`Remover pagamento ${i + 1}`} onClick={() => { setPayments(current => current.filter((_, index) => index !== i)); setResult(null); setDirty(true); }}>Remover</Button></div>)}
-            <Button type="button" variant="outline" className="mt-3" disabled={payments.length >= 480} onClick={() => { setPayments(current => [...current, { installment: 1, paidOn: '', amount: '' }]); setResult(null); setDirty(true); }}>Adicionar pagamento</Button>
+          <section className="flex min-w-0 flex-col gap-3"><h3 className="text-[15px] font-semibold">{kind === 'consumer' ? 'Restituições já recebidas' : 'Pagamentos e abatimentos'}</h3>{payments.length === 0 && <p className="py-3 text-sm text-muted-foreground">Nenhum pagamento informado.</p>}
+            {payments.map((payment, i) => <div className="grid gap-3 py-4 sm:grid-cols-4" key={i}><Field label={`Pagamento ${i + 1}: parcela`}>{id => <select id={id} className={controlClass} value={payment.installment} onChange={event => setPayments(current => current.map((item, index) => index === i ? { ...item, installment: Number(event.target.value) } : item))}>{entries.map((entry, index) => <option key={index} value={index + 1}>{index + 1}. {entry.description}</option>)}</select>}</Field><Field label={`Pagamento ${i + 1}: data`}>{id => <Input id={id} type="date" required value={payment.paidOn} onChange={event => setPayments(current => current.map((item, index) => index === i ? { ...item, paidOn: event.target.value } : item))} />}</Field><Field label={`Pagamento ${i + 1}: valor (R$)`}>{id => <Input id={id} required inputMode="decimal" value={payment.amount} onChange={event => setPayments(current => current.map((item, index) => index === i ? { ...item, amount: event.target.value } : item))} />}</Field><Button type="button" variant="ghost" className="self-end" aria-label={`Remover pagamento ${i + 1}`} onClick={() => { setPayments(current => current.filter((_, index) => index !== i)); setResult(null); setDirty(true); }}>Remover</Button></div>)}
+            <Button type="button" variant="outline" className="self-start" disabled={payments.length >= 480} onClick={() => { setPayments(current => [...current, { installment: 1, paidOn: '', amount: '' }]); setResult(null); setDirty(true); }}>Adicionar pagamento</Button>
           </section>
         </>}
         {kind === 'tax' && <>
@@ -130,9 +143,9 @@ export function CalcForm({ kind, seed, saved, back }: { kind: CalculationKind; s
         <Field label="Observações do cálculo">{id => <Textarea id={id} name="notas" maxLength={4000} defaultValue={seed?.notes ?? ''} />}</Field>
       </fieldset>
       <Failure message={error} />
-      <div className="flex flex-wrap gap-3"><Button type="submit" disabled={busy}>{busy ? 'Calculando…' : 'Conferir cálculo'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => void submit(true)}>{seed ? 'Salvar nova versão' : 'Salvar cálculo'}</Button></div>
+      <div className="flex flex-wrap gap-2"><Button type="submit" size="lg" className="max-md:h-11" disabled={busy}>{busy ? 'Calculando…' : 'Conferir cálculo'}</Button><Button type="button" variant="outline" size="lg" className="max-md:h-11" disabled={busy} onClick={() => void submit(true)}>{seed ? 'Salvar nova versão' : 'Salvar cálculo'}</Button></div>
     </form>
     {result && <CalcResult result={result} saved={!dirty ? seed : undefined} />}
-    {!result && dirty && <p className="pb-6 text-sm text-muted-foreground">Confira o cálculo para ver o resultado destas alterações.</p>}
+    {!result && dirty && <p className="text-[13.5px] text-muted-foreground">Confira o cálculo para ver o resultado destas alterações.</p>}
   </div>;
 }

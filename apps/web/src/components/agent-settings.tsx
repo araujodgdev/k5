@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useId, useRef, useState } from "react";
-import { ArrowLeft, CircleAlert, FileText, LoaderCircle, Upload } from "lucide-react";
+import { CircleAlert, FileText, LoaderCircle, Upload } from "lucide-react";
+import { CanvasHeader, CanvasPage } from "@/components/canvas/canvas-page";
+import { CanvasMeta } from "@/components/shell/shell-context";
 import { Button } from "@/components/ui/button";
 import type { TemplateCandidate, TemplateView } from "@/lib/agent-profile";
 import { AgentRules, type RulesState } from "@/components/agent-rules";
@@ -26,25 +27,23 @@ export function AgentSettings({ initialTemplates, initialCandidates, initialRule
   const [candidates, setCandidates] = useState(initialCandidates);
 
   return (
-    <div className="w-full max-w-3xl px-5 py-6 md:px-10 md:py-10">
-      <div className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="icon" className="-ml-2 size-11 md:size-9" aria-label="Voltar ao Lume"><Link href="/app/agents"><ArrowLeft /></Link></Button>
-        <h1 className="page-title">Personalizar Lume</h1>
-      </div>
+    <CanvasPage className="md:gap-12">
+      <CanvasMeta title="Personalizar Lume" subject={{ kind: "module", slug: "agents", title: "Personalizar Lume" }} />
+      <CanvasHeader eyebrow="O que o Lume segue em cada conversa" title="Personalizar Lume" />
 
       <AgentRules initial={initialRules} />
 
       <AgentKnowledge initial={initialKnowledge} initialCandidates={knowledgeCandidates} />
 
-      <section aria-labelledby="template-heading" className="mt-10 border-t pt-8">
-        <h2 id="template-heading" className="font-medium">Modelo de documento</h2>
-        <p className="mt-1 text-sm text-muted-foreground">O Word com o timbrado do escritório. Documentos e minutas do Lume saem nele ao exportar, quando nenhum outro modelo foi escolhido.</p>
-        <div className="mt-4 divide-y border-y">
+      <section aria-labelledby="template-heading" className="flex flex-col gap-1">
+        <h2 id="template-heading" className="text-[15px] font-semibold">Modelo de documento</h2>
+        <p className="text-[13.5px] text-muted-foreground">O Word com o timbrado do escritório. Documentos e minutas do Lume saem nele ao exportar, quando nenhum outro modelo foi escolhido.</p>
+        <div className="mt-2">
           <TemplateRow current={templates.personal ?? templates.office}
             candidates={candidates} onChange={setTemplates} onUploaded={(document) => setCandidates((list) => [document, ...list])} />
         </div>
       </section>
-    </div>
+    </CanvasPage>
   );
 }
 
@@ -100,7 +99,7 @@ function TemplateRow({ current, candidates, onChange, onUploaded }: {
   }
 
   return (
-    <div className="py-4">
+    <div className="py-2">
       <div className="min-w-0">
         {current ? (
           <p className="flex min-w-0 items-center gap-2 text-sm">
@@ -114,7 +113,7 @@ function TemplateRow({ current, candidates, onChange, onUploaded }: {
             <label htmlFor={selectId} className="sr-only">Escolher do Cofre</label>
             <select id={selectId} value="" disabled={Boolean(busy) || candidates.length === 0}
               onChange={(event) => { if (event.target.value) void choose(event.target.value); }}
-              className="h-11 min-w-0 max-w-full flex-1 rounded-md border bg-background px-3 text-sm md:h-9 md:max-w-72">
+              className="h-11 min-w-0 max-w-full flex-1 rounded-md border bg-background text-[13.5px] md:h-[34px] md:max-w-72">
               <option value="">{candidates.length ? "Escolher do Cofre" : "Nenhum .docx no Cofre"}</option>
               {candidates.filter((item) => item.id !== current?.documentId).map((item) => (
                 <option key={item.id} value={item.id}>{item.caseName ? `${item.name} · ${item.caseName}` : item.name}</option>
@@ -122,10 +121,10 @@ function TemplateRow({ current, candidates, onChange, onUploaded }: {
             </select>
             <input ref={fileRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" tabIndex={-1}
               onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} />
-            <Button type="button" variant="outline" className="min-h-11 md:min-h-9" disabled={Boolean(busy)} onClick={() => fileRef.current?.click()}>
+            <Button type="button" variant="outline" size="lg" className="h-11 md:h-[34px]" disabled={Boolean(busy)} onClick={() => fileRef.current?.click()}>
               {busy === "upload" ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload aria-hidden="true" />}Enviar .docx
             </Button>
-            {current && <Button type="button" variant="ghost" className="min-h-11 md:min-h-9" disabled={Boolean(busy)} onClick={() => void choose(null)}>Remover</Button>}
+            {current && <Button type="button" variant="ghost" size="lg" className="h-11 md:h-[34px]" disabled={Boolean(busy)} onClick={() => void choose(null)}>Remover</Button>}
             {busy === "save" && <span role="status" className="text-[13px] text-muted-foreground">Salvando…</span>}
         </div>
 

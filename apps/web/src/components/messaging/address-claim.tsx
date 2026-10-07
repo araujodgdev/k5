@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { z } from 'zod';
 import { claimAddressOutput } from '@/lib/personal-chat/domain';
+import { CanvasHeader } from '@/components/canvas/canvas-page';
 import { MessageAttachment } from '@/components/message-attachment';
 import { Button } from '@/components/ui/button';
 import { jsonPost, messageError, messageRequest } from './client';
@@ -22,7 +23,7 @@ export function AddressClaim({ token, email }: { token: string; email: string })
   }
   return <main className="mx-auto w-full max-w-xl px-5 py-12 md:py-20">
     <Link href="/app/messages" className="text-sm underline underline-offset-4">Mensagens</Link>
-    <h1 className="page-title mt-8">{result ? 'Endereço confirmado' : 'Confirmar seu endereço'}</h1>
+    <CanvasHeader className="mt-8" title={result ? 'Endereço confirmado' : 'Confirmar seu endereço'} />
     {result ? <div className="mt-6 space-y-5">
       <p role="status" className="text-sm leading-relaxed">{result.document ? 'O documento compartilhado está disponível para sua conta.' : 'As novas mensagens desta conversa aparecerão no Lume. Os e-mails anteriores continuam na sua caixa de e-mail.'}</p>
       {result.document && <div className="border-y py-5">

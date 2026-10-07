@@ -156,6 +156,7 @@ export async function describeAgentApproval(context: WorkspaceContext, capabilit
 /** Where the person can see the result of an agent action. Only ids from the result, never from the model's text. */
 export function resourceHref(name: string, result: unknown): string | undefined {
   if (!result || typeof result !== 'object') return undefined;
+  if (name === 'k5_ui_open_resource') return typeof (result as { path?: unknown }).path === 'string' ? (result as { path: string }).path : undefined;
   if (name.startsWith('k5_honorarios_')) return '/app/honorarios';
   if (name.startsWith('k5_messages_')) return '/app/messages';
   if (name.startsWith('k5_collaboration_')) return '/app/agenda?view=associates';

@@ -3,16 +3,18 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { CircleAlert } from 'lucide-react';
+import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
+import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Reveal } from '@/components/reveal';
 import { authClient } from '@/lib/auth-client';
 import { avatarMaxBytes, avatarSize, profileInput, type ProfileCard, type ProfileInput } from '@/lib/profile-contract';
 import { Avatar } from './avatar';
 import { ProfileSummary } from './person-card';
 import { DataSection, type DeletionRequest } from './data-section';
+import { ProfileSectionHead } from './section-head';
 
 type Fields = ProfileInput;
 const fieldsOf = (profile: ProfileCard): Fields => ({ name: profile.name, headline: profile.headline, oab: profile.oab, location: profile.location, bio: profile.bio });
@@ -44,25 +46,21 @@ async function squarePhoto(file: File): Promise<Blob> {
 }
 
 function FormError({ message }: { message: string }) {
-  return message ? <p role="alert" className="flex items-center gap-2 text-sm text-destructive"><CircleAlert className="size-4" aria-hidden="true" />{message}</p> : null;
+  return message ? <p role="alert" className="flex items-center gap-2 text-[13.5px] text-destructive"><CircleAlert className="size-4 shrink-0" aria-hidden="true" />{message}</p> : null;
 }
 
 function Done({ message }: { message: string }) {
-  return message ? <p role="status" className="border-l-2 border-brand pl-3 text-sm">{message}</p> : null;
+  return message ? <p role="status" className="text-[13.5px]">{message}</p> : null;
 }
 
 function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <div className="grid content-start gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className="text-xs font-normal text-muted-foreground">{label}</Label>
       {children}
       {error ? <p id={`${id}-error`} className="text-xs text-destructive">{error}</p> : hint && <p className="text-xs text-subtle-foreground">{hint}</p>}
     </div>
   );
-}
-
-function SectionLabel({ children }: { children: ReactNode }) {
-  return <p className="label-mono flex items-center gap-2.5 text-muted-foreground"><span className="square-dot" aria-hidden="true" />{children}</p>;
 }
 
 function authMessage(error: { status?: number; code?: string } | null | undefined, fallback: string) {
@@ -135,13 +133,14 @@ export function ProfilePage({ initial, deletion, emailConfirmation = false }: { 
   const preview: ProfileCard = { ...profile, ...Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value.trim()])) as Fields };
 
   return (
-    <Reveal className="w-full max-w-5xl space-y-10 px-5 py-6 md:px-10 md:py-10 [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9 [&_[data-slot=input]]:min-h-11 md:[&_[data-slot=input]]:min-h-9">
-      <h1 className="page-title max-md:sr-only" data-reveal>Perfil</h1>
+    <CanvasPage width="wide" className="md:gap-14 [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-[34px] [&_[data-slot=input]]:min-h-11 md:[&_[data-slot=input]]:min-h-9">
+      <CanvasMeta title="Perfil" subject={{ kind: 'module', slug: 'profile', title: 'Perfil' }} />
+      <CanvasHeader eyebrow={profile.email} title="Perfil" />
 
-      <section aria-labelledby="profile-about" className="grid gap-8 border-y border-line py-8 lg:grid-cols-[16rem_1fr]" data-reveal>
-        <div className="grid content-start gap-5">
-          <SectionLabel><span id="profile-about">Sobre você</span></SectionLabel>
-          <Avatar name={fields.name || profile.name} src={profile.avatarUrl} className="size-28 text-2xl" />
+      <section aria-labelledby="profile-about" className="grid gap-5 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10">
+        <div className="grid content-start gap-4">
+          <ProfileSectionHead id="profile-about" title="Sobre você" />
+          <Avatar name={fields.name || profile.name} src={profile.avatarUrl} className="size-24 text-2xl" />
           <div className="flex flex-wrap gap-2">
             <input ref={photoInput} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={event => void changePhoto(event.target.files?.[0])} />
             <Button type="button" variant="outline" disabled={photoBusy} onClick={() => photoInput.current?.click()}>
@@ -150,10 +149,10 @@ export function ProfilePage({ initial, deletion, emailConfirmation = false }: { 
             {profile.avatarUrl && <Button type="button" variant="ghost" disabled={photoBusy} onClick={() => void removePhoto()}>Remover</Button>}
           </div>
           <FormError message={photoError} />
-          <p className="text-xs text-subtle-foreground">PNG, JPEG ou WebP. A foto é recortada em quadrado.</p>
+          <p className="text-xs text-muted-foreground">PNG, JPEG ou WebP. A foto é recortada em quadrado.</p>
         </div>
 
-        <form onSubmit={save} noValidate className="grid gap-5 sm:grid-cols-2">
+        <form onSubmit={save} noValidate className="grid content-start gap-4 sm:grid-cols-2">
           <Field id="profile-name" label="Nome" error={fieldErrors.name}>
             <Input id="profile-name" autoComplete="name" maxLength={120} value={fields.name} onChange={set('name')} {...invalid('name')} />
           </Field>
@@ -174,35 +173,29 @@ export function ProfilePage({ initial, deletion, emailConfirmation = false }: { 
           <div className="grid gap-3 sm:col-span-2">
             <FormError message={saveError} />
             <Done message={saved} />
-            <div className="flex flex-wrap items-center gap-4">
-              <Button type="submit" disabled={saving || !dirty}>{saving ? 'Salvando…' : 'Salvar perfil'}</Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="submit" size="lg" disabled={saving || !dirty}>{saving ? 'Salvando…' : 'Salvar perfil'}</Button>
               {dirty && !saving && <Button type="button" variant="ghost" onClick={() => { setFields(fieldsOf(profile)); setFieldErrors({}); }}>Descartar alterações</Button>}
             </div>
           </div>
         </form>
       </section>
 
-      <section aria-labelledby="profile-card" className="grid gap-6 border-b border-line pb-8 lg:grid-cols-[16rem_1fr]" data-reveal>
-        <div className="grid content-start gap-3">
-          <SectionLabel><span id="profile-card">Como os outros veem</span></SectionLabel>
-          <p className="text-sm text-muted-foreground">Quem pesquisa seu e-mail para convidar você a um caso ou como associado vê este resumo.</p>
-        </div>
-        <div className="max-w-sm border border-line p-4"><ProfileSummary profile={preview} /></div>
+      <section aria-labelledby="profile-card" className="grid gap-5 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10">
+        <ProfileSectionHead id="profile-card" title="Como os outros veem">Quem pesquisa seu e-mail para convidar você a um caso ou como associado vê este resumo.</ProfileSectionHead>
+        <div className="max-w-sm rounded-lg border border-border bg-card p-4"><ProfileSummary profile={preview} /></div>
       </section>
 
       <Access email={profile.email} emailConfirmation={emailConfirmation} onEmailChanged={email => { setProfile(current => ({ ...current, email })); router.refresh(); }} />
       <DataSection initial={deletion} />
-    </Reveal>
+    </CanvasPage>
   );
 }
 
 function Access({ email, emailConfirmation, onEmailChanged }: { email: string; emailConfirmation: boolean; onEmailChanged: (email: string) => void }) {
   return (
-    <section aria-labelledby="profile-access" className="grid gap-8 lg:grid-cols-[16rem_1fr]" data-reveal>
-      <div className="grid content-start gap-3">
-        <SectionLabel><span id="profile-access">Acesso</span></SectionLabel>
-        <p className="text-sm text-muted-foreground">O e-mail e a senha que você usa para entrar. As duas mudanças pedem a senha atual{emailConfirmation ? ', e um novo e-mail só vale depois de confirmado' : ''}.</p>
-      </div>
+    <section aria-labelledby="profile-access" className="grid gap-5 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10">
+      <ProfileSectionHead id="profile-access" title="Acesso">O e-mail e a senha que você usa para entrar. As duas mudanças pedem a senha atual{emailConfirmation ? ', e um novo e-mail só vale depois de confirmado' : ''}.</ProfileSectionHead>
       <div className="grid gap-10 md:grid-cols-2">
         <EmailForm email={email} confirmation={emailConfirmation} onChanged={onEmailChanged} />
         <PasswordForm />
@@ -249,8 +242,8 @@ function EmailForm({ email, confirmation, onChanged }: { email: string; confirma
   return (
     <form onSubmit={submit} noValidate className="grid content-start gap-4" aria-labelledby="email-form-title">
       <div className="grid gap-1">
-        <h2 id="email-form-title" className="font-medium">E-mail</h2>
-        <p className="break-all text-sm text-muted-foreground">{email}</p>
+        <h3 id="email-form-title" className="text-sm font-medium">E-mail</h3>
+        <p className="break-all font-mono text-[12.5px] text-muted-foreground">{email}</p>
       </div>
       <Field id="new-email" label="Novo e-mail">
         <Input id="new-email" type="email" autoComplete="email" maxLength={254} value={newEmail} onChange={event => setNewEmail(event.target.value)} />
@@ -260,7 +253,7 @@ function EmailForm({ email, confirmation, onChanged }: { email: string; confirma
       </Field>
       <FormError message={error} />
       <Done message={done} />
-      <Button type="submit" variant="outline" disabled={busy} className="justify-self-start">{busy ? 'Alterando…' : 'Alterar e-mail'}</Button>
+      <Button type="submit" variant="outline" size="lg" disabled={busy} className="justify-self-start">{busy ? 'Alterando…' : 'Alterar e-mail'}</Button>
     </form>
   );
 }
@@ -293,8 +286,8 @@ function PasswordForm() {
   return (
     <form onSubmit={submit} noValidate className="grid content-start gap-4" aria-labelledby="password-form-title">
       <div className="grid gap-1">
-        <h2 id="password-form-title" className="font-medium">Senha</h2>
-        <p className="text-sm text-muted-foreground">Pelo menos 8 caracteres.</p>
+        <h3 id="password-form-title" className="text-sm font-medium">Senha</h3>
+        <p className="text-[13px] text-muted-foreground">Pelo menos 8 caracteres.</p>
       </div>
       <Field id="current-password" label="Senha atual">
         <Input id="current-password" type="password" autoComplete="current-password" maxLength={128} value={current} onChange={event => setCurrent(event.target.value)} />
@@ -305,13 +298,13 @@ function PasswordForm() {
       <Field id="confirm-password" label="Confirmar nova senha">
         <Input id="confirm-password" type="password" autoComplete="new-password" maxLength={128} value={confirm} onChange={event => setConfirm(event.target.value)} />
       </Field>
-      <label className="flex min-h-11 items-center gap-3 text-sm md:min-h-9">
-        <input type="checkbox" checked={revokeOthers} onChange={event => setRevokeOthers(event.target.checked)} className="size-4 accent-primary" />
+      <label className="flex min-h-11 items-center gap-2.5 text-[13.5px] md:min-h-9">
+        <input type="checkbox" checked={revokeOthers} onChange={event => setRevokeOthers(event.target.checked)} className="size-4 accent-foreground" />
         Encerrar a sessão nos outros dispositivos
       </label>
       <FormError message={error} />
       <Done message={done} />
-      <Button type="submit" variant="outline" disabled={busy} className="justify-self-start">{busy ? 'Alterando…' : 'Alterar senha'}</Button>
+      <Button type="submit" variant="outline" size="lg" disabled={busy} className="justify-self-start">{busy ? 'Alterando…' : 'Alterar senha'}</Button>
     </form>
   );
 }

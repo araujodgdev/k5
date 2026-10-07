@@ -40,13 +40,14 @@ import { ToolBudget } from '@/lib/agent-budget';
 import { moduleToolSelection } from '@/lib/agent-tools/selection';
 import { recordedWebSources, webStepSources } from '@/lib/citations/web-step';
 import { citationMarkdown, type WebReference } from '@/lib/citations/web-references';
+import { canvasCommandFor, canvasPrompt } from '@/lib/canvas-protocol';
 
 export type ChatTurn = {
   workspace: Pick<WorkspaceContext, 'userId' | 'officeId' | 'sessionId'>;
   conversationId: string;
   /** The answer is stored, and the conversation freed, only while this lease is the turn's (chat-lease.ts). */
   lease: TurnLease;
-  request: Pick<z.output<typeof chatRequestSchema>, 'documentIds' | 'caseId' | 'researchReferenceIds' | 'attachments' | 'timeZone' | 'openDocumentId' | 'selection'>;
+  request: Pick<z.output<typeof chatRequestSchema>, 'documentIds' | 'caseId' | 'researchReferenceIds' | 'attachments' | 'timeZone' | 'openDocumentId' | 'selection' | 'canvas'>;
 };
 
 type CitationPart = { status: string; items: CitationItem[] };
@@ -62,6 +63,7 @@ const toolInstructions = `Você opera o Lume pelas ferramentas disponíveis, em 
 As consultas iniciais de cada módulo já estão disponíveis. Para ler detalhes ou executar ações, use k5_tools_select_modules para disponibilizar as ferramentas completas dos módulos pertinentes, até três por vez. Isso só escolhe ferramentas, sem executar ações ou ampliar permissões. Por exemplo, recebimentos precisam do módulo honorarios; não improvise uma atualização de cliente ou tarefa quando a ferramenta de honorários ainda não apareceu.
 Para dúvidas sobre o Lume, o próprio assistente, seus módulos, permissões, fluxos e limitações, consulte k5_help_search e responda a partir do manual, citando os links retornados. Não use documentos de clientes como documentação da plataforma nem invente funções. Se a ajuda não cobrir a dúvida, diga qual informação está faltando. Uma descrição de recurso no manual não concede permissão para executá-lo.
 Use as ferramentas para consultar e agir; não descreva uma ação como feita sem tê-la executado. Depois de agir, diga em uma frase o que fez.
+O canvas do escritório fica ao lado da conversa. Quando a pessoa pedir para ver ou abrir algo (um caso, uma página, um cliente, uma atividade ou um módulo), use k5_ui_open_resource: a aba abre sozinha, então não cole o endereço na resposta. O que você cria ou altera já aparece no canvas; não abra de novo.
 Execute sem pedir revisão: criar, editar, concluir, cancelar ou reagendar tarefas e reuniões; criar e atualizar casos, clientes e pastas; mover e renomear documentos; separar e gerar anexos; iniciar cronologias e minutas. Pergunte apenas quando faltar um dado necessário (horário ambíguo, qual caso, qual cliente), com uma pergunta objetiva.
 Exclusões, consultas e vínculos com tribunais e a alteração de um documento que você não criou nesta conversa pedem confirmação: chame a ferramenta normalmente; quando ela responder que aguarda confirmação, a pessoa verá abaixo da sua resposta um botão Confirmar que executa exatamente essa ação. Diga em uma frase o que será feito ao confirmar. Não peça confirmação em texto, não repita a chamada e não diga que a ação foi feita.
 Fotos e arquivos enviados na mensagem pertencem ao chat. Leia-os diretamente. Quando a pessoa pedir para agendar uma lista fotografada, crie uma atividade por item com k5_agenda_create_activity, usando a transcrição fiel do item. Não invente datas, horários ou trechos ilegíveis: pergunte sobre eles no fim.
@@ -169,6 +171,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         conversationStyle, ...[writingRules, knowledge].filter(Boolean), chatGrounding, toolInstructions, memoryInstructions, ...(learned ? [learned] : []), clockContext(new Date(), body.timeZone ?? 'America/Sao_Paulo'),
         scope,
         researchScope,
+        ...(body.canvas ? [canvasPrompt(body.canvas)] : []),
         ...(documentFocus ? [documentFocus] : []),
       ].join('\n\n'),
       tools,
@@ -344,6 +347,10 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
               const step = { callId, name, summary: toolSummary(name, result, failed), state: failed ? 'failed' as const : 'completed' as const, ...(href ? { href } : {}) };
               steps.push(step);
               writer.write({ type: 'data-tool', id: callId, data: step });
+              // The canvas follows the work as it happens; a reload does not replay it, so it is not stored.
+              const tabTitle = name === 'k5_ui_open_resource' && !failed ? (result as { title?: string }).title : undefined;
+              const command = canvasCommandFor(step, (capabilities as Partial<Record<string, Capability>>)[name]?.effect, tabTitle);
+              if (command) writer.write({ type: 'data-canvas', data: command, transient: true });
               // Pages from the web search are sources for the citation review, like the provider's.
               if (chunk.type === 'tool-result' && !failed && !isWithheld(result) && name === 'web_search') {
                 for (const link of webSearchLinks({ toolResults: [chunk] })) consultedLinks.add(link);

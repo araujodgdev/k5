@@ -1,8 +1,13 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CircleAlert, ExternalLink } from "lucide-react";
 import { requirePlatformPage } from "@/lib/platform";
 import { agentTraceDetail, sentryTraceUrl } from "@/lib/agent-traces";
-import { formatMs, prettyEventData, traceDuration, traceEventLabels, traceStatusLabels } from "@/lib/agent-trace-format";
+import { formatMs, prettyEventData, traceEventLabels, traceStatusLabels } from "@/lib/agent-trace-format";
+import { elapsed } from "@/components/admin/admin-format";
+import { Pill } from "@/components/canvas/canvas-controls";
+import { Button } from "@/components/ui/button";
+import { AdminBlock, AdminBlockHead, AdminDetailHead, AdminFact, AdminFacts, AdminGrid, AdminNote, adminButton } from "@/components/admin/admin-blocks";
+import { AdminMeta } from "@/components/admin/admin-meta";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Execução · Administração" };
@@ -10,48 +15,56 @@ export const metadata = { title: "Execução · Administração" };
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: "America/Sao_Paulo" });
 
 /** One chat turn event by event: what the model did, which tools ran with which inputs, and what came back. */
-export default async function PlatformTracePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PlatformTracePage({ params }: PageProps<"/app/admin/traces/[id]">) {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const detail = await agentTraceDetail(context.db, (await params).id);
   if (!detail) notFound();
   const { trace, events } = detail;
-  const facts: Array<[string, string]> = [
-    ["Escritório", trace.officeName], ["Pessoa", trace.userEmail], ["Modelo", `${trace.provider} · ${trace.modelId}`],
-    ["Resultado", traceStatusLabels[trace.status] ?? trace.status], ["Duração", traceDuration(trace.startedAt, trace.finishedAt)],
-    ["Etapas", String(trace.steps)], ["Ferramentas", String(trace.toolCalls)],
-    ["Tokens", trace.inputTokens === null ? "—" : `${trace.inputTokens.toLocaleString("pt-BR")} entrada · ${(trace.outputTokens ?? 0).toLocaleString("pt-BR")} saída`],
-  ];
-  return (
-    <section>
-      <Link href="/app/admin/traces" className="inline-flex min-h-11 items-center text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:min-h-0">← Execuções</Link>
-      <header className="mt-4 flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-2xl">Execução de {dateFormat.format(new Date(trace.startedAt))}</h2>
-        {trace.sentryTraceId && <a href={sentryTraceUrl(trace.sentryTraceId)} target="_blank" rel="noreferrer"
-          className="inline-flex min-h-11 items-center text-sm underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0">Abrir trace no Sentry</a>}
-      </header>
-      <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-y py-5 text-sm md:grid-cols-4">
-        {facts.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-[13px] text-muted-foreground">{label}</dt><dd className="mt-0.5 break-words">{value}</dd></div>)}
-      </dl>
-      {trace.error && <p className="mt-4 text-sm text-destructive" role="status">Erro: {trace.error}</p>}
-      <h3 className="mt-8 mb-2 font-medium">Linha do tempo</h3>
-      {events.length === 0 ? <p className="py-8 text-subtle-foreground">Nenhum evento registrado.</p> : (
-        <ol className="divide-y border-y">
-          {events.map(event => (
-            <li key={event.seq} className="py-3">
-              <details className="group">
-                <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-1 outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0">
-                  <span className="w-16 shrink-0 font-mono text-[12px] tabular-nums text-muted-foreground">+{formatMs(event.atMs)}</span>
-                  <span className={cn("text-sm", event.kind === "error" && "text-destructive")}>{traceEventLabels[event.kind] ?? event.kind}</span>
-                  {event.name && <span className="font-mono text-[13px]">{event.name}</span>}
-                  {event.durationMs !== null && <span className="ml-auto text-[13px] tabular-nums text-muted-foreground">{formatMs(event.durationMs)}</span>}
-                </summary>
-                <pre className="mt-2 max-h-96 overflow-auto bg-muted p-3 font-mono text-[12px] leading-relaxed whitespace-pre-wrap break-words">{prettyEventData(event.data)}</pre>
-              </details>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
-  );
+  const title = `Execução de ${dateFormat.format(new Date(trace.startedAt))}`;
+  return <>
+    <AdminMeta title={title} />
+    <AdminDetailHead back={{ href: "/app/admin/traces", label: "Voltar para execuções" }} title={title}
+      sub={`${trace.officeName} · ${trace.userEmail}`}
+      actions={trace.sentryTraceId && (
+        <Button asChild variant="outline" className={adminButton}>
+          <a href={sentryTraceUrl(trace.sentryTraceId)} target="_blank" rel="noreferrer">Abrir no Sentry<ExternalLink aria-hidden="true" /></a>
+        </Button>
+      )} />
+    <AdminGrid>
+      <AdminBlock card label="Resumo da execução">
+        <AdminFacts>
+          <AdminFact label="Resultado"><Pill tone={trace.status === "failed" ? "accent" : "muted"}>{traceStatusLabels[trace.status] ?? trace.status}</Pill></AdminFact>
+          <AdminFact label="Modelo" mono>{trace.provider} · {trace.modelId}</AdminFact>
+          <AdminFact label="Duração" mono>{elapsed(trace.startedAt, trace.finishedAt)}</AdminFact>
+          <AdminFact label="Etapas" mono>{trace.steps}</AdminFact>
+          <AdminFact label="Ferramentas" mono>{trace.toolCalls}</AdminFact>
+          <AdminFact label="Tokens" mono>{trace.inputTokens === null ? "—"
+            : `${trace.inputTokens.toLocaleString("pt-BR")} entrada · ${(trace.outputTokens ?? 0).toLocaleString("pt-BR")} saída`}</AdminFact>
+        </AdminFacts>
+        {trace.error && <p role="status" className="flex items-start gap-2 text-[13.5px] text-destructive"><CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />{trace.error}</p>}
+      </AdminBlock>
+      <AdminBlock labelledBy="trace-timeline">
+        <AdminBlockHead id="trace-timeline" level={3} title="Linha do tempo" sub="Abra um evento para ver os dados que o modelo e as ferramentas trocaram." />
+        <AdminNote>Estes registros guardam conteúdo de clientes. Abra só o necessário para investigar.</AdminNote>
+        {events.length === 0 ? <p className="text-[13.5px] text-muted-foreground">Nenhum evento registrado.</p> : (
+          <ol className="flex flex-col gap-0.5 border-t border-border pt-1">
+            {events.map(event => (
+              <li key={event.seq}>
+                <details className="group rounded-md open:bg-muted/60">
+                  <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-0.5 rounded-md px-3 py-2 outline-offset-[-2px] outline-ring transition-colors hover:bg-accent focus-visible:outline-2 md:min-h-[46px] [&::-webkit-details-marker]:hidden">
+                    <span className="w-16 shrink-0 font-mono text-[12.5px] text-muted-foreground">+{formatMs(event.atMs)}</span>
+                    <span className={cn("text-[13.5px]", event.kind === "error" && "text-destructive")}>{traceEventLabels[event.kind] ?? event.kind}</span>
+                    {event.name && <span className="min-w-0 truncate font-mono text-[12.5px]">{event.name}</span>}
+                    {event.durationMs !== null && <span className="ml-auto font-mono text-[12.5px] text-muted-foreground">{formatMs(event.durationMs)}</span>}
+                  </summary>
+                  <pre className="mx-3 mb-3 max-h-96 overflow-auto rounded-md border border-border bg-card p-3 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">{prettyEventData(event.data)}</pre>
+                </details>
+              </li>
+            ))}
+          </ol>
+        )}
+      </AdminBlock>
+    </AdminGrid>
+  </>;
 }

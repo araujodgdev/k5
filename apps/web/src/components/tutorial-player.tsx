@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Download } from 'lucide-react';
 import type { tutorialMedia } from '@k5/tutorial-library';
+import { trailAction } from '@/components/canvas/canvas-controls';
+import { Button } from '@/components/ui/button';
 
 export function TutorialPlayer({ title, media, revision }: { title: string; media: ReturnType<typeof tutorialMedia>; revision: string }) {
   const player = useRef<HTMLVideoElement>(null);
@@ -15,19 +18,19 @@ export function TutorialPlayer({ title, media, revision }: { title: string; medi
     });
     return () => { mounted = false; element?.pause(); };
   }, []);
-  return <>
+  return <div className="flex flex-col gap-2">
     <video ref={player} src={source} controls preload="metadata" playsInline poster={`${media.poster}?v=${revision}`} onError={() => setFailed(true)} onLoadedMetadata={() => setFailed(false)}
-      className="aspect-video w-full border border-line bg-foreground" aria-label={`Tutorial: ${title}`}>
+      className="aspect-video w-full rounded-lg border border-border bg-foreground" aria-label={`Tutorial: ${title}`}>
       <track kind="captions" src={`${media.captions}?v=${revision}`} srcLang="pt-BR" label="Português" />
       Seu navegador não conseguiu abrir o vídeo. <a href={source}>Baixar vídeo</a>.
     </video>
-    {failed && <div role="alert" aria-label="Falha no vídeo" className="mt-4 text-sm">
-      <p>Não foi possível carregar o vídeo. Tente novamente ou baixe o arquivo para assistir.</p>
-      <button type="button" className="min-h-11 underline underline-offset-4" onClick={() => { setFailed(false); player.current?.load(); }}>Tentar novamente</button>
+    {failed && <div role="alert" aria-label="Falha no vídeo" className="flex flex-wrap items-center gap-2">
+      <p className="text-[13.5px]">Não foi possível carregar o vídeo. Tente novamente ou baixe o arquivo para assistir.</p>
+      <Button type="button" variant="outline" size="lg" className="h-11 md:h-[34px]" onClick={() => { setFailed(false); player.current?.load(); }}>Tentar novamente</Button>
     </div>}
-    <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3 text-sm">
-      <a href={source} download className="inline-flex min-h-11 items-center underline underline-offset-4">Baixar vídeo</a>
-      <a href={`${media.captions}?v=${revision}`} download className="inline-flex min-h-11 items-center underline underline-offset-4">Baixar legendas</a>
+    <div className="-ml-2.5 flex flex-wrap gap-1">
+      <Button asChild variant="ghost" className={trailAction}><a href={source} download><Download aria-hidden="true" />Baixar vídeo</a></Button>
+      <Button asChild variant="ghost" className={trailAction}><a href={`${media.captions}?v=${revision}`} download><Download aria-hidden="true" />Baixar legendas</a></Button>
     </div>
-  </>;
+  </div>;
 }

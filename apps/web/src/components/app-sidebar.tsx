@@ -3,15 +3,13 @@
 import { DocumentNavigationLink as Link, useSaveDocumentsBeforeExit } from '@/components/document/document-drafts-provider';
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
 import { Ellipsis, LogOut, PanelLeftClose, PanelLeftOpen, ShieldCheck } from "lucide-react";
 import { LumeMark } from "@/components/lume-mark";
 import { ThemeSwitch } from "@/components/theme-provider";
 import { InstallApp } from "@/components/pwa-provider";
 import { FeedbackDialog, FeedbackTrigger } from "@/components/feedback-dialog";
 import { NotificationPanel, NotificationTrigger } from "@/components/notification-panel";
-import { navIcons, navTone } from "@/components/nav-icons";
+import { navIcons } from "@/components/nav-icons";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { readNavCollapsed, subscribeNavCollapsed, writeNavCollapsed } from "@/lib/nav-collapse";
 import { Separator } from "@/components/ui/separator";
@@ -25,19 +23,16 @@ import { cn } from "@/lib/utils";
 import { BetaLabel } from '@/components/ads/beta-label';
 import { TutorialTrigger } from '@/components/onboarding-tour';
 
-// Registration wakes GSAP's ticker; Workers forbid timers during SSR imports.
-if (typeof window !== "undefined") gsap.registerPlugin(useGSAP);
+// A nav row. SidebarMenuButton already gives it 8px corners and the sidebar accent on hover and when active.
+const navRow = "h-10 px-3 transition-colors";
 
-// A nav row: the brand rises from the bottom on hover. The active row sits on the ink block
-// that slides between rows, so it drops its own fill and inverts its text and icon.
-const navRow = "hover-rise relative h-10 px-4 transition-colors duration-500 ease-(--ease) hover:bg-transparent hover:text-brand-foreground hover:[&_svg]:text-brand-foreground active:bg-transparent data-[active=true]:bg-transparent data-[active=true]:font-medium data-[active=true]:text-background data-[active=true]:before:hidden data-[active=true]:[&_svg]:text-background";
-
-/** The Lume mark on an ink tile: the corner of the grid, as wide as the collapsed menu. */
+/** The Lume mark in the shell's corner cell, as wide as the collapsed menu; hover fills an inset square. */
 function MarkTile({ className }: { className?: string }) {
   return (
     <Link href="/app" aria-label="Lume — início"
-      className={cn("hover-sweep grid shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none", className)}>
-      <LumeMark width={22} height={22} aria-hidden="true" focusable="false" />
+      className={cn("group relative grid shrink-0 place-items-center text-foreground outline-none", className)}>
+      <span aria-hidden="true" className="absolute inset-2 rounded-md transition-colors group-hover:bg-sidebar-accent group-focus-visible:ring-2 group-focus-visible:ring-ring" />
+      <LumeMark width={22} height={22} className="relative" />
     </Link>
   );
 }
@@ -50,7 +45,7 @@ function NavToggle({ collapsed, className }: { collapsed: boolean; className?: s
     <Tooltip>
       <TooltipTrigger asChild>
         <button type="button" aria-label={label} aria-expanded={!collapsed} onClick={() => writeNavCollapsed(!collapsed)}
-          className={cn("grid size-9 shrink-0 place-items-center text-muted-foreground transition-colors duration-300 ease-(--ease) hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
+          className={cn("grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-300 ease-(--ease) hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
           <Icon className="size-4" aria-hidden="true" />
         </button>
       </TooltipTrigger>
@@ -74,12 +69,9 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
   const feedbackOpener = useRef<HTMLElement | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationsOpener = useRef<HTMLElement | null>(null);
-  const navRef = useRef<HTMLUListElement>(null);
-  const indicatorRef = useRef<HTMLSpanElement>(null);
   const tabbarRef = useRef<HTMLElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreTitleRef = useRef<HTMLHeadingElement>(null);
-  const placed = useRef(false);
   const collapsed = useSyncExternalStore(subscribeNavCollapsed, readNavCollapsed, () => false);
 
   useEffect(() => {
@@ -170,26 +162,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
     setFeedback({ open: true, view: "form" });
   }
 
-  // Sidebar: slide the selection pill to the active item.
-  useGSAP(() => {
-    const indicator = indicatorRef.current;
-    // Measure the list item: SidebarMenuItem is positioned, so the link's own offsetTop is always 0.
-    const active = navRef.current?.querySelector('[aria-current="page"]')?.closest<HTMLElement>("li");
-    if (!indicator) return;
-    if (!active) { gsap.to(indicator, { autoAlpha: 0, duration: .2 }); return; }
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const target = { y: active.offsetTop, height: active.offsetHeight, autoAlpha: 1 };
-    if (!placed.current || reduced) gsap.set(indicator, target);
-    else gsap.to(indicator, { ...target, duration: .45, ease: "power3.out" });
-    placed.current = true;
-  }, { dependencies: [pathname, whatsappEnabled, adsEnabled], scope: navRef });
-
-  // Tab bar: small settle on the newly active icon.
-  useGSAP(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    gsap.fromTo("[data-tab-active] span", { scale: .82 }, { scale: 1, duration: .5, ease: "back.out(2.5)" });
-  }, { dependencies: [pathname], scope: tabbarRef });
-
+  // The tab bar slides away while the page scrolls down and returns on the way up; CSS moves it.
   useEffect(() => {
     const tabbar = tabbarRef.current;
     if (!tabbar) return;
@@ -205,8 +178,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
       const shouldHide = delta > 0 && y > 48;
       if (shouldHide === hidden) return;
       hidden = shouldHide;
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      gsap.to(tabbar, { yPercent: shouldHide ? 130 : 0, duration: reduced ? 0 : .3, ease: "power2.out" });
+      tabbar.toggleAttribute("data-hidden", shouldHide);
     };
     const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -257,8 +229,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
             <NavToggle collapsed={collapsed} className="nav-label mr-2 ml-auto self-center" />
           </SidebarHeader>
           <SidebarContent className="px-0 pt-3">
-            <SidebarMenu ref={navRef} data-tutorial="navigation" className="relative gap-0 px-0">
-              <span ref={indicatorRef} aria-hidden="true" className="pointer-events-none invisible absolute inset-x-0 top-0 bg-foreground" />
+            <SidebarMenu data-tutorial="navigation" className="gap-0.5 px-2">
               {visibleNavigation.map((item) => {
                 const href = `/app/${item.slug}`;
                 const Icon = navIcons[item.slug];
@@ -267,7 +238,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
                   <SidebarMenuItem key={item.slug}>
                     <SidebarMenuButton asChild isActive={active} tooltip={navIsBeta(item) ? `${item.label} · BETA` : item.label} className={navRow}>
                       <Link href={href} aria-current={active ? "page" : undefined} aria-label={collapsed ? `${item.label}${navIsBeta(item) ? ' · BETA' : ''}` : undefined}>
-                        <Icon aria-hidden="true" className={navTone[item.slug]} /><span className="nav-label">{item.label}</span>
+                        <Icon aria-hidden="true" /><span className="nav-label">{item.label}</span>
                         {navIsBeta(item) && <BetaLabel className="nav-label ml-auto" />}
                       </Link>
                     </SidebarMenuButton>
@@ -323,13 +294,13 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
         <p className="min-w-0 self-center truncate text-sm text-muted-foreground" title={officeName}>{officeName}</p>
       </header>
 
-      <nav ref={tabbarRef} data-tutorial="navigation" aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-20 grid h-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] grid-cols-5 border-t border-line bg-background px-2 pt-1.5 pb-[env(safe-area-inset-bottom)] md:hidden">
+      <nav ref={tabbarRef} data-tutorial="navigation" aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-20 grid h-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] grid-cols-5 border-t border-line bg-background px-2 pt-1.5 pb-[env(safe-area-inset-bottom)] transition-transform duration-300 ease-(--ease) data-hidden:translate-y-[130%] md:hidden">
         {mobileTabs.map((slug) => {
           const item = appNavigation.find((entry) => entry.slug === slug)!;
           const href = `/app/${slug}`;
           const Icon = navIcons[slug];
           const active = pathname === href || pathname.startsWith(`${href}/`);
-          return <TabItem key={slug} href={href} icon={<Icon className={cn("size-[18px]", !active && navTone[slug])} aria-hidden="true" />} label={item.short} active={active} />;
+          return <TabItem key={slug} href={href} icon={<Icon className="size-[18px]" aria-hidden="true" />} label={item.short} active={active} />;
         })}
         <TabItem ref={moreButtonRef} icon={<span className="relative"><Ellipsis className="size-[18px]" aria-hidden="true" />{unread > 0 && <span className="absolute -top-0.5 -right-1 size-1.5 rounded-full bg-brand" aria-hidden="true" />}</span>} label="Mais" active={overflowActive} onClick={() => setSheetOpen(true)} aria-haspopup="dialog" aria-expanded={sheetOpen} aria-label={unread > 0 ? `Mais, ${unread} notificações não lidas` : undefined} />
       </nav>
@@ -339,7 +310,7 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
           <SheetTitle ref={moreTitleRef} tabIndex={-1} className="label-mono px-3 py-2 pr-12 text-muted-foreground outline-none">Mais opções</SheetTitle>
           <TutorialTrigger onOpen={() => setSheetOpen(false)} />
           <Link href={profileNavigation.href} aria-current={profileActive ? "page" : undefined} onClick={() => setSheetOpen(false)}
-            className={cn("flex min-h-12 items-center gap-3 px-3 text-base transition-colors", profileActive ? "bg-foreground font-medium text-background" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+            className={cn("flex min-h-12 items-center gap-3 rounded-md px-3 text-base transition-colors", profileActive ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
             <Avatar name={person.name} src={person.avatarUrl} className="size-7 text-[10px]" />
             <span className="min-w-0 flex-1 truncate">{person.name}</span>
             <span className="label-mono">{profileNavigation.label}</span>
@@ -351,19 +322,19 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
             const active = pathname === href;
             return (
               <Link key={item.slug} href={href} aria-current={active ? "page" : undefined} onClick={() => setSheetOpen(false)}
-                className={cn("flex min-h-12 items-center gap-3 px-3 text-base transition-colors", active ? "bg-foreground font-medium text-background [&_svg]:text-background" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-                <Icon className={cn("size-[18px]", navTone[item.slug])} aria-hidden="true" />{item.label}
+                className={cn("flex min-h-12 items-center gap-3 rounded-md px-3 text-base transition-colors", active ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+                <Icon className="size-[18px]" aria-hidden="true" />{item.label}
                 {navIsBeta(item) && <BetaLabel className="ml-auto" />}
               </Link>
             );
           })}
           {platformAdmin && <Link href={adminNavigation.href} aria-current={adminActive ? "page" : undefined} onClick={() => setSheetOpen(false)}
-            className={cn("flex min-h-12 items-center gap-3 px-3 text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring", adminActive ? "bg-foreground font-medium text-background" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+            className={cn("flex min-h-12 items-center gap-3 rounded-md px-3 text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring", adminActive ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
             <ShieldCheck className="size-[18px]" aria-hidden="true" />{adminNavigation.label}</Link>}
           <Separator className="my-1.5" />
           {error && <p role="alert" className="px-3 text-destructive text-xs">{error}</p>}
           <div className="flex items-center gap-1">
-            <button onClick={() => void logout()} disabled={pending} className="flex min-h-12 flex-1 items-center gap-3 px-3 text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60">
+            <button onClick={() => void logout()} disabled={pending} className="flex min-h-12 flex-1 items-center gap-3 rounded-md px-3 text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60">
               <LogOut className="size-[18px]" aria-hidden="true" />{pending ? "Saindo…" : "Sair"}
             </button>
             <FeedbackTrigger className="size-12" onOpen={openFeedback} />
@@ -398,11 +369,11 @@ export function AppSidebar({ officeName, platformAdmin = false, whatsappEnabled 
 function TabItem({ href, icon, label, active, ...props }: { href?: string; icon: React.ReactNode; label: string; active: boolean } & React.ComponentProps<"button">) {
   const content = (
     <>
-      <span className={cn("grid h-[30px] w-10 place-items-center transition-colors duration-300", active && "bg-primary text-primary-foreground")}>{icon}</span>
+      <span className={cn("grid h-[30px] w-10 place-items-center rounded-md transition-colors duration-300", active && "bg-accent text-foreground")}>{icon}</span>
       {label}
     </>
   );
   const className = cn("flex flex-col items-center gap-0.5 text-[11px] font-medium", active ? "text-foreground" : "text-subtle-foreground");
-  if (href) return <Link href={href} className={className} aria-current={active ? "page" : undefined} data-tab-active={active || undefined}>{content}</Link>;
-  return <button type="button" className={className} data-tab-active={active || undefined} {...props}>{content}</button>;
+  if (href) return <Link href={href} className={className} aria-current={active ? "page" : undefined}>{content}</Link>;
+  return <button type="button" className={className} {...props}>{content}</button>;
 }

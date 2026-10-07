@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requirePlatformPage } from '@/lib/platform';
 import { platformTicket } from '@/lib/feedback-tickets';
 import { FeedbackTicketAdmin } from '@/components/feedback-ticket-admin';
+import { AdminMeta } from '@/components/admin/admin-meta';
 
 export const metadata = { title: 'Ticket de feedback' };
 
@@ -11,8 +11,8 @@ export default async function PlatformFeedbackTicketPage({ params }: PageProps<'
   if (!context) notFound();
   const ticket = await platformTicket(context.user.id, (await params).id, context.db);
   if (!ticket) notFound();
-  return <section>
-    <Link href="/app/admin/feedback" className="inline-flex min-h-11 items-center rounded-md text-muted-foreground text-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 md:min-h-0">← Feedback</Link>
+  return <>
+    <AdminMeta title={`Ticket #${ticket.number}`} />
     <FeedbackTicketAdmin initial={ticket} />
-  </section>;
+  </>;
 }

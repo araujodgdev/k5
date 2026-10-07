@@ -15,7 +15,7 @@ async function accept(document: LegalDocumentKind) {
   if (!response.ok) throw new Error();
 }
 
-function useAcceptance(document: LegalDocumentKind) {
+function useAcceptance(document: LegalDocumentKind, onAccepted?: () => void) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -24,6 +24,8 @@ function useAcceptance(document: LegalDocumentKind) {
     setError("");
     try {
       await accept(document);
+      // A refresh re-renders server components only; a panel mounted on the client hears it here.
+      onAccepted?.();
       router.refresh();
     } catch {
       setError("Não foi possível registrar. Confira sua conexão e tente novamente.");
@@ -87,8 +89,8 @@ export function TermsGate({ version, updatedLabel, firstTime, signInHref = "/sig
 }
 
 /** Shown in place of the chat until the person reads, once, how their content reaches the AI providers. */
-export function AiDataNotice() {
-  const { pending, error, submit } = useAcceptance("ai_notice");
+export function AiDataNotice({ onAccepted }: { onAccepted?: () => void } = {}) {
+  const { pending, error, submit } = useAcceptance("ai_notice", onAccepted);
   return (
     <section aria-labelledby="ai-notice-title" className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-5 py-10 md:px-8">
       <div className="border-l-2 border-brand pl-5">

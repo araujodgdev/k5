@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
+import { CanvasSection } from '@/components/canvas/canvas-page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { connectionStatusDto, type ConnectionStatus } from '@/lib/whatsapp/domain';
@@ -84,26 +85,24 @@ export function WhatsAppConnectionPanel({ initialStatus }: { initialStatus?: Con
   const connected = connection?.status === 'connected';
   const canConnect = status?.enabled && status.configured && status.canManage && !connected && connection?.status !== 'disconnecting';
 
-  return <section aria-labelledby="whatsapp-connection-title" className="space-y-4 border-t border-line pt-8 [&_button]:min-h-11 md:[&_button]:min-h-9">
-    <div>
-      <h2 id="whatsapp-connection-title" className="text-lg font-medium">WhatsApp Business</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Conecte a conta do seu escritório para consultar e responder às conversas.</p>
-    </div>
-    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    {notice && <p role="status" className="text-sm">{notice}</p>}
-    {!status ? <>{!error && <p role="status" className="text-sm text-muted-foreground">Carregando conexão…</p>}{error && <Button variant="outline" onClick={() => setRevision(value => value + 1)}>Tentar novamente</Button>}</> : <>
-      <div className="space-y-1 text-sm">
-        {connection?.label && <p className="font-medium">{connection.label}</p>}
-        {connection?.number && <p>{connection.number}</p>}
-        <p className="text-muted-foreground">{connection ? connectionLabels[connection.status] : 'Nenhuma conta conectada.'}</p>
-      </div>
-      {!status.enabled && <p className="text-sm text-muted-foreground">O WhatsApp está desativado para este escritório. A conta ainda pode ser desconectada.</p>}
-      {status.enabled && !status.configured && <p className="text-sm text-muted-foreground">A conexão com o WhatsApp ainda precisa ser configurada pela plataforma.</p>}
-      {!status.canManage && <p className="text-sm text-muted-foreground">Um administrador do escritório pode conectar ou desconectar a conta.</p>}
-      <div className="flex flex-wrap gap-3">
-        {canConnect && <Button disabled={busy} onClick={() => void connect()}>{action === 'connecting' ? 'Abrindo conexão…' : connection?.status === 'reconnect_required' || connection?.status === 'pending' ? 'Reconectar WhatsApp' : 'Conectar WhatsApp'}</Button>}
-        {status.enabled && connection && connection.status !== 'disconnected' && <Button variant="outline" asChild><Link href="/app/whatsapp">Abrir conversas</Link></Button>}
-        {status.canManage && connection && connection.status !== 'disconnected' && <Button variant="outline" disabled={busy || connection.status === 'disconnecting'} onClick={() => setConfirmDisconnect(true)}>Desconectar</Button>}
+  const quiet = 'text-[13.5px] text-muted-foreground';
+  const control = 'h-11 md:h-[34px]';
+  return <CanvasSection title="WhatsApp Business" label="WhatsApp Business" action={connection && <span className="truncate text-[13px] text-muted-foreground">{connectionLabels[connection.status]}</span>}>
+    <p className={quiet}>Conecte a conta do escritório para consultar e responder às conversas dos clientes.</p>
+    {error && <p role="alert" className="text-[13.5px] text-destructive">{error}</p>}
+    {notice && <p role="status" className="text-[13.5px]">{notice}</p>}
+    {!status ? <>{!error && <p role="status" className={quiet}>Carregando conexão…</p>}{error && <div><Button variant="outline" size="lg" className={control} onClick={() => setRevision(value => value + 1)}>Tentar novamente</Button></div>}</> : <>
+      {connection ? <div className="flex flex-col gap-px">
+        {connection.label && <p className="text-sm font-medium">{connection.label}</p>}
+        {connection.number && <p className="font-mono text-[12.5px] text-muted-foreground">{connection.number}</p>}
+      </div> : <p className={quiet}>Nenhuma conta conectada.</p>}
+      {!status.enabled && <p className={quiet}>O WhatsApp está desativado para este escritório. A conta ainda pode ser desconectada.</p>}
+      {status.enabled && !status.configured && <p className={quiet}>A conexão com o WhatsApp ainda precisa ser configurada pela plataforma.</p>}
+      {!status.canManage && <p className={quiet}>Um administrador do escritório pode conectar ou desconectar a conta.</p>}
+      <div className="flex flex-wrap gap-2">
+        {canConnect && <Button size="lg" className={control} disabled={busy} onClick={() => void connect()}>{action === 'connecting' ? 'Abrindo conexão…' : connection?.status === 'reconnect_required' || connection?.status === 'pending' ? 'Reconectar WhatsApp' : 'Conectar WhatsApp'}</Button>}
+        {status.enabled && connection && connection.status !== 'disconnected' && <Button variant="outline" size="lg" className={control} asChild><Link href="/app/whatsapp">Abrir conversas</Link></Button>}
+        {status.canManage && connection && connection.status !== 'disconnected' && <Button variant="outline" size="lg" className={control} disabled={busy || connection.status === 'disconnecting'} onClick={() => setConfirmDisconnect(true)}>Desconectar</Button>}
       </div>
     </>}
     <Dialog open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
@@ -112,5 +111,5 @@ export function WhatsAppConnectionPanel({ initialStatus }: { initialStatus?: Con
         <DialogFooter><Button variant="outline" disabled={busy} onClick={() => setConfirmDisconnect(false)}>Cancelar</Button><Button disabled={busy} onClick={() => void disconnect()}>{action === 'disconnecting' ? 'Desconectando…' : 'Desconectar'}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
-  </section>;
+  </CanvasSection>;
 }

@@ -3,123 +3,119 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/* The canvas shell with the Lume collapsed (lib/canvas-shell/panel.ts sets it before the first paint). */
+@custom-variant lume-collapsed (&:is([data-lume-panel="collapsed"] *));
 
 /* ---------------------------------------------------------------------------
-   Lume theme. Ink, paper and one grey panel, set on a grid of hard lines; the
-   earthy orange arrives on hover and marks the Lume's own work. The shadcn tokens
-   carry the palette, so every ui/* component inherits it. Rules: apps/web/DESIGN.md.
+   Lume theme. Warm off-white surfaces on a slightly deeper ground, soft borders and rounded
+   corners; one orange that appears only where the Lume acts or something needs the person.
+   The shadcn tokens carry the palette, so every ui/* component inherits it. Rules: apps/web/DESIGN.md.
    --------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
 
-  /* Surfaces: paper, ink and one flat grey panel. No tints, no gradients. */
-  --background: #ffffff;
-  --foreground: #232323;
-  --canvas: #ffffff;          /* sidebar and auth background: the same paper, split by lines */
-  --panel: #d9d9d9;           /* the flat grey block of the grid */
-  --panel-foreground: #232323;
-  --card: #ffffff;
-  --card-foreground: #232323;
-  --popover: #ffffff;
-  --popover-foreground: #232323;
+  /* Surfaces: the working surface sits on the ground (canvas); cards and popovers lift to white. */
+  --background: #FDFDFB;
+  --foreground: #1C1B19;
+  --canvas: #F3F2EE;          /* the ground under the working surface, in the sidebar's tone */
+  --pane: #FAFAF8;            /* the Lume's floating panel */
+  --panel: #EAE9E4;           /* a flat grey block (landing, halftone silhouettes) */
+  --panel-foreground: #1C1B19;
+  --card: #FFFFFF;
+  --card-foreground: #1C1B19;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1B19;
 
-  /* Brand is the earthy orange: hover fills, focus, the Lume's own marks.
-     Ink text sits on it (5.4:1); brand-ink is the hue dark enough for text on paper. */
-  --brand: #d97757;
-  --brand-foreground: #232323;
-  --brand-ink: #b0502f;
-  --brand-soft: color-mix(in oklab, #d97757 14%, #ffffff);
-  /* One quiet hue per module, used on its icon and on 2px markers, never as a fill. */
-  --module-lume: #d97757;
-  --module-vault: #4f6d8f;
-  --module-agenda: #b08a2e;
-  --module-research: #5f7f5a;
-  --schedule: #8a6a1c;          /* agenda text: dates, meetings, overdue (5:1) */
-  --primary: #232323;
-  --primary-foreground: #ffffff;
-  --secondary: #f0f0f0;
-  --secondary-foreground: #232323;
-  --muted: #f0f0f0;
-  --muted-foreground: #5c5c5c;
-  --subtle-foreground: #696969; /* readable on both background and selected surfaces */
-  --accent: #e8e8e8;            /* quiet hover fills */
-  --accent-foreground: #232323;
+  /* Brand is the one orange: focus and the Lume's own marks. brand-foreground is the text on it;
+     brand-ink is the hue dark enough for text on the surface. */
+  --brand: #E08A6B;
+  --brand-foreground: #1C1B19;
+  --brand-ink: #A9502F;
+  --brand-soft: rgb(224 138 107 / .12);
+  --primary: #1C1B19;
+  --primary-foreground: #FAFAF8;
+  --secondary: #EFEEEA;
+  --secondary-foreground: #1C1B19;
+  --muted: #EFEEEA;
+  --muted-foreground: #6D6C6A; /* the prototype's text-2, ink at 64% on the surface */
+  --subtle-foreground: #75746F; /* keeps 4.5:1 on background */
+  --accent: rgb(28 27 25 / .045); /* quiet hover fills */
+  --accent-foreground: #1C1B19;
+  --selected: rgb(28 27 25 / .07); /* the chosen tab, row or option */
 
-  --destructive: #b3261e;
-  --line: #232323;              /* the grid: shell edges, headers, section splits */
-  --border: #d4d4d4;            /* rows and dividers inside content */
-  --input: #232323;             /* controls are drawn in ink */
-  --ring: #d97757;
-  --overlay: #232323;
+  --destructive: #B3261E;
+  --border-strong: rgb(28 27 25 / .16); /* a hovered card, a control that needs to stand out */
+  --line: rgb(28 27 25 / .14);   /* structure: shell edges, headers, section splits */
+  --border: rgb(28 27 25 / .09); /* rows and dividers inside content */
+  --input: rgb(28 27 25 / .16);  /* control outlines */
+  --ring: #E08A6B;
+  --overlay: #1C1B19;
   /* The chevron every select draws, in muted-foreground (a data URI can't read a variable). */
-  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235c5c5c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236D6C6A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 
-  --sidebar: #ffffff;
-  --sidebar-foreground: #232323;
-  --sidebar-primary: #232323;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e8e8e8;
-  --sidebar-accent-foreground: #232323;
-  --sidebar-border: #232323;
-  --sidebar-ring: #d97757;
+  --sidebar: #F3F2EE;
+  --sidebar-foreground: #1C1B19;
+  --sidebar-primary: #1C1B19;
+  --sidebar-primary-foreground: #FAFAF8;
+  --sidebar-accent: rgb(28 27 25 / .06);
+  --sidebar-accent-foreground: #1C1B19;
+  --sidebar-border: rgb(28 27 25 / .10);
+  --sidebar-ring: #E08A6B;
   --sidebar-width: 15.5rem;
   --sidebar-width-icon: 3.75rem;
 
-  --radius: 0rem;
+  --radius: .75rem;
   --tabbar-h: 64px;
   /* The sidebar's header row (the 60px mark tile and its line); a workspace's top bar takes the
      same height so its line continues the sidebar's. */
   --shell-header: calc(3.75rem + 1px);
   --ease: cubic-bezier(.16, 1, .3, 1);   /* expo out: fast start, long settle */
-  --ease-in-out: cubic-bezier(.65, 0, .35, 1); /* for travel, such as a line being drawn */
-  --shadow-float: 0 16px 40px -20px rgb(35 35 35 / .28);
+  --shadow-float: 0 1px 2px rgb(28 27 25 / .05), 0 12px 32px rgb(28 27 25 / .09);
 }
 
 .dark {
   color-scheme: dark;
-  --background: #232323;
-  --foreground: #f5f5f5;
-  --canvas: #232323;
-  --panel: #3a3a3a;
-  --panel-foreground: #f5f5f5;
-  --card: #232323;
-  --card-foreground: #f5f5f5;
-  --popover: #2b2b2b;
-  --popover-foreground: #f5f5f5;
-  --brand: #e08a6b;
-  --brand-foreground: #232323;
-  --brand-ink: #eba184;
-  --brand-soft: color-mix(in oklab, #e08a6b 18%, #232323);
-  --module-lume: #e08a6b;
-  --module-vault: #8faacb;
-  --module-agenda: #d6b25a;
-  --module-research: #9dbb94;
-  --schedule: #d6b25a;
-  --primary: #f5f5f5;
-  --primary-foreground: #232323;
-  --secondary: #2e2e2e;
-  --secondary-foreground: #f5f5f5;
-  --muted: #2e2e2e;
-  --muted-foreground: #b8b8b8;
-  --subtle-foreground: #a3a3a3;
-  --accent: #383838;
-  --accent-foreground: #f5f5f5;
-  --destructive: #ff9c94;
-  --line: #5a5a5a;
-  --border: #3d3d3d;
-  --input: #8a8a8a;
-  --ring: #e08a6b;
+  --background: #1A1918;
+  --foreground: #E2E0DB;
+  --canvas: #0E0D0C;
+  --pane: #1E1D1B;
+  --panel: #2A2927;
+  --panel-foreground: #E2E0DB;
+  --card: #222120;
+  --card-foreground: #E2E0DB;
+  --popover: #222120;
+  --popover-foreground: #E2E0DB;
+  --brand: #E08A6B;
+  --brand-foreground: #1C1B19;
+  --brand-ink: #EBA184;
+  --brand-soft: rgb(224 138 107 / .16);
+  --primary: #F3F1EC;
+  --primary-foreground: #161514;
+  --secondary: #2A2927;
+  --secondary-foreground: #E2E0DB;
+  --muted: #2A2927;
+  --muted-foreground: #A19F9B;
+  --subtle-foreground: #8A8884;
+  --accent: rgb(255 255 255 / .05);
+  --accent-foreground: #E2E0DB;
+  --selected: rgb(255 255 255 / .085);
+  --destructive: #FF9C94;
+  --border-strong: rgb(255 255 255 / .14);
+  --line: rgb(255 255 255 / .12);
+  --border: rgb(255 255 255 / .08);
+  --input: rgb(255 255 255 / .14);
+  --ring: #E08A6B;
   --overlay: #000000;
-  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b8b8b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  --sidebar: #232323;
-  --sidebar-foreground: #f5f5f5;
-  --sidebar-primary: #f5f5f5;
-  --sidebar-primary-foreground: #232323;
-  --sidebar-accent: #383838;
-  --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: #5a5a5a;
-  --sidebar-ring: #e08a6b;
-  --shadow-float: 0 16px 40px -18px rgb(0 0 0 / .6);
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A19F9B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --sidebar: #131211;
+  --sidebar-foreground: #E2E0DB;
+  --sidebar-primary: #F3F1EC;
+  --sidebar-primary-foreground: #161514;
+  --sidebar-accent: rgb(255 255 255 / .07);
+  --sidebar-accent-foreground: #E2E0DB;
+  --sidebar-border: rgb(255 255 255 / .08);
+  --sidebar-ring: #E08A6B;
+  --shadow-float: 0 1px 2px rgb(0 0 0 / .4), 0 16px 40px rgb(0 0 0 / .45);
 }
 
 /* Halftone field (src/components/halftone.tsx): pixels stay square when the canvas scales. */
@@ -133,16 +129,6 @@
 /* Decorative landing fields fade in without delaying the hero text. */
 @keyframes fade-in { from { opacity: 0; transform: translateY(16px); } }
 .fade-in { animation: fade-in 1s var(--ease) both; animation-delay: var(--delay, 0s); }
-
-/* "Traço": the mark's outline draws in a fine line, piece by piece, then each piece fills, the
-   beam last. The resting state is the filled mark, so it is simply there under reduced motion.
-   Paths carry pathLength="1" and --i (0 stem, 1 base, 2 beam). The line is in the mark's units
-   (--trace-width, of 24), because a non-scaling stroke ignores pathLength and would come out dashed. */
-@keyframes lume-trace-draw { from { stroke-dashoffset: 1; } }
-@keyframes lume-trace-fill { from { fill: transparent; stroke-width: var(--trace-width, .2px); } }
-.lume-trace path { stroke: currentColor; stroke-width: 0; stroke-dasharray: 1; fill: currentColor;
-  animation: lume-trace-draw 1.1s var(--ease-in-out) backwards, lume-trace-fill .7s var(--ease) backwards;
-  animation-delay: calc(var(--delay, 0s) + var(--i) * .15s), calc(var(--delay, 0s) + .9s + var(--i) * .15s); }
 
 /* Desktop menu: the preference restored in the head sets the width before the first paint. */
 @media (min-width: 768px) {
@@ -204,18 +190,19 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
 .document-pages .docx-wrapper > section.docx { box-shadow: var(--shadow-float); margin: 0; }
 
 @theme inline {
-  --color-schedule: var(--schedule);
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
   --color-brand-soft: var(--brand-soft);
-  --color-module-lume: var(--module-lume);
-  --color-module-vault: var(--module-vault);
-  --color-module-agenda: var(--module-agenda);
-  --color-module-research: var(--module-research);
   --color-overlay: var(--overlay);
   --color-canvas: var(--canvas);
+  --color-pane: var(--pane);
+  --color-selected: var(--selected);
+  --color-border-strong: var(--border-strong);
   --color-subtle-foreground: var(--subtle-foreground);
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  /* The prototype sets every small size at 1.45. */
+  --text-xs--line-height: 1.45;
+  --text-sm--line-height: 1.45;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   /* One grotesque voice: serif and heading resolve to the sans, set tight. */
   --font-serif: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
@@ -251,13 +238,14 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Fixed steps by role: controls md, cards and menus lg, floating sheets xl, small tags sm. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-4xl: 28px;
 }
 
 @layer base {
@@ -266,17 +254,21 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   }
   body {
     @apply bg-background text-foreground text-sm;
-    letter-spacing: -.011em;
+    letter-spacing: -.006em;
     -webkit-font-smoothing: antialiased;
   }
   :is(h1, h2, h3) {
-    letter-spacing: -.03em;
+    letter-spacing: -.02em;
   }
   html {
     @apply font-sans;
   }
   button:not(:disabled) {
     cursor: pointer;
+  }
+  /* Icons draw with a 1.5 stroke, lighter than lucide's own 2. */
+  svg.lucide {
+    stroke-width: 1.5;
   }
 }
 
@@ -288,14 +280,14 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   line-height: .95;
 }
 
-/* Page titles: the display voice one step down. Tight tracking is the identity, not the size. */
+/* Page titles: the one large heading of a page, in the body's face. */
 @utility page-title {
   font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 450;
-  font-size: 30px;
-  letter-spacing: -.04em;
-  line-height: 1.05;
-  @media (width >= 48rem) { font-size: 38px; }
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -.02em;
+  line-height: 1.15;
+  @media (width >= 48rem) { font-size: 28px; }
 }
 
 /* Labels in mono caps: section names, meta and the text of arrow links. */
@@ -308,101 +300,26 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   text-transform: uppercase;
 }
 
-/* Hover fills. A block of color rises from the bottom (rows, nav) or sweeps in from the left
-   (actions). Both isolate the element so its content paints above the fill. */
-@utility hover-rise {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: var(--fill, var(--brand));
-    transform: translateY(calc(100% + 1px));
-    transition: transform .6s var(--ease);
-    pointer-events: none;
-  }
-  @media (hover: hover) {
-    &:hover::before { transform: translateY(0); }
-  }
-  &:focus-visible::before { transform: translateY(0); }
-}
-
-@utility hover-sweep {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: var(--fill, var(--brand));
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform .8s var(--ease);
-    pointer-events: none;
-  }
-  @media (hover: hover) {
-    &:hover::before { transform: scaleX(1); }
-  }
-  &:focus-visible::before { transform: scaleX(1); }
-}
-
-/* Opções inteligentes (src/components/smart-options.tsx): the peach Lume mark. On hover a band of
-   light crosses it from the bottom-left to the top-right and its three strokes trade places,
-   forming a mirrored mark and a spark before settling back. The same motion shows while it works. */
-.smart-options {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-}
-.smart-options::after {
-  content: "";
-  position: absolute;
-  inset: -60%;
-  z-index: -1;
-  background: linear-gradient(45deg, transparent 40%, color-mix(in oklab, var(--module-lume) 40%, transparent) 50%, transparent 60%);
-  transform: translate(-45%, 45%);
-  opacity: 0;
-  pointer-events: none;
-}
-.smart-mark { overflow: visible; transition: filter .5s var(--ease); }
-.smart-mark path { transform-box: fill-box; transform-origin: center; transition: transform .6s var(--ease); }
-@keyframes smart-shine {
-  0% { transform: translate(-45%, 45%); opacity: 0; }
-  12% { opacity: 1; }
-  55% { transform: translate(45%, -45%); opacity: 1; }
-  56%, 100% { transform: translate(45%, -45%); opacity: 0; }
-}
-@keyframes smart-a {
-  0%, 12%, 91%, 100% { transform: none; }
-  25%, 45% { transform: translate(11px, 0); }
-  58%, 78% { transform: translate(5.5px, 1.25px); }
-}
-@keyframes smart-b {
-  0%, 12%, 91%, 100% { transform: none; }
-  25%, 45% { transform: translate(0, -12px); }
-  58%, 78% { transform: translate(-1.25px, -5.5px); }
-}
-@keyframes smart-c {
-  0%, 12%, 91%, 100% { transform: none; }
-  25%, 45% { transform: translate(-5px, 3.75px) rotate(90deg); }
-  58%, 78% { transform: translate(-3px, 2.75px) rotate(180deg); }
-}
+/* The Lume mark (src/components/live-lume-mark.tsx): a cube cut by a beam. The beam lights in brand
+   only while the Lume works or needs the person; otherwise the mark is still. */
+.lume-mark { overflow: visible; }
+.lume-mark-glow { fill: var(--brand); opacity: 0; }
+.lume-mark-band { opacity: 0; transform: translateY(54px); }
+.lume-mark[data-state="working"] .lume-mark-glow { opacity: .2; }
+.lume-mark[data-state="working"] .lume-mark-band { animation: lume-flow 1.8s cubic-bezier(.45, 0, .55, 1) infinite; }
+.lume-mark[data-state="idle"] .lume-mark-band { animation: lume-glint 7s ease-in-out infinite; }
+.lume-mark[data-state="attention"] .lume-mark-glow { animation: lume-pulse 2.4s ease-in-out infinite; }
 @media (hover: hover) {
-  .smart-options:hover::after { animation: smart-shine 2.4s var(--ease) infinite; }
-  .smart-options:hover .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-lume) 75%, transparent)); }
-  .smart-options:hover .smart-mark-a { animation: smart-a 3.6s var(--ease) infinite; }
-  .smart-options:hover .smart-mark-b { animation: smart-b 3.6s var(--ease) infinite; }
-  .smart-options:hover .smart-mark-c { animation: smart-c 3.6s var(--ease) infinite; }
+  .smart-options:hover .lume-mark[data-state="still"] .lume-mark-band { animation: lume-glint-once 1.2s ease-in-out; }
 }
-.smart-options:focus-visible .smart-mark { filter: drop-shadow(0 0 5px color-mix(in oklab, var(--module-lume) 75%, transparent)); }
-.smart-options[data-busy] .smart-mark-a { animation: smart-a 3.6s var(--ease) infinite; }
-.smart-options[data-busy] .smart-mark-b { animation: smart-b 3.6s var(--ease) infinite; }
-.smart-options[data-busy] .smart-mark-c { animation: smart-c 3.6s var(--ease) infinite; }
+@keyframes lume-flow { from { transform: translateY(54px); opacity: 1; } to { transform: translateY(-54px); opacity: 1; } }
+@keyframes lume-glint { 0%, 78% { transform: translateY(54px); opacity: 0; } 80% { opacity: .8; } 95% { transform: translateY(-54px); opacity: .8; } 100% { transform: translateY(-54px); opacity: 0; } }
+@keyframes lume-glint-once { 0% { transform: translateY(54px); opacity: 0; } 12% { opacity: .8; } 88% { opacity: .8; } 100% { transform: translateY(-54px); opacity: 0; } }
+@keyframes lume-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .lume-mark[data-state="working"] .lume-mark-glow { opacity: .6; }
+  .lume-mark[data-state="attention"] .lume-mark-glow { opacity: 1; }
+}
 
 /* The small square that leads a mono label or a list item. */
 @utility square-dot {
@@ -442,10 +359,10 @@ html[data-agent-list-open="1"] .agent-chat-history { display: flex; }
   bottom: 72px;
   bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + .5rem);
   border: 1px solid var(--line);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-xl);
 }
 
-/* One select for the whole app (DESIGN.md, "Selects"): a native select is outlined in ink like an
+/* One select for the whole app (DESIGN.md, "Selects"): a native select is outlined like an
    input, its text starts 10px in, and it draws the same chevron as the SelectTrigger and the
    pickers, 10px from the right edge. Plain CSS outside a layer, so a component's own px-* or border
    color can't move the text or the arrow. A select set inside a sentence (data-inline) keeps its
@@ -472,6 +389,18 @@ select[data-inline]:not([multiple], [size]):focus-visible { border-color: var(--
 @media (min-width: 768px) {
   .feedback-panel, .notification-panel { left: calc(15.5rem + .75rem); bottom: .75rem; }
   html[data-nav="collapsed"] :is(.feedback-panel, .notification-panel) { left: calc(3.75rem + .75rem); }
+}
+
+/* The canvas shell (components/shell/office-shell.tsx). Pages that keep their own scroll regions
+   (chat, e-mail, messages) fill the canvas instead of scrolling it. */
+.canvas-scroll:has(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace) { overflow: hidden; padding-bottom: 0; }
+/* The phone's "Pedir ao Lume" pill steps aside for a page's own composer and while the person types. */
+.canvas-scroll:is(:has(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace), :has(input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus)) ~ .lume-phone-pill { display: none; }
+/* No tab bar under the phone menu; on a computer the panels hang from the strip, under the bell. */
+html:has([data-lume-shell]) [data-slot="sheet-content"][data-side="bottom"] { bottom: .5rem; bottom: calc(env(safe-area-inset-bottom) + .5rem); border-color: var(--border); }
+html:has([data-lume-shell]) :is(.feedback-panel, .notification-panel) { bottom: .5rem; bottom: calc(env(safe-area-inset-bottom) + .5rem); }
+@media (min-width: 768px) {
+  html:has([data-lume-shell]) :is(.feedback-panel, .notification-panel) { top: 3.5rem; right: .75rem; bottom: auto; left: auto; max-height: calc(100dvh - 4.25rem); }
 }
 
 @media (prefers-reduced-motion: reduce) {

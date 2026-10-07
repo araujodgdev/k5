@@ -76,43 +76,43 @@ export function AsaasChargeSection({ installmentId, busy, changed }: { installme
 
   const active = charge?.active;
   const past = charge?.history.filter(payment => payment.id !== active?.id) ?? [];
-  return <section aria-labelledby={`asaas-${installmentId}`} className="grid min-w-0 gap-3 border-y py-4">
-    <h3 id={`asaas-${installmentId}`} className="font-medium text-sm">Cobrança pelo Asaas</h3>
-    {!charge ? <>{error ? <><Failure message={error} /><Button variant="outline" className="min-h-11 justify-self-start" onClick={() => setRevision(value => value + 1)}>Tentar novamente</Button></> : <p role="status" className="text-sm text-muted-foreground">Carregando cobrança do Asaas…</p>}</>
-      : !charge.connection ? <p className="text-sm text-muted-foreground">Para emitir PIX, boleto ou cartão pelo Lume, <Link className="underline underline-offset-4" href="/app/integrations">conecte a conta do Asaas em Integrações</Link>.</p>
+  return <section aria-labelledby={`asaas-${installmentId}`} className="grid min-w-0 gap-3 border-y border-border py-4">
+    <h3 id={`asaas-${installmentId}`} className="text-[15px] font-semibold">Cobrança pelo Asaas</h3>
+    {!charge ? <>{error ? <><Failure message={error} /><Button variant="outline" size="lg" className="max-md:h-11 justify-self-start" onClick={() => setRevision(value => value + 1)}>Tentar novamente</Button></> : <p role="status" className="text-[13.5px] text-muted-foreground">Carregando cobrança do Asaas…</p>}</>
+      : !charge.connection ? <p className="text-[13.5px] text-muted-foreground">Para emitir PIX, boleto ou cartão pelo Lume, <Link className="underline underline-offset-4" href="/app/integrations">conecte a conta do Asaas em Integrações</Link>.</p>
       : <>
-        {charge.connection.environment === 'sandbox' && <p className="text-sm text-muted-foreground">Conta de sandbox: as cobranças são de teste e não movimentam dinheiro.</p>}
+        {charge.connection.environment === 'sandbox' && <p className="text-[13.5px] text-muted-foreground">Conta de sandbox: as cobranças são de teste e não movimentam dinheiro.</p>}
         {active ? <>
-          <dl className="grid gap-1 text-sm sm:grid-cols-[140px_1fr]">
+          <dl className="grid gap-1 text-[13.5px] sm:grid-cols-[140px_1fr]">
             <dt className="text-muted-foreground">Situação</dt><dd>{asaasPaymentLabel(active)}</dd>
-            <dt className="text-muted-foreground">Valor</dt><dd>{money(active.amountCents)}</dd>
+            <dt className="text-muted-foreground">Valor</dt><dd className="font-mono text-[12.5px]">{money(active.amountCents)}</dd>
             <dt className="text-muted-foreground">Vencimento</dt><dd>{dateLabel(active.dueOn)}</dd>
           </dl>
           {active.state === 'open' && active.invoiceUrl && <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" className="min-h-11"><a href={active.invoiceUrl} target="_blank" rel="noopener noreferrer">Abrir fatura no Asaas</a></Button>
-            <Button variant="outline" className="min-h-11" disabled={pending} onClick={() => void perform(async () => { await navigator.clipboard.writeText(active.invoiceUrl ?? ''); return 'Link de pagamento copiado.'; })}>Copiar link de pagamento</Button>
-            <Button variant="ghost" className="min-h-11" disabled={pending} aria-expanded={confirmCancel} onClick={() => setConfirmCancel(value => !value)}>Cancelar cobrança</Button>
+            <Button asChild variant="outline" size="lg" className="max-md:h-11"><a href={active.invoiceUrl} target="_blank" rel="noopener noreferrer">Abrir fatura no Asaas</a></Button>
+            <Button variant="outline" size="lg" className="max-md:h-11" disabled={pending} onClick={() => void perform(async () => { await navigator.clipboard.writeText(active.invoiceUrl ?? ''); return 'Link de pagamento copiado.'; })}>Copiar link de pagamento</Button>
+            <Button variant="ghost" size="lg" className="max-md:h-11" disabled={pending} aria-expanded={confirmCancel} onClick={() => setConfirmCancel(value => !value)}>Cancelar cobrança</Button>
           </div>}
-          {active.state === 'open' && confirmCancel && <div className="grid gap-3 border-t pt-3">
-            <p className="text-sm">A cobrança será removida do Asaas e o link deixará de aceitar pagamentos.</p>
-            <div className="flex flex-wrap gap-2"><Button className="min-h-11" variant="destructive" disabled={pending} onClick={() => void act('cancel', active)}>{pending ? 'Cancelando…' : 'Confirmar cancelamento'}</Button>
-              <Button className="min-h-11" variant="ghost" disabled={pending} onClick={() => setConfirmCancel(false)}>Manter cobrança</Button></div>
+          {active.state === 'open' && confirmCancel && <div className="grid gap-3 border-t border-border pt-3">
+            <p className="text-[13.5px]">A cobrança será removida do Asaas e o link deixará de aceitar pagamentos.</p>
+            <div className="flex flex-wrap gap-2"><Button size="lg" className="max-md:h-11" variant="destructive" disabled={pending} onClick={() => void act('cancel', active)}>{pending ? 'Cancelando…' : 'Confirmar cancelamento'}</Button>
+              <Button size="lg" className="max-md:h-11" variant="ghost" disabled={pending} onClick={() => setConfirmCancel(false)}>Manter cobrança</Button></div>
           </div>}
           {active.state === 'creating' && (active.unconfirmed
-            ? <><p className="text-sm">O Asaas não respondeu quando a cobrança foi enviada. Confira antes de emitir outra.</p><Button className="min-h-11 justify-self-start" disabled={pending} onClick={() => void act('confirm', active)}>{pending ? 'Conferindo…' : 'Conferir no Asaas'}</Button></>
-            : <Button variant="outline" className="min-h-11 justify-self-start" disabled={pending} onClick={() => setRevision(value => value + 1)}>Atualizar situação</Button>)}
+            ? <><p className="text-[13.5px]">O Asaas não respondeu quando a cobrança foi enviada. Confira antes de emitir outra.</p><Button size="lg" className="max-md:h-11 justify-self-start" disabled={pending} onClick={() => void act('confirm', active)}>{pending ? 'Conferindo…' : 'Conferir no Asaas'}</Button></>
+            : <Button variant="outline" size="lg" className="max-md:h-11 justify-self-start" disabled={pending} onClick={() => setRevision(value => value + 1)}>Atualizar situação</Button>)}
         </> : charge.chargeable ? <form className="grid min-w-0 gap-3" onSubmit={event => { event.preventDefault(); void create(); }}>
           <fieldset disabled={pending} className="grid min-w-0 gap-3">
-            <p className="text-sm text-muted-foreground">O Asaas gera um link em que o cliente paga {money(charge.pendingCents)} com PIX, boleto ou cartão. As tarifas seguem o plano da sua conta no Asaas.</p>
-            <Field label="Vencimento">{id => <Input id={id} type="date" className="min-h-11" min={charge.today} required value={dueOn} onChange={event => setDueOn(event.target.value)} />}</Field>
-            {charge.needsDocument && <Field label="CPF ou CNPJ do cliente">{id => <Input id={id} className="min-h-11" inputMode="numeric" autoComplete="off" maxLength={18} required value={taxId} onChange={event => setTaxId(event.target.value)} />}</Field>}
+            <p className="text-[13.5px] text-muted-foreground">O Asaas gera um link em que o cliente paga {money(charge.pendingCents)} com PIX, boleto ou cartão. As tarifas seguem o plano da sua conta no Asaas.</p>
+            <Field label="Vencimento">{id => <Input id={id} type="date" className="max-md:h-11" min={charge.today} required value={dueOn} onChange={event => setDueOn(event.target.value)} />}</Field>
+            {charge.needsDocument && <Field label="CPF ou CNPJ do cliente">{id => <Input id={id} className="max-md:h-11" inputMode="numeric" autoComplete="off" maxLength={18} required value={taxId} onChange={event => setTaxId(event.target.value)} />}</Field>}
             {charge.needsDocument && <p className="-mt-2 text-xs text-muted-foreground">Usado só para cadastrar o cliente no Asaas. O Lume não guarda o número.</p>}
-            <Button type="submit" className="min-h-11 justify-self-start">{pending ? 'Emitindo…' : 'Emitir cobrança no Asaas'}</Button>
+            <Button type="submit" size="lg" className="max-md:h-11 justify-self-start">{pending ? 'Emitindo…' : 'Emitir cobrança no Asaas'}</Button>
           </fieldset>
-        </form> : <p className="text-sm text-muted-foreground">Esta parcela foi quitada ou cancelada.</p>}
+        </form> : <p className="text-[13.5px] text-muted-foreground">Esta parcela foi quitada ou cancelada.</p>}
         {past.length > 0 && <div className="grid gap-1"><h4 className="text-xs text-muted-foreground">Cobranças anteriores no Asaas</h4>
-          <div className="divide-y">{past.map(payment => <p key={payment.id} className="py-2 text-sm">{asaasPaymentLabel(payment)} · {money(payment.amountCents)} · vencimento {dateLabel(payment.dueOn)}{payment.failure && ` — ${payment.failure}`}</p>)}</div></div>}
-        <Failure message={error} />{notice && <p role="status" className="text-sm">{notice}</p>}
+          <div>{past.map(payment => <p key={payment.id} className="py-2 text-[13.5px]">{asaasPaymentLabel(payment)} · {money(payment.amountCents)} · vencimento {dateLabel(payment.dueOn)}{payment.failure && ` — ${payment.failure}`}</p>)}</div></div>}
+        <Failure message={error} />{notice && <p role="status" className="text-[13.5px] text-muted-foreground">{notice}</p>}
       </>}
   </section>;
 }

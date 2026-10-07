@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canvasContextSchema } from '@/lib/canvas-protocol';
 
 const messageSchema = z.object({ id: z.string(), role: z.enum(['user', 'assistant', 'system']), parts: z.array(z.object({ type: z.string(), text: z.string().refine((text) => text.length <= 20000, 'Escreva uma mensagem de até 20 mil caracteres.').optional() }).passthrough()).max(100) });
 // Audio belongs to one turn and is never stored as a document.
@@ -18,4 +19,7 @@ export const chatRequestSchema = z.object({
   // The document open beside the chat, and a selection a request was made from; both are checked against the owner.
   openDocumentId: z.string().min(1).max(64).optional(),
   selection: z.object({ artifactId: z.string().min(1).max(64), excerpt: z.string().trim().min(1).max(4000) }).optional(),
+  // What the office canvas shows beside the panel; names in it are data the model reads, never instructions.
+  // A malformed one is dropped rather than refusing the message.
+  canvas: canvasContextSchema.optional().catch(undefined),
 });

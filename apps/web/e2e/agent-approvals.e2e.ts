@@ -34,7 +34,8 @@ test('ações financeiras do agente esperam confirmação no chat, e o agente co
       { type: 'text', text: 'Confira a ação solicitada.' },
       { type: 'data-approval', id: approvalId, data: { approvalId, capability, summary, state: 'pending' } },
     ] }]);
-    await app.open('/app/agents');
+    // The Lume's link names the conversation; it opens in the panel beside Início.
+    await app.open(`/app/agents?conversationId=${conversation.id}`);
     await expect(screen.getByRole('group', 'Confirmação')).toBeVisible();
   };
   await signInWithSession({ app, screen, browser }, api);

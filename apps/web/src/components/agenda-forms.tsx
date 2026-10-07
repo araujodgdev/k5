@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { brazilianStates, type AgendaActivity, type CrmClient } from '@/lib/capabilities/agenda';
 import { localInstant } from '@/lib/typesafe/agenda-time';
 import { localDate } from '@/lib/calendar-days';
@@ -14,11 +13,12 @@ import { agendaCall, selectStyle, type Choice } from '@/lib/agenda-client';
 import { ClientPicker } from './client-picker';
 import { LegalAreaPicker } from './legal-area-picker';
 
-export function Field({ name, label, children }: { name: string; label: string; children: ReactNode }) {
-  return <div className="grid min-w-0 gap-1.5"><Label htmlFor={name}>{label}</Label>{children}</div>;
+/** A label above its control, as in the prototype's dialogs: 12px in the secondary ink, 6px apart. */
+function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+  return <div className="grid min-w-0 gap-1.5"><label htmlFor={id} className="text-xs text-muted-foreground">{label}</label>{children}</div>;
 }
-function Selection({ name, label, choices, value = '' }: { name: string; label: string; choices: Choice[]; value?: string | null }) {
-  return <Field name={name} label={label}><select id={name} name={name} defaultValue={value ?? ''} className={selectStyle}><option value="">Sem vínculo</option>{value && !choices.some(c => c.id === value) && <option value={value}>Vínculo anterior</option>}{choices.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>;
+function Selection({ id, name, label, choices, value = '' }: { id: string; name: string; label: string; choices: Choice[]; value?: string | null }) {
+  return <Field id={id} label={label}><select id={id} name={name} defaultValue={value ?? ''} className={selectStyle}><option value="">Sem vínculo</option>{value && !choices.some(c => c.id === value) && <option value={value}>Vínculo anterior</option>}{choices.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>;
 }
 const plain = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 function matches(name: string, filter: string) {
@@ -29,13 +29,18 @@ function localTime(instant: string | null) {
   const date = new Date(instant);
   return `${localDate(date)}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
+const control = 'max-md:h-11';
 
-export function AgendaEditor({ activity, client, mode, fields = 'all', cases, clients, members, day, caseId, clientId, timeZone, close, saved, onConfirm }: {
-  activity?: AgendaActivity; client?: CrmClient; mode: 'activity' | 'client'; fields?: 'all' | 'task-details'; cases: Choice[]; clients: Choice[]; members: Choice[];
+export function AgendaEditor({ activity, client, mode, fields = 'all', initialKind = 'task', cases, clients, members, day, caseId, clientId, timeZone, close, saved, onConfirm }: {
+  activity?: AgendaActivity; client?: CrmClient; mode: 'activity' | 'client'; fields?: 'all' | 'task-details';
+  /** What a new activity starts as: Tarefas creates tasks, Agenda meetings. */
+  initialKind?: AgendaActivity['kind']; cases: Choice[]; clients: Choice[]; members: Choice[];
   day: string; caseId: string; clientId: string; timeZone: string; close: () => void; saved: () => void;
   onConfirm?: (payload: Record<string, unknown>) => Promise<unknown>;
 }) {
-  const [kind, setKind] = useState(activity?.kind ?? 'task');
+  const uid = useId();
+  const fid = (name: string) => `${uid}-${name}`;
+  const [kind, setKind] = useState(activity?.kind ?? initialKind);
   const [selectedClientId, setSelectedClientId] = useState(activity ? activity.clientId ?? '' : clientId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -73,38 +78,40 @@ export function AgendaEditor({ activity, client, mode, fields = 'all', cases, cl
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível salvar. Tente novamente.'); }
     finally { setBusy(false); }
   }
+  const title = onConfirm ? 'Revisar sugestão' : mode === 'client' ? (client ? 'Editar cliente' : 'Novo cliente') : `${activity ? 'Editar' : 'Nova'} ${kind === 'meeting' ? 'reunião' : 'tarefa'}`;
   // The fields scroll between the title and a fixed row of actions, so Cancelar and Salvar stay in
   // view on a phone instead of ending up at the bottom of a long scroll.
-  return <Dialog open onOpenChange={open => { if (!open && !busy) close(); }}><DialogContent showCloseButton={false} className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-xl [&_[data-slot=button]]:min-h-11 md:[&_[data-slot=button]]:min-h-9">
-    <DialogHeader><DialogTitle>{onConfirm ? 'Revisar sugestão' : mode === 'client' ? (client ? 'Editar cliente' : 'Novo cliente') : (activity ? fields === 'task-details' ? 'Editar tarefa' : 'Editar atividade' : 'Nova atividade')}</DialogTitle><DialogDescription className={onConfirm ? 'text-sm text-muted-foreground' : 'sr-only'}>{onConfirm ? 'Confira todos os campos. A atividade só será salva ao confirmar.' : 'Preencha os dados e salve as alterações.'}</DialogDescription></DialogHeader>
-    <form onSubmit={submit} onChange={() => setKey(crypto.randomUUID())} className="-mx-4 -mb-4 flex min-h-0 flex-col">
-      <div className="min-h-0 overflow-y-auto px-4 pt-1 pb-4">
+  return <Dialog open onOpenChange={open => { if (!open && !busy) close(); }}><DialogContent showCloseButton={!busy} className="flex flex-col overflow-hidden">
+    <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription className={onConfirm ? undefined : 'sr-only'}>{onConfirm ? 'Confira todos os campos. A atividade só será salva ao confirmar.' : 'Preencha os dados e salve as alterações.'}</DialogDescription></DialogHeader>
+    <form onSubmit={submit} onChange={() => setKey(crypto.randomUUID())} className="-mx-6 -mb-5 flex min-h-0 flex-col">
+      <div className="min-h-0 overflow-y-auto px-6 pt-1 pb-5">
       <fieldset disabled={busy} className="grid min-w-0 gap-4">
         {mode === 'client' ? <>
-          <Field name="name" label="Nome"><Input id="name" name="name" required minLength={2} maxLength={180} defaultValue={client?.name} className="h-11 md:h-9" /></Field>
-          <div className="grid gap-4 sm:grid-cols-2"><Field name="email" label="E-mail"><Input id="email" name="email" type="email" maxLength={200} defaultValue={client?.email ?? ''} className="h-11 md:h-9" /></Field><Field name="phone" label="Telefone"><Input id="phone" name="phone" type="tel" maxLength={40} defaultValue={client?.phone ?? ''} className="h-11 md:h-9" /></Field></div>
-          <Field name="stage" label="Relacionamento"><select id="stage" name="stage" defaultValue={client?.stage ?? 'prospect'} className={selectStyle}><option value="prospect">Potencial cliente</option><option value="active">Cliente ativo</option><option value="archived">Arquivado</option></select></Field>
+          <Field id={fid('name')} label="Nome"><Input id={fid('name')} name="name" required minLength={2} maxLength={180} defaultValue={client?.name} className={control} /></Field>
+          <div className="grid gap-4 sm:grid-cols-2"><Field id={fid('email')} label="E-mail"><Input id={fid('email')} name="email" type="email" maxLength={200} defaultValue={client?.email ?? ''} className={control} /></Field><Field id={fid('phone')} label="Telefone"><Input id={fid('phone')} name="phone" type="tel" maxLength={40} defaultValue={client?.phone ?? ''} className={control} /></Field></div>
+          <Field id={fid('stage')} label="Relacionamento"><select id={fid('stage')} name="stage" defaultValue={client?.stage ?? 'prospect'} className={selectStyle}><option value="prospect">Potencial cliente</option><option value="active">Cliente ativo</option><option value="archived">Arquivado</option></select></Field>
           <LegalAreaPicker defaultValue={client?.legalAreas} disabled={busy} onChange={() => setKey(crypto.randomUUID())} />
-          <Field name="addressLine" label="Endereço (opcional)"><Input id="addressLine" name="addressLine" maxLength={240} autoComplete="street-address" placeholder="Rua, número, complemento e bairro" defaultValue={client?.addressLine ?? ''} className="h-11 md:h-9" /></Field>
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem_8rem]"><Field name="city" label="Cidade"><Input id="city" name="city" maxLength={120} autoComplete="address-level2" defaultValue={client?.city ?? ''} className="h-11 md:h-9" /></Field><Field name="state" label="UF"><select id="state" name="state" autoComplete="address-level1" defaultValue={client?.state ?? ''} className={selectStyle}><option value="">—</option>{brazilianStates.map(uf => <option key={uf} value={uf}>{uf}</option>)}</select></Field><Field name="postalCode" label="CEP"><Input id="postalCode" name="postalCode" inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}-?[0-9]{3}" title="CEP com 8 dígitos" maxLength={9} placeholder="00000-000" defaultValue={client?.postalCode ?? ''} className="h-11 md:h-9" /></Field></div>
+          <Field id={fid('addressLine')} label="Endereço (opcional)"><Input id={fid('addressLine')} name="addressLine" maxLength={240} autoComplete="street-address" placeholder="Rua, número, complemento e bairro" defaultValue={client?.addressLine ?? ''} className={control} /></Field>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_6rem_8rem]"><Field id={fid('city')} label="Cidade"><Input id={fid('city')} name="city" maxLength={120} autoComplete="address-level2" defaultValue={client?.city ?? ''} className={control} /></Field><Field id={fid('state')} label="UF"><select id={fid('state')} name="state" autoComplete="address-level1" defaultValue={client?.state ?? ''} className={selectStyle}><option value="">—</option>{brazilianStates.map(uf => <option key={uf} value={uf}>{uf}</option>)}</select></Field><Field id={fid('postalCode')} label="CEP"><Input id={fid('postalCode')} name="postalCode" inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{5}-?[0-9]{3}" title="CEP com 8 dígitos" maxLength={9} placeholder="00000-000" defaultValue={client?.postalCode ?? ''} className={control} /></Field></div>
           {/* min-w-0: a fieldset is as wide as its longest word by default, and one unbroken case name would widen the dialog. */}
-          <fieldset className="grid min-w-0 gap-2"><legend className="mb-2 text-sm font-medium">Casos do Cofre</legend>{cases.length ? <>
+          <fieldset className="grid min-w-0 gap-1.5"><legend className="mb-1.5 text-xs text-muted-foreground">Casos do Cofre</legend>{cases.length ? <>
             {/* The list grows with the form (one scroll, not a box inside it); a long list gets a filter. */}
-            {cases.length > 8 && <Input aria-label="Filtrar casos pelo nome" placeholder="Filtrar casos" value={caseFilter} onChange={event => setCaseFilter(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault(); }} className="mb-1 h-11 md:h-9" />}
-            <div className="grid">{cases.map(c => <label key={c.id} hidden={!matches(c.name, caseFilter)} className="flex min-h-11 items-center gap-2 py-1.5 text-sm md:min-h-8"><input type="checkbox" name="caseIds" value={c.id} defaultChecked={client?.caseIds.includes(c.id) ?? c.id === caseId} className="size-4 shrink-0 accent-primary" /><span className="min-w-0 [overflow-wrap:anywhere]">{c.name}</span></label>)}</div>
-          </> :<p className="text-sm text-muted-foreground">Nenhum caso cadastrado no Cofre.</p>}</fieldset>
+            {cases.length > 8 && <Input aria-label="Filtrar casos pelo nome" placeholder="Filtrar casos" value={caseFilter} onChange={event => setCaseFilter(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault(); }} className={`mb-1 ${control}`} />}
+            <div className="grid">{cases.map(c => <label key={c.id} hidden={!matches(c.name, caseFilter)} className="flex min-h-11 items-center gap-2.5 py-1 text-[13.5px] md:min-h-8"><input type="checkbox" name="caseIds" value={c.id} defaultChecked={client?.caseIds.includes(c.id) ?? c.id === caseId} className="size-4 shrink-0 accent-primary" /><span className="min-w-0 [overflow-wrap:anywhere]">{c.name}</span></label>)}</div>
+          </> : <p className="text-[13.5px] text-muted-foreground">Nenhum caso cadastrado no Cofre.</p>}</fieldset>
         </> : <>
-          <Field name="title" label="Título"><Input id="title" name="title" required minLength={2} maxLength={180} defaultValue={activity?.title} className="h-11 md:h-9" /></Field>
-          {fields === 'all' && <div className="grid gap-4 sm:grid-cols-2"><Field name="kind" label="Tipo"><select id="kind" value={kind} onChange={e => setKind(e.target.value as 'task' | 'meeting')} className={selectStyle}><option value="task">Tarefa</option><option value="meeting">Reunião</option></select></Field><Field name="status" label="Situação"><select id="status" name="status" defaultValue={activity?.status ?? 'pending'} className={selectStyle}><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="completed">Concluída</option><option value="cancelled">Cancelada</option></select></Field></div>}
-          {kind === 'task' ? <Field name="dueOn" label="Data (opcional)"><Input id="dueOn" name="dueOn" type="date" defaultValue={activity ? activity.dueOn ?? '' : day} className="h-11 md:h-9" /></Field> : <div className="space-y-2"><p className="text-xs text-muted-foreground">{timeZoneLabel(timeZone)}</p><div className="grid gap-4 sm:grid-cols-2"><Field name="startsAt" label="Início"><Input id="startsAt" name="startsAt" type="datetime-local" required defaultValue={localTime(activity?.startsAt ?? null) || (onConfirm ? '' : `${day}T09:00`)} className="h-11 md:h-9" /></Field><Field name="endsAt" label="Fim"><Input id="endsAt" name="endsAt" type="datetime-local" required defaultValue={localTime(activity?.endsAt ?? null) || (onConfirm ? '' : `${day}T10:00`)} className="h-11 md:h-9" /></Field></div></div>}
-          <Selection name="assigneeId" label="Responsável" choices={members} value={activity?.assigneeId} />
-          <div className="grid gap-4 sm:grid-cols-2"><Field name="clientId" label="Cliente"><ClientPicker name="clientId" label="Cliente" value={selectedClientId} onChange={setSelectedClientId} choices={clients} /></Field><Selection name="caseId" label="Caso do Cofre" choices={cases} value={activity ? activity.caseId : caseId} /></div>
+          <Field id={fid('title')} label="Título"><Input id={fid('title')} name="title" required minLength={2} maxLength={180} defaultValue={activity?.title} className={control} /></Field>
+          {fields === 'all' && <div className="grid gap-4 sm:grid-cols-2"><Field id={fid('kind')} label="Tipo"><select id={fid('kind')} value={kind} onChange={e => setKind(e.target.value as 'task' | 'meeting')} className={selectStyle}><option value="task">Tarefa</option><option value="meeting">Reunião</option></select></Field><Field id={fid('status')} label="Situação"><select id={fid('status')} name="status" defaultValue={activity?.status ?? 'pending'} className={selectStyle}><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="completed">Concluída</option><option value="cancelled">Cancelada</option></select></Field></div>}
+          {kind === 'task' ? <Field id={fid('dueOn')} label="Data (opcional)"><Input id={fid('dueOn')} name="dueOn" type="date" defaultValue={activity ? activity.dueOn ?? '' : day} className={control} /></Field>
+            : <div className="grid gap-2"><div className="grid gap-4 sm:grid-cols-2"><Field id={fid('startsAt')} label="Início"><Input id={fid('startsAt')} name="startsAt" type="datetime-local" required defaultValue={localTime(activity?.startsAt ?? null) || (onConfirm ? '' : `${day}T09:00`)} className={control} /></Field><Field id={fid('endsAt')} label="Fim"><Input id={fid('endsAt')} name="endsAt" type="datetime-local" required defaultValue={localTime(activity?.endsAt ?? null) || (onConfirm ? '' : `${day}T10:00`)} className={control} /></Field></div><p className="text-xs text-muted-foreground">{timeZoneLabel(timeZone)}</p></div>}
+          <Selection id={fid('assigneeId')} name="assigneeId" label="Responsável" choices={members} value={activity?.assigneeId} />
+          <div className="grid gap-4 sm:grid-cols-2"><Field id={fid('clientId')} label="Cliente"><ClientPicker id={fid('clientId')} name="clientId" label="Cliente" value={selectedClientId} onChange={setSelectedClientId} choices={clients} /></Field><Selection id={fid('caseId')} name="caseId" label="Caso do Cofre" choices={cases} value={activity ? activity.caseId : caseId} /></div>
         </>}
-        <Field name="notes" label="Observações"><Textarea id="notes" name="notes" maxLength={8000} rows={4} defaultValue={mode === 'client' ? client?.notes : activity?.notes} /></Field>
+        <Field id={fid('notes')} label="Observações"><Textarea id={fid('notes')} name="notes" maxLength={8000} rows={4} defaultValue={mode === 'client' ? client?.notes : activity?.notes} /></Field>
       </fieldset>
       </div>
-      {error && <p role="alert" className="border-t border-line px-4 pt-3 text-sm text-destructive">{error}</p>}
-      <div className={`flex justify-end gap-2 px-4 py-3 ${error ? '' : 'border-t border-line'}`}><Button type="button" variant="outline" disabled={busy} onClick={close}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Salvando…' : onConfirm ? 'Confirmar e salvar' : 'Salvar'}</Button></div>
+      {error && <p role="alert" className="border-t border-border px-6 pt-3 text-[13px] text-destructive">{error}</p>}
+      <DialogFooter className={error ? 'mx-0 mb-0 border-t-0' : 'mx-0 mb-0'}><Button type="button" variant="outline" size="lg" className="max-md:h-11" disabled={busy} onClick={close}>Cancelar</Button><Button type="submit" size="lg" className="max-md:h-11" disabled={busy}>{busy ? 'Salvando…' : onConfirm ? 'Confirmar e salvar' : 'Salvar'}</Button></DialogFooter>
     </form>
   </DialogContent></Dialog>;
 }

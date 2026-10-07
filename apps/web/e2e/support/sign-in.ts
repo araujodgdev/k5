@@ -4,10 +4,14 @@ import type { Account, ApiSession } from './accounts';
 
 type Fixtures = { app: App; screen: Screen; browser: Browser };
 
-/** The onboarding tour opens once per browser; close it so it does not cover the page. */
+/**
+ * The onboarding tour opens once per browser; close it so it does not cover the page. Every caller
+ * signs in on a fresh browser, so the tour comes as soon as the page hydrates; the long wait only
+ * spans a slow first compile, which would otherwise save a session with the tour still to show.
+ */
 async function dismissTour({ screen }: Fixtures) {
   const dismiss = screen.getByRole('button', 'Agora não');
-  if (await dismiss.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false)) {
+  if (await dismiss.waitFor({ state: 'visible', timeout: 30_000 }).then(() => true, () => false)) {
     await dismiss.tap();
     await expect(dismiss).toBeHidden();
   }

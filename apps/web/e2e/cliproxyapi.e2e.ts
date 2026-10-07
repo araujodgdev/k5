@@ -26,6 +26,17 @@ function savedAssignment(assignment: AssignmentView) {
   };
 }
 
+async function restoreSummary(api: ApiSession, previous: AssignmentView) {
+  const saved = savedAssignment(previous);
+  const put = (assignment: typeof saved) => api.request('/api/platform/ai/assignments', { method: 'PUT', json: { scope: 'group', target: 'summary', ...assignment } });
+  const response = await put(saved);
+  if (response.ok) return;
+  // The seed gives this group an explicit effort over an inherited model, which the API refuses while
+  // no model is available (a fresh database has none); the effort then goes back to inherited too.
+  if (response.status === 400 && saved.effort.mode === 'explicit' && (await put({ ...saved, effort: { mode: 'inherit' } })).ok) return;
+  throw new Error(`Restaurar o grupo Resumo e texto curto: HTTP ${response.status} ${await response.text()}`);
+}
+
 describe('seleção do CLIProxyAPI', { serial: true }, () => {
 for (const width of [1280, 390]) {
   test(`administra CLIProxyAPI e escolhe uma tarefa pelo teclado em ${width}px`, async ({ app, browser, screen, sql }) => {
@@ -47,12 +58,13 @@ for (const width of [1280, 390]) {
       await expect(screen.getByText('O CLIProxyAPI responde pelo endereço fixo do Lume', { exact: false }).first()).toBeVisible();
       await creation.getByLabel('Chave da API').fill('synthetic-e2e-key-not-a-credential');
       await screen.getByRole('button', 'Criar conexão').tap();
-      await expect(screen.getByRole('heading', name)).toBeVisible();
+      await expect(screen.getByRole('table', 'Conexões').getByRole('cell', name)).toBeVisible();
       const overview = await api.json<AssignmentOverview>('/api/platform/ai/assignments');
       connectionId = overview.connections.find(connection => connection.name === name)!.id;
       expect(overview.groups.find(group => group.key === 'agent')!.plan).toEqual(before.groups.find(group => group.key === 'agent')!.plan);
-      const group = screen.getByRole('article').filter({ has: screen.getByRole('heading', 'Resumo e texto curto') });
-      await group.getByRole('button', 'Editar').first().tap();
+      // Each task's row names its group; the group's settings open in a dialog.
+      await screen.getByRole('button', 'Editar o grupo Resumo e texto curto').first().tap();
+      const group = screen.getByRole('dialog', 'Grupo Resumo e texto curto');
       await group.getByRole('combobox', 'Modelo').tap();
       await screen.getByRole('option', 'Escolher conexão e modelo').tap();
       await group.getByRole('combobox', 'Conexão').tap();
@@ -61,15 +73,19 @@ for (const width of [1280, 390]) {
       await screen.getByRole('option', 'gpt-6-luna').tap();
       await group.getByRole('button', 'Salvar').focus();
       await browser.keyboard.press('Enter');
-      await expect(group.getByRole('button', 'Salvar')).toBeHidden();
+      await expect(group).toBeHidden();
       await browser.reload();
-      await expect(group).toContainText(name);
-      await expect(group).toContainText('gpt-6-luna');
+      // A task of that group now runs on the new connection and model.
+      const row = screen.getByRole('row').filter({ hasText: 'Panorama de e-mails' });
+      await expect(row).toContainText(name);
+      await expect(row).toContainText('gpt-6-luna');
       expect(await sql('SELECT c.provider,a.model_id FROM ai_model_assignment a JOIN ai_connection c ON c.id=a.connection_id WHERE a.scope=$1 AND a.target=$2', ['group', 'summary'])).toEqual([{ provider: 'cliproxyapi', model_id: 'gpt-6-luna' }]);
       expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
       await app.screenshot(`proxy-selection-${width}`);
     } finally {
-      await api.json('/api/platform/ai/assignments', { method: 'PUT', json: { scope: 'group', target: 'summary', ...savedAssignment(previous) } });
+      await restoreSummary(api, previous);
+      // A run that stopped before reading the id still removes its connection.
+      connectionId ??= (await api.json<AssignmentOverview>('/api/platform/ai/assignments')).connections.find(connection => connection.name === name)?.id;
       if (connectionId) expect((await api.request(`/api/platform/ai/connections/${connectionId}`, { method: 'DELETE' })).status).toBe(204);
     }
   });
@@ -98,7 +114,7 @@ test('novo usuário conversa pelo proxy, recarrega o histórico e mantém isolam
     const { conversation } = await user.json<{ conversation: { id: string } }>('/api/conversations', { json: {} });
     await app.open(`/app/agents?conversationId=${conversation.id}`);
     const marker = `MARCADOR-${Date.now()}`;
-    await screen.getByPlaceholder('Pergunte ao Lume').fill(`Responda apenas com ${marker}.`);
+    await screen.getByPlaceholder('Peça algo ao Lume').fill(`Responda apenas com ${marker}.`);
     await screen.getByRole('button', 'Enviar mensagem').tap();
     await expect.poll(async () => {
       const detail = await user.json<{ messages: Array<{ role: string; parts: Array<{ type: string; text?: string }> }> }>(`/api/conversations/${conversation.id}`);

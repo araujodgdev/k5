@@ -1,33 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { LiveLumeMark } from "@/components/live-lume-mark";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 export type SmartOption = { id: string; label: string; description?: string; disabled?: boolean };
 
-/**
- * The Lume mark whose three strokes trade places, forming new shapes while it is hovered or busy.
- * Same paths as <LumeMark />; the motion lives in globals.css (`.smart-mark`).
- */
-export function SmartMark({ className, ...props }: React.SVGProps<SVGSVGElement>) {
-  return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="none"
-    aria-hidden="true" focusable="false" className={cn("smart-mark", className)} {...props}>
-    <path className="smart-mark-a" d="M5 4h3v10.5l-3 3V4Z" />
-    <path className="smart-mark-b" d="m6.5 19 3-3H20v3H6.5Z" />
-    <path className="smart-mark-c" d="m11 11.5 6.5-6.5L19 6.5 12.5 13 11 11.5Z" />
-  </svg>;
-}
-
-/** The Lume at work: the mark trades its strokes while the text says what is happening. */
+/** The Lume at work: light flows through the mark's beam while the text says what is happening. */
 export function SmartWorking({ children, className }: { children: React.ReactNode; className?: string }) {
   return <p role="status" className={cn("flex items-center gap-3 text-sm text-muted-foreground", className)}>
-    <span className="smart-options grid size-6 shrink-0 place-items-center text-module-lume" data-busy><SmartMark width={18} height={18} /></span>{children}
+    <span className="grid size-6 shrink-0 place-items-center"><LiveLumeMark state="working" width={18} height={18} /></span>{children}
   </p>;
 }
 
 /**
- * "Opções inteligentes": the Lume's actions for the current module, behind one peach mark.
+ * "Opções inteligentes": the Lume's actions for the current module, behind the Lume mark.
  * Hover (or focus and Enter, or a tap) shows the options; each module passes its own list.
  */
 export function SmartOptions({ options, onSelect, busy = false, label = "Opções inteligentes", align = "start", className }: {
@@ -60,28 +48,28 @@ export function SmartOptions({ options, onSelect, busy = false, label = "Opçõe
   return <Popover open={open} onOpenChange={setOpen}>
     <PopoverAnchor asChild>
       <button ref={button} type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} data-busy={busy || undefined}
-        className={cn("smart-options grid size-9 shrink-0 place-items-center text-module-lume outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-11", className)}
+        className={cn("smart-options grid size-9 shrink-0 place-items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-11", className)}
         onPointerEnter={event => { if (event.pointerType === "mouse") schedule(true, 120); }}
         onPointerLeave={event => { if (event.pointerType === "mouse") schedule(false, 220); }}
         onKeyDown={event => { if (["Enter", " ", "ArrowDown"].includes(event.key)) { event.preventDefault(); viaKeyboard.current = true; setOpen(true); } }}
         onClick={event => { if (event.detail === 0) return; window.clearTimeout(timer.current); setOpen(value => hoverable.current ? true : !value); }}>
-        <SmartMark />
+        <LiveLumeMark state={busy ? "working" : "still"} width={20} height={20} />
         {busy && <span className="sr-only">O Lume está trabalhando…</span>}
       </button>
     </PopoverAnchor>
-    <PopoverContent align={align} sideOffset={6} className="w-72 gap-0 rounded-none p-1"
+    <PopoverContent align={align} sideOffset={6} className="w-72 gap-0 p-1"
       onPointerEnter={() => schedule(true, 0)} onPointerLeave={() => schedule(false, 220)}
       // The mark is an anchor, not a Radix trigger: a tap on it toggles instead of counting as outside.
       onInteractOutside={event => { if (button.current?.contains(event.target as Node)) event.preventDefault(); }}
       onCloseAutoFocus={event => { event.preventDefault(); if (!document.activeElement || document.activeElement === document.body) button.current?.focus(); }}
       onOpenAutoFocus={event => { event.preventDefault(); if (viaKeyboard.current) requestAnimationFrame(() => items()[0]?.focus()); viaKeyboard.current = false; }}>
-      <p className="label-mono flex items-center gap-2 px-3 pt-2 pb-1.5 text-subtle-foreground"><span className="square-dot text-module-lume" aria-hidden="true" />Lume</p>
+      <p className="label-mono flex items-center gap-2 px-3 pt-2 pb-1.5 text-subtle-foreground"><span className="square-dot text-brand" aria-hidden="true" />Lume</p>
       <div ref={list} role="menu" aria-label={label} onKeyDown={onMenuKey}>
         {options.map(option => <button key={option.id} type="button" role="menuitem" disabled={option.disabled}
           onClick={() => { setOpen(false); onSelect(option.id); }}
-          className="hover-rise flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left transition-colors duration-500 ease-(--ease) outline-none hover:text-brand-foreground focus-visible:text-brand-foreground disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11">
+          className="flex w-full flex-col items-start gap-0.5 rounded-md px-3 py-2.5 text-left outline-none transition-colors hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none disabled:opacity-50 max-md:min-h-11">
           <span className="text-sm font-medium">{option.label}</span>
-          {option.description && <span className="text-xs text-muted-foreground transition-colors duration-500 ease-(--ease) [button:hover>&]:text-brand-foreground/80 [button:focus-visible>&]:text-brand-foreground/80">{option.description}</span>}
+          {option.description && <span className="text-xs text-muted-foreground">{option.description}</span>}
         </button>)}
       </div>
     </PopoverContent>

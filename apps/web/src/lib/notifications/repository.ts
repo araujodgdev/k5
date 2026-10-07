@@ -2,6 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database as defaultDatabase, type BoundStatement, type Database } from '@/lib/database';
 import type { WorkspaceContext } from '@/lib/application/context';
+import { vaultDocumentPath } from '@/lib/vault-document-path';
 import { NotificationRequestError, type NotificationCategory, type NotificationEventType, type NotificationPreferenceInput, type NotificationView, type PushSubscriptionInput } from './contracts';
 import { categoryForEvent, eventCopy, isTimeZone } from './policy';
 import { endpointHash, encryptPushSubscription, publicPushConfiguration, validatePushSubscription } from './subscriptions';
@@ -310,8 +311,9 @@ export async function resolveNotificationDestination(context: WorkspaceContext, 
   if (row.source_kind === 'case' && row.source_id && await db.prepare('SELECT 1 FROM vault_case WHERE id=? AND office_id=? AND deleted_at IS NULL').get(row.source_id, context.officeId)) {
     return `/app/vault/cases/${encodeURIComponent(row.source_id)}`;
   }
-  if (row.source_kind === 'document' && row.source_id && await db.prepare('SELECT 1 FROM vault_document WHERE id=? AND office_id=? AND deleted_at IS NULL').get(row.source_id, context.officeId)) {
-    return `/app/vault?documentId=${encodeURIComponent(row.source_id)}`;
+  if (row.source_kind === 'document' && row.source_id) {
+    const path = await vaultDocumentPath(db, context.officeId, row.source_id);
+    if (path) return path;
   }
   if (row.source_kind === 'artifact' && row.source_id && await db.prepare('SELECT 1 FROM ai_artifact WHERE id=? AND office_id=? AND user_id=?').get(row.source_id, context.officeId, context.userId)) {
     return `/app/documents/${encodeURIComponent(row.source_id)}`;

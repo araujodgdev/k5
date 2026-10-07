@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { GripVertical } from 'lucide-react';
@@ -8,14 +8,19 @@ import {
   DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, rectIntersection, useDraggable, useDroppable, useSensor, useSensors,
   type Announcements, type CollisionDetection, type DragEndEvent, type KeyboardCoordinateGetter, type UniqueIdentifier,
 } from '@dnd-kit/core';
-import { Button } from '@/components/ui/button';
 import type { AgendaActivity } from '@/lib/capabilities/agenda';
-import type { Choice } from '@/lib/agenda-client';
+import { cn } from '@/lib/utils';
+import { LumeMark } from './lume-mark';
+import { contextOf, dayMonth, isUrgent, type Names } from './agenda-rows';
 import { taskColumns, type TaskStatus } from './task-moves';
 
 const columnOrder: readonly string[] = taskColumns.map(column => column.status);
 const keyboardCodes = { start: ['Space', 'Enter'], cancel: ['Escape', 'Tab'], end: ['Space', 'Enter'] };
-const dueLabel = (activity: AgendaActivity) => activity.dueOn ? new Date(`${activity.dueOn}T12:00:00`).toLocaleDateString('pt-BR') : 'Sem data';
+const dueLabel = (activity: AgendaActivity, today: string) => !activity.dueOn ? 'sem data' : activity.dueOn === today ? 'hoje' : dayMonth(activity.dueOn);
+const lumeAction = 'inline-flex min-h-11 items-center gap-1.5 self-start rounded-sm text-[13px] text-brand-ink hover:underline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50 md:min-h-7';
+
+// The drop animation runs through the Web Animations API, which cannot resolve `var(--ease)`, so the token is read from the page.
+const tokenEase = () => getComputedStyle(document.documentElement).getPropertyValue('--ease').trim() || 'ease-out';
 
 const collide: CollisionDetection = args => args.pointerCoordinates ? pointerWithin(args) : rectIntersection(args);
 
@@ -29,17 +34,17 @@ const stepColumn: KeyboardCoordinateGetter = (event, { context, currentCoordinat
   return rect ? { x: rect.left, y: currentCoordinates.y } : undefined;
 };
 
-function Column({ status, title, count, children }: { status: TaskStatus; title: string; count: number; children: React.ReactNode }) {
+function Column({ status, title, count, children }: { status: TaskStatus; title: string; count: number; children: ReactNode }) {
   const { setNodeRef, isOver, active } = useDroppable({ id: status });
   const target = isOver && active?.data.current?.status !== status;
-  return <section ref={setNodeRef} aria-label={title} className={`min-h-40 min-w-0 border-r border-b border-line px-3 pb-5 transition-shadow duration-200 ease-(--ease) first:pl-0 ${target ? 'shadow-[inset_0_2px_0_var(--color-brand)]' : ''}`}>
-    <h2 className="flex min-h-14 items-center justify-between gap-3 text-sm font-medium">{title}<span className="label-mono text-muted-foreground">{count}</span></h2>
+  return <section ref={setNodeRef} aria-label={title} className={cn('flex min-h-40 min-w-0 flex-col gap-2 rounded-lg p-1.5 transition-colors duration-200 ease-(--ease)', target ? 'bg-selected' : 'bg-muted/60')}>
+    <h2 className="flex h-8 items-center justify-between gap-3 px-1.5 text-[13px] font-medium">{title}<span className="font-mono text-[12.5px] font-normal text-muted-foreground">{count}</span></h2>
     {children}
   </section>;
 }
 
-function Card({ activity, saving, busy, members, clients, delegate, restoreFocusRef }: {
-  activity: AgendaActivity; saving: boolean; busy: boolean; members: Choice[]; clients: Choice[]; delegate: (activity: AgendaActivity) => void;
+function Card({ activity, today, names, saving, busy, delegate, restoreFocusRef }: {
+  activity: AgendaActivity; today: string; names: Names; saving: boolean; busy: boolean; delegate: (activity: AgendaActivity) => void;
   restoreFocusRef: RefObject<string | null>;
 }) {
   const grip = useRef<HTMLButtonElement | null>(null);
@@ -57,27 +62,28 @@ function Card({ activity, saving, busy, members, clients, delegate, restoreFocus
     };
   }, [activity.id, restoreFocusRef]);
   const open = activity.status === 'pending' || activity.status === 'in_progress';
-  return <article ref={setNodeRef} aria-busy={saving} className={`space-y-3 py-4 ${isDragging ? 'opacity-40' : ''}`}>
-    <div className="flex items-start justify-between gap-2">
-      <Link href={`/app/agenda/tasks/${encodeURIComponent(activity.id)}?from=kanban`} prefetch={false} className="inline-flex min-h-11 min-w-0 items-center text-sm font-medium wrap-anywhere underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring">{activity.title}</Link>
+  const overdue = open && Boolean(activity.dueOn) && activity.dueOn! < today;
+  const about = contextOf(activity, names);
+  return <article ref={setNodeRef} aria-busy={saving} className={cn('flex flex-col gap-1.5 rounded-lg border border-border bg-card py-2.5 pr-1.5 pl-3 transition-[border-color,opacity] hover:border-border-strong', isDragging && 'opacity-40')}>
+    <div className="flex items-start justify-between gap-1">
+      <Link href={`/app/agenda/tasks/${encodeURIComponent(activity.id)}?from=kanban`} prefetch={false} className="min-w-0 py-0.5 text-sm font-medium wrap-anywhere underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring">{activity.title}</Link>
       <button ref={node => { grip.current = node; setActivatorNodeRef(node); }} type="button" aria-label={`Arrastar ${activity.title}`} {...attributes} {...listeners}
-        className="flex size-11 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-default aria-disabled:opacity-40">
+        className="-mt-0.5 flex size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-40 md:size-7">
         <GripVertical aria-hidden="true" className="size-4" />
       </button>
     </div>
-    {activity.notes && <p className="line-clamp-3 break-words text-xs text-muted-foreground">{activity.notes}</p>}
-    <p className="text-xs text-muted-foreground">{dueLabel(activity)}</p>
-    {(activity.clientId || activity.assigneeId) && <p className="break-words text-xs text-muted-foreground">{[clients.find(item => item.id === activity.clientId)?.name, members.find(item => item.id === activity.assigneeId)?.name].filter(Boolean).join(' · ')}</p>}
-    {saving && <p className="text-xs text-muted-foreground">Salvando…</p>}
+    {about && <p className="pr-1.5 text-[12.5px] break-words text-muted-foreground">{about}</p>}
+    <p className="flex items-center gap-1.5 font-mono text-[12.5px]">{isUrgent(activity, today) && <span aria-hidden="true" className="size-1.5 rounded-full bg-brand" />}{dueLabel(activity, today)}{overdue && <span className="font-sans text-xs text-muted-foreground">atrasada</span>}</p>
+    {saving && <p role="status" className="text-xs text-muted-foreground">Salvando…</p>}
     {activity.agentConversationId ? open
-      ? <Button variant="ghost" className="w-full justify-start px-0 text-brand-ink" disabled={busy} onClick={() => delegate(activity)}>Abrir sessão do Lume</Button>
-      : <Link className="flex min-h-11 items-center text-sm text-brand-ink underline underline-offset-4" href={`/app/agents?conversationId=${encodeURIComponent(activity.agentConversationId)}${activity.caseId ? `&caseId=${encodeURIComponent(activity.caseId)}` : ''}`}>Abrir sessão do Lume</Link>
-      : open && <Button variant="ghost" className="w-full justify-start px-0 text-brand-ink" disabled={busy} onClick={() => delegate(activity)}>Delegar ao Lume</Button>}
+      ? <button type="button" className={lumeAction} disabled={busy} onClick={() => delegate(activity)}><LumeMark aria-hidden="true" className="size-3.5" />Abrir sessão do Lume</button>
+      : <Link className={lumeAction} href={`/app/agents?conversationId=${encodeURIComponent(activity.agentConversationId)}${activity.caseId ? `&caseId=${encodeURIComponent(activity.caseId)}` : ''}`}><LumeMark aria-hidden="true" className="size-3.5" />Abrir sessão do Lume</Link>
+      : open && <button type="button" className={lumeAction} disabled={busy} onClick={() => delegate(activity)}><LumeMark aria-hidden="true" className="size-3.5" />Delegar ao Lume</button>}
   </article>;
 }
 
-export function TaskBoard({ activities, members, clients, busy, saving, move, delegate }: {
-  activities: AgendaActivity[]; members: Choice[]; clients: Choice[]; busy: boolean; saving: ReadonlySet<string>;
+export function TaskBoard({ activities, names, today, busy, saving, move, delegate }: {
+  activities: AgendaActivity[]; names: Names; today: string; busy: boolean; saving: ReadonlySet<string>;
   move: (id: string, status: TaskStatus) => void;
   delegate: (activity: AgendaActivity) => void;
 }) {
@@ -107,19 +113,19 @@ export function TaskBoard({ activities, members, clients, busy, saving, move, de
 
   return <DndContext sensors={sensors} collisionDetection={collide} onDragStart={({ active }) => setDraggingId(active.id)} onDragEnd={drop} onDragCancel={() => setDraggingId(null)}
     accessibility={{ announcements, screenReaderInstructions: { draggable: 'Para mover, pressione Espaço ou Enter. Use as setas para a esquerda e para a direita para escolher a coluna, Espaço ou Enter para soltar e Esc para cancelar.' } }}>
-    <div role="region" aria-label="Quadro de tarefas" tabIndex={0} className="grid min-w-0 grid-flow-col auto-cols-[85%] overflow-x-auto border-t border-line focus-visible:ring-2 focus-visible:ring-ring md:auto-cols-[45%] xl:grid-flow-row xl:auto-cols-auto xl:grid-cols-4">
+    <div role="region" aria-label="Quadro de tarefas" tabIndex={0} className="-mx-4 grid min-w-0 grid-flow-col auto-cols-[85%] gap-3 overflow-x-auto px-4 pb-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:mx-0 md:auto-cols-[45%] md:px-0 xl:grid-flow-row xl:auto-cols-auto xl:grid-cols-4">
       {taskColumns.map(column => {
         const tasks = activities.filter(activity => activity.status === column.status);
         return <Column key={column.status} status={column.status} title={column.title} count={tasks.length}>
-          <div className="divide-y">{tasks.length ? tasks.map(activity => <Card key={activity.id} activity={activity} saving={saving.has(activity.id)} busy={busy} members={members} clients={clients} delegate={delegate} restoreFocusRef={restoreFocusRef} />)
-            : <p className="py-4 text-sm text-muted-foreground">Nenhuma tarefa.</p>}</div>
+          {tasks.length ? tasks.map(activity => <Card key={activity.id} activity={activity} today={today} names={names} saving={saving.has(activity.id)} busy={busy} delegate={delegate} restoreFocusRef={restoreFocusRef} />)
+            : <p className="px-1.5 pb-2 text-[13px] text-muted-foreground">Nenhuma tarefa.</p>}
         </Column>;
       })}
     </div>
-    {createPortal(<DragOverlay style={{ pointerEvents: 'none' }} dropAnimation={window.matchMedia('(prefers-reduced-motion: reduce)').matches ? null : { duration: 250, easing: 'cubic-bezier(.16, 1, .3, 1)' }}>
-      {dragging && <div aria-hidden="true" className="h-full border border-line bg-background px-3 py-3 shadow-[var(--shadow-float)]">
-        <p className="break-words text-sm font-medium">{dragging.title}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{dueLabel(dragging)}</p>
+    {createPortal(<DragOverlay style={{ pointerEvents: 'none' }} dropAnimation={window.matchMedia('(prefers-reduced-motion: reduce)').matches ? null : { duration: 250, easing: tokenEase() }}>
+      {dragging && <div aria-hidden="true" className="h-full rounded-lg border border-border-strong bg-card px-3 py-2.5 shadow-[var(--shadow-float)]">
+        <p className="text-sm font-medium break-words">{dragging.title}</p>
+        <p className="mt-1.5 font-mono text-[12.5px]">{dueLabel(dragging, today)}</p>
       </div>}
     </DragOverlay>, document.body)}
   </DndContext>;

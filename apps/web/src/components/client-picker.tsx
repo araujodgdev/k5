@@ -7,12 +7,15 @@ import type { CrmClient } from '@/lib/capabilities/agenda';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { PickerTrigger } from './ui/picker-trigger';
+import { Chip } from './canvas/canvas-controls';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 
 /** Only an opened picker fetches a page. Selecting a client never needs the full CRM. */
-export function ClientPicker({ value, onChange, choices, label, emptyLabel = 'Sem vínculo', name }: {
+export function ClientPicker({ value, onChange, choices, label, emptyLabel = 'Sem vínculo', id, name, variant = 'field' }: {
   value: string; onChange: (id: string, client?: CrmClient) => void; choices: Choice[];
-  label: string; emptyLabel?: string; name?: string;
+  label: string; emptyLabel?: string; id?: string; name?: string;
+  /** `chip` draws the closed picker as a filter chip of a module toolbar. */
+  variant?: 'field' | 'chip';
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -54,7 +57,9 @@ export function ClientPicker({ value, onChange, choices, label, emptyLabel = 'Se
   return <>
     {name && <input type="hidden" name={name} value={value} />}
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild><PickerTrigger id={name} aria-label={label}>{value ? selectedName : emptyLabel}</PickerTrigger></PopoverTrigger>
+      <PopoverTrigger asChild>{variant === 'chip'
+        ? <Chip menu pressed={Boolean(value)} aria-label={`${label}: ${value ? selectedName : emptyLabel}`}><span className="max-w-48 truncate">{value ? `${label}: ${selectedName}` : label}</span></Chip>
+        : <PickerTrigger id={id ?? name} aria-label={label}>{value ? selectedName : emptyLabel}</PickerTrigger>}</PopoverTrigger>
       <PopoverContent align="start" className="w-80 max-w-[calc(100vw-2rem)] p-3" aria-label={label}>
         <Input aria-label="Buscar cliente pelo nome" placeholder="Buscar cliente" value={query} onChange={event => { setQuery(event.target.value); setOffset(0); }} />
         <div className="mt-2 max-h-64 overflow-y-auto">

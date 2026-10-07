@@ -72,26 +72,26 @@ export function NewConversation({ open, onOpenChange, onCreated }: { open: boole
   }
 
   return <Dialog open={open} onOpenChange={value => { if (!busy) onOpenChange(value); }}>
-    <DialogContent className="flex max-h-[90dvh] flex-col gap-4 overflow-y-auto sm:max-w-lg [&_[data-slot=dialog-close]]:size-11 md:[&_[data-slot=dialog-close]]:size-9" onCloseAutoFocus={event => {
+    <DialogContent className="flex max-h-[90dvh] flex-col gap-4 overflow-y-auto sm:max-w-lg" onCloseAutoFocus={event => {
       event.preventDefault();
       document.getElementById(openedThread.current ? 'messaging-conversation-title' : 'new-message-conversation')?.focus();
       openedThread.current = false;
     }}>
-      <DialogTitle className="pr-10">Nova conversa</DialogTitle>
+      <DialogTitle className="pr-10">Nova mensagem</DialogTitle>
       <DialogDescription>Escolha um contato ou informe o e-mail completo.</DialogDescription>
-      <form onSubmit={submit} className="space-y-3">
-        <label className="grid gap-2 text-sm">Nome ou e-mail<Input value={query} onChange={event => setQuery(event.target.value)} disabled={busy || Boolean(attempt)} autoComplete="off" maxLength={254} placeholder="Nome ou pessoa@escritorio.com.br" className="min-h-11 md:min-h-9" /></label>
-        {attempt ? <div className="space-y-2 border-l-2 border-brand pl-3"><p className="text-sm">A abertura da conversa ainda não foi confirmada.</p><Button type="submit" disabled={busy} className="min-h-11 md:min-h-9">{busy ? 'Conferindo…' : 'Conferir conversa'}</Button></div>
-          : address.success && <Button type="submit" disabled={busy} className="min-h-11 w-full md:min-h-9">{busy ? 'Abrindo…' : 'Continuar com este e-mail'}</Button>}
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">Nome ou e-mail<Input value={query} onChange={event => setQuery(event.target.value)} disabled={busy || Boolean(attempt)} autoComplete="off" maxLength={254} placeholder="Nome ou pessoa@escritorio.com.br" className="h-11 text-foreground md:h-9" /></label>
+        {attempt ? <div className="flex flex-col items-start gap-2"><p className="text-[13.5px]">A abertura da conversa ainda não foi confirmada.</p><Button type="submit" size="lg" disabled={busy} className="h-11 md:h-[34px]">{busy ? 'Conferindo…' : 'Conferir conversa'}</Button></div>
+          : address.success && <Button type="submit" size="lg" disabled={busy} className="h-11 w-full md:h-[34px]">{busy ? 'Abrindo…' : 'Continuar com este e-mail'}</Button>}
       </form>
-      {error && <div className="space-y-2"><p role="alert" className="text-sm text-destructive">{error}</p>{!attempt && <Button variant="ghost" onClick={() => setRevision(value => value + 1)} className="min-h-11 md:min-h-9">Tentar novamente</Button>}</div>}
-      <div className="min-h-0 overflow-y-auto overscroll-contain border-t">
-        {loading ? <p role="status" className="py-5 text-sm text-muted-foreground">Buscando contatos…</p>
-          : contacts?.contacts.length === 0 ? <p className="py-5 text-sm text-muted-foreground">Nenhum contato encontrado. Informe um e-mail completo para iniciar.</p>
-            : contacts?.contacts.map(contact => <button type="button" key={contact.userId} disabled={busy || Boolean(attempt)} className="hover-rise block min-h-16 w-full border-b px-2 py-3 text-left outline-none hover:text-brand-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand disabled:opacity-50" onClick={() => void start({ kind: 'known_user', userId: contact.userId })}>
-              <span className="block truncate text-sm font-medium">{contact.name}</span><span className="block truncate text-xs">{contact.email}</span><span className="mt-1 block text-xs">{contact.sources.map(source => sourceLabels[source]).join(' · ')}</span>
+      {error && <div className="flex flex-wrap items-center gap-2"><p role="alert" className="text-[13.5px] text-destructive">{error}</p>{!attempt && <Button variant="ghost" size="lg" onClick={() => setRevision(value => value + 1)} className="h-11 md:h-[34px]">Tentar novamente</Button>}</div>}
+      <div className="-mx-3 flex min-h-0 flex-col gap-0.5 overflow-y-auto overscroll-contain">
+        {loading ? <p role="status" className="px-3 py-3 text-[13.5px] text-muted-foreground">Buscando contatos…</p>
+          : contacts?.contacts.length === 0 ? <p className="px-3 py-3 text-[13.5px] text-muted-foreground">Nenhum contato encontrado. Informe um e-mail completo para iniciar.</p>
+            : contacts?.contacts.map(contact => <button type="button" key={contact.userId} disabled={busy || Boolean(attempt)} className="flex min-h-14 w-full flex-col gap-px rounded-md px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring disabled:opacity-50" onClick={() => void start({ kind: 'known_user', userId: contact.userId })}>
+              <span className="truncate text-sm font-medium">{contact.name}</span><span className="truncate text-[12.5px] text-muted-foreground">{contact.email} · {contact.sources.map(source => sourceLabels[source]).join(' · ')}</span>
             </button>)}
-        {contacts?.nextCursor && <Button type="button" variant="ghost" disabled={paging || busy || Boolean(attempt)} onClick={() => void more()} className="my-2 min-h-11 w-full md:min-h-9">{paging ? 'Carregando…' : 'Mais contatos'}</Button>}
+        {contacts?.nextCursor && <Button type="button" variant="ghost" disabled={paging || busy || Boolean(attempt)} onClick={() => void more()} className="h-11 w-full text-muted-foreground md:h-[34px]">{paging ? 'Carregando…' : 'Mais contatos'}</Button>}
       </div>
     </DialogContent>
   </Dialog>;
