@@ -152,7 +152,8 @@ tarefa `classification.injection_guard`, antes de o modelo lê-los. Se houver in
 retido e o Lume avisa a pessoa (`src/lib/agent-guard.ts`).
 Rotas autenticadas ficam em `/api/agenda/[resource]/[operation]`;
 escritas verificam origem e acesso. Chaves de idempotência evitam criação duplicada em
-repetições, inclusive simultâneas. `k5_ui_open_resource` abre agenda, cliente e atividade.
+repetições, inclusive simultâneas. `k5_ui_open_resource` abre no canvas do escritório um caso, uma página do
+Lume, um arquivo do Cofre, um cliente, uma atividade ou um módulo pelo nome (`src/lib/canvas-protocol.ts`).
 O botão **Atualizar** recarrega alterações realizadas pelo agente ou por outro integrante.
 
 Escopo e próximas etapas: [plano de Tarefas e Agenda](../../docs/plano-tarefas-agenda.md).
@@ -568,6 +569,7 @@ pnpm --filter @k5/web exec e2e run --exclude-tag agent --last-failed
   `localhost:3000`, lendo `.env.local` para as conferências no banco) e `next start` sobre o
   build no CI. `K5_E2E_URL` aponta a suíte para um servidor já iniciado, como a instância da
   skill `verify-lume`.
+- A interface usa o canvas com a conversa persistente em todos os escritórios.
 - Localmente, sem `K5_E2E_URL`, os testes de fluxo real criam contas descartáveis
   (`*@k5.test`) e registros de teste no banco do `.env.local`. Para não tocar nesse banco, rode
   contra a instância isolada da `verify-lume` (`lume-verify.mts up` e depois `drive <id>`).

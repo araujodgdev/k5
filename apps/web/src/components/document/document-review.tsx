@@ -29,8 +29,8 @@ export function DocumentReview({ artifactId, version, dirty, status, issues, ref
         <h2 className="font-medium">Verificações</h2>
         <p className="mt-1 text-xs text-muted-foreground">{status === "needs_review" ? "Revisão necessária antes do uso." : "Documento em edição."}</p>
         {issues.length === 0 ? <p className="mt-4 text-sm text-subtle-foreground">Nenhuma pendência registrada.</p> : (
-          <div className="mt-3 divide-y">
-            {issues.map((issue, index) => <p key={index} className="flex gap-2 py-3 text-sm"><CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />{issueText(issue)}</p>)}
+          <div className="mt-3 flex flex-col gap-3">
+            {issues.map((issue, index) => <p key={index} className="flex gap-2 text-sm"><CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />{issueText(issue)}</p>)}
           </div>
         )}
       </section>
@@ -38,9 +38,9 @@ export function DocumentReview({ artifactId, version, dirty, status, issues, ref
       <section className="mt-8 border-t pt-5">
         <h2 className="font-medium">Fontes</h2>
         {references.length === 0 ? <p className="mt-3 text-sm text-subtle-foreground">Nenhuma fonte vinculada.</p> : (
-          <div className="mt-2 divide-y">
+          <div className="mt-3 flex flex-col gap-4">
             {references.map((reference, index) => (
-              <div key={reference.id ?? index} className="py-3 text-sm">
+              <div key={reference.id ?? index} className="text-sm">
                 <p className="font-medium">{reference.sourceLabel ?? reference.label ?? `Fonte ${index + 1}`}</p>
                 {reference.locator && <p className="mt-0.5 text-xs text-muted-foreground">{reference.locator}</p>}
                 {reference.excerpt && <p className="mt-2 line-clamp-4 leading-5 text-muted-foreground">{reference.excerpt}</p>}
@@ -79,7 +79,7 @@ function Citations({ citations, version, rechecking, onRecheck }: { citations: S
       </div>
       <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">{note}</p>
       {items.length > 0 && (
-        <div className="mt-3 divide-y border-y">
+        <div className="mt-3 flex flex-col gap-4">
           {[...pending, ...items.filter((item) => item.status === "verified")].map((item) => <CitationRow key={item.id} item={item} />)}
         </div>
       )}
@@ -90,12 +90,12 @@ function Citations({ citations, version, rechecking, onRecheck }: { citations: S
 function CitationRow({ item }: { item: CitationItem }) {
   const ok = item.status === "verified";
   return (
-    <div className="grid gap-1 py-3 text-sm">
+    <div className="grid gap-1 text-sm">
       <p className="font-medium">{item.text}</p>
       <p className={ok ? "text-[13px] text-muted-foreground" : "text-[13px] text-foreground"}>
         {item.kind ? `${citationKindLabel[item.kind]} · ` : ""}{citationLabel(item)}
         {item.source && <> · {sourceHref(item.source.url)
-          ? <a href={sourceHref(item.source.url)!} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline-offset-4 hover:underline">{item.source.title || "fonte"}<span className="sr-only"> (abre em nova aba)</span></a>
+          ? <a href={sourceHref(item.source.url)!} target="_blank" rel="noopener noreferrer" className="text-foreground underline underline-offset-4">{item.source.title || "fonte"}<span className="sr-only"> (abre em nova aba)</span></a>
           : item.source.title}</>}
       </p>
       {!ok && <div className="text-[13px] leading-5 text-subtle-foreground"><Markdown text={item.paragraph} /></div>}

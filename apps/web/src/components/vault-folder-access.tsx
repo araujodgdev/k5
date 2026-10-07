@@ -5,7 +5,7 @@ import { LoaderCircle } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { CaseDialog, CaseDialogFooter } from "@/components/casos/case-dialog";
 import type { FolderVisibility, VaultFolder } from "@/lib/vault";
 import { folderDto } from "@/lib/capabilities/contracts";
 
@@ -41,21 +41,21 @@ export function FolderAccessFields({ caseId, value, onChange, idPrefix }: {
   const { people, error } = useCasePeople(caseId, value.visibility === "restricted");
   const toggle = (id: string, checked: boolean) => onChange({ ...value, memberIds: checked ? [...value.memberIds, id] : value.memberIds.filter((item) => item !== id) });
   return <div className="grid min-w-0 gap-3">
-    <div className="grid gap-1.5"><Label htmlFor={`${idPrefix}-visibility`}>Quem vê a pasta</Label>
-      <select id={`${idPrefix}-visibility`} value={value.visibility} className="min-h-11 min-w-56 border border-input bg-background px-3 text-sm md:min-h-9"
+    <div className="grid gap-1.5"><Label htmlFor={`${idPrefix}-visibility`} className="text-xs font-normal text-muted-foreground">Quem vê a pasta</Label>
+      <select id={`${idPrefix}-visibility`} value={value.visibility} className="h-11 min-w-56 rounded-md border border-border-strong bg-transparent px-2.5 text-base md:h-9 md:text-[13.5px]"
         onChange={(event) => onChange({ ...value, visibility: event.target.value as FolderVisibility })}>
         {(Object.keys(visibilityLabels) as FolderVisibility[]).map((option) => <option key={option} value={option}>{visibilityLabels[option]}</option>)}
       </select>
     </div>
     {value.visibility === "restricted" && <fieldset className="grid min-w-0 gap-1">
-      <legend className="mb-1 text-sm">Quem mais vê, além de você</legend>
+      <legend className="mb-1 text-xs text-muted-foreground">Quem mais vê, além de você</legend>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p>
         : !people ? <p role="status" className="text-sm text-muted-foreground">Carregando pessoas do caso…</p>
         : people.length ? people.map((person) => <label key={person.id} className="flex min-h-11 min-w-0 items-center gap-3 text-sm md:min-h-9">
           <input type="checkbox" className="size-5 shrink-0 accent-primary md:size-4" checked={value.memberIds.includes(person.id)} onChange={(event) => toggle(person.id, event.target.checked)} />
           <span className="min-w-0 truncate">{person.name} <span className="text-muted-foreground">· {person.email}</span></span>
         </label>)
-        : <p className="text-sm text-subtle-foreground">Ainda não há outras pessoas neste caso. Inclua participantes em Participantes.</p>}
+        : <p className="text-sm text-subtle-foreground">Ainda não há outras pessoas neste caso. Inclua alguém em Compartilhar.</p>}
     </fieldset>}
     <p className="text-[13px] text-muted-foreground">{value.visibility === "public" ? "Todos que participam do caso veem esta pasta." : value.visibility === "private"
       ? "Só você vê esta pasta, nem o responsável pelo caso." : "Só você e as pessoas escolhidas veem esta pasta."} As subpastas seguem esta regra e podem ser ainda mais fechadas.</p>
@@ -85,15 +85,14 @@ export function FolderAccessDialog({ caseId, folder, open, onOpenChange, onSaved
     } catch { setError("Não foi possível conectar. Confira sua conexão."); }
     finally { setBusy(false); }
   }
-  return <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
-    <DialogContent className="flex max-h-[92dvh] flex-col gap-4 overflow-y-auto sm:max-w-lg [&_[data-slot=dialog-close]]:size-11 md:[&_[data-slot=dialog-close]]:size-9">
-      <DialogTitle className="break-words pr-10">Acesso à pasta {folder.name}</DialogTitle>
-      <DialogDescription>Só você, que criou a pasta, pode mudar quem a vê.</DialogDescription>
-      <FolderAccessFields caseId={caseId} value={value} onChange={setValue} idPrefix={`folder-${folder.id}`} />
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      <Button type="button" disabled={busy || (value.visibility === "restricted" && !value.memberIds.length)} onClick={() => void save()} className="min-h-11 w-full md:min-h-9">
+  return <CaseDialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }} title={`Acesso à pasta ${folder.name}`}
+    description="Só você, que criou a pasta, pode mudar quem a vê.">
+    <FolderAccessFields caseId={caseId} value={value} onChange={setValue} idPrefix={`folder-${folder.id}`} />
+    {error && <p role="alert" className="text-[13px] text-destructive">{error}</p>}
+    <CaseDialogFooter className="justify-end">
+      <Button type="button" size="lg" disabled={busy || (value.visibility === "restricted" && !value.memberIds.length)} onClick={() => void save()}>
         {busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{busy ? "Salvando…" : "Salvar acesso"}
       </Button>
-    </DialogContent>
-  </Dialog>;
+    </CaseDialogFooter>
+  </CaseDialog>;
 }

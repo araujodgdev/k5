@@ -4,7 +4,7 @@ import { capabilities, capabilityNames, type CapabilityName } from '@/lib/capabi
 
 const modules = z.enum(['case_tasks', 'case_pages', 'vault', 'knowledge', 'runs', 'artifacts', 'conversations', 'memory', 'citations', 'ui', 'judicial', 'agenda', 'research', 'google', 'whatsapp', 'honorarios', 'calc', 'collaboration', 'messages', 'notifications', 'agent_settings', 'help']);
 const entrypoints = [
-  'k5_case_tasks_list', 'k5_case_pages_list', 'k5_help_search', 'k5_honorarios_list', 'k5_crm_list_clients', 'k5_agenda_list_activities', 'k5_vault_list_cases',
+  'k5_ui_open_resource', 'k5_case_tasks_list', 'k5_case_pages_list', 'k5_help_search', 'k5_honorarios_list', 'k5_crm_list_clients', 'k5_agenda_list_activities', 'k5_vault_list_cases',
   'k5_vault_list_documents', 'k5_artifacts_list', 'k5_runs_list', 'k5_knowledge_search', 'k5_conversations_list',
   'k5_collaboration_get', 'k5_messages_list', 'k5_gmail_list_threads', 'k5_whatsapp_list_threads',
   'k5_notifications_list', 'k5_agent_settings_get', 'k5_research_list_web_searches', 'k5_research_start_trademark_search', 'k5_research_analyze_trademark_logo', 'k5_calendar_list_events',

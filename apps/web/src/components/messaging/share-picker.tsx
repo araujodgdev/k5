@@ -74,14 +74,14 @@ export function SharePicker({ thread, open, onClose, onShared }: {
   const disabled = busy || Boolean(attempt);
   const peerName = thread.channel === 'in_app' ? thread.peer.name : thread.peer.email;
   return <Dialog open={open} onOpenChange={value => { if (!value && !busy) onClose(Boolean(attempt)); }}>
-    <DialogContent className="flex max-h-[92dvh] flex-col gap-4 overflow-y-auto sm:max-w-xl [&_[data-slot=dialog-close]]:size-11 md:[&_[data-slot=dialog-close]]:size-9" onCloseAutoFocus={event => { event.preventDefault(); document.getElementById('personal-message-share')?.focus(); }}>
+    <DialogContent className="flex max-h-[92dvh] flex-col gap-4 overflow-y-auto sm:max-w-xl" onCloseAutoFocus={event => { event.preventDefault(); document.getElementById('personal-message-share')?.focus(); }}>
       <DialogTitle className="break-words pr-10">Compartilhar com {peerName}</DialogTitle>
       <DialogDescription>Escolha um documento do Cofre e confira o acesso antes de enviar.</DialogDescription>
       <label className="grid gap-2 text-sm">Buscar documento<Input value={query} onChange={event => setQuery(event.target.value)} disabled={disabled} maxLength={180} className="min-h-11 md:min-h-9" /></label>
       {error && <div className="space-y-2"><p role="alert" className="text-sm text-destructive">{error}</p>{!attempt && <Button type="button" variant="ghost" onClick={() => setRevision(value => value + 1)} className="min-h-11 md:min-h-9">Tentar novamente</Button>}</div>}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-y">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-y py-1">
         {loading ? <p role="status" className="py-5 text-sm text-muted-foreground">Carregando o Cofre…</p> : <>
-          {page && (page.documents.length ? page.documents.map(document => <button type="button" key={document.id} disabled={disabled} aria-pressed={selection?.id === document.id} className={cn('block w-full border-b border-l-2 px-3 py-3 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand disabled:opacity-50', selection?.id === document.id ? 'border-l-foreground' : 'border-l-transparent')} onClick={() => setSelection(document)}>
+          {page && (page.documents.length ? page.documents.map(document => <button type="button" key={document.id} disabled={disabled} aria-pressed={selection?.id === document.id} className={cn('block w-full rounded-md px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50', selection?.id === document.id ? 'bg-selected' : 'hover:bg-accent')} onClick={() => setSelection(document)}>
             <span className="block truncate text-sm font-medium">{document.name}</span><span className="mt-1 block text-xs text-muted-foreground">Versão {document.currentVersion} · {document.caseName || 'Biblioteca'}</span>
           </button>) : <p className="py-5 text-sm text-muted-foreground">Nenhum documento disponível para compartilhar.</p>)}
           {page?.nextCursor && <Button type="button" variant="ghost" disabled={paging || disabled} onClick={() => void more()} className="my-2 min-h-11 w-full md:min-h-9">{paging ? 'Carregando…' : 'Carregar mais'}</Button>}

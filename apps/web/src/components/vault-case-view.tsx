@@ -67,7 +67,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
   const { controller } = useLumeWorkspace();
   const query = `caseId=${encodeURIComponent(vaultCase.id)}&folderId=${folderId ? encodeURIComponent(folderId) : "root"}`;
   const { documents, setDocuments, refresh, firstPage, pagination } = usePolledDocuments(query, initialDocuments, initialTotal);
-  const [view, setView] = useState<View>("list");
+  const [view, setView] = useState<View>("cards");
   const [section, setSection] = useState<Section>(initialSection);
   const [sectionSource, setSectionSource] = useState({ section: initialSection, task: initialTask });
   if (sectionSource.section !== initialSection || sectionSource.task !== initialTask) {
@@ -166,7 +166,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
     router.refresh();
   }
 
-  return <div className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10">
+  return <div className="flex min-h-0 flex-1 flex-col px-8 pt-6 pb-16 max-md:px-5 max-md:pt-5">
     <nav aria-label="Trilha" className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground" data-reveal>
       <Link href="/app/vault" className="rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cofre</Link>
       <ChevronRight className="size-3.5" aria-hidden="true" />
@@ -179,10 +179,10 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
       ))}
     </nav>
 
-    <div className="mt-3 flex flex-wrap items-end justify-between gap-4 border-b pb-5" data-reveal>
+    <div className="mt-3 flex flex-wrap items-start justify-between gap-4 pb-5" data-reveal>
       <div className="min-w-0">
         {/* The record's name stays whole on a phone (DESIGN.md, "Mobile"); one line from md up. */}
-        <h1 className="page-title leading-tight break-words md:truncate md:leading-none">{vaultCase.name}</h1>
+        <h1 className="text-[24px] leading-[1.2] font-semibold tracking-[-0.02em] break-words md:text-[26px]">{vaultCase.name}</h1>
         {vaultCase.description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{vaultCase.description}</p>}
         {vaultCase.client.name && <p className="mt-2 text-sm text-muted-foreground">{vaultCase.client.name}</p>}
       </div>
@@ -241,7 +241,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {shownFolders.map((folder) => (
             <div key={folder.id} className="relative min-w-0">
-              <Link href={href(folder.id)} className="grid min-h-24 min-w-0 grid-cols-1 gap-1 rounded-2xl border p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
+              <Link href={href(folder.id)} className="grid min-h-24 min-w-0 grid-cols-1 gap-1 rounded-lg border border-border bg-card p-4 outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
                 <span className="flex min-w-0 items-center gap-2 font-medium"><FolderIcon folder={folder} /><span className={`min-w-0 truncate ${folder.owned ? "pr-20" : "pr-8"}`}>{folder.name}</span></span>
                 <span className="mt-auto text-[13px] text-subtle-foreground">{[countLabel(folder.documentCount), visibilityNote(folder)].filter(Boolean).join(" · ")}</span>
               </Link>
@@ -269,6 +269,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
 
       {section === "files" && (<>
       <DocumentRows
+        view={view}
         documents={documents}
         onError={setFailure}
         onRetried={(documentId) => setDocuments((current) => current.map((item) => item.id === documentId ? { ...item, status: "queued", progress: 0, errorMessage: null } : item))}

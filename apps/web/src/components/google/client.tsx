@@ -106,5 +106,5 @@ export function GoogleConnectionNotice({ status, module }: { status: GoogleStatu
         : status.connection?.status === 'reauth_required' ? 'Reconecte sua conta Google para continuar.'
           : !feature.granted ? 'Conecte sua conta Google e autorize este recurso para continuar.' : null;
   if (!message) return null;
-  return <div className="py-8 text-sm"><p>{message}</p>{path !== '/app/integrations' && <Link href="/app/integrations" className="mt-3 inline-block underline underline-offset-4">Abrir integrações</Link>}</div>;
+  return <div className="flex flex-col items-start gap-3"><p className="text-[13.5px] text-muted-foreground">{message}</p>{path !== '/app/integrations' && <Button asChild variant="outline" size="lg" className="h-11 md:h-[34px]"><Link href="/app/integrations">Abrir Integrações</Link></Button>}</div>;
 }

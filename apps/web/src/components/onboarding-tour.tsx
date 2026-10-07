@@ -10,6 +10,7 @@ import { tutorialNavigation } from '@/lib/navigation';
 import { tutorialSteps, tutorialStorageKey, type TutorialAccess } from '@/lib/onboarding';
 
 const TutorialContext = createContext<() => void>(() => {});
+export function useTutorial() { return useContext(TutorialContext); }
 type View = 'closed' | 'welcome' | 'tour';
 type Placement = { card: CSSProperties; spotlight: CSSProperties | null };
 

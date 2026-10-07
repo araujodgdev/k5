@@ -14,56 +14,51 @@ import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
   AuiIf,
-  ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useAui,
   useAuiState,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
 import {
-  ArrowUp,
   ArrowDown,
   Check,
   CircleAlert,
-  Camera,
   ExternalLink,
   Copy,
 
-  FileText,
-  PanelLeftClose,
 
-  PanelLeftOpen,
-  Image as ImageIcon,
   LoaderCircle,
-  MessageSquarePlus,
-  Mic,
-  Plus,
   RefreshCw,
-  Square,
-  Trash2,
 } from "lucide-react";
 import type { AgentContext } from "@/components/agent-sources-panel";
-import { LumeMark } from "./lume-mark";
 import { readListOpen, subscribeListOpen, writeListOpen, serverListOpen } from "@/lib/agent-history";
-import { formatConversationTime } from "@/lib/conversation-time";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DOCUMENT_ACCEPT, IMAGE_ACCEPT, type Modalities } from "@/lib/ai-modalities";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { type Modalities } from "@/lib/ai-modalities";
 import { cn } from "@/lib/utils";
-import { ChatCamera } from './chat-camera';
-import { ChatAttachmentView } from './chat-attachment';
 import { attachmentPart, MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, MAX_CHAT_IMAGE_BYTES, type ChatAttachment } from '@/lib/chat-attachment-contract';
-import { useVoiceRecorder, VoiceLevel } from './voice-recorder';
 import type { CitationItem } from "@/lib/citations/verdict";
 import { citationLabel, sourceHref, toReview } from "@/lib/citations/labels";
 import { SmartWorking } from "@/components/smart-options";
 import { THINKING, toolModule, type ChatStatus } from "@/lib/chat-status";
 import { applyApprovalDecisions, approvalDecision, type ApprovalDecision } from "@/lib/chat-approval-state";
 import { citationMarkdown, webReference } from "@/lib/citations/web-references";
+
+import { Composer, type ComposerToolsProps } from '@/components/lume-panel/composer';
+import { EmptyState } from '@/components/lume-panel/empty-state';
+import { ConversationList } from '@/components/lume-panel/history';
+import { PanelHeader } from '@/components/lume-panel/panel-header';
+import { UserMessage } from '@/components/lume-panel/messages';
+import { PlanCard } from '@/components/lume-panel/plan-card';
+import { buildPlan, showsPlan, MODULE_LABELS, panelStatus } from '@/components/lume-panel/plan';
+import { DocumentLinksContext as PlanLinksContext } from '@/components/lume-panel/chat-context';
+import { subjectChip } from '@/components/lume-panel/icons';
+import { resourceSubject } from '@/components/lume/redesign-shell-state';
+import { useShell } from '@/components/shell/shell-context';
+import { canvasCommandSchema, isCanvasHref } from '@/lib/canvas-protocol';
+import { resourceKey } from '@/lib/lume-workspace';
 
 const DOCUMENT_WRITES = new Set(["k5_artifacts_create", "k5_artifacts_edit", "k5_artifacts_update", "k5_artifacts_restore_version"]);
 type Conversation = { id: string; title: string; updatedAt: string };
@@ -136,16 +131,6 @@ function chatErrorMessage(error: unknown): string {
   return raw || "Não foi possível enviar a mensagem.";
 }
 
-function UserMessage() {
-  return (
-    <MessagePrimitive.Root className="mx-auto grid w-full max-w-3xl justify-items-end px-4 py-3 md:px-8">
-      <div className="max-w-[88%] rounded-2xl bg-secondary px-4 py-3 text-sm leading-6 whitespace-pre-wrap md:max-w-[78%]">
-        <MessagePrimitive.Parts components={{data:{by_name:{attachment:ChatAttachmentView}}}} />
-      </div>
-    </MessagePrimitive.Root>
-  );
-}
-
 function AssistantText({ text }: { text: string }) {
   const content = useAuiState(state => state.message.content);
   const sources = content.flatMap(part => {
@@ -156,7 +141,7 @@ function AssistantText({ text }: { text: string }) {
   return <Markdown text={citationMarkdown(text, sources)} />;
 }
 
-type StepData = { callId?: string; name?: string; summary?: string; state?: string; href?: string };
+type StepData = { callId?: string; name?: string; summary?: string; state?: string; href?: string; canvasAction?: 'open' | 'touch' };
 
 type DocumentLinks = { open: (id: string) => void; openResource: (href: string) => void; openOrReloadFromToolStep: (step: StepData) => void; changed: (key: string) => void };
 const DocumentLinksContext = createContext<DocumentLinks | null>(null);
@@ -185,12 +170,13 @@ function ToolStep({ data }: { data: StepData }) {
   useEffect(() => { if (data) documents?.openOrReloadFromToolStep(data); }, [data, documents]);
   if (!data?.summary) return null;
   const failed = data.state === "failed";
+  const moduleSlug = toolModule(data.name ?? '');
   const running = data.state === 'running';
   const waiting = data.state === 'awaiting_approval' || data.state === 'interrupted' || data.state === 'cancelled';
   return (
     <p className={cn("mb-2 flex items-start gap-2 text-[13px] leading-5", failed ? "text-destructive" : "text-subtle-foreground")}>
       {running ? <LoaderCircle className="mt-0.5 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : failed || waiting ? <CircleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" /> : <Check className="mt-0.5 size-3.5 shrink-0 text-brand-ink" aria-hidden="true" />}
-      <span className="min-w-0"><span className="mr-2 font-medium text-foreground">{toolModule(data.name)}</span>{data.summary}{data.href && <> · <OpenLink href={data.href} /></>}</span>
+      <span className="min-w-0"><span className="mr-2 font-medium text-foreground">{moduleSlug ? MODULE_LABELS[moduleSlug] : null}</span>{data.summary}{data.href && <> · <OpenLink href={data.href} /></>}</span>
     </p>
   );
 }
@@ -231,7 +217,7 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
     finally { setBusy(""); }
   }
   return (
-    <div className="mt-3 grid gap-3 border-l-2 border-brand py-1 pl-4" role="group" aria-label="Confirmação">
+    <div className="mt-3 grid gap-3 rounded-lg border border-brand/40 bg-card p-3.5" role="group" aria-label="Confirmação">
       <p className="whitespace-pre-wrap break-words text-sm text-foreground">{data.preparedContent ? 'Revise o conteúdo preparado e quem poderá acessá-lo.' : pageApproval ? 'Revisar o conteúdo e o destino da página.' : data.summary}</p>
       {pageApproval && current.state === 'pending' && <PageApprovalReview key={data.approvalId} approvalId={data.approvalId} onReady={setReviewReady} />}
       {googleApproval && current.state === 'pending' && <GoogleApprovalReview approvalId={data.approvalId} onReady={setReviewReady} />}
@@ -246,7 +232,7 @@ function ApprovalStep({ data }: { data: ApprovalData }) {
       {['k5_case_pages_create', 'k5_case_pages_update'].includes(data.capability ?? '') && current.state !== 'cancelled' && <Button type="button" size="sm" variant="ghost" onClick={() => sharedProposal?.select(data.approvalId)}>
         {sharedProposal?.selected === data.approvalId ? 'Proposta selecionada para continuar' : 'Continuar esta proposta'}
       </Button>}
-      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+         {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -320,6 +306,7 @@ function WebSources({ data }: { data: unknown }) {
 }
 
 function ToolActivity() {
+  const documents = useContext(DocumentLinksContext);
   const content = useAuiState(state => state.message.content);
   const steps = new Map<string, StepData>();
   for (const [index, part] of content.entries()) {
@@ -330,6 +317,7 @@ function ToolActivity() {
       summary: data.summary,
       name: 'name' in data && typeof data.name === 'string' ? data.name : undefined,
       callId: 'callId' in data && typeof data.callId === 'string' ? data.callId : undefined,
+      canvasAction: 'canvasAction' in data && (data.canvasAction === 'open' || data.canvasAction === 'touch') ? data.canvasAction : undefined,
       href: 'href' in data && typeof data.href === 'string' ? data.href : undefined,
       state: 'state' in data && typeof data.state === 'string' ? data.state : undefined,
     };
@@ -345,6 +333,11 @@ function ToolActivity() {
     }
     steps.set(step.callId ?? `unknown-${index}`, step);
   }
+  const values = [...steps.values()];
+  useEffect(() => { for (const step of values) documents?.openOrReloadFromToolStep(step); });
+  const decisions = useContext(ApprovalDecisionsContext)?.decisions;
+  const plan = buildPlan(content.flatMap(part => part.type === 'data' ? [{ name: part.name, data: part.data }] : []), { decisions });
+  if (showsPlan(plan)) return <PlanCard plan={plan} />;
   if (!steps.size) return null;
   return <div aria-label="Atividade do Lume" className="mb-4 border-l border-brand/30 pl-3">{[...steps].map(([key, step]) => <ToolStep key={key} data={step} />)}</div>;
 }
@@ -355,27 +348,16 @@ const WorkingContext = createContext("");
 const UserNameContext = createContext('');
 
 function ChatWelcome() {
-  const name = useContext(UserNameContext).trim().split(/\s+/)[0];
+  const name = useContext(UserNameContext);
   const { resource } = useLumeState();
-  const aui = useAui();
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => { const timer = window.setTimeout(() => setNow(new Date()), 0); return () => window.clearTimeout(timer); }, []);
-  const greeting = now ? now.getHours() < 12 ? 'Bom dia' : now.getHours() < 18 ? 'Boa tarde' : 'Boa noite' : 'Olá';
-  const prompts = ['Organizar minhas tarefas e próximos prazos', 'Resumir os documentos que eu selecionar', 'Consultar honorários pendentes', 'Pesquisar jurisprudência para uma questão'];
-  return <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-end px-6 py-8 text-left">
-    <p className="mb-2 text-xs text-muted-foreground">{now?.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-    <h2 className="text-2xl font-semibold tracking-tight">{greeting}{name ? `, ${name}` : ''}.</h2>
-    <p className="mt-3 text-sm leading-6 text-muted-foreground">{resource?.kind === 'case' ? `Podemos trabalhar em ${resource.title}. O contexto do próximo pedido está abaixo.` : 'Por onde começamos? Selecione um caso ou documentos no canvas, ou me conte o que precisa.'}</p>
-    <p className="mt-2 text-xs text-muted-foreground">Esta conversa e sua memória são pessoais.</p>
-    <div className="mt-5 grid gap-1">{prompts.map(prompt => <button key={prompt} type="button" className="min-h-11 rounded-md px-2 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { const composer = aui.composer(); const draft = composer.getState().text; composer.setText(draft.trim() ? `${draft}\n${prompt}` : prompt); document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Pergunte ao Lume"]')?.focus(); }}>{prompt}</button>)}</div>
-  </div>;
+  return <EmptyState userName={name} subject={resourceSubject(resource)} />;
 }
 
 function AssistantMessage() {
   const working = useContext(WorkingContext);
   return (
-    <MessagePrimitive.Root className="group mx-auto w-full max-w-3xl px-4 py-4 md:px-8">
-      <div className="max-w-[72ch] text-sm leading-7 text-foreground">
+    <MessagePrimitive.Root className="group flex w-full flex-col gap-1.5 text-[15px] leading-[1.6]">
+      <div className="min-w-0 text-[14.5px] leading-[1.6] text-foreground max-md:text-[15px]">
         <ToolActivity />
         <MessagePrimitive.Parts components={assistantParts} />
         <MessagePrimitive.If last>
@@ -399,170 +381,22 @@ function AssistantMessage() {
   );
 }
 
-const composerControl = "grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent";
-
-function HintedControl({ hint, children }: { hint?: string; children: React.ReactNode }) {
-  if (!hint) return <>{children}</>;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild><span className="inline-flex">{children}</span></TooltipTrigger>
-      <TooltipContent>{hint}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-type ComposerToolsProps = {
-  modalities: Modalities;
-
-  uploading: number;
-  onPickFiles: (files: File[]) => void;
-  onError: (message: string) => void;
-  pendingFiles: ChatAttachment[];
-  onRemoveFile: (id:string) => void;
-  contextReady: boolean;
-  contextLabel: string;
-  runningTarget: string | null;
-};
-
-type Voice = ReturnType<typeof useVoiceRecorder>;
-
-function ComposerTools({ modalities, uploading, onPickFiles, voice }: ComposerToolsProps & { voice: Voice }) {
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [cameraOpen,setCameraOpen]=useState(false);
-
-  function pick(kind: "document" | "image") {
-    const input = fileInput.current;
-    if (!input) return;
-    input.accept = kind === "image" ? IMAGE_ACCEPT : DOCUMENT_ACCEPT;
-    setMenuOpen(false);
-    input.click();
-  }
-
-  const audioHint = modalities.audio ? undefined : "O Lume não aceita áudio nesta configuração.";
-
-  return (
-    <>
-      <input
-        ref={fileInput}
-        type="file"
-        aria-label="Arquivo para anexar"
-        accept={DOCUMENT_ACCEPT}
-        className="sr-only"
-        multiple
-        onChange={(event) => {
-          const files = [...(event.target.files ?? [])];
-          event.target.value = "";
-          if (files.length) onPickFiles(files);
-        }}
-      />
-      <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-        <PopoverTrigger asChild>
-          <button type="button" className={composerControl} aria-label="Anexar arquivos" disabled={voice.state !== "idle"}>
-            {uploading > 0 ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" /> : <Plus className="size-4.5" />}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" side="top" className="w-64 p-1">
-          <HintedControl hint={modalities.image ? undefined : "O Lume não lê imagens nesta configuração."}>
-            <button type="button" onClick={()=>{setMenuOpen(false);setCameraOpen(true);}} disabled={!modalities.image} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:text-subtle-foreground md:min-h-9"><Camera className="size-4 text-muted-foreground" aria-hidden="true" />Tirar foto</button>
-          </HintedControl>
-          <button type="button" onClick={() => pick("document")} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted md:min-h-9">
-            <FileText className="size-4 text-muted-foreground" aria-hidden="true" />Documento ou planilha
-          </button>
-          <HintedControl hint={modalities.image ? undefined : "O Lume não lê imagens nesta configuração."}>
-            <button type="button" onClick={() => pick("image")} disabled={!modalities.image} className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent md:min-h-9">
-              <ImageIcon className="size-4 text-muted-foreground" aria-hidden="true" />Escolher imagem
-            </button>
-          </HintedControl>
-        </PopoverContent>
-      </Popover>
-      {cameraOpen&&<ChatCamera onClose={()=>setCameraOpen(false)} onPhoto={file => onPickFiles([file])} />}
-
-      {voice.state === "recording" ? (
-        <button type="button" onClick={voice.cancel} aria-label="Descartar gravação" title="Descartar gravação" className={composerControl}>
-          <Trash2 className="size-4" />
-        </button>
-      ) : (
-        <HintedControl hint={audioHint}>
-          <button type="button" onClick={() => void voice.start()} disabled={!modalities.audio || voice.state !== "idle"} aria-label="Gravar áudio" title="Gravar áudio" className={composerControl}>
-            <Mic className="size-4.5" />
-          </button>
-        </HintedControl>
-      )}
-    </>
-  );
-}
-
 function LumeThread({ tools }: { tools: ComposerToolsProps }) {
   const [away, setAway] = useState(false);
-  const aui = useAui();
-
-  const voice = useVoiceRecorder({
-    onError: tools.onError,
-    onText: (spoken) => {
-      const composer = aui.composer();
-      const typed = composer.getState().text.trim();
-      composer.setText(typed ? `${typed}\n\n${spoken}` : spoken);
-      if (!aui.thread().getState().isRunning && !tools.uploading && tools.contextReady) composer.send();
-    },
-  });
-  return (
-    <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
-      <ThreadPrimitive.Viewport data-chat-viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain" turnAnchor="bottom" onScroll={event => {
-        const el = event.currentTarget;
-        setAway(el.scrollHeight - el.scrollTop - el.clientHeight > 240);
-      }}>
-        <ThreadPrimitive.Empty>
-          <ChatWelcome />
-        </ThreadPrimitive.Empty>
-        <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
-
-        <ThreadPrimitive.ViewportFooter className="lume-composer-wrap sticky bottom-0 z-10 mt-auto shrink-0 px-3 pb-3 pt-2">
-          {away && <ThreadPrimitive.ScrollToBottom aria-label="Voltar ao mais recente" title="Voltar ao mais recente" behavior="auto" className="absolute -top-12 left-1/2 grid size-11 -translate-x-1/2 place-items-center rounded-full border bg-background shadow-[var(--shadow-float)] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:hidden"><ArrowDown className="size-4" /></ThreadPrimitive.ScrollToBottom>}
-          {tools.runningTarget && <p role="status" className="px-2 pb-2 text-xs text-muted-foreground">Pedido em andamento · {tools.runningTarget}</p>}
-          <ComposerPrimitive.Root className="lume-composer mx-auto w-full max-w-3xl border bg-background p-2 transition focus-within:border-brand">
-            {tools.pendingFiles.length>0&&<div className="flex flex-wrap gap-2 p-2" aria-label="Anexos da próxima mensagem">{tools.pendingFiles.map(file=><ChatAttachmentView key={file.id} data={file} onRemove={()=>tools.onRemoveFile(file.id)} />)}</div>}
-            {tools.uploading>0&&<p role="status" className="px-2 py-1 text-xs text-muted-foreground">{tools.uploading===1?'Preparando anexo…':`Preparando ${tools.uploading} anexos…`}</p>}
-            {voice.state==='transcribing'&&<p role="status" className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />Transcrevendo áudio…</p>}
-            <ComposerPrimitive.Input
-              onKeyDownCapture={event => { if (event.key === 'Enter' && !event.shiftKey && !tools.contextReady) { event.preventDefault(); event.stopPropagation(); } }}
-              rows={away ? 1 : 2}
-              placeholder="Pergunte ao Lume"
-              aria-label="Pergunte ao Lume"
-              className={cn("max-h-[25dvh] w-full resize-none bg-transparent px-2 pt-2 pb-1 text-base outline-none transition-[min-height] duration-200 motion-reduce:transition-none placeholder:text-subtle-foreground md:text-sm", away ? "min-h-10" : "min-h-16")}
-            />
-            <div className="flex items-center gap-1">
-              <ComposerTools {...tools} voice={voice} />
-              {voice.state === "recording" && <VoiceLevel analyser={voice.analyser} seconds={voice.seconds} />}
-              <div className="ml-auto flex items-center gap-2">
-                {voice.state === "recording" ? (
-                  <button type="button" onClick={voice.finish} className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none transition hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50" aria-label="Parar gravação e enviar" title="Parar gravação e enviar">
-                    <Square className="size-3.5 fill-current" />
-                  </button>
-                ) : voice.state === "transcribing" ? (
-                  <span className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground opacity-40" aria-hidden="true">
-                    <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
-                  </span>
-                ) : <>
-                <AuiIf condition={(state) => state.thread.isRunning}>
-                  <ComposerPrimitive.Cancel className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50" aria-label="Parar resposta">
-                    <Square className="size-3.5 fill-current" />
-                  </ComposerPrimitive.Cancel>
-                </AuiIf>
-                <AuiIf condition={(state) => !state.thread.isRunning}>
-                  <ComposerPrimitive.Send disabled={tools.uploading > 0 || !tools.contextReady} className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground outline-none transition hover:bg-primary/80 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40" aria-label="Enviar mensagem">
-                    <ArrowUp className="size-4" />
-                  </ComposerPrimitive.Send>
-                </AuiIf>
-                </>}
-              </div>
-            </div>
-            <p className="lume-context-chip" aria-label="Contexto da próxima mensagem" title={tools.contextLabel}>{tools.contextReady ? tools.contextLabel : 'Carregando contexto do canvas…'}</p>
-          </ComposerPrimitive.Root>
-        </ThreadPrimitive.ViewportFooter>
-      </ThreadPrimitive.Viewport>
-    </ThreadPrimitive.Root>
-  );
+  const { resource } = useLumeState();
+  return <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
+    <ThreadPrimitive.Viewport data-chat-viewport className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pt-[18px] max-md:px-4" turnAnchor="bottom" onScroll={event => {
+      const el = event.currentTarget;
+      setAway(el.scrollHeight - el.scrollTop - el.clientHeight > 240);
+    }}>
+      <ThreadPrimitive.Empty><ChatWelcome /></ThreadPrimitive.Empty>
+      <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+      <ThreadPrimitive.ViewportFooter className="lume-composer-wrap sticky bottom-0 z-10 mt-auto shrink-0 pb-3 pt-3">
+        {away && <ThreadPrimitive.ScrollToBottom aria-label="Voltar ao mais recente" behavior="auto" className="absolute -top-12 left-1/2 grid size-11 -translate-x-1/2 place-items-center rounded-full border bg-background shadow-[var(--shadow-float)] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:hidden"><ArrowDown className="size-4" /></ThreadPrimitive.ScrollToBottom>}
+        <Composer tools={tools} chip={subjectChip(resourceSubject(resource))} />
+      </ThreadPrimitive.ViewportFooter>
+    </ThreadPrimitive.Viewport>
+  </ThreadPrimitive.Root>;
 }
 
 function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, tools, onFinish, onError, onSend, onAccessLost }: {
@@ -577,6 +411,7 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
   onAccessLost: () => void;
 }) {
   const { controller, registerSender } = useLumeWorkspace();
+  const shell = useShell();
   const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
   const selectedProposalRef = useRef<string | null>(null);
   const selectProposal = (id: string | null) => { selectedProposalRef.current = id; setSelectedProposal(id); };
@@ -589,7 +424,7 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
       const attachmentIds = message?.parts.flatMap(part => part.type === 'data-attachment' && part.data && typeof part.data === 'object' && 'id' in part.data ? [part.data.id] : []) ?? [];
       const scope = body?.frozenScope as MessageScope | undefined;
       if (!scope && trigger !== 'regenerate-message') throw new Error('O contexto do pedido não foi definido. Tente novamente.');
-      return { body: { ...scope, sharedProposalId: body?.sharedProposalId ?? null, conversationId, attachmentIds, message, trigger, messageId, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } };
+      return { body: { ...scope, canvas: body?.canvas, sharedProposalId: body?.sharedProposalId ?? null, conversationId, attachmentIds, message, trigger, messageId, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } };
     },
     fetch: async (input, init) => {
       const response = await fetch(input, init);
@@ -600,10 +435,15 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
   const [working, setWorking] = useState('');
   const [runTarget, setRunTarget] = useState<string | null>(() => storedMessageScope(messages.findLast(message => message.role === 'user'))?.label ?? null);
   const [runHref, setRunHref] = useState<string | undefined>(() => storedMessageScope(messages.findLast(message => message.role === 'user'))?.canvasHref);
+  const [activityHref, setActivityHref] = useState<string>();
   const chat = useChat({
     id: conversationId, messages, transport, resume: true, onFinish,
     onError: error => onError(chatErrorMessage(error)),
     onData: part => {
+      if (part.type === 'data-canvas') {
+        const parsed = canvasCommandSchema.safeParse(part.data);
+        if (parsed.success) setActivityHref(parsed.data.href);
+      }
       if (part.type === 'data-status') setWorking((part.data as ChatStatus).label);
       if (part.type === 'data-scope' && part.data && typeof part.data === 'object' && 'label' in part.data) {
         setRunTarget(String(part.data.label));
@@ -630,9 +470,10 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
     try { scope = controller.takeScope(); }
     catch (cause) { onError(chatErrorMessage(cause)); return Promise.resolve(); }
     onSend(controller.getSnapshot().navigation);
-    setRunTarget(tools.contextLabel);
+    setRunTarget(controller.getSnapshot().resource?.title ?? tools.contextLabel);
     setRunHref(scope.canvasHref);
-    const requestOptions = { ...options, body: { ...options?.body, sharedProposalId: selectedProposalRef.current, frozenScope: scope } };
+    setActivityHref(undefined);
+    const requestOptions = { ...options, body: { ...options?.body, sharedProposalId: selectedProposalRef.current, frozenScope: scope, canvas: { subject: resourceSubject(controller.getSnapshot().resource), tabs: controller.getSnapshot().tabs.filter(resource => isCanvasHref(resource.href)).slice(0, 16).map(resource => ({ href: resource.href, title: resource.title })) } } };
     if (message && tools.pendingFiles.length) {
       const parts = 'parts' in message && message.parts ? message.parts : 'text' in message ? [{ type: 'text' as const, text: message.text ?? '' }] : [];
       const sending = chat.sendMessage({ id: 'id' in message ? message.id : undefined, role: 'user', parts: [...parts, ...tools.pendingFiles.map(attachmentPart)] }, requestOptions);
@@ -647,6 +488,7 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
     const originalScope = storedMessageScope(chat.messages.slice(0, index + 1).findLast(message => message.role === 'user'));
     setRunTarget(originalScope?.label ?? 'Contexto do pedido original');
     setRunHref(originalScope?.canvasHref);
+    setActivityHref(undefined);
     return chat.regenerate(options);
   };
   const stopTurn = async () => {
@@ -661,6 +503,17 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
     void sendCurrent.current({ text });
   }), [registerSender, chat.status]);
   const running = chat.status === 'submitted' || chat.status === 'streaming';
+  const latest = chat.messages.findLast(message => message.role === 'assistant');
+  const plan = buildPlan(latest?.parts.flatMap(part => part.type.startsWith('data-') && 'data' in part ? [{ name: part.type.slice(5), data: part.data }] : []) ?? [], { running: running ? working || THINKING : null, decisions });
+  const activityState = running ? 'working' : plan.needs ? 'attention' : 'idle';
+  const activityStatus = panelStatus(plan, running);
+  const setActivity = shell?.setActivity;
+  useEffect(() => {
+    const snapshot = controller.getSnapshot();
+    const touched = snapshot.tabs.find(tab => tab.href === (activityHref ?? runHref));
+    setActivity?.({ state: activityState, status: activityStatus, caseId: storedMessageScope(chat.messages.findLast(message => message.role === 'user'))?.caseId, place: touched ? resourceKey(touched) : undefined });
+  }, [activityState, activityStatus, activityHref, runHref, controller, setActivity, chat.messages]);
+  useEffect(() => () => setActivity?.({ state: 'idle' }), [setActivity]);
   const currentTools = { ...tools, runningTarget: running && (runHref !== controller.getSnapshot().resource?.href || runTarget !== tools.contextLabel) ? runTarget : null };
   return <ConversationIdContext.Provider value={conversationId}><WorkingContext.Provider value={chat.status === 'submitted' ? '' : working}>
     <SharedProposalContext.Provider value={{ selected: selectedProposal, select: selectProposal }}>
@@ -675,6 +528,7 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
 export function AgentChat({ identityKey, displayName = '', modalities = { image: false, audio: false }, panelControls }: { identityKey: string; displayName?: string; modalities?: Modalities; panelControls: React.ReactNode }) {
   const { controller, openResource, conversationIntent } = useLumeWorkspace();
   const workspace = useLumeState();
+  const shell = useShell();
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -885,7 +739,7 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
       handledCalls.current.add(step.callId);
       const id = (DOCUMENT_WRITES.has(step.name) || /^k5_case_pages_(create|update|publish|restore)$/.test(step.name)) ? documentKeyFrom(step.href) : null;
       if (id) controller.dispatch({ type: 'changed', key: id });
-      if (canonicalCanvasHref(step.href)) void openResource(step.href, sendNavigation.current?.conversationId === selectedId ? sendNavigation.current.navigation : -1);
+      if (step.canvasAction !== 'touch' && canonicalCanvasHref(step.href)) void openResource(step.href, sendNavigation.current?.conversationId === selectedId ? sendNavigation.current.navigation : -1);
     },
   }), [loadedCalls, openDocument, openResource, controller, selectedId]);
 
@@ -898,33 +752,13 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
   return (
     <UserNameContext value={displayName}><TooltipProvider>
       <DocumentLinksContext.Provider value={documentLinks}>
+      <PlanLinksContext value={{ open: openDocument, follow: command => { if (command.action === 'open') void openResource(command.href); } }}>
       <div className="agent-chat flex min-h-0 flex-1 flex-col overflow-hidden">
-        <header className="lume-panel-header lume-conversation-tools">
-          <LumeMark width={21} height={21} aria-hidden="true" /><span className="font-medium">Lume</span>
-          <div className="ml-auto flex min-w-0 items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button ref={historyToggle} variant="ghost" size="icon" className="lume-icon" aria-label={listOpen ? "Ocultar conversas" : "Mostrar conversas"} aria-expanded={listOpen} aria-controls="agent-conversations" onClick={toggleList}>
-                  {listOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{listOpen ? "Ocultar conversas" : "Mostrar conversas"}</TooltipContent>
-            </Tooltip>
-            <h2 className="sr-only">Conversa privada</h2>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="lume-icon" onClick={() => void createConversation().catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível criar uma conversa."))} aria-label="Nova conversa"><MessageSquarePlus /></Button>
-              </TooltipTrigger>
-              <TooltipContent>Nova conversa</TooltipContent>
-            </Tooltip>
-            {panelControls}
-          </div>
-        </header>
-
-        {error && <p className="flex items-start gap-2 border-b px-4 py-2 text-sm text-destructive md:px-8" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
+        <PanelHeader mark={shell?.activity.state ?? 'idle'} status={shell?.activity.status ?? ''} historyOpen={listOpen} onHistory={toggleList} onNew={() => void createConversation().catch(cause => setError(chatErrorMessage(cause)))} panelControls={panelControls} historyRef={historyToggle} />
+     {error && <p className="flex items-start gap-2 border-b px-4 py-2 text-sm text-destructive md:px-8" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
 
         <div className="relative flex min-h-0 flex-1">
-          <aside id="agent-conversations" aria-label="Conversas" inert={!listOpen} aria-hidden={!listOpen} className="agent-chat-history absolute inset-0 z-20 min-h-0 w-full flex-col overflow-y-auto border-t bg-panel">
+          <aside id="agent-conversations" aria-label="Conversas" inert={!listOpen} aria-hidden={!listOpen} className="agent-chat-history absolute inset-0 z-20 min-h-0 w-full flex-col overflow-y-auto border-t bg-pane">
               {loading && conversations.length === 0 ? (
                 <div className="grid gap-2 p-3" aria-hidden="true">
                   <Skeleton className="h-16 w-full rounded-md" />
@@ -976,40 +810,12 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
 
         </div>
       </div>
+      </PlanLinksContext>
       </DocumentLinksContext.Provider>
     </TooltipProvider></UserNameContext>
   );
 }
 
-function ConversationCards({ conversations, selectedId, onSelect, onDelete }: {
-  conversations: Conversation[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  return (
-    <div className="min-h-0 flex-1 overflow-y-auto p-3">
-      {conversations.length === 0 && <p className="px-2 py-6 text-sm text-subtle-foreground">Seu histórico aparecerá aqui.</p>}
-      <div className="grid gap-0.5">
-        {conversations.map((conversation) => (
-          <div key={conversation.id} className="relative">
-            <button
-              type="button"
-              onClick={() => onSelect(conversation.id)}
-              aria-current={selectedId === conversation.id ? "page" : undefined}
-              className={cn(
-                "grid w-full gap-1 rounded-md p-3 pr-11 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
-                selectedId === conversation.id && "bg-brand-soft hover:bg-brand-soft",
-              )}
-            >
-              <span className="truncate text-sm font-medium">{conversation.title || "Nova conversa"}</span>
-              {/* Relative labels can cross a minute boundary while the HTML is in transit. */}
-              <span suppressHydrationWarning className="text-[13px] text-subtle-foreground">{formatConversationTime(conversation.updatedAt)}</span>
-            </button>
-            <Button variant="ghost" size="icon-sm" className="absolute top-2 right-2 size-11 md:size-7" onClick={() => onDelete(conversation.id)} aria-label={`Excluir ${conversation.title || "conversa"}`}><Trash2 /></Button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function ConversationCards(props: { conversations: Conversation[]; selectedId: string | null; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
+  return <ConversationList {...props} className="p-2" />;
 }

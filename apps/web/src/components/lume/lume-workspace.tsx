@@ -2,9 +2,9 @@
 
 import { documentKey } from '@/lib/document-ref';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Columns2, Maximize2, Minimize2, PanelLeftClose, X } from 'lucide-react';
+import { Columns2, Maximize2, Minimize2, PanelLeftClose } from 'lucide-react';
 import { AgentChat } from '@/components/agent-chat';
 import { AiDataNotice } from '@/components/legal-gate';
 import { LumeMark } from '@/components/lume-mark';
@@ -13,7 +13,8 @@ import { authClient } from '@/lib/auth-client';
 import type { Modalities } from '@/lib/ai-modalities';
 import { CanvasResourceReadError, canonicalCanvasHref, LumeWorkspaceController, moduleResource, resourceKey, restoreTabHrefs, tabStorageKey, type CanvasResource, type PanelMode, type ResourceAccess } from '@/lib/lume-workspace';
 import { WorkspaceContext, type WorkspaceActions } from './workspace-context';
-import { WorkspaceMenu, type WorkspaceMenuProps } from './workspace-menu';
+import type { WorkspaceMenuProps } from './workspace-menu';
+import { OfficeShell } from '@/components/shell/office-shell';
 
 const subscribeMobile = (listener: () => void) => {
   const media = window.matchMedia('(max-width: 767px)');
@@ -51,8 +52,7 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
   const [restored, setRestored] = useState(false);
   const { saveOpen, invalidate: invalidateDraft } = useDocumentDrafts();
   const sender = useRef<((text: string) => void) | null>(null);
-  const panel = useRef<HTMLElement>(null);
-  const canvas = useRef<HTMLElement>(null);
+
   const storageKey = tabStorageKey(identity.userId, identity.officeId);
   const allowedModule = useCallback((value: string) => {
     const resource = moduleResource(value);
@@ -89,12 +89,14 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
     if (!target) return false;
     if (!await saveOpen()) { setError('Não foi possível salvar o documento. Suas alterações continuam no editor.'); return false; }
     setError('');
-    if (target !== controller.getSnapshot().href) controller.dispatch({ type: 'destination', href: target, resource: null, explicit: true });
+    const resource = allowedModule(target);
+    if (target !== controller.getSnapshot().href) controller.dispatch({ type: 'destination', href: target, resource, explicit: true });
+    if (resource) controller.dispatch({ type: 'authorized', resource });
     if (controller.getSnapshot().mode === 'focused') controller.dispatch({ type: 'mode', mode: 'floating' });
     controller.dispatch({ type: 'mobile', mobile: 'canvas' });
     router.push(requested, { scroll: false });
     return true;
-  }, [controller, router, saveOpen]);
+  }, [allowedModule, controller, router, saveOpen]);
 
   const clearRevokedDrafts = useCallback((previousTabs: CanvasResource[], resource: CanvasResource | null) => {
     const retained = controller.getSnapshot().tabs;
@@ -137,12 +139,20 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
     try {
       const resource = await resolveResource(requested);
       if (!resource) return;
-      if (controller.getSnapshot().resource?.href === resource.href) return;
+      if (controller.getSnapshot().resource?.href === resource.href) {
+        if (navigation === undefined && canContinue()) {
+          setError('');
+          if (controller.getSnapshot().mode === 'focused') controller.dispatch({ type: 'mode', mode: 'floating' });
+          controller.dispatch({ type: 'mobile', mobile: 'canvas' });
+        }
+        return;
+      }
       if (!canContinue()) return;
       if (!await saveOpen()) { setError('Salve ou resolva o conflito do documento antes de abrir outro recurso.'); return; }
       if (!canContinue()) return;
       setError('');
-      controller.dispatch({ type: 'destination', href: resource.href, resource: null, explicit: true });
+      controller.dispatch({ type: 'destination', href: resource.href, resource: resource.kind === 'module' ? resource : null, explicit: true });
+      if (resource.kind === 'module') controller.dispatch({ type: 'authorized', resource });
       if (controller.getSnapshot().mode === 'focused') controller.dispatch({ type: 'mode', mode: 'floating' });
       controller.dispatch({ type: 'mobile', mobile: 'canvas' });
       router.push(resource.href, { scroll: false });
@@ -206,76 +216,30 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
   const canvasHidden = mobile ? state.mobile !== 'canvas' : state.mode === 'focused';
   useLayoutEffect(() => {
     const active = document.activeElement;
-    if (chatHidden && panel.current?.contains(active)) canvas.current?.focus();
-    if (canvasHidden && canvas.current?.contains(active)) panel.current?.focus();
+    const panel = document.getElementById('lume-panel');
+    const canvas = document.getElementById('main-content');
+    if (chatHidden && panel?.contains(active)) canvas?.focus();
+    if (canvasHidden && canvas?.contains(active)) panel?.focus();
   }, [chatHidden, canvasHidden]);
 
   function mode(next: PanelMode) {
-    controller.dispatch({ type: 'mode', mode: next });
-    requestAnimationFrame(() => (next === 'collapsed' ? canvas.current : panel.current)?.focus());
+    controller.dispatch({ type: 'mode', mode: mobile ? 'floating' : next });
+    if (mobile) controller.dispatch({ type: 'mobile', mobile: next === 'collapsed' ? 'canvas' : 'chat' });
+    requestAnimationFrame(() => document.getElementById(next === 'collapsed' ? 'main-content' : 'lume-panel')?.focus());
   }
   const panelControls = <>
     <button type="button" className="lume-icon" aria-label={state.mode === 'focused' ? 'Voltar ao painel flutuante' : 'Ampliar conversa'} onClick={() => mode(state.mode === 'focused' ? 'floating' : 'focused')}>{state.mode === 'focused' ? <Minimize2 /> : <Maximize2 />}</button>
     <button type="button" className="lume-icon" aria-label="Recolher o Lume" onClick={() => mode('collapsed')}><PanelLeftClose /></button>
   </>;
-  async function closeTab(resource: CanvasResource) {
-    const key = resourceKey(resource);
-    if (state.href === resource.href) {
-      const index = state.tabs.findIndex(tab => resourceKey(tab) === key);
-      const next = state.tabs[index + 1] ?? state.tabs[index - 1];
-      if (!await navigate(next?.href ?? '/app/command-center')) return;
-    }
-    controller.dispatch({ type: 'close', key });
-  }
-  function interceptLink(event: MouseEvent<HTMLDivElement>) {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const link = (event.target as Element).closest<HTMLAnchorElement>('a[href]');
-    if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
-    if (link.getAttribute('href')?.startsWith('#')) return;
-    const target = new URL(link.href, window.location.href);
-    if (target.origin !== window.location.origin || !target.pathname.startsWith('/app')) return;
-    const destination = target.pathname === '/app' ? '/app/command-center' : target.pathname + target.search;
-    if (!canonicalCanvasHref(destination)) return;
-    event.preventDefault(); event.stopPropagation();
-    void navigate(destination);
-  }
-
   return <WorkspaceContext value={actions}>
-    <div className="lume-workspace" data-mode={state.mode} data-mobile-surface={state.mobile} onClickCapture={interceptLink}>
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-background focus:p-3" onClick={event => {
-        event.preventDefault();
-        if (controller.getSnapshot().mode === 'focused') controller.dispatch({ type: 'mode', mode: 'floating' });
-        controller.dispatch({ type: 'mobile', mobile: 'canvas' });
-        requestAnimationFrame(() => document.getElementById('main-content')?.focus());
-      }}>Ir para o canvas</a>
-      <aside ref={panel} className="lume-panel" aria-label="Lume" tabIndex={-1} inert={chatHidden} aria-hidden={chatHidden}>
-        {!aiNoticeAccepted && <header className="lume-panel-header">
-          <LumeMark width={21} height={21} aria-hidden="true" /><span className="font-medium">Lume</span>
-          <div className="ml-auto flex gap-1">
-            <button type="button" className="lume-icon" aria-label={state.mode === 'focused' ? 'Voltar ao painel flutuante' : 'Ampliar conversa'} onClick={() => mode(state.mode === 'focused' ? 'floating' : 'focused')}>{state.mode === 'focused' ? <Minimize2 /> : <Maximize2 />}</button>
-            <button type="button" className="lume-icon" aria-label="Recolher o Lume" onClick={() => mode('collapsed')}><PanelLeftClose /></button>
-          </div>
-        </header>}
+    <OfficeShell userId={identity.userId} officeId={identity.officeId} {...menu}
+      lume={<>
+        {!aiNoticeAccepted && <header className="lume-panel-header"><LumeMark width={22} height={22} /><span className="font-medium">Lume</span><div className="ml-auto flex gap-1">{panelControls}</div></header>}
         {aiNoticeAccepted ? <AgentChat identityKey={`${identity.userId}:${identity.officeId}`} displayName={menu.person.name} modalities={modalities} panelControls={panelControls} /> : <div className="min-h-0 flex-1 overflow-y-auto"><AiDataNotice /></div>}
         {state.mode === 'focused' && <button type="button" className="lume-open-canvas" onClick={() => mode('floating')}><Columns2 className="size-4" />Abrir canvas</button>}
-      </aside>
-      <section ref={canvas} className="lume-canvas" aria-label="Canvas do escritório" tabIndex={-1} inert={canvasHidden} aria-hidden={canvasHidden}>
-        <WorkspaceMenu {...menu}>
-          {state.mode === 'collapsed' && <button type="button" className="lume-orb" aria-label="Abrir o Lume" onClick={() => mode('floating')}><LumeMark width={21} height={21} /></button>}
-          <nav className="lume-tabs" aria-label="Abas do canvas">
-            {state.tabs.map(tab => <div className="lume-tab" key={resourceKey(tab)} data-active={tab.href === state.href || undefined}>
-              <button type="button" aria-current={tab.href === state.href ? 'page' : undefined} onClick={() => void navigate(tab.href)} onMouseEnter={() => router.prefetch(tab.href)} onFocus={() => router.prefetch(tab.href)} title={tab.title}>{tab.title}</button>
-              <button type="button" aria-label={`Fechar aba ${tab.title}`} onClick={() => void closeTab(tab)}><X className="size-3.5" /></button>
-            </div>)}
-          </nav>
-        </WorkspaceMenu>
-        {error && <p className="px-5 py-2 text-sm text-destructive" role="alert">{error}</p>}
-        <main id="main-content" tabIndex={-1} className="lume-canvas-content">{state.revokedHref === state.href ? <p className="px-5 py-4 text-sm">Este recurso não está mais disponível. Abra outro destino no canvas.</p> : children}</main>
-      </section>
-      <nav className="lume-mobile-switch" aria-label="Alternar conversa e canvas">
-        <button type="button" aria-pressed={state.mobile === 'chat'} onClick={() => { controller.dispatch({ type: 'mobile', mobile: 'chat' }); requestAnimationFrame(() => panel.current?.focus()); }}><LumeMark width={18} height={18} />Lume</button>
-        <button type="button" aria-pressed={state.mobile === 'canvas'} onClick={() => { controller.dispatch({ type: 'mobile', mobile: 'canvas' }); requestAnimationFrame(() => canvas.current?.focus()); }}><Columns2 className="size-4" />Canvas</button>
-      </nav>
-    </div>
+      </>}>
+      {state.revokedHref === state.href ? <p className="px-5 py-4 text-sm">Este recurso não está mais disponível. Abra outro destino no canvas.</p> : children}
+    </OfficeShell>
+    {error && <p className="fixed bottom-4 right-4 z-50 rounded-lg border bg-popover p-4 text-sm text-destructive" role="alert">{error}</p>}
   </WorkspaceContext>;
 }

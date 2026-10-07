@@ -1,7 +1,14 @@
 'use client';
 
+import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
 import { Button } from '@/components/ui/button';
 
 export default function ProfileError({ retry, reset }: { retry?: () => void; reset?: () => void }) {
-  return <div className="grid w-full max-w-5xl justify-items-start gap-5 px-5 py-6 md:px-10 md:py-10"><h1 className="page-title max-md:sr-only">Perfil</h1><p role="alert" className="text-sm text-destructive">Não foi possível abrir seu perfil.</p><Button className="min-h-11" variant="outline" onClick={retry ?? reset}>Tentar novamente</Button></div>;
+  return <CanvasPage width="wide">
+    <CanvasHeader title="Perfil" />
+    <div className="flex flex-wrap items-center gap-3">
+      <p role="alert" className="text-[13.5px] text-destructive">Não foi possível abrir seu perfil.</p>
+      <Button variant="outline" size="lg" className="h-11 md:h-[34px]" onClick={retry ?? reset}>Tentar novamente</Button>
+    </div>
+  </CanvasPage>;
 }

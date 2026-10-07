@@ -1,54 +1,83 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Download, Info } from 'lucide-react';
 import { requirePlatformPage } from '@/lib/platform';
 import { platformFeedback } from '@/lib/feedback-core';
 import { preferenceLabels, ratingCriteria } from '@/lib/feedback-contract';
+import { DataTable } from '@/components/canvas/canvas-controls';
+import { Button } from '@/components/ui/button';
+import { AdminBar, AdminBlock, AdminBlockHead, AdminDetailHead, AdminFact, AdminFacts, AdminFooter, AdminGrid, AdminNote, adminButton } from '@/components/admin/admin-blocks';
+import { AdminMeta } from '@/components/admin/admin-meta';
 
 export const metadata = { title: 'Histórico A/B' };
+
+const exports = [
+  { href: '/api/platform/feedback', label: 'Exportar avaliações em JSON' },
+  { href: '/api/platform/feedback?format=dataset', label: 'Exportar base para avaliação e curadoria' },
+  { href: '/api/platform/feedback?history=1', label: 'Exportar histórico das rodadas' },
+];
 
 export default async function PlatformFeedbackHistoryPage() {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const data = await platformFeedback(context.db, context.user.id);
   const name = (key: string) => data.models.find(model => model.key === key)?.name ?? key;
-  return <section>
-    <Link href="/app/admin/feedback" className="inline-flex min-h-11 items-center rounded-md text-muted-foreground text-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 md:min-h-0">← Feedback</Link>
-    <header className="mt-5 flex flex-wrap items-center justify-between gap-4"><h2 className="font-serif text-2xl">Histórico A/B</h2>
-      <a download className="inline-flex min-h-11 items-center rounded-md border px-4 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback">Exportar avaliações em JSON</a>
-    </header>
-    {/* The two links wrap as a row with a gap, so the second one starts at the edge when it drops
-        to its own line instead of keeping the indent it has beside the first. */}
-    <div className="mt-4 border-b pb-4 text-sm">
-      <div className="flex flex-wrap gap-x-4">
-        <a download className="inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback?format=dataset">Exportar base para avaliação e curadoria</a>
-        <a download className="inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2" href="/api/platform/feedback?history=1">Exportar histórico das rodadas</a>
-      </div>
-      <p className="max-w-3xl text-xs text-muted-foreground">Inclui contexto, arquivos, origem e avaliações com autorização de uso, sem nomes ou escritórios. Preferências precisam de revisão antes de treinamento; respostas para SFT precisam de revisão especializada. Saídas da Meta e Inception ficam restritas à avaliação até revisão dos termos aplicáveis.</p>
-    </div>
-    <p className="mt-4 text-sm text-muted-foreground">{data.title} · {data.votes.length} {data.votes.length === 1 ? 'avaliação' : 'avaliações'} · Um voto por usuário, antes da revelação dos modelos.</p>
-    <p className="mt-2 text-xs text-muted-foreground">Notas de 1 a 5. “Não avaliei” não entra na média. Preferências de usuários deste piloto não equivalem à pontuação oficial do Harvey LAB.</p>
-    {data.votes.length === 0 ? <div className="py-12"><p className="text-muted-foreground">Nenhuma avaliação recebida.</p></div> : <>
-      <div className="mt-8 overflow-x-auto"><table className="w-full text-left text-sm">
-        <caption className="sr-only">Preferências e médias por modelo</caption>
-        <thead className="border-b text-xs text-muted-foreground"><tr><th className="py-3 pr-5 font-normal">Modelo</th><th className="px-4 py-3 font-normal">Comparações</th><th className="px-4 py-3 font-normal">Preferências</th>{ratingCriteria.map(c => <th key={c.key} className="px-4 py-3 font-normal">{c.label}</th>)}</tr></thead>
-        <tbody>{data.models.map(model => <tr key={model.key} className="border-b"><th className="py-5 pr-5 font-medium">{model.name}</th><td className="px-4 py-5">{data.votes.filter(v => v.assessments.some(a => a.model === model.key)).length}</td><td className="px-4 py-5">{data.votes.filter(v => v.preferredModel === model.key).length}</td>
-          {ratingCriteria.map(c => {
-            const values = data.votes.flatMap(v => v.assessments.filter(a => a.model === model.key).map(a => a[c.key])).filter((v): v is number => v !== null);
-            return <td key={c.key} className="whitespace-nowrap px-4 py-5 tabular-nums">{values.length ? `${(values.reduce((sum, v) => sum + v, 0) / values.length).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} / 5` : 'Sem notas'}<span className="mt-1 block text-xs text-muted-foreground">{values.length} notas</span></td>;
-          })}</tr>)}</tbody>
-      </table></div>
-      <p className="mt-4 text-sm text-muted-foreground">{(['tie', 'neither', 'unsure'] as const).map(key => `${preferenceLabels[key]}: ${data.votes.filter(v => v.preference === key).length}`).join(' · ')}</p>
-      <h2 className="mt-10 mb-3 font-medium">Comentários e notas individuais</h2>
-      <div className="divide-y">{data.votes.map(vote => <article key={vote.id} className="py-5">
-        <div className="flex flex-wrap justify-between gap-2"><h3 className="text-sm font-medium">{vote.userName} · {vote.officeName}</h3><span className="text-xs text-muted-foreground">{vote.createdAt} UTC</span></div>
-        <p className="mt-2 text-sm">Preferência: {vote.preferredModel ? name(vote.preferredModel) : preferenceLabels[vote.preference]}</p>
-        {vote.comment && <p className="mt-3 whitespace-pre-wrap break-words text-sm">{vote.comment}</p>}
-        <div className="mt-4 grid gap-5 md:grid-cols-2">{vote.assessments.map(assessment => <div key={assessment.side} className="min-w-0 text-sm">
-          <h4 className="font-medium">{name(assessment.model)} <span className="font-normal text-muted-foreground">(Resposta {assessment.side.toUpperCase()})</span></h4>
-          <dl className="mt-2 grid grid-cols-2 gap-2 text-xs">{ratingCriteria.map(c => <div key={c.key}><dt className="text-muted-foreground">{c.label}</dt><dd>{assessment[c.key] ?? 'Não avaliei'}</dd></div>)}</dl>
-          <p className="mt-3 whitespace-pre-wrap break-words">{assessment.comment || 'Sem comentário sobre esta resposta.'}</p>
-        </div>)}</div>
-      </article>)}</div>
-    </>}
-  </section>;
+  const scores = (model: string, criterion: typeof ratingCriteria[number]['key']) => data.votes
+    .flatMap(vote => vote.assessments.filter(assessment => assessment.model === model).map(assessment => assessment[criterion]))
+    .filter((value): value is number => value !== null);
+  const average = (values: number[]) => values.length
+    ? `${(values.reduce((sum, value) => sum + value, 0) / values.length).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} / 5`
+    : 'Sem notas';
+  return <>
+    <AdminMeta title="Histórico A/B" />
+    <AdminDetailHead back={{ href: '/app/admin/feedback', label: 'Voltar para feedback' }} title="Histórico A/B"
+      sub={`${data.title} · ${data.votes.length} ${data.votes.length === 1 ? 'avaliação' : 'avaliações'} · Um voto por usuário, antes da revelação dos modelos.`} />
+    <AdminGrid>
+      <AdminBlock label="Exportar">
+        <AdminBar actions={exports.map(item => (
+          <Button key={item.href} asChild variant="outline" className={adminButton}><a download href={item.href}><Download aria-hidden />{item.label}</a></Button>
+        ))} />
+        <AdminNote icon={Info}>Inclui contexto, arquivos, origem e avaliações com autorização de uso, sem nomes ou escritórios. Preferências precisam de revisão antes de treinamento; respostas para SFT precisam de revisão especializada. Saídas da Meta e Inception ficam restritas à avaliação até revisão dos termos aplicáveis.</AdminNote>
+      </AdminBlock>
+      <AdminBlock labelledBy="ab-models">
+        <AdminBlockHead id="ab-models" title="Preferências e médias por modelo" sub="Notas de 1 a 5. “Não avaliei” não entra na média. Preferências de usuários deste piloto não equivalem à pontuação oficial do Harvey LAB." />
+        {data.votes.length === 0 ? <p className="text-[13.5px] text-muted-foreground">Nenhuma avaliação recebida.</p> : <>
+          <DataTable label="Preferências e médias por modelo" tall rows={data.models} rowKey={model => model.key} columns={[
+            { header: 'Modelo', width: 'minmax(0, 1fr)', strong: true, cell: model => model.name },
+            { header: 'Comparações', width: '96px', align: 'end', mono: true, phone: false, cell: model => data.votes.filter(vote => vote.assessments.some(assessment => assessment.model === model.key)).length },
+            { header: 'Preferências', width: '96px', align: 'end', mono: true, phone: false, cell: model => data.votes.filter(vote => vote.preferredModel === model.key).length },
+            ...ratingCriteria.map(criterion => ({
+              header: criterion.label, width: '104px', align: 'end' as const, mono: true,
+              cell: (model: { key: string }) => average(scores(model.key, criterion.key)),
+              sub: (model: { key: string }) => { const total = scores(model.key, criterion.key).length; return `${total} ${total === 1 ? 'nota' : 'notas'}`; },
+            })),
+          ]} />
+          <AdminFooter>{(['tie', 'neither', 'unsure'] as const).map(key => `${preferenceLabels[key]}: ${data.votes.filter(vote => vote.preference === key).length}`).join(' · ')}</AdminFooter>
+        </>}
+      </AdminBlock>
+      {data.votes.length > 0 && <AdminBlock card labelledBy="ab-votes">
+        <AdminBlockHead id="ab-votes" title="Comentários e notas individuais" />
+        <div className="flex flex-col">
+          {data.votes.map(vote => (
+            <article key={vote.id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="text-sm font-medium">{vote.userName} · {vote.officeName}</h3>
+                <span className="font-mono text-[12.5px] text-muted-foreground">{vote.createdAt} UTC</span>
+              </div>
+              <p className="text-[13.5px]">Preferência: {vote.preferredModel ? name(vote.preferredModel) : preferenceLabels[vote.preference]}</p>
+              {vote.comment && <p className="text-[13.5px] break-words whitespace-pre-wrap">{vote.comment}</p>}
+              <div className="grid gap-3 md:grid-cols-2">
+                {vote.assessments.map(assessment => (
+                  <div key={assessment.side} className="flex min-w-0 flex-col gap-2.5 rounded-md bg-muted p-3">
+                    <h4 className="text-[13.5px] font-medium">{name(assessment.model)} <span className="font-normal text-muted-foreground">(Resposta {assessment.side.toUpperCase()})</span></h4>
+                    <AdminFacts>{ratingCriteria.map(criterion => <AdminFact key={criterion.key} label={criterion.label} mono>{assessment[criterion.key] ?? 'Não avaliei'}</AdminFact>)}</AdminFacts>
+                    <p className="text-[13.5px] break-words whitespace-pre-wrap">{assessment.comment || 'Sem comentário sobre esta resposta.'}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </AdminBlock>}
+    </AdminGrid>
+  </>;
 }

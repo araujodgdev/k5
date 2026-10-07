@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canvasContextSchema } from './canvas-protocol';
 import { messageScopeSchema } from './chat-scope';
 
 const messageSchema = z.object({ id: z.string(), role: z.enum(['user', 'assistant', 'system']), parts: z.array(z.object({ type: z.string(), text: z.string().refine((text) => text.length <= 20000, 'Escreva uma mensagem de até 20 mil caracteres.').optional() }).passthrough()).max(100) });
@@ -17,6 +18,7 @@ export const chatRequestSchema = z.object({
   messageId: z.string().optional(),
   sharedProposalId: z.string().uuid().nullish(),
   timeZone: z.string().max(80).optional(),
+  canvas: canvasContextSchema.optional().catch(undefined),
   canvasHref: z.string().max(2048).optional(),
   document: messageScopeSchema.shape.document,
   selection: messageScopeSchema.shape.selection,

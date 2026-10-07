@@ -1,3 +1,5 @@
+import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
+
 export default function TutorialLoading() {
-  return <p role="status" className="px-5 py-6 text-sm text-muted-foreground md:px-10 md:py-10">Carregando tutoriais…</p>;
+  return <CanvasPage><CanvasHeader title="Tutoriais do Lume" /><p role="status" className="text-[13.5px] text-muted-foreground">Carregando tutoriais…</p></CanvasPage>;
 }

@@ -1,23 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, FileText, LoaderCircle, RotateCw, Trash2, Upload } from "lucide-react";
+import { LoaderCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { FileItem } from "@/components/casos/case-items";
 import { approveAndRun } from "@/lib/approve-and-run";
 import type { VaultDocument } from "@/lib/vault";
 import { documentPageSize, fetchVaultDocumentPage } from '@/lib/vault-document-page';
 import { MAX_UPLOAD_BYTES, UPLOAD_SIZE_ERROR } from '@/lib/vault-upload-contract';
-
-// 44px on touch, compact from md up.
-export const touchIcon = "size-11 md:size-8";
-
-export function stateLabel(document: VaultDocument) {
-  if (document.status === "queued") return "Na fila";
-  if (document.status === "processing") return `Processando ${document.progress}%`;
-  if (document.status === "ready") return "Pronto";
-  return document.errorMessage ? `Falhou: ${document.errorMessage}` : "Falhou";
-}
 
 export function usePolledDocuments(query: string, initial: VaultDocument[], initialTotal: number) {
   const [documents, setDocuments] = useState(initial);
@@ -70,14 +60,15 @@ export function usePolledDocuments(query: string, initial: VaultDocument[], init
       next: () => refresh(offset + documentPageSize), retry: () => refresh(failedOffset.current ?? offset) } };
 }
 
+/** Under the files: where the list is, and the way to the next 50 when there are more. */
 export function DocumentPagination({ total, offset, loading, error, previous, next, retry }: ReturnType<typeof usePolledDocuments>['pagination']) {
-  return <div className="mt-4 space-y-2">
-    {error && <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">{error}<Button variant="outline" onClick={() => void retry()} disabled={loading}>Tentar novamente</Button></div>}
-    <nav aria-label="Páginas de arquivos" className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-      <p role="status" className="text-sm text-muted-foreground">{loading ? 'Carregando arquivos…' : total ? `${offset + 1}–${Math.min(offset + documentPageSize, total)} de ${total} arquivos` : '0 arquivos'}</p>
+  return <div className="flex flex-col gap-2">
+    {error && <div role="alert" className="flex flex-wrap items-center gap-2 text-[13px] text-destructive">{error}<Button variant="outline" className="max-md:h-11" onClick={() => void retry()} disabled={loading}>Tentar novamente</Button></div>}
+    <nav aria-label="Páginas de arquivos" className="flex flex-wrap items-center justify-between gap-3">
+      <p role="status" className="text-[12.5px] text-muted-foreground">{total <= documentPageSize ? '' : loading ? 'Carregando arquivos…' : `${offset + 1}–${Math.min(offset + documentPageSize, total)} de ${total} arquivos`}</p>
       {total > documentPageSize && <div className="flex gap-2">
-        <Button variant="outline" className="min-h-11" disabled={loading || offset === 0} onClick={() => void previous()}>Anterior</Button>
-        <Button variant="outline" className="min-h-11" disabled={loading || offset + documentPageSize >= total} onClick={() => void next()}>Próxima</Button>
+        <Button variant="ghost" className="max-md:h-11" disabled={loading || offset === 0} onClick={() => void previous()}>Anterior</Button>
+        <Button variant="ghost" className="max-md:h-11" disabled={loading || offset + documentPageSize >= total} onClick={() => void next()}>Próxima</Button>
       </div>}
     </nav>
   </div>;
@@ -135,6 +126,8 @@ export function UploadControl({ scope, caseId, folderId, disabled, onUploaded, o
         ref={input}
         type="file"
         multiple
+        aria-label="Arquivos para enviar"
+        tabIndex={-1}
         className="sr-only"
         accept=".pdf,.docx,.eml,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp"
         onChange={(event) => {
@@ -143,31 +136,31 @@ export function UploadControl({ scope, caseId, folderId, disabled, onUploaded, o
           if (files.length) void send(files);
         }}
       />
-      <Button type="button" variant="outline" disabled={busy || disabled} onClick={() => input.current?.click()}>
-        {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload aria-hidden="true" />}
+      <Button type="button" variant="ghost" className="text-muted-foreground max-md:h-11" disabled={busy || disabled} onClick={() => input.current?.click()}>
+        {busy ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Upload aria-hidden="true" className="size-3.5" />}
         <span aria-live="polite">{progress ? (progress.total > 1 ? `Enviando ${progress.current} de ${progress.total}…` : "Enviando…") : "Enviar arquivos"}</span>
       </Button>
     </>
   );
 }
 
-export function DocumentRows({ documents, showOrigin, onRetried, onDeleted, onError, empty }: {
-  documents: VaultDocument[];
-  showOrigin?: boolean;
+/** Retrying and deleting a file, for the grids that show files. */
+export function documentActions({ onRetried, onDeleted, onError }: {
   onRetried: (documentId: string) => void;
   onDeleted: (documentId: string) => void;
   onError: (message: string) => void;
-  empty: string;
 }) {
   async function retry(documentId: string) {
     onError("");
-    const response = await fetch(`/api/vault/documents/${documentId}/retry`, { method: "POST" });
-    if (!response.ok) {
-      const result = await response.json().catch(() => null) as { error?: string } | null;
-      onError(result?.error ?? "Não foi possível reenviar o documento.");
-      return;
-    }
-    onRetried(documentId);
+    try {
+      const response = await fetch(`/api/vault/documents/${documentId}/retry`, { method: "POST" });
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { error?: string } | null;
+        onError(result?.error ?? "Não foi possível reenviar o documento.");
+        return;
+      }
+      onRetried(documentId);
+    } catch { onError("Não foi possível conectar. Confira sua conexão."); }
   }
 
   async function remove(documentId: string) {
@@ -182,57 +175,23 @@ export function DocumentRows({ documents, showOrigin, onRetried, onDeleted, onEr
     onDeleted(documentId);
   }
 
-  if (!documents.length) return <p className="py-10 text-sm text-subtle-foreground">{empty}</p>;
-
-  const columns = showOrigin ? "md:grid-cols-[minmax(240px,1fr)_150px_120px_130px]" : "md:grid-cols-[minmax(240px,1fr)_120px_130px]";
-  return (
-    <div>
-      <div className={`hidden gap-4 border-b pb-2 text-[13px] text-muted-foreground md:grid ${columns}`}>
-        <span>Documento</span>{showOrigin && <span>Destino</span>}<span>Estado</span><span className="text-right">Ações</span>
-      </div>
-      {documents.map((document) => (
-        <div key={document.id} className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 border-b py-2 text-sm md:py-3 ${columns}`}>
-          <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2"><FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate">{document.name}</span></div>
-            <p className={`mt-0.5 truncate pl-6 text-[13px] md:hidden ${document.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}>
-              {showOrigin ? `${document.caseName ?? "Biblioteca"} · ` : ""}{stateLabel(document)}
-            </p>
-          </div>
-          {showOrigin && <span className="hidden truncate text-muted-foreground md:block">{document.caseName ?? "Biblioteca"}</span>}
-          <span className={`hidden md:block ${document.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}>{stateLabel(document)}</span>
-          <div className="flex justify-end gap-1">
-            <Button asChild variant="ghost" size="icon-sm" className={touchIcon}>
-              <a href={`/api/vault/documents/${document.id}/download`} aria-label={`Baixar ${document.name}`}><Download aria-hidden="true" /></a>
-            </Button>
-            {(document.status === "failed" || document.status === "queued") && (
-              <Button type="button" variant="ghost" size="icon-sm" className={touchIcon} onClick={() => void retry(document.id)} aria-label={`Reenviar ${document.name}`}><RotateCw aria-hidden="true" /></Button>
-            )}
-            <DocumentDelete name={document.name} onConfirm={() => void remove(document.id)} />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  return { retry, remove };
 }
 
-function DocumentDelete({ name, onConfirm }: { name: string; onConfirm: () => void }) {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button type="button" variant="ghost" size="icon-sm" className={touchIcon} aria-label={`Excluir ${name}`}><Trash2 aria-hidden="true" /></Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Excluir {name}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            O arquivo sai do Cofre e da busca, e as versões anteriores vão junto. Não dá para desfazer.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={onConfirm}>Excluir documento</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
+/** The files of a page of results as items: a card on a desktop, a row on a phone. */
+export function DocumentItems({ documents, onRetried, onDeleted, onError }: {
+  documents: VaultDocument[];
+  onRetried: (documentId: string) => void;
+  onDeleted: (documentId: string) => void;
+  onError: (message: string) => void;
+}) {
+  const { retry, remove } = documentActions({ onRetried, onDeleted, onError });
+  return documents.map((document) => (
+    <FileItem key={document.id} document={document} onRetry={() => void retry(document.id)} onDelete={() => void remove(document.id)} />
+  ));
+}
+
+export function DocumentRows({ empty = 'Nenhum arquivo ainda.', view = 'cards', ...props }: React.ComponentProps<typeof DocumentItems> & { empty?: string; view?: 'cards' | 'list' }) {
+  if (!props.documents.length) return <p className="py-8 text-sm text-muted-foreground">{empty}</p>;
+  return <div className={view === 'list' ? 'vault-file-list grid gap-1' : 'grid grid-cols-[repeat(auto-fill,minmax(min(240px,100%),1fr))] gap-3'}><DocumentItems {...props} /></div>;
 }

@@ -47,10 +47,9 @@ test('páginas: criar no caso, editar, recarregar, restaurar e usar o canvas mó
   await expect(screen.getByRole('button', 'Restaurar').first()).toBeVisible();
   await browser.keyboard.press('Escape');
   await expect(screen.getByRole('button', 'Versões')).toBeFocused();
-  const switcher = screen.getByRole('navigation', 'Alternar conversa e canvas');
-  await switcher.getByRole('button', 'Lume').tap();
+  await screen.getByRole('button', 'Voltar ao Lume').tap();
   await screen.getByRole('textbox', 'Pergunte ao Lume').fill('Pedido mantido no celular');
-  await switcher.getByRole('button', 'Canvas').tap();
+  await screen.getByRole('button', 'Recolher o Lume').tap();
   await expect(editor).toContainText('Texto salvo pelos controles reais');
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
   await app.screenshot('pagina-compartilhada-mobile');
@@ -103,9 +102,9 @@ test('publicação: revisar uma cópia exata, manter o original particular e col
   await expect(editor).toContainText('Rascunho da participante');
   await owner.json('/api/collaboration', { json: { action: 'participant', caseId: record.id, userId: user.id, add: false } });
   for (const path of [pageApi(page), `${pageApi(page)}/versions`, `${pageApi(page)}/export`, `/api/canvas/resource?href=${encodeURIComponent(pageHref(page))}`]) expect((await guest.request(path)).status).toBe(404);
-  await screen.getByRole('navigation', 'Abas do canvas').getByRole('button', page.title, { exact: true }).tap();
+  await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', page.title, { exact: true }).tap();
   await expect(editor).toHaveCount(0);
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('button', page.title, { exact: true })).toHaveCount(0);
+  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('link', page.title, { exact: true })).toHaveCount(0);
   await app.screenshot('pagina-revogada');
 });
 
@@ -141,7 +140,7 @@ test('contrato frontend: página enviada fica congelada e resultado tardio não 
   await expect(screen.getByText('Página atualizada.', { exact: true })).toBeVisible();
   await expect(browser).toHaveURL(pageHref(second));
   await expect(screen.getByRole('textbox', 'Texto do documento')).toContainText('Edição humana na outra página');
-  await screen.getByRole('navigation', 'Abas do canvas').getByRole('button', first.title, { exact: true }).tap();
+  await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', first.title, { exact: true }).tap();
   await expect(screen.getByRole('textbox', 'Texto do documento')).toContainText('Resultado salvo antes da saída tardia');
   await app.screenshot('contrato-pagina-resultado-tardio');
 });

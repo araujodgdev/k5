@@ -85,3 +85,14 @@ export function useMessagePoll(load: (signal: AbortSignal) => Promise<void>, rel
 
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 export function messageDate(value: string) { return dateFormat.format(new Date(value)); }
+
+const timeFormat = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const dayFormat = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' });
+const dayKey = (date: Date) => date.toDateString();
+/** The time at the end of a conversation row: "10:42" today, "ontem", then "dd/mm". */
+export function messageWhen(value: string, now = new Date()) {
+  const date = new Date(value);
+  if (dayKey(date) === dayKey(now)) return timeFormat.format(date);
+  if (dayKey(date) === dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))) return 'ontem';
+  return dayFormat.format(date);
+}

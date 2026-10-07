@@ -1,3 +1,9 @@
 'use client';
-import { Button } from '@/components/ui/button';
-export default function Error({ reset }: { reset: () => void }) { return <div className="grid gap-4 p-8"><p role="alert">Não foi possível abrir os cálculos.</p><Button className="justify-self-start" onClick={reset}>Tentar novamente</Button></div>; }
+
+import { RouteError } from '@/components/agenda-detail';
+import { useReportError } from '@/lib/observability/use-report-error';
+
+export default function Error({ error, retry, reset }: { error: Error & { digest?: string }; retry?: () => void; reset?: () => void }) {
+  useReportError(error);
+  return <RouteError title="Cálculos" message="Não foi possível abrir os cálculos." retry={retry ?? reset} />;
+}

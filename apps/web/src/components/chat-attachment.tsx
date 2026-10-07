@@ -4,7 +4,7 @@ import type { ChatAttachment } from '@/lib/chat-attachment-contract';
 
 export function ChatAttachmentView({data,onRemove}:{data:ChatAttachment;onRemove?:()=>void}) {
   const href=`/api/chat/attachments/${encodeURIComponent(data.id)}`;
-  return <div className="relative min-w-0 max-w-full rounded-xl border bg-background p-2 text-foreground">
+  return <div className="relative min-w-0 max-w-full rounded-lg border bg-background p-2 text-foreground">
     <a href={href} target="_blank" rel="noreferrer" className="flex min-h-11 max-w-full items-center gap-2 rounded-md pr-6 outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Abrir anexo ${data.name}`}>
       {data.mediaType.startsWith('image/') ? <img src={href} alt={data.name} className="h-24 w-28 shrink-0 rounded-md object-cover" /> /* eslint-disable-line @next/next/no-img-element */
         : <FileText className="size-6 shrink-0 text-muted-foreground" aria-hidden="true" />}

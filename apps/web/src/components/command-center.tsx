@@ -2,13 +2,17 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Bell, CalendarDays, CheckSquare, FolderClosed, Plus, Wallet } from 'lucide-react';
+import { Bell, CalendarDays, CheckSquare, Plus, Wallet } from 'lucide-react';
 import { agendaCall } from '@/lib/agenda-client';
 import { localDate } from '@/lib/calendar-days';
 import { Button } from './ui/button';
 import type { AgendaActivity } from '@/lib/capabilities/agenda';
 import type { CapabilityOutput } from '@/lib/capabilities/contracts';
 import type { HomeOverview } from '@/lib/home-overview';
+
+import { LumeWorkList } from './inicio/lume-work';
+import { RecentCases } from './inicio/recent-cases';
+import type { LumeWork } from './inicio/types';
 
 type Overview = {
   tasks: CapabilityOutput<'k5_agenda_list_activities'>;
@@ -31,7 +35,7 @@ function DailyRow({ icon, title, detail, href, time, children }: { icon: ReactNo
   </div>;
 }
 
-export function CommandCenter() {
+export function CommandCenter({ lumeWork }: { lumeWork: LumeWork[] | null }) {
   const [data, setData] = useState<Partial<Overview>>({});
   const [pending, setPending] = useState(pendingSections);
   const [revision, setRevision] = useState(0);
@@ -71,13 +75,13 @@ export function CommandCenter() {
   const due = (day: string) => day === today ? 'hoje' : `atrasada · ${date(day)}`;
   const home = data.home;
   const dailyEmpty = data.tasks && home && data.fees && data.notifications && !data.tasks.activities.length && !home.tasks.length && !data.fees.installments.length && !data.notifications.notifications.length && !home.partial.tasks;
-  return <div className="min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
+  return <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-16 max-md:px-5 max-md:pt-5">
     <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div><h1 className="sr-only">Início</h1><p className="mb-2 text-sm text-muted-foreground">{today && new Date(`${today}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p><h2 className="text-3xl font-semibold tracking-tight">Hoje</h2></div>
+      <div><h1 className="sr-only">Início</h1><p className="mb-2 text-sm text-muted-foreground">{today && new Date(`${today}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p><h2 className="text-[26px] font-semibold tracking-[-0.02em]">Hoje</h2></div>
       <div className="flex gap-2"><Button variant="ghost" className="min-h-11" disabled={Object.values(pending).some(Boolean)} onClick={() => setRevision(value => value + 1)}>Atualizar</Button><Button asChild className="min-h-11"><Link href="/app/agenda?action=new"><Plus className="size-4" />Nova atividade</Link></Button></div>
     </header>
     {failure && <p role="alert" className="mb-4 text-sm text-destructive">{failure}</p>}
-    <section aria-label="Trabalho de hoje" className="mb-8">
+    <section aria-label="Trabalho de hoje" className="mb-8 max-w-[960px]">
       <p className="mb-2 text-xs text-muted-foreground">Tarefas e parcelas com prazo até hoje, e notificações novas.</p>
       {status('tasks', 'tarefas pessoais')}{status('home', 'casos e tarefas compartilhadas')}{status('fees', 'honorários')}{status('notifications', 'notificações')}
       {data.tasks?.activities.map(item => <DailyRow key={item.id} icon={<CheckSquare className="size-4" />} title={item.title} detail="Tarefa pessoal" href={`/app/agenda?activityId=${encodeURIComponent(item.id)}`} time={item.dueOn ? due(item.dueOn) : undefined}><input type="checkbox" aria-label={`Concluir ${item.title}`} disabled={busy !== null} checked={busy === item.id} onChange={() => void complete(item)} className="size-5 accent-primary" /></DailyRow>)}
@@ -93,11 +97,9 @@ export function CommandCenter() {
         {data.meetings && !data.meetings.activities.length && <p className="py-3 text-sm text-muted-foreground">Nenhuma reunião agendada.</p>}
       </div>
     </section>
-    <section aria-label="Casos recentes" className="mb-9"><header className="mb-3 flex items-center justify-between"><h2 className="font-medium">Casos recentes</h2><Link className={linkStyle} href="/app/vault">Ver todos</Link></header>
-      {status('home', 'casos recentes')}
-      {home && !home.cases.length && <p className="py-5 text-sm text-muted-foreground">Seus casos aparecerão aqui. Crie um caso no Cofre para começar.</p>}
-      <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">{home?.cases.map(item => <Link key={item.id} href={`/app/vault/cases/${encodeURIComponent(item.id)}`} className="min-w-0 rounded-xl border p-4 outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"><p className="flex min-w-0 items-center gap-2 text-sm font-medium"><FolderClosed className="size-4 shrink-0 text-muted-foreground" /><span className="truncate">{item.name}</span></p><p className="mt-3 line-clamp-3 min-h-12 break-words text-[13px] leading-5 text-muted-foreground">{item.description || 'Sem descrição.'}</p><p className="mt-4 text-xs text-muted-foreground">Atualizado em <time dateTime={item.updatedAt}>{new Date(item.updatedAt).toLocaleDateString('pt-BR')}</time></p></Link>)}</div>
-    </section>
+    {status('home', 'casos recentes')}
+    {home && <div className="mb-8"><RecentCases cases={home.cases.map(item => ({ ...item, summary: item.description ?? '', people: [] }))} now={today ? new Date() : null} /></div>}
+    <div className="mb-8"><LumeWorkList work={lumeWork} now={today ? new Date() : null} /></div>
     <section aria-label="Atividade recente"><h2 className="font-medium">Atividade recente</h2><p className="mt-2 text-xs text-muted-foreground">Páginas, acessos, arquivos e tarefas dos casos recentes disponíveis para você.</p>{status('home', 'atividade recente')}
       {home?.partial.activity && <p role="alert" className="py-3 text-sm text-destructive">A atividade de alguns casos não pôde ser carregada. Atualize para tentar novamente.</p>}
       {home && !home.activity.length && !home.partial.activity && <p className="py-5 text-sm text-muted-foreground">Nenhuma atividade disponível nos casos recentes.</p>}

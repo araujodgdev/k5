@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { CircleAlert, LoaderCircle } from 'lucide-react';
+import { DataTable, Kpi, KpiRow, type DataColumn } from '@/components/canvas/canvas-controls';
+import { CanvasSection } from '@/components/canvas/canvas-page';
 import { Button } from '@/components/ui/button';
 import { CREDIT_PACKAGES, formatCredits, MILLI, type CreditPackage } from '@/lib/billing/credit-pricing';
 import type { CreditEntryRow, CreditOverview } from '@/lib/billing/credits';
@@ -41,65 +43,43 @@ export function CreditsSection({ credits, configured, exempt }: { credits: Credi
 
   const empty = credits.balance <= 0 && !exempt;
   return (
-    <section aria-labelledby="credits" className="space-y-6" data-reveal>
-      <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
-        <div className="space-y-3">
-          <h2 id="credits" className="label-mono flex items-center gap-2.5 text-muted-foreground"><span className="square-dot" aria-hidden="true" />Créditos</h2>
-          <p className="display text-4xl md:text-5xl"><span className="tabular-nums">{formatCredits(credits.balance)}</span> créditos</p>
-          <p className="text-sm text-muted-foreground">
-            O plano inclui {credits.planMonthlyCredits.toLocaleString('pt-BR')} créditos por mês, e o que sobra continua no saldo.
-            {' '}Usados neste mês: <span className="tabular-nums">{formatCredits(credits.usedThisMonth)}</span>.
-          </p>
-          {exempt
-            ? <p className="text-sm">Como administrador da plataforma, seu uso não consome créditos.</p>
-            : empty && <p role="status" className="text-sm">Os créditos acabaram. A IA e a leitura de documentos digitalizados voltam assim que você comprar mais.</p>}
-        </div>
-        {configured && (
-          <div className="grid gap-2 md:w-80">
+    <CanvasSection title="Créditos" label="Créditos">
+      <KpiRow>
+        <Kpi label="Saldo" value={<>{formatCredits(credits.balance)} <span className="font-sans text-[13px] tracking-normal text-muted-foreground">créditos</span></>} />
+        <Kpi label="Usados neste mês" value={formatCredits(credits.usedThisMonth)} />
+        <Kpi label="Incluídos por mês" value={credits.planMonthlyCredits.toLocaleString('pt-BR')} />
+      </KpiRow>
+      <p className="text-[13.5px] text-muted-foreground">O plano inclui {credits.planMonthlyCredits.toLocaleString('pt-BR')} créditos por mês, e o que sobra continua no saldo.</p>
+      {exempt
+        ? <p className="text-[13.5px]">Como administrador da plataforma, seu uso não consome créditos.</p>
+        : empty && <p role="status" className="text-[13.5px]">Os créditos acabaram. A IA e a leitura de documentos digitalizados voltam assim que você comprar mais.</p>}
+      {configured && (
+        <div className="flex flex-col gap-2">
+          <div role="group" aria-label="Comprar créditos" className="flex flex-wrap gap-2">
             {CREDIT_PACKAGES.map(amount => (
-              <Button key={amount} variant="outline" size="lg" className="h-12 w-full justify-between px-4 text-[15px]" disabled={pending !== null} onClick={() => void buy(amount)}>
-                <span>{amount.toLocaleString('pt-BR')} créditos</span>
-                <span className="flex items-center gap-2 tabular-nums">
-                  {pending === amount ? <><span>Abrindo…</span><LoaderCircle className="size-4 animate-spin" aria-hidden="true" /></> : money(amount * credits.creditPriceCents)}
-                </span>
+              <Button key={amount} variant="outline" size="lg" className="h-11 gap-2 md:h-[34px]" disabled={pending !== null} onClick={() => void buy(amount)}>
+                {amount.toLocaleString('pt-BR')} créditos
+                <span className="font-mono text-[12.5px] text-muted-foreground">{pending === amount ? <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" aria-label="Abrindo pagamento" /> : money(amount * credits.creditPriceCents)}</span>
               </Button>
             ))}
-            <p className="text-[13px] text-subtle-foreground">Créditos comprados não vencem e continuam valendo mesmo sem plano ativo.</p>
-            {error && <p role="alert" className="flex items-center gap-2 text-[13px] text-destructive"><CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />{error}</p>}
           </div>
-        )}
-      </div>
+          <p className="text-xs text-muted-foreground">Créditos comprados não vencem e continuam valendo mesmo sem plano ativo.</p>
+          {error && <p role="alert" className="flex items-center gap-2 text-[13px] text-destructive"><CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />{error}</p>}
+        </div>
+      )}
       <CreditEntries entries={credits.entries} />
-    </section>
+    </CanvasSection>
   );
 }
 
-export function CreditEntries({ entries, showActor = false }: { entries: CreditEntryRow[]; showActor?: boolean }) {
-  if (!entries.length) return <p className="py-2 text-sm text-subtle-foreground">Nenhuma movimentação ainda.</p>;
-  return (
-    <table className="w-full text-sm">
-      <caption className="sr-only">Últimas movimentações de créditos</caption>
-      <thead className="text-left text-[13px] text-muted-foreground">
-        <tr className="border-b border-border">
-          <th scope="col" className="py-2 pr-4 font-normal">Data</th>
-          <th scope="col" className="py-2 pr-4 font-normal">Movimento</th>
-          <th scope="col" className="py-2 text-right font-normal">Créditos</th>
-        </tr>
-      </thead>
-      <tbody>
-        {entries.map(entry => (
-          <tr key={entry.id} className="border-b border-border align-top">
-            <td className="py-3 pr-4 whitespace-nowrap">{shortDay(entry.createdAt)}</td>
-            <td className="py-3 pr-4">
-              {creditEntryLabel(entry)}
-              {entry.kind === 'admin_grant' && entry.description && <span className="block text-[13px] text-muted-foreground">{entry.description}{showActor && entry.actorName ? ` · ${entry.actorName}` : ''}</span>}
-            </td>
-            <td className="py-3 text-right whitespace-nowrap tabular-nums">
-              {Math.abs(entry.amount) < MILLI / 10 ? '< 0,1' : signed(entry.amount)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+const entryColumns: DataColumn<CreditEntryRow>[] = [
+  { header: 'Data', width: '96px', mono: true, cell: entry => shortDay(entry.createdAt) },
+  { header: 'Movimento', width: 'minmax(0, 1fr)', cell: creditEntryLabel,
+    sub: entry => entry.kind === 'admin_grant' && entry.description ? entry.description : null },
+  { header: 'Créditos', width: '96px', align: 'end', mono: true, cell: entry => Math.abs(entry.amount) < MILLI / 10 ? '< 0,1' : signed(entry.amount) },
+];
+
+export function CreditEntries({ entries }: { entries: CreditEntryRow[] }) {
+  return <DataTable label="Últimas movimentações de créditos" columns={entryColumns} rows={entries} rowKey={entry => entry.id}
+    tall={entries.some(entry => entry.kind === 'admin_grant' && entry.description)} empty="Nenhuma movimentação ainda." />;
 }

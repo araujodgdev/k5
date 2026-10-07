@@ -1,11 +1,19 @@
 import Link from 'next/link';
+import { Globe, KeyRound, Megaphone, Scale, Search } from 'lucide-react';
+import { CanvasHeader, CanvasPage, CanvasRow } from '@/components/canvas/canvas-page';
+import { LumeMark } from './lume-mark';
 import { OfficeNavigation } from './office-navigation';
 import { listOfficeAudit } from '@/lib/audit';
 import { auditActor, auditOutcomeLabels, officeAuditFilters, officeAuditLine, officeAuditSourceLabels } from '@/lib/audit-format';
 import { cn } from '@/lib/utils';
 
-const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' });
-const linkClass = 'underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring';
+const ZONE = 'America/Sao_Paulo';
+const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: ZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+const timeFormat = new Intl.DateTimeFormat('pt-BR', { timeZone: ZONE, hour: '2-digit', minute: '2-digit' });
+const shortFormat = new Intl.DateTimeFormat('pt-BR', { timeZone: ZONE, day: '2-digit', month: '2-digit' });
+const fullFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: ZONE });
+const icons = { judicial: <Scale />, collaboration: <KeyRound />, google: <Globe />, ads: <Megaphone />, knowledge: <Search /> };
+const chip = 'inline-flex h-11 shrink-0 items-center rounded-md border px-2.5 text-[13px] whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:h-[30px]';
 
 function href(params: { source?: string; before?: string }) {
   const query = new URLSearchParams({ view: 'activity' });
@@ -14,32 +22,39 @@ function href(params: { source?: string; before?: string }) {
   return `/app/agenda?${query}`;
 }
 
+/** When, as the prototype's activity rows say it: the time today, "ontem", or the date. */
+function when(instant: Date, now: Date) {
+  const day = dayFormat.format(instant);
+  if (day === dayFormat.format(now)) return timeFormat.format(instant);
+  return day === dayFormat.format(new Date(now.getTime() - 86_400_000)) ? 'ontem' : shortFormat.format(instant);
+}
+
 /** What happened in the office, by the lawyer, their associates and the Lume, newest first. */
 export async function OfficeActivity({ officeId, source, before }: { officeId: string; source: string; before: string }) {
   const filter = officeAuditFilters.some(item => item.slug === source) ? source : '';
   const { entries, next } = await listOfficeAudit(officeId, { source: filter, before });
-  return <div className="flex min-w-0 flex-1 flex-col px-5 py-6 md:px-10 md:py-10">
-    <h1 className="page-title border-b pb-5 max-md:sr-only">Escritório</h1><OfficeNavigation view="activity" />
-    <div className="border-b py-5"><p className="max-w-2xl text-sm text-muted-foreground">Quem fez o quê no escritório: acessos a casos, consultas aos tribunais, ações no Google, anúncios e buscas do Lume no Cofre.</p></div>
-    <nav aria-label="Filtrar atividade" className="mt-5 flex flex-wrap gap-1">
+  const now = new Date();
+  return <CanvasPage className="gap-5 md:gap-5">
+    <CanvasHeader eyebrow="Acessos a casos, consultas aos tribunais, ações no Google, anúncios e buscas do Lume no Cofre" title="Atividade" />
+    <OfficeNavigation view="activity" />
+    <nav aria-label="Filtrar atividade" className="flex flex-wrap gap-2">
       {officeAuditFilters.map(({ slug, label }) => (
         <Link key={slug} href={href({ source: slug })} aria-current={filter === slug ? 'page' : undefined}
-          className={cn('inline-flex min-h-11 items-center border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9',
-            filter === slug ? 'border-foreground text-foreground' : 'border-line text-muted-foreground hover:text-foreground')}>{label}</Link>
+          className={cn(chip, filter === slug ? 'border-transparent bg-selected font-medium text-foreground' : 'border-border text-muted-foreground hover:bg-accent')}>{label}</Link>
       ))}
     </nav>
-    <ol aria-label="Atividade do escritório" className="mt-6 border-t">
-      {entries.map(entry => (
-        <li key={`${entry.source}:${entry.id}`} className="grid gap-1 border-b py-3 text-sm sm:grid-cols-[1fr_auto] sm:gap-x-6">
-          <p className="min-w-0">{auditActor(entry.actorKind, entry.actorName)} {officeAuditLine(entry)}</p>
-          <time dateTime={entry.createdAt} className="label-mono text-subtle-foreground sm:row-span-2 sm:text-right">{dateFormat.format(new Date(entry.createdAt))}</time>
-          <p className="text-[13px] text-muted-foreground">
-            {officeAuditSourceLabels[entry.source]} · <span className={cn(entry.outcome === 'error' && 'text-destructive')}>{auditOutcomeLabels[entry.outcome] ?? entry.outcome}</span>
-          </p>
-        </li>
-      ))}
-    </ol>
-    {entries.length === 0 && <p className="py-12 text-subtle-foreground">{before ? 'Não há registros mais antigos.' : `Nada registrado${filter ? ' com este filtro' : ''} ainda.`}</p>}
-    {next && <Link href={href({ source: filter, before: next })} className={cn('mt-6 inline-flex min-h-11 items-center self-start label-mono md:min-h-9', linkClass)}>Mais antigos →</Link>}
-  </div>;
+    {entries.length > 0 && <ol aria-label="Atividade do escritório" className="flex flex-col gap-0.5">
+      {entries.map(entry => {
+        const at = new Date(entry.createdAt);
+        return <li key={`${entry.source}:${entry.id}`}>
+          <CanvasRow stacked icon={entry.actorKind === 'agent' ? <LumeMark className="text-foreground" /> : icons[entry.source]}
+            title={<span className="whitespace-normal">{auditActor(entry.actorKind, entry.actorName)} {officeAuditLine(entry)}</span>}
+            detail={<>{officeAuditSourceLabels[entry.source]} · <span className={cn(entry.outcome === 'error' && 'text-destructive')}>{auditOutcomeLabels[entry.outcome] ?? entry.outcome}</span></>}
+            meta={<time dateTime={entry.createdAt} title={fullFormat.format(at)}>{when(at, now)}</time>} />
+        </li>;
+      })}
+    </ol>}
+    {entries.length === 0 && <p className="py-3 text-[13.5px] text-muted-foreground">{before ? 'Não há registros mais antigos.' : `Nada registrado${filter ? ' com este filtro' : ''} ainda.`}</p>}
+    {next && <Link href={href({ source: filter, before: next })} className="inline-flex h-11 items-center self-start rounded-md px-2 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring md:-ml-2 md:h-8">Mais antigos</Link>}
+  </CanvasPage>;
 }

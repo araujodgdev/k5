@@ -1,8 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronRight, CircleAlert, ExternalLink, LoaderCircle } from 'lucide-react';
+import { CircleAlert, ExternalLink, LoaderCircle, RefreshCw, Scale } from 'lucide-react';
+import { CanvasTrail, trailAction } from '@/components/canvas/canvas-controls';
+import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';
+import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { requestCapability } from '@/lib/capabilities/http-client';
 import type { JudgmentDetail, ResearchMaterial, ResearchMaterialStatus } from '@/lib/research/contracts';
@@ -93,27 +95,37 @@ function ResearchReaderContent({ judgmentId, searchId }: { judgmentId: string; s
     setBusy(false);
   }
 
-  // The Pesquisa screen now lists web searches; acervo searches are no longer reopened from there.
-  const back = '/app/research';
+  const back = searchId ? `/app/research?mode=jurisprudence&search=${encodeURIComponent(searchId)}` : '/app/research';
   const ementa = judgment?.materials.find(item => item.kind === 'ementa');
   const full = judgment?.materials.find(item => item.kind === 'full_text');
   const source = officialUrl(judgment?.sourceUrl ?? null);
-  return <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-10 md:py-10">
-    <nav aria-label="Trilha" className="flex items-center gap-1 text-sm text-muted-foreground"><Link href={back} className="rounded-md outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">Pesquisa</Link><ChevronRight className="size-4" aria-hidden="true" /><span aria-current="page">Julgado</span></nav>
-    {loading && <p className="py-10 text-sm text-muted-foreground">Carregando julgado…</p>}
-    {error && <p role="alert" className="flex gap-2 py-5 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
-    {!loading && judgment && <>
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-4 border-b pb-5">
-        <div className="min-w-0"><h1 className="page-title leading-tight">{judgment.title || 'Julgado'}</h1><p className="mt-2 text-sm text-muted-foreground">{judgment.tribunal}{judgment.courtUnit ? ` · ${judgment.courtUnit}` : ''} · {dateLabel(judgment.decisionDate)}</p>{judgment.caseNumber && <p className="mt-1 text-[13px] text-muted-foreground">Processo {judgment.caseNumber}</p>}</div>
-        <div className="flex flex-wrap gap-2"><Button type="button" variant="ghost" onClick={() => void load()} className="min-h-11 md:min-h-9">Atualizar estado</Button>{source && <Button asChild variant="outline" className="min-h-11 md:min-h-9"><a href={source} target="_blank" rel="noopener noreferrer">Abrir fonte oficial <ExternalLink className="size-4" aria-hidden="true" /></a></Button>}{(judgment.ementaVersionId || judgment.fullTextVersionId) && <ResearchCaseLinker judgment={judgment} />}</div>
-      </div>
-      <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <MaterialSection kind="ementa" material={ementa} fallback={judgment.ementa} busy={busy} onRequest={() => void requestMaterial('ementa')} />
-        <MaterialSection kind="full_text" material={full} fallback={null} busy={busy} onRequest={() => void requestMaterial('full_text')} />
-      </div>
-      <div className="border-t py-4 text-[13px] text-muted-foreground"><p>Origem: {judgment.tribunal}. Consultado em {dateLabel(judgment.collectedAt)}.</p>{judgment.sourceStatus === 'restricted' && <p className="mt-1">A fonte restringiu o acesso ao conteúdo.</p>}{judgment.sourceStatus === 'unavailable' && <p className="mt-1">A fonte está indisponível neste momento.</p>}</div>
-    </>}
-  </div>;
+  return <>
+    <CanvasMeta title="Pesquisa" subject={{ kind: 'module', slug: 'research', title: 'Pesquisa' }} />
+    <CanvasTrail back={{ href: back, label: 'Pesquisa' }} icon={<Scale />} current={judgment?.title || 'Julgado'} actions={judgment && <>
+      <Button type="button" variant="ghost" onClick={() => void load()} className={trailAction}><RefreshCw aria-hidden="true" /><span className="max-md:sr-only">Atualizar estado</span></Button>
+      {source && <Button asChild variant="ghost" className={trailAction}><a href={source} target="_blank" rel="noopener noreferrer"><ExternalLink aria-hidden="true" /><span className="max-md:sr-only">Fonte oficial</span><span className="sr-only">, abre em nova aba</span></a></Button>}
+    </>} />
+    <CanvasPage className="md:gap-8">
+      {loading && <p role="status" className="text-[13.5px] text-muted-foreground">Carregando julgado…</p>}
+      {error && <p role="alert" className="flex gap-2 text-[13.5px] text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{error}</p>}
+      {!loading && judgment && <>
+        <div className="flex flex-col gap-2">
+          <CanvasHeader eyebrow={[judgment.tribunal, judgment.courtUnit, dateLabel(judgment.decisionDate)].filter(Boolean).join(' · ')} title={judgment.title || 'Julgado'}
+            actions={(judgment.ementaVersionId || judgment.fullTextVersionId) && <ResearchCaseLinker judgment={judgment} />} />
+          {judgment.caseNumber && <p className="font-mono text-[12.5px] text-muted-foreground">Processo {judgment.caseNumber}</p>}
+        </div>
+        <div className="grid gap-8 lg:grid-cols-2">
+          <MaterialSection kind="ementa" material={ementa} fallback={judgment.ementa} busy={busy} onRequest={() => void requestMaterial('ementa')} />
+          <MaterialSection kind="full_text" material={full} fallback={null} busy={busy} onRequest={() => void requestMaterial('full_text')} />
+        </div>
+        <div className="flex flex-col gap-1 border-t border-border pt-4 text-xs text-muted-foreground">
+          <p>Origem: {judgment.tribunal}. Consultado em {dateLabel(judgment.collectedAt)}.</p>
+          {judgment.sourceStatus === 'restricted' && <p>A fonte restringiu o acesso ao conteúdo.</p>}
+          {judgment.sourceStatus === 'unavailable' && <p>A fonte está indisponível neste momento.</p>}
+        </div>
+      </>}
+    </CanvasPage>
+  </>;
 }
 
 function MaterialSection({ kind, material, fallback, busy, onRequest }: {
@@ -124,10 +136,13 @@ function MaterialSection({ kind, material, fallback, busy, onRequest }: {
   const text = material?.version?.textContent || material?.chunks.map(chunk => chunk.textContent).join('\n\n') || fallback;
   const status = material?.status ?? (fallback ? 'ready' : 'unavailable');
   const retry = !text && ['pending', 'failed'].includes(status);
-  return <section aria-label={name} className="min-w-0"><div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3"><h2 className="text-base font-medium">{name}</h2><span className="text-[13px] text-muted-foreground">{statusText(status, kind)}</span></div>
-    {text ? <div className="whitespace-pre-wrap break-words py-5 text-sm leading-7">{text}</div> : <p className="py-5 text-sm text-subtle-foreground">{statusText(status, kind)}.</p>}
+  const original = material?.version && (material.version as typeof material.version & { originalAvailable?: boolean }).originalAvailable ? material.version : null;
+  return <CanvasSection label={name} title={name} action={<span className="text-xs text-muted-foreground">{statusText(status, kind)}</span>} className="min-w-0">
+    {text ? <div className="whitespace-pre-wrap break-words text-[14.5px] leading-[1.7]">{text}</div> : <p className="text-[13.5px] text-subtle-foreground">{statusText(status, kind)}.</p>}
     {material?.unavailableReason && !text && <p className="text-[13px] text-muted-foreground">{researchSourceMessage(material.unavailableReason)}</p>}
-    {material?.version && (material.version as typeof material.version & { originalAvailable?: boolean }).originalAvailable && <Button asChild variant="outline" className="mt-2 min-h-11 md:min-h-9"><a href={`/api/research/materials/${encodeURIComponent(material.version.id)}/original`} target="_blank" rel="noopener noreferrer">{material.version.mimeType === 'application/pdf' ? 'Abrir original' : 'Baixar original'}</a></Button>}
-    {retry && <Button type="button" variant="outline" className="min-h-11 md:min-h-9" disabled={busy} onClick={onRequest}>{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}Tentar obter</Button>}
-  </section>;
+    {(original || retry) && <div className="flex flex-wrap gap-2">
+      {original && <Button asChild variant="outline" size="lg" className="h-11 md:h-[34px]"><a href={`/api/research/materials/${encodeURIComponent(original.id)}/original`} target="_blank" rel="noopener noreferrer">{original.mimeType === 'application/pdf' ? 'Abrir original' : 'Baixar original'}</a></Button>}
+      {retry && <Button type="button" variant="outline" size="lg" className="h-11 md:h-[34px]" disabled={busy} onClick={onRequest}>{busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}Tentar obter</Button>}
+    </div>}
+  </CanvasSection>;
 }

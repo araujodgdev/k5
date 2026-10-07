@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
+import { CanvasSection } from '@/components/canvas/canvas-page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -55,16 +56,15 @@ export function AsaasConnectionPanel() {
   }
 
   const connection = status?.connection;
-  return <section aria-labelledby="asaas-connection-title" className="space-y-4 border-t border-line pt-8 [&_button]:min-h-11 md:[&_button]:min-h-9">
-    <div>
-      <h2 id="asaas-connection-title" className="text-lg font-medium">Asaas</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Conecte a conta do Asaas do escritório para cobrar as parcelas dos honorários com PIX, boleto ou cartão.</p>
-    </div>
-    {notice && <p role="status" className="text-sm">{notice}</p>}
-    {error && <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-destructive">{error}</p>
-      {!status && <Button variant="outline" disabled={loading} onClick={() => { setLoading(true); setError(''); setRevision(value => value + 1); }}>Tentar novamente</Button>}</div>}
-    {loading && !status ? <p role="status" className="text-sm text-muted-foreground">Carregando conexão…</p> : status && <>
-      {connection ? <dl className="border-y border-line text-sm">
+  const quiet = 'text-[13.5px] text-muted-foreground';
+  const control = 'h-11 md:h-[34px]';
+  return <CanvasSection title="Asaas" label="Asaas" action={connection && <span className="truncate text-[13px] text-muted-foreground">{asaasEnvironmentLabel(connection.environment)}</span>}>
+    <p className={quiet}>Conecte a conta do Asaas do escritório para cobrar as parcelas dos honorários com PIX, boleto ou cartão.</p>
+    {notice && <p role="status" className="text-[13.5px]">{notice}</p>}
+    {error && <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-[13.5px] text-destructive">{error}</p>
+      {!status && <Button variant="outline" size="lg" className={control} disabled={loading} onClick={() => { setLoading(true); setError(''); setRevision(value => value + 1); }}>Tentar novamente</Button>}</div>}
+    {loading && !status ? <p role="status" className={quiet}>Carregando conexão…</p> : status && <>
+      {connection ? <dl className="flex flex-col text-[13.5px]">
         {[
           ['Conta', connection.account.name],
           ['CPF ou CNPJ', connection.account.document ?? 'Não informado'],
@@ -72,25 +72,25 @@ export function AsaasConnectionPanel() {
           ['Situação da conta', asaasAccountStatusLabel(connection.account.status)],
           ['Baixa automática', asaasWebhookLabel(connection.webhook)],
           ['Última verificação', new Date(connection.verifiedAt).toLocaleString('pt-BR')],
-        ].map(([label, value]) => <div key={label} className="grid gap-1 border-b border-border py-3 last:border-0 sm:grid-cols-[180px_1fr] sm:gap-4">
+        ].map(([label, value]) => <div key={label} className="grid gap-0.5 py-2.5 sm:grid-cols-[180px_1fr] sm:gap-4">
           <dt className="text-muted-foreground">{label}</dt><dd className="break-words">{value}</dd>
         </div>)}
-      </dl> : <p className="text-sm text-muted-foreground">Nenhuma conta do Asaas conectada.</p>}
-      {connection && status.canManage && <div className="flex flex-wrap gap-3">
-        <Button disabled={pending} onClick={() => void mutate('PATCH')}>{pending ? 'Aguarde…' : 'Verificar novamente'}</Button>
-        <Button variant="outline" disabled={pending} aria-expanded={editKey} onClick={() => { setEditKey(value => !value); setApiKey(''); }}>Atualizar chave</Button>
-        <Button variant="outline" disabled={pending} onClick={() => setConfirmDisconnect(true)}>Desconectar</Button>
+      </dl> : <p className={quiet}>Nenhuma conta do Asaas conectada.</p>}
+      {connection && status.canManage && <div className="flex flex-wrap gap-2">
+        <Button size="lg" className={control} disabled={pending} onClick={() => void mutate('PATCH')}>{pending ? 'Aguarde…' : 'Verificar novamente'}</Button>
+        <Button variant="outline" size="lg" className={control} disabled={pending} aria-expanded={editKey} onClick={() => { setEditKey(value => !value); setApiKey(''); }}>Atualizar chave</Button>
+        <Button variant="outline" size="lg" className={control} disabled={pending} onClick={() => setConfirmDisconnect(true)}>Desconectar</Button>
       </div>}
-      {status.canManage && (!connection || editKey) && <form className="grid max-w-xl gap-4" onSubmit={event => { event.preventDefault(); void mutate('POST'); }}>
-        <div className="grid gap-1.5">
-          <Label htmlFor="asaas-api-key">Chave de API do Asaas</Label>
+      {status.canManage && (!connection || editKey) && <form className="flex max-w-xl flex-col items-start gap-3" onSubmit={event => { event.preventDefault(); void mutate('POST'); }}>
+        <div className="flex w-full flex-col gap-1.5">
+          <Label htmlFor="asaas-api-key" className="text-xs font-normal text-muted-foreground">Chave de API do Asaas</Label>
           <Input id="asaas-api-key" type="password" autoComplete="off" spellCheck={false} maxLength={400} required disabled={pending}
             className="h-11 md:h-9" value={apiKey} onChange={event => setApiKey(event.target.value)} aria-describedby="asaas-key-help" />
-          <p id="asaas-key-help" className="text-sm text-muted-foreground">Crie a chave no Asaas, em Integrações › Chaves de API, e cole-a completa, começando por $aact_. Uma chave de sandbox conecta o ambiente de testes. A chave é guardada criptografada e não aparece de novo.</p>
+          <p id="asaas-key-help" className="text-xs leading-5 text-muted-foreground">Crie a chave no Asaas, em Integrações › Chaves de API, e cole-a completa, começando por $aact_. Uma chave de sandbox conecta o ambiente de testes. A chave é guardada criptografada e não aparece de novo.</p>
         </div>
-        <Button type="submit" className="justify-self-start" disabled={pending || !apiKey.trim()}>{pending ? 'Verificando…' : connection ? 'Verificar e atualizar chave' : 'Verificar e conectar'}</Button>
+        <Button type="submit" size="lg" className={control} disabled={pending || !apiKey.trim()}>{pending ? 'Verificando…' : connection ? 'Verificar e atualizar chave' : 'Verificar e conectar'}</Button>
       </form>}
-      {!status.canManage && <p className="text-sm text-muted-foreground">Um administrador do escritório pode conectar a conta do Asaas.</p>}
+      {!status.canManage && <p className={quiet}>Um administrador do escritório pode conectar a conta do Asaas.</p>}
     </>}
     <Dialog open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
       <DialogContent>
@@ -98,5 +98,5 @@ export function AsaasConnectionPanel() {
         <DialogFooter><Button variant="outline" disabled={pending} onClick={() => setConfirmDisconnect(false)}>Cancelar</Button><Button disabled={pending} onClick={() => void mutate('DELETE')}>{pending ? 'Desconectando…' : 'Desconectar'}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
-  </section>;
+  </CanvasSection>;
 }

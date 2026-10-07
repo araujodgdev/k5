@@ -123,7 +123,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   return (
     <PwaContext.Provider value={{ installed, install }}>
       {children}
-      {(offline || waiting) && <aside aria-label="Estado do aplicativo" className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+.75rem)] z-50 mx-auto flex max-w-lg flex-wrap items-center gap-3 rounded-xl border bg-popover p-3 text-popover-foreground shadow-(--shadow-float)">
+      {(offline || waiting) && <aside aria-label="Estado do aplicativo" className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+.75rem)] z-50 mx-auto flex max-w-lg flex-wrap items-center gap-3 rounded-lg border bg-popover p-3 text-popover-foreground shadow-(--shadow-float)">
         {offline ? <p role="status" className="flex items-center gap-2 text-sm"><WifiOff className="size-4 shrink-0" aria-hidden="true" />Sem conexão. Conecte-se para salvar alterações.</p> : <>
           <p role="status" className="min-w-0 flex-1 text-sm">Nova versão disponível. Salve seu trabalho antes de atualizar.</p>
           <Button variant="outline" className="min-h-11 md:min-h-9" disabled={updating} onClick={update}>{updating ? "Atualizando…" : "Atualizar agora"}</Button>
@@ -134,20 +134,30 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Whether the app is installed, and the browser prompt; install() is true when the person needs the help instead. */
+export function useInstallApp() {
+  return useContext(PwaContext);
+}
+
+/** How to add the Lume to the home screen when the browser has no prompt to offer. */
+export function InstallHelp({ open, onOpenChange, onCloseFocus }: { open: boolean; onOpenChange: (open: boolean) => void; onCloseFocus: () => void }) {
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); onCloseFocus(); }}>
+      <DialogTitle>Instalar o Lume</DialogTitle>
+      <DialogDescription>No iPhone ou iPad, abra o Lume no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</DialogDescription>
+      <p className="text-sm text-muted-foreground">No Android ou computador, procure “Instalar aplicativo” ou “Adicionar à tela inicial” no menu do navegador. Se a opção não aparecer, continue usando o Lume pelo navegador.</p>
+      <p className="text-sm text-muted-foreground">O acesso aos dados do escritório precisa de internet.</p>
+    </DialogContent>
+  </Dialog>;
+}
+
 export function InstallApp({ className }: { className?: string }) {
-  const { installed, install } = useContext(PwaContext);
+  const { installed, install } = useInstallApp();
   const [help, setHelp] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   if (installed) return null;
   return <>
     <Button ref={button} variant="ghost" size="icon" onClick={() => { void install().then(setHelp); }} aria-label="Instalar Lume" title="Instalar Lume" className={cn("size-11 text-muted-foreground hover:text-foreground md:size-9", className)}><Download aria-hidden="true" /></Button>
-    <Dialog open={help} onOpenChange={setHelp}>
-      <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); button.current?.focus(); }}>
-        <DialogTitle>Instalar o Lume</DialogTitle>
-        <DialogDescription>No iPhone ou iPad, abra o Lume no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</DialogDescription>
-        <p className="text-sm text-muted-foreground">No Android ou computador, procure “Instalar aplicativo” ou “Adicionar à tela inicial” no menu do navegador. Se a opção não aparecer, continue usando o Lume pelo navegador.</p>
-        <p className="text-sm text-muted-foreground">O acesso aos dados do escritório precisa de internet.</p>
-      </DialogContent>
-    </Dialog>
+    <InstallHelp open={help} onOpenChange={setHelp} onCloseFocus={() => button.current?.focus()} />
   </>;
 }

@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         conversationId: id,
         lease,
         request: { documentIds: scope.documentIds, caseId: scope.caseId, researchReferenceIds: scope.researchReferenceIds,
-          canvasHref: scope.canvasHref, document: scope.document, selection: scope.selection,
+          canvas: body.canvas, canvasHref: scope.canvasHref, document: scope.document, selection: scope.selection,
           attachments: original ? [] : body.attachments.filter(item => !item.mediaType.startsWith('image/')), timeZone: body.timeZone },
       });
     } catch (error) {

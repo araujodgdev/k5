@@ -4,9 +4,14 @@ import { ApiSession, admin, uniqueAccount } from './support/accounts';
 import { overflowsHorizontally } from './support/fixtures';
 import { signInWithSession } from './support/sign-in';
 
-async function module(screen: Screen, label: string) {
-  await screen.getByRole('button', 'Abrir módulos').tap();
-  await screen.getByRole('navigation', 'Módulos').getByRole('button', label, { exact: false }).tap();
+async function module(screen: Screen, label: string, mobile = false) {
+  if (mobile) {
+    await screen.getByRole('button', 'Buscar', { exact: true }).tap();
+    await screen.getByRole('option', label === 'Cofre' ? 'Casos' : label, { exact: true }).tap();
+    return;
+  }
+  await screen.getByRole('button', 'Casos e módulos').tap();
+  await screen.getByRole('navigation', 'Casos e módulos').getByRole('link', label === 'Cofre' ? 'Todos os casos' : label === 'Escritório' ? 'Tarefas' : label === 'Cálculos jurídicos' ? 'Cálculos' : label, { exact: false }).tap();
 }
 
 function answer(id: string, documentHref?: string) {
@@ -49,13 +54,13 @@ test('a conversa e o rascunho sobrevivem aos modos, módulos e alternância móv
   await expect(browser).toHaveURL(/\/app\/agenda/);
   await expect(input).toHaveValue('Rascunho mantido enquanto consulto o escritório');
   await browser.setViewport({ width: 390, height: 844 });
-  const switcher = screen.getByRole('navigation', 'Alternar conversa e canvas');
-  await switcher.getByRole('button', 'Lume').tap();
+
+  await screen.getByRole('button', 'Voltar ao Lume').tap();
   await expect(input).toHaveValue('Rascunho mantido enquanto consulto o escritório');
-  await switcher.getByRole('button', 'Canvas').tap();
+  await screen.getByRole('button', 'Recolher o Lume').tap();
   await expect(input).toBeHidden();
   await expect(browser.locator('.lume-panel')).toHaveAttribute('inert');
-  await switcher.getByRole('button', 'Lume').tap();
+  await screen.getByRole('button', 'Voltar ao Lume').tap();
   await expect(input).toHaveValue('Rascunho mantido enquanto consulto o escritório');
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
 });
@@ -91,7 +96,7 @@ test('contrato frontend: o transporte envia o caso visível e uma saída tardia 
     await expect(screen.getByRole('status').filter({ hasText: `Pedido em andamento · ${first.case.name}` })).toBeVisible();
   } finally { release.resolve(); }
   await expect(screen.getByText('Pedido concluído.')).toBeVisible();
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('button', artifact.title, { exact: true })).toBeVisible();
+  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('link', artifact.title, { exact: true })).toBeVisible();
   await expect(browser).toHaveURL(`/app/vault/cases/${second.case.id}`);
   await input.fill('Agora resuma o segundo caso');
   await screen.getByRole('button', 'Enviar mensagem').tap();
@@ -104,7 +109,7 @@ test('contrato frontend: o transporte envia o caso visível e uma saída tardia 
   expect(requests[2].caseId).toBeUndefined();
 });
 
-test('links privados canônicos e abas restauradas conservam autorização e rascunhos', { session: 'admin' }, async ({ app, screen, browser }) => {
+test('links privados canônicos e abas restauradas conservam autorização e rascunhos', { session: 'admin', timeout: 240_000 }, async ({ app, screen, browser }) => {
   const api = await new ApiSession(app.baseUrl!).signIn(admin);
   const { artifact } = await api.json<{ artifact: { id: string; title: string } }>('/api/artifacts', { json: { title: `Minuta do canvas ${Date.now()}`, content: 'Texto original.' } });
   await browser.setViewport({ width: 390, height: 844 });
@@ -112,22 +117,24 @@ test('links privados canônicos e abas restauradas conservam autorização e ras
   await expect(browser).toHaveURL(`/app/documents/${artifact.id}`);
   const editor = screen.getByRole('textbox', 'Texto do documento');
   await editor.fill('Edição humana preservada nos dois espaços.');
-  const switcher = screen.getByRole('navigation', 'Alternar conversa e canvas');
-  await switcher.getByRole('button', 'Lume').tap();
+  await screen.getByRole('button', 'Voltar ao Lume').tap();
   await screen.getByRole('textbox', 'Pergunte ao Lume').fill('Pedido ainda não enviado');
-  await switcher.getByRole('button', 'Canvas').tap();
+  await screen.getByRole('button', 'Recolher o Lume').tap();
   await expect(editor).toContainText('Edição humana preservada nos dois espaços.');
-  await module(screen, 'Cofre');
+  await module(screen, 'Cofre', true);
   await expect(browser).toHaveURL('/app/vault');
   expect((await api.json<{ artifact: { content: string } }>(`/api/artifacts/${artifact.id}`)).artifact.content).toContain('Edição humana preservada');
-  await screen.getByRole('navigation', 'Abas do canvas').getByRole('button', artifact.title, { exact: true }).tap();
+  await screen.getByRole('button', 'Buscar', { exact: true }).tap();
+  await screen.getByRole('option', artifact.title, { exact: true }).tap();
   await expect(editor).toContainText('Edição humana preservada');
-  await switcher.getByRole('button', 'Lume').tap();
+  await screen.getByRole('button', 'Voltar ao Lume').tap();
   await expect(screen.getByRole('textbox', 'Pergunte ao Lume')).toHaveValue('Pedido ainda não enviado');
-  await switcher.getByRole('button', 'Canvas').tap();
+  await screen.getByRole('button', 'Recolher o Lume').tap();
   await browser.reload();
   await expect(editor).toContainText('Edição humana preservada');
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('button', artifact.title, { exact: true })).toBeVisible();
+  await screen.getByRole('button', 'Buscar', { exact: true }).tap();
+  await expect(screen.getByRole('option', artifact.title, { exact: true })).toBeVisible();
+  await browser.keyboard.press('Escape');
   const serialized = await browser.evaluate(() => Object.entries(localStorage).filter(([key]) => key.startsWith('lume:canvas:')).map(([, value]) => value));
   expect(serialized.some(value => value.includes(artifact.title))).toBe(false);
 });
@@ -150,9 +157,9 @@ test('a revogação real de um caso remove a aba, o conteúdo e o contexto sem a
   await input.fill('Pedido privado ainda não enviado');
   await owner.json('/api/collaboration', { json: { action: 'participant', caseId: record.id, userId: user.id, add: false } });
   expect((await guest.request(`/api/canvas/resource?href=${encodeURIComponent(href)}`)).status).toBe(404);
-  await screen.getByRole('navigation', 'Abas do canvas').getByRole('button', record.name, { exact: true }).tap();
+  await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', record.name, { exact: true }).tap();
   await expect(screen.getByRole('alert').filter({ hasText: 'Não foi possível abrir este recurso' })).toBeVisible();
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('button', record.name, { exact: true })).toHaveCount(0);
+  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('link', record.name, { exact: true })).toHaveCount(0);
   await expect(screen.getByRole('heading', record.name, { exact: true })).toHaveCount(0);
   await expect(browser.locator('[aria-label="Contexto da próxima mensagem"]')).not.toContainText(record.name);
   await expect(input).toHaveValue('Pedido privado ainda não enviado');

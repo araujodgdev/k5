@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useLumeWorkspace } from '@/components/lume/workspace-context';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,6 +62,7 @@ export function CaseLumePolicy({caseId}:{caseId:string}) {
 type Draft = z.output<typeof caseTaskFields>;
 const empty: Draft = {title:'',notes:'',status:'pending',dueOn:null,assigneeId:null};
 export function CaseTasks({caseId,selectedTask}:{caseId:string;selectedTask?:string}) {
+  const { navigate } = useLumeWorkspace();
   const {data,error,loading,load}=useCaseData<{tasks:CaseTask[];members:{id:string;name:string}[]}>(`/api/cases/${caseId}/tasks`);
   const [editing,setEditing]=useState<{id:string;version:number}|'new'|null>(null),[draft,setDraft]=useState<Draft>(empty);
   const [failure,setFailure]=useState(''),[busy,setBusy]=useState(false),[archived,setArchived]=useState(false);
@@ -86,7 +88,7 @@ export function CaseTasks({caseId,selectedTask}:{caseId:string;selectedTask?:str
   }
   async function delegate(task:CaseTask) {
     setBusy(true);setFailure('');
-    try{const result=await call<{url:string}>('/api/agenda/delegate',{activityId:task.id,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone});await load();location.assign(result.url);}
+    try{const result=await call<{url:string}>('/api/agenda/delegate',{activityId:task.id,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone});await load();await navigate(result.url);}
     catch(error){setFailure(message(error));}finally{setBusy(false);}
   }
   async function refreshVersion() {

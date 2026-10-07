@@ -62,12 +62,12 @@ const modules = [
 
 const marquee = ["Lume", "Cofre", "Pesquisa", "Escritório", "Honorários", "E-mails", "Mensagens", "WhatsApp", "Integrações"];
 
-/** An action in mono caps with an arrow; the brand sweeps in from the left on hover. */
+/** An action in mono caps with an arrow that nudges toward where it leads on hover. */
 function ArrowLink({ href, children, tone = "ink", className }: { href: string; children: React.ReactNode; tone?: "ink" | "clear"; className?: string }) {
   return (
     <Link href={href} prefetch={false} className={cn(
-      "hover-sweep group/arrow label-mono inline-flex h-12 items-center justify-between gap-10 px-4 transition-colors duration-700 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none",
-      tone === "ink" ? "bg-foreground text-background" : "text-current",
+      "group/arrow label-mono inline-flex h-12 items-center justify-between gap-10 px-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      tone === "ink" ? "bg-foreground text-background hover:bg-foreground/90" : "text-current hover:bg-background/10",
       className)}>
       {children}
       <ArrowRight className="size-4 transition-transform duration-500 ease-(--ease) group-hover/arrow:translate-x-1" aria-hidden="true" />
@@ -93,8 +93,9 @@ export default function Landing() {
 
       <header className="sticky top-0 z-30 grid h-[calc(3.75rem+env(safe-area-inset-top))] grid-cols-[1fr_auto] border-b border-line bg-background pt-[env(safe-area-inset-top)] md:grid-cols-2">
         <div className="flex min-w-0 items-stretch">
-          <Link prefetch={false} href="/" aria-label="Lume, início" className="hover-sweep grid w-15 shrink-0 place-items-center bg-foreground text-background transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:text-brand-foreground focus-visible:outline-none">
-            <LumeMark width={22} height={22} aria-hidden="true" focusable="false" />
+          <Link prefetch={false} href="/" aria-label="Lume, início" className="group relative grid w-15 shrink-0 place-items-center text-foreground outline-none">
+            <span aria-hidden="true" className="absolute inset-2 rounded-md transition-colors group-hover:bg-accent group-focus-visible:ring-2 group-focus-visible:ring-ring" />
+            <LumeMark width={22} height={22} className="relative" />
           </Link>
           <p className="self-center px-5 text-lg font-medium tracking-[-0.04em] md:hidden">Lume</p>
           <LandingClock className="hidden self-center px-6 text-sm tabular-nums md:block lg:px-24" />
@@ -102,11 +103,11 @@ export default function Landing() {
         <div className="flex items-stretch md:border-l md:border-line">
           <nav aria-label="Seções" className="hidden items-stretch lg:flex">
             {[["#modulos", "Módulos"], ["#escritorio", "Formatos"], ["#comecar", "Começar"]].map(([href, label]) => (
-              <a key={href} href={href} className="hover-rise flex items-center px-4 text-[15px] transition-colors duration-500 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:text-brand-foreground">{label}</a>
+              <a key={href} href={href} className="flex items-center px-4 text-[15px] transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">{label}</a>
             ))}
           </nav>
           <div className="ml-auto flex items-center px-2"><ThemeSwitch /></div>
-          <Link prefetch={false} href="/sign-in" className="hover-sweep group/cta flex items-center justify-between gap-6 bg-foreground px-5 text-[15px] font-medium text-background transition-colors duration-700 ease-(--ease) hover:text-brand-foreground focus-visible:outline-none focus-visible:text-brand-foreground md:w-60">
+          <Link prefetch={false} href="/sign-in" className="group/cta flex items-center justify-between gap-6 bg-primary px-5 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:w-60">
             Entrar<ArrowRight className="size-4 transition-transform duration-500 ease-(--ease) group-hover/cta:translate-x-1" aria-hidden="true" />
           </Link>
         </div>
@@ -121,7 +122,7 @@ export default function Landing() {
             </h1>
           </div>
           <Halftone seed={3} density={-.08} className="fade-in h-44 border-t border-line [--delay:.2s] md:h-auto md:border-t-0 md:border-l" />
-          <Halftone seed={7} mark={{ x: .56, y: .58, size: .95 }} className="fade-in hidden border-t border-line [--delay:.35s] md:block md:min-h-[46svh]" />
+          <Halftone seed={7} mark={{ x: .56, y: .58, size: .59 }} className="fade-in hidden border-t border-line [--delay:.35s] md:block md:min-h-[46svh]" />
           <div className="grid border-t border-line sm:grid-cols-2 md:border-l">
             <div className="flex min-h-72 flex-col justify-between gap-10 bg-foreground p-5 text-background md:p-6">
               <p className="text-[clamp(22px,2vw,30px)] leading-[1.12] tracking-[-0.035em] [--delay:.45s]">O Lume guarda os documentos de cada caso, prepara rascunhos a partir deles e organiza tarefas, prazos e honorários.</p>
@@ -215,7 +216,7 @@ export default function Landing() {
 
         {/* Call to action on the field. */}
         <section id="comecar" aria-labelledby="comecar-title" className="relative isolate grid min-h-[80svh] scroll-mt-15 place-items-center overflow-hidden border-b border-line">
-          <Halftone seed={11} mark={{ x: .5, y: .5, size: 1.05 }} className="absolute inset-0 -z-10" />
+          <Halftone seed={11} mark={{ x: .5, y: .5, size: .66 }} className="absolute inset-0 -z-10" />
           <h2 id="comecar-title" className="w-full">
             <Link prefetch={false} href="/sign-up" className="group/start display block text-[clamp(52px,11.5vw,210px)] leading-[.9] uppercase focus-visible:outline-none">
               <span className="flex flex-wrap justify-between gap-y-2">
@@ -244,9 +245,9 @@ export default function Landing() {
           <nav aria-label="Rodapé" className="flex flex-col gap-3 p-5 text-[17px] md:p-6">
             <Link prefetch={false} href="/termos-de-uso" className="w-fit underline underline-offset-4">Termos de uso</Link>
             <Link prefetch={false} href="/politica-privacidade" className="w-fit underline underline-offset-4">Privacidade</Link>
-            <Link prefetch={false} href="/sign-in" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Entrar</Link>
-            <Link prefetch={false} href="/sign-up" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Criar conta</Link>
-            <a href="#modulos" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-brand">Módulos</a>
+            <Link prefetch={false} href="/sign-in" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-current">Entrar</Link>
+            <Link prefetch={false} href="/sign-up" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-current">Criar conta</Link>
+            <a href="#modulos" className="w-fit underline decoration-transparent underline-offset-4 transition-colors duration-300 hover:decoration-current">Módulos</a>
           </nav>
           <div className="flex items-start gap-4 border-l border-line p-5 md:p-6">
             <LandingDial className="size-12 shrink-0" />

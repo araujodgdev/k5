@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowDown, ArrowLeft, Paperclip, Send } from 'lucide-react';
+import { ArrowDown, ArrowUp, LoaderCircle, Mail, MessageSquare, Paperclip } from 'lucide-react';
 import { z } from 'zod';
 import { markReadOutput, messagePageDto, type PersonalMessage as Message, type PersonalThread as Thread } from '@/lib/personal-chat/domain';
+import { CanvasTrail } from '@/components/canvas/canvas-controls';
 import { MessageAttachment } from '@/components/message-attachment';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { jsonPost, messageDate, messageError, messageRequest, revokeDocumentShare, useMessagePoll } from './client';
 
@@ -102,31 +102,44 @@ export function Conversation({ thread, draft, attempt, revision, onDraft, onSend
     nearEnd.current = true; setAwayFromEnd(false); onSend(attempt?.phase === 'unknown' ? attempt.text : draft.trim());
   }
 
-  return <section aria-labelledby="messaging-conversation-title" className="flex min-h-0 min-w-0 flex-col" onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); onBack(); } }}>
-    <header className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-4 md:px-8">
-      <Button type="button" variant="ghost" className="min-h-11 min-w-11 md:hidden" aria-label="Voltar para as conversas" onClick={onBack}><ArrowLeft aria-hidden="true" /></Button>
-      <div className="min-w-0 flex-1"><h2 ref={title} tabIndex={-1} id="messaging-conversation-title" className="truncate font-medium outline-none">{peerName}</h2><p className="mt-1 truncate text-xs text-muted-foreground">{thread.channel === 'in_app' ? thread.peer.email : 'E-mail somente de saída'}</p></div>
-    </header>
-    {thread.channel === 'email_outbound' && <p className="shrink-0 border-b px-5 py-3 text-sm text-muted-foreground md:px-8">Suas mensagens serão enviadas por e-mail. Respostas por e-mail não aparecem aqui.</p>}
-    <div ref={viewport} role="region" aria-label={`Mensagens com ${peerName}`} tabIndex={0} className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none [overflow-anchor:none] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand" onScroll={event => {
+  const sending = attempt?.phase === 'sending';
+  const column = 'mx-auto w-full max-w-[720px] px-4 md:px-10';
+  return <section aria-labelledby="messaging-conversation-title" className="messaging-workspace flex min-h-0 min-w-0 flex-1 flex-col" onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); onBack(); } }}>
+    <CanvasTrail back={{ href: '/app/messages', label: 'Mensagens' }} icon={thread.channel === 'in_app' ? <MessageSquare /> : <Mail />} current={peerName} />
+    <div ref={viewport} role="region" aria-label={`Mensagens com ${peerName}`} tabIndex={0} className="min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring" onScroll={event => {
       const node = event.currentTarget; nearEnd.current = node.scrollHeight - node.clientHeight - node.scrollTop < 80; setAwayFromEnd(!nearEnd.current);
       if (nearEnd.current && currentHistory.current) void markRead(currentHistory.current.messages);
     }}>
-      {!history && !error && <p role="status" className="px-5 py-6 text-sm text-muted-foreground md:px-8">Carregando mensagens…</p>}
-      {error && <div className="space-y-2 border-b px-5 py-4 md:px-8"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" className="min-h-11 md:min-h-9" onClick={() => setRefresh(value => value + 1)}>Tentar novamente</Button></div>}
-      {history?.olderCursor && <div className="border-b px-5 py-2 md:px-8"><Button type="button" variant="ghost" className="min-h-11 w-full md:min-h-9" disabled={paging} onClick={() => void older()}>{paging ? 'Carregando…' : 'Mensagens anteriores'}</Button></div>}
-      {history?.messages.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground md:px-8">Envie a primeira mensagem para iniciar a conversa.</p>}
-      <div className="divide-y">{history?.messages.map(message => <MessageEntry key={message.id} message={message} onChanged={onChanged} />)}</div>
+      <div className={cn(column, 'flex flex-col gap-5 pt-6 pb-4 md:pt-10')}>
+        <header className="flex flex-col gap-1">
+          <h1 ref={title} tabIndex={-1} id="messaging-conversation-title" className="truncate text-[22px] font-semibold tracking-[-0.02em] outline-none md:text-2xl">{peerName}</h1>
+          <p className="text-[13px] text-muted-foreground">{thread.channel === 'in_app' ? thread.peer.email : 'Suas mensagens saem por e-mail. Respostas por e-mail não aparecem aqui.'}</p>
+        </header>
+        {!history && !error && <p role="status" className="text-[13.5px] text-muted-foreground">Carregando mensagens…</p>}
+        {error && <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-[13.5px] text-destructive">{error}</p><Button type="button" variant="outline" size="lg" className="h-11 md:h-[34px]" onClick={() => setRefresh(value => value + 1)}>Tentar novamente</Button></div>}
+        {history?.olderCursor && <Button type="button" variant="ghost" size="lg" className="h-11 self-center text-muted-foreground md:h-[34px]" disabled={paging} onClick={() => void older()}>{paging ? 'Carregando…' : 'Mensagens anteriores'}</Button>}
+        {history?.messages.length === 0 && <p className="text-[13.5px] text-muted-foreground">Envie a primeira mensagem para iniciar a conversa.</p>}
+        {history?.messages.map(message => <MessageEntry key={message.id} message={message} onChanged={onChanged} />)}
+      </div>
     </div>
-    {awayFromEnd && <Button type="button" variant="ghost" className="min-h-11 shrink-0 border-t md:min-h-9" onClick={() => { nearEnd.current = true; setAwayFromEnd(false); if (viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight; if (currentHistory.current) void markRead(currentHistory.current.messages); }}><ArrowDown aria-hidden="true" />Mensagens recentes</Button>}
-    <form className="shrink-0 border-t border-line bg-background px-5 py-4 md:px-8" onSubmit={submit}>
-      {attempt?.error && <p role="alert" className="mb-3 text-sm text-destructive">{attempt.error}</p>}
-      {attempt?.phase === 'unknown' && <p className="mb-3 border-l-2 border-brand pl-3 text-sm">O envio ainda não foi confirmado. Confira esta mensagem antes de escrever outra.</p>}
-      <label htmlFor="personal-message" className="sr-only">Mensagem para {peerName}</label>
-      <Textarea id="personal-message" value={draft} onChange={event => onDraft(event.target.value)} disabled={attempt?.phase === 'sending' || attempt?.phase === 'unknown'} maxLength={20_000} rows={3} className="max-h-36 min-h-22 resize-none text-sm" placeholder="Escreva uma mensagem" onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <Button id="personal-message-share" type="button" variant="ghost" onClick={onShare} className="min-h-11 md:min-h-9"><Paperclip aria-hidden="true" />Compartilhar do Cofre</Button>
-        <Button type="submit" disabled={!draft.trim() || attempt?.phase === 'sending'} className="min-h-11 md:min-h-9"><Send aria-hidden="true" />{attempt?.phase === 'sending' ? 'Enviando…' : attempt?.phase === 'unknown' ? 'Conferir envio' : thread.channel === 'email_outbound' ? 'Enviar por e-mail' : 'Enviar'}</Button>
+    <form className={cn(column, 'relative shrink-0 pt-2 pb-4 md:pb-6')} onSubmit={submit}>
+      {awayFromEnd && <Button type="button" variant="outline" size="sm" className="absolute -top-9 left-1/2 h-11 -translate-x-1/2 rounded-full bg-card shadow-[var(--shadow-float)] md:h-7" onClick={() => { nearEnd.current = true; setAwayFromEnd(false); if (viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight; if (currentHistory.current) void markRead(currentHistory.current.messages); }}><ArrowDown aria-hidden="true" />Mensagens recentes</Button>}
+      {attempt?.error && <p role="alert" className="mb-2 text-[13.5px] text-destructive">{attempt.error}</p>}
+      {attempt?.phase === 'unknown' && <p className="mb-2 text-[13.5px]">O envio ainda não foi confirmado. Confira esta mensagem antes de escrever outra.</p>}
+      <div className="flex flex-col gap-1.5 rounded-[14px] border border-border-strong bg-card pt-2.5 pr-2.5 pb-2 pl-3.5 transition-shadow focus-within:ring-3 focus-within:ring-ring/30">
+        <label htmlFor="personal-message" className="sr-only">Mensagem para {peerName}</label>
+        <textarea id="personal-message" value={draft} onChange={event => onDraft(event.target.value)} disabled={sending || attempt?.phase === 'unknown'} maxLength={20_000} rows={2}
+          className="max-h-36 min-h-12 w-full resize-none bg-transparent py-0.5 text-[14.5px] leading-[1.5] outline-none placeholder:text-subtle-foreground disabled:opacity-60"
+          placeholder={thread.channel === 'email_outbound' ? 'Escreva um e-mail' : 'Escreva uma mensagem'}
+          onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
+        <div className="flex items-center gap-1">
+          <Button id="personal-message-share" type="button" variant="ghost" className="-ml-1.5 h-11 gap-1.5 px-2 text-[13px] text-muted-foreground md:h-[30px]" onClick={onShare}><Paperclip aria-hidden="true" />Compartilhar do Cofre</Button>
+          <span className="flex-1" />
+          <Button type="submit" size="icon" disabled={!draft.trim() || sending} className="size-11 rounded-full md:size-8"
+            aria-label={sending ? 'Enviando…' : attempt?.phase === 'unknown' ? 'Conferir envio' : thread.channel === 'email_outbound' ? 'Enviar por e-mail' : 'Enviar'}>
+            {sending ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}
+          </Button>
+        </div>
       </div>
     </form>
   </section>;
@@ -146,17 +159,23 @@ function MessageEntry({ message, onChanged }: { message: Message; onChanged: () 
     finally { setRevoking(false); }
   }
   const actionPath = body.kind === 'case_invitation' && body.actionPath && (body.actionPath.startsWith('/invite/') || body.actionPath.startsWith('/app/vault/cases/')) ? body.actionPath : null;
-  return <article className={cn('min-w-0 px-5 py-5 md:px-8', message.direction === 'outgoing' && 'border-l-2 border-l-foreground')}>
-    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{message.direction === 'incoming' ? message.sender.name : 'Você'}</span><time dateTime={message.createdAt}>{messageDate(message.createdAt)}</time></div>
-    {body.kind === 'text' && <p className="whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]">{body.text}</p>}
-    {body.kind === 'document_share' && <>
-      {!revoked && body.state === 'active' && body.contentUrl ? <MessageAttachment filename={body.name} mimeType={body.mimeType} url={body.contentUrl} downloadUrl={`${body.contentUrl}${body.contentUrl.includes('?') ? '&' : '?'}download=1`} /> : <p className="break-words text-sm font-medium">{body.name}</p>}
-      <p className="mt-2 text-xs text-muted-foreground">Versão {body.version} · {shareLabels[revoked ? 'revoked' : body.state]}</p>
-      {!revoked && body.canRevoke && (body.state === 'active' || body.state === 'pending_claim') && (confirmRevoke ? <div className="mt-3 border-l-2 border-brand pl-3"><p className="text-sm">Remover o acesso a este documento?</p><div className="mt-2 flex flex-wrap gap-2"><Button type="button" disabled={revoking} onClick={() => void revoke()} className="min-h-11 md:min-h-9">{revoking ? 'Removendo…' : 'Remover acesso'}</Button><Button type="button" variant="ghost" disabled={revoking} onClick={() => setConfirmRevoke(false)} className="min-h-11 md:min-h-9">Cancelar</Button></div></div>
-        : <Button type="button" variant="ghost" onClick={() => setConfirmRevoke(true)} className="mt-2 min-h-11 md:min-h-9">Remover acesso</Button>)}
-    </>}
-    {body.kind === 'case_invitation' && <div className="space-y-2"><p className="break-words text-sm font-medium">{body.caseName}</p><p className="text-xs text-muted-foreground">{invitationLabels[body.state]}</p>{actionPath && <Button variant="outline" className="min-h-11 md:min-h-9" asChild><Link href={actionPath}>{actionPath.startsWith('/app/vault/cases/') ? 'Abrir caso' : 'Ver convite'}</Link></Button>}</div>}
-    {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
-    {message.direction === 'outgoing' && <p className="mt-2 text-xs text-muted-foreground">{message.delivery.kind === 'in_app' ? message.delivery.state === 'read' ? 'Lida' : 'Enviada' : emailLabels[message.delivery.state]}{message.delivery.kind === 'email' && message.delivery.errorLabel ? `. ${message.delivery.errorLabel}` : ''}</p>}
+  const own = message.direction === 'outgoing';
+  const quiet = 'h-11 px-2.5 text-[13px] md:h-[30px]';
+  return <article aria-label={`${own ? 'Você' : message.sender.name}, ${messageDate(message.createdAt)}`} className={cn('flex min-w-0 flex-col gap-1', own ? 'items-end' : 'items-start')}>
+    <div className={cn('flex min-w-0 max-w-[86%] flex-col gap-2', own ? 'rounded-[14px] bg-muted px-3.5 py-2.5' : 'py-0.5')}>
+      {body.kind === 'text' && <p className="whitespace-pre-wrap break-words text-[14.5px] leading-[1.55] [overflow-wrap:anywhere]">{body.text}</p>}
+      {body.kind === 'document_share' && <>
+        {!revoked && body.state === 'active' && body.contentUrl ? <MessageAttachment filename={body.name} mimeType={body.mimeType} url={body.contentUrl} downloadUrl={`${body.contentUrl}${body.contentUrl.includes('?') ? '&' : '?'}download=1`} /> : <p className="break-words text-sm font-medium">{body.name}</p>}
+        <p className="text-xs text-muted-foreground">Versão {body.version} · {shareLabels[revoked ? 'revoked' : body.state]}</p>
+        {!revoked && body.canRevoke && (body.state === 'active' || body.state === 'pending_claim') && (confirmRevoke ? <div className="flex flex-col gap-2"><p className="text-[13.5px]">Remover o acesso a este documento?</p><div className="flex flex-wrap gap-2"><Button type="button" variant="destructive" disabled={revoking} onClick={() => void revoke()} className={quiet}>{revoking ? 'Removendo…' : 'Remover acesso'}</Button><Button type="button" variant="ghost" disabled={revoking} onClick={() => setConfirmRevoke(false)} className={quiet}>Cancelar</Button></div></div>
+          : <Button type="button" variant="ghost" onClick={() => setConfirmRevoke(true)} className={cn(quiet, 'self-start text-muted-foreground')}>Remover acesso</Button>)}
+      </>}
+      {body.kind === 'case_invitation' && <div className="flex flex-col gap-1.5"><p className="break-words text-sm font-medium">{body.caseName}</p><p className="text-xs text-muted-foreground">{invitationLabels[body.state]}</p>{actionPath && <Button variant="outline" size="lg" className="h-11 self-start md:h-[34px]" asChild><Link href={actionPath}>{actionPath.startsWith('/app/vault/cases/') ? 'Abrir caso' : 'Ver convite'}</Link></Button>}</div>}
+      {error && <p role="alert" className="text-[13.5px] text-destructive">{error}</p>}
+    </div>
+    <p className="px-1 text-xs text-muted-foreground">
+      {!own && <>{message.sender.name} · </>}<time dateTime={message.createdAt}>{messageDate(message.createdAt)}</time>
+      {own && <> · {message.delivery.kind === 'in_app' ? message.delivery.state === 'read' ? 'Lida' : 'Enviada' : emailLabels[message.delivery.state]}{message.delivery.kind === 'email' && message.delivery.errorLabel ? `. ${message.delivery.errorLabel}` : ''}</>}
+    </p>
   </article>;
 }

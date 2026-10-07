@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canvasModuleNames } from '../canvas-protocol';
 import { casePageCapabilities } from '@/lib/case-pages/contracts';
 import { caseTaskCapabilities } from '@/lib/case-tasks/contracts';
 import { agendaCapabilities } from './agenda';
@@ -519,14 +520,15 @@ export const capabilities = {
       .refine(input => !input.researchReferenceIds?.length || !!input.caseId, 'Selecione um caso para usar referências.'),
     output: z.object({ success: z.boolean(), documentIds: z.array(z.string()), caseId: z.string().nullable().optional(), researchReferenceIds: z.array(z.string()).optional() }),
   },
-  k5_ui_open_resource: { exposure: 'none',
+  k5_ui_open_resource: {
     module: 'ui', effect: 'read',
-    description: 'Resolve a URL segura da interface Lume para abrir um recurso no navegador.',
+    description: 'Abre no canvas do escritório o recurso ou módulo que a pessoa pediu para ver. Retorna o endereço autorizado e o título da aba.',
     input: z.object({
-      resourceType: z.enum(['case', 'document', 'run', 'artifact', 'vault', 'agenda', 'client', 'activity']),
+      resourceType: z.enum(['case', 'document', 'run', 'artifact', 'vault', 'agenda', 'client', 'activity', 'module']),
       resourceId: identifier.optional(),
-    }),
-    output: z.object({ path: z.string() }),
+      module: z.enum(canvasModuleNames).optional(),
+    }).refine(input => input.resourceType !== 'module' || !!input.module, 'Informe o módulo.'),
+    output: z.object({ path: z.string(), title: z.string().optional() }),
   },
   k5_judicial_list_sources: {
     module: 'judicial', effect: 'read',

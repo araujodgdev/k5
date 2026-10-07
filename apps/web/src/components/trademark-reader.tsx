@@ -1,8 +1,10 @@
 'use client';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, LoaderCircle } from 'lucide-react';
+import { ArrowUpRight, LoaderCircle, Search } from 'lucide-react';
+import { CanvasTrail, trailAction } from '@/components/canvas/canvas-controls';
+import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';
+import { CanvasMeta } from '@/components/shell/shell-context';
 import { Button } from '@/components/ui/button';
 import { requestCapability } from '@/lib/capabilities/http-client';
 import { trademarkDetail, type TrademarkDetail } from '@/lib/research/trademarks/contracts';
@@ -45,27 +47,37 @@ export function TrademarkReader({ resultId }: { resultId: string }) {
     const timer = setInterval(() => void load(controller.signal), 3000);
     return () => { clearInterval(timer); controller.abort(); };
   }, [pending, load]);
-  return <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-10 md:py-10">
-    <Link href={detail ? `/app/research?mode=trademarks&search=${detail.searchId}` : '/app/research?mode=trademarks'} className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" />Voltar à pesquisa</Link>
-    {error && <p role="alert" className="py-4 text-sm text-destructive">{error} <button className="min-h-11 underline" onClick={() => void load()}>Tentar novamente</button></p>}
-    {!detail ? !error && <p role="status" className="py-8 text-sm text-muted-foreground">Carregando marca…</p> : <>
-      <header className="flex items-start gap-5 border-b py-6">
-        {detail.representationUrl && <Image src={detail.representationUrl} alt={`Representação da marca ${detail.name}`} width={100} height={100} unoptimized className="size-20 object-contain sm:size-25" />}
-        <div className="min-w-0"><h1 className="page-title break-words">{detail.name || 'Marca sem nome informado'}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{trademarkSituationLabel(detail.situation)}{detail.office ? ` · ${detail.office}` : ''}</p>
-          {detail.owner && <p className="mt-2 break-words text-sm">{detail.owner}</p>}
-          {detail.applicationNumber && <p className="mt-2 text-sm text-muted-foreground">Pedido {detail.applicationNumber}</p>}
+  const back = detail ? `/app/research?mode=trademarks&search=${detail.searchId}` : '/app/research';
+  const link = 'relative inline-flex min-h-11 items-center gap-1 rounded-sm text-[13px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring md:min-h-6';
+  return <>
+    <CanvasMeta title="Pesquisa" subject={{ kind: 'module', slug: 'research', title: 'Pesquisa' }} />
+    <CanvasTrail back={{ href: back, label: 'Pesquisa' }} icon={<Search />} current={detail ? detail.name || 'Marca sem nome informado' : 'Marca'} actions={detail && <>
+      <Button asChild variant="ghost" className={trailAction}><a href={detail.source.url} target="_blank" rel="noopener noreferrer"><ArrowUpRight aria-hidden="true" /><span className="max-md:sr-only">Ver na WIPO</span><span className="sr-only">, abre em nova aba</span></a></Button>
+    </>} />
+    <CanvasPage className="md:gap-8">
+      {error && <p role="alert" className="text-[13.5px] text-destructive">{error} <button type="button" className="min-h-11 underline underline-offset-2" onClick={() => void load()}>Tentar novamente</button></p>}
+      {!detail ? !error && <p role="status" className="text-[13.5px] text-muted-foreground">Carregando marca…</p> : <>
+        <div className="flex items-start gap-5">
+          {detail.representationUrl && <Image src={detail.representationUrl} alt={`Representação da marca ${detail.name}`} width={88} height={88} unoptimized className="size-16 shrink-0 rounded-lg border border-border bg-card object-contain p-1.5 md:size-[88px]" />}
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <CanvasHeader eyebrow={[trademarkSituationLabel(detail.situation), detail.office].filter(Boolean).join(' · ')} title={<span className="break-words">{detail.name || 'Marca sem nome informado'}</span>} />
+            {detail.owner && <p className="break-words text-[14.5px]">{detail.owner}</p>}
+            {detail.applicationNumber && <p className="font-mono text-[12.5px] text-muted-foreground">Pedido {detail.applicationNumber}</p>}
+            <div className="flex flex-wrap items-center gap-x-5">
+              {detail.source.originUrl && <a href={detail.source.originUrl} target="_blank" rel="noopener noreferrer" className={link}>Escritório de origem<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only">, abre em nova aba</span></a>}
+              <span className="text-[13px] text-muted-foreground">Coletado em {timestamp.format(new Date(detail.source.capturedAt))}</span>
+            </div>
+          </div>
         </div>
-      </header>
-      <div className="flex flex-wrap gap-x-6 gap-y-3 border-b py-4 text-sm">
-        <a href={detail.source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4">Ver na WIPO<ArrowUpRight className="size-4" /><span className="sr-only">, abre em nova aba</span></a>
-        {detail.source.originUrl && <a href={detail.source.originUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4">Escritório de origem<ArrowUpRight className="size-4" /><span className="sr-only">, abre em nova aba</span></a>}
-        <span className="text-muted-foreground">Coletado em {timestamp.format(new Date(detail.source.capturedAt))}</span>
-      </div>
-      {pending && <p role="status" className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />Obtendo detalhes na WIPO… Você pode sair e voltar a esta página.</p>}
-      {detail.detailError && <div role="alert" className="flex flex-wrap items-center gap-3 py-5"><p className="text-sm text-destructive">{detail.detailError}</p><Button variant="outline" className="min-h-11 md:min-h-9" disabled={busy} onClick={async () => { setBusy(true); try { await load(undefined, true); } finally { setBusy(false); } }}>Tentar novamente</Button></div>}
-      {!!detail.fields.length && <dl>{detail.fields.map((field, index) => <div key={`${field.label}-${index}`} className="grid gap-2 border-b py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:gap-8"><dt className="text-sm text-muted-foreground">{fieldLabel(field.label)}</dt><dd className="whitespace-pre-wrap break-words text-sm leading-6">{field.value}</dd></div>)}</dl>}
-      <p className="py-6 text-[13px] leading-5 text-subtle-foreground">Os dados refletem a coleta na WIPO. O status oficial pode ser diferente da categoria geral da base; confirme os campos e o registro no escritório de origem.</p>
-    </>}
-  </div>;
+        {pending && <p role="status" className="flex items-center gap-2 text-[13.5px] text-muted-foreground"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Obtendo detalhes na WIPO… Você pode sair e voltar a esta página.</p>}
+        {detail.detailError && <div role="alert" className="flex flex-wrap items-center gap-3"><p className="text-[13.5px] text-destructive">{detail.detailError}</p>
+          <Button variant="outline" size="lg" className="h-11 md:h-[34px]" disabled={busy} onClick={async () => { setBusy(true); try { await load(undefined, true); } finally { setBusy(false); } }}>Tentar novamente</Button></div>}
+        {!!detail.fields.length && <CanvasSection title="Registro">
+          <dl className="flex flex-col">{detail.fields.map((field, index) => <div key={`${field.label}-${index}`} className="grid gap-1 py-3 sm:grid-cols-[minmax(0,200px)_minmax(0,1fr)] sm:gap-6">
+            <dt className="text-[13px] text-muted-foreground">{fieldLabel(field.label)}</dt><dd className="whitespace-pre-wrap break-words text-[13.5px] leading-6">{field.value}</dd></div>)}</dl>
+        </CanvasSection>}
+        <p className="text-xs leading-5 text-subtle-foreground">Os dados refletem a coleta na WIPO. O status oficial pode ser diferente da categoria geral da base; confirme os campos e o registro no escritório de origem.</p>
+      </>}
+    </CanvasPage>
+  </>;
 }

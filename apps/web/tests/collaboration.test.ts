@@ -68,10 +68,10 @@ test('each lawyer owns exactly one office and an office has exactly one lawyer',
 test('canvas resource titles and tool links reauthorize cases and private folders after access changes', async () => {
   const f = await fixture(); await f.grant();
   const opened = await openResource(f.guest.context, { resourceType: 'case', resourceId: f.shared });
-  assert.deepEqual(opened, { path: `/app/vault/cases/${f.shared}` });
+  assert.deepEqual(opened, { path: `/app/vault/cases/${f.shared}`, title: 'Caso compartilhado' });
   assert.equal(resourceHref('k5_ui_open_resource', opened), opened.path);
   assert.equal(resourceHref('k5_ui_open_resource', { path: 'https://example.com/app/vault' }), undefined);
-  assert.deepEqual(await openResource(f.guest.context, { resourceType: 'document', resourceId: f.sharedDoc }), { path: `/app/vault/files/${f.sharedDoc}` });
+  assert.deepEqual(await openResource(f.guest.context, { resourceType: 'document', resourceId: f.sharedDoc }), { path: `/app/vault/files/${f.sharedDoc}`, title: 'Documento autorizado' });
   assert.equal((await authorizedCanvasResource(f.guest.context, `/app/vault/files/${f.sharedDoc}`)).title, 'Documento autorizado');
   const { folder } = await runCapability(f.guest.context, 'k5_vault_create_folder', { caseId: f.shared, name: 'Só minha', visibility: 'private' }) as { folder: Folder };
   const privateFile = await f.document(f.shared, 'Nome sigiloso', folder.id, f.guest.id);
@@ -86,7 +86,7 @@ test('canvas keeps artifacts private and rejects stale office membership and non
   const f = await fixture(); await f.grant();
   const artifactId = randomUUID();
   await db.prepare("INSERT INTO ai_artifact(id,office_id,user_id,title,content,kind) VALUES(?,?,?,'Minuta privada','Rascunho','document')").run(artifactId, f.owner.context.officeId, f.owner.id);
-  assert.deepEqual(await openResource(f.owner.context, { resourceType: 'artifact', resourceId: artifactId }), { path: `/app/documents/${artifactId}` });
+  assert.deepEqual(await openResource(f.owner.context, { resourceType: 'artifact', resourceId: artifactId }), { path: `/app/documents/${artifactId}`, title: 'Minuta privada' });
   await assert.rejects(openResource(f.guest.context, { resourceType: 'artifact', resourceId: artifactId }));
   await assert.rejects(authorizedCanvasResource(f.owner.context, 'https://example.com/app/vault'), { code: 'INVALID' });
   await db.prepare('DELETE FROM office_member WHERE user_id=?').run(f.owner.id);

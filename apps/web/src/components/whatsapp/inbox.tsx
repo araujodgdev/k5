@@ -1,11 +1,15 @@
 'use client';
 
-import { ArrowLeft, ArrowUp, CircleAlert, Paperclip, Send, X } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowDown, ArrowUp, CircleAlert, LoaderCircle, MessageCircle, Paperclip, X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { CanvasTrail } from '@/components/canvas/canvas-controls';
+import { CanvasHeader, CanvasPage, CanvasRow } from '@/components/canvas/canvas-page';
 import { MessageAttachment } from '@/components/message-attachment';
+import { messageWhen } from '@/components/messaging/client';
+import { CanvasMeta } from '@/components/shell/shell-context';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   connectionStatusDto, historyPageDto, sendReceiptDto, threadPageDto, uploadReceiptDto,
@@ -163,42 +167,46 @@ export function WhatsAppInbox() {
   function back() {
     const id = selected?.id;
     setSelected(null);
-    requestAnimationFrame(() => { if (id) document.getElementById(`whatsapp-thread-${id}`)?.focus(); });
+    requestAnimationFrame(() => { if (id) document.querySelector<HTMLElement>(`[data-thread="${id}"] button`)?.focus(); });
   }
 
   const connected = status?.enabled && status.connection?.status === 'connected';
   const currentThread = selected && threads.kind === 'ready' ? threads.data.items.find(thread => thread.id === selected.id) ?? selected : selected;
   const syncPending = sync === 'requesting' || (threads.kind === 'ready' && threads.data.syncState === 'pending');
 
-  return <div className="whatsapp-workspace flex min-h-0 min-w-0 flex-1 flex-col" data-whatsapp-inbox>
-    <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 md:h-(--shell-header) md:px-10 md:py-0">
-      <h1 className="page-title max-md:sr-only">WhatsApp</h1>
-    </header>
-    {(connectionError || syncError) && <p role="alert" className="flex items-center gap-2 border-b px-5 py-3 text-sm text-destructive md:px-10"><CircleAlert className="size-4 shrink-0" aria-hidden="true" />{syncError || connectionError}</p>}
-    {status && !connected && <p role="status" className="border-b border-line px-5 py-3 text-sm md:px-10">{!status.enabled ? 'O WhatsApp está desativado para este escritório.' : status.connection?.status === 'reconnect_required' ? 'Reconecte a conta em Integrações para voltar a receber e enviar mensagens. O histórico disponível continua aqui.' : status.connection?.status === 'pending' ? 'Conclua a conexão no WhatsApp Business. As conversas aparecerão após a sincronização.' : status.connection?.status === 'disconnecting' ? 'A conta está sendo desconectada.' : 'Conecte o WhatsApp Business em Integrações para receber as conversas do escritório.'}</p>}
-    {sync === 'queued' && !syncPending && <p role="status" className="border-b px-5 py-2 text-sm text-muted-foreground md:px-10">Sincronização solicitada. As conversas serão atualizadas aqui.</p>}
-    {threads.kind === 'ready' && threads.data.syncState === 'error' && <div className="flex flex-wrap items-center gap-3 border-b px-5 py-3 md:px-10"><p role="status" className="text-sm text-muted-foreground">Não foi possível atualizar as conversas.</p><Button variant="outline" className="min-h-11 md:min-h-9" disabled={!connected || syncPending} onClick={() => void synchronize()}>{syncPending ? 'Atualizando…' : 'Tentar novamente'}</Button></div>}
-    <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden md:grid-cols-[minmax(16rem,21rem)_minmax(0,1fr)]">
-      <section aria-label="Conversas do WhatsApp" className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden border-line md:border-r', selected && 'hidden md:flex')}>
-        <div className="flex items-center justify-between border-b px-5 py-3"><h2 className="label-mono text-muted-foreground">Conversas</h2>{threads.kind === 'ready' && <span className="text-xs text-muted-foreground">{threads.data.items.length} carregadas</span>}</div>
-        {threads.kind === 'loading' && <p role="status" className="px-5 py-6 text-sm text-muted-foreground">Carregando conversas…</p>}
-        {threads.kind !== 'loading' && threads.error && <div className="space-y-3 border-b px-5 py-4"><p role="alert" className="text-sm text-destructive">{threads.error}</p><Button variant="outline" className="min-h-11 md:min-h-9" onClick={() => setRevision(value => value + 1)}>Tentar novamente</Button></div>}
+  const notice = !status || connected ? '' : !status.enabled ? 'O WhatsApp está desativado para este escritório.'
+    : status.connection?.status === 'reconnect_required' ? 'Reconecte a conta em Integrações para voltar a receber e enviar mensagens. O histórico disponível continua aqui.'
+    : status.connection?.status === 'pending' ? 'Conclua a conexão no WhatsApp Business. As conversas aparecerão após a sincronização.'
+    : status.connection?.status === 'disconnecting' ? 'A conta está sendo desconectada.'
+    : 'Conecte o WhatsApp Business em Integrações para receber as conversas do escritório.';
+  const quiet = 'text-[13.5px] text-muted-foreground';
+
+  return <>
+    <CanvasMeta title="WhatsApp" subject={{ kind: 'module', slug: 'whatsapp', title: 'WhatsApp' }} />
+    {currentThread ? <Conversation key={currentThread.id} thread={currentThread} connected={Boolean(connected)} draft={drafts[currentThread.id] ?? ''} attempt={attempts[currentThread.id]} revision={revision}
+      attachment={attachments[currentThread.id]} onAttachment={file => setAttachments(current => ({ ...current, [currentThread.id]: file }))}
+      onDraft={text => setDrafts(current => ({ ...current, [currentThread.id]: text }))} onBack={back}
+      onSend={(intent, windowClosesAt, checkExisting) => void send(intent, windowClosesAt, checkExisting)} />
+      : <CanvasPage className="md:gap-6">
+        <CanvasHeader eyebrow="Conversas dos clientes com o escritório" title="WhatsApp" actions={notice && status?.enabled &&
+          <Button asChild variant="outline" size="lg" className="h-11 md:h-[34px]"><Link href="/app/integrations">Abrir Integrações</Link></Button>} />
+        {(connectionError || syncError) && <p role="alert" className="flex items-center gap-2 text-[13.5px] text-destructive"><CircleAlert className="size-4 shrink-0" aria-hidden="true" />{syncError || connectionError}</p>}
+        {notice && <p role="status" className="text-[13.5px]">{notice}</p>}
+        {sync === 'queued' && !syncPending && <p role="status" className={quiet}>Sincronização solicitada. As conversas serão atualizadas aqui.</p>}
+        {threads.kind === 'ready' && threads.data.syncState === 'error' && <div className="flex flex-wrap items-center gap-3"><p role="status" className={quiet}>Não foi possível atualizar as conversas.</p><Button variant="outline" size="lg" className="h-11 md:h-[34px]" disabled={!connected || syncPending} onClick={() => void synchronize()}>{syncPending ? 'Atualizando…' : 'Tentar novamente'}</Button></div>}
+        {threads.kind === 'loading' && <p role="status" className={quiet}>Carregando conversas…</p>}
+        {threads.kind !== 'loading' && threads.error && <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-[13.5px] text-destructive">{threads.error}</p><Button variant="outline" size="lg" className="h-11 md:h-[34px]" onClick={() => setRevision(value => value + 1)}>Tentar novamente</Button></div>}
         {threads.kind === 'ready' && <>
-          {threads.data.items.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">{threads.data.syncState === 'pending' ? 'Buscando as primeiras conversas…' : 'As mensagens recebidas aparecerão aqui automaticamente.'}</p>}
-          <div className="min-h-0 flex-1 divide-y overflow-y-auto overscroll-contain">{threads.data.items.map(thread => <button key={thread.id} id={`whatsapp-thread-${thread.id}`} type="button" aria-current={selected?.id === thread.id ? 'true' : undefined} aria-label={`${thread.participantName || 'Contato'}, ${thread.unreadCount} mensagens não lidas`} onClick={() => setSelected(thread)} className={cn('group hover-rise relative block w-full border-l-2 px-5 py-4 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand hover:text-brand-foreground', selected?.id === thread.id ? 'border-foreground bg-brand-soft' : 'border-transparent')}>
-            <span className="flex items-baseline justify-between gap-3"><span className="min-w-0 truncate text-sm font-medium">{thread.participantName || 'Contato'}</span><time dateTime={thread.lastMessageAt} className="shrink-0 text-[11px] text-muted-foreground group-hover:text-brand-foreground">{dateLabel(thread.lastMessageAt)}</time></span>
-            <span className="mt-1 block truncate text-sm text-muted-foreground group-hover:text-brand-foreground">{thread.lastText || 'Mensagem sem texto'}</span>
-            {thread.unreadCount > 0 && <span className="mt-2 block text-xs">{thread.unreadCount} {thread.unreadCount === 1 ? 'não lida' : 'não lidas'}</span>}
-          </button>)}</div>
-          {threads.data.nextCursor && <div className="p-4"><Button variant="outline" className="min-h-11 w-full md:min-h-9" disabled={paging} onClick={() => void loadMoreThreads()}>{paging ? 'Carregando…' : 'Carregar mais conversas'}</Button></div>}
+          {threads.data.items.length === 0 && <p className={quiet}>{threads.data.syncState === 'pending' ? 'Buscando as primeiras conversas…' : 'As mensagens recebidas aparecerão aqui automaticamente.'}</p>}
+          {!!threads.data.items.length && <div role="list" aria-label="Conversas do WhatsApp" className="flex flex-col gap-0.5">{threads.data.items.map(thread => <div role="listitem" key={thread.id} data-thread={thread.id}>
+            <CanvasRow stacked icon={<MessageCircle />} onClick={() => setSelected(thread)} urgent={thread.unreadCount > 0}
+              title={<>{thread.participantName || 'Contato'}{thread.unreadCount > 0 && <span className="sr-only">, {thread.unreadCount} {thread.unreadCount === 1 ? 'não lida' : 'não lidas'}</span>}</>}
+              detail={thread.lastText || 'Mensagem sem texto'} meta={<time dateTime={thread.lastMessageAt}>{messageWhen(thread.lastMessageAt)}</time>} />
+          </div>)}</div>}
+          {threads.data.nextCursor && <div><Button variant="ghost" size="lg" className="h-11 text-muted-foreground md:h-[34px]" disabled={paging} onClick={() => void loadMoreThreads()}>{paging ? 'Carregando…' : 'Carregar mais conversas'}</Button></div>}
         </>}
-      </section>
-      {currentThread ? <Conversation key={currentThread.id} thread={currentThread} connected={Boolean(connected)} draft={drafts[currentThread.id] ?? ''} attempt={attempts[currentThread.id]} revision={revision}
-        attachment={attachments[currentThread.id]} onAttachment={file => setAttachments(current => ({ ...current, [currentThread.id]: file }))}
-        onDraft={text => setDrafts(current => ({ ...current, [currentThread.id]: text }))} onBack={back}
-        onSend={(intent, windowClosesAt, checkExisting) => void send(intent, windowClosesAt, checkExisting)} /> : <div className="hidden items-center justify-center p-10 text-sm text-muted-foreground md:flex">Escolha uma conversa para ler as mensagens.</div>}
-    </div>
-  </div>;
+      </CanvasPage>}
+  </>;
 }
 
 function Conversation({ thread, connected, draft, attempt, revision, attachment, onAttachment, onDraft, onBack, onSend }: {
@@ -301,50 +309,72 @@ function Conversation({ thread, connected, draft, attempt, revision, attachment,
     onSend({ threadId, text, idempotencyKey: crypto.randomUUID(), ...(attachment && { attachmentId: attachment.id }) }, loadedThread.windowClosesAt);
   }
 
-  return <section aria-labelledby="whatsapp-conversation-title" className="flex min-h-0 min-w-0 flex-col">
-    <header className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-4 md:px-8">
-      <Button variant="ghost" className="min-h-11 min-w-11 md:hidden" aria-label="Voltar para as conversas" onClick={onBack}><ArrowLeft aria-hidden="true" /></Button>
-      <div className="min-w-0"><h2 ref={title} tabIndex={-1} id="whatsapp-conversation-title" className="truncate font-medium outline-none">{thread.participantName || 'Contato'}</h2><p className="mt-1 text-xs text-muted-foreground">{windowOpen && loadedThread.windowClosesAt ? `Respostas pelo Lume até ${dateLabel(loadedThread.windowClosesAt)}` : 'Prazo de resposta encerrado'}</p></div>
-    </header>
-    <div ref={viewport} role="region" aria-label="Mensagens da conversa" tabIndex={0} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand" onScroll={event => {
+  const column = 'mx-auto w-full max-w-[720px] px-4 md:px-10';
+  const name = thread.participantName || 'Contato';
+  return <section aria-labelledby="whatsapp-conversation-title" className="whatsapp-workspace flex min-h-0 min-w-0 flex-1 flex-col" data-whatsapp-inbox
+    onKeyDown={event => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); onBack(); } }}>
+    <CanvasTrail back={{ label: 'WhatsApp', onClick: onBack }} icon={<MessageCircle />} current={name} />
+    <div ref={viewport} role="region" aria-label="Mensagens da conversa" tabIndex={0} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring" onScroll={event => {
       const element = event.currentTarget;
       nearEnd.current = element.scrollHeight - element.scrollTop - element.clientHeight < 96;
       setAwayFromEnd(!nearEnd.current);
     }}>
-      {history.kind === 'loading' && <p role="status" className="px-5 py-6 text-sm text-muted-foreground md:px-8">Carregando mensagens…</p>}
-      {history.kind !== 'loading' && history.error && <div className="space-y-3 border-b px-5 py-4 md:px-8"><p role="alert" className="text-sm text-destructive">{history.error}</p><Button variant="outline" className="min-h-11 md:min-h-9" onClick={() => setRefresh(value => value + 1)}>Tentar novamente</Button></div>}
-      {history.kind === 'ready' && <>
-        {!history.data.thread.historyComplete && <p className="border-b px-5 py-3 text-sm text-muted-foreground md:px-8">Parte do histórico ainda não foi carregada.</p>}
-        {history.data.nextCursor && <div className="border-b px-5 py-3 md:px-8"><Button variant="ghost" className="min-h-11 w-full md:min-h-9" disabled={paging} onClick={() => void loadOlder()}>{paging ? 'Carregando…' : 'Carregar mensagens anteriores'}</Button></div>}
-        {history.data.items.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground md:px-8">Nenhuma mensagem disponível nesta conversa.</p>}
-        <div className="divide-y">{history.data.items.map(message => <article key={message.id} className={cn('px-5 py-5 md:px-8', message.direction === 'outbound' && 'border-l-2 border-l-brand')}>
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{message.direction === 'inbound' ? thread.participantName || 'Contato' : message.source === 'whatsapp_business_app' ? 'Enviada pelo celular' : 'Escritório'}</span><time dateTime={message.createdAt}>{dateLabel(message.createdAt)}</time></div>
-          {message.deleted ? <p className="text-sm text-muted-foreground">Mensagem apagada.</p> : <>
-            {message.text && <p className="whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]">{message.text}</p>}
-            {message.attachments.map((file, index) => file.state === 'ready' && file.contentUrl
-              ? <MessageAttachment key={file.id ?? index} filename={file.filename || 'Anexo'} mimeType={file.mimeType} url={file.contentUrl} downloadUrl={`${file.contentUrl}?download=1`} />
-              : <div key={file.id ?? index} className="mt-3 space-y-1 text-sm"><p className="break-words font-medium">{file.filename || 'Anexo'}</p><p className="text-muted-foreground">{file.state === 'pending' ? 'Carregando anexo…' : 'Este anexo não está mais disponível.'}</p></div>)}
-            {!message.text && message.attachments.length === 0 && <p className="text-sm text-muted-foreground">Mensagem sem conteúdo disponível.</p>}
-          </>}
-          <p className="mt-2 text-xs text-muted-foreground">{messageLabels[message.status]}{message.edited ? ' · Editada' : ''}</p>
-        </article>)}</div>
-      </>}
+      <div className={cn(column, 'flex flex-col gap-5 pt-6 pb-4 md:pt-10')}>
+        <header className="flex flex-col gap-1">
+          <h1 ref={title} tabIndex={-1} id="whatsapp-conversation-title" className="truncate text-[22px] font-semibold tracking-[-0.02em] outline-none md:text-2xl">{name}</h1>
+          <p className="text-[13px] text-muted-foreground">{windowOpen && loadedThread.windowClosesAt ? `Respostas pelo Lume até ${dateLabel(loadedThread.windowClosesAt)}` : 'Prazo de resposta encerrado'}</p>
+        </header>
+        {history.kind === 'loading' && <p role="status" className="text-[13.5px] text-muted-foreground">Carregando mensagens…</p>}
+        {history.kind !== 'loading' && history.error && <div className="flex flex-wrap items-center gap-3"><p role="alert" className="text-[13.5px] text-destructive">{history.error}</p><Button variant="outline" size="lg" className="h-11 md:h-[34px]" onClick={() => setRefresh(value => value + 1)}>Tentar novamente</Button></div>}
+        {history.kind === 'ready' && <>
+          {!history.data.thread.historyComplete && <p className="text-[13px] text-muted-foreground">Parte do histórico ainda não foi carregada.</p>}
+          {history.data.nextCursor && <Button variant="ghost" size="lg" className="h-11 self-center text-muted-foreground md:h-[34px]" disabled={paging} onClick={() => void loadOlder()}>{paging ? 'Carregando…' : 'Carregar mensagens anteriores'}</Button>}
+          {history.data.items.length === 0 && <p className="text-[13.5px] text-muted-foreground">Nenhuma mensagem disponível nesta conversa.</p>}
+          {history.data.items.map(message => {
+            const own = message.direction === 'outbound';
+            const author = own ? message.source === 'whatsapp_business_app' ? 'Enviada pelo celular' : 'Escritório' : name;
+            return <article key={message.id} aria-label={`${author}, ${dateLabel(message.createdAt)}`} className={cn('flex min-w-0 flex-col gap-1', own ? 'items-end' : 'items-start')}>
+              <div className={cn('flex min-w-0 max-w-[86%] flex-col gap-2', own ? 'rounded-[14px] bg-muted px-3.5 py-2.5' : 'py-0.5')}>
+                {message.deleted ? <p className="text-[14.5px] text-muted-foreground">Mensagem apagada.</p> : <>
+                  {message.text && <p className="whitespace-pre-wrap break-words text-[14.5px] leading-[1.55] [overflow-wrap:anywhere]">{message.text}</p>}
+                  {message.attachments.map((file, index) => file.state === 'ready' && file.contentUrl
+                    ? <MessageAttachment key={file.id ?? index} filename={file.filename || 'Anexo'} mimeType={file.mimeType} url={file.contentUrl} downloadUrl={`${file.contentUrl}?download=1`} />
+                    : <div key={file.id ?? index} className="flex flex-col gap-0.5 text-[13.5px]"><p className="break-words font-medium">{file.filename || 'Anexo'}</p><p className="text-muted-foreground">{file.state === 'pending' ? 'Carregando anexo…' : 'Este anexo não está mais disponível.'}</p></div>)}
+                  {!message.text && message.attachments.length === 0 && <p className="text-[14.5px] text-muted-foreground">Mensagem sem conteúdo disponível.</p>}
+                </>}
+              </div>
+              <p className="px-1 text-xs text-muted-foreground">{own ? author : name} · <time dateTime={message.createdAt}>{dateLabel(message.createdAt)}</time>{own && ` · ${messageLabels[message.status]}`}{message.edited ? ' · Editada' : ''}</p>
+            </article>;
+          })}
+        </>}
+      </div>
     </div>
-    {awayFromEnd && <Button variant="ghost" className="min-h-11 shrink-0 border-t md:min-h-9" onClick={() => { if (viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight; nearEnd.current = true; setAwayFromEnd(false); }}><ArrowUp className="rotate-180" aria-hidden="true" />Ir para as mensagens recentes</Button>}
-    <form className="shrink-0 border-t border-line bg-background px-5 py-4 md:px-8" onSubmit={event => { event.preventDefault(); submit(); }}>
-      {disabledReason && <p id="whatsapp-compose-reason" className="mb-3 text-sm text-muted-foreground">{disabledReason}</p>}
-      {attachment && <div className="mb-3 flex min-w-0 items-start justify-between gap-3"><MessageAttachment filename={attachment.filename || 'Anexo'} mimeType={attachment.mimeType} url={attachment.contentUrl} downloadUrl={`${attachment.contentUrl}?download=1`} /><Button type="button" variant="ghost" className="min-h-11 min-w-11" disabled={unresolved || uploading} aria-label="Remover anexo" onClick={() => onAttachment(undefined)}><X aria-hidden="true" /></Button></div>}
-      <label htmlFor="whatsapp-reply" className="sr-only">Mensagem para {thread.participantName || 'o contato'}</label>
-      <Textarea id="whatsapp-reply" rows={3} maxLength={textLimit || 4096} value={draft} onChange={event => onDraft(event.target.value)} disabled={!allowed || unresolved || audioAttachment} aria-describedby={disabledReason ? 'whatsapp-compose-help whatsapp-compose-reason' : 'whatsapp-compose-help'} placeholder={audioAttachment ? 'Áudio sem legenda' : 'Escreva uma mensagem'} className="max-h-40 min-h-24 resize-y disabled:bg-transparent" />
-      <input ref={fileInput} type="file" className="sr-only" tabIndex={-1} aria-label="Arquivo para enviar" accept="image/jpeg,image/png,video/mp4,audio/mpeg,audio/ogg,audio/amr,audio/aac,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,text/plain" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void upload(file); }} />
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="ghost" className="min-h-11 md:min-h-9" disabled={!allowed || unresolved || uploading} onClick={() => fileInput.current?.click()}><Paperclip aria-hidden="true" />{uploading ? 'Anexando…' : 'Anexar'}</Button><p id="whatsapp-compose-help" className="text-xs text-muted-foreground">{audioAttachment ? 'Envie o áudio sem texto.' : `${draft.length.toLocaleString('pt-BR')} de ${textLimit.toLocaleString('pt-BR')} caracteres.`}</p><Button type="submit" className="min-h-11 md:min-h-9" disabled={!allowed || unresolved || uploading || (!draft.trim() && !attachment) || draft.trim().length > textLimit}><Send aria-hidden="true" />{attempt?.kind === 'sending' ? 'Enviando…' : 'Enviar'}</Button></div>
-      {audioAttachment && draft.trim() && <p role="status" className="mt-2 text-sm text-muted-foreground">Remova o áudio para enviar o texto já escrito, ou limpe o texto para enviar só o áudio. <button type="button" className="underline" onClick={() => onDraft('')}>Limpar texto</button></p>}
-      {uploadError && <p role="alert" className="mt-2 text-sm text-destructive">{uploadError}</p>}
-      {attempt && <div className="mt-3 space-y-2 border-l-2 border-brand pl-3" aria-live="polite">
-        <p className={cn('text-sm', attempt.kind === 'failed' && 'text-destructive')}>
+    <form className={cn(column, 'relative shrink-0 pt-2 pb-4 md:pb-6')} onSubmit={event => { event.preventDefault(); submit(); }}>
+      {awayFromEnd && <Button type="button" variant="outline" size="sm" className="absolute -top-9 left-1/2 h-11 -translate-x-1/2 rounded-full bg-card shadow-[var(--shadow-float)] md:h-7" onClick={() => { if (viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight; nearEnd.current = true; setAwayFromEnd(false); }}><ArrowDown aria-hidden="true" />Mensagens recentes</Button>}
+      {disabledReason && <p id="whatsapp-compose-reason" className="mb-2 text-[13px] text-muted-foreground">{disabledReason}</p>}
+      <div className="flex flex-col gap-1.5 rounded-[14px] border border-border-strong bg-card pt-2.5 pr-2.5 pb-2 pl-3.5 transition-shadow focus-within:ring-3 focus-within:ring-ring/30">
+        {attachment && <div className="flex min-w-0 items-start justify-between gap-3"><MessageAttachment filename={attachment.filename || 'Anexo'} mimeType={attachment.mimeType} url={attachment.contentUrl} downloadUrl={`${attachment.contentUrl}?download=1`} /><Button type="button" variant="ghost" size="icon" className="size-11 md:size-8" disabled={unresolved || uploading} aria-label="Remover anexo" onClick={() => onAttachment(undefined)}><X aria-hidden="true" /></Button></div>}
+        <label htmlFor="whatsapp-reply" className="sr-only">Mensagem para {thread.participantName || 'o contato'}</label>
+        <textarea id="whatsapp-reply" rows={2} maxLength={textLimit || 4096} value={draft} onChange={event => onDraft(event.target.value)} disabled={!allowed || unresolved || audioAttachment}
+          aria-describedby={disabledReason ? 'whatsapp-compose-help whatsapp-compose-reason' : 'whatsapp-compose-help'} placeholder={audioAttachment ? 'Áudio sem legenda' : 'Escreva uma mensagem'}
+          className="max-h-40 min-h-12 w-full resize-none bg-transparent py-0.5 text-[14.5px] leading-[1.5] outline-none placeholder:text-subtle-foreground disabled:opacity-60" />
+        <input ref={fileInput} type="file" className="sr-only" tabIndex={-1} aria-label="Arquivo para enviar" accept="image/jpeg,image/png,video/mp4,audio/mpeg,audio/ogg,audio/amr,audio/aac,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,text/plain" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void upload(file); }} />
+        <div className="flex items-center gap-1">
+          <Button type="button" variant="ghost" className="-ml-1.5 h-11 gap-1.5 px-2 text-[13px] text-muted-foreground md:h-[30px]" disabled={!allowed || unresolved || uploading} onClick={() => fileInput.current?.click()}><Paperclip aria-hidden="true" />{uploading ? 'Anexando…' : 'Anexar'}</Button>
+          <p id="whatsapp-compose-help" className="min-w-0 flex-1 truncate text-right text-xs text-subtle-foreground">{audioAttachment ? 'Envie o áudio sem texto.' : `${draft.length.toLocaleString('pt-BR')} de ${textLimit.toLocaleString('pt-BR')}`}</p>
+          <Button type="submit" size="icon" className="size-11 rounded-full md:size-8" aria-label={attempt?.kind === 'sending' ? 'Enviando…' : 'Enviar'}
+            disabled={!allowed || unresolved || uploading || (!draft.trim() && !attachment) || draft.trim().length > textLimit}>
+            {attempt?.kind === 'sending' ? <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}
+          </Button>
+        </div>
+      </div>
+      {audioAttachment && draft.trim() && <p role="status" className="mt-2 text-[13px] text-muted-foreground">Remova o áudio para enviar o texto já escrito, ou limpe o texto para enviar só o áudio. <button type="button" className="min-h-11 underline underline-offset-2 md:min-h-0" onClick={() => onDraft('')}>Limpar texto</button></p>}
+      {uploadError && <p role="alert" className="mt-2 text-[13.5px] text-destructive">{uploadError}</p>}
+      {attempt && <div className="mt-2 flex flex-wrap items-center gap-2" aria-live="polite">
+        <p className={cn('text-[13.5px]', attempt.kind === 'failed' ? 'text-destructive' : 'text-muted-foreground')}>
           {attempt.kind === 'sending' ? 'Aguardando a confirmação do envio…' : attempt.kind === 'failed' || attempt.kind === 'uncertain' ? attempt.error : attempt.receipt.status === 'unknown' ? 'O envio ainda não foi confirmado. Confira no WhatsApp Business antes de enviar novamente.' : attempt.receipt.status === 'failed' ? 'A mensagem não foi enviada. Você pode revisar o texto e tentar novamente.' : messageLabels[attempt.receipt.status]}
         </p>
-        {checkable && <Button type="button" variant="outline" className="min-h-11 md:min-h-9" onClick={() => onSend(attempt.intent, loadedThread.windowClosesAt, true)}>Verificar este envio</Button>}
+        {checkable && <Button type="button" variant="outline" size="lg" className="h-11 md:h-[34px]" onClick={() => onSend(attempt.intent, loadedThread.windowClosesAt, true)}>Verificar este envio</Button>}
       </div>}
     </form>
   </section>;

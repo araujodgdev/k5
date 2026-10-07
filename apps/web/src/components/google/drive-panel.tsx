@@ -15,7 +15,7 @@ import { MAX_UPLOAD_BYTES } from '@/lib/vault-upload-contract';
 type DriveFile = z.infer<typeof driveFileDto>;
 type Import = z.infer<typeof driveImportDto>;
 type Permission = z.infer<typeof drivePermissionDto>;
-const row = 'flex min-h-12 flex-wrap items-center gap-3 border-b py-2 text-sm';
+const row = 'flex min-h-12 flex-wrap items-center gap-3 py-2 text-sm';
 const select = 'min-h-11 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-9';
 const when = (value: string | null) => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
 const kindLabel: Record<DriveFile['kind'], string> = {
@@ -160,7 +160,7 @@ export function DrivePanel({ initialCaseId, initialFolderId, onImported }: {
     {available && !loading && <>
       <p className="mt-3 text-sm text-muted-foreground">Destino: {initialCaseId ? initialFolderId ? 'esta pasta' : 'este caso' : 'Biblioteca'}. A cópia fica no Cofre; o original permanece na sua conta Google.</p>
       {!files.length ? <p className="mt-6 text-sm text-muted-foreground">Nenhum arquivo escolhido. Abra o seletor para começar.</p> :
-        <div className="mt-5 divide-y border-y" role="list" aria-label="Arquivos escolhidos">
+        <div className="mt-5" role="list" aria-label="Arquivos escolhidos">
           {files.map(file => <div key={file.id} role="listitem" className={row}>
             <button type="button" onClick={() => choose(file)} aria-expanded={selectedId === file.id}
               className="min-h-11 min-w-0 flex-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -199,7 +199,7 @@ export function DrivePanel({ initialCaseId, initialFolderId, onImported }: {
         </>}
         <div className="mt-5 border-t pt-5">
           <Button variant="outline" disabled={busy} onClick={() => void loadPermissions(selected.id)}>Ver acessos no Google</Button>
-          {permissions && <div className="mt-3 divide-y border-y">{permissions.length ? permissions.map(p => <div key={p.id} className={row}>
+          {permissions && <div className="mt-3">{permissions.length ? permissions.map(p => <div key={p.id} className={row}>
             <span className="min-w-0 flex-1 break-words">{p.emailAddress ?? p.displayName ?? p.type} · {p.role} {p.inherited && '· herdado do Drive compartilhado'}</span>
             {p.removable && <Button variant="ghost" size="sm" disabled={busy} onClick={() => void mutate('drive-revoke', { fileId: selected.id, permissionId: p.id },
               () => void loadPermissions(selected.id))}>Remover acesso</Button>}
@@ -231,7 +231,7 @@ export function DrivePanel({ initialCaseId, initialFolderId, onImported }: {
       </div>}
       <div className="mt-7 border-t pt-5"><h3 className="font-medium">Cópias no Cofre</h3>
         {!imports.length ? <p className="mt-3 text-sm text-muted-foreground">Nenhuma cópia criada nesta conta.</p> :
-          <div className="mt-3 divide-y border-y">{imports.map(item => <div key={item.id} className={row}>
+          <div className="mt-3">{imports.map(item => <div key={item.id} className={row}>
             <div className="min-w-0 flex-1"><p className="truncate font-medium">{item.fileName}</p>
               <p className="text-xs text-muted-foreground">{importState(item)} · {item.sourceAccount} · origem {item.sourceVersion ?? 'sem versão'} · {when(item.completedAt ?? item.createdAt)}{item.sha256 && ` · SHA-256 ${item.sha256.slice(0, 12)}…`}</p></div>
             {item.vaultDocumentId && <Link href={item.caseId ? `/app/vault/cases/${encodeURIComponent(item.caseId)}` : '/app/vault/library'} className="underline underline-offset-4">Abrir {item.caseId ? 'caso' : 'Biblioteca'}</Link>}

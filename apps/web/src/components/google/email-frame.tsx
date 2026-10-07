@@ -45,7 +45,7 @@ export function sanitizeEmailHtml(html: string, showImages: boolean): { document
   const styles = [...parsed.querySelectorAll('style')].map(style => style.outerHTML).join('');
   parsed.querySelectorAll('style').forEach(style => style.remove());
   return { remote, document: `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><base target="_blank">`
-    + `<style>html{background:#fff;color:#232323;color-scheme:light}body{margin:0;padding:16px;font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}</style>`
+    + `<style>html{background:#fff;color:#1C1B19;color-scheme:light}body{margin:0;padding:16px;font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}</style>`
     + `${styles}</head><body>${parsed.body.innerHTML}</body></html>` };
 }
 
@@ -81,7 +81,7 @@ export function EmailFrame({ html, title }: { html: string; title: string }) {
   return <div className="mt-5">
     {remote && !showImages && <p className="mb-3 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
       Imagens externas bloqueadas para proteger sua privacidade.
-      <button type="button" onClick={() => setShowImages(true)} className="font-medium text-foreground underline underline-offset-4 hover:text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Mostrar imagens</button>
+      <button type="button" onClick={() => setShowImages(true)} className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Mostrar imagens</button>
     </p>}
     {/* allow-same-origin without allow-scripts lets the page measure the frame; nothing inside can run. */}
     <iframe ref={frame} title={title} srcDoc={source} sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"

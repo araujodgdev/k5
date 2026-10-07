@@ -2,23 +2,23 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowUpRight, CircleAlert, LoaderCircle, Search, Upload, X } from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { ArrowUpRight, LoaderCircle, Search, X } from 'lucide-react';
+import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
+import { CanvasTrail, Field } from '@/components/canvas/canvas-controls';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { sectionTab, sectionTabRow } from '@/components/section-tabs';
 import { requestCapability } from '@/lib/capabilities/http-client';
-import { trademarkCountries, trademarkLabels, trademarkSearchView, trademarkHistoryItem, trademarkUpload, activeTrademarkRun,
-  trademarkSituation, type TrademarkSearchView, type TrademarkHistoryItem, type TrademarkSearchInput } from '@/lib/research/trademarks/contracts';
+import { trademarkCountries, trademarkLabels, trademarkSearchView, trademarkUpload, activeTrademarkRun,
+  trademarkSituation, type TrademarkSearchView, type TrademarkSearchInput, type TrademarkSummary } from '@/lib/research/trademarks/contracts';
 
-const selectStyle = 'h-11 w-full border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9';
-const day = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
+const selectStyle = 'h-11 w-full rounded-md border bg-background text-[13.5px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9';
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const situations: Record<string, string> = { Registered: 'Registrada', Pending: 'Em análise', Ended: 'Encerrada', Expired: 'Expirada', Unknown: 'Situação não informada' };
 export const trademarkSituationLabel = (value: string | null) => value ? value.replace(/^(Registered|Pending|Ended|Expired|Unknown)\b/, status => situations[status]) : 'Situação não informada';
+const searchOf = (data: unknown) => trademarkSearchView.parse(data && typeof data === 'object' && 'search' in data ? data.search : null);
 
 export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: string | null }) {
-  const [tab, setTab] = useState<'search' | 'history'>('search');
   const [kind, setKind] = useState<TrademarkSearchInput['query']['kind']>('name');
   const [name, setName] = useState('');
   const [strategy, setStrategy] = useState<Extract<TrademarkSearchInput['query'], { kind: 'name' }>['strategy']>('contains');
@@ -29,21 +29,19 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
   const [situation, setSituation] = useState<TrademarkSearchInput['situation']>('all');
   const [niceClass, setNiceClass] = useState('');
   const [view, setView] = useState<TrademarkSearchView | null>(null);
-  const [history, setHistory] = useState<TrademarkHistoryItem[] | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(Boolean(initialSearchId));
-  const [historyError, setHistoryError] = useState('');
   const heading = useRef<HTMLHeadingElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const id = useId();
 
   useEffect(() => () => { if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview); }, [preview]);
   const show = useCallback((search: TrademarkSearchView) => {
     setView(search); setKind(search.input.query.kind); setCountry(search.input.country); setSituation(search.input.situation);
     setNiceClass(search.input.niceClass ? String(search.input.niceClass) : '');
     if (search.input.query.kind === 'name') { setName(search.input.query.name); setStrategy(search.input.query.strategy); }
-    else if (search.input.query.kind==='logo') { setUploadId(search.input.query.uploadId); setPreview(`/api/research/trademarks/uploads/${search.input.query.uploadId}`); }
-    else { setName(''); }
+    else { setUploadId(search.input.query.uploadId); setPreview(`/api/research/trademarks/uploads/${search.input.query.uploadId}`); }
     const url = new URL(window.location.href); url.searchParams.set('mode', 'trademarks'); url.searchParams.set('search', search.id);
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
   }, []);
@@ -53,7 +51,7 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
     const controller = new AbortController();
     void requestCapability('k5_research_get_trademark_search', { searchId: initialSearchId }, controller.signal).then(response => {
       if (controller.signal.aborted) return;
-      if (response.ok) show(trademarkSearchView.parse(response.data && typeof response.data === 'object' && 'search' in response.data ? response.data.search : null));
+      if (response.ok) show(searchOf(response.data));
       else setError(response.error);
       setLoading(false);
     });
@@ -69,7 +67,7 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
       void requestCapability('k5_research_get_trademark_search', { searchId }, controller.signal).then(response => {
         if (controller.signal.aborted) return;
         if (response.ok) {
-          const parsed = trademarkSearchView.parse(response.data && typeof response.data === 'object' && 'search' in response.data ? response.data.search : null);
+          const parsed = searchOf(response.data);
           setView(parsed); setError('');
           if (!activeTrademarkRun(parsed.state)) heading.current?.focus();
         } else setError(response.error);
@@ -77,23 +75,6 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
     }, 3000);
     return () => { clearInterval(timer); controller.abort(); };
   }, [searchId, running]);
-
-  async function loadHistory() {
-    setHistoryError('');
-    const response = await requestCapability('k5_research_list_trademark_searches', {});
-    if (response.ok) {
-      const raw = response.data && typeof response.data === 'object' && 'searches' in response.data ? response.data.searches : null;
-      setHistory(trademarkHistoryItem.array().parse(raw));
-    } else setHistoryError(response.error);
-  }
-
-  async function open(id: string) {
-    setLoading(true); setError(''); setTab('search');
-    const response = await requestCapability('k5_research_get_trademark_search', { searchId: id });
-    if (response.ok) show(trademarkSearchView.parse(response.data && typeof response.data === 'object' && 'search' in response.data ? response.data.search : null));
-    else setError(response.error);
-    setLoading(false);
-  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -114,83 +95,120 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
         : { kind: 'logo', uploadId: imageId ?? '', strategy: 'concept' };
       const response = await requestCapability('k5_research_start_trademark_search', { query, country, situation, niceClass: niceClass ? Number(niceClass) : null, idempotencyKey: crypto.randomUUID() });
       if (!response.ok) throw new Error(response.error);
-      show(trademarkSearchView.parse(response.data && typeof response.data === 'object' && 'search' in response.data ? response.data.search : null));
-      setHistory(null);
+      show(searchOf(response.data));
     } catch (error) { setError(error instanceof Error ? error.message : 'Não foi possível iniciar a pesquisa.'); }
     finally { setBusy(false); }
   }
 
-  async function action(name: 'k5_research_next_trademark_page' | 'k5_research_cancel_trademark_search') {
+  async function action(capability: 'k5_research_next_trademark_page' | 'k5_research_cancel_trademark_search') {
     if (!view || busy) return;
     setBusy(true); setError('');
-    const response = await requestCapability(name, { searchId: view.id });
-    if (response.ok) show(trademarkSearchView.parse(response.data && typeof response.data === 'object' && 'search' in response.data ? response.data.search : null));
+    const response = await requestCapability(capability, { searchId: view.id });
+    if (response.ok) show(searchOf(response.data));
     else setError(response.error);
     setBusy(false);
   }
 
-  return <div className="min-w-0">
-    <nav aria-label="Visões da pesquisa de marcas" className={sectionTabRow}>
-      <button type="button" onClick={() => setTab('search')} aria-current={tab === 'search' ? 'page' : undefined} className={sectionTab(tab === 'search')}>Pesquisar</button>
-      <button type="button" onClick={() => { setTab('history'); void loadHistory(); }} aria-current={tab === 'history' ? 'page' : undefined} className={sectionTab(tab === 'history')}>Histórico</button>
-    </nav>
-    {tab === 'history' ? <section className="py-5" aria-label="Histórico de pesquisas de marcas">
-      {historyError ? <p role="alert" className="text-sm text-destructive">{historyError} <button type="button" className="min-h-11 underline" onClick={() => void loadHistory()}>Tentar novamente</button></p>
-        : history === null ? <p role="status" className="text-sm text-muted-foreground">Carregando histórico…</p>
-        : !history.length ? <p className="py-5 text-sm text-muted-foreground">Suas pesquisas de marcas aparecem aqui.</p>
-        : <div className="border-t">{history.map(item => <button key={item.id} type="button" onClick={() => void open(item.id)} className="flex min-h-14 w-full items-center justify-between gap-4 border-b py-3 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="min-w-0"><span className="block truncate text-sm">{item.title}</span><span className="mt-1 block text-[13px] text-muted-foreground">{trademarkCountries.find(country => country.code === item.input.country)?.name} · {item.resultCount} resultados · {item.step}</span></span>
-          <span className="label-mono shrink-0 text-subtle-foreground">{day.format(new Date(item.createdAt))}</span>
-        </button>)}</div>}
-    </section> : <>
-      <form onSubmit={submit} className="grid gap-5 border-b py-5">
-        <fieldset disabled={busy || running} className="grid min-w-0 gap-4">
-          <legend className="mb-2 text-sm font-medium">Pesquisar por</legend>
-          <div className="flex">{(['name', 'logo'] as const).map(value => <label key={value} className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center border px-3 text-sm sm:flex-none ${kind === value ? 'bg-foreground font-medium text-background' : 'text-muted-foreground hover:bg-accent'} has-focus-visible:ring-2 has-focus-visible:ring-ring`}>
-            <input type="radio" name="trademark-kind" checked={kind === value} onChange={() => setKind(value)} className="sr-only" />{value === 'name' ? 'Nome' : 'Logotipo'}
-          </label>)}</div>
-          {kind === 'name' ? <div className="grid gap-1.5"><Label htmlFor="trademark-name">Nome da marca</Label><Input id="trademark-name" value={name} onChange={event => setName(event.target.value)} minLength={2} maxLength={200} required placeholder="Ex.: Lume" className="h-11 md:h-9" /></div>
-            : <div className="grid gap-2"><Label htmlFor="trademark-logo">Imagem da marca</Label><div className="flex flex-wrap items-center gap-4 border p-4">
-              {preview && <Image src={preview} alt="Logotipo selecionado para a pesquisa" width={88} height={88} unoptimized className="size-22 object-contain" />}
-              <div className="min-w-0 flex-1"><Input ref={fileInput} id="trademark-logo" type="file" accept="image/png,image/jpeg,image/webp" className="h-auto py-2" onChange={event => {
-                const selected = event.target.files?.[0];
-                if (!selected) return;
-                if (selected.size > 5 * 1024 * 1024) { setError('O logotipo deve ter até 5 MB.'); event.target.value = ''; return; }
-                setFile(selected); setUploadId(null); setPreview(URL.createObjectURL(selected)); setError('');
-              }} /><p className="mt-2 text-[13px] text-muted-foreground">PNG, JPG ou WebP, até 5 MB. A WIPO compara o conteúdo visual por similaridade conceitual.</p></div>
-              {preview && <Button type="button" variant="ghost" className="min-h-11 min-w-11" aria-label="Remover logotipo" onClick={() => { setFile(null); setUploadId(null); setPreview(null); if (fileInput.current) fileInput.current.value = ''; }}><X /></Button>}
-            </div></div>}
-          <div className={`grid gap-4 sm:grid-cols-2 ${kind === 'name' ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
-            <div className="grid gap-1.5"><Label htmlFor="trademark-country">Território de proteção</Label><select id="trademark-country" value={country} onChange={event => setCountry(event.target.value)} className={selectStyle}>{trademarkCountries.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}</select></div>
-            <div className="grid gap-1.5"><Label htmlFor="trademark-situation">Situação</Label><select id="trademark-situation" value={situation} onChange={event => setSituation(trademarkSituation.parse(event.target.value))} className={selectStyle}>{Object.entries(trademarkLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-            <div className="grid gap-1.5"><Label htmlFor="trademark-nice">Classe Nice</Label><select id="trademark-nice" value={niceClass} onChange={event => setNiceClass(event.target.value)} className={selectStyle}><option value="">Todas as classes</option>{Array.from({ length: 45 }, (_, i) => <option key={i + 1} value={i + 1}>Classe {i + 1}</option>)}</select></div>
-            {kind === 'name' && <div className="grid gap-1.5"><Label htmlFor="trademark-strategy">Correspondência</Label><select id="trademark-strategy" value={strategy} onChange={event => setStrategy(event.target.value === 'exact' ? 'exact' : event.target.value === 'fuzzy' ? 'fuzzy' : event.target.value === 'phonetic' ? 'phonetic' : 'contains')} className={selectStyle}><option value="contains">Contém o nome</option><option value="exact">Nome exato</option><option value="fuzzy">Nomes semelhantes</option><option value="phonetic">Semelhança fonética</option></select></div>}
+  function clearLogo() {
+    setFile(null); setUploadId(null); setPreview(null);
+    if (fileInput.current) fileInput.current.value = '';
+  }
+
+  return <>
+    <CanvasTrail back={{ href: '/app/research', label: 'Pesquisa' }} icon={<Search />} current={view?.title ?? 'Marcas'} />
+    <CanvasPage className="md:gap-8">
+      <CanvasHeader eyebrow="Marcas · WIPO Global Brand Database" title={view ? view.title : loading ? 'Pesquisa' : 'Nova pesquisa'} />
+      {loading ? <p role="status" className="text-[13.5px] text-muted-foreground">Carregando pesquisa…</p> : <>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <fieldset disabled={busy || running} className="flex min-w-0 flex-col gap-4">
+          <legend className="sr-only">Critérios da pesquisa de marcas</legend>
+          <fieldset className="flex flex-wrap gap-x-6">
+            <legend className="mb-1.5 text-xs text-muted-foreground">Pesquisar por</legend>
+            {([['name', 'Nome'], ['logo', 'Logotipo']] as const).map(([value, label]) => <label key={value} className="flex min-h-11 items-center gap-2.5 text-[13.5px] md:min-h-8">
+              <input type="radio" name={`${id}-kind`} value={value} checked={kind === value} onChange={() => setKind(value)} className="size-4 accent-foreground" />{label}
+            </label>)}
+          </fieldset>
+          {kind === 'name' ? (
+            <Field label="Nome da marca" htmlFor={`${id}-name`}>
+              <Input id={`${id}-name`} value={name} onChange={event => setName(event.target.value)} minLength={2} maxLength={200} required placeholder="Ex.: Lume" className="h-11 md:h-9" />
+            </Field>
+          ) : (
+            <Field label="Imagem da marca" htmlFor={`${id}-logo`}>
+              <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4">
+                {preview && <Image src={preview} alt="Logotipo selecionado para a pesquisa" width={64} height={64} unoptimized className="size-16 rounded-md object-contain" />}
+                <div className="min-w-0 flex-1">
+                  <Input ref={fileInput} id={`${id}-logo`} type="file" accept="image/png,image/jpeg,image/webp" className="h-auto py-2" onChange={event => {
+                    const selected = event.target.files?.[0];
+                    if (!selected) return;
+                    if (selected.size > MAX_LOGO_BYTES) { setError('O logotipo deve ter até 5 MB.'); event.target.value = ''; return; }
+                    setFile(selected); setUploadId(null); setPreview(URL.createObjectURL(selected)); setError('');
+                  }} />
+                  <p className="mt-2 text-xs text-muted-foreground">PNG, JPG ou WebP, até 5 MB. A WIPO compara o conteúdo visual por similaridade conceitual.</p>
+                </div>
+                {preview && <Button type="button" variant="ghost" size="icon" className="size-11 md:size-8" aria-label="Remover logotipo" onClick={clearLogo}><X /></Button>}
+              </div>
+            </Field>
+          )}
+          <div className={`grid gap-4 sm:grid-cols-2 ${kind === 'name' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
+            <Field label="Território de proteção" htmlFor={`${id}-country`}>
+              <select id={`${id}-country`} value={country} onChange={event => setCountry(event.target.value)} className={selectStyle}>{trademarkCountries.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}</select>
+            </Field>
+            <Field label="Situação" htmlFor={`${id}-situation`}>
+              <select id={`${id}-situation`} value={situation} onChange={event => setSituation(trademarkSituation.parse(event.target.value))} className={selectStyle}>{Object.entries(trademarkLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+            </Field>
+            <Field label="Classe Nice" htmlFor={`${id}-nice`}>
+              <select id={`${id}-nice`} value={niceClass} onChange={event => setNiceClass(event.target.value)} className={selectStyle}><option value="">Todas as classes</option>{Array.from({ length: 45 }, (_, i) => <option key={i + 1} value={i + 1}>Classe {i + 1}</option>)}</select>
+            </Field>
+            {kind === 'name' && <Field label="Correspondência" htmlFor={`${id}-strategy`}>
+              <select id={`${id}-strategy`} value={strategy} onChange={event => setStrategy(event.target.value === 'exact' ? 'exact' : event.target.value === 'fuzzy' ? 'fuzzy' : event.target.value === 'phonetic' ? 'phonetic' : 'contains')} className={selectStyle}>
+                <option value="contains">Contém o nome</option><option value="exact">Nome exato</option><option value="fuzzy">Nomes semelhantes</option><option value="phonetic">Semelhança fonética</option>
+              </select>
+            </Field>}
           </div>
         </fieldset>
-        <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={busy || running || (kind === 'name' ? name.trim().length < 2 : !file && !uploadId)} className="min-h-11 md:min-h-9">{busy ? <LoaderCircle className="animate-spin" /> : kind === 'logo' ? <Upload /> : <Search />}Pesquisar marcas</Button>
-          {running && <Button type="button" variant="outline" className="min-h-11 md:min-h-9" disabled={busy} onClick={() => void action('k5_research_cancel_trademark_search')}>Cancelar pesquisa</Button>}
-          <span className="text-[13px] text-muted-foreground">Fonte: WIPO Global Brand Database</span></div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="submit" size="lg" className="h-11 md:h-[34px]" disabled={busy || running || (kind === 'name' ? name.trim().length < 2 : !file && !uploadId)}>
+            {busy && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}Pesquisar marcas
+          </Button>
+          {running && <Button type="button" variant="outline" size="lg" className="h-11 md:h-[34px]" disabled={busy} onClick={() => void action('k5_research_cancel_trademark_search')}>Cancelar pesquisa</Button>}
+        </div>
       </form>
-      {error && <p role="alert" className="flex items-start gap-2 py-4 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" />{error}</p>}
-      {loading ? <p role="status" className="py-8 text-sm text-muted-foreground">Carregando pesquisa…</p> : view ? <section className="py-5" aria-labelledby="trademark-results-heading">
-        <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="trademark-results-heading" tabIndex={-1} ref={heading} className="text-base font-medium outline-none">Resultados</h2>
-          <p role="status" className="text-[13px] text-muted-foreground">{running ? view.step : `${view.results.length} resultados obtidos${view.totalReported !== null ? ` de ${view.totalReported}` : ''}`}</p></div>
-        {view.error && <div role="alert" className="flex flex-wrap items-center gap-3 border-b py-4"><p className="text-sm text-destructive">{view.error}</p><Button variant="outline" className="min-h-11 md:min-h-9" disabled={busy} onClick={() => void action('k5_research_next_trademark_page')}>Tentar novamente</Button></div>}
-        {!view.results.length && view.state === 'completed' ? <p className="py-8 text-sm text-muted-foreground">Nenhuma marca encontrada para estes critérios. Tente outro nome, imagem ou filtro.</p>
-          : running && !view.results.length ? <p className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />{view.step}… Você pode sair e acompanhar pelo histórico.</p> : null}
-        <div className="mt-3 border-t">{view.results.map(result => <div key={result.id} className="flex gap-4 border-b py-4">
-          {result.representationUrl && <Image src={result.representationUrl} alt={`Representação da marca ${result.name}`} width={64} height={64} unoptimized className="size-16 shrink-0 object-contain" />}
-          <div className="min-w-0 flex-1"><Link href={`/app/research/trademarks/${result.id}`} prefetch={false} className="text-sm font-medium underline-offset-4 hover:underline">{result.name || 'Marca sem nome informado'}</Link>
-            <p className="mt-1 text-[13px] text-muted-foreground">{trademarkSituationLabel(result.situation)}{result.office || result.territory ? ` · ${result.office ?? result.territory}` : ''}{result.niceClasses.length ? ` · Nice ${result.niceClasses.join(', ')}` : ''}</p>
-            {!!result.viennaCodes.length && <p className="mt-1 text-[13px] text-muted-foreground">Viena {result.viennaCodes.join(', ')}</p>}
-            {result.owner && <p className="mt-1 break-words text-sm text-muted-foreground">{result.owner}</p>}
-            <a href={result.source.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground underline-offset-4 hover:underline">WIPO Global Brand Database <ArrowUpRight className="size-3.5" /><span className="sr-only">, abre em nova aba</span></a>
+      {error && <p role="alert" className="text-[13.5px] text-destructive">{error}</p>}
+      {view ? (
+        <section aria-labelledby={`${id}-results`} className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 id={`${id}-results`} tabIndex={-1} ref={heading} className="text-[15px] font-semibold outline-none">Resultados</h2>
+            <p role="status" className="text-[13px] text-muted-foreground">{running ? view.step : `${view.results.length} obtidos${view.totalReported !== null ? ` de ${view.totalReported}` : ''}`}</p>
           </div>
-        </div>)}</div>
-        {view.hasMore && <Button variant="outline" className="mt-4 min-h-11 md:min-h-9" disabled={busy || running} onClick={() => void action('k5_research_next_trademark_page')}>{busy || running ? 'Consultando…' : 'Carregar mais resultados'}</Button>}
-        {view.state === 'cancelled' && <p className="pt-4 text-sm text-muted-foreground">Pesquisa cancelada. Os resultados já obtidos foram preservados.</p>}
-        <p className="pt-5 text-[13px] leading-5 text-subtle-foreground">A base pode ter lacunas e atrasos de atualização. Nenhum resultado não significa que a marca está disponível. Confira o registro no escritório de origem.</p>
-      </section> : !error && <p className="py-8 text-sm text-muted-foreground">Pesquise pelo nome ou logotipo. Brasil e todos os status estão selecionados por padrão.</p>}
-    </>}
-  </div>;
+          {view.error && <div role="alert" className="flex flex-wrap items-center gap-3"><p className="text-[13.5px] text-destructive">{view.error}</p>
+            <Button variant="outline" size="lg" className="h-11 md:h-[34px]" disabled={busy} onClick={() => void action('k5_research_next_trademark_page')}>Tentar novamente</Button></div>}
+          {!view.results.length && view.state === 'completed' ? <p className="text-[13.5px] text-muted-foreground">Nenhuma marca encontrada para estes critérios. Tente outro nome, imagem ou filtro.</p>
+            : running && !view.results.length ? <p className="flex items-center gap-2 text-[13.5px] text-muted-foreground"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />{view.step}… Você pode sair e acompanhar pela Pesquisa.</p> : null}
+          {!!view.results.length && <div className="flex flex-col gap-0.5">{view.results.map(result => <TrademarkRow key={result.id} result={result} />)}</div>}
+          {view.hasMore && <div><Button variant="outline" size="lg" className="h-11 md:h-[34px]" disabled={busy || running} onClick={() => void action('k5_research_next_trademark_page')}>{busy || running ? 'Consultando…' : 'Carregar mais resultados'}</Button></div>}
+          {view.state === 'cancelled' && <p className="text-[13.5px] text-muted-foreground">Pesquisa cancelada. Os resultados já obtidos foram preservados.</p>}
+          <p className="text-xs leading-5 text-subtle-foreground">A base pode ter lacunas e atrasos de atualização. Nenhum resultado não significa que a marca está disponível. Confira o registro no escritório de origem.</p>
+        </section>
+      ) : !error && <p className="text-[13.5px] text-muted-foreground">Pesquise pelo nome ou logotipo. Brasil e todos os status estão selecionados por padrão.</p>}
+      </>}
+    </CanvasPage>
+  </>;
+}
+
+/** A found trademark: its image, the name that opens it, situation and owner, the WIPO record above the row link. */
+function TrademarkRow({ result }: { result: TrademarkSummary }) {
+  const facts = [trademarkSituationLabel(result.situation), result.office ?? result.territory, result.niceClasses.length ? `Nice ${result.niceClasses.join(', ')}` : null].filter(Boolean).join(' · ');
+  return <article className="relative -mx-2 flex items-start gap-3 rounded-[10px] px-2 py-2.5 outline-offset-[-2px] outline-ring transition-colors hover:bg-accent has-[[data-row-action]:focus-visible]:outline-2 md:-mx-3 md:rounded-md md:px-3">
+    {result.representationUrl
+      ? <Image src={result.representationUrl} alt={`Representação da marca ${result.name}`} width={40} height={40} unoptimized className="size-10 shrink-0 rounded-sm bg-card object-contain" />
+      : <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground"><Search className="size-4" /></span>}
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <Link href={`/app/research/trademarks/${result.id}`} prefetch={false} data-row-action className="truncate text-sm font-medium outline-none after:absolute after:inset-0">{result.name || 'Marca sem nome informado'}</Link>
+      <p className="text-[12.5px] text-muted-foreground">{facts}</p>
+      {!!result.viennaCodes.length && <p className="text-[12.5px] text-muted-foreground">Viena {result.viennaCodes.join(', ')}</p>}
+      {result.owner && <p className="break-words text-[13.5px] text-muted-foreground">{result.owner}</p>}
+    </div>
+    <a href={result.source.url} target="_blank" rel="noopener noreferrer" className="relative z-[1] inline-flex min-h-11 shrink-0 items-center gap-1 rounded-sm text-[12.5px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring md:min-h-6">
+      WIPO<ArrowUpRight className="size-3.5" aria-hidden="true" /><span className="sr-only">, abre em nova aba</span></a>
+  </article>;
 }

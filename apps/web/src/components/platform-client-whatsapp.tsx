@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
+import { CircleAlert } from 'lucide-react';
 import { Button } from './ui/button';
+import { AdminBlock, AdminBlockHead, AdminFact, AdminFacts, adminButton, adminQuietAction } from './admin/admin-blocks';
+import { cn } from '@/lib/utils';
 
 const statusSchema = z.object({ enabled: z.boolean(), globalEnabled: z.boolean(), revision: z.string() });
 const errorSchema = z.object({ error: z.string() });
@@ -55,23 +58,24 @@ export function PlatformClientWhatsApp({ officeId }: { officeId: string }) {
     } finally { setSaving(false); }
   }
 
-  return <section aria-labelledby="client-whatsapp-title" className="border-t border-line pt-6">
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="space-y-2"><h3 id="client-whatsapp-title" className="label-mono">WhatsApp Business</h3>
-        <p className="max-w-xl text-sm text-muted-foreground">Libere o acesso para este escritório. Depois, um administrador conecta o número em Integrações.</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {state.kind === 'ready' && <Button variant="outline" className="h-11 md:h-9" disabled={saving || !state.status.globalEnabled} onClick={() => void toggle()}>
+  const situation = state.kind !== 'ready' ? null
+    : !state.status.globalEnabled ? 'Pausado no controle geral' : state.status.enabled ? 'Ativo' : 'Desativado';
+  return (
+    <AdminBlock half card labelledBy="client-whatsapp">
+      <AdminBlockHead id="client-whatsapp" level={3} title="WhatsApp Business" actions={state.kind === 'ready' && (
+        <Button variant="outline" className={adminButton} disabled={saving || !state.status.globalEnabled} onClick={() => void toggle()}>
           {saving ? 'Salvando…' : state.status.enabled ? 'Desativar WhatsApp' : 'Ativar WhatsApp'}
-        </Button>}
-        <Button variant="ghost" className="h-11 md:h-9" disabled={saving || state.kind === 'loading'} onClick={() => { setMessage(''); void refresh(); }}>Atualizar estado</Button>
+        </Button>
+      )} />
+      <div aria-live="polite" aria-busy={saving || state.kind === 'loading'} className="flex flex-col gap-3">
+        {state.kind === 'loading' && <p className="text-[13.5px] text-muted-foreground">Consultando ativação…</p>}
+        {state.kind === 'error' && <>
+          <p role="alert" className="flex items-start gap-2 text-[13.5px] text-destructive"><CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />{state.message}</p>
+          <button type="button" className={cn(adminQuietAction, 'self-start')} onClick={() => { setMessage(''); void refresh(); }}>Atualizar estado</button>
+        </>}
+        {situation && <AdminFacts><AdminFact label="Situação">{situation}</AdminFact></AdminFacts>}
+        {message && <p className="text-[12.5px] text-muted-foreground">{message}</p>}
       </div>
-    </div>
-    <div className="mt-3 text-sm" aria-live="polite" aria-busy={saving || state.kind === 'loading'}>
-      {state.kind === 'loading' && <p>Consultando ativação…</p>}
-      {state.kind === 'error' && <p role="alert" className="text-destructive">{state.message}</p>}
-      {state.kind === 'ready' && <p>{!state.status.globalEnabled ? 'O controle geral está pausado no Flagship.' : state.status.enabled ? 'Ativado para este escritório.' : 'Desativado para este escritório.'}</p>}
-      {message && <p className="mt-2 text-muted-foreground">{message}</p>}
-    </div>
-  </section>;
+    </AdminBlock>
+  );
 }

@@ -1,1 +1,5 @@
-export default function Loading() { return <p role="status" className="p-8 text-sm">Carregando cálculos…</p>; }
+import { RouteLoading } from '@/components/agenda-detail';
+
+export default function Loading() {
+  return <RouteLoading title="Cálculos" label="Carregando cálculos" />;
+}
