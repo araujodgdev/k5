@@ -16,7 +16,7 @@ for (const width of [1280, 390]) {
     ] }];
     await browser.route('**/api/conversations', route => route.request.method === 'GET'
       ? route.fulfill({ json: { conversations: [conversation] } }) : route.continue());
-    await browser.route('**/api/conversations/chat-feedback-fixture', route => route.fulfill({ json: { conversation, messages } }));
+    await browser.route('**/api/conversations/chat-feedback-fixture', route => route.fulfill({ headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversation, messages }) }));
     await browser.route('**/api/chat/chat-feedback-fixture/stream*', route => route.fulfill({ status: 204 }));
     const calls: string[] = [];
     let failOnce = true;
