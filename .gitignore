@@ -19,6 +19,7 @@ test-results/
 playwright-report/
 # e2e output: report, artifacts, replay cache and app log (apps/web/.e2e).
 .e2e/
+/.audit/
 apps/web/public/sw.js
 .agents/*
 !.agents/skills/
