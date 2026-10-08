@@ -9,6 +9,7 @@ import { createAuth } from '../src/lib/auth-core';
 import { withClientRegistration } from '../src/lib/client-portal/registration';
 import { acceptPortalInvitation } from '../src/lib/client-portal/invitations';
 import * as portal from '../src/lib/client-portal/service';
+import * as agenda from '../src/lib/application/agenda-service';
 import * as honorarios from '../src/lib/honorarios/service';
 import { prepareCharge } from '../src/lib/honorarios/charges';
 import { findOfficeForUser } from '../src/lib/offices';
@@ -16,7 +17,7 @@ import { objectStorage, resetObjectStorageForTests } from '../src/lib/storage';
 import type { WorkspaceContext } from '../src/lib/application/context';
 
 const origin = 'http://localhost:3000', password = 'Senha-segura-2026!';
-async function fixture() {
+async function fixture(idempotencyKey?: string) {
   const auth = createAuth(await authStore(), testDb, { secret: randomBytes(48).toString('base64url'), baseURL: origin, idleSeconds: 3600, ipHeaders: ['x-forwarded-for'] });
   async function signup(email: string) {
     const ip = `10.${Math.floor(Math.random()*200)+1}.${Math.floor(Math.random()*200)+1}.${Math.floor(Math.random()*200)+1}`;
@@ -31,8 +32,8 @@ async function fixture() {
   const attorney = await signup(`${randomUUID()}@office.test`);
   const office = await findOfficeForUser(testDb, attorney.user.id); assert.ok(office);
   const context: WorkspaceContext = { ...attorney.context, officeId: office.officeId };
-  const clientId = randomUUID(), email = `${randomUUID()}@client.test`;
-  await testDb.prepare("INSERT INTO crm_client(id,office_id,name,email,stage,created_at,updated_at) VALUES(?,?,?,?, 'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)").run(clientId, context.officeId, 'Cliente Maria', email);
+  const email = `${randomUUID()}@client.test`;
+  const { client: { id: clientId } } = await agenda.createClient(context, { name: 'Cliente Maria', email, stage: 'active', idempotencyKey });
   const invited = await portal.invitePortal(context, { clientId, email, version: 0 });
   const token = invited.invitationPath.split('/').at(-1); assert.ok(token);
   const client = await withClientRegistration(token, () => signup(email));
@@ -64,6 +65,26 @@ test('portal shows only explicitly published files and charges; a proof never se
   assert.equal((await portal.clientPortal(f.client, f.accessId)).charges.length, 0);
   await portal.removePortalFile(f.context, f.clientId, published.id);
   await assert.rejects(portal.downloadClientFile(f.client, f.accessId, published.id), { code: 'NOT_FOUND' });
+});
+
+test('a client created from the clients screen, whose idempotencyKey makes the id a sha256 hex, gets management, invitation, published files, charges and uploads', async () => {
+  const f = await fixture(randomUUID());
+  assert.equal(f.clientId.length, 64);
+  const management = await portal.managePortal(f.context, f.clientId); assert.equal(management.access?.state, 'active');
+  const published = await portal.publishPortalFile(f.context, f.clientId, await file(), randomUUID());
+  assert.deepEqual((await portal.clientPortal(f.client, f.accessId)).files.map(row => row.id), [published.id]);
+  const detail = await honorarios.createHonorario(f.context, { clientId: f.clientId, title: 'Contrato', notes: 'Nota interna', installments: [{ amountCents: 10000, dueOn: '2035-01-10' }], idempotencyKey: randomUUID() });
+  const id = detail.installments[0].id;
+  const charge = await prepareCharge(f.context, { installmentId: id, version: 0, pixKey: 'financeiro@office.test', idempotencyKey: randomUUID() });
+  await portal.publishPortalCharge(f.context, { clientId: f.clientId, installmentId: id, version: charge.version });
+  assert.equal((await portal.clientPortal(f.client, f.accessId)).charges[0]?.id, id);
+  const proof = await portal.uploadClientFile(f.client, f.accessId, await file('comprovante.pdf'), randomUUID(), id);
+  assert.equal((await portal.managePortal(f.context, f.clientId)).files.find(row => row.id === proof.id)?.kind, 'proof');
+  await portal.withdrawPortalCharge(f.context, { clientId: f.clientId, installmentId: id, version: charge.version });
+  await portal.removePortalFile(f.context, f.clientId, published.id);
+  await assert.rejects(portal.downloadClientFile(f.client, f.accessId, published.id), { code: 'NOT_FOUND' });
+  await portal.revokePortal(f.context, { clientId: f.clientId, version: management.access!.version });
+  await assert.rejects(portal.clientPortal(f.client, f.accessId), { code: 'NOT_FOUND' });
 });
 
 test('portal blocks foreign clients, offices, fees, replaced invitations and revoked sessions', async () => {
