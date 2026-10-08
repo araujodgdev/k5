@@ -244,11 +244,24 @@ test('revogação libera uma saída já aguardando save sem esperar a resposta a
   await delayResponse(browser, fixture.api, 'PUT');
   await editor.fill('Gravação real antes da revogação.');
   await expect.poll(() => delayedStatus(browser)).toBe(200);
+  await browser.evaluate(href => {
+    const original = window.fetch.bind(window);
+    Reflect.set(window, 'editorValidated', false);
+    window.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+      const response = await original(input, init);
+      if (url.pathname === '/api/canvas/resource' && url.searchParams.get('href') === href && response.status === 200) Reflect.set(window, 'editorValidated', true);
+      return response;
+    };
+    return null;
+  }, fixture.href);
   await openModules({ screen, browser });
   await screen.getByRole('navigation', 'Casos e módulos').getByRole('link', 'Início', { exact: true }).tap();
+  await expect.poll(() => browser.evaluate(() => Reflect.get(window, 'editorValidated'))).toBe(true);
   await expect(browser).toHaveURL(fixture.href);
   await fixture.revoke();
   await screen.getByRole('button', 'Versões').tap();
+  await expect(editor).toHaveCount(0);
   await expect(browser).toHaveURL('/app/command-center');
   await expect(screen.getByRole('heading', 'Hoje', { level: 2, exact: true })).toBeVisible();
   expect(await delayedStatus(browser)).toBe(200);

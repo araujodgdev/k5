@@ -5,7 +5,7 @@ import { testDatabase, testDb } from './test-setup';
 import type { WorkspaceContext } from '../src/lib/application/context';
 import { createActivity } from '../src/lib/application/agenda-service';
 import {
-  archiveNotification, getCaseFollowState, getNotificationPreferences, listNotifications, markAllNotificationsRead,
+  archiveNotification, deleteAllNotifications, getCaseFollowState, getNotificationPreferences, listNotifications, markAllNotificationsRead,
   markNotificationRead, registerPushSubscription, setCaseFollowState, unreadCount,
 } from '../src/lib/notifications/repository';
 import { revokePushSubscriptionsForUser } from '../src/lib/notifications/revocation';
@@ -30,6 +30,43 @@ async function notificationFixture() {
     recipient: { officeId, userId: recipientId } satisfies WorkspaceContext,
   };
 }
+
+test('notifications: delete-all removes every recipient page and cascades deliveries while retaining shared events and new arrivals', async () => {
+  const value = await notificationFixture();
+  const other = await notificationFixture();
+  const ids: string[] = [];
+  process.env.K5_VAPID_KEY_ID = 'test-key';
+  process.env.K5_VAPID_PUBLIC_KEY = 'test-public';
+  const registered = await registerPushSubscription(value.actor, {
+    deviceId: randomUUID(), endpoint: `https://fcm.googleapis.com/fcm/send/${randomUUID()}`, expirationTime: null,
+    keys: { p256dh: Buffer.concat([Buffer.from([4]), randomBytes(64)]).toString('base64url'), auth: randomBytes(16).toString('base64url') },
+    vapidKeyId: 'test-key', authorizationGeneration: 1,
+  }, testDatabase);
+  const subscriptionId = String((registered.subscriptions[0] as { id: string }).id);
+  for (let n = 0; n < 55; n++) {
+    const id = randomUUID(); ids.push(id);
+    await testDatabase.batch([eventInsertStatement(testDatabase, {
+      id, officeId: value.officeId, eventType: 'system.push.test', sourceKind: 'system', sourceId: null,
+      sourceVersion: null, actorUserId: value.actorId, intendedRecipientIds: [value.actorId], data: {},
+      dedupeKey: id, createdAt: new Date().toISOString(), expiresAt: null,
+    })]);
+    await testDb.prepare(`INSERT INTO notification_recipient(event_id,office_id,user_id,created_at,read_at,archived_at)
+      VALUES(?,?,?,CURRENT_TIMESTAMP,CASE WHEN ? THEN CURRENT_TIMESTAMP END,CASE WHEN ? THEN CURRENT_TIMESTAMP END)`)
+      .run(id, value.officeId, value.actorId, n % 2 === 0, n % 3 === 0);
+    await testDb.prepare(`INSERT INTO notification_delivery(id,event_id,office_id,user_id,subscription_id,group_key,next_attempt_at,expires_at,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP+INTERVAL '1 day',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+      .run(randomUUID(), id, value.officeId, value.actorId, subscriptionId, id);
+  }
+  await testDb.prepare('INSERT INTO notification_recipient(event_id,office_id,user_id,created_at) VALUES(?,?,?,CURRENT_TIMESTAMP)')
+    .run(ids[0], other.officeId, other.actorId);
+  assert.equal(await deleteAllNotifications(value.actor, testDatabase), 55);
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM notification_recipient WHERE office_id=? AND user_id=?').get(value.officeId, value.actorId))?.n, 0);
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM notification_delivery WHERE office_id=?').get(value.officeId))?.n, 0);
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM notification_event WHERE office_id=?').get(value.officeId))?.n, 55);
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM notification_recipient WHERE office_id=? AND user_id=?').get(other.officeId, other.actorId))?.n, 1);
+  await testDb.prepare('INSERT INTO notification_recipient(event_id,office_id,user_id,created_at) VALUES(?,?,?,CURRENT_TIMESTAMP)').run(ids[1], value.officeId, value.actorId);
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM notification_recipient WHERE office_id=? AND user_id=?').get(value.officeId, value.actorId))?.n, 1);
+});
 
 test('notifications: unread polls seed missing defaults but never write when both exist', async () => {
   const value = (await notificationFixture());

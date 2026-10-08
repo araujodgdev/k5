@@ -13,6 +13,7 @@ import { blockTexts, changedBlocks } from "./change-blocks";
 import { DecorationSet } from "@tiptap/pm/view";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useCanvasActive } from '@/components/lume/canvas-host';
 
 export type RichEditorHandle = {
   /** Replaces the text without counting as an edit, e.g. after the Lume changed the document. */
@@ -42,6 +43,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   /** What sits above the text in the page column: the status line and the title. */
   before?: ReactNode;
 }>(function RichEditor({ initialMarkdown, onChange, onSave, style, label, onAsk, highlightAgainst, before }, ref) {
+  const canvasActive = useCanvasActive();
   // The editor keeps the callbacks it was created with; these refs hand it the current ones.
   const onChangeRef = useRef(onChange);
   const onSaveRef = useRef(onSave);
@@ -78,7 +80,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
 
   // Mark what changed, bring the first change into view, then let the marks go.
   useEffect(() => {
-    if (!editor || !highlightAgainst) return;
+    if (!canvasActive || !editor || !highlightAgainst) return;
     const { doc } = editor.state;
     const first = changedBlocks(doc, highlightAgainst)[0];
     if (!first) return;
@@ -92,7 +94,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(changeHighlightKey, DecorationSet.empty));
     }, HIGHLIGHT_MS);
     return () => clearTimeout(timer);
-  }, [editor, highlightAgainst]);
+  }, [canvasActive, editor, highlightAgainst]);
 
   const active = useEditorState({
     editor,
@@ -161,6 +163,7 @@ function Tool({ label, pressed, disabled, onClick, children }: { label: string; 
  * conversation with the excerpt, and the Lume answers by editing the document.
  */
 function AskMenu({ editor, onAsk }: { editor: Editor; onAsk: (request: { excerpt: string; instruction: string }) => Promise<void> }) {
+  const active = useCanvasActive();
   const [asking, setAsking] = useState<string | null>(null);
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
@@ -190,7 +193,7 @@ function AskMenu({ editor, onAsk }: { editor: Editor; onAsk: (request: { excerpt
 
   return (
     <BubbleMenu editor={editor} options={{ placement: "bottom-start", offset: 8 }}
-      shouldShow={({ state }) => asking !== null || (!state.selection.empty && state.doc.textBetween(state.selection.from, state.selection.to).trim().length > 0)}
+      shouldShow={({ state }) => active && (asking !== null || (!state.selection.empty && state.doc.textBetween(state.selection.from, state.selection.to).trim().length > 0))}
       className="z-20 rounded-lg border bg-popover text-popover-foreground shadow-[var(--shadow-float)]">
       {asking === null ? (
         <Button type="button" variant="ghost" size="sm" className="min-h-11 md:min-h-8" onMouseDown={(event) => event.preventDefault()} onClick={start}>

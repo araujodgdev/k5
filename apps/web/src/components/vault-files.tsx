@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LoaderCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FileItem } from "@/components/casos/case-items";
@@ -18,6 +18,9 @@ export function usePolledDocuments(query: string, initial: VaultDocument[], init
   const currentOffset = useRef(0);
   const failedOffset = useRef<number | null>(null);
   const request = useRef<AbortController | null>(null);
+  const [seed, setSeed] = useState(initial);
+  if (seed !== initial) { setSeed(initial); setDocuments(initial); setTotal(initialTotal); setOffset(0); }
+  useLayoutEffect(() => { request.current?.abort(); currentOffset.current = 0; failedOffset.current = null; }, [initial, initialTotal]);
   const refresh = useCallback(async (target = currentOffset.current) => {
     request.current?.abort();
     const controller = new AbortController();

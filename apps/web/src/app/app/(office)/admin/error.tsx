@@ -1,10 +1,12 @@
 "use client";
+import { useCanvasLoadError } from '@/components/lume/canvas-host';
 
 import { CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useReportError } from '@/lib/observability/use-report-error';
 
 export default function AdminError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+  useCanvasLoadError();
   useReportError(error);
   return (
     <section className="flex flex-col items-start gap-4 py-10">

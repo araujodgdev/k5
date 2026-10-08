@@ -23,6 +23,7 @@ const visibleTo = (column: string, viewer: Viewer) => viewer === null ? { sql: "
   : { sql: `vault_folder_visible(${column}, ?)`, values: [viewer] };
 import { assertStorageKey, objectStorage, StorageError } from "@/lib/storage";
 import { isTrustedOrigin } from "@/lib/trusted-origins";
+import { restoreBillingOrigin } from "@/lib/billing/origin";
 import type { UploadRef } from "@/lib/application/uploads-service";
 import type { CapabilityErrorCode } from "@/lib/capabilities/errors";
 import { captureOperationalError } from "@/lib/observability/report";
@@ -435,8 +436,8 @@ export async function createVaultDocument(
     const policy = { ...parsePolicy(options.policy), digest: upload.sha256 };
     await assertPolicyAccess(userId, policy, tx);
     await assertCapabilityAllowed(context, 'k5_vault_ingest_upload', tx);
-    await tx.prepare('INSERT INTO vault_document(id,office_id,case_id,folder_id,scope,original_name,stored_name,mime_type,byte_size,sha256,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
-      .run(id, officeId, caseId ?? null, folderId, scope, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, userId);
+    await tx.prepare('INSERT INTO vault_document(id,office_id,case_id,folder_id,scope,original_name,stored_name,mime_type,byte_size,sha256,created_by,billing_origin_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(id, officeId, caseId ?? null, folderId, scope, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, userId, context.billingOrigin?.id ?? null);
     await tx.prepare('INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active,content_policy,independent_upload_by) VALUES(?,?,?,1,?,?,?,?,?,?,1,?::jsonb,?)')
       .run(randomUUID(), officeId, id, upload.originalName, upload.storageKey, upload.mimeType, upload.byteSize, upload.sha256, userId, JSON.stringify(policy), options.independentUpload && !options.origin && !context.invocation ? userId : null);
     if (options.origin) await tx.prepare('INSERT INTO vault_agent_origin(document_id,source_kind,source_id,source_version,user_id) VALUES(?,?,?,?,?)')
@@ -554,8 +555,8 @@ export async function checkpointVaultDocument(documentId: string, owner: string,
 export async function processDocument(documentId: string, officeId: string, leaseOwner?: string) {
   const document = await findVaultDocument(officeId, documentId, null);
   if (!document) throw new VaultHttpError(404, "Documento não encontrado.");
-  const notificationOwner = await database.prepare('SELECT created_by FROM vault_document WHERE id=? AND office_id=?')
-    .get<{ created_by: string }>(documentId, officeId);
+  const notificationOwner = await database.prepare('SELECT created_by,billing_origin_id FROM vault_document WHERE id=? AND office_id=?')
+    .get<{ created_by: string; billing_origin_id: string | null }>(documentId, officeId);
   const owner = leaseOwner ?? randomUUID();
   if (!leaseOwner) await database.prepare(`UPDATE vault_document SET status = 'processing', progress = 1, lease_owner = ?, lease_expires_at = (CURRENT_TIMESTAMP + INTERVAL '5 minutes'), error_message = NULL WHERE id = ? AND office_id = ? AND stored_name=? AND deleted_at IS NULL`).run(owner, documentId, officeId, document.storedName);
   let progress = document.progress || 1;
@@ -571,7 +572,9 @@ export async function processDocument(documentId: string, officeId: string, leas
       await checkpointVaultDocument(documentId, owner, progress);
     };
 
-    const onOcrPage = (page: string) => chargeOcrPage({ officeId, userId: notificationOwner?.created_by ?? null }, documentId, page);
+    const billingOwner = { officeId, userId: notificationOwner?.created_by ?? null };
+    const billingOrigin = await restoreBillingOrigin(database, billingOwner.userId, notificationOwner?.billing_origin_id);
+    const onOcrPage = (page: string) => chargeOcrPage({ ...billingOwner, billingOrigin }, documentId, page);
     const sections = await extractDocumentSections(await readVaultOriginal(document), document.mimeType, document.name, document.id, { ocrImages: true, onProgress, onOcrPage });
     const insert = database.prepare("INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, ?, ?, ?)");
     let ordinal = 0;

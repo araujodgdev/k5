@@ -1,5 +1,6 @@
 'use client';
 
+import { useCanvasActive } from '@/components/lume/canvas-host';
 import { ArrowLeft, ArrowUp, Bell, Bug, Download, LayoutGrid, LogOut, Moon, Search, Sun } from 'lucide-react';
 import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -10,6 +11,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { focusFirstPlace, LauncherList, type LauncherAccess } from './launcher';
 import { useShell, type CanvasSubject } from './shell-context';
+import { AccentChoice } from './office-appearance';
 
 const phoneButton = 'relative grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -22,7 +24,8 @@ const noSubscription = () => () => {};
 
 function PhoneSlot({ id, children }: { id: string; children: ReactNode }) {
   const target = useSyncExternalStore(noSubscription, () => document.getElementById(id), () => null);
-  return target ? createPortal(children, target) : null;
+  const active = useCanvasActive();
+  return target && active ? createPortal(children, target) : null;
 }
 
 /**
@@ -90,6 +93,7 @@ export function PhoneBar({ access, unread, pending, onSearch, onNotifications, o
           <SheetTitle className="sr-only">Mais opções</SheetTitle>
           <LauncherList access={access} active={menu} onDone={() => setMenu(false)} />
           <span aria-hidden="true" className="mx-1 my-1 h-px bg-border" />
+          <AccentChoice />
           <div className="flex items-center gap-1 px-1 pb-[env(safe-area-inset-bottom)]">
             <button type="button" onClick={() => { setMenu(false); void onLogout(); }} disabled={pending} title="Encerrar sessão em todos os dispositivos"
               className="flex min-h-11 flex-1 items-center gap-2.5 rounded-md px-2.5 text-[14.5px] text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60">

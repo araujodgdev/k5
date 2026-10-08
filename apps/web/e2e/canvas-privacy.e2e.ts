@@ -1,0 +1,38 @@
+import { test } from '@e2e-dev/web';
+import { expect } from 'e2e';
+import { ApiSession, uniqueAccount } from './support/accounts';
+import { signInWithSession } from './support/sign-in';
+
+test('reativação remove uma pasta revogada sem perder o caso ou o editor privado montado', {timeout:240_000}, async ({app,screen,browser}) => {
+  const owner = await new ApiSession(app.baseUrl!).signIn(uniqueAccount('Dona das pastas'));
+  const guest = await new ApiSession(app.baseUrl!).signIn(uniqueAccount('Parceira das pastas'));
+  const {user} = await guest.json<{user:{id:string;email:string}}>('/api/auth/get-session');
+  const invitation = await owner.json<{id:string}>('/api/collaboration',{json:{action:'invite',invitation:{email:user.email}}});
+  await guest.json('/api/collaboration',{json:{action:'respond',id:invitation.id,accept:true}});
+  const {case:record} = await owner.json<{case:{id:string;name:string}}>('/api/vault/cases',{json:{name:`Caso acessível ${Date.now()}`}});
+  await owner.json('/api/collaboration',{json:{action:'participant',caseId:record.id,userId:user.id,add:true}});
+  const {folder} = await owner.json<{folder:{id:string;name:string}}>('/api/vault/folders',{json:{caseId:record.id,name:'Pasta que deixa de ser pública',visibility:'public'}});
+  const {artifact} = await guest.json<{artifact:{id:string;title:string}}>('/api/artifacts',{json:{title:'Minuta independente',content:'Texto particular preservado.'}});
+  await signInWithSession({app,screen,browser},guest);
+  await app.open(`/app/documents/${artifact.id}`);
+  const editor = screen.getByRole('textbox','Texto do documento',{exact:true});
+  await expect(editor).toBeVisible({timeout:30_000});
+  await editor.fill('Texto particular editado antes da troca.');
+  await browser.evaluate(() => { Reflect.set(window,'privateEditorNode',document.querySelector('[contenteditable="true"][aria-label="Texto do documento"]')); return null; });
+  await screen.getByRole('button','Casos e módulos').tap();
+  await screen.getByRole('navigation','Casos e módulos').getByRole('link','Todos os casos',{exact:true}).tap();
+  await screen.getByRole('link',record.name,{exact:true}).tap();
+  await expect(screen.getByRole('link',folder.name,{exact:false})).toBeVisible({timeout:30_000});
+  await screen.getByRole('button','Casos e módulos').tap();
+  await screen.getByRole('navigation','Casos e módulos').getByRole('link',/^Cálculos/).tap();
+  await expect(screen.getByRole('heading',/^Cálculos/)).toBeVisible();
+  await owner.json(`/api/vault/folders/${folder.id}`,{method:'PATCH',json:{visibility:'private'}});
+  expect((await guest.request(`/api/canvas/resource?href=${encodeURIComponent(`/app/vault/cases/${record.id}`)}`)).status).toBe(200);
+  await screen.getByRole('navigation','Abas do canvas').getByRole('link',record.name,{exact:true}).tap();
+  await expect(screen.getByRole('heading',record.name,{exact:true})).toBeVisible();
+  await expect(screen.getByRole('link',folder.name,{exact:false})).toHaveCount(0);
+  await screen.getByRole('navigation','Abas do canvas').getByRole('link',artifact.title,{exact:true}).tap();
+  await expect(editor).toContainText('Texto particular editado antes da troca.');
+  expect(await browser.evaluate(() => Reflect.get(window,'privateEditorNode') === document.querySelector('[contenteditable="true"][aria-label="Texto do documento"]'))).toBe(true);
+  await app.screenshot('pasta-revogada-editor-independente');
+});

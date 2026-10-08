@@ -1,3 +1,5 @@
+import { AdminCanvas } from '@/components/admin/admin-canvas';
+import { officePage } from '@/components/lume/canvas-leaf';
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { listOfficesForPlatform } from "@/lib/ai-connections-core";
@@ -11,7 +13,7 @@ export const metadata = { title: "Clientes · Administração" };
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" });
 
 /** The offices on the platform. Their AI is configured once, in the IA section. */
-export default async function PlatformClientsPage() {
+async function PlatformClientsPage() {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const offices = await listOfficesForPlatform(context.db);
@@ -28,3 +30,5 @@ export default async function PlatformClientsPage() {
     </AdminGrid>
   </>;
 }
+
+export default officePage('/app/admin/clients', PlatformClientsPage, AdminCanvas);

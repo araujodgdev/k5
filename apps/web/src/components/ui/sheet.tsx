@@ -1,5 +1,5 @@
-"use client"
-
+"use client";
+import { useCanvasActive } from "@/components/lume/canvas-host";
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Dialog as SheetPrimitive } from "radix-ui"
@@ -26,6 +26,8 @@ function SheetClose({
 function SheetPortal({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
+  const canvasActive = useCanvasActive();
+  if (!canvasActive) return null;
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
 }
 
@@ -55,6 +57,8 @@ function SheetContent({
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
 }) {
+  const canvasActive = useCanvasActive();
+  if (!canvasActive) return null;
   return (
     <SheetPortal>
       <SheetOverlay />

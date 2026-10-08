@@ -39,6 +39,8 @@ export function VaultBrowser({ initialCases, libraryCount, ownCaseIds, people }:
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<VaultCase | null>(null);
+  const [seed, setSeed] = useState(initialCases);
+  if (seed !== initialCases) { setSeed(initialCases); setCases(initialCases); setOwnedIds(ownCaseIds); setDeleting(null); }
   const [failure, setFailure] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const isShared = (id: string) => !ownedIds.includes(id);

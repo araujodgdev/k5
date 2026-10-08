@@ -1,3 +1,5 @@
+import { AdminCanvas } from '@/components/admin/admin-canvas';
+import { officePage } from '@/components/lume/canvas-leaf';
 import { notFound } from 'next/navigation';
 import { requirePlatformPage } from '@/lib/platform';
 import { platformClientBilling } from '@/lib/billing/platform-billing';
@@ -9,7 +11,7 @@ import { AdminMeta } from '@/components/admin/admin-meta';
 export const metadata = { title: 'Cliente · Administração' };
 
 /** One client office: WhatsApp, plan, credits, charges, subscriptions and payments. */
-export default async function ClientPage({ params, searchParams }: PageProps<'/app/admin/clients/[officeId]'>) {
+async function ClientPage({ params, searchParams }: PageProps<'/app/admin/clients/[officeId]'>) {
   if (!await requirePlatformPage()) notFound();
   const { officeId } = await params;
   const raw = (await searchParams).page;
@@ -24,3 +26,5 @@ export default async function ClientPage({ params, searchParams }: PageProps<'/a
     <PlatformClientBilling data={data} credits={credits} />
   </>;
 }
+
+export default officePage('/app/admin/clients/[officeId]', ClientPage, AdminCanvas);

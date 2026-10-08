@@ -7,8 +7,10 @@ import { VaultContextSection } from './agent-sources-panel';
 import { useLumeState, useLumeWorkspace } from './lume/workspace-context';
 import type { CaseArtifact } from '@/lib/case-artifacts';
 import { SaveForm } from './agent-artifacts-panel';
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 
 export function CaseArtifacts({ caseId, caseName }: { caseId: string; caseName: string }) {
+  const revision = useCanvasRevision(), active = useCanvasActive();
   const { controller } = useLumeWorkspace();
   const state = useLumeState();
   const [items, setItems] = useState<CaseArtifact[] | null>(null);
@@ -16,15 +18,18 @@ export function CaseArtifacts({ caseId, caseName }: { caseId: string; caseName: 
   const [retry, setRetry] = useState(0);
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState('');
+  const [seed,setSeed] = useState({revision,active});
+  if (seed.revision !== revision || seed.active !== active) { setSeed({revision,active}); setItems(null); setSaved(''); }
   useEffect(() => {
     const abort = new AbortController();
     fetch(`/api/vault/cases/${encodeURIComponent(caseId)}/artifacts`, { signal: abort.signal, cache: 'no-store' })
       .then(async response => {
         if (!response.ok) throw new Error('Não foi possível carregar os artefatos deste caso.');
-        setItems((await response.json() as { artifacts: CaseArtifact[] }).artifacts);
+        const result = await response.json() as { artifacts: CaseArtifact[] };
+        if (!abort.signal.aborted) setItems(result.artifacts);
       }).catch(cause => { if (!abort.signal.aborted) setError(cause instanceof Error ? cause.message : 'Não foi possível conectar.'); });
     return () => abort.abort();
-  }, [caseId, retry]);
+  }, [caseId, retry, revision, active]);
   return <section aria-label="Artefatos do caso" className="py-4">
     <h2 className="text-lg font-medium">Artefatos do caso</h2>
     <p className="mt-1 text-sm text-muted-foreground">Seus documentos privados vinculados ao caso e as cópias salvas no Cofre.</p>

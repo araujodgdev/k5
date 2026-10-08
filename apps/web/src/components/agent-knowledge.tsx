@@ -36,6 +36,8 @@ function knowledgeEntries(state: KnowledgeState) {
 export function AgentKnowledge({ initial, initialCandidates }: { initial: KnowledgeState; initialCandidates: KnowledgeCandidate[] }) {
   const [state, setState] = useState(initial);
   const [candidates, setCandidates] = useState(initialCandidates);
+  const [seed, setSeed] = useState(initial);
+  if (seed !== initial) { setSeed(initial); setState(initial); setCandidates(initialCandidates); }
   const entries = knowledgeEntries(state);
   const used = entries.filter(({ item }) => item.mode === "always" && item.status === "ready").reduce((sum, { item }) => sum + item.characters, 0);
   const update = (scope: KnowledgeScope, change: (items: Knowledge[]) => Knowledge[]) => setState((current) => ({ ...current, [scope]: change(current[scope]) }));

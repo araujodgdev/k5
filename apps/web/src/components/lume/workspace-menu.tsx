@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from '@/components/lume/canvas-navigation';
 import { Grid2X2, LogOut, ShieldCheck } from 'lucide-react';
 import { authClient } from '@/lib/auth-client';
 import { appNavigation, adminNavigation, profileNavigation, navIsBeta } from '@/lib/navigation';

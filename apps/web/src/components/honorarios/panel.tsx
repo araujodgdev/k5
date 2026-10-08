@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams } from '@/components/lume/canvas-navigation';
 import Link from 'next/link';
 import { Check, Plus, Wallet, X } from 'lucide-react';
 import { honorariosListDto, type HonorarioInstallment, type HonorariosList } from '@/lib/honorarios/contracts';
@@ -19,6 +19,7 @@ import { CreateHonorarioDialog } from './create-dialog';
 import { DetailHonorarioDialog } from './detail-dialog';
 import { money } from './editor';
 import { Failure, ReferenceSelect } from './fields';
+import { useCanvasRevision, useCanvasActive } from '../lume/canvas-host';
 
 type View = 'pending' | 'received' | 'cancelled';
 type Load = { kind: 'loading' } | { kind: 'ready'; data: HonorariosList } | { kind: 'error'; message: string };
@@ -77,6 +78,7 @@ function DueFilter({ value, onChange }: { value: Due; onChange: (value: Due) => 
 
 /** Honorários as a canvas module (`Main.dc.html`, `v.modulo` with `honorarios`): one row per installment. */
 export function HonorariosPanel() {
+  const canvasRevision = useCanvasRevision(), active = useCanvasActive();
   const params = useSearchParams();
   const [query, setQuery] = useState('');
   const search = useDebouncedValue(query);
@@ -88,7 +90,7 @@ export function HonorariosPanel() {
   const [revision, setRevision] = useState(0);
   // A result belongs to the request that produced it: a filter that ends where it started shows the
   // rows it has instead of waiting for a load that never runs.
-  const request = JSON.stringify([view, search, clientId, caseId, due.from, due.to, offset, revision]);
+  const request = JSON.stringify([view, search, clientId, caseId, due.from, due.to, offset, revision, canvasRevision, active]);
   const [settled, setSettled] = useState<{ request: string; load: Exclude<Load, { kind: 'loading' }> } | null>(null);
   const load: Load = settled?.request === request ? settled.load : { kind: 'loading' };
   const [notice, setNotice] = useState('');

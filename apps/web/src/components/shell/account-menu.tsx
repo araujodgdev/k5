@@ -7,6 +7,7 @@ import { InstallHelp, useInstallApp } from '@/components/pwa-provider';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { profileNavigation } from '@/lib/navigation';
 import { useShell } from './shell-context';
+import { AccentChoice } from './office-appearance';
 
 export type Person = { name: string; avatarUrl: string | null };
 
@@ -36,6 +37,7 @@ export function AccountMenu({ person, officeName, pending, onFeedback, onLogout 
             </div>
           </div>
           <span aria-hidden="true" className="mx-1 my-1 block h-px bg-border" />
+          <AccentChoice menu />
           <DropdownMenuItem onSelect={() => shell?.open(profileNavigation.href, profileNavigation.label)}><CircleUser aria-hidden="true" />{profileNavigation.label}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onFeedback(trigger.current!)}><Bug aria-hidden="true" />Enviar feedback</DropdownMenuItem>
           {!installed && <DropdownMenuItem onSelect={() => { void install().then(setHelp); }}><Download aria-hidden="true" />Instalar o Lume</DropdownMenuItem>}

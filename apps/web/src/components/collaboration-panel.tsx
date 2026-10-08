@@ -1,7 +1,9 @@
 'use client';
 import Link from 'next/link';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from '@/components/lume/canvas-navigation';
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useRouter } from '@/components/lume/canvas-navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,7 +54,11 @@ async function call(body: unknown) {
 }
 
 function PersonRow({ person, viewerId, note, children }: { person: Person; viewerId: string; note?: string; children?: React.ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-3 border-b py-4">
+  const selected = useSearchParams().get('associate') === person.id;
+  const active = useCanvasActive();
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (selected && active) { row.current?.focus({preventScroll:true}); row.current?.scrollIntoView({block:'nearest'}); } }, [selected, active]);
+  return <div ref={row} id={`associate-${person.id}`} tabIndex={selected ? 0 : -1} aria-label={selected ? `Associado selecionado: ${person.name}` : undefined} className={`flex flex-wrap items-center gap-3 border-b py-4 ${selected ? 'bg-brand-soft outline-2 outline-ring' : ''}`}>
     <div className="flex min-w-0 basis-full items-start gap-3 sm:basis-auto sm:flex-1"><Avatar name={person.name} src={avatarUrl(person.id, person.avatarVersion ?? null)} /><div className="min-w-0">
       <p className="break-words text-sm font-medium">{person.name}{person.id === viewerId && <span className="font-normal text-muted-foreground"> · você</span>}</p>
       <PersonHoverCard email={person.email} className="text-[13px] text-muted-foreground" />
@@ -71,7 +77,10 @@ function ConfirmRemoval({ title, description, action, busy, onConfirm }: { title
 
 export function CollaborationPanel({ view = 'associates', caseId }: { view?: 'associates' | 'invites'; caseId?: string }) {
   const router = useRouter();
+  const revision = useCanvasRevision(), active = useCanvasActive();
   const [data, setData] = useState<Overview | null>(null);
+  const [seed, setSeed] = useState({revision,active});
+  if (seed.revision !== revision || seed.active !== active) { setSeed({revision,active}); setData(null); }
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -80,17 +89,23 @@ export function CollaborationPanel({ view = 'associates', caseId }: { view?: 'as
   const [chosen, setChosen] = useState('');
   const [link, setLink] = useState('');
   const [notice, setNotice] = useState('');
+  const generation = useRef(0);
+  const pending = useRef<AbortController | null>(null);
   const refresh = useCallback(async () => {
+    const current = ++generation.current;
+    pending.current?.abort();
+    const controller = new AbortController(); pending.current = controller;
     setLoading(true);
     try {
-      const response = await fetch(`/api/collaboration${caseId ? `?caseId=${encodeURIComponent(caseId)}` : ''}`, { cache: 'no-store' });
+      const response = await fetch(`/api/collaboration${caseId ? `?caseId=${encodeURIComponent(caseId)}` : ''}`, { cache: 'no-store', signal: controller.signal });
       const next = await response.json();
       if (!response.ok) throw new Error(next.error);
+      if (controller.signal.aborted || current !== generation.current) return;
       setData(next); setError('');
-    } catch (e) { setData(null); setError(e instanceof Error ? e.message : 'Não foi possível carregar.'); }
-    finally { setLoading(false); }
+    } catch (e) { if (!controller.signal.aborted && current === generation.current) { setData(null); setError(e instanceof Error ? e.message : 'Não foi possível carregar.'); } }
+    finally { if (!controller.signal.aborted && current === generation.current) setLoading(false); }
   }, [caseId]);
-  useEffect(() => { const timer = window.setTimeout(() => void refresh(), 0); return () => window.clearTimeout(timer); }, [refresh]);
+  useEffect(() => { const timer = window.setTimeout(() => void refresh(), 0); return () => { window.clearTimeout(timer); pending.current?.abort(); }; }, [refresh, revision, active]);
   async function act(body: unknown) {
     setBusy(true); setError(''); setNotice('');
     try { const result = await call(body); await refresh(); router.refresh(); return result; }

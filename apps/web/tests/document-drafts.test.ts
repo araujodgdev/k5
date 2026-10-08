@@ -190,3 +190,19 @@ test('revocation releases a pending save, queued exit save and read without wait
   await pending.promise;
   assert.equal(draft.getSnapshot(), null);
 });
+
+test('a saved editor retains its draft while hidden and another document opens', async () => {
+  const drafts = new DocumentDrafts();
+  const first = drafts.get('first');
+  first.open(original);
+  const unsubscribe = first.subscribe(() => {});
+  unsubscribe();
+  drafts.get('second').open(original);
+  assert.equal(drafts.get('first'), first);
+  first.edit({ content: 'Alteração depois de voltar à aba' });
+  assert.equal(drafts.hasUnsaved(), true);
+  assert.equal(await drafts.get('first').save(async input => {
+    assert.equal(input.content, 'Alteração depois de voltar à aba');
+    return { version: 2 };
+  }, true), true);
+});

@@ -1,7 +1,7 @@
 'use client';
 
 import { CircleHelp, Folder, Layers, LayoutGrid } from 'lucide-react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from '@/components/lume/canvas-navigation';
 import { useState, type ReactNode } from 'react';
 import { BetaLabel } from '@/components/ads/beta-label';
 import { useTutorial } from '@/components/onboarding-tour';

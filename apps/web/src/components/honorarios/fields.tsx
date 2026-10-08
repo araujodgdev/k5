@@ -9,6 +9,7 @@ import { PickerTrigger } from '@/components/ui/picker-trigger';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Chip } from '@/components/canvas/canvas-controls';
 import { honorariosCall } from './client';
+import { useCanvasRevision, useCanvasActive } from '../lume/canvas-host';
 
 export const controlClass = 'h-11 w-full min-w-0 rounded-md border border-input bg-background px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 md:h-9 md:text-[13.5px]';
 export const dialogClass = 'sm:max-w-[600px]';
@@ -40,6 +41,9 @@ export function ReferenceSelect({ kind, value, onChange, optional = false, purpo
   const [selected, setSelected] = useState<Reference | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
+  const revision = useCanvasRevision(), active = useCanvasActive();
+  const [seed,setSeed] = useState({revision,active});
+  if (seed.revision !== revision || seed.active !== active) { setSeed({revision,active}); setOptions([]); setSelected(null); }
   const known = !value || selected?.id === value;
   const clients = kind === 'clients';
   const openedAt = useRef(0);
@@ -53,6 +57,7 @@ export function ReferenceSelect({ kind, value, onChange, optional = false, purpo
     const timer = setTimeout(() => {
       setLoading(true); setStatus('');
       void honorariosCall('options', { query: open ? query : '', limit: 100, purpose, ...(clients ? { clientId: value || undefined } : { caseId: value || undefined }) }, honorariosOptionsDto, controller.signal).then(result => {
+        if (controller.signal.aborted) return;
         const rows: HonorariosOptions[typeof kind] = result[kind];
         setOptions(rows); setStatus(rows.length === 100 ? 'Mostrando até 100 resultados. Refine a busca.' : '');
         const choice = rows.find(option => option.id === value);
@@ -61,7 +66,7 @@ export function ReferenceSelect({ kind, value, onChange, optional = false, purpo
         .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     }, open && query ? 200 : 0);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [open, known, query, kind, clients, value, purpose]);
+  }, [open, known, query, kind, clients, value, purpose, revision, active]);
   function choose(option: Reference | null) {
     setSelected(option); onChange(option?.id ?? ''); setOpen(false); setQuery('');
   }

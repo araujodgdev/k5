@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname } from '@/components/lume/canvas-navigation';
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { FeedbackDialog } from '@/components/feedback-dialog';
 import { LiveLumeMark } from '@/components/live-lume-mark';

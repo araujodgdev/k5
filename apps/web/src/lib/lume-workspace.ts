@@ -45,10 +45,17 @@ export function canonicalCanvasHref(value: string): string | null {
   if (!value.startsWith('/app/') || /[\\\u0000-\u001f]/.test(value)) return null;
   const url = new URL(value, 'https://lume.invalid');
   if (url.origin !== 'https://lume.invalid') return null;
+  if (url.pathname === '/app/agents') {
+    const document = url.searchParams.get('doc');
+    const caseId = url.searchParams.get('caseId');
+    url.pathname = document ? `/app/documents/${encodeURIComponent(document)}`
+      : caseId ? `/app/vault/cases/${encodeURIComponent(caseId)}` : '/app/command-center';
+    url.searchParams.delete('doc'); url.searchParams.delete('caseId');
+  }
   const root = url.pathname.split('/')[2];
   if (!appNavigation.some(item => item.slug === root) && !['documents', 'admin', 'profile', 'tutorial'].includes(root)) return null;
   if (root === 'documents' && !/^\/app\/documents\/[^/]+$/.test(url.pathname)) return null;
-  for (const key of ['conversationId', 'lume', 'feedback', 'notificacoes']) url.searchParams.delete(key);
+  for (const key of ['conversationId', 'lume', 'feedback', 'notificacoes', '__canvas']) url.searchParams.delete(key);
   url.searchParams.sort();
   return url.pathname + (url.searchParams.size ? `?${url.searchParams}` : '');
 }
@@ -92,7 +99,7 @@ export function copyMessageScope(resource: CanvasResource | null, sources: Sourc
 }
 
 type WorkspaceAction =
-  | { type: 'destination'; href: string; resource: CanvasResource | null; explicit?: boolean }
+  | { type: 'destination'; href: string; resource: CanvasResource | null; explicit?: boolean; mobile?: MobileSurface }
   | { type: 'authorized'; resource: CanvasResource }
   | { type: 'unavailable'; href: string }
   | { type: 'revoked'; href: string; resource: CanvasResource | null }
@@ -108,7 +115,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     case 'destination': {
       if (state.href === action.href && !action.explicit) return state;
       return { ...state, href: action.href, resource: action.resource, revokedHref: null, navigation: state.navigation + 1,
-        sources: emptySources(), mobile: 'canvas' };
+        sources: emptySources(), mobile: action.mobile ?? 'canvas' };
     }
     case 'authorized':
       if (action.resource.href !== state.href) return state;
@@ -135,7 +142,12 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       const tabs = [...state.tabs];
       if (index < 0) tabs.push(action.resource);
       else tabs[index] = action.resource;
-      return { ...state, tabs: tabs.slice(-20) };
+      if (tabs.length > 20) {
+        const remove = tabs.findIndex(tab => tab.href !== '/app/command-center' && resourceKey(tab) !== key
+          && (!state.resource || resourceKey(tab) !== resourceKey(state.resource)));
+        if (remove >= 0) tabs.splice(remove, 1);
+      }
+      return { ...state, tabs };
     }
     case 'close': return { ...state, tabs: state.tabs.filter(item => resourceKey(item) !== action.key) };
     case 'mode': return { ...state, mode: action.mode, mobile: action.mode === 'collapsed' ? 'canvas' : 'chat' };
@@ -191,10 +203,14 @@ export class LumeWorkspaceController {
   selectExcerpt(selection: MessageScope['selection']) { this.selection = selection ? { ...selection, document: { ...selection.document } } : undefined; }
   canPresentResult(navigation: number) { return this.value.navigation === navigation; }
   captureResourceAccess(resource: CanvasResource): ResourceAccess {
-    return { resource, authorization: this.authorizations.get(resourceKey(resource)) ?? 0 };
+    const caseId = resourceCase(resource);
+    return { resource, authorization: Math.max(this.authorizations.get(resourceKey(resource)) ?? 0, caseId ? this.revokedCases.get(caseId) ?? 0 : 0) };
+  }
+  isResourceAccessCurrent(access: ResourceAccess) {
+    return this.captureResourceAccess(access.resource).authorization === access.authorization;
   }
   invalidateResource(access: ResourceAccess) {
-    if ((this.authorizations.get(resourceKey(access.resource)) ?? 0) !== access.authorization) return false;
+    if (!this.isResourceAccessCurrent(access)) return false;
     this.dispatch({ type: 'revoked', href: access.resource.href, resource: access.resource });
     return true;
   }
@@ -207,7 +223,7 @@ export class LumeWorkspaceController {
     const caseId = resourceCase(resource);
     return [...new Set([resourceKey(resource), `href:${resource.href}`, ...(caseId ? [`case:${caseId}:`] : [])])];
   }
-  async resolveResource(href: string, read: () => Promise<CanvasResource>): Promise<ResourceResolution> {
+  async resolveResource(href: string, read: () => Promise<CanvasResource>, remember = true): Promise<ResourceResolution> {
     const destination = new URL(href, 'https://lume.invalid');
     const matches = (resource: CanvasResource) => {
       const fileId = destination.searchParams.get('documentId');
@@ -222,7 +238,7 @@ export class LumeWorkspaceController {
       const resource = await read();
       const caseId = resourceCase(resource);
       if (this.resolutions.get(key) !== version || (this.resolutions.get(resourceKey(resource)) ?? 0) > version || caseId && (this.revokedCases.get(caseId) ?? 0) > version) return { status: 'stale' };
-      this.dispatch({ type: 'tab', resource });
+      if (remember) this.dispatch({ type: 'tab', resource });
       return { status: 'authorized', resource };
     } catch (error) {
       if (this.resolutions.get(key) !== version) return { status: 'stale' };

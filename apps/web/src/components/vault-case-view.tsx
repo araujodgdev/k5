@@ -7,8 +7,8 @@ import { CaseSharing } from './case-sharing';
 import { useLumeWorkspace } from './lume/workspace-context';
 import { sectionTab } from './section-tabs';
 import { CaseTasks, CaseHonorarios, CaseRecentActivity, CaseLumePolicy } from './case-collaboration';
-import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useRouter } from "@/components/lume/canvas-navigation";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { CalendarDays, ChevronDown, ChevronRight, CircleAlert, Ellipsis, FolderClosed, FolderLock, FolderPlus, Import, LayoutGrid, List, LoaderCircle, MessageSquare, Pencil, Trash2, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -82,6 +82,10 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
   const [accessFolder, setAccessFolder] = useState<VaultFolder | null>(null);
   const [accessChanges, setAccessChanges] = useState<Record<string, FolderAccessValue>>({});
   const [addedFolders, setAddedFolders] = useState<VaultFolder[]>([]);
+  const [folderSeed, setFolderSeed] = useState(folders);
+  const folderGeneration = useRef(0);
+  useLayoutEffect(() => { ++folderGeneration.current; }, [folders]);
+  if (folderSeed !== folders) { setFolderSeed(folders); setAddedFolders([]); setAccessChanges({}); setAccessFolder(null); }
   // Only this level's new folders, and only until the refreshed list from the server brings them.
   const shownFolders = [...folders, ...addedFolders.filter((added) => added.parentId === folderId && !folders.some((folder) => folder.id === added.id))]
     .map((folder) => ({ ...folder, ...accessChanges[folder.id] }));
@@ -127,6 +131,7 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
     event.preventDefault();
     const name = folderName.trim();
     if (!name || savingFolder) return;
+    const generation = folderGeneration.current;
     setFailure("");
     setSavingFolder(true);
     try {
@@ -136,7 +141,8 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
         body: JSON.stringify({ caseId: vaultCase.id, name, parentId: folderId, visibility: folderAccess.visibility,
           memberIds: folderAccess.visibility === "restricted" ? folderAccess.memberIds : [] }),
       });
-      const result = await response.json().catch(() => null) as { error?: string; folder?: VaultFolder } | null;
+        const result = await response.json().catch(() => null) as { error?: string; folder?: VaultFolder } | null;
+        if (generation !== folderGeneration.current) return;
       if (!response.ok || !result?.folder) {
         setFailure(result?.error ?? "Não foi possível criar a pasta.");
         return;
@@ -147,7 +153,8 @@ export function VaultCaseView({ vaultCase, folders, path, initialDocuments, init
       setFolderAccess({ visibility: "public", memberIds: [] });
       setCreatingFolder(false);
       router.refresh();
-    } catch {
+      } catch {
+        if (generation !== folderGeneration.current) return;
       setFailure("Não foi possível conectar. Confira sua conexão.");
     } finally {
       setSavingFolder(false);

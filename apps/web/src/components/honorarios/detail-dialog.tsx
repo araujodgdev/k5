@@ -13,6 +13,7 @@ import { amountInput, dateLabel, money, parseAmount } from './editor';
 import { controlClass, dialogClass, Failure, Field } from './fields';
 import { ChargeForm } from './charge-form';
 import { PricingSummary } from './quote-panel';
+import { useCanvasRevision, useCanvasActive } from '../lume/canvas-host';
 
 const methods: Record<HonorarioReceipt['method'], string> = { pix: 'Pix', transfer: 'Transferência', cash: 'Dinheiro', card: 'Cartão', boleto: 'Boleto', other: 'Outro' };
 export const installmentStatus: Record<HonorarioInstallment['status'], string> = { pending: 'A receber', partial: 'Recebida em parte', received: 'Recebida', cancelled: 'Cancelada' };
@@ -20,16 +21,19 @@ type FinancialAction = { kind: 'receive'; installment: HonorarioInstallment } | 
 type Action = FinancialAction | { kind: 'charge'; installment: HonorarioInstallment };
 
 export function DetailHonorarioDialog({ agreementId, today, close, changed }: { agreementId: string; today: string; close: () => void; changed: () => void }) {
+  const canvasRevision = useCanvasRevision(), active = useCanvasActive();
   const [detail, setDetail] = useState<HonorarioDetail | null>(null);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const [action, setAction] = useState<Action | null>(null);
   const [busy, setBusy] = useState(false);
+  const [seed,setSeed] = useState({canvasRevision,active});
+  if (seed.canvasRevision !== canvasRevision || seed.active !== active) { setSeed({canvasRevision,active}); setDetail(null); }
   useEffect(() => {
     const controller = new AbortController();
-    void honorariosCall('get', { agreementId }, honorarioDetailDto, controller.signal).then(value => { setDetail(value); setError(''); }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar o honorário.'); });
+    void honorariosCall('get', { agreementId }, honorarioDetailDto, controller.signal).then(value => { if (!controller.signal.aborted) { setDetail(value); setError(''); } }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar o honorário.'); });
     return () => controller.abort();
-  }, [agreementId, revision]);
+  }, [agreementId, revision, canvasRevision, active]);
   const agreement = detail?.agreement;
   return <Dialog open onOpenChange={open => { if (!open && !busy) close(); }}>
     <DialogContent className={dialogClass} showCloseButton={!busy}>

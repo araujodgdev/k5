@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/components/lume/canvas-navigation';
 import { useState } from 'react';
 import { CircleAlert, History, Info } from 'lucide-react';
 import type { ClientBilling, FinancePayment } from '@/lib/billing/platform-billing';

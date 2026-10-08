@@ -24,6 +24,8 @@ export function AgentSettings({ initialTemplates, initialCandidates, initialRule
 }) {
   const [templates, setTemplates] = useState(initialTemplates);
   const [candidates, setCandidates] = useState(initialCandidates);
+  const [seed, setSeed] = useState(initialTemplates);
+  if (seed !== initialTemplates) { setSeed(initialTemplates); setTemplates(initialTemplates); setCandidates(initialCandidates); }
 
   return (
     <div className="w-full max-w-3xl px-5 py-6 md:px-10 md:py-10">

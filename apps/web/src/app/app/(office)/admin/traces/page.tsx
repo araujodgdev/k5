@@ -1,3 +1,5 @@
+import { AdminCanvas } from '@/components/admin/admin-canvas';
+import { officePage } from '@/components/lume/canvas-leaf';
 import { notFound } from "next/navigation";
 import { requirePlatformPage } from "@/lib/platform";
 import { listAgentTraces } from "@/lib/agent-traces";
@@ -23,7 +25,7 @@ function started(value: string, today: string) {
 }
 
 /** The Lume's recent chat turns, newest first, to open one and follow what the agent did. */
-export default async function PlatformTracesPage({ searchParams }: PageProps<"/app/admin/traces">) {
+async function PlatformTracesPage({ searchParams }: PageProps<"/app/admin/traces">) {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const raw = (await searchParams).status;
@@ -55,3 +57,5 @@ export default async function PlatformTracesPage({ searchParams }: PageProps<"/a
     </AdminGrid>
   </>;
 }
+
+export default officePage('/app/admin/traces', PlatformTracesPage, AdminCanvas);

@@ -1,5 +1,5 @@
 import { apiError, apiPersonalWorkspace } from '@/lib/workspace-api';
-import { listNotifications } from '@/lib/application/notifications-service';
+import { deleteAllNotifications, listNotifications } from '@/lib/application/notifications-service';
 import { noStore } from '@/lib/notifications/repository';
 import { workspaceContext } from '@/lib/application/context';
 
@@ -14,5 +14,12 @@ export async function GET(request: Request) {
       cursor: url.searchParams.get('cursor') ?? undefined,
       limit,
     })));
+  } catch (error) { return noStore(apiError(error)); }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const workspace = await apiPersonalWorkspace(request, true);
+    return noStore(Response.json({ deleted: await deleteAllNotifications(workspaceContext(workspace)) }));
   } catch (error) { return noStore(apiError(error)); }
 }

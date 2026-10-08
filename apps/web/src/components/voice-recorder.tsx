@@ -11,7 +11,7 @@ const BARS = 28;
  * The composer's microphone. Recording feeds a live level meter; finishing sends the audio to be
  * transcribed and hands back plain text, which the composer sends as the person's message.
  */
-export function useVoiceRecorder({ onText, onError }: { onText: (text: string) => void; onError: (message: string) => void }) {
+export function useVoiceRecorder({ onText, onError, conversationId }: { conversationId: string | null; onText: (text: string) => void; onError: (message: string) => void }) {
   const [state, setState] = useState<VoiceState>("idle");
   const [seconds, setSeconds] = useState(0);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -42,6 +42,8 @@ export function useVoiceRecorder({ onText, onError }: { onText: (text: string) =
 
   const start = useCallback(async () => {
     if (session.current) return;
+    const capturedConversationId = conversationId;
+    if (!capturedConversationId) { callbacks.current.onError("Selecione uma conversa antes de gravar."); return; }
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -66,7 +68,7 @@ export function useVoiceRecorder({ onText, onError }: { onText: (text: string) =
       if (!blob.size) { setState("idle"); callbacks.current.onError("A gravação ficou vazia. Tente de novo."); return; }
       setState("transcribing");
       try {
-        const response = await fetch("/api/chat/transcribe", { method: "POST", headers: { "content-type": mediaType }, body: blob });
+        const response = await fetch("/api/chat/transcribe", { method: "POST", headers: { "content-type": mediaType, "x-lume-conversation-id": capturedConversationId }, body: blob });
         const data = await response.json().catch(() => ({})) as { text?: string; error?: string };
         if (!response.ok) throw new Error(data.error || "Não foi possível transcrever o áudio. Tente de novo ou escreva a mensagem.");
         const text = data.text?.trim() ?? "";
@@ -75,6 +77,7 @@ export function useVoiceRecorder({ onText, onError }: { onText: (text: string) =
       } catch (error) {
         callbacks.current.onError(error instanceof Error ? error.message : "Não foi possível transcrever o áudio.");
       } finally {
+        window.dispatchEvent(new Event('lume:credits-changed'));
         setState("idle");
       }
     };
@@ -82,7 +85,7 @@ export function useVoiceRecorder({ onText, onError }: { onText: (text: string) =
     setSeconds(0);
     setAnalyser(node);
     setState("recording");
-  }, [release]);
+  }, [release, conversationId]);
 
   useEffect(() => {
     if (state !== "recording") return;

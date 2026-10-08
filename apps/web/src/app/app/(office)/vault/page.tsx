@@ -6,10 +6,11 @@ import { countVaultDocuments, listVaultCases, vaultCasePeople } from "@/lib/vaul
 import { listCases } from '@/lib/application/vault-service';
 import { workspaceContext } from '@/lib/application/context';
 import { redirect } from 'next/navigation';
+import { officePage } from '@/components/lume/canvas-leaf';
 
 export const metadata = { title: "Cofre" };
 
-export default async function VaultPage({ searchParams }: { searchParams: Promise<{ documentId?: string }> }) {
+async function VaultPage({ searchParams }: { searchParams: Promise<{ documentId?: string }> }) {
   const workspace = await requireWorkspace();
   const { documentId } = await searchParams;
   if (documentId) redirect(`/app/vault/files/${encodeURIComponent(documentId)}`);
@@ -34,3 +35,5 @@ export default async function VaultPage({ searchParams }: { searchParams: Promis
     </Reveal>
   );
 }
+
+export default officePage('/app/vault', VaultPage);

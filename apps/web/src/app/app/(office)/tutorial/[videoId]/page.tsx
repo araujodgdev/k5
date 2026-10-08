@@ -1,3 +1,4 @@
+import { officePage } from '@/components/lume/canvas-leaf';
 import { notFound } from 'next/navigation';
 import { CircleHelp, Play } from 'lucide-react';
 import { requireWorkspace } from '@/lib/session';
@@ -12,7 +13,7 @@ import { TutorialPlayer } from '@/components/tutorial-player';
 
 export const metadata = { title: 'Vídeo tutorial do Lume' };
 
-export default async function TutorialVideoPage({ params }: { params: Promise<{ videoId: string }> }) {
+async function TutorialVideoPage({ params }: { params: Promise<{ videoId: string }> }) {
   const { user } = await requireWorkspace();
   const { videoId } = await params;
   const modules = tutorialLibrary({ platformAdmin: await isPlatformAdmin(database, user.id) });
@@ -43,3 +44,5 @@ export default async function TutorialVideoPage({ params }: { params: Promise<{ 
     </CanvasPage>
   </>;
 }
+
+export default officePage('/app/tutorial/[videoId]', TutorialVideoPage);

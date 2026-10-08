@@ -49,11 +49,11 @@ describe('abas e controles do Lume', { session: 'admin' }, () => {
     await app.screenshot('chat-mobile-preservado');
   });
 
-  test('notificações e feedback são arredondados e centralizados no desktop e celular', { timeout: 240_000 }, async ({ app, screen, browser }) => {
+  test('notificações são ancoradas e feedback e tutorial são centralizados', { timeout: 240_000 }, async ({ app, screen, browser }) => {
     await app.open('/app/vault');
     for (const width of [1440, 390]) {
       await browser.setViewport({ width, height: 900 });
-      if (width < 768) await screen.getByRole('button', 'Mais opções').tap();
+      if (width < 768) await screen.getByRole('button', /^Mais opções(?:,|$)/).tap();
       await screen.getByRole('button', /^Notificações/).tap();
       const checkDialog = async () => {
         const dialog = screen.getByRole('dialog');
@@ -64,9 +64,13 @@ describe('abas e controles do Lume', { session: 'admin' }, () => {
         const radius = await browser.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[role="dialog"]')!).borderRadius));
         expect(radius).toBeGreaterThanOrEqual(12);
       };
-      await checkDialog();
+      const notification = screen.getByRole('dialog');
+      await expect(notification).toBeVisible();
+      const notificationBox = (await notification.boundingBox())!;
+      if (width >= 768) { expect(notificationBox.y).toBe(56); expect(Math.abs(notificationBox.x + notificationBox.width - (width - 12))).toBeLessThan(2); }
+      else { expect(notificationBox.x).toBe(12); expect(notificationBox.y + notificationBox.height).toBeLessThanOrEqual(888); }
       await browser.keyboard.press('Escape');
-      if (width < 768) { await screen.getByRole('button', 'Mais opções').tap(); await screen.getByRole('button', 'Enviar feedback', { exact: true }).tap(); }
+      if (width < 768) { await screen.getByRole('button', /^Mais opções(?:,|$)/).tap(); await screen.getByRole('button', 'Enviar feedback', { exact: true }).tap(); }
       else { await screen.getByRole('button', /^Conta de /).tap(); await screen.getByRole('menuitem', 'Enviar feedback').tap(); }
       await checkDialog();
       const feedbackRadii = await browser.evaluate(() => Array.from(document.querySelectorAll('.feedback-panel label:has(input[type="radio"]), .feedback-panel .border-line')).map(item => parseFloat(getComputedStyle(item).borderRadius)));
@@ -75,7 +79,7 @@ describe('abas e controles do Lume', { session: 'admin' }, () => {
       expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
       await app.screenshot(`feedback-centralizado-${width}`);
       await browser.keyboard.press('Escape');
-      await screen.getByRole('button', width < 768 ? 'Mais opções' : 'Casos e módulos').tap();
+      await screen.getByRole('button', width < 768 ? /^Mais opções(?:,|$)/ : 'Casos e módulos').tap();
       await screen.getByRole('button', 'Tutorial do Lume').tap();
       await checkDialog();
       await browser.keyboard.press('Escape');
