@@ -29,6 +29,7 @@ test('assuntos MIME codificados em UTF-8 e ISO-8859-1 são exibidos em texto leg
   assert.equal(gmailHeader({ headers: headers(['Subject', '=?UTF-8?Q?Ol=C3=A1_mundo?=']) }, 'Subject'), 'Olá mundo');
   assert.equal(decodeHeaderWords('=?UTF-8?Q?texto_=ZZ?='), '=?UTF-8?Q?texto_=ZZ?=');
   assert.equal(decodeHeaderWords('=?unknown?B?dGV4dG8=?='), '=?unknown?B?dGV4dG8=?=');
+  assert.equal(decodeHeaderWords('=?windows-1252?Q?=80_=93ok=94_=96?='), '€ “ok” –');
 });
 
 test('corpo de e-mail respeita charsets permitidos e mantém HTML como texto', () => {
@@ -40,9 +41,9 @@ test('corpo de e-mail respeita charsets permitidos e mantém HTML como texto', (
   assert.equal(messageText({ id: 'alias', payload: part('text/plain', 'latin1', 'Olá', 'latin1') }), 'Olá');
   assert.equal(messageText({ id: 'html', payload: {
     parts: [{ mimeType: 'text/html', headers: headers(['Content-Type', 'text/html; charset=windows-1252']),
-      body: { data: Buffer.from('<script>roube()</script><p>Preço \x80 &amp; \x93valor\x94</p>', 'latin1')
+      body: { data: Buffer.from('<script>roube()</script><p>Preço \x80 &amp; \x93valor\x94 \x96 fim</p>', 'latin1')
         .toString('base64url') } }],
-  } }), 'Preço € & “valor”');
+  } }), 'Preço € & “valor” – fim');
   assert.equal(messageText({ id: 'unknown', payload: part('text/plain', 'unknown', 'Olá', 'utf8') }), 'Olá');
 });
 
