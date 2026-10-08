@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { apiWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
 import { runInputSchema } from '@/lib/document-workflows';
 import { workspaceContext } from '@/lib/application/context';
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
     const workspace = await apiWorkspace(request);
     const context = workspaceContext(workspace);
     const url = new URL(request.url);
-    const limit = Number(url.searchParams.get('limit') || 100);
+    const limit = z.coerce.number().int().min(1).max(100).default(100).parse(url.searchParams.get('limit') || undefined);
     return Response.json(await listRuns(context, { limit }));
   } catch (e) { return apiError(e); }
 }

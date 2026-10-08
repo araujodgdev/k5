@@ -102,9 +102,20 @@ test('the platform log filters by group and office, reading underscores literall
   assert.deepEqual((await listPlatformAudit(testDb, { officeId: client.officeId, group: 'credits' })).entries.map(entry => entry.action), ['credits.granted']);
 });
 
-test('cursors that were not issued by a page are ignored', () => {
+test('cursors that were not issued by a page are ignored', async () => {
   assert.equal(parseAuditCursor("2026-10-03T12:00:00Z_x'; DROP TABLE office"), null);
   assert.equal(parseAuditCursor('qualquer coisa'), null);
+  assert.equal(parseAuditCursor('2026-13-45T99:99:99.000000Z_x'), null);
+  assert.equal(parseAuditCursor('2026-02-30T00:00:00.000000Z_x'), null);
+  const { officeId, userId } = await office('Cursor');
+  await testDb.prepare('INSERT INTO ads_connection_audit(id,office_id,actor_user_id,action,account_id,created_at) VALUES(?,?,?,?,?,?)')
+    .run(randomUUID(), officeId, userId, 'verified', 'act', at(0));
+  const firstOffice = await listOfficeAudit(officeId), firstPlatform = await listPlatformAudit(testDb);
+  assert.equal(firstOffice.entries.length, 1);
+  for (const before of ['2026-13-45T99:99:99.000000Z_x', '2026-02-30T00:00:00.000000Z_x', '0000-01-01T00:00:00.000000Z_x']) {
+    assert.deepEqual(await listOfficeAudit(officeId, { before }), firstOffice, before);
+    assert.deepEqual(await listPlatformAudit(testDb, { before }), firstPlatform, before);
+  }
   assert.deepEqual(parseAuditCursor('2026-10-03T12:00:00.123456Z_abc-1'), { at: '2026-10-03T12:00:00.123456Z', id: 'abc-1' });
   assert.equal(auditDetails('não é json'), '');
 });

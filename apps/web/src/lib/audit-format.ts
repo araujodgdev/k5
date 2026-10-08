@@ -145,8 +145,11 @@ export function auditDetails(json: string | null): string {
 }
 
 /** A page boundary: the last row's exact timestamp (microseconds, UTC) and id. */
-const cursorPattern = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z)_([A-Za-z0-9-]{1,64})$/;
+const cursorPattern = /^((?!0000)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z)_([A-Za-z0-9-]{1,64})$/;
 export function parseAuditCursor(value: string | undefined | null): { at: string; id: string } | null {
   const match = value ? cursorPattern.exec(value) : null;
-  return match ? { at: match[1], id: match[2] } : null;
+  if (!match) return null;
+  // Postgres rejects an impossible date, and year 0, as out of range; V8 rolls 2026-02-30 over to March, so only a round trip proves it.
+  const time = Date.parse(match[1]);
+  return !Number.isNaN(time) && new Date(time).toISOString().slice(0, 19) === match[1].slice(0, 19) ? { at: match[1], id: match[2] } : null;
 }
