@@ -15,6 +15,7 @@ import { connectionSettings } from '../src/lib/typesafe/contracts';
 import type { DecisionRequest } from '../src/lib/typesafe/client';
 import { createPage } from '../src/lib/case-pages/service';
 import { observePage } from '../src/lib/content-policy';
+import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 process.env.BETTER_AUTH_SECRET = randomBytes(48).toString('base64url');
 process.env.BETTER_AUTH_URL = 'http://localhost:62541';
@@ -27,7 +28,7 @@ async function fixture() {
   const pool=await authStore();
   (globalThis as typeof globalThis & { k5Postgres?: { database: typeof db; store: typeof pool } }).k5Postgres={database:db,store:pool};
   const {auth}=await import('../src/lib/auth'), origin='http://localhost:62541';
-  const response=await withPostgres(pool,()=>auth.handler(new Request(origin+'/api/auth/sign-up/email',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({name:'Pessoa',officeName:'Citações',email:randomUUID()+'@test.local',password:'Citations-Test-2026!'})})));
+  const response=await withPostgres(pool,()=>auth.handler(new Request(origin+'/api/auth/sign-up/email',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({name:'Pessoa',officeName:'Citações',email:randomUUID()+'@test.local',password:'Citations-Test-2026!',acceptedLegalVersion:LEGAL_VERSION})})));
   assert.equal(response.status,200);
   const cookie=response.headers.getSetCookie().map(value=>value.split(';')[0]).join('; '),{user}=await response.json();
   const office=(await db.prepare('SELECT office_id FROM office_member WHERE user_id=?').get<{office_id:string}>(user.id))!;

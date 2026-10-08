@@ -3,6 +3,7 @@ import { visible } from './browser-wait';
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
+import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 const baseURL = process.env.TUTORIAL_BASE_URL ?? 'http://localhost:3000';
 if (!['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) throw new Error('O colega fictício só pode ser criado localmente.');
@@ -22,7 +23,7 @@ try {
     console.log('O colega fictício já participa do escritório demo.');
   } else {
     const peerContext = await browser.newContext();
-    const signup = await peerContext.request.post(`${baseURL}/api/auth/sign-up/email`, { data: peer, headers: { origin: baseURL } });
+    const signup = await peerContext.request.post(`${baseURL}/api/auth/sign-up/email`, { data: { ...peer, acceptedLegalVersion: LEGAL_VERSION }, headers: { origin: baseURL } });
     if (!signup.ok() && signup.status() !== 422) throw new Error(`Não foi possível preparar o colega fictício: ${signup.status()}.`);
     if (!await page.getByText(peer.email, { exact: true }).count()) {
       await page.getByRole('button', { name: 'Convidar para equipe', exact: true }).click();

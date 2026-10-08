@@ -23,6 +23,7 @@ const visibleTo = (column: string, viewer: Viewer) => viewer === null ? { sql: "
   : { sql: `vault_folder_visible(${column}, ?)`, values: [viewer] };
 import { assertStorageKey, objectStorage, StorageError } from "@/lib/storage";
 import { isTrustedOrigin } from "@/lib/trusted-origins";
+import { assertTermsAccepted } from "@/lib/legal-acceptance";
 import type { UploadRef } from "@/lib/application/uploads-service";
 import type { CapabilityErrorCode } from "@/lib/capabilities/errors";
 import { captureOperationalError } from "@/lib/observability/report";
@@ -90,6 +91,7 @@ export async function requireVaultWorkspace(): Promise<{ user: { id: string }; o
   const { getSession, requireWorkspace } = await import("@/lib/session");
   const session = await getSession();
   if (!session) throw new VaultHttpError(401, "Sua sessão expirou.");
+  await assertTermsAccepted(database, session.user.id);
   return requireWorkspace();
 }
 

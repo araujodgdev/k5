@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { listOfficesForPlatform } from "../src/lib/ai-connections-core";
 import { createAuth } from "../src/lib/auth-core";
 import { findOfficeForUser } from "../src/lib/offices";
+import { LEGAL_VERSION } from "../src/lib/legal-version";
 import { authorizePlatformRequest, grantPlatformAdmin, platformErrorResponse, revokePlatformAdmin } from "../src/lib/platform-core";
 
 const origin = "http://localhost:3000";
@@ -17,7 +18,7 @@ async function fixture() {
   async function signup(email: string) {
     const response = await auth.handler(new Request(`${origin}/api/auth/sign-up/email`, {
       method: "POST", headers: { "content-type": "application/json", origin },
-      body: JSON.stringify({ name: "Ana Silva", officeName: "Silva Advocacia", email, password }),
+      body: JSON.stringify({ name: "Ana Silva", officeName: "Silva Advocacia", email, password, acceptedLegalVersion: LEGAL_VERSION }),
     }));
     assert.equal(response.status, 200);
     return { cookie: response.headers.getSetCookie().map((value) => value.split(";")[0]).join("; "), user: (await response.json()).user as { id: string } };

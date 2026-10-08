@@ -71,7 +71,7 @@ test(`password recovery through ${resetPath} uses one-time tokens and revokes ev
 test('where e-mail can be delivered, an account signs in only after confirming its address', async () => {
   const links: string[] = [];
   const { auth, db, request } = await fixture(undefined, undefined, { enabled: () => true, send: async input => { links.push(input.url); } });
-  const created = await request('/sign-up/email', { name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'confirma@example.test', password, callbackURL: '/app' });
+  const created = await request('/sign-up/email', { name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'confirma@example.test', password, acceptedLegalVersion: LEGAL_VERSION, callbackURL: '/app' });
   assert.equal(created.response.status, 200);
   assert.equal(created.data.token, null, 'no session before the address is confirmed');
   assert.equal(created.cookie.includes('session_token'), false);
@@ -96,7 +96,7 @@ test('where e-mail can be delivered, an account signs in only after confirming i
 test('where e-mail can be delivered, a new address replaces the current one only after opening its link', async () => {
   const sent: Array<{ to: string; url: string; previousEmail?: string }> = [];
   const { auth, request } = await fixture(undefined, undefined, { enabled: () => true, send: async input => { sent.push({ to: input.user.email, url: input.url, previousEmail: input.change?.previousEmail }); } });
-  await request('/sign-up/email', { name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'troca@example.test', password });
+  await request('/sign-up/email', { name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'troca@example.test', password, acceptedLegalVersion: LEGAL_VERSION });
   const confirmed = await auth.handler(new Request(sent[0].url, { headers: { origin } }));
   const cookie = confirmed.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
   assert.equal(sent[0].previousEmail, undefined, 'sign-up is not a change of address');
@@ -116,7 +116,7 @@ test('where e-mail can be delivered, a new address replaces the current one only
 test('with Turnstile on, sign-up needs a token the challenge accepts', async () => {
   const checked: Array<{ token: string; ip: string | null }> = [];
   const { auth, db } = await fixture(['cf-connecting-ip'], undefined, undefined, { enabled: () => true, verify: async (token, ip) => { checked.push({ token, ip }); return token === 'humano'; } });
-  const body = JSON.stringify({ name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'desafio@example.test', password });
+  const body = JSON.stringify({ name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'desafio@example.test', password, acceptedLegalVersion: LEGAL_VERSION });
   const attempt = (token?: string) => auth.handler(new Request(`${origin}/api/auth/sign-up/email`, { method: 'POST', body,
     headers: { 'content-type': 'application/json', origin, 'cf-connecting-ip': '203.0.113.9', ...(token ? { 'x-captcha-response': token } : {}) } }));
   for (const token of [undefined, 'robo']) {
@@ -129,15 +129,18 @@ test('with Turnstile on, sign-up needs a token the challenge accepts', async () 
   assert.deepEqual(checked.at(-1), { token: 'humano', ip: '203.0.113.9' });
 });
 
-test('sign-up records the accepted version of the terms, and only the version this server publishes', async () => {
-  const { db, signup } = await fixture();
-  const accepted = await signup('aceite@example.test', { acceptedLegalVersion: LEGAL_VERSION });
+test('sign-up records the accepted version of the terms, and refuses any other version or none', async () => {
+  const { db, request, signup } = await fixture();
+  const accepted = await signup('aceite@example.test');
   const row = await db.prepare("SELECT version FROM legal_acceptance WHERE user_id=? AND document='terms'").get<{ version: string }>(accepted.data.user.id);
   assert.equal(row?.version, LEGAL_VERSION);
   assert.equal(await hasAcceptedCurrent(db, accepted.data.user.id, 'terms'), true);
-  const stale = await signup('antiga@example.test', { acceptedLegalVersion: '0.9' });
-  const plain = await signup('sem-aceite@example.test');
-  for (const user of [stale.data.user.id, plain.data.user.id]) assert.equal(await hasAcceptedCurrent(db, user, 'terms'), false, 'the app asks again on entry');
+  for (const acceptedLegalVersion of ['0.9', undefined]) {
+    const refused = await request('/sign-up/email', { name: 'Ana Silva', officeName: 'Silva Advocacia', email: 'sem-aceite@example.test', password, acceptedLegalVersion });
+    assert.equal(refused.response.status, 400, JSON.stringify(refused.data));
+    assert.equal(refused.data.code, 'LEGAL_ACCEPTANCE_REQUIRED');
+  }
+  assert.equal(await db.prepare("SELECT 1 FROM \"user\" WHERE email='sem-aceite@example.test'").get(), undefined, 'no account without the acceptance');
 });
 
 test('disabled password delivery does not disclose whether an address is registered', async () => {
@@ -177,7 +180,7 @@ async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof c
     return { response, cookie: cookies, data: await response.json() };
   }
   async function signup(email = "ana@example.test", extra: object = {}) {
-    const result = await request("/sign-up/email", { name: "Ana Silva", officeName: "Silva Advocacia", email, password, ...extra });
+    const result = await request("/sign-up/email", { name: "Ana Silva", officeName: "Silva Advocacia", email, password, acceptedLegalVersion: LEGAL_VERSION, ...extra });
     assert.equal(result.response.status, 200, JSON.stringify(result.data));
     return result;
   }
@@ -206,12 +209,12 @@ test("dados inválidos e e-mail duplicado não criam contas ou escritórios extr
   const { db, request, signup } = await fixture();
   t.after(async () => (await db.close()));
   for (const extra of [{ officeName: " " }, { name: " " }, { email: "invalido" }, { password: "123" }]) {
-    const result = await request("/sign-up/email", { name: "Ana Silva", officeName: "Silva Advocacia", email: "ana@example.test", password, ...extra });
+    const result = await request("/sign-up/email", { name: "Ana Silva", officeName: "Silva Advocacia", email: "ana@example.test", password, acceptedLegalVersion: LEGAL_VERSION, ...extra });
     assert.ok(result.response.status >= 400);
   }
   assert.equal((await db.prepare("SELECT count(*) AS total FROM user").get())?.total, 0);
   await signup();
-  const duplicate = await request("/sign-up/email", { name: "Outra pessoa", officeName: "Outro escritório", email: "ANA@example.test", password });
+  const duplicate = await request("/sign-up/email", { name: "Outra pessoa", officeName: "Outro escritório", email: "ANA@example.test", password, acceptedLegalVersion: LEGAL_VERSION });
   assert.ok(duplicate.response.status >= 400);
   assert.equal((await db.prepare("SELECT count(*) AS total FROM user").get())?.total, 1);
   assert.equal((await db.prepare("SELECT count(*) AS total FROM office").get())?.total, 1);
@@ -271,7 +274,7 @@ test("sessões ausentes, forjadas e expiradas não autenticam; uso renova a vali
 test("requisições de outra origem são recusadas", async (t) => {
   const { db, request } = await fixture();
   t.after(async () => (await db.close()));
-  const result = await request("/sign-up/email", { name: "Ana Silva", officeName: "Silva Advocacia", email: "ana@example.test", password }, "", "https://outra-origem.example");
+  const result = await request("/sign-up/email", { name: "Ana Silva", officeName: "Silva Advocacia", email: "ana@example.test", password, acceptedLegalVersion: LEGAL_VERSION }, "", "https://outra-origem.example");
   assert.equal(result.response.status, 403);
   assert.equal((await db.prepare("SELECT count(*) AS total FROM user").get())?.total, 0);
 });

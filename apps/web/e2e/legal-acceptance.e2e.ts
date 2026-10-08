@@ -1,12 +1,19 @@
+import { spawn } from 'node:child_process';
 import { expect } from 'e2e';
 import { ApiSession, uniqueAccount } from './support/accounts';
 import { overflowsHorizontally, test } from './support/fixtures';
 
-// An account created without the sign-up form's checkbox: the app asks for the terms first, and
-// the Lume explains once what reaches the AI providers before the chat opens.
+// An account whose acceptance of the terms is no longer current (sign-up requires it, so the
+// fixture removes it as a version bump would stale it): the app asks for the terms first, and the
+// Lume explains once what reaches the AI providers before the chat opens.
 test('termos e aviso de IA: aceite antes do escritório e ciência antes da primeira conversa', async ({ app, screen, browser, sql }) => {
   const account = uniqueAccount('Aceite');
   const api = await new ApiSession(app.baseUrl!).signIn(account, { acceptLegal: false });
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(process.execPath, ['--import', 'tsx', 'e2e/support/legal-acceptance-fixture.mts', account.email], { windowsHide: true, env: process.env });
+    let stderr = ''; child.stderr.on('data', bytes => { stderr += bytes; });
+    child.on('error', reject); child.on('exit', code => code === 0 ? resolve() : reject(new Error(stderr)));
+  });
   await browser.setCookies(api.cookieList.map(cookie => ({ ...cookie, url: api.baseUrl, httpOnly: true })));
   await browser.setViewport({ width: 390, height: 844 });
 

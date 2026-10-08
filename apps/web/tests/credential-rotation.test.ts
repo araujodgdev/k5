@@ -7,6 +7,7 @@ import { postgresTransaction } from '../src/lib/db/postgres';
 import { countSecretsNeedingReencryption } from '../src/lib/ai-connections-core';
 import { credentialRotationStatus, CredentialRotationError, rotateCredentials } from '../src/lib/credential-rotation';
 import { createCredentialKeyring, decryptCredential, encryptCredential, parseCredentialKeyring } from '../src/lib/platform-crypto';
+import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 async function fixture() {
   const f = await postgresFixture();
@@ -127,7 +128,7 @@ test('real route requires a live platform session, same origin and the reviewed 
     const { GET, POST } = await import('../src/app/api/platform/credentials/route');
     const origin = 'http://localhost:3000', url = origin + '/api/platform/credentials';
     assert.equal((await GET(new Request(url))).status, 401);
-    const signup = await auth.handler(new Request(origin + '/api/auth/sign-up/email', { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Rotation', officeName: 'Test', email: 'route@example.test', password: 'Synthetic-Password-2026!' }) }));
+    const signup = await auth.handler(new Request(origin + '/api/auth/sign-up/email', { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Rotation', officeName: 'Test', email: 'route@example.test', password: 'Synthetic-Password-2026!', acceptedLegalVersion: LEGAL_VERSION }) }));
     assert.equal(signup.status, 200);
     const cookie = signup.headers.getSetCookie().map(v => v.split(';')[0]).join('; ');
     const user = (await signup.json()).user;

@@ -28,11 +28,13 @@ exatidão de IA, cálculo de prazo judicial ou protocolo automático. Não criam
 renúncia absoluta a reembolso e indenização. Não atribuem um DPO fictício.
 
 O aceite é versionado. O cadastro e o convite do portal têm a caixa obrigatória
-"Li e aceito…", e o servidor grava em `legal_acceptance` (migração 0069) a pessoa,
+"Li e aceito…"; o servidor recusa a criação da conta sem a versão atual
+(`acceptedLegalVersion`) e grava em `legal_acceptance` (migração 0069) a pessoa,
 o documento, a versão, a data, o IP e o navegador. Quem não tem a versão atual
 (`LEGAL_VERSION`, em `src/lib/legal-version.ts`) precisa aceitar de novo antes de
-entrar, o que vale também para as contas já existentes. Não há consentimento para
-marketing.
+entrar, o que vale também para as contas já existentes: as telas mostram o aceite e
+as APIs do escritório e do portal respondem 403 até ele ser registrado em
+`POST /api/legal/acceptance`. Não há consentimento para marketing.
 
 ## Validação jurídica e operacional necessária
 

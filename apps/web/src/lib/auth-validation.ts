@@ -25,6 +25,7 @@ export function authErrorMessage(code?: string) {
     INVALID_SIGN_UP: "Confira o nome, o escritório, o e-mail e a senha informados.",
     EMAIL_NOT_VERIFIED: "Confirme seu e-mail para entrar. Enviamos um novo link para sua caixa de entrada.",
     CAPTCHA_FAILED: "Não foi possível confirmar a verificação. Tente de novo.",
+    LEGAL_ACCEPTANCE_REQUIRED: "Para criar a conta, aceite a versão atual dos Termos de uso e da Política de privacidade.",
   };
   return messages[code ?? ""] ?? "Não foi possível continuar. Tente novamente em instantes.";
 }

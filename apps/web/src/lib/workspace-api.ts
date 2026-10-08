@@ -13,12 +13,14 @@ import { NotificationRequestError } from './notifications/contracts';
 import { CapabilityError, statusForCapabilityError } from './capabilities/errors';
 import { isTrustedOrigin } from './trusted-origins';
 import { ApiError } from './api-error';
+import { assertTermsAccepted } from './legal-acceptance';
 
 export { ApiError } from './api-error';
 
 export async function apiWorkspace(request: Request, write = false) {
   const session = await getSession();
   if (!session) throw new ApiError(401, 'Entre novamente para continuar.');
+  await assertTermsAccepted(database, session.user.id);
   if (session.user.accountKind === 'client' && !await findOfficeForUser(database, session.user.id)) throw new ApiError(403, 'Esta conta tem acesso ao portal do cliente.');
   const workspace = await requireWorkspace();
   if (write && !isTrustedOrigin(request.headers.get('origin'))) throw new ApiError(403, 'Origem não autorizada.');
@@ -64,6 +66,7 @@ export async function apiPersonalWorkspace(request: Request, write = false) {
     query: { disableCookieCache: true, disableRefresh: true },
   });
   if (!session) throw new ApiError(401, 'Entre novamente para continuar.');
+  await assertTermsAccepted(database, session.user.id);
   if (write && !isTrustedOrigin(request.headers.get('origin'))) throw new ApiError(403, 'Origem não autorizada.');
   const office = await ensureOfficeForUser(database, session.user);
   return { user: session.user, office, session: { id: session.session?.id } };

@@ -18,6 +18,7 @@ import { createUploadRef } from '../src/lib/application/uploads-service';
 import { createVaultDocument } from '../src/lib/vault';
 import { personPolicy } from '../src/lib/content-policy';
 import type { WorkspaceContext } from '../src/lib/application/context';
+import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 const origin = 'http://localhost:3000', password = 'Senha-segura-2026!';
 async function fixture(idempotencyKey?: string) {
@@ -25,7 +26,7 @@ async function fixture(idempotencyKey?: string) {
   async function signup(email: string) {
     const ip = `10.${Math.floor(Math.random()*200)+1}.${Math.floor(Math.random()*200)+1}.${Math.floor(Math.random()*200)+1}`;
     const response = await auth.handler(new Request(`${origin}/api/auth/sign-up/email`, { method: 'POST', headers: { origin, 'x-forwarded-for': ip, 'content-type': 'application/json' },
-      body: JSON.stringify({ name: 'Pessoa de teste', email, password, officeName: 'Escritório de teste' }) }));
+      body: JSON.stringify({ name: 'Pessoa de teste', email, password, officeName: 'Escritório de teste', acceptedLegalVersion: LEGAL_VERSION }) }));
     assert.equal(response.status, 200, await response.clone().text());
     const { user } = await response.json();
     const cookie = response.headers.getSetCookie().map(value => value.split(';')[0]).join(';');
