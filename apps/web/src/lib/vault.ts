@@ -596,7 +596,8 @@ export async function processDocument(documentId: string, officeId: string, leas
       await checkpointVaultDocument(documentId, owner, progress);
     };
 
-    const onOcrPage = (page: string) => chargeOcrPage({ officeId, userId: notificationOwner?.created_by ?? null }, documentId, page);
+    // Keyed by the stored file: a new version pays for its pages again, a retry of the same one does not.
+    const onOcrPage = (page: string) => chargeOcrPage({ officeId, userId: notificationOwner?.created_by ?? null }, documentId, `${document.storedName}:${page}`);
     const sections = await extractDocumentSections(await readVaultOriginal(document), document.mimeType, document.name, document.id, { ocrImages: true, onProgress, onOcrPage });
     const insert = database.prepare("INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, ?, ?, ?)");
     let ordinal = 0;

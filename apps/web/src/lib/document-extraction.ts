@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { database } from "@/lib/database";
 import { docxImages } from "@/lib/docx-images";
 
@@ -104,11 +105,13 @@ async function extractPdfLocally(data: Buffer, documentId: string, { onProgress,
   try {
     const pdf = await task.promise;
     const { createCanvas } = await import("@napi-rs/canvas");
+    // Checkpoints are keyed by the file's content, so a new version of the document is read again.
+    const digest = createHash("sha256").update(data).digest("hex");
     const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
     if (pdf.numPages > 300) throw new Error('PDF acima do limite de 300 páginas.');
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const reference = `página:${pageNumber}`;
-      const saved = completed.get(reference);
+      const saved = completed.get(`${digest}:${reference}`);
       if (saved) { sections.push({ reference, content: saved }); continue; }
       const page = await pdf.getPage(pageNumber);
       const layer = await page.getTextContent();
@@ -123,7 +126,7 @@ async function extractPdfLocally(data: Buffer, documentId: string, { onProgress,
       const text = (await worker.recognize(canvas.toBuffer("image/png"))).data.text.replace(/\s+/g, " ").trim();
       page.cleanup();
       if (text) {
-        await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, reference, text);
+        await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, `${digest}:${reference}`, text);
         sections.push({ reference, content: text });
       }
       await onProgress?.(pageNumber / pdf.numPages);
@@ -166,6 +169,7 @@ async function extractDocx(data: Buffer, documentId: string, options: Extraction
 async function recognizeDocxImages(data: Buffer, documentId: string, onOcrPage?: ExtractionOptions["onOcrPage"]): Promise<ExtractedSection[]> {
   const { images } = docxImages(data);
   if (!images.length) return [];
+  const digest = createHash("sha256").update(data).digest("hex");
   const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
   const { createOcrWorker } = await import('./ocr-worker');
   let worker: Awaited<ReturnType<typeof createOcrWorker>> | undefined;
@@ -173,7 +177,7 @@ async function recognizeDocxImages(data: Buffer, documentId: string, onOcrPage?:
   try {
     for (const [index, image] of images.entries()) {
       const reference = `imagem:${index + 1}`;
-      const saved = completed.get(reference);
+      const saved = completed.get(`${digest}:${reference}`);
       if (saved) { sections.push({ reference, content: saved }); continue; }
       await onOcrPage?.(reference);
       worker ??= await createOcrWorker();
@@ -182,7 +186,7 @@ async function recognizeDocxImages(data: Buffer, documentId: string, onOcrPage?:
       const recognized = await worker.recognize(image.data).then((result) => result.data.text, () => "");
       const content = recognized.replace(/\s+/g, " ").trim();
       if (!content) continue;
-      await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, reference, content);
+      await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, `${digest}:${reference}`, content);
       sections.push({ reference, content });
     }
   } finally { await worker?.terminate(); }
