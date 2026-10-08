@@ -21,6 +21,7 @@ export type ClientContext = { userId: string; sessionId: string; signal?: AbortS
 type Access = { id: string; office_id: string; client_id: string; office_name: string; client_name: string; email: string };
 const missing = () => new CapabilityError('NOT_FOUND', 'Acesso ou arquivo não encontrado.');
 const conflict = () => new CapabilityError('CONFLICT', 'O acesso mudou. Atualize a página antes de continuar.');
+const cancelled = () => new CapabilityError('CONFLICT', 'Esta cobrança foi cancelada.');
 const fileFields = `f.id,f.name,f.kind,f.mime_type AS mimeType,f.byte_size AS byteSize,f.created_at AS createdAt,f.installment_id AS installmentId,u.name AS createdByName`;
 
 async function clientAccess(context: ClientContext, accessId: string, tx: Transaction = database, lock = false) {
@@ -98,11 +99,12 @@ export async function portalChoices(context: ClientContext) {
     WHERE p.user_id=? AND p.revoked_at IS NULL AND p.accepted_at IS NOT NULL ORDER BY o.name,c.name`).all(context.userId);
   return contract.portalChoicesDto.parse({ accesses });
 }
-async function chargeForClient(access: Access, installmentId: string) {
+async function chargeForClient(access: Access, installmentId: string, payable = false) {
   const row = await database.prepare(`SELECT p.published_by FROM client_portal_charge p JOIN office_member m ON m.office_id=p.office_id AND m.user_id=p.published_by
     WHERE p.office_id=? AND p.client_id=? AND p.installment_id=?`).get<{ published_by: string }>(access.office_id, access.client_id, installmentId);
   if (!row) throw missing();
   const charge = await getCharge({ userId: row.published_by, officeId: access.office_id }, { installmentId });
+  if (charge.installment.status === 'cancelled') { if (payable) throw cancelled(); return { ...charge, boleto: null }; }
   if (charge.boleto) await assertExternalDelivery(row.published_by, await vaultPolicy(charge.boleto.id));
   return charge;
 }
@@ -208,10 +210,15 @@ export async function publishPortalArtifact(context: WorkspaceContext, raw: unkn
 }
 export async function uploadClientFile(context: ClientContext, accessId: string, file: File, idempotencyKey: string, installmentId: string | null) {
   const access = await clientAccess(context, accessId);
-  if (installmentId) await chargeForClient(access, installmentId);
+  if (installmentId) await chargeForClient(access, installmentId, true);
   return storeFile(context, { officeId: access.office_id, clientId: access.client_id, userId: context.userId, file, kind: installmentId ? 'proof' : 'upload', installmentId, idempotencyKey }, async tx => {
     await clientAccess(context, accessId, tx, true);
-    if (installmentId && !await tx.prepare('SELECT 1 FROM client_portal_charge WHERE office_id=? AND client_id=? AND installment_id=?').get(access.office_id, access.client_id, installmentId)) throw missing();
+    if (!installmentId) return;
+    const charge = await tx.prepare(`SELECT a.cancelled_at FROM client_portal_charge p JOIN honorario_installment i ON i.office_id=p.office_id AND i.id=p.installment_id
+      JOIN honorario_agreement a ON a.office_id=i.office_id AND a.id=i.agreement_id WHERE p.office_id=? AND p.client_id=? AND p.installment_id=? FOR SHARE OF a`)
+      .get<{ cancelled_at: string | null }>(access.office_id, access.client_id, installmentId);
+    if (!charge) throw missing();
+    if (charge.cancelled_at) throw cancelled();
   });
 }
 async function assertPortalPolicy(row: { content_policy: unknown; sha256: string; source_ref: string | null; created_by: string }) {
@@ -258,7 +265,7 @@ export async function removePortalFile(context: WorkspaceContext, clientId: stri
 }
 export async function downloadClientCharge(context: ClientContext, accessId: string, installmentId: string, format: 'pdf' | 'boleto', version: string | null) {
   const access = await clientAccess(context, accessId);
-  const charge = await chargeForClient(access, installmentId);
+  const charge = await chargeForClient(access, installmentId, true);
   if (format === 'boleto') {
     if (!charge.boleto) throw missing();
     const publisher = await database.prepare('SELECT published_by AS created_by FROM client_portal_charge WHERE office_id=? AND installment_id=?').get<{ created_by: string }>(access.office_id, installmentId);
@@ -267,14 +274,14 @@ export async function downloadClientCharge(context: ClientContext, accessId: str
     const file = await readVaultDocumentFile(access.office_id, charge.boleto.id, publisher.created_by);
     await assertExternalDelivery(publisher.created_by, await vaultPolicy(charge.boleto.id));
     await clientAccess(context, accessId);
-    const current = await chargeForClient(access, installmentId);
+    const current = await chargeForClient(access, installmentId, true);
     if (current.boleto?.id !== charge.boleto.id) throw conflict();
     return { bytes: file.buffer, name: file.name, mimeType: file.mimeType };
   }
   if (!charge.pdfUrl || version !== String(charge.version)) throw conflict();
   const bytes = await exportPdf(await exportDocument(`# Cobrança de honorários\n\n${charge.message.split('\n').join('\n\n')}`));
   await clientAccess(context, accessId);
-  const current = await chargeForClient(access, installmentId);
+  const current = await chargeForClient(access, installmentId, true);
   if (!current.pdfUrl || current.version !== charge.version || current.installment.pendingCents !== charge.installment.pendingCents) throw conflict();
   return { bytes, name: 'cobranca.pdf', mimeType: 'application/pdf' };
 }

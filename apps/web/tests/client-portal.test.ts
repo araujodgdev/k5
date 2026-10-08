@@ -14,6 +14,9 @@ import * as honorarios from '../src/lib/honorarios/service';
 import { prepareCharge } from '../src/lib/honorarios/charges';
 import { findOfficeForUser } from '../src/lib/offices';
 import { objectStorage, resetObjectStorageForTests } from '../src/lib/storage';
+import { createUploadRef } from '../src/lib/application/uploads-service';
+import { createVaultDocument } from '../src/lib/vault';
+import { personPolicy } from '../src/lib/content-policy';
 import type { WorkspaceContext } from '../src/lib/application/context';
 
 const origin = 'http://localhost:3000', password = 'Senha-segura-2026!';
@@ -85,6 +88,34 @@ test('a client created from the clients screen, whose idempotencyKey makes the i
   await assert.rejects(portal.downloadClientFile(f.client, f.accessId, published.id), { code: 'NOT_FOUND' });
   await portal.revokePortal(f.context, { clientId: f.clientId, version: management.access!.version });
   await assert.rejects(portal.clientPortal(f.client, f.accessId), { code: 'NOT_FOUND' });
+});
+
+test('a cancelled fee keeps its boleto and proofs out of the portal, even when the cancel lands mid-upload', async t => {
+  const f = await fixture();
+  async function publishedFee() {
+    const detail = await honorarios.createHonorario(f.context, { clientId: f.clientId, title: 'Contrato', installments: [{ amountCents: 30000, dueOn: '2035-01-10' }], idempotencyKey: randomUUID() });
+    const id = detail.installments[0].id;
+    const boleto = await createVaultDocument(f.context, await createUploadRef(f.context, await file('boleto.pdf')), { scope: 'library', policy: personPolicy('', '') });
+    const charge = await prepareCharge(f.context, { installmentId: id, version: 0, pixKey: 'financeiro@office.test', boletoDocumentId: boleto.id, idempotencyKey: randomUUID() });
+    assert.equal(charge.boleto?.id, boleto.id);
+    await portal.publishPortalCharge(f.context, { clientId: f.clientId, installmentId: id, version: charge.version });
+    return { id, agreementId: detail.agreement.id };
+  }
+  const first = await publishedFee();
+  assert.equal(Buffer.from((await portal.downloadClientCharge(f.client, f.accessId, first.id, 'boleto', null)).bytes).subarray(0, 5).toString(), '%PDF-');
+  await honorarios.cancelHonorario(f.context, { agreementId: first.agreementId, reason: 'Contrato encerrado', idempotencyKey: randomUUID() });
+  const listed = (await portal.clientPortal(f.client, f.accessId)).charges.find(row => row.id === first.id);
+  assert.equal(listed?.status, 'cancelled'); assert.equal(listed?.boletoUrl, null);
+  await assert.rejects(portal.downloadClientCharge(f.client, f.accessId, first.id, 'boleto', null), { code: 'CONFLICT' });
+  await assert.rejects(portal.uploadClientFile(f.client, f.accessId, await file('comprovante.pdf'), randomUUID(), first.id), { code: 'CONFLICT' });
+  const second = await publishedFee(), storage = await objectStorage(), put = storage.put.bind(storage);
+  const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  t.mock.method(storage, 'put', async (key: string, bytes: Buffer) => { await put(key, bytes); entered.resolve(); await release.promise; });
+  const upload = assert.rejects(portal.uploadClientFile(f.client, f.accessId, await file('comprovante.pdf'), randomUUID(), second.id), { code: 'CONFLICT' });
+  await entered.promise;
+  await honorarios.cancelHonorario(f.context, { agreementId: second.agreementId, reason: 'Contrato encerrado', idempotencyKey: randomUUID() });
+  release.resolve(); await upload;
+  assert.equal(await testDb.prepare("SELECT 1 FROM client_portal_file WHERE client_id=? AND kind='proof'").get(f.clientId), undefined);
 });
 
 test('portal blocks foreign clients, offices, fees, replaced invitations and revoked sessions', async () => {
