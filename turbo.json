@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalPassThroughEnv": ["BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "BETTER_AUTH_TRUSTED_ORIGINS", "DATABASE_URL", "DATABASE_URL_UNPOOLED", "SESSION_IDLE_SECONDS", "K5_CREDENTIALS_KEY", "K5_CREDENTIALS_PREVIOUS_KEYS", "VAULT_OCR_URL", "VAULT_OCR_TOKEN", "SENTRY_AUTH_TOKEN"],
+  "globalPassThroughEnv": ["BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "BETTER_AUTH_TRUSTED_ORIGINS", "DATABASE_URL", "DATABASE_URL_UNPOOLED", "SESSION_IDLE_SECONDS", "K5_CREDENTIALS_KEY", "K5_CREDENTIALS_PREVIOUS_KEYS", "VAULT_OCR_URL", "VAULT_OCR_TOKEN", "SENTRY_AUTH_TOKEN", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy", "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE", "SSL_CERT_DIR", "K5_CREDENTIALS_NEXT_KEY"],
   "globalEnv": ["SENTRY_DSN", "SENTRY_ENVIRONMENT", "SENTRY_RELEASE", "SENTRY_ENABLED", "SENTRY_TRACES_SAMPLE_RATE", "SENTRY_ORG", "SENTRY_PROJECT", "SENTRY_REQUIRE_SOURCEMAPS", "NEXT_PUBLIC_SENTRY_*"],
   "globalDependencies": ["**/.env.local", "**/.env"],
   "tasks": {
@@ -10,7 +10,8 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**", ".next/**", "!.next/cache/**", "!.next/dev/**", "public/sw.js"]
+      "outputs": ["dist/**", "build/**", ".next/**", "!.next/cache/**", "!.next/dev/**", "public/sw.js"],
+      "passThroughEnv": ["NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS"]
     },
     "lint": {
       "dependsOn": ["^lint"]

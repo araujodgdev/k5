@@ -7,7 +7,10 @@ import { ApiError } from '@/lib/api-error';
 
 export function vaultErrorResponse(error: unknown) {
   if (error instanceof VaultHttpError || error instanceof ApiError) {
-    if (error.status >= 500) captureOperationalError(error, 'vault.api.operational');
+    if (error.status >= 500) {
+      captureOperationalError(error, 'vault.api.operational');
+      return Response.json({ error: 'Não foi possível concluir esta operação.' }, { status: error.status });
+    }
     return Response.json({ error: error.message }, { status: error.status });
   }
   if (error instanceof CapabilityError) return Response.json({ error: error.message, code: error.code }, { status: statusForCapabilityError(error) });

@@ -1,0 +1,50 @@
+name: Encrypted daily database backup
+
+on:
+  schedule:
+    # 03:00 America/Sao_Paulo. GitHub can delay scheduled jobs.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+      - name: Install PostgreSQL 18 client and age
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends age ca-certificates curl gnupg
+          curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --output /usr/share/keyrings/pgdg.gpg
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
+      - name: Dump and encrypt database
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          K5_BACKUP_AGE_RECIPIENT: ${{ vars.K5_BACKUP_AGE_RECIPIENT }}
+          K5_BACKUP_DIR: ${{ runner.temp }}/lume-backup
+        run: bash apps/web/scripts/backup-database.sh
+      - name: Store encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: lume-database-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/lume-backup/*.dump.age
+            ${{ runner.temp }}/lume-backup/*.sha256
+          if-no-files-found: error
+          retention-days: 30

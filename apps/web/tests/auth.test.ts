@@ -159,11 +159,11 @@ test('cada advogado tem um único escritório, e ninguém entra no escritório d
   assert.equal((await request('/get-session', undefined, first.cookie)).data, null);
 });
 
-async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof createAuth>[2]['passwordReset'], emailVerification?: Parameters<typeof createAuth>[2]['emailVerification'], signUpChallenge?: Parameters<typeof createAuth>[2]['signUpChallenge'], idleSeconds = 3600) {
+async function fixture(ipHeaders?: string[], passwordReset?: Parameters<typeof createAuth>[2]['passwordReset'], emailVerification?: Parameters<typeof createAuth>[2]['emailVerification'], signUpChallenge?: Parameters<typeof createAuth>[2]['signUpChallenge'], idleSeconds = 3600, baseURL = origin) {
   const { db, database, pool } = await postgresFixture({seedDefaults:false});
-  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL: origin, idleSeconds, ipHeaders, passwordReset, emailVerification, signUpChallenge });
-  async function request(path: string, body?: object, cookie = "", requestOrigin = origin, connectingIp?: string) {
-    const response = await auth.handler(new Request(`${origin}/api/auth${path}`, {
+  const auth = createAuth(pool, database, { secret: randomBytes(48).toString("base64url"), baseURL, idleSeconds, ipHeaders, passwordReset, emailVerification, signUpChallenge });
+  async function request(path: string, body?: object, cookie = "", requestOrigin = baseURL, connectingIp?: string) {
+    const response = await auth.handler(new Request(`${baseURL}/api/auth${path}`, {
       method: body ? "POST" : "GET",
       headers: {
         "content-type": "application/json",
@@ -200,6 +200,46 @@ test("cadastro cria sessão, hash forte e escritório do advogado", async (t) =>
   assert.equal(office?.officeName, "Silva Advocacia");
   await ensureOfficeForUser(database, { id: result.data.user.id, officeName: "Não deve duplicar" });
   assert.equal((await db.prepare("SELECT count(*) AS total FROM office").get())?.total, 1);
+});
+
+test('HTTPS sessions use Secure and HttpOnly cookies', async t => {
+  const { db, signup } = await fixture([], undefined, undefined, undefined, 3600, 'https://lume.software');
+  t.after(() => db.close());
+  const result = await signup();
+  const cookie = result.response.headers.getSetCookie().find(value => value.includes('session_token'));
+  assert.ok(cookie);
+  assert.match(cookie, /; Secure(?:;|$)/i);
+  assert.match(cookie, /; HttpOnly(?:;|$)/i);
+  assert.match(cookie, /; SameSite=Lax(?:;|$)/i);
+});
+
+test('failed and rate-limited logins are logged without request secrets or personal data', async t => {
+  const logs: string[] = [];
+  t.mock.method(console, 'warn', (value: unknown) => { logs.push(String(value)); });
+  const { db, request, signup } = await fixture(['cf-connecting-ip']);
+  t.after(() => db.close());
+  await signup();
+  const email = 'missing-private-address@example.test';
+  for (let n = 0; n < 11; n++) await request('/sign-in/email', { email, password }, 'private-cookie', origin, '203.0.113.42');
+  const events = logs.filter(value => value.startsWith('{')).map(value => JSON.parse(value) as { event: string; status: number; client: string });
+  assert.equal(events.length, 11);
+  assert.ok(events.every(event => event.event === 'auth.login_failed'));
+  assert.deepEqual(events.map(event => event.status), [...Array<number>(10).fill(401), 429]);
+  assert.match(events[0].client, /^[a-f0-9]{64}$/);
+  assert.equal(new Set(events.map(event => event.client)).size, 1);
+  for (const privateValue of [email, password, 'private-cookie', '203.0.113.42']) assert.equal(events.some(event => JSON.stringify(event).includes(privateValue)), false);
+  logs.length = 0;
+  assert.equal((await request('/sign-in/email', { email: 'ana@example.test', password }, '', origin, '203.0.113.43')).response.status, 200);
+  assert.equal(logs.length, 0, 'successful login is not recorded as a failure');
+});
+
+test('signup is rate-limited even when validation fails before creating an account', async t => {
+  const { db, request } = await fixture(['cf-connecting-ip']);
+  t.after(() => db.close());
+  for (let n = 0; n < 10; n++)
+    assert.equal((await request('/sign-up/email', { name: 'Ana', officeName: 'Silva', email: 'ana@example.test', password: 'short' }, '', origin, '203.0.113.44')).response.status, 400);
+  assert.equal((await request('/sign-up/email', { name: 'Ana', officeName: 'Silva', email: 'ana@example.test', password }, '', origin, '203.0.113.44')).response.status, 429);
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM "user"').get())?.n, 0);
 });
 
 test("dados inválidos e e-mail duplicado não criam contas ou escritórios extras", async (t) => {

@@ -52,7 +52,7 @@ export default withSentry<WebEnv>(env => serverOptions('web', env), {
     return withPostgres(pool, () => withTrademarkEnvironment(env, () => withAdsEnvironment(env, () => withWhatsAppEnvironment(env, () => withPersonalChatEnvironment(env, async () => {
       try {
         const response = await handler.fetch(request,env,ctx);
-        return withSecurityHeaders(closePoolWithResponse(response,pool,promise=>ctx.waitUntil(promise)));
+        return withSecurityHeaders(closePoolWithResponse(response,pool,promise=>ctx.waitUntil(promise)), request);
       } catch (error) { await pool.end(); throw error; }
     })))));
   },

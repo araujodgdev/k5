@@ -60,7 +60,7 @@ test('breadcrumbs and traces discard console content, SQL literals and AI prompt
   assert.equal(beforeBreadcrumb({ category: 'ui.click', message: 'client@example.com' }), null);
   assert.equal(telemetryUrl('/app/documents/550e8400-e29b-41d4-a716-446655440000?text=private'), '/app/documents/[id]');
   const event: TransactionEvent = { type: 'transaction', transaction: 'GET /app/documents/550e8400-e29b-41d4-a716-446655440000?text=private', spans: [{
-    trace_id: 'trace', span_id: 'span', start_timestamp: 1, timestamp: 2,
+    trace_id: 'trace', span_id: 'span', start_timestamp: 1, timestamp: 2, status: 'ok',
     op: 'db.query', description: "SELECT * FROM clients WHERE name='Private Name'",
     data: { 'db.query.text': 'private', 'gen_ai.prompt': 'private', 'http.request.body': 'private', 'gen_ai.usage.input_tokens': 15 },
   }] };

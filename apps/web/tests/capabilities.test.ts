@@ -59,7 +59,7 @@ async function pinTestDocument(id:string) {
 }
 
 function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
-  const file = new File([Buffer.from(`conteudo-${randomUUID()}`)], name, { type: "application/pdf" });
+  const file = new File([Buffer.from(`%PDF-1.7\nconteudo-${randomUUID()}`)], name, { type: "application/pdf" });
   return uploadsService.createUploadRef(context, file);
 }
 

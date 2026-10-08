@@ -11,6 +11,7 @@ import { clientRegistration } from './client-portal/registration';
 import { portalInvitation, acceptPortalInvitation } from './client-portal/invitations';
 import { recordAcceptance } from './legal-acceptance';
 import { LEGAL_VERSION } from './legal-version';
+import { createHmac, randomUUID } from 'node:crypto';
 
 /** Better Auth uses the same PostgreSQL pool as the business-data adapter. */
 export type AuthStore = Pool;
@@ -27,7 +28,7 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
   /** `change` is set when the link confirms a new address for an existing account. */
   emailVerification?: { enabled: () => boolean; send: (input: { user: { id: string; email: string }; url: string; change?: { previousEmail: string } }) => Promise<void> } }) {
   const verifyEmail = settings.emailVerification?.enabled() ?? false;
-  return betterAuth({
+  const authentication = betterAuth({
     appName: "Lume",
     database: store,
     secret: settings.secret,
@@ -65,6 +66,7 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       cookieCache: { enabled: false },
     },
     advanced: {
+      useSecureCookies: new URL(settings.baseURL).protocol === 'https:',
       ipAddress: {
         // Only a header the edge overwrites is safe for per-client rate limits. An empty list
         // means no trusted header: every client shares one bucket instead of spoofing its own.
@@ -135,4 +137,25 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
       } } },
     },
   });
+  const handler = authentication.handler;
+  authentication.handler = async request => {
+    // Observe the HTTP response, including requests refused before hooks by CSRF or rate limits.
+    // Never read the body or log an address, password, cookie, token, or attacker-controlled text.
+    const login = new URL(request.url).pathname.replace(/\/$/, '').endsWith('/sign-in/email');
+    const failed = (status: number) => {
+      const ip = (settings.ipHeaders ?? ['cf-connecting-ip']).map(name => request.headers.get(name)).find(Boolean);
+      console.warn(JSON.stringify({ event: 'auth.login_failed', event_id: randomUUID(),
+        timestamp: new Date().toISOString(), status,
+        client: ip ? createHmac('sha256', settings.secret).update(ip).digest('hex') : 'unknown' }));
+    };
+    try {
+      const response = await handler(request);
+      if (login && response.status >= 400) failed(response.status);
+      return response;
+    } catch (error) {
+      if (login) failed(500);
+      throw error;
+    }
+  };
+  return authentication;
 }

@@ -1,5 +1,5 @@
 import 'server-only';
-import { apiWorkspace, apiPersonalWorkspace, apiError, limitedJson } from '@/lib/workspace-api';
+import { apiWorkspace, apiPersonalWorkspace, apiError, limitedJson, ApiError } from '@/lib/workspace-api';
 import { workspaceContext } from '@/lib/application/context';
 import { capabilities, type CapabilityName } from '@/lib/capabilities/contracts';
 import { runCapability } from '@/lib/agent-tools';
@@ -20,10 +20,10 @@ export async function handleCapability(
       ? await apiPersonalWorkspace(request, write)
       : await apiWorkspace(request, write);
     let body: Record<string, unknown> = {};
-    if (request.method !== 'GET' && request.method !== 'DELETE') {
-      body = (await limitedJson(request).catch(() => ({}))) as Record<string, unknown>;
-    } else if (request.method === 'DELETE') {
-      body = (await limitedJson(request).catch(() => ({}))) as Record<string, unknown>;
+    if (request.method !== 'GET' && request.body !== null) {
+      const input = await limitedJson(request);
+      if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ApiError(400, 'Envie um objeto com os dados da solicitação.');
+      body = input as Record<string, unknown>;
     }
     const result = await runCapability({ ...workspaceContext(workspace), signal: request.signal, ...(request.headers.get('x-k5-surface') === 'webmcp' ? { invocation: 'webmcp' as const } : {}) }, name, { ...body, ...extra });
     return Response.json(result, {

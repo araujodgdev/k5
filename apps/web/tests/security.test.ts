@@ -44,9 +44,18 @@ async function seedOffices() {
 }
 
 function seedUpload(context: WorkspaceContext, name = "documento.pdf") {
-  const file = new File([Buffer.from(`conteudo-${randomUUID()}`)], name, { type: "application/pdf" });
+  const file = new File([Buffer.from(`%PDF-1.7\nconteudo-${randomUUID()}`)], name, { type: "application/pdf" });
   return uploadsService.createUploadRef(context, file);
 }
+
+test('uploads: renamed executables and HTML cannot masquerade as binary documents or images', async () => {
+  const { lawyer } = await seedOffices();
+  for (const name of ['payload.pdf', 'payload.docx', 'payload.xlsx', 'payload.png', 'payload.jpg', 'payload.webp']) {
+    const file = new File(['<html><script>stealData()</script></html>'], name, { type: 'application/pdf' });
+    await assert.rejects(uploadsService.createUploadRef(lawyer, file), (error: unknown) => error instanceof CapabilityError && error.code === 'INVALID');
+  }
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM vault_upload_ref WHERE office_id=?').get<{ n: number }>(lawyer.officeId))?.n, 0);
+});
 
 test('uploads: aceita 100 MB e recusa um byte a mais antes de armazenar', async () => {
   const { lawyer } = await seedOffices();

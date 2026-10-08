@@ -6,12 +6,14 @@ import { after } from 'next/server';
 import { personalEmailSettings, sendPersonalEmail } from './personal-chat/email-transport';
 import { captureOperationalError } from './observability/report';
 import { turnstileEnabled, verifyTurnstile } from './turnstile';
+import { authOrigins } from './auth-origins';
 
 const secret = process.env.BETTER_AUTH_SECRET;
 if (!secret || secret.length < 32) throw new Error('Configure BETTER_AUTH_SECRET com pelo menos 32 caracteres. Em dev, execute pnpm db:setup.');
 const idleSeconds = Number(process.env.SESSION_IDLE_SECONDS ?? 28800);
 if (!Number.isInteger(idleSeconds) || idleSeconds < 60) throw new Error('SESSION_IDLE_SECONDS deve ser um inteiro de pelo menos 60 segundos.');
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const origins = authOrigins();
 
 const settings = {
   emailVerification: { enabled: () => Boolean(personalEmailSettings()), send: async ({ user, url, change }: { user: { id: string; email: string }; url: string; change?: { previousEmail: string } }) => {
@@ -50,8 +52,8 @@ Se não foi você, troque sua senha em Perfil e encerre as outras sessões.`,
     });
   } },
   signUpChallenge: { enabled: turnstileEnabled, verify: verifyTurnstile },
-  secret, baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000', idleSeconds,
-  extraOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(',').map(origin=>origin.trim()).filter(Boolean),
+  secret, baseURL: origins.baseURL, idleSeconds,
+  extraOrigins: origins.trustedOrigins.slice(1),
   // Cloudflare overwrites cf-connecting-ip at the edge. Anywhere else a client can send it, so the
   // header is only trusted when the operator names the one their own proxy overwrites.
   ipHeaders: process.env.K5_RUNTIME === 'cloudflare' ? ['cf-connecting-ip']

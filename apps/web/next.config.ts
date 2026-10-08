@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from '@sentry/nextjs/config';
 import { sentryBuildOptions } from './scripts/sentry-build';
+import { SECURITY_HEADERS } from './src/lib/security-headers';
 
 const nextConfig: NextConfig = {
   // Keep isolated QA and verification servers from sharing Next's output and dev lock with the main app.
@@ -18,6 +19,19 @@ const nextConfig: NextConfig = {
   },
   headers() {
     return [{
+      source: '/:path*',
+      headers: [
+        ...Object.entries(SECURITY_HEADERS).map(([key, value]) => ({ key, value })),
+        { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+      ],
+    }, {
+      source: '/api/:path*',
+      headers: [
+        { key: 'Cache-Control', value: 'private, no-store' },
+        { key: 'CDN-Cache-Control', value: 'no-store' },
+        { key: 'Cloudflare-CDN-Cache-Control', value: 'no-store' },
+      ],
+    }, {
       source: "/sw.js",
       headers: [
         { key: "Content-Type", value: "application/javascript; charset=utf-8" },

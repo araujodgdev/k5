@@ -10,20 +10,20 @@
   },
   "dependencies": {
     "@k5/tutorial-library": "workspace:*",
-    "@remotion/bundler": "4.0.529",
-    "@remotion/cli": "4.0.529",
-    "@remotion/renderer": "4.0.529",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "remotion": "4.0.529",
-    "zod": "4.5.4"
+    "@remotion/bundler": "4.0.534",
+    "@remotion/cli": "4.0.534",
+    "@remotion/renderer": "4.0.534",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.534",
+    "zod": "4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   }
 }

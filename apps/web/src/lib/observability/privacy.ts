@@ -1,4 +1,5 @@
 import type { Breadcrumb, ErrorEvent, TransactionEvent, SpanJSON, Options } from '@sentry/core';
+import { withStaticSpan } from '@sentry/core';
 
 // Legal documents, credentials and AI conversations must not become telemetry.
 export const dataCollection: NonNullable<Options['dataCollection']> = {
@@ -92,11 +93,14 @@ export function scrubEvent<T extends ErrorEvent | TransactionEvent>(event: T): T
 }
 
 export const privacyOptions = {
+  // Keep transaction scrubbing active after the Sentry 11 migration.
+  traceLifecycle: 'static' as const,
   dataCollection,
-  enableLogs: false,
-  enableMetrics: false,
+  // Sentry 11 removed enableLogs/enableMetrics; explicit drop hooks keep both channels private.
+  beforeSendLog: () => null,
+  beforeSendMetric: () => null,
   beforeBreadcrumb,
   beforeSend: scrubEvent,
   beforeSendTransaction: scrubEvent,
-  beforeSendSpan,
+  beforeSendSpan: withStaticSpan(beforeSendSpan),
 };
