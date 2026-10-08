@@ -112,6 +112,7 @@ test('keyed reference replay suppresses revoked nested assessment excerpts', asy
   const first = await runCapability(a.context, 'k5_research_add_reference', input);
   assert.match(JSON.stringify(first), /A avó cuida da criança desde janeiro/);
   const folder = await createVaultFolder(a.context.officeId, guest.context.userId, a.caseId, 'Reservado', null, { visibility: 'private' }, await contextForCase(guest.context, a.caseId));
+  await testDb.prepare('UPDATE vault_document SET created_by=? WHERE id=?').run(guest.context.userId, a.documentId);
   await runCapability(guest.context, 'k5_vault_update_document', { documentId: a.documentId, folderId: folder.id });
   await assert.rejects(getResearchCaseAssessment(a.context, assessment.id),{ code: 'NOT_FOUND' });
   let replay: unknown, caught: unknown;
@@ -165,6 +166,7 @@ test('profile IDs preserve reordering, category moves and hidden parts without b
     documentedFacts:[],documentIds:[],allegedFacts:moved.allegedFacts,
     entryIds:{documentedFacts:[],allegedFacts:moved.entryIds.allegedFacts.map(() => null),gaps:moved.entryIds.gaps} }),{code:'CONFLICT'});
   const folder = await createVaultFolder(a.context.officeId,guest.context.userId,a.caseId,'Reservado',null,{visibility:'private'},await contextForCase(guest.context,a.caseId));
+  await testDb.prepare('UPDATE vault_document SET created_by=? WHERE id=?').run(guest.context.userId,a.documentId);
   await runCapability(guest.context,'k5_vault_update_document',{documentId:a.documentId,folderId:folder.id});
   const partial = (await getResearchCaseProfile(a.context,a.caseId))!;
   assert.equal(partial.kind,'restricted');

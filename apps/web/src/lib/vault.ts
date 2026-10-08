@@ -293,11 +293,13 @@ export async function updateVaultFolderAccess(officeId: string, folderId: string
   if (!folder) throw new VaultHttpError(404, "Pasta não encontrada.");
   if (!folder.owned) throw new VaultHttpError(403, "Só quem criou a pasta altera quem pode vê-la.");
   const { visibility, memberIds } = await cleanAccess(officeId, folder.caseId, userId, access, tx);
-  for (const write of [
-    tx.prepare("UPDATE vault_folder SET visibility = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND created_by = ?").bind(visibility, folderId, officeId, userId),
-    tx.prepare("DELETE FROM vault_folder_member WHERE folder_id = ?").bind(folderId),
-    ...memberIds.map((memberId) => tx.prepare("INSERT INTO vault_folder_member (folder_id, user_id) VALUES (?, ?)").bind(folderId, memberId)),
-  ]) await tx.prepare(write.sql).run(...write.params);
+  await keepingOwnerSight(officeId, userId, { caseId: folder.caseId }, tx, async () => {
+    for (const write of [
+      tx.prepare("UPDATE vault_folder SET visibility = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND created_by = ?").bind(visibility, folderId, officeId, userId),
+      tx.prepare("DELETE FROM vault_folder_member WHERE folder_id = ?").bind(folderId),
+      ...memberIds.map((memberId) => tx.prepare("INSERT INTO vault_folder_member (folder_id, user_id) VALUES (?, ?)").bind(folderId, memberId)),
+    ]) await tx.prepare(write.sql).run(...write.params);
+  });
   return (await findVaultFolder(officeId, folderId, userId, tx))!;
   });
 }
@@ -340,6 +342,22 @@ export async function assertVaultDocumentMove(officeId: string, userId: string, 
   const retained = new Set(target.map(folder => folder.id));
   if (source.some(folder => folder.visibility !== "public" && !folder.owned && !retained.has(folder.id)))
     throw new VaultHttpError(403, "Só quem definiu o acesso da pasta pode mover arquivos para fora dela.");
+}
+
+/**
+ * A participant may hide only the documents they sent. Every other document the case owner could
+ * reach before the write has to stay in a folder the owner sees, so neither a move nor a folder
+ * access change can lock the owner out of their own case. Content policy is a separate gate.
+ */
+export async function keepingOwnerSight(officeId: string, userId: string, scope: { documentId: string } | { caseId: string }, db: Transaction, write: () => Promise<unknown>) {
+  if (await db.prepare("SELECT 1 FROM office_member WHERE office_id = ? AND user_id = ?").get(officeId, userId)) return write();
+  const [column, id] = "documentId" in scope ? ["d.id", scope.documentId] : ["d.case_id", scope.caseId];
+  const inSight = async () => new Set((await db.prepare(`SELECT d.id FROM vault_document d WHERE d.office_id = ? AND ${column} = ? AND d.deleted_at IS NULL AND d.created_by <> ?
+    AND NOT EXISTS(SELECT 1 FROM office_member m WHERE m.office_id = d.office_id AND NOT vault_folder_visible(d.folder_id, m.user_id))`).all<{ id: string }>(officeId, id, userId)).map(row => row.id));
+  const before = await inSight();
+  await write();
+  const after = await inSight();
+  if ([...before].some(documentId => !after.has(documentId))) throw new VaultHttpError(403, "Só quem enviou o documento pode escondê-lo do responsável pelo caso.");
 }
 
 export function publicDocument(row: DocumentRow): VaultDocument {
