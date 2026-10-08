@@ -7,17 +7,19 @@ import { readMemory } from './agent-memory';
  * The office's own data as a ZIP the person can keep: one JSON Lines file per kind of record and
  * the current original of every document in the Cofre. Columns are listed one by one, so tokens,
  * hashes, leases and other internals never leave, and a new column is not exported by accident.
- * Shared cases owned by another office are that office's data and stay out.
+ * Shared cases owned by another office are that office's data and stay out, and so does what a
+ * participant keeps private in this office's cases: `visible` is the app's own visibility rule, bound
+ * to the person exporting, so the ZIP holds exactly what they see in the Cofre.
  */
-type Export = { file: string; table: string; columns: string[]; where?: string; byId?: boolean };
+type Export = { file: string; table: string; columns: string[]; where?: string; visible?: string; byId?: boolean };
 
 const EXPORTS: Export[] = [
   { file: 'clientes', table: 'crm_client', columns: ['id', 'name', 'email', 'phone', 'notes', 'stage', 'created_at', 'updated_at'] },
   { file: 'clientes-casos', table: 'crm_client_case', columns: ['client_id', 'case_id'], byId: false },
   { file: 'casos', table: 'vault_case', columns: ['id', 'name', 'description', 'client_name', 'client_document', 'client_email', 'client_phone', 'client_notes', 'created_at', 'updated_at'], where: 'deleted_at IS NULL' },
-  { file: 'pastas', table: 'vault_folder', columns: ['id', 'case_id', 'parent_id', 'name', 'created_at', 'updated_at'], where: 'deleted_at IS NULL' },
-  { file: 'documentos', table: 'vault_document', columns: ['id', 'case_id', 'folder_id', 'scope', 'original_name', 'mime_type', 'byte_size', 'status', 'created_at', 'updated_at'], where: 'deleted_at IS NULL' },
-  { file: 'documentos-versoes', table: 'vault_document_version', columns: ['id', 'document_id', 'version', 'original_name', 'mime_type', 'byte_size', 'is_active', 'created_at'] },
+  { file: 'pastas', table: 'vault_folder', columns: ['id', 'case_id', 'parent_id', 'name', 'created_at', 'updated_at'], where: 'deleted_at IS NULL', visible: 'vault_folder_visible(id, ?)' },
+  { file: 'documentos', table: 'vault_document', columns: ['id', 'case_id', 'folder_id', 'scope', 'original_name', 'mime_type', 'byte_size', 'status', 'created_at', 'updated_at'], where: 'deleted_at IS NULL', visible: 'lume_vault_visible(id, ?)' },
+  { file: 'documentos-versoes', table: 'vault_document_version', columns: ['id', 'document_id', 'version', 'original_name', 'mime_type', 'byte_size', 'is_active', 'created_at'], visible: 'lume_vault_visible(document_id, ?)' },
   { file: 'agenda', table: 'agenda_activity', where: "visibility='personal'", columns: ['id', 'kind', 'title', 'notes', 'status', 'due_on', 'starts_at', 'ends_at', 'client_id', 'case_id', 'created_at', 'updated_at'] },
   { file: 'honorarios', table: 'honorario_agreement', columns: ['id', 'client_id', 'case_id', 'title', 'notes', 'pricing', 'created_at', 'cancelled_at', 'cancel_reason'] },
   { file: 'calculos', table: 'legal_calculation', columns: ['id', 'title', 'kind', 'version', 'total_cents', 'updated_at'] },
@@ -52,18 +54,19 @@ const UNPAGED_LIMIT = 50_000;
 const encoder = new TextEncoder();
 
 /** One record per line, read a page at a time so a large history never sits whole in memory. */
-function jsonLines(officeId: string, spec: Export): ReadableStream<Uint8Array> {
+function jsonLines(owner: { officeId: string; userId: string }, spec: Export): ReadableStream<Uint8Array> {
   const columns = spec.columns.map(column => `"${column}"`).join(',');
-  const where = `office_id = ?${spec.where ? ` AND ${spec.where}` : ''}`;
+  const where = ['office_id = ?', spec.where, spec.visible].filter(Boolean).join(' AND ');
+  const scope = spec.visible ? [owner.officeId, owner.userId] : [owner.officeId];
   let after: string | null = null;
   let done = false;
   return new ReadableStream({
     async pull(controller) {
       if (done) { controller.close(); return; }
       const rows = spec.byId === false
-        ? await database.prepare(`SELECT ${columns} FROM ${spec.table} WHERE ${where} LIMIT ${UNPAGED_LIMIT}`).all<Record<string, unknown>>(officeId)
+        ? await database.prepare(`SELECT ${columns} FROM ${spec.table} WHERE ${where} LIMIT ${UNPAGED_LIMIT}`).all<Record<string, unknown>>(...scope)
         : await database.prepare(`SELECT ${columns} FROM ${spec.table} WHERE ${where}${after === null ? '' : ' AND id > ?'} ORDER BY id LIMIT ${PAGE}`)
-          .all<Record<string, unknown>>(...(after === null ? [officeId] : [officeId, after]));
+          .all<Record<string, unknown>>(...(after === null ? scope : [...scope, after]));
       if (rows.length) controller.enqueue(encoder.encode(rows.map(row => JSON.stringify(row)).join('\n') + '\n'));
       if (spec.byId === false || rows.length < PAGE) done = true;
       else after = String(rows.at(-1)!.id);
@@ -98,7 +101,7 @@ export type ExportEntry = { name: string; input: string | ReadableStream<Uint8Ar
 export async function* officeExportEntries(owner: { officeId: string; userId: string }): AsyncGenerator<ExportEntry> {
   const office = await database.prepare('SELECT name FROM office WHERE id=?').get<{ name: string }>(owner.officeId);
   yield { name: 'LEIA-ME.txt', input: README(office?.name ?? 'Escritório', new Date().toISOString()) };
-  for (const spec of EXPORTS) yield { name: `dados/${spec.file}.jsonl`, input: jsonLines(owner.officeId, spec) };
+  for (const spec of EXPORTS) yield { name: `dados/${spec.file}.jsonl`, input: jsonLines(owner, spec) };
   const memory = await readMemory(owner).catch(() => ({ memory: '' }));
   if (memory.memory.trim()) yield { name: 'memoria-lume.md', input: memory.memory };
 
@@ -109,8 +112,8 @@ export async function* officeExportEntries(owner: { officeId: string; userId: st
   let after = '';
   while (true) {
     const documents = await database.prepare(`SELECT id, case_id AS "caseId", original_name AS name, stored_name AS "storedName", updated_at AS "updatedAt"
-      FROM vault_document WHERE office_id=? AND deleted_at IS NULL AND id > ? ORDER BY id LIMIT ?`)
-      .all<{ id: string; caseId: string | null; name: string; storedName: string; updatedAt: string | Date }>(owner.officeId, after, PAGE);
+      FROM vault_document WHERE office_id=? AND deleted_at IS NULL AND lume_vault_visible(id, ?) AND id > ? ORDER BY id LIMIT ?`)
+      .all<{ id: string; caseId: string | null; name: string; storedName: string; updatedAt: string | Date }>(owner.officeId, owner.userId, after, PAGE);
     for (const document of documents) {
       const folder = document.caseId ? cases.get(document.caseId) ?? document.caseId : 'Biblioteca';
       let path = `cofre/${folder}/${safeSegment(document.name, document.id)}`;

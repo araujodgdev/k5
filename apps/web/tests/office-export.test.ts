@@ -7,6 +7,7 @@ import { makeZip } from "client-zip";
 import type { WorkspaceContext } from "../src/lib/application/context";
 import * as vaultService from "../src/lib/application/vault-service";
 import * as uploadsService from "../src/lib/application/uploads-service";
+import { contextForCase } from "../src/lib/collaboration/access";
 import { officeExportEntries, safeSegment } from "../src/lib/office-export";
 
 async function seedOffice(label: string): Promise<WorkspaceContext> {
@@ -52,6 +53,31 @@ test("export: the office's records and originals, and nothing of another office"
   assert.ok(documents.includes("petição inicial.txt"));
   assert.ok(!documents.includes("stored_name") && !documents.includes(upload.storageKey), "storage keys are internal");
   assert.ok(other.officeId);
+});
+
+test("export: a participant's private folder stays out, what the owner sees stays in", async () => {
+  const office = await seedOffice("Alfa");
+  const guest = await seedOffice("Bia");
+  const caseId = (await vaultService.createCase(office, { name: "Caso compartilhado" })).case.id;
+  await testDb.prepare("INSERT INTO case_participant (office_id, case_id, user_id, invited_by) VALUES (?, ?, ?, ?)").run(office.officeId, caseId, guest.userId, office.userId);
+  const participant = await contextForCase(guest, caseId);
+  const upload = async (person: WorkspaceContext, name: string, content: string, folderId?: string) => {
+    const ref = await uploadsService.createUploadRef(person, new File([content], name, { type: "text/plain" }));
+    return (await vaultService.ingestUpload(person === guest ? participant : person, { uploadRef: ref.id, scope: "case", caseId, folderId })).document;
+  };
+  const privateFolder = (await vaultService.createFolder(participant, { caseId, name: "Anotações da Bia", visibility: "private" })).folder;
+  const hidden = await upload(guest, "rascunho.txt", "rascunho privado da Bia", privateFolder.id);
+  const shared = await upload(guest, "parecer.txt", "parecer compartilhado pela Bia");
+  const own = await upload(office, "contrato.txt", "contrato do escritório");
+
+  const zip = Buffer.from(await new Response(makeZip(officeExportEntries(office))).arrayBuffer());
+  const files = entries(zip);
+  assert.equal(files.get("cofre/Caso compartilhado/contrato.txt")?.toString("utf8"), "contrato do escritório");
+  assert.equal(files.get("cofre/Caso compartilhado/parecer.txt")?.toString("utf8"), "parecer compartilhado pela Bia");
+  assert.ok(files.get("dados/documentos.jsonl")!.includes(own.id) && files.get("dados/documentos.jsonl")!.includes(shared.id));
+  assert.ok(!zip.includes(Buffer.from(privateFolder.id)), "the participant's private folder is not listed");
+  assert.ok(!zip.includes(Buffer.from(hidden.id)), "its document is not listed, nor its versions");
+  assert.ok(!files.has("cofre/Caso compartilhado/rascunho.txt") && !zip.includes(Buffer.from("rascunho privado da Bia")), "its original never enters the export");
 });
 
 test("export: file names stay valid in any unzip tool", () => {
