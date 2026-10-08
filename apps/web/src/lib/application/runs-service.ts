@@ -14,6 +14,7 @@ import { instructionsPrompt } from '@/lib/agent-instructions';
 import { knowledgePrompt, DRAFT_ALWAYS_BUDGET } from '@/lib/agent-knowledge';
 import { assertLumeAdmission, assertSourcesAdmitted, type WorkspaceContext } from './context';
 import { assertCredits } from '@/lib/billing/credits';
+import { billingOwner } from '@/lib/billing/origin';
 
 const owner = (context: WorkspaceContext) => ({ officeId: context.officeId, userId: context.userId });
 
@@ -68,7 +69,8 @@ export async function startRun(context: WorkspaceContext, raw: StartRunInput) {
   const input = runInputSchema.parse({ ...raw, templateId, writingRules, knowledge, pinnedResearchReferences: undefined, approvedCitationIds: raw.approvedCitationIds ?? [] });
   const running = Number(await (await database.prepare("SELECT count(*) AS n FROM ai_run WHERE office_id=? AND status IN ('queued','running')").get(context.officeId))?.n);
   if (running >= 5) throw new CapabilityError('RATE_LIMITED', 'Seu escritório já tem cinco tarefas em andamento.');
-  await assertCredits(context.officeId, context.userId);
+  const financialOwner = await billingOwner(database, context);
+  await assertCredits(financialOwner.officeId, financialOwner.userId);
 
   let plan;
   try { plan = pinRunModelPlan(await loadAssignmentSnapshot(database), RUN_TASKS[input.kind]); }
@@ -89,10 +91,10 @@ export async function startRun(context: WorkspaceContext, raw: StartRunInput) {
   const id = randomUUID();
 
   await database.batch([
-    database.prepare('INSERT INTO ai_run(id,office_id,user_id,kind,input,model_provider,model_id,model_plan) VALUES(?,?,?,?,?,?,?,?)')
+    database.prepare('INSERT INTO ai_run(id,office_id,user_id,kind,input,model_provider,model_id,model_plan,billing_origin_id) VALUES(?,?,?,?,?,?,?,?,?)')
       .bind(id, context.officeId, context.userId, input.kind,
         JSON.stringify({ ...input, contentPolicy, authority: { sessionId: context.sessionId, invocation: 'agent', caseScope: context.caseScope }, pinnedResearchReferences: selection.pinnedResearchReferences }),
-        legacyModel.provider, legacyModel.modelId, JSON.stringify(plan)),
+        legacyModel.provider, legacyModel.modelId, JSON.stringify(plan), financialOwner.billingOrigin?.id ?? null),
     ...selection.approved.map((citation) =>
       database.prepare(`INSERT INTO ai_citation_approval(run_id,citation_id,source_text,source_label,user_id,source_type,document_id,
         research_reference_id,material_version_id,judgment_id,research_chunk_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)`)

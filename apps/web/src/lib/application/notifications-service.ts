@@ -8,7 +8,7 @@ import {
   archiveNotification, getNotificationPreferences, listNotifications, listPushSubscriptions,
   markAllNotificationsRead, markNotificationRead, pushConfigurationView, registerPushSubscription,
   resolveNotificationDestination, revokePushSubscription, unreadCount, updateNotificationPreferences,
-  getCaseFollowState, setCaseFollowState,
+  getCaseFollowState, setCaseFollowState, deleteAllNotifications,
 } from '@/lib/notifications/repository';
 
 const id = z.string().min(1).max(128);
@@ -21,7 +21,7 @@ export {
   archiveNotification, getNotificationPreferences, listNotifications, listPushSubscriptions,
   markAllNotificationsRead, markNotificationRead, pushConfigurationView, registerPushSubscription,
   resolveNotificationDestination, revokePushSubscription, unreadCount, updateNotificationPreferences,
-  getCaseFollowState, setCaseFollowState,
+  getCaseFollowState, setCaseFollowState, deleteAllNotifications,
 };
 
 export async function queueTestNotification(context: WorkspaceContext, subscriptionId: string) {

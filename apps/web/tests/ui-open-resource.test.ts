@@ -61,7 +61,7 @@ test('uma tarefa de minuta abre o documento que gerou, e só depois de gerá-lo'
   await testDb.prepare("INSERT INTO ai_run(id,office_id,user_id,kind,input) VALUES(?,?,?,'draft','{}')").run(queued, context.officeId, context.userId);
 
   assert.deepEqual(await open(context, { resourceType: 'run', resourceId: done }), { path: `/app/documents/${artifactId}`, title: 'Minuta' });
-  assert.deepEqual(await open(context, { resourceType: 'run', resourceId: queued }), { path: '/app/agents', title: 'Lume' });
+  assert.deepEqual(await open(context, { resourceType: 'run', resourceId: queued }), { path: '/app/command-center', title: 'Início' });
 });
 
 test('nada de outro escritório abre: caso, arquivo, página ou tarefa', async () => {

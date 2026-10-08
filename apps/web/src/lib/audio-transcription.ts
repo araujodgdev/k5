@@ -4,6 +4,8 @@ import { AiConnectionError } from './ai-connections-core';
 import { chatHearsAudio } from './ai-modalities';
 import { isTranscriptionModel } from './ai-tasks';
 import { createAgent, errorClass, recordUsage, requestContextFor } from './ai-runtime';
+import { billingOwner, type BillingOwner } from './billing/origin';
+import { database } from './database';
 import { assertCredits } from './billing/credits';
 
 type Audio = { mediaType: string; bytes: Buffer };
@@ -37,9 +39,10 @@ const MAX_VOICE_BYTES = 20 * 1024 * 1024;
  * a model that hears audio itself (Gemini). The composer's voice note and the audio sent with a
  * message both come through here; the text is what the person sees and sends.
  */
-export async function transcribeVoiceNote(owner: { officeId: string; userId: string }, audio: Audio, signal?: AbortSignal) {
+export async function transcribeVoiceNote(owner: BillingOwner & { userId: string }, audio: Audio, signal?: AbortSignal) {
   if (!audio.bytes.length || audio.bytes.length > MAX_VOICE_BYTES) throw new TranscriptionError('size');
-  await assertCredits(owner.officeId, owner.userId);
+  const financialOwner = await billingOwner(database, owner);
+  await assertCredits(financialOwner.officeId, financialOwner.userId);
   let config;
   try { config = await resolveTaskModel('transcription.voice_note'); } catch (error) {
     if (error instanceof AiConnectionError && (error.code === 'task_disabled' || error.code === 'not_found')) throw new TranscriptionError('unsupported');
@@ -64,11 +67,11 @@ export async function transcribeVoiceNote(owner: { officeId: string; userId: str
     } else {
       throw new TranscriptionError('unsupported');
     }
-    await recordUsage(owner.officeId, owner.userId, config, config.task, 'completed', usage, { durationMs: performance.now() - started });
+    await recordUsage(owner.officeId, owner.userId, config, config.task, 'completed', usage, { billingOrigin: owner.billingOrigin, durationMs: performance.now() - started });
     return text;
   } catch (error) {
     if (!(error instanceof TranscriptionError)) {
-      await recordUsage(owner.officeId, owner.userId, config, config.task, 'failed', undefined, { durationMs: performance.now() - started, errorClass: errorClass(error) })
+      await recordUsage(owner.officeId, owner.userId, config, config.task, 'failed', undefined, { billingOrigin: owner.billingOrigin, durationMs: performance.now() - started, errorClass: errorClass(error) })
         .catch(() => undefined);
     }
     throw error;

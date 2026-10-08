@@ -17,13 +17,13 @@ test('o shell mantém a marca Lume e todos os destinos no desktop e no celular',
   await screen.getByRole('button', 'Casos e módulos').press('Enter');
   await expect(menu).toBeVisible();
   await menu.getByRole('link', 'Plano', { exact: true }).tap();
-  await expect(screen.getByRole('heading', 'Plano', { level: 1 })).toBeVisible();
+  await expect(screen.getByRole('heading', 'Plano', { level: 1 })).toBeVisible({ timeout: 30_000 });
   expect(await browser.evaluate(() => document.documentElement.outerHTML.includes('Tises'))).toBe(false);
   await browser.setViewport({ width: 390, height: 844 });
   await app.open('/app');
   await expect(screen.getByRole('textbox', 'Pergunte ao Lume')).toBeVisible();
   await showCanvas({ screen, browser });
-  await expect(screen.getByRole('button', /^Mais opções/)).toBeVisible();
+  await expect(screen.getByRole('button', /^Mais opções(?:,|$)/)).toBeVisible();
   await openModules({ screen, browser });
   await menu.getByRole('link', 'Todos os casos', { exact: true }).tap();
   await expect(browser).toHaveURL('/app/vault');

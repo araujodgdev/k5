@@ -21,13 +21,13 @@ export async function showLume({ screen }: Fixtures) {
 export async function openModules(fixtures: Fixtures) {
   const mobile = await fixtures.browser.evaluate(() => window.innerWidth < 768);
   if (mobile) await showCanvas(fixtures);
-  await fixtures.screen.getByRole('button', mobile ? /^Mais opções/ : 'Casos e módulos', { visible: true }).tap();
+  await fixtures.screen.getByRole('button', mobile ? /^Mais opções(?:,|$)/ : 'Casos e módulos', { visible: true }).tap();
 }
 
 export async function openAccount(fixtures: Fixtures) {
   const mobile = await fixtures.browser.evaluate(() => window.innerWidth < 768);
   if (mobile) await showCanvas(fixtures);
-  await fixtures.screen.getByRole('button', mobile ? /^Mais opções/ : /^Conta de /, { visible: true }).tap();
+  await fixtures.screen.getByRole('button', mobile ? /^Mais opções(?:,|$)/ : /^Conta de /, { visible: true }).tap();
 }
 
 export async function startLogout(fixtures: Fixtures) {

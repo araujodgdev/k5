@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname } from '@/components/lume/canvas-navigation';
 import { isWebMCPSupported } from '@/lib/webmcp/browser';
 
 /**

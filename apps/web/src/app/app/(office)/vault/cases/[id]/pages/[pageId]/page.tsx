@@ -1,3 +1,4 @@
+import { officePage } from '@/components/lume/canvas-leaf';
 import { notFound } from 'next/navigation';
 import { requireWorkspace } from '@/lib/session';
 import { workspaceContext } from '@/lib/application/context';
@@ -8,7 +9,7 @@ import { CanvasResource } from '@/components/lume/workspace-context';
 import { documentHref } from '@/lib/document-ref';
 
 export const metadata = { title: 'Página do caso' };
-export default async function CasePage({ params }: { params: Promise<{ id: string; pageId: string }> }) {
+async function CasePage({ params }: { params: Promise<{ id: string; pageId: string }> }) {
   const { id: caseId, pageId: id } = await params;
   const document = { kind: 'case-page' as const, caseId, id };
   const resource = await authorizedCanvasResource(workspaceContext(await requireWorkspace()), documentHref(document)).catch(error => {
@@ -17,3 +18,5 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
   });
   return <><CanvasResource resource={resource} /><DocumentWorkspace resource={document} /></>;
 }
+
+export default officePage('/app/vault/cases/[id]/pages/[pageId]', CasePage);

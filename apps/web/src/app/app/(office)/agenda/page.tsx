@@ -2,6 +2,7 @@ import { requireWorkspace } from '@/lib/session';
 import { AgendaWorkspace } from '@/components/agenda-workspace';
 import { CollaborationPanel } from '@/components/collaboration-panel';
 import { OfficeActivity } from '@/components/office-activity';
+import { officePage } from '@/components/lume/canvas-leaf';
 
 type Params = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 const titles: Record<string, string> = { tasks: 'Tarefas', calendar: 'Agenda', clients: 'Clientes', associates: 'Associados', invites: 'Convites', activity: 'Atividade' };
@@ -11,7 +12,7 @@ export async function generateMetadata({ searchParams }: Params) {
   return { title: (typeof view === 'string' && titles[view]) || 'Tarefas' };
 }
 
-export default async function AgendaPage({ searchParams }: Params) {
+async function AgendaPage({ searchParams }: Params) {
   const { office } = await requireWorkspace();
   const params = await searchParams;
   const value = (key: string) => typeof params[key] === 'string' ? params[key] as string : '';
@@ -21,3 +22,5 @@ export default async function AgendaPage({ searchParams }: Params) {
   const view = value('view') === 'calendar' ? 'calendar' : value('view') === 'clients' ? 'clients' : 'tasks';
   return <AgendaWorkspace key={JSON.stringify([value('caseId'), value('clientId'), value('activityId'), value('proposalId'), value('personalEventId'), view, value('action')])} initialTaskLayout={value('layout') === 'kanban' ? 'kanban' : 'list'} initialView={view} initialAction={value('action')} initialCaseId={value('caseId')} initialClientId={value('clientId')} initialActivityId={value('activityId')} initialProposalId={value('proposalId')} initialPersonalEventId={value('personalEventId')} />;
 }
+
+export default officePage('/app/agenda', AgendaPage);

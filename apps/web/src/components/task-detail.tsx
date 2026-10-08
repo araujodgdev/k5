@@ -11,6 +11,7 @@ import type { AgendaActivity, CrmClient } from '@/lib/capabilities/agenda';
 import { Button } from './ui/button';
 import { LumeMark } from './lume-mark';
 import { BackLink, Facts } from './agenda-detail';
+import { useCanvasActive, useCanvasRevision } from './lume/canvas-host';
 import { dayWord, statusWords } from './agenda-rows';
 
 const AgendaEditor = dynamic(() => import('./agenda-forms').then(module => module.AgendaEditor));
@@ -37,6 +38,9 @@ export function TaskDetail({ taskId, from = 'list' }: { taskId: string; from?: '
   const [revision, setRevision] = useState(0);
   const [editing, setEditing] = useState(false);
   const [notice, setNotice] = useState('');
+  const canvasRevision = useCanvasRevision(), active = useCanvasActive();
+  const [source, setSource] = useState({canvasRevision, active});
+  if (source.canvasRevision !== canvasRevision || source.active !== active) { setSource({canvasRevision, active}); setState({phase:'loading'}); }
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -60,7 +64,7 @@ export function TaskDetail({ taskId, from = 'list' }: { taskId: string; from?: '
       } catch (error) { if (!cancelled) setState({ phase: 'failed', message: error instanceof Error ? error.message : 'Não foi possível carregar a tarefa.' }); }
     }
     void load(); return () => { cancelled = true; };
-  }, [taskId, revision]);
+  }, [taskId, revision, canvasRevision, active]);
   const retry = () => setRevision(value => value + 1);
 
   const back = from === 'kanban' ? <BackLink href="/app/agenda?view=tasks&layout=kanban">Voltar ao quadro</BackLink> : <BackLink href="/app/agenda?view=tasks">Tarefas</BackLink>;

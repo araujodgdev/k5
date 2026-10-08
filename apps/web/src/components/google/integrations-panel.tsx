@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Calendar, FileText, HardDrive, Mail, type LucideIcon } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams } from '@/components/lume/canvas-navigation';
 import type { CapabilityOutput } from '@/lib/capabilities/contracts';
 import { Field } from '@/components/canvas/canvas-controls';
 import { CanvasHeader, CanvasPage, CanvasSection } from '@/components/canvas/canvas-page';

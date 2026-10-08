@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from '@/components/lume/canvas-navigation';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { CircleHelp } from 'lucide-react';
 import { Button } from '@/components/ui/button';

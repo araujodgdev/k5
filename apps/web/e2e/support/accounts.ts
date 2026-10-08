@@ -33,7 +33,7 @@ export class ApiSession {
     const response = await fetch(new URL(path, this.baseUrl), {
       method: init.method ?? (init.json === undefined && init.form === undefined ? 'GET' : 'POST'),
       // State-changing calls need a trusted Origin; `origin` overrides it to prove that check.
-      headers: { origin: init.origin ?? new URL(this.baseUrl).origin, 'x-e2e-client': this.client, ...(init.json === undefined ? {} : { 'content-type': 'application/json' }), ...(this.cookies.size ? { cookie: [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; ') } : {}) },
+      headers: { origin: init.origin ?? new URL(this.baseUrl).origin, 'x-e2e-client': this.client, 'cf-connecting-ip': this.client, ...(init.json === undefined ? {} : { 'content-type': 'application/json' }), ...(this.cookies.size ? { cookie: [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; ') } : {}) },
       body: init.form ?? (init.json === undefined ? undefined : JSON.stringify(init.json)),
       redirect: 'manual',
     });

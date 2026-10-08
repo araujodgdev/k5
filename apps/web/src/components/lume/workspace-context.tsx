@@ -3,6 +3,7 @@
 import { createContext, useContext, useLayoutEffect, useSyncExternalStore } from 'react';
 import type { DocumentAsk } from '@/components/document/document-workspace';
 import { canonicalCanvasHref, type CanvasResource, type LumeWorkspaceController, type ResourceAccess } from '@/lib/lume-workspace';
+import { useCanvasActive } from './canvas-host';
 
 export type WorkspaceActions = {
   controller: LumeWorkspaceController;
@@ -28,14 +29,15 @@ export function useLumeState() {
 
 /** Rendered only by loaders that have authorized the resource for the current person. */
 export function CanvasResource({ resource }: { resource: CanvasResource }) {
+  const active = useCanvasActive();
   const { controller } = useLumeWorkspace();
   const { href } = useLumeState();
   useLayoutEffect(() => {
     const current = canonicalCanvasHref(window.location.pathname + window.location.search);
     // The previous route's children can briefly return while the next route commits.
-    if (current !== resource.href || href !== resource.href) return;
+    if (!active || current !== resource.href || href !== resource.href) return;
     controller.dispatch({ type: 'authorized', resource });
     return () => controller.dispatch({ type: 'unavailable', href: resource.href });
-  }, [controller, href, resource]);
+  }, [active, controller, href, resource]);
   return null;
 }

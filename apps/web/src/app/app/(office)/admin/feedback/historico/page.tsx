@@ -1,3 +1,5 @@
+import { AdminCanvas } from '@/components/admin/admin-canvas';
+import { officePage } from '@/components/lume/canvas-leaf';
 import { notFound } from 'next/navigation';
 import { Download, Info } from 'lucide-react';
 import { requirePlatformPage } from '@/lib/platform';
@@ -16,7 +18,7 @@ const exports = [
   { href: '/api/platform/feedback?history=1', label: 'Exportar histórico das rodadas' },
 ];
 
-export default async function PlatformFeedbackHistoryPage() {
+async function PlatformFeedbackHistoryPage() {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const data = await platformFeedback(context.db, context.user.id);
@@ -81,3 +83,5 @@ export default async function PlatformFeedbackHistoryPage() {
     </AdminGrid>
   </>;
 }
+
+export default officePage('/app/admin/feedback/historico', PlatformFeedbackHistoryPage, AdminCanvas);

@@ -1,3 +1,5 @@
+import { AdminCanvas } from '@/components/admin/admin-canvas';
+import { officePage } from '@/components/lume/canvas-leaf';
 import { notFound } from 'next/navigation';
 import { AiTaskModels } from '@/components/ai-task-models';
 import { PlatformConnections } from '@/components/platform-connections';
@@ -19,7 +21,7 @@ export const metadata = { title: 'IA · Administração' };
 const TRANSCRIPTION_MODELS = ['gpt-4o-mini-transcribe', 'gpt-4o-transcribe', 'whisper-1'];
 
 /** The platform's AI, configured once for every office: Lume's models per task, its connections and TypeSafe. */
-export default async function PlatformAiPage() {
+async function PlatformAiPage() {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const [connections, overview, typesafe] = await Promise.all([listAiConnections(context.db), assignmentOverview(context.db), connectionView()]);
@@ -48,3 +50,5 @@ export default async function PlatformAiPage() {
     </AdminGrid>
   </>;
 }
+
+export default officePage('/app/admin/ai', PlatformAiPage, AdminCanvas);

@@ -72,7 +72,7 @@ test('composição real do Início e Tudo preserva contexto, paginação, rascun
   await screen.getByRole('button', 'Compartilhar', { exact: true }).tap();
   await expect(sharing.getByRole('checkbox', 'O Lume pode trabalhar neste caso')).not.toBeChecked();
   await app.screenshot('compartilhamento-real-mobile'); await browser.keyboard.press('Escape');
-  const accountMenu = screen.getByRole('button', /^Mais opções/); await accountMenu.tap();
+  const accountMenu = screen.getByRole('button', /^Mais opções(?:,|$)/); await accountMenu.tap();
   await screen.getByRole('button', 'Usar tema escuro').tap(); await browser.keyboard.press('Escape');
   await expect.poll(() => browser.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true);
   await app.screenshot('tudo-real-mobile-escuro');

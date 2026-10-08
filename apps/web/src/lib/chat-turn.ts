@@ -13,6 +13,7 @@ import { releaseTurn, TURN_ABORT_MARGIN_MS, type TurnLease } from '@/lib/chat-le
 import { documentFocusPrompt } from '@/lib/artifact-edits';
 import { reviewCitations, type CitationItem } from '@/lib/citations/review';
 import { conversationSources, recordSources, type RecordedSource } from '@/lib/citations/sources';
+import { captureBillingOrigin, persistedBillingOrigin } from '@/lib/billing/origin';
 import { createAgent, errorClass, recordUsage, requestContextFor } from '@/lib/ai-runtime';
 import { conversationSession } from '@/lib/ai-providers';
 import { selectedResearchSources } from '@/lib/ai-sources';
@@ -49,6 +50,7 @@ import { citationMarkdown, type WebReference } from '@/lib/citations/web-referen
 
 export type ChatTurn = {
   workspace: Pick<WorkspaceContext, 'userId' | 'officeId' | 'sessionId'>;
+  billingOriginId?: string;
   conversationId: string;
   /** The answer is stored, and the conversation freed, only while this lease is the turn's (chat-lease.ts). */
   lease: TurnLease;
@@ -111,6 +113,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
       allowedResearchCaseId: body.caseId, allowedResearchReferenceIds: body.researchReferenceIds };
     const stored = await conversation(database, owner, id);
     if (!stored) return;
+    context.billingOrigin = turn.billingOriginId ? await persistedBillingOrigin(database, owner, turn.billingOriginId) : await captureBillingOrigin(owner, id);
     const turnScope = await authorizeMessageScope(context, body);
     const messages: UIMessage[] = stored.messages;
     const requestMetadata = [...messages].reverse().find(message => message.role === 'user')?.metadata;
@@ -183,7 +186,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
     const tools = { ...availableTools, k5_tools_select_modules: selection.tool };
     const guard = new UntrustedToolResultGuard(injectionDetector(() => resolveTaskModel('classification.injection_guard'),
       (guardModel, call) => recordUsage(owner.officeId, owner.userId, guardModel, guardModel.task, call.status, call.usage,
-        { durationMs: call.durationMs, errorClass: call.error === undefined ? undefined : errorClass(call.error), signals: call.signals })),
+        { billingOrigin: context.billingOrigin, durationMs: call.durationMs, errorClass: call.error === undefined ? undefined : errorClass(call.error), signals: call.signals })),
       () => { untrustedContent.seen = true; });
     let visibleContext = turnScope.label;
     if (focusedPage) {
@@ -398,7 +401,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         if (halted) { emit(halted); status = 'halted'; }
         usage = await response.usage;
         await recordUsage(owner.officeId, owner.userId, config, config.task, 'completed', usage,
-          { durationMs: performance.now() - started, calls: stepUsages, webSearchCalls: webSearches });
+          { billingOrigin: context.billingOrigin, durationMs: performance.now() - started, calls: stepUsages, webSearchCalls: webSearches });
         span.setAttributes({
           'gen_ai.usage.input_tokens': usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': usage?.outputTokens ?? 0,
           'lume.tool_calls': budget.total, 'lume.guard.withheld': guard.withheld.size, 'lume.outcome': status,
@@ -423,7 +426,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         if (!answer.endsWith(message)) { answer += message; writer.write({ type: 'text-delta', id: partId, delta: message }); }
         span.setAttribute('lume.outcome', status);
         await recordUsage(owner.officeId, owner.userId, config, config.task, status, undefined,
-          { durationMs: performance.now() - started, errorClass: aborted ? 'aborted' : errorClass(error) });
+          { billingOrigin: context.billingOrigin, durationMs: performance.now() - started, errorClass: aborted ? 'aborted' : errorClass(error) });
       } finally {
         for (const step of steps) if (step.state === 'running') {
           step.state = 'interrupted'; step.summary = 'A chamada terminou sem resultado confirmado.';

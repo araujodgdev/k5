@@ -15,6 +15,7 @@ export function useSessionWatch() {
     let mounted = true;
     authClient.getSession().then(({ data, error }) => {
       if (mounted && !error && !data) {
+        window.dispatchEvent(new Event('lume:session-ended'));
         router.replace('/sign-in');
         router.refresh();
       }
@@ -29,12 +30,16 @@ export function useUnreadNotifications() {
   const [unread, setUnread] = useState(0);
   useEffect(() => {
     let mounted = true;
+    let generation = 0;
+    let pending: AbortController | undefined;
     const load = () => {
       if (document.visibilityState !== 'visible' || !navigator.onLine) return;
-      void fetch('/api/notifications/count', { cache: 'no-store' }).then(async (response) => {
-        if (!response.ok || !mounted) return;
+      const current = ++generation;
+      pending?.abort(); pending = new AbortController();
+      void fetch('/api/notifications/count', { cache: 'no-store', signal: pending.signal }).then(async (response) => {
+        if (!response.ok || !mounted || current !== generation) return;
         const value = await response.json() as { unread?: number };
-        if (mounted) setUnread(Math.max(0, Number(value.unread ?? 0)));
+        if (mounted && current === generation) setUnread(Math.max(0, Number(value.unread ?? 0)));
       }).catch(() => {});
     };
     const onMessage = (event: MessageEvent) => { if (event.data?.type === 'K5_NOTIFICATION') load(); };
@@ -47,6 +52,7 @@ export function useUnreadNotifications() {
     navigator.serviceWorker?.addEventListener('message', onMessage);
     return () => {
       mounted = false;
+      pending?.abort();
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', load);
       window.removeEventListener('online', load);
@@ -95,6 +101,7 @@ export function useLogout() {
     try {
       const result = await authClient.signOut();
       if (result.error) throw new Error('logout');
+      window.dispatchEvent(new Event('lume:session-ended'));
       router.replace('/sign-in');
       router.refresh();
     } catch {

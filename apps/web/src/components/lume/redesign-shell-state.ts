@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { useDocumentDrafts } from '@/components/document/document-drafts-provider';
 import { useLumeState, useLumeWorkspace } from './workspace-context';
 import { resourceKey, type CanvasResource } from '@/lib/lume-workspace';
 import type { CanvasSubject, LumeActivity, Shell } from '@/components/shell/shell-context';
@@ -21,6 +22,7 @@ const subscribeMobile = (listener: () => void) => {
   return () => media.removeEventListener('change', listener);
 };
 export function useRedesignShellState(): ShellState {
+  const { saveOpen, drafts } = useDocumentDrafts();
   const { controller, navigate, openResource } = useLumeWorkspace();
   const state = useLumeState();
   const isMobile = useSyncExternalStore(subscribeMobile, () => window.matchMedia('(max-width: 767px)').matches, () => false);
@@ -48,6 +50,7 @@ export function useRedesignShellState(): ShellState {
     const resource = controller.getSnapshot().tabs.find(item => item.href === tab.href);
     if (!resource || resource.href === '/app/command-center') return;
     const finish = async () => {
+      if (!await saveOpen() || drafts.hasUnsaved()) return;
       const current = controller.getSnapshot();
       if (current.href === resource.href) {
         const index = current.tabs.indexOf(resource);
@@ -57,7 +60,7 @@ export function useRedesignShellState(): ShellState {
       controller.dispatch({ type: 'close', key: resourceKey(resource) });
     };
     void finish();
-  }, [controller, navigate]);
+  }, [controller, navigate, saveOpen, drafts]);
   const describe = useCallback<Shell['describe']>((href, title, subject) => {
     const resource = state.resource;
     if (!resource || resource.kind !== 'module' || subject.kind !== 'module' || subject.slug !== resource.slug

@@ -1,5 +1,5 @@
-"use client"
-
+"use client";
+import { useCanvasActive } from "@/components/lume/canvas-host";
 import * as React from "react"
 import { cn } from "cn"
 import { Dialog as DialogPrimitive } from "radix-ui"
@@ -22,6 +22,8 @@ function DialogTrigger({
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  const canvasActive = useCanvasActive();
+  if (!canvasActive) return null;
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
@@ -57,6 +59,8 @@ function DialogContent({
   showCloseButton?: boolean
   overlayClassName?: string
 }) {
+  const canvasActive = useCanvasActive();
+  if (!canvasActive) return null;
   return (
     <DialogPortal>
       <DialogOverlay className={overlayClassName} />

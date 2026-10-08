@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { requestCapability } from '@/lib/capabilities/http-client';
 import { researchCapabilities } from '@/lib/capabilities/research';
 import type { JudgmentSummary, ResearchSearchView } from '@/lib/research/contracts';
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 
 export function JurisprudenceWorkspace({ initialSearchId }: { initialSearchId: string | null }) {
+  const revision = useCanvasRevision(), active = useCanvasActive();
   const [theme, setTheme] = useState('');
   const [court, setCourt] = useState('');
   const [includeSources, setIncludeSources] = useState(false);
@@ -18,6 +20,8 @@ export function JurisprudenceWorkspace({ initialSearchId }: { initialSearchId: s
   const [loading, setLoading] = useState(Boolean(initialSearchId));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [seed,setSeed] = useState({revision,active});
+  if (seed.revision !== revision || seed.active !== active) { setSeed({revision,active}); setView(null); }
   const id = useId();
   const searchId = view?.id;
   const pending = view?.pages.some(page => page.status === 'queued' || page.status === 'running' || page.progress.pending > 0);
@@ -33,7 +37,7 @@ export function JurisprudenceWorkspace({ initialSearchId }: { initialSearchId: s
       setLoading(false);
     });
     return () => controller.abort();
-  }, [initialSearchId]);
+  }, [initialSearchId, revision, active]);
   useEffect(() => {
     if (!pending || !searchId) return;
     const controller = new AbortController();

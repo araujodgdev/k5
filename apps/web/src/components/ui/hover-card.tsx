@@ -3,6 +3,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { HoverCard as HoverCardPrimitive } from "radix-ui"
+import { useCanvasActive } from '../lume/canvas-host'
 
 function HoverCard({
   ...props
@@ -22,6 +23,8 @@ function HoverCardContent({
   sideOffset = 6,
   ...props
 }: React.ComponentProps<typeof HoverCardPrimitive.Content>) {
+  const active = useCanvasActive();
+  if (!active) return null;
   return (
     <HoverCardPrimitive.Portal data-slot="hover-card-portal">
       <HoverCardPrimitive.Content

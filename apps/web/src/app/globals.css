@@ -3,7 +3,35 @@
 @import "shadcn/tailwind.css";
 @import "./lume-workspace.css";
 
+.notification-panel {
+  top: auto;
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  translate: none;
+  transform: none;
+  width: auto;
+  max-width: none;
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+}
+@media (min-width: 768px) {
+  .notification-panel {
+    top: 56px;
+    left: auto;
+    right: 12px;
+    bottom: auto;
+    width: min(420px, calc(100vw - 24px));
+    max-height: min(576px, calc(100dvh - 68px));
+  }
+}
 @custom-variant dark (&:is(.dark *));
+
+html:has([data-office-accent="blue"]) { --brand: #8BB7E8; --brand-foreground: #172635; --brand-ink: #245E96; --brand-soft: rgb(139 183 232 / .14); --ring: #528AC5; }
+html:has([data-office-accent="green"]) { --brand: #91C5A8; --brand-foreground: #172D21; --brand-ink: #286444; --brand-soft: rgb(145 197 168 / .14); --ring: #498C65; }
+html:has([data-office-accent="violet"]) { --brand: #BBA1E3; --brand-foreground: #291A40; --brand-ink: #7043A0; --brand-soft: rgb(187 161 227 / .14); --ring: #956BBF; }
+html.dark:has([data-office-accent="blue"]) { --brand-ink: #A6CDF7; --brand-soft: rgb(139 183 232 / .16); --ring: #8BB7E8; }
+html.dark:has([data-office-accent="green"]) { --brand-ink: #A9DABD; --brand-soft: rgb(145 197 168 / .16); --ring: #91C5A8; }
+html.dark:has([data-office-accent="violet"]) { --brand-ink: #D1BCF1; --brand-soft: rgb(187 161 227 / .16); --ring: #BBA1E3; }
 
 /* ---------------------------------------------------------------------------
    Lume theme. Warm off-white surfaces on a slightly deeper ground, soft borders and rounded
@@ -362,9 +390,9 @@ select[data-inline]:not([multiple], [size]):focus-visible { border-color: var(--
 
 /* The canvas shell (components/shell/office-shell.tsx). Pages that keep their own scroll regions
    (chat, e-mail, messages) fill the canvas instead of scrolling it. */
-.canvas-scroll:has(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace) { overflow: hidden; padding-bottom: 0; }
+.canvas-scroll:has([data-canvas-active="true"] :is(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace)) { overflow: hidden; padding-bottom: 0; }
 /* The phone's "Pedir ao Lume" pill steps aside for a page's own composer and while the person types. */
-.canvas-scroll:is(:has(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace), :has(input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus)) ~ .lume-phone-pill { display: none; }
+.canvas-scroll:is(:has([data-canvas-active="true"] :is(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace)), :has(input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus)) ~ .lume-phone-pill { display: none; }
 /* No tab bar under the phone menu; on a computer the panels hang from the strip, under the bell. */
 html:has([data-lume-shell]) [data-slot="sheet-content"][data-side="bottom"] { bottom: .5rem; bottom: calc(env(safe-area-inset-bottom) + .5rem); border-color: var(--border); }
 @media (prefers-reduced-motion: reduce) {

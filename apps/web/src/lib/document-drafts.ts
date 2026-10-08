@@ -123,9 +123,6 @@ export class DocumentDraft {
 export class DocumentDrafts {
   private documents = new Map<string, DocumentDraft>();
   get(id: string) {
-    for (const [otherId, draft] of this.documents) {
-      if (otherId !== id && !draft.isOpen() && draft.getSnapshot()?.state === 'saved') this.documents.delete(otherId);
-    }
     let draft = this.documents.get(id);
     if (!draft) { draft = new DocumentDraft(); this.documents.set(id, draft); }
     return draft;
@@ -140,5 +137,5 @@ export class DocumentDrafts {
     this.documents.get(id)?.invalidate();
     this.documents.delete(id);
   }
-  clear() { this.documents.clear(); }
+  clear() { for (const draft of this.documents.values()) draft.invalidate(); this.documents.clear(); }
 }

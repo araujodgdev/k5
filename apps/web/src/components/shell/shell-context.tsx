@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect } from "react";
 import type { CanvasSubject } from "@/lib/canvas-protocol";
+import { useCanvasActive, useCanvasLocation } from '../lume/canvas-host';
 
 export type { CanvasSubject };
 
@@ -42,11 +43,13 @@ export function useShell(): Shell | null {
 
 /** Rendered by a view, server pages included, to title its canvas tab and set the canvas subject. */
 export function CanvasMeta({ title, subject }: { title: string; subject: CanvasSubject }) {
+  const active = useCanvasActive();
+  const location = useCanvasLocation();
   const shell = useShell();
   const describe = shell?.describe;
   const key = JSON.stringify(subject);
   useEffect(() => {
-    describe?.(window.location.pathname, title, JSON.parse(key) as CanvasSubject);
-  }, [describe, title, key]);
+    if (active) describe?.(location?.href ?? window.location.pathname, title, JSON.parse(key) as CanvasSubject);
+  }, [active, location?.href, describe, title, key]);
   return null;
 }

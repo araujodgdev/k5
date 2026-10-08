@@ -156,7 +156,7 @@ Petição:
 ${petition}`;
   const baseline = combinePolicy('', '', [policy, petitionSource.policy], 'generated');
   await assertPolicyAccess(owner.userId, baseline);
-  const raw = await generateStructured(owner.officeId, owner.userId, 'extraction.annex_plan', prompt, annexModelOutput, { signal: owner.signal, admission: contentAdmission(owner, prompt, [baseline], { capability: 'k5_vault_plan_annexes' }) });
+  const raw = await generateStructured(owner.officeId, owner.userId, 'extraction.annex_plan', prompt, annexModelOutput, { billingOrigin: owner.billingOrigin, signal: owner.signal, admission: contentAdmission(owner, prompt, [baseline], { capability: 'k5_vault_plan_annexes' }) });
   const plan = { pageCount, ...orderAnnexPlan(raw, pageCount, petition) };
   const planId = randomUUID();
   const retained = await documentTransaction(owner, async tx => {

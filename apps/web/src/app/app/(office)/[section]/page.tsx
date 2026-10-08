@@ -1,3 +1,4 @@
+import { officePage } from '@/components/lume/canvas-leaf';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { Reveal } from '@/components/reveal';
@@ -11,7 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: appNavigation.find(item => item.slug === section)?.label ?? 'Página não encontrada' };
 }
 
-export default async function SectionPage({ params, searchParams }: Props) {
+async function SectionPage({ params, searchParams }: Props) {
   await requireWorkspace();
   const { section } = await params;
   const item = appNavigation.find(entry => entry.slug === section);
@@ -28,3 +29,5 @@ export default async function SectionPage({ params, searchParams }: Props) {
     <p className="grid min-h-[50dvh] place-items-center text-subtle-foreground" data-reveal>Em breve</p>
   </Reveal>;
 }
+
+export default officePage('/app/[section]', SectionPage);

@@ -1,3 +1,4 @@
+import { officePage } from '@/components/lume/canvas-leaf';
 import { notFound, redirect } from "next/navigation";
 import { CanvasResource } from '@/components/lume/workspace-context';
 import { canonicalCanvasHref } from '@/lib/lume-workspace';
@@ -23,7 +24,7 @@ export async function generateMetadata({ params }: Props) {
   return { title: (await findVaultCase(access.officeId, id, user.id))?.name ?? "Caso" };
 }
 
-export default async function VaultCasePage({ params, searchParams }: Props) {
+async function VaultCasePage({ params, searchParams }: Props) {
   const { user } = await requireWorkspace();
   const [{ id }, { folder: requested, section, task }] = await Promise.all([params, searchParams]);
   const office = await accessForPage(user.id, id);
@@ -65,3 +66,5 @@ export default async function VaultCasePage({ params, searchParams }: Props) {
     </Reveal>
   );
 }
+
+export default officePage('/app/vault/cases/[id]', VaultCasePage);

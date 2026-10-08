@@ -5,6 +5,7 @@ import { AuiIf, ComposerPrimitive, useAui } from "@assistant-ui/react";
 import { ArrowUp, Camera, FileText, Image as ImageIcon, LoaderCircle, Mic, Plus, Square, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ConversationCredits } from "./conversation-credits";
 import { ChatCamera } from "@/components/chat-camera";
 import { ChatAttachmentView } from "@/components/chat-attachment";
 import { useVoiceRecorder, VoiceLevel } from "@/components/voice-recorder";
@@ -13,6 +14,7 @@ import type { ChatAttachment } from "@/lib/chat-attachment-contract";
 import { cn } from "@/lib/utils";
 
 export type ComposerToolsProps = {
+  conversationId: string | null;
   modalities: Modalities;
   /** Files still on their way to the server. */
   uploading: number;
@@ -36,8 +38,8 @@ const subscribePhone = (onChange: () => void) => {
   return () => media.removeEventListener("change", onChange);
 };
 
-const control = "grid size-[30px] shrink-0 place-items-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent max-md:size-10";
-const round = "grid size-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground outline-none transition-opacity hover:opacity-[.88] focus-visible:ring-3 focus-visible:ring-ring/50 max-md:size-10";
+const control = "grid size-[30px] shrink-0 place-items-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent max-md:size-11";
+const round = "grid size-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground outline-none transition-opacity hover:opacity-[.88] focus-visible:ring-3 focus-visible:ring-ring/50 max-md:size-11";
 const menuItem = "flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent md:min-h-9";
 
 /** A control that stays visible when the model cannot do the thing, and says why. */
@@ -111,6 +113,7 @@ export function Composer({ tools, chip }: { tools: ComposerToolsProps; chip?: Co
   const aui = useAui();
   const voice = useVoiceRecorder({
     onError: tools.onError,
+    conversationId: tools.conversationId,
     onText: (spoken) => {
       const composer = aui.composer();
       const typed = composer.getState().text.trim();
@@ -135,6 +138,7 @@ export function Composer({ tools, chip }: { tools: ComposerToolsProps; chip?: Co
         <AttachMenu {...tools} voice={voice} />
         {voice.state === "recording" ? <VoiceLevel analyser={voice.analyser} seconds={voice.seconds} /> : <span aria-label="Contexto da próxima mensagem" className="min-w-0" title={tools.contextLabel}>{tools.contextReady && chip ? <ContextChip chip={chip} /> : <span className="text-xs text-muted-foreground">Carregando contexto do canvas…</span>}</span>}
         <span className="flex-1" />
+        <ConversationCredits conversationId={tools.conversationId} />
         {voice.state === "recording" ? (
           <button type="button" onClick={voice.cancel} aria-label="Descartar gravação" title="Descartar gravação" className={control}><Trash2 className="size-4" /></button>
         ) : (

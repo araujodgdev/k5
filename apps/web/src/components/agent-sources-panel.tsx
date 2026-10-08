@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { requestCapability } from "@/lib/capabilities/http-client";
 import type { ResearchCaseReference } from "@/lib/application/research-case-service";
 import type { SourceSelection } from '@/lib/lume-workspace';
+import { useLumeState } from './lume/workspace-context';
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 
 export type VaultDocumentSummary = {
   id: string;
@@ -45,6 +47,8 @@ export function VaultContextSection({ context, onChange, lockedCase = false }: {
   onChange: (context: AgentContext) => void;
   lockedCase?: boolean;
 }) {
+  const {navigation} = useLumeState();
+  const revision = useCanvasRevision(), active = useCanvasActive();
   const [documents, setDocuments] = useState<VaultDocumentSummary[]>([]);
   const [cases, setCases] = useState<Array<{ id: string; name: string }>>([]);
   const [references, setReferences] = useState<ResearchCaseReference[]>([]);
@@ -54,6 +58,8 @@ export function VaultContextSection({ context, onChange, lockedCase = false }: {
   const [loadError, setLoadError] = useState("");
   const [caseFilter, setCaseFilter] = useState<string>(context.caseId ?? ALL_CASES);
   const [query, setQuery] = useState("");
+  const [seed,setSeed] = useState({revision,active,navigation});
+  if (seed.revision !== revision || seed.active !== active || seed.navigation !== navigation) { setSeed({revision,active,navigation}); setDocuments([]); setCases([]); setReferences([]); }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,8 +73,8 @@ export function VaultContextSection({ context, onChange, lockedCase = false }: {
         ]);
         if (!response.ok) throw new Error(await responseError(response, "Não foi possível carregar o Cofre."));
         const body = (await response.json()) as { documents?: VaultDocumentSummary[] } | VaultDocumentSummary[];
-        setDocuments(Array.isArray(body) ? body : (body.documents ?? []));
-        if (caseResponse.ok) setCases(((await caseResponse.json()) as { cases: Array<{ id: string; name: string }> }).cases);
+        const nextCases = caseResponse.ok ? ((await caseResponse.json()) as { cases: Array<{ id: string; name: string }> }).cases : [];
+        if (!controller.signal.aborted) { setDocuments(Array.isArray(body) ? body : (body.documents ?? [])); setCases(nextCases); }
       } catch (error) {
         if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : "Não foi possível carregar o Cofre.");
       } finally {
@@ -77,7 +83,7 @@ export function VaultContextSection({ context, onChange, lockedCase = false }: {
     }
     void load();
     return () => controller.abort();
-  }, [caseFilter]);
+  }, [caseFilter, revision, active, navigation]);
 
   useEffect(() => {
     if (!context.caseId) return;
@@ -93,7 +99,7 @@ export function VaultContextSection({ context, onChange, lockedCase = false }: {
     };
     void load();
     return () => { live = false; };
-  }, [context.caseId]);
+  }, [context.caseId, revision, active, navigation]);
 
   const attached = useMemo(
     () => context.documentIds.map((id) => documents.find((document) => document.id === id)).filter(Boolean) as VaultDocumentSummary[],

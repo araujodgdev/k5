@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/components/lume/canvas-navigation';
 import dynamic from 'next/dynamic';
 import { Folder, Plus } from 'lucide-react';
 import { CanvasHeader, CanvasPage, CanvasRow, CanvasSection, CanvasSectionLink } from '@/components/canvas/canvas-page';
@@ -14,6 +14,7 @@ import { Button } from './ui/button';
 import { BreakableEmail } from './breakable-email';
 import { PortalManager } from './client-portal/manager';
 import { BackLink, Facts } from './agenda-detail';
+import { useCanvasActive, useCanvasRevision } from './lume/canvas-host';
 import { AgendaRow, EmptyRows, RowsLoading, stageLabels } from './agenda-rows';
 
 const AgendaEditor = dynamic(() => import('./agenda-forms').then(module => module.AgendaEditor));
@@ -40,6 +41,9 @@ export function ClientDetail({ clientId }: { clientId: string }) {
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState('');
   const [editing, setEditing] = useState(false);
+  const canvasRevision = useCanvasRevision(), active = useCanvasActive();
+  const [source, setSource] = useState({canvasRevision, active});
+  if (source.canvasRevision !== canvasRevision || source.active !== active) { setSource({canvasRevision, active}); setClient(null); setCases([]); setActivities([]); setTotal(0); setFailure(''); }
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -55,7 +59,7 @@ export function ClientDetail({ clientId }: { clientId: string }) {
       finally { if (!cancelled) setLoading(false); }
     }
     void load(); return () => { cancelled = true; };
-  }, [clientId, revision, offset]);
+  }, [clientId, revision, offset, canvasRevision, active]);
 
   const back = <BackLink href="/app/agenda?view=clients">Clientes</BackLink>;
   if (failure) return <CanvasPage className="gap-5 md:gap-5">{back}<CanvasHeader title="Cliente indisponível" />

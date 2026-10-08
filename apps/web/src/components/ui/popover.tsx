@@ -1,5 +1,5 @@
-"use client"
-
+"use client";
+import { useCanvasActive } from "@/components/lume/canvas-host";
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Popover as PopoverPrimitive } from "radix-ui"
@@ -22,6 +22,8 @@ function PopoverContent({
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  const canvasActive = useCanvasActive();
+  if (!canvasActive) return null;
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content

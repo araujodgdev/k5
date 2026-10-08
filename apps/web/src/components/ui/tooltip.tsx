@@ -1,5 +1,5 @@
-"use client"
-
+"use client";
+import { useCanvasActive } from "@/components/lume/canvas-host";
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
@@ -35,6 +35,8 @@ function TooltipContent({
   children,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+  const canvasActive = useCanvasActive();
+  if (!canvasActive) return null;
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content

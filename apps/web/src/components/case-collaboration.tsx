@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useLumeWorkspace } from '@/components/lume/workspace-context';
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,15 +25,18 @@ const states: Record<CaseTask['status'],string> = { pending:'Pendente',in_progre
 const money = (cents: number) => (cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 
 function useCaseData<T>(url: string) {
+  const revision = useCanvasRevision(), active = useCanvasActive();
   const [data,setData]=useState<T|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true),[loadedUrl,setLoadedUrl]=useState('');
   const sequence=useRef(0);
+  const [seed,setSeed] = useState({revision,active});
+  if (seed.revision !== revision || seed.active !== active) { setSeed({revision,active}); setData(null); }
   const load=useCallback(async(signal?:AbortSignal)=>{
     const operation=++sequence.current;
     try { const result=await call<T>(url,undefined,'GET',signal); if(!signal?.aborted && operation===sequence.current){setData(result);setError('');} }
     catch(error){if(!signal?.aborted && operation===sequence.current)setError(message(error));}
     finally{if(!signal?.aborted && operation===sequence.current){setLoading(false);setLoadedUrl(url);}}
   },[url]);
-  useEffect(()=>{const controller=new AbortController();queueMicrotask(()=>{if(!controller.signal.aborted)void load(controller.signal);});return()=>controller.abort();},[load]);
+  useEffect(()=>{const controller=new AbortController();queueMicrotask(()=>{if(!controller.signal.aborted)void load(controller.signal);});return()=>controller.abort();},[load,revision,active]);
   return {data:loadedUrl===url ? data : null,error:loadedUrl===url ? error : '',loading:loading || loadedUrl!==url,load,setData};
 }
 function Failure({error,retry}:{error:string;retry:()=>void}) {

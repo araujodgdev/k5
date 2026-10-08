@@ -1,3 +1,5 @@
+import { AdminCanvas } from '@/components/admin/admin-canvas';
+import { officePage } from '@/components/lume/canvas-leaf';
 import { notFound } from "next/navigation";
 import { CircleAlert, ExternalLink } from "lucide-react";
 import { requirePlatformPage } from "@/lib/platform";
@@ -15,7 +17,7 @@ export const metadata = { title: "Execução · Administração" };
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "medium", timeZone: "America/Sao_Paulo" });
 
 /** One chat turn event by event: what the model did, which tools ran with which inputs, and what came back. */
-export default async function PlatformTracePage({ params }: PageProps<"/app/admin/traces/[id]">) {
+async function PlatformTracePage({ params }: PageProps<"/app/admin/traces/[id]">) {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const detail = await agentTraceDetail(context.db, (await params).id);
@@ -68,3 +70,5 @@ export default async function PlatformTracePage({ params }: PageProps<"/app/admi
     </AdminGrid>
   </>;
 }
+
+export default officePage('/app/admin/traces/[id]', PlatformTracePage, AdminCanvas);

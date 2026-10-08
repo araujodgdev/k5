@@ -1,4 +1,5 @@
 import 'server-only';
+import { billingOwner } from './billing/origin';
 import { randomUUID } from 'node:crypto';
 import { Agent } from '@mastra/core/agent';
 import { Mastra } from '@mastra/core';
@@ -8,7 +9,7 @@ import type { MastraMemory } from '@mastra/core/memory';
 import type { OutputProcessor } from '@mastra/core/processors';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { withTransaction } from './database';
+import { database, withTransaction } from './database';
 import { assertCredits, chargeUsage } from './billing/credits';
 import { callUsage, totalUsage, type CallUsage } from './billing/credit-pricing';
 import { resolveTaskModel } from './ai-connections';
@@ -150,6 +151,7 @@ export function errorClass(error: unknown): string {
 }
 
 export type UsageDetails = {
+  billingOrigin?: import('./billing/origin').BillingOrigin | null;
   durationMs?: number; errorClass?: string; signals?: Record<string, unknown>;
   /** Each model call of a turn of several steps, so the long-context rate is applied per call. */
   calls?: unknown[];
@@ -168,23 +170,27 @@ export async function recordUsage(officeId: string, userId: string | null, confi
   const total = totalUsage(calls);
   const id = randomUUID();
   await withTransaction(async tx => {
+    const owner = await billingOwner(tx, { officeId, userId, billingOrigin: details.billingOrigin });
+    officeId = owner.officeId;
+    const origin = owner.billingOrigin;
     const charged = status === 'completed' && (calls.length || details.webSearchCalls)
-      ? await chargeUsage(tx, { officeId, userId }, id, { modelId: config.modelId, calls, webSearchCalls: details.webSearchCalls })
+      ? await chargeUsage(tx, { officeId, userId, billingOrigin: origin }, id, { modelId: config.modelId, calls, webSearchCalls: details.webSearchCalls })
       : null;
     await tx.prepare(`INSERT INTO ai_usage(id,office_id,user_id,connection_id,provider,model_id,task,status,input_tokens,output_tokens,
         reasoning_effort,model_source,effort_source,duration_ms,error_class,signals,cached_input_tokens,cache_write_tokens,reasoning_tokens,
-        web_search_calls,cost_usd,credits) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        web_search_calls,cost_usd,credits,conversation_id,billing_origin_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(id, officeId, userId, config.connectionId, config.provider, config.modelId, task, status,
         usage ? total.inputTokens : null, usage ? total.outputTokens : null,
         config.effort ?? null, config.modelSource ?? null, config.effortSource ?? null,
         details.durationMs === undefined ? null : Math.round(details.durationMs), details.errorClass ?? null,
         details.signals ? JSON.stringify(details.signals) : null,
         usage ? total.cachedInputTokens : null, usage ? total.cacheWriteTokens : null, usage ? total.reasoningTokens : null,
-        details.webSearchCalls ?? null, charged?.costUsd ?? null, charged?.millicredits ?? null);
+        details.webSearchCalls ?? null, charged?.costUsd ?? null, charged?.millicredits ?? null, origin?.conversationId ?? null, origin?.id ?? null);
   });
 }
 
 export type StructuredOptions<T = unknown> = {
+  billingOrigin?: import('./billing/origin').BillingOrigin | null;
   admission: ContentAdmission;
   instructions?: string; timeoutMs?: number; maxOutputTokens?: number; signal?: AbortSignal;
   image?: { bytes: Uint8Array; mimeType: string };
@@ -195,6 +201,8 @@ export type StructuredOptions<T = unknown> = {
 
 export async function generateStructured<T extends z.ZodType>(officeId: string, userId: string, task: AiTaskKey | ResolvedTaskModel, prompt: string, schema: T,
   options: StructuredOptions<z.output<T>>): Promise<z.output<T>> {
+  const owner = await billingOwner(database, {officeId,userId,billingOrigin:options.billingOrigin});
+  officeId = owner.officeId;
   const transport = admissionTransport(options.admission);
   const images = (options.images ?? (options.image ? [options.image] : [])).map(image => ({ bytes: Buffer.from(image.bytes), mimeType: image.mimeType }));
   const instructions = options.instructions ?? groundedInstructions;
@@ -225,7 +233,7 @@ export async function generateStructured<T extends z.ZodType>(officeId: string, 
       const output = schema.parse(result.object);
       let signals: Record<string, unknown> | undefined;
       try { signals = options.signals?.(output); } catch (error) { captureOperationalError(error, 'ai.structured.signals'); }
-      await recordUsage(officeId, userId, config, config.task, 'completed', result.usage, { durationMs: performance.now() - started,
+      await recordUsage(officeId, userId, config, config.task, 'completed', result.usage, { billingOrigin: options.billingOrigin, durationMs: performance.now() - started,
         signals: { ...signals, applicationDigest: options.admission.applicationDigest, wireDigests: transport.wireDigests } });
       span.setAttributes({ 'gen_ai.usage.input_tokens': result.usage?.inputTokens ?? 0, 'gen_ai.usage.output_tokens': result.usage?.outputTokens ?? 0, 'lume.outcome': 'completed' });
       return output;
@@ -233,20 +241,20 @@ export async function generateStructured<T extends z.ZodType>(officeId: string, 
       if (transport.denied) {
         span.setAttribute('lume.outcome', 'denied');
         try { await recordUsage(officeId, userId, config, config.task, 'failed', usage,
-          { durationMs: performance.now() - started, errorClass: 'denied' }); }
+          { billingOrigin: options.billingOrigin, durationMs: performance.now() - started, errorClass: 'denied' }); }
         catch (accountingError) { captureOperationalError(accountingError, 'ai.structured.denial-accounting'); }
         transport.throwIfDenied();
       }
       if (options.signal?.aborted) {
         span.setAttribute('lume.outcome', 'cancelled');
         try { await recordUsage(officeId, userId, config, config.task, 'failed', usage,
-          { durationMs: performance.now() - started, errorClass: 'aborted' }); }
+          { billingOrigin: options.billingOrigin, durationMs: performance.now() - started, errorClass: 'aborted' }); }
         catch (accountingError) { captureOperationalError(accountingError, 'ai.structured.cancellation-accounting'); }
         options.signal.throwIfAborted();
       }
       captureOperationalError(error, 'ai.structured');
       span.setAttribute('lume.outcome', 'failed');
-      await recordUsage(officeId, userId, config, config.task, 'failed', usage, { durationMs: performance.now() - started, errorClass: errorClass(error) });
+      await recordUsage(officeId, userId, config, config.task, 'failed', usage, { billingOrigin: options.billingOrigin, durationMs: performance.now() - started, errorClass: errorClass(error) });
       throw new Error('A análise falhou. Confira a conexão de IA e tente novamente.');
     }
   });

@@ -1,9 +1,11 @@
 'use client';
+import { useCanvasLoadError } from '@/components/lume/canvas-host';
 
 import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
 import { Button } from '@/components/ui/button';
 
 export default function ResearchError({ retry, reset }: { retry?: () => void; reset?: () => void }) {
+  useCanvasLoadError();
   return <CanvasPage>
     <CanvasHeader title="Pesquisa" />
     <div className="flex flex-wrap items-center gap-3">

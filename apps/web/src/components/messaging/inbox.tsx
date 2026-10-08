@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from '@/components/lume/canvas-navigation';
 import { Mail, MessageSquare, Plus } from 'lucide-react';
 import { z } from 'zod';
 import { sendMessageOutput, startThreadOutput, threadPageDto, type PersonalThread as Thread } from '@/lib/personal-chat/domain';

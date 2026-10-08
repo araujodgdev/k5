@@ -6,6 +6,7 @@ import { ChevronRight, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 import {
   ErrorText, LATE_COLLECTION_HOURS, OFFICIAL_NOTICE, eventLabels, eventNotes, formatDate,
   formatDateTime, hoursSince, newIdempotencyKey, readFailure, revisionLabels, sourceAvailability,
@@ -30,13 +31,13 @@ type Loaded = {
   jobs: JudicialJob[];
 };
 
-async function loadAllLinks(): Promise<JudicialLink[]> {
+async function loadAllLinks(signal?: AbortSignal): Promise<JudicialLink[]> {
   const links: JudicialLink[] = [];
   let cursor: string | null = null;
   do {
     const params = new URLSearchParams({ limit: "50" });
     if (cursor) params.set("cursor", cursor);
-    const response = await fetch(`/api/judicial/links?${params}`);
+    const response = await fetch(`/api/judicial/links?${params}`, {signal});
     if (!response.ok) return links;
     const page = (await response.json()) as { links: JudicialLink[]; nextCursor: string | null };
     links.push(...page.links);
@@ -46,6 +47,7 @@ async function loadAllLinks(): Promise<JudicialLink[]> {
 }
 
 export function JudicialInbox({ initialCaseId }: { initialCaseId?: string }) {
+  const revision = useCanvasRevision(), active = useCanvasActive();
   const id = useId();
   const [data, setData] = useState<Loaded | null>(null);
   const [failure, setFailure] = useState<ApiFailure | null>(null);
@@ -53,8 +55,10 @@ export function JudicialInbox({ initialCaseId }: { initialCaseId?: string }) {
   const [sourceId, setSourceId] = useState(ALL);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [seed,setSeed] = useState({revision,active});
+  if (seed.revision !== revision || seed.active !== active) { setSeed({revision,active}); setData(null); }
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     const resultParams = new URLSearchParams({ limit: "50" });
     if (caseId !== ALL) resultParams.set("caseId", caseId);
     if (sourceId !== ALL) resultParams.set("installationId", sourceId);
@@ -65,31 +69,34 @@ export function JudicialInbox({ initialCaseId }: { initialCaseId?: string }) {
     jobParams.set("limit", "1");
 
     const [alertsResponse, publicationsResponse, links, sourcesResponse, jobsResponse] = await Promise.all([
-      fetch(`/api/judicial/alerts?${alertParams}`),
-      fetch(`/api/judicial/publications?${resultParams}`),
-      loadAllLinks(),
-      fetch("/api/judicial/sources"),
-      fetch(`/api/judicial/jobs?${jobParams}`),
+      fetch(`/api/judicial/alerts?${alertParams}`, {signal}),
+      fetch(`/api/judicial/publications?${resultParams}`, {signal}),
+      loadAllLinks(signal),
+      fetch("/api/judicial/sources", {signal}),
+      fetch(`/api/judicial/jobs?${jobParams}`, {signal}),
     ]);
+    if (signal?.aborted) return;
     if (!alertsResponse.ok) {
       setFailure(await readFailure(alertsResponse, "Não foi possível carregar a caixa de eventos."));
       setData({ alerts: [], publications: [], links, sources: [], jobs: [] });
       return;
     }
-    setData({
+    const next = {
       alerts: ((await alertsResponse.json()) as { alerts: JudicialAlert[] }).alerts,
       publications: publicationsResponse.ok ? ((await publicationsResponse.json()) as { publications: JudicialPublication[] }).publications : [],
       links,
       sources: sourcesResponse.ok ? ((await sourcesResponse.json()) as { sources: JudicialSource[] }).sources : [],
       jobs: jobsResponse.ok ? ((await jobsResponse.json()) as { jobs: JudicialJob[] }).jobs : [],
-    });
+    };
+    if (!signal?.aborted) setData(next);
   }, [caseId, sourceId, unreadOnly]);
 
   // Deferred by a tick so the first render is the loading state rather than a cascading one.
   useEffect(() => {
-    const first = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(first);
-  }, [load]);
+    const controller = new AbortController();
+    const first = window.setTimeout(() => void load(controller.signal).catch(() => {}), 0);
+    return () => { window.clearTimeout(first); controller.abort(); };
+  }, [load, revision, active]);
 
   async function markRead(alertId: string) {
     setBusy(alertId);
