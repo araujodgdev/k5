@@ -168,7 +168,7 @@ describe('área de trabalho', { session: 'admin' }, () => {
     empty = true;
     await screen.getByRole('button', 'Atualizar').tap();
     await expect(screen.getByText('Nenhuma reunião agendada.')).toBeVisible();
-    await expect(screen.getByText('Seus casos aparecerão aqui. Crie um caso no Cofre para começar.')).toBeVisible();
+    await expect(screen.getByRole('region', 'Casos recentes').getByText('Nenhum caso ainda.')).toBeVisible();
     await expect(screen.getByText('Nenhuma atividade disponível nos casos recentes.')).toBeVisible();
     failHome = true;
     await screen.getByRole('button', 'Atualizar').tap();
@@ -176,6 +176,6 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await expect(screen.getByText('Nenhuma reunião agendada.')).toBeVisible();
     failHome = false;
     await screen.getByRole('button', 'Atualizar').tap();
-    await expect(screen.getByText('Seus casos aparecerão aqui. Crie um caso no Cofre para começar.')).toBeVisible();
+    await expect(screen.getByRole('region', 'Casos recentes').getByText('Nenhum caso ainda.')).toBeVisible();
   });
 });
