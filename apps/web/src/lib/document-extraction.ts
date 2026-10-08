@@ -26,13 +26,14 @@ export type ExtractionOptions = {
   onProgress?: (done: number) => Promise<void> | void;
   /**
    * Called before a page or picture is read by OCR, with its reference (`página:3`, `imagem:1`).
-   * It charges the page, and throwing stops the extraction. A page restored from a checkpoint
-   * was already read and is not reported again.
+   * The caller charges or checks the credits there, and throwing stops the extraction. A page
+   * restored from a checkpoint was already read and is not reported again.
    */
   onOcrPage?: (reference: string) => Promise<void>;
 };
 
-export async function extractDocumentSections(data: Buffer, mimeType: string, name: string, documentId: string, options: ExtractionOptions = {}): Promise<ExtractedSection[]> {
+/** `documentId` is the Cofre document whose OCR checkpoints are kept; a chat attachment has none and passes null. */
+export async function extractDocumentSections(data: Buffer, mimeType: string, name: string, documentId: string | null, options: ExtractionOptions = {}): Promise<ExtractedSection[]> {
   switch (mimeType) {
     case "application/pdf": return extractPdf(data, documentId, options);
     case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return extractDocx(data, documentId, options);
@@ -49,7 +50,7 @@ export async function extractDocumentSections(data: Buffer, mimeType: string, na
  * Workers use unpdf for text-only attachments. Node processors use one PDF.js version for
  * both text and scanned pages; mixing unpdf's worker with pdfjs-dist breaks native OCR.
  */
-async function extractPdf(data: Buffer, documentId: string, options: ExtractionOptions): Promise<ExtractedSection[]> {
+async function extractPdf(data: Buffer, documentId: string | null, options: ExtractionOptions): Promise<ExtractedSection[]> {
   // unpdf bundles a different PDF.js worker. Loading it in the OCR process poisons PDF.js's
   // shared fake-worker global and makes rendering fail with an API/worker version mismatch.
   if (process.env.K5_RUNTIME !== 'cloudflare') return extractPdfLocally(data, documentId, options);
@@ -67,7 +68,7 @@ async function extractPdf(data: Buffer, documentId: string, options: ExtractionO
   throw new OcrRequiredError();
 }
 
-async function extractPdfOcr(data: Buffer, documentId: string, options: ExtractionOptions): Promise<ExtractedSection[]> {
+async function extractPdfOcr(data: Buffer, documentId: string | null, options: ExtractionOptions): Promise<ExtractedSection[]> {
   const endpoint = process.env.VAULT_OCR_URL;
   if (!endpoint) return extractPdfLocally(data, documentId, options);
   let url: URL;
@@ -76,7 +77,8 @@ async function extractPdfOcr(data: Buffer, documentId: string, options: Extracti
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
   try {
-    const headers: Record<string, string> = { "content-type": "application/pdf", "x-k5-document-id": documentId };
+    const headers: Record<string, string> = { "content-type": "application/pdf" };
+    if (documentId) headers["x-k5-document-id"] = documentId;
     if (process.env.VAULT_OCR_TOKEN) headers.authorization = `Bearer ${process.env.VAULT_OCR_TOKEN}`;
     const response = await fetch(url, { method: "POST", headers, body: new Uint8Array(data), signal: controller.signal });
     if (!response.ok) throw new Error(`O serviço de OCR respondeu com erro (${response.status}).`);
@@ -96,7 +98,23 @@ async function extractPdfOcr(data: Buffer, documentId: string, options: Extracti
   } finally { clearTimeout(timer); }
 }
 
-async function extractPdfLocally(data: Buffer, documentId: string, { onProgress, onOcrPage }: ExtractionOptions = {}): Promise<ExtractedSection[]> {
+/**
+ * The OCR results already saved for a Cofre document, keyed by the file's content so a new version
+ * is read again. A chat attachment has no document to save them against and reads every page.
+ */
+async function ocrCheckpoints(documentId: string | null, data: Buffer) {
+  const digest = createHash("sha256").update(data).digest("hex");
+  const rows = documentId ? await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }> : [];
+  const completed = new Map(rows.map((row) => [row.reference, row.content]));
+  return {
+    saved: (reference: string) => completed.get(`${digest}:${reference}`),
+    async save(reference: string, content: string) {
+      if (documentId) await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, `${digest}:${reference}`, content);
+    },
+  };
+}
+
+async function extractPdfLocally(data: Buffer, documentId: string | null, { onProgress, onOcrPage }: ExtractionOptions = {}): Promise<ExtractedSection[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const task = pdfjs.getDocument({ data: new Uint8Array(data) });
   const { createOcrWorker, ocrViewport } = await import('./ocr-worker');
@@ -105,13 +123,11 @@ async function extractPdfLocally(data: Buffer, documentId: string, { onProgress,
   try {
     const pdf = await task.promise;
     const { createCanvas } = await import("@napi-rs/canvas");
-    // Checkpoints are keyed by the file's content, so a new version of the document is read again.
-    const digest = createHash("sha256").update(data).digest("hex");
-    const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
+    const checkpoints = await ocrCheckpoints(documentId, data);
     if (pdf.numPages > 300) throw new Error('PDF acima do limite de 300 páginas.');
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const reference = `página:${pageNumber}`;
-      const saved = completed.get(`${digest}:${reference}`);
+      const saved = checkpoints.saved(reference);
       if (saved) { sections.push({ reference, content: saved }); continue; }
       const page = await pdf.getPage(pageNumber);
       const layer = await page.getTextContent();
@@ -126,7 +142,7 @@ async function extractPdfLocally(data: Buffer, documentId: string, { onProgress,
       const text = (await worker.recognize(canvas.toBuffer("image/png"))).data.text.replace(/\s+/g, " ").trim();
       page.cleanup();
       if (text) {
-        await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, `${digest}:${reference}`, text);
+        await checkpoints.save(reference, text);
         sections.push({ reference, content: text });
       }
       await onProgress?.(pageNumber / pdf.numPages);
@@ -152,7 +168,7 @@ async function extractImage(data: Buffer, name: string, options: ExtractionOptio
   } finally { await worker.terminate(); }
 }
 
-async function extractDocx(data: Buffer, documentId: string, options: ExtractionOptions): Promise<ExtractedSection[]> {
+async function extractDocx(data: Buffer, documentId: string | null, options: ExtractionOptions): Promise<ExtractedSection[]> {
   const mammoth = await import("mammoth") as unknown as { extractRawText: (input: { buffer: Buffer }) => Promise<{ value: string }> };
   const text = (await mammoth.extractRawText({ buffer: data })).value;
   const sections = paragraphSections(text);
@@ -166,18 +182,17 @@ async function extractDocx(data: Buffer, documentId: string, options: Extraction
  * `imagem:N` section after the text, and its result is checkpointed like a scanned PDF page, so a
  * retried or reindexed document is not recognised twice.
  */
-async function recognizeDocxImages(data: Buffer, documentId: string, onOcrPage?: ExtractionOptions["onOcrPage"]): Promise<ExtractedSection[]> {
+async function recognizeDocxImages(data: Buffer, documentId: string | null, onOcrPage?: ExtractionOptions["onOcrPage"]): Promise<ExtractedSection[]> {
   const { images } = docxImages(data);
   if (!images.length) return [];
-  const digest = createHash("sha256").update(data).digest("hex");
-  const completed = new Map((await database.prepare("SELECT stable_reference AS reference, content FROM vault_document_checkpoint WHERE document_id = ? AND kind = 'ocr'").all(documentId) as Array<{ reference: string; content: string }>).map((row) => [row.reference, row.content]));
+  const checkpoints = await ocrCheckpoints(documentId, data);
   const { createOcrWorker } = await import('./ocr-worker');
   let worker: Awaited<ReturnType<typeof createOcrWorker>> | undefined;
   const sections: ExtractedSection[] = [];
   try {
     for (const [index, image] of images.entries()) {
       const reference = `imagem:${index + 1}`;
-      const saved = completed.get(`${digest}:${reference}`);
+      const saved = checkpoints.saved(reference);
       if (saved) { sections.push({ reference, content: saved }); continue; }
       await onOcrPage?.(reference);
       worker ??= await createOcrWorker();
@@ -186,7 +201,7 @@ async function recognizeDocxImages(data: Buffer, documentId: string, onOcrPage?:
       const recognized = await worker.recognize(image.data).then((result) => result.data.text, () => "");
       const content = recognized.replace(/\s+/g, " ").trim();
       if (!content) continue;
-      await database.prepare("INSERT INTO vault_document_checkpoint (document_id, kind, stable_reference, content) VALUES (?, 'ocr', ?, ?) ON CONFLICT(document_id,kind,stable_reference) DO UPDATE SET content=excluded.content").run(documentId, `${digest}:${reference}`, content);
+      await checkpoints.save(reference, content);
       sections.push({ reference, content });
     }
   } finally { await worker?.terminate(); }

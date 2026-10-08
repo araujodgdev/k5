@@ -82,11 +82,12 @@ export async function creditBalance(officeId: string) {
 
 /**
  * Refuses an AI call or an OCR page when the office has nothing left. A call may still take the
- * balance a little below zero: it is charged what it really cost once it ends.
+ * balance a little below zero: it is charged what it really cost once it ends. `pending` is what the
+ * caller already used and will only charge at the end, such as the pages a chat attachment has read.
  */
-export async function assertCredits(officeId: string, userId: string | null) {
+export async function assertCredits(officeId: string, userId: string | null, pending = 0) {
   if (await isCreditExempt(userId)) return;
-  if (await creditBalance(officeId) <= 0) throw new InsufficientCreditsError();
+  if (await creditBalance(officeId) - pending <= 0) throw new InsufficientCreditsError();
 }
 
 export type UsageCharge = { modelId: string; calls: CallUsage[]; webSearchCalls?: number };
@@ -115,6 +116,17 @@ export async function chargeOcrPage(owner: { officeId: string; userId: string | 
     const { ocrPageMillicredits } = await creditSettings(tx);
     await applyEntry(tx, { officeId: owner.officeId, userId: owner.userId, kind: 'ocr', amount: -ocrPageMillicredits, reference, description: 'OCR de uma página' });
   });
+}
+
+/**
+ * Charges the pages a chat attachment was read by, in the transaction that records it. The chat
+ * keeps no checkpoint of a page it paid for, so like usage it is charged after the work, once.
+ */
+export async function chargeOcrPages(tx: Transaction, owner: { officeId: string; userId: string | null }, attachmentId: string, pages: number) {
+  if (!pages || await isCreditExempt(owner.userId, tx)) return;
+  const { ocrPageMillicredits } = await creditSettings(tx);
+  await postCredits(tx, { officeId: owner.officeId, userId: owner.userId, kind: 'ocr', amount: -ocrPageMillicredits * pages,
+    reference: `ocr:${attachmentId}`, description: `OCR de ${pages} página${pages === 1 ? '' : 's'}` });
 }
 
 export type CreditEntryRow = { id: string; kind: CreditKind; amount: number; balanceAfter: number; description: string | null; createdAt: string; actorName: string | null };
