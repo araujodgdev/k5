@@ -391,6 +391,8 @@ select[data-inline]:not([multiple], [size]):focus-visible { border-color: var(--
 /* The canvas shell (components/shell/office-shell.tsx). Pages that keep their own scroll regions
    (chat, e-mail, messages) fill the canvas instead of scrolling it. */
 .canvas-scroll:has([data-canvas-active="true"] :is(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace)) { overflow: hidden; padding-bottom: 0; }
+/* Other canvas views grow with their page, so the bottom padding still clears the phone pill. */
+.canvas-scroll:not(:has([data-canvas-active="true"] :is(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace))) > [data-canvas-view] { min-height: auto; }
 /* The phone's "Pedir ao Lume" pill steps aside for a page's own composer and while the person types. */
 .canvas-scroll:is(:has([data-canvas-active="true"] :is(.agent-chat, .gmail-workspace, .whatsapp-workspace, .messaging-workspace)), :has(input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus)) ~ .lume-phone-pill { display: none; }
 /* No tab bar under the phone menu; on a computer the panels hang from the strip, under the bell. */

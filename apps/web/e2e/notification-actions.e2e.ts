@@ -7,9 +7,10 @@ import { promisify } from 'node:util';
 import { uniqueAccount } from './support/accounts';
 import { signInWithSession } from './support/sign-in';
 
-const project = () => promisify(execFile)(process.execPath,
+// CI starts the app from e2e.config.ts without K5_E2E_URL, so hand the helper the URL under test.
+const project = (baseUrl: string) => promisify(execFile)(process.execPath,
   ['--conditions=react-server','--import','tsx','e2e/support/project-notifications.mts'],
-  { timeout:120_000, windowsHide:true });
+  { timeout:120_000, windowsHide:true, env:{ ...process.env, K5_E2E_URL: baseUrl } });
 
 test('uma leitura anterior não repõe notificações excluídas e uma chegada posterior permanece', {timeout:180_000}, async ({app,screen,browser}) => {
   const api = await new ApiSession(app.baseUrl!).signIn(uniqueAccount('Notificações concorrentes'));
@@ -18,11 +19,11 @@ test('uma leitura anterior não repõe notificações excluídas e uma chegada p
     form.set('file',new File(['Documento da prova de notificações.'],name,{type:'text/plain'}));
     form.set('scope','library');
     expect((await api.request('/api/vault/documents',{form})).status).toBe(201);
-    await project();
+    await project(app.baseUrl!);
   };
   await upload('notificação anterior.txt');
   await expect.poll(async () => {
-    await project();
+    await project(app.baseUrl!);
     return (await api.json<{notifications:unknown[]}>('/api/notifications?unreadOnly=true')).notifications.length;
   },{timeout:60_000}).toBeGreaterThan(0);
   const before = await api.json<{notifications:{id:string}[]}>('/api/notifications?unreadOnly=true');

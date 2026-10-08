@@ -17,11 +17,20 @@ export function useSearchParams() {
   const location = useCanvasLocation();
   return useMemo(() => location ? new URL(location.href, 'https://lume.invalid').searchParams : search, [location, search]);
 }
+// Providers that wrap the workspace (the tutorial) sit outside its context. They still navigate
+// through the mounted workspace, so its serial cancels an older navigation instead of racing it.
+let mountedNavigator: ((href: string) => Promise<boolean>) | null = null;
+export function registerWorkspaceNavigator(navigate: (href: string) => Promise<boolean>) {
+  mountedNavigator = navigate;
+  return () => { if (mountedNavigator === navigate) mountedNavigator = null; };
+}
+
 export function useRouter() {
   const router = frameworkRouter();
   const workspace = useContext(WorkspaceContext);
   return useMemo(() => ({ ...router, push(href: string, options?: Parameters<typeof router.push>[1]) {
-    if (workspace && canonicalCanvasHref(href)) void workspace.navigate(href);
+    const navigate = workspace?.navigate ?? mountedNavigator;
+    if (navigate && canonicalCanvasHref(href)) void navigate(href);
     else router.push(href, options);
   } }), [router, workspace]);
 }

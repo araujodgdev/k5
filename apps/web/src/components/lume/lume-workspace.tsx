@@ -16,6 +16,7 @@ import { WorkspaceContext, type WorkspaceActions } from './workspace-context';
 import type { WorkspaceMenuProps } from './workspace-menu';
 import { OfficeShell } from '@/components/shell/office-shell';
 import { CanvasHost, CanvasRegistry, CanvasFailure, canvasViewKey, type CanvasLeaf } from './canvas-host';
+import { registerWorkspaceNavigator } from './canvas-navigation';
 
 const subscribeMobile = (listener: () => void) => {
   const media = window.matchMedia('(max-width: 767px)');
@@ -181,6 +182,11 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
       }
       if (requestedUrl.pathname === '/app/agents') target.searchParams.set('lume', '1');
       target.searchParams.set('__canvas', nonce);
+      // Republishing a framework navigation must not pull the browser back once a newer one has started.
+      if (replace && canonicalCanvasHref(window.location.pathname + window.location.search) !== canonicalCanvasHref(requested)) {
+        intent.current = null; setLoading(false);
+        return false;
+      }
       const committed = new Promise<boolean>(resolve => { completion.current = resolve; });
       if (replace) router.replace(target.pathname + target.search, { scroll: false });
       else router.push(target.pathname + target.search, { scroll: false });
@@ -197,6 +203,7 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
     }
   }, [controller, finishNavigation, resolveResource, router, saveOpen]);
   const navigate = useCallback((requested: string) => activate(requested), [activate]);
+  useEffect(() => registerWorkspaceNavigator(navigate), [navigate]);
   const loadFailed = useCallback(() => {
     if (!intent.current) return;
     ++serial.current; intent.current = null;
@@ -281,7 +288,8 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
       }
       if (url.searchParams.has('__canvas') || url.searchParams.has('conversationId') || url.searchParams.has('lume')) {
         for (const key of ['__canvas', 'conversationId', 'lume']) url.searchParams.delete(key);
-        window.history.replaceState(window.history.state, '', url.pathname + url.search);
+        // A null state lets Next and vinext sync usePathname/useSearchParams; their own state object is skipped.
+        window.history.replaceState(null, '', url.pathname + url.search);
       }
     })();
   }, [activate, controller, drafts, finishNavigation, loadFailed, router, saveOpen]);
