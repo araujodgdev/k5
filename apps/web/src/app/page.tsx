@@ -97,18 +97,23 @@ export default function Landing() {
             <span aria-hidden="true" className="absolute inset-2 rounded-md transition-colors group-hover:bg-accent group-focus-visible:ring-2 group-focus-visible:ring-ring" />
             <LumeMark width={22} height={22} className="relative" />
           </Link>
-          <p className="self-center px-5 text-lg font-medium tracking-[-0.04em] md:hidden">Lume</p>
+          <p className="hidden self-center px-5 text-lg font-medium tracking-[-0.04em] sm:block md:hidden">Lume</p>
           <LandingClock className="hidden self-center px-6 text-sm tabular-nums md:block lg:px-24" />
         </div>
         <div className="flex items-stretch md:border-l md:border-line">
-          <nav aria-label="Seções" className="hidden items-stretch lg:flex">
+          <nav aria-label="Seções" className="hidden items-stretch xl:flex">
             {[["#modulos", "Módulos"], ["#escritorio", "Formatos"], ["#comecar", "Começar"]].map(([href, label]) => (
               <a key={href} href={href} className="flex items-center px-4 text-[15px] transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">{label}</a>
             ))}
           </nav>
-          <div className="ml-auto flex items-center px-2"><ThemeSwitch /></div>
-          <Link prefetch={false} href="/sign-in" className="group/cta flex items-center justify-between gap-6 bg-primary px-5 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:w-60">
-            Entrar<ArrowRight className="size-4 transition-transform duration-500 ease-(--ease) group-hover/cta:translate-x-1" aria-hidden="true" />
+          <div className="ml-auto flex shrink-0 items-center gap-2 px-2">
+            <Link prefetch={false} href="/client" className="inline-flex min-h-11 items-center justify-center rounded-sm border border-line px-3 text-sm font-medium whitespace-nowrap transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              Portal do cliente
+            </Link>
+            <ThemeSwitch />
+          </div>
+          <Link prefetch={false} href="/sign-in" className="group/cta flex items-center justify-between gap-3 shrink-0 bg-primary px-3 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:gap-6 sm:px-5 2xl:w-60">
+            Entrar<ArrowRight className="hidden size-4 transition-transform duration-500 ease-(--ease) group-hover/cta:translate-x-1 sm:block" aria-hidden="true" />
           </Link>
         </div>
       </header>

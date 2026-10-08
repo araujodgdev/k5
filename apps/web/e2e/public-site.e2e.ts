@@ -60,6 +60,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
         expect(await browser.evaluate(overflowsHorizontally), `${label} #${id}`).toBe(false);
       }
     }
+    await app.open('/');
+    const portal = screen.getByRole('banner').getByRole('link', 'Portal do cliente');
+    await expect(portal).toBeVisible();
+    await expect(portal).toHaveAttribute('href', '/client');
+    expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
+    await app.screenshot('acesso-portal-' + viewport.width);
+    await portal.tap();
+    await expect(browser).toHaveURL('/client/sign-in');
+    await expect(screen.getByRole('heading', 'Entre no portal')).toBeVisible();
+    await app.open('/');
     await screen.getByRole('link', 'Entrar').first().tap();
     await expect(screen.getByRole('button', 'Entrar')).toBeVisible();
   });
