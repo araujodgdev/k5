@@ -2,6 +2,7 @@ import 'server-only';
 import { Memory } from '@mastra/memory';
 import { PostgresStore } from '@mastra/pg';
 import type { Pool } from 'pg';
+import { z } from 'zod';
 import { authStore, database } from './database';
 import type { Owner } from './ai-store';
 import { forgetHoncho, forgetHonchoConversation, honchoCard } from './honcho-memory';
@@ -33,6 +34,9 @@ const template = `# Memória do Lume
 - Informações que a pessoa pediu explicitamente para lembrar:
 `;
 
+/** The update tool's one field, with Mastra's own description of it (see agentMemory). */
+const memoryInput = z.object({ memory: z.string().describe('The Markdown formatted working memory content to store. This MUST be a string. Never pass an object.') });
+
 // @mastra/pg qualifies every table with its schema (public by default) instead of following the
 // connection's search_path, so it is told the schema the migrations ran in.
 const schemas = new WeakMap<Pool, Promise<string>>();
@@ -61,7 +65,7 @@ export async function agentMemory(onRead?: (memory: string) => Promise<void>) {
       return resource;
     };
   }
-  return new Memory({
+  const memory = new Memory({
     storage,
     options: {
       lastMessages: false,
@@ -70,6 +74,16 @@ export async function agentMemory(onRead?: (memory: string) => Promise<void>) {
       workingMemory: { enabled: true, scope: 'resource', template },
     },
   });
+  // Mastra validates the update tool's JSON schema with Ajv, which compiles its validator with
+  // `new Function`; workerd forbids code generation from strings, so every update failed
+  // validation in production and the model was told to try again. A zod schema validates without it.
+  const listTools = memory.listTools.bind(memory);
+  memory.listTools = config => {
+    const tools = listTools(config);
+    if (tools.updateWorkingMemory) tools.updateWorkingMemory.inputSchema = memoryInput;
+    return tools;
+  };
+  return memory;
 }
 
 /** The instructions that frame the memory; Mastra's own text only explains the tool. */
