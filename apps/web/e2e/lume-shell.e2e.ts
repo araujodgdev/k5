@@ -175,6 +175,66 @@ test('a revogação real de um caso remove a aba, o conteúdo e o contexto sem a
   await expect(input).toHaveValue('Pedido privado ainda não enviado');
 });
 
+test('contrato frontend: a conversa nova segue ativa quando a lista recarrega com outra conversa mais recente', { session: 'admin', tags: ['frontend-contract'] }, async ({ app, screen, browser }) => {
+  type Conversation = { id: string; title: string; updatedAt: string };
+  const api = await new ApiSession(app.baseUrl!).signIn(admin);
+  const stamp = Date.now();
+  const { case: record } = await api.json<{ case: { id: string } }>('/api/vault/cases', { json: { name: `Caso da recarga ${stamp}` } });
+  const known = new Set((await api.json<{ conversations: Conversation[] }>('/api/conversations')).conversations.map(item => item.id));
+  const previous = { id: await emptyConversation(api), title: 'Resumo do contrato', updatedAt: new Date(stamp).toISOString() };
+  let list: Conversation[] = [previous];
+  const sent: Array<{ conversationId: string; attachmentIds: string[]; message: { parts: Array<{ type: string; data?: { name?: string } }> } }> = [];
+  await browser.route('**/api/conversations', route => route.request.method === 'GET' ? route.fulfill({ json: { conversations: list } }) : route.continue());
+  await browser.route('**/api/chat/**/stream**', route => route.fulfill({ status: 204 }));
+  await browser.route('**/api/chat', route => {
+    sent.push(JSON.parse(route.request.postData ?? '{}') as typeof sent[number]);
+    return route.fulfill(answer(`reload-answer-${sent.length}`));
+  });
+  await app.open(`/app/vault/cases/${record.id}?lume=1`);
+  const input = screen.getByRole('textbox', 'Pergunte ao Lume');
+  await expect(input).toBeVisible();
+  await screen.getByRole('button', 'Nova conversa').tap();
+  let fresh: Conversation | undefined;
+  await expect.poll(async () => {
+    fresh = (await api.json<{ conversations: Conversation[] }>('/api/conversations')).conversations.find(item => !known.has(item.id) && item.id !== previous.id);
+    return fresh?.id;
+  }).toBeTruthy();
+  await screen.getByLabel('Arquivo para anexar').setInputFiles(['e2e/fixtures/colaboracao-validacao.txt']);
+  const attachment = screen.getByRole('link', 'Abrir anexo colaboracao-validacao.txt');
+  await expect(attachment).toBeVisible();
+  list = [{ ...previous, updatedAt: new Date(stamp + 60_000).toISOString() }, fresh!];
+  const history = screen.getByRole('complementary', 'Conversas');
+  const expectFreshSelected = async () => {
+    await screen.getByRole('button', 'Mostrar conversas').tap();
+    await expect(history.getByRole('button', /^Nova conversa/)).toHaveAttribute('aria-current', 'true');
+    await expect(history.getByRole('button', /^Resumo do contrato/)).not.toHaveAttribute('aria-current', 'true');
+    await screen.getByRole('button', 'Ocultar conversas').tap();
+  };
+  await module(screen, 'Cofre');
+  await expect(browser).toHaveURL(/\/app\/vault$/);
+  await browser.back();
+  await expect(browser).toHaveURL(`/app/vault/cases/${record.id}`);
+  await screen.getByRole('button', 'Nova pasta').tap();
+  await screen.getByLabel('Nome da pasta').fill('Pasta da recarga');
+  const refreshed = browser.waitForResponse(/_rsc=/);
+  await screen.getByRole('button', 'Criar pasta').tap();
+  await refreshed;
+  await expect(attachment).toBeVisible();
+  await expectFreshSelected();
+  await input.fill('Resuma o anexo');
+  await screen.getByRole('button', 'Enviar mensagem').tap();
+  await expect.poll(() => sent.length).toBe(1);
+  expect(sent[0]).toMatchObject({ conversationId: fresh!.id });
+  expect(sent[0].attachmentIds).toHaveLength(1);
+  expect(sent[0].message.parts).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'data-attachment', data: expect.objectContaining({ name: 'colaboracao-validacao.txt' }) })]));
+  await expect(screen.getByText('Pedido concluído.')).toBeVisible();
+  await expectFreshSelected();
+  await input.fill('Continue na mesma conversa');
+  await screen.getByRole('button', 'Enviar mensagem').tap();
+  await expect.poll(() => sent.length).toBe(2);
+  expect(sent[1].conversationId).toBe(fresh!.id);
+});
+
 for (const status of [403, 404]) {
   test(`contrato frontend: a conversa restrita por ${status} não reaparece pelo cache`, { session: 'admin', tags: ['frontend-contract'] }, async ({ app, screen, browser }) => {
     const old = { id: `restricted-${status}`, title: `Privada ${status}`, updatedAt: new Date().toISOString() };
