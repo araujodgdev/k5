@@ -14,10 +14,17 @@ const COURT = String.raw`(?:STF|STJ|TST|TSE|STM|TNU|CJF|FONAJE|TJ[A-Z]{2}|TJDFT|
 const LAW = String.raw`(?:Lei(?:\s+Complementar)?|LC|Decreto(?:-Lei)?|Medida\s+Provis[oó]ria|MP|Resolu[çc][ãa]o|Instru[çc][ãa]o\s+Normativa|Emenda\s+Constitucional|EC)`;
 const CODE = String.raw`(?:Constitui[çc][ãa]o(?:\s+Federal)?|CF(?:\/88)?|CRFB(?:\/88)?|CPC|CPP|CLT|CDC|CTN|ECA|LINDB|C[oó]digo\s+(?:Civil|Penal|de\s+Processo\s+Civil|de\s+Processo\s+Penal|de\s+Defesa\s+do\s+Consumidor|Tribut[aá]rio\s+Nacional)|CC(?:\/02)?)`;
 
+const ARTICLE = String.raw`\d+(?:\.\d+)*(?:\s*[ºª°])?`;
+// "1.238 a 1.244", "23 e 24"
+const ARTICLES = String.raw`${ARTICLE}(?:\s+(?:e|a|ao|até|ou)\s+${ARTICLE})*`;
+// Between the article and its code no sentence ends, but "1.244", "inc.", "al." and "par." are not sentence ends.
+const FILLER = String.raw`(?:[^.;:\n()]|(?<=\d)\.(?=\d)|(?<=\b(?:incs?|als?|pars?|ss|n|p|ú))\.){0,90}?`;
+const TAIL = String.raw`(?:${FILLER}\b(?:${CODE}|${LAW}\s*${NUMBER}(?:\/\d{2,4})?))?`;
+
 const patterns: Array<[CitationAnchor, RegExp]> = [
-  // "art. 319, IV, do CPC", "arts. 186 e 927 do Código Civil", "artigo 5º, inciso X, da Constituição"
-  ['article', new RegExp(String.raw`\barts?\.?\s*\d[\d.]*(?:\s*[ºª°])?(?:[^.;:\n()]{0,90}?\b(?:${CODE}|${LAW}\s*${NUMBER}(?:\/\d{2,4})?))?`, 'gi')],
-  ['article', new RegExp(String.raw`\bartigos?\s+\d[\d.]*(?:\s*[ºª°])?(?:[^.;:\n()]{0,90}?\b(?:${CODE}|${LAW}\s*${NUMBER}(?:\/\d{2,4})?))?`, 'gi')],
+  // "art. 319, IV, do CPC", "arts. 1.238 a 1.244 do Código Civil", "artigo 5º, inciso X, da Constituição"
+  ['article', new RegExp(String.raw`\barts?\.?\s*${ARTICLES}${TAIL}`, 'gi')],
+  ['article', new RegExp(String.raw`\bartigos?\s+${ARTICLES}${TAIL}`, 'gi')],
   // "Lei 8.078/1990", "Lei Complementar nº 123/2006", "Decreto-Lei 5.452/43"
   ['norm', new RegExp(String.raw`\b${LAW}\s*${NUMBER}(?:\/\d{2,4})?`, 'gi')],
   // "Súmula 54 do STJ", "Súmula Vinculante 13", "Tema 1.046 do STF", "Enunciado 12 do FONAJE", "OJ 394 da SDI-1"
