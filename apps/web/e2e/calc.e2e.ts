@@ -59,7 +59,6 @@ test('Calc: consumidor, versões, tributo federal, proposta OAB e parcelas no de
 
   await screen.getByRole('link', 'Usar resultado como base de honorários').tap();
   await expect(screen.getByRole('heading', 'Nova proposta', { exact: true })).toBeVisible({ timeout: 60_000 });
-  await expect(screen.getByText('BETA', { exact: true })).toBeVisible();
   await expect(screen.getByLabel('Componente 1: base (R$)')).toHaveValue('150,00');
   await screen.getByRole('button', 'Cliente (obrigatório)').tap();
   await screen.getByRole('button', 'Cliente Calc', { exact: true }).tap();

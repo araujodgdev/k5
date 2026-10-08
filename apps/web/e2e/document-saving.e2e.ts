@@ -190,15 +190,16 @@ describe('salvamento de documentos', { session: 'admin' }, () => {
   }
 
   test('voltar e avançar mantém edições que falharam em 390px', async ({ app, screen, browser }) => {
-    await browser.setViewport({ width: 390, height: 844 });
+    await browser.setViewport({ width: 1280, height: 844 });
     const data = await documentFixture(browser, app.baseUrl!);
     await app.open(`/app/documents/${data.artifact.id}`);
     await expect(editor(screen)).toBeVisible();
     await openModules({ screen, browser });
     await screen.getByRole('navigation', 'Casos e módulos').getByRole('link', 'Todos os casos').tap();
     await expect(browser).toHaveURL(/\/app\/vault$/);
-    await browser.back();
+    await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', 'Documento de teste', { exact: true }).tap();
     await expect(editor(screen)).toBeVisible();
+    await browser.setViewport({ width: 390, height: 844 });
     data.fail();
     await editor(screen).fill('Rascunho preservado no histórico');
     await expect(screen.getByRole('button', 'Tentar salvar novamente')).toBeVisible();

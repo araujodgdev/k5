@@ -44,8 +44,8 @@ for (const width of [1280, 390]) {
       const previousAgentPlan = before.groups.find(group => group.key === 'agent')!.plan;
       if (previousAgentPlan.status === 'unconfigured') expect(agentPlan.status).toBe('unconfigured');
       else expect(agentPlan).toEqual(previousAgentPlan);
-      const group = screen.getByRole('article').filter({ has: screen.getByRole('heading', 'Resumo e texto curto') });
-      await group.getByRole('button', 'Editar').first().tap();
+      await screen.getByRole('button', 'Editar o grupo Resumo e texto curto').first().tap();
+      const group = screen.getByRole('dialog', 'Grupo Resumo e texto curto');
       await group.getByRole('combobox', 'Modelo').tap();
       await screen.getByRole('option', 'Escolher conexão e modelo').tap();
       await group.getByRole('combobox', 'Conexão').tap();
@@ -56,8 +56,9 @@ for (const width of [1280, 390]) {
       await browser.keyboard.press('Enter');
       await expect(group.getByRole('button', 'Salvar')).toBeHidden();
       await browser.reload();
-      await expect(group).toContainText(name);
-      await expect(group).toContainText('gpt-6-luna');
+      const groupRow = screen.getByRole('row').filter({ has: screen.getByRole('button', 'Editar o grupo Resumo e texto curto') }).first();
+      await expect(groupRow).toContainText(name);
+      await expect(groupRow).toContainText('gpt-6-luna');
       expect(await sql('SELECT c.provider,a.model_id FROM ai_model_assignment a JOIN ai_connection c ON c.id=a.connection_id WHERE a.scope=$1 AND a.target=$2', ['group', 'summary'])).toEqual([{ provider: 'cliproxyapi', model_id: 'gpt-6-luna' }]);
       expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
       await app.screenshot(`proxy-selection-${width}`);

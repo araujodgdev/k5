@@ -4,8 +4,8 @@ import type { Screen } from 'e2e';
 type Fixtures = { screen: Screen; browser: Browser };
 
 export async function showCanvas({ screen }: Fixtures) {
-  const open = screen.getByRole('button', 'Abrir o canvas do escritório');
-  if (await open.isVisible()) await open.tap();
+  const collapse = screen.getByRole('button', 'Recolher o Lume', { visible: true });
+  if (await collapse.isVisible()) await collapse.tap();
 }
 
 export async function showLume({ screen }: Fixtures) {
@@ -19,14 +19,14 @@ export async function showLume({ screen }: Fixtures) {
 }
 
 export async function openModules(fixtures: Fixtures) {
-  await showCanvas(fixtures);
   const mobile = await fixtures.browser.evaluate(() => window.innerWidth < 768);
+  if (mobile) await showCanvas(fixtures);
   await fixtures.screen.getByRole('button', mobile ? /^Mais opções/ : 'Casos e módulos', { visible: true }).tap();
 }
 
 export async function openAccount(fixtures: Fixtures) {
-  await showCanvas(fixtures);
   const mobile = await fixtures.browser.evaluate(() => window.innerWidth < 768);
+  if (mobile) await showCanvas(fixtures);
   await fixtures.screen.getByRole('button', mobile ? /^Mais opções/ : /^Conta de /, { visible: true }).tap();
 }
 

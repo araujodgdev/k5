@@ -29,12 +29,13 @@ export function useLumeState() {
 /** Rendered only by loaders that have authorized the resource for the current person. */
 export function CanvasResource({ resource }: { resource: CanvasResource }) {
   const { controller } = useLumeWorkspace();
+  const { href } = useLumeState();
   useLayoutEffect(() => {
     const current = canonicalCanvasHref(window.location.pathname + window.location.search);
-    if (current !== resource.href) return;
-    controller.dispatch({ type: 'destination', href: current, resource });
+    // The previous route's children can briefly return while the next route commits.
+    if (current !== resource.href || href !== resource.href) return;
     controller.dispatch({ type: 'authorized', resource });
     return () => controller.dispatch({ type: 'unavailable', href: resource.href });
-  }, [controller, resource]);
+  }, [controller, href, resource]);
   return null;
 }

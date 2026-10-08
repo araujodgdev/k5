@@ -22,10 +22,11 @@ async function mockAgenda(browser: Browser, tasks: AgendaActivity[]) {
   await browser.route('**/api/agenda/clients/list', route => route.fulfill({ json: { clients: [], total: 0 } }));
   await browser.route('**/api/agenda/proposals/list', route => route.fulfill({ json: { proposals: [] } }));
   await browser.route('**/api/agenda/activities/list', route => {
-    control.lists++;
+    const body = JSON.parse(route.request.postData ?? '{}') as { kind?: string; openOnly?: boolean; status?: string; offset?: number; limit: number };
+    // The greeting also reads one task and one meeting; count the board's paged reads.
+    if (body.limit !== 1) control.lists++;
     if (control.state === 'error') return route.fulfill({ status: 503, json: { error: 'Falha de teste ao carregar tarefas.' } });
-    const body = JSON.parse(route.request.postData ?? '{}') as { openOnly?: boolean; status?: string; offset?: number; limit: number };
-    const filtered = control.state === 'empty' ? [] : tasks.filter(task => (!body.openOnly || ['pending', 'in_progress'].includes(task.status)) && (!body.status || body.status === task.status));
+    const filtered = control.state === 'empty' ? [] : tasks.filter(task => (!body.kind || body.kind === task.kind) && (!body.openOnly || ['pending', 'in_progress'].includes(task.status)) && (!body.status || body.status === task.status));
     return route.fulfill({ json: { activities: filtered.slice(body.offset ?? 0, (body.offset ?? 0) + body.limit), total: filtered.length } });
   });
   await browser.route('**/api/agenda/activities/get', route => {

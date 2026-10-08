@@ -37,7 +37,7 @@ test('cada tarefa do Kanban abre a própria página, que edita título e observa
   await screen.getByRole('region', 'Em andamento').getByRole('link', title).tap();
   await expect(browser).toHaveURL(`/app/agenda/tasks/${id}?from=kanban`);
   const heading = (name: string) => main.getByRole('heading', { name, level: 1 });
-  const notesText = () => browser.locator('section[aria-label="Observações"] p').textContent();
+  const notesText = () => browser.evaluate(() => document.querySelector('section[aria-label="Observações"] p')?.textContent ?? null);
   await expect(heading(title)).toBeVisible();
   await expect(main.getByText('Em andamento', { exact: true })).toBeVisible();
   await expect(main.getByText(created.due, { exact: true })).toBeVisible();
@@ -101,8 +101,8 @@ test('uma reunião e um id inexistente mostram a tarefa indisponível sem revela
   const dialog = screen.getByRole('dialog', 'Nova tarefa');
   await dialog.getByLabel('Título').fill(title);
   await dialog.getByLabel('Tipo').selectOption('Reunião');
-  await dialog.getByRole('button', 'Salvar').tap();
-  await expect(dialog).toHaveCount(0);
+  await screen.getByRole('dialog', 'Nova reunião').getByRole('button', 'Salvar').tap();
+  await expect(screen.getByRole('dialog', 'Nova reunião')).toHaveCount(0);
   const { id } = (await sql<{ id: string }>(`SELECT id FROM agenda_activity WHERE title=$1 AND kind='meeting' AND ${inOffice}`, [title, admin.email]))[0]!;
 
   for (const path of [`/app/agenda/tasks/${id}`, `/app/agenda/tasks/${crypto.randomUUID()}`]) {

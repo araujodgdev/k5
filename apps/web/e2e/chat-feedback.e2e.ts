@@ -38,7 +38,9 @@ for (const width of [1280, 390]) {
     const groups = screen.getByRole('group', 'Confirmação');
     await expect(groups).toHaveCount(2);
     const activity = screen.getByRole('region', 'Plano do Lume');
-    await expect(activity.getByText('primeiro resultado · segundo resultado', { exact: true })).toBeVisible();
+    const researchStep = activity.getByRole('listitem').filter({ hasText: 'primeiro resultado · segundo resultado' });
+    await expect(researchStep).toHaveCount(1);
+    await expect(researchStep).toBeVisible();
     await expect(activity.getByText('Pesquisou na web', { exact: true })).toBeVisible();
     expect(await browser.evaluate(() => {
       const activity=document.querySelector('[aria-label="Plano do Lume"]');
