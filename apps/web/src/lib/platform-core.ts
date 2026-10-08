@@ -81,7 +81,13 @@ export async function readPlatformJson<T>(request: Request, schema: z.ZodType<T>
 
 // Never logs error messages or objects: SDK and database errors can carry request data or credentials.
 export function platformErrorResponse(error: unknown) {
-  if (error instanceof PlatformRequestError) return Response.json({ error: error.message }, { status: error.status });
+  if (error instanceof PlatformRequestError) {
+    if (error.status >= 500) {
+      captureOperationalError(error, 'platform.api.operational');
+      return Response.json({ error: 'Não foi possível concluir a operação.' }, { status: error.status });
+    }
+    return Response.json({ error: error.message }, { status: error.status });
+  }
   if (error instanceof AiConnectionError) {
     if (error.code === 'provider' || error.code === 'credential') captureOperationalError(error, `platform.ai.${error.code}`);
     const status = { not_found: 404, conflict: 409, in_use: 409, disabled: 409, provider: 422, credential: 503, invalid: 400, unavailable: 409, task_disabled: 409 }[error.code];

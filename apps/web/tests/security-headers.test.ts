@@ -34,3 +34,16 @@ test('security headers: immutable responses such as redirects are copied, not le
   assert.equal(response.headers.get('location'), 'https://lume.software/sign-in');
   assert.equal(response.headers.get('x-frame-options'), 'SAMEORIGIN');
 });
+
+test('private API data overrides public cache directives on both mutable and immutable responses', async () => {
+  const request = new Request('https://lume.software/api/profile');
+  const response = withSecurityHeaders(new Response('private profile', { headers: { 'Cache-Control': 'public, max-age=3600' } }), request);
+  assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+  assert.equal(response.headers.get('CDN-Cache-Control'), 'no-store');
+  assert.equal(response.headers.get('Cloudflare-CDN-Cache-Control'), 'no-store');
+  assert.equal(await response.text(), 'private profile');
+  const redirect = withSecurityHeaders(Response.redirect('https://lume.software/sign-in'), request);
+  assert.equal(redirect.headers.get('Cache-Control'), 'private, no-store');
+  const asset = withSecurityHeaders(new Response(null, { headers: { 'Cache-Control': 'public, max-age=3600' } }), new Request('https://lume.software/tutorial/video.mp4'));
+  assert.equal(asset.headers.get('Cache-Control'), 'public, max-age=3600');
+});

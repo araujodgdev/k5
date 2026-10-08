@@ -57,6 +57,9 @@ as migrações explicitamente; não use o gerador local de segredos.
   o proxy de produção, defina os proxies/cabeçalhos de IP confiáveis antes de escalar.
   Na Cloudflare usa-se `cf-connecting-ip`; fora dela, `K5_CLIENT_IP_HEADER` nomeia o
   cabeçalho que o seu proxy sobrescreve.
+- Produção aceita somente a origem HTTPS de `BETTER_AUTH_URL`; origens adicionais e
+  túneis são restritos ao desenvolvimento. Falhas de login geram `auth.login_failed`
+  sem senha, e-mail, cookie ou IP cru. Veja [segurança e backups](../../docs/security-hardening-2026-10-08.md).
 
 ## Escritórios e colaboração
 

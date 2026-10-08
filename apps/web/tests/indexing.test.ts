@@ -113,7 +113,7 @@ test("indexing: a job that exhausted its attempts while running reaches a termin
 
 test("uploads: a destination the server rejects does not cost the person their upload", async () => {
   const { context } = (await seedOffice());
-  const file = new File([Buffer.from("conteudo")], "peticao.pdf", { type: "application/pdf" });
+  const file = new File([Buffer.from("%PDF-1.7\nconteudo")], "peticao.pdf", { type: "application/pdf" });
   const upload = await uploadsService.createUploadRef(context, file);
 
   // A case id that does not exist: ingestion fails after the reference was already claimed.

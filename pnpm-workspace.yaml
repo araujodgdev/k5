@@ -32,3 +32,10 @@ minimumReleaseAgeExclude:
   - '@formepdf/core@0.27.0'
   - '@formepdf/react@0.27.0'
   - '@formepdf/shared@0.27.0'
+
+# Security fixes for transitives whose parent packages still pin vulnerable versions.
+overrides:
+  'uuid@<11.1.1': 11.1.1
+  'basic-ftp@<6.2.1': 6.2.2
+  'fflate@<0.7.5': 0.8.3
+  'sharp@<0.35.5': 0.35.5

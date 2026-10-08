@@ -19,7 +19,7 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
 
 const FRAME_ANCESTORS = "frame-ancestors 'self'";
 
-export function withSecurityHeaders(response: Response): Response {
+export function withSecurityHeaders(response: Response, request?: Request): Response {
   // An upgrade cannot be rebuilt, and its headers are not a document's.
   if (response.status === 101) return response;
   let secured = response;
@@ -34,6 +34,12 @@ export function withSecurityHeaders(response: Response): Response {
   if (!policy?.includes('frame-ancestors')) {
     if (policy) secured.headers.append('Content-Security-Policy', FRAME_ANCESTORS);
     else secured.headers.set('Content-Security-Policy', FRAME_ANCESTORS);
+  }
+  // API responses can contain private data even when an individual route forgot cache headers.
+  if (request && new URL(request.url).pathname.startsWith('/api/')) {
+    secured.headers.set('Cache-Control', 'private, no-store');
+    secured.headers.set('CDN-Cache-Control', 'no-store');
+    secured.headers.set('Cloudflare-CDN-Cache-Control', 'no-store');
   }
   return secured;
 }

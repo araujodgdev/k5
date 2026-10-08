@@ -1,0 +1,36 @@
+# Reviewed Gitleaks findings from the local reachable Git history on 2026-10-08.
+# Fingerprints include commit, file, rule and line; new findings are not exempted.
+# Public, throwaway CI encryption fixture; never used by the deployed app.
+7a8f494502684a0420c31d6c129d8f7d7945c35e:.github/workflows/deploy.yml:generic-api-key:44
+# Public, throwaway CI encryption fixture; never used by the deployed app.
+a54922a1ed494031472a564d11f2c760595b8a54:.github/workflows/ci.yml:generic-api-key:69
+# Public, throwaway CI encryption fixture; never used by the deployed app.
+a54922a1ed494031472a564d11f2c760595b8a54:.github/workflows/ci.yml:generic-api-key:166
+# Public, throwaway CI encryption fixture; never used by the deployed app.
+e90188d677d856b54d9019e2996cb3be617ff14a:.github/workflows/ci.yml:generic-api-key:74
+# Public court import metadata / partition identifiers, not credentials.
+20cd5a6eabc222ba06b45ac427cfe84ded594d7a:output/jurisprudencia/shared/baseline-continuacao-02.json:generic-api-key:28
+# Public court import metadata / partition identifiers, not credentials.
+20cd5a6eabc222ba06b45ac427cfe84ded594d7a:output/jurisprudencia/shared/transfers/364c8de8d7666b9fe4c3ba1aa7b7bfb8c9a73a734371bdab5a772f6e93b3b190.json.verified:generic-api-key:1
+# Public court import metadata / partition identifiers, not credentials.
+20cd5a6eabc222ba06b45ac427cfe84ded594d7a:output/jurisprudencia/shared/transfers/364c8de8d7666b9fe4c3ba1aa7b7bfb8c9a73a734371bdab5a772f6e93b3b190.json:generic-api-key:1
+# Public court import metadata / partition identifiers, not credentials.
+20cd5a6eabc222ba06b45ac427cfe84ded594d7a:output/jurisprudencia/tst/continuacao-02/import-manifest.json:generic-api-key:189
+# Public court import metadata / partition identifiers, not credentials.
+20cd5a6eabc222ba06b45ac427cfe84ded594d7a:output/jurisprudencia/tst/continuacao-02/transfers/cc335adef8d6ffbe1995c279e8444cc9c5bb52639e5afd260ef8ca415e171117.json.verified:generic-api-key:1
+# Public court import metadata / partition identifiers, not credentials.
+20cd5a6eabc222ba06b45ac427cfe84ded594d7a:output/jurisprudencia/tst/import-manifest.json:generic-api-key:116
+# Public court import metadata / partition identifiers, not credentials.
+20cd5a6eabc222ba06b45ac427cfe84ded594d7a:output/jurisprudencia/tst/continuacao-02/transfers/cc335adef8d6ffbe1995c279e8444cc9c5bb52639e5afd260ef8ca415e171117.json:generic-api-key:1
+# Published AbacatePay webhook signing constant, not our private webhook secret.
+14cc769d7cce55b33862c18ae7809ecbeb9e69bb:apps/web/src/lib/billing/abacatepay.ts:generic-api-key:16
+# Prose about OAuth arguments/results; no credential value.
+184bf0bfe16381c818581b9413247fd36d56b333:docs/integracao-google.md:generic-api-key:202
+# Public, throwaway CI encryption fixture; never used by the deployed app.
+74e7e7833a995244ce7a0964a16902d2d49febbf:.github/workflows/ci.yml:generic-api-key:55
+# Public, throwaway CI encryption fixture; never used by the deployed app.
+0c64532ff2cfa2919b87cbc3f299cf1850667965:.github/workflows/ci.yml:generic-api-key:55
+# Browser storage key name, not an API credential.
+e1800f1e946c7fc5f928c1816e1c6073264ec663:apps/web/src/lib/nav-collapse.ts:generic-api-key:1
+# Public, throwaway CI encryption fixture; never used by the deployed app.
+709c3b0a3280f0ccf378cb41c9274a62b3c045fa:.github/workflows/ci.yml:generic-api-key:42

@@ -11,6 +11,8 @@
  * `https://a.b.example.com` nor `https://evil-example.com`.
  */
 
+import { authOrigins } from './auth-origins';
+
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 function matchesPattern(pattern: string, candidate: URL): boolean {
@@ -37,10 +39,7 @@ function matchesPattern(pattern: string, candidate: URL): boolean {
 
 /** The configured list: the canonical URL of the app plus any extra origins. */
 export function trustedOriginPatterns(): string[] {
-  return [
-    process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-    ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? []),
-  ].map((value) => value.trim()).filter(Boolean);
+  return authOrigins().trustedOrigins;
 }
 
 export function isTrustedOrigin(origin: string | null | undefined, patterns: readonly string[] = trustedOriginPatterns()): boolean {

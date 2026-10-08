@@ -75,6 +75,9 @@ O staging hospedado usa bindings privados nos Containers, sem credenciais S3 loc
 
 Alertas, monitores de filas, jornadas sintéticas e encerramento de incidentes estão no [runbook de observabilidade](docs/observability-runbook.md). A [avaliação de prontidão](docs/observability-readiness-2026-09-29.md) registra cobertura, evidências e limites conhecidos.
 
+Controles de segurança, verificações, pendências de produção e ativação de backups diários
+estão em [segurança do Lume](docs/security-hardening-2026-10-08.md).
+
 O preview HTTP isolado para o refactor é publicado com `pnpm preview:deploy --name refactor`.
 Recursos, configuração privada e escopo estão em [docs/previews.md](docs/previews.md).
 

@@ -4,6 +4,7 @@ import { serverOptions } from '../lib/observability/options';
 import { withPostgres } from '../lib/database';
 import { createPostgresPool } from '../lib/db/postgres';
 import { closePoolWithResponse } from '../lib/db/request';
+import { withSecurityHeaders } from '../lib/security-headers';
 
 // HTTP only: no processor classes, scheduled handler, queue consumer or service binding.
 export * from 'vinext/server/fetch-handler';
@@ -13,7 +14,7 @@ export default withSentry<PreviewEnv>(env => serverOptions('web-preview', env), 
     return withPostgres(pool, async () => {
       try {
         const response = await handler.fetch(request, env, ctx);
-        return closePoolWithResponse(response, pool, promise => ctx.waitUntil(promise));
+        return withSecurityHeaders(closePoolWithResponse(response, pool, promise => ctx.waitUntil(promise)), request);
       } catch (error) { await pool.end(); throw error; }
     });
   },

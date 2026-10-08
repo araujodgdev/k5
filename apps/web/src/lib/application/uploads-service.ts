@@ -6,6 +6,7 @@ import { CapabilityError } from '@/lib/capabilities/errors';
 import { objectStorage, storageKey } from '@/lib/storage';
 import type { WorkspaceContext } from './context';
 import { MAX_UPLOAD_BYTES, UPLOAD_SIZE_ERROR } from '@/lib/vault-upload-contract';
+import { uploadMatchesType } from '@/lib/upload-signature';
 
 export { MAX_UPLOAD_BYTES } from '@/lib/vault-upload-contract';
 
@@ -55,6 +56,8 @@ export async function createUploadRef(context: WorkspaceContext, file: File): Pr
   const { file: name, extension, mimeType } = validatedFileName(file.name);
   if (file.size <= 0) throw new CapabilityError('INVALID', 'O arquivo está vazio.');
   if (file.size > MAX_UPLOAD_BYTES) throw new CapabilityError('INVALID', UPLOAD_SIZE_ERROR);
+  if (!uploadMatchesType(Buffer.from(await file.slice(0, 1024).arrayBuffer()), mimeType))
+    throw new CapabilityError('INVALID', 'O conteúdo do arquivo não corresponde ao formato informado.');
 
   const hash = createHash('sha256');
   const reader = file.stream().getReader();

@@ -28,7 +28,10 @@ export async function apiWorkspace(request: Request, write = false) {
 export function apiError(error: unknown) {
   if (error instanceof CapabilityError) return Response.json({ error: error.message, code: error.code }, { status: statusForCapabilityError(error) });
   if (error instanceof ApiError || error instanceof VaultHttpError) {
-    if (error.status >= 500) captureOperationalError(error, 'api.operational');
+    if (error.status >= 500) {
+      captureOperationalError(error, 'api.operational');
+      return Response.json({ error: 'Não foi possível concluir a operação. Tente novamente em instantes.' }, { status: error.status });
+    }
     return Response.json({ error: error.message }, { status: error.status });
   }
   if (error instanceof AiConnectionError) {
@@ -43,7 +46,13 @@ export function apiError(error: unknown) {
     captureOperationalError(error, 'ai.credentials');
     return Response.json({ error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.' }, { status: 503 });
   }
-  if (error instanceof NotificationRequestError) return Response.json({ error: error.message }, { status: error.status });
+  if (error instanceof NotificationRequestError) {
+    if (error.status >= 500) {
+      captureOperationalError(error, 'api.notifications');
+      return Response.json({ error: 'Não foi possível concluir a operação. Tente novamente em instantes.' }, { status: error.status });
+    }
+    return Response.json({ error: error.message }, { status: error.status });
+  }
   // Custom issues carry messages written for the person (pt-BR); built-in Zod messages do not.
   if (error instanceof ZodError && error.issues[0]?.code === 'custom') return Response.json({ error: error.issues[0].message }, { status: 400 });
   if (error instanceof ZodError || error instanceof SyntaxError) return Response.json({ error: 'Confira os dados enviados.' }, { status: 400 });
