@@ -51,11 +51,8 @@ export async function listCases(context: WorkspaceContext): Promise<CapabilityOu
 }
 
 export async function createCase(context: WorkspaceContext, input: CapabilityInput<'k5_vault_create_case'>): Promise<CapabilityOutput<'k5_vault_create_case'>> {
-
-  const existing = (await listVaultCases(context.officeId, context.userId)).find((item) => item.name.toLowerCase() === input.name.toLowerCase());
-  if (existing) return { case: existing, created: false };
   try {
-    return { case: await createVaultCase(context.officeId, context.userId, input.name, { description: input.description, client: input.client }, context), created: true };
+    return await createVaultCase(context.officeId, context.userId, input.name, { description: input.description, client: input.client }, context);
   } catch (error) { throw asCapabilityError(error); }
 }
 

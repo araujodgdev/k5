@@ -280,6 +280,37 @@ test("idempotency: a reused key with different arguments conflicts instead of re
   assert.equal((await withIdempotency(admin, "k5_vault_create_case", key, { name: "Gama" }, run, async () => ({ format: 2, payloadDigest: 'test-only', contentIdentities: [], identities: [], policies: [] }), async result => result)).calls, 2);
 });
 
+test("concurrency: simultaneous creations with the same name resolve to one case", async () => {
+  const { lawyer, officeA } = (await seedOffices());
+
+  const results = await Promise.all(Array.from({ length: 12 }, () => vaultService.createCase(lawyer, { name: "Caso Único" })));
+
+  assert.equal(new Set(results.map((result) => result.case.id)).size, 1, "every caller gets the same case back");
+  assert.equal(results.filter((result) => result.created).length, 1, "exactly one caller created it");
+  const rows = (await testDb.prepare("SELECT count(*) AS n FROM vault_case WHERE office_id=? AND deleted_at IS NULL AND lower(name)=lower(?)").get(officeA, "Caso Único")) as { n: number };
+  assert.equal(Number(rows.n), 1, "and the office holds a single row with that name");
+});
+
+test("concurrency: simultaneous calls with the same idempotencyKey run the write once", async () => {
+  const { lawyer, officeA } = (await seedOffices());
+
+  let executions = 0;
+  const key = `key-${randomUUID()}`;
+  const binding = async () => ({ format: 2 as const, payloadDigest: 'test-only', contentIdentities: [], identities: [], policies: [] });
+  const slowCreate = async () => {
+    executions += 1;
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    return vaultService.createCase(lawyer, { name: "Alfa" });
+  };
+  const results = await Promise.all(Array.from({ length: 6 }, () =>
+    withIdempotency(lawyer, "k5_vault_create_case", key, { name: "Alfa" }, slowCreate, binding, async (result) => result)));
+
+  assert.equal(executions, 1, "only the caller that claimed the key runs the write");
+  assert.equal(new Set(results.map((result) => result.case.id)).size, 1, "the others replay its response");
+  const rows = (await testDb.prepare("SELECT count(*) AS n FROM vault_case WHERE office_id=? AND deleted_at IS NULL").get(officeA)) as { n: number };
+  assert.equal(Number(rows.n), 1, "one row reaches the database");
+});
+
 test("approval: a nested argument change invalidates the approval", async () => {
   const { lawyer } = (await seedOffices());
 

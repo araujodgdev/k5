@@ -148,11 +148,16 @@ function cleanText(value: unknown, max: number, label: string): string | null {
   return text;
 }
 
-export async function createVaultCase(officeId: string, userId: string, name: string, details: CaseDetails = {}, context: WorkspaceContext = { officeId, userId: userId }) {
+export async function createVaultCase(officeId: string, userId: string, name: string, details: CaseDetails = {}, context: WorkspaceContext = { officeId, userId: userId }): Promise<{ case: VaultCase; created: boolean }> {
   return aclTransaction(async tx => {
     await assertCapabilityAllowed(context, 'k5_vault_create_case', tx);
   const clean = name.trim();
   if (clean.length < 2 || clean.length > 180) throw new VaultHttpError(400, "Informe um nome de caso entre 2 e 180 caracteres.");
+  // The name lookup stays inside the ACL lock that serializes every insert, so simultaneous creations cannot all miss it.
+  const select = caseSelect(userId);
+  const existing = await tx.prepare(`${select.sql} WHERE k.office_id = ? AND k.deleted_at IS NULL AND lower(k.name) = lower(?) ORDER BY k.updated_at DESC, k.created_at DESC LIMIT 1`)
+    .get(...select.values, officeId, clean) as Record<string, unknown> | undefined;
+  if (existing) return { case: mapCase(existing), created: false };
   const id = randomUUID();
   const client = details.client ?? {};
   await tx.prepare(`INSERT INTO vault_case (id, office_id, name, description, client_name, client_document, client_email, client_phone, client_notes, created_by)
@@ -160,7 +165,7 @@ export async function createVaultCase(officeId: string, userId: string, name: st
     .run(id, officeId, clean, cleanText(details.description, 4000, "A descrição"), cleanText(client.name, 180, "O nome do cliente"),
       cleanText(client.document, 40, "O documento do cliente"), cleanText(client.email, 200, "O e-mail do cliente"),
       cleanText(client.phone, 40, "O telefone do cliente"), cleanText(client.notes, 4000, "As observações"), userId);
-  return (await findVaultCase(officeId, id, userId, tx))!;
+  return { case: (await findVaultCase(officeId, id, userId, tx))!, created: true };
   });
 }
 
