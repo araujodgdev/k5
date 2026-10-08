@@ -61,7 +61,11 @@ const outsideBoard = () => {
   const board = document.querySelector('[aria-label="Quadro de tarefas"]')!.getBoundingClientRect();
   return { x: Math.round(board.x + board.width / 2), y: Math.round(board.y - 30) };
 };
-const ruled = (title: string) => getComputedStyle(document.querySelector(`section[aria-label="${title}"]`)!).boxShadow !== 'none';
+const highlighted = (title: string) => {
+  const column = document.querySelector(`section[aria-label="${title}"]`)!;
+  const siblings = [...column.parentElement!.querySelectorAll('section[aria-label]')].filter(node => node !== column);
+  return siblings.every(node => getComputedStyle(node).backgroundColor !== getComputedStyle(column).backgroundColor);
+};
 const gripMetrics = (label: string) => {
   const grip = document.querySelector(`[aria-label="${label}"]`)!;
   const rect = grip.getBoundingClientRect();
@@ -98,7 +102,7 @@ test('o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e
 
   await app.open('/app/agenda');
   await expect(screen.getByText('Carregando…')).toBeHidden();
-  const kanban = screen.getByRole('button', 'Kanban');
+  const kanban = screen.getByRole('button', 'Ver em quadro');
   await kanban.focus();
   await browser.keyboard.press('Enter');
   const cards = screen.getByLabel('Quadro de tarefas').getByRole('article');
@@ -117,7 +121,7 @@ test('o quadro de tarefas mostra 53 tarefas, move pelo teclado, delega ao Lume e
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
   await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre A fazer.');
   await browser.keyboard.press('ArrowRight');
-  await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
+  await expect.poll(() => browser.evaluate(highlighted, 'Em andamento')).toBe(true);
   await browser.keyboard.press('Space');
   await expect(inProgress).toContainText('Revisar contrato 1');
   await expect(grip).toBeFocused();
@@ -156,20 +160,20 @@ test('arrastar com o mouse move a tarefa de coluna; fora do quadro, na mesma col
   const loaded = board.lists;
 
   await carry(browser, 'Revisar contrato 1', await browser.evaluate(outsideBoard));
-  await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(false);
+  await expect.poll(() => browser.evaluate(highlighted, 'Em andamento')).toBe(false);
   await browser.mouse.up();
   await expect(todo).toContainText('Revisar contrato 1');
 
   await carry(browser, 'Revisar contrato 1', 'A fazer');
-  await expect.poll(() => browser.evaluate(ruled, 'A fazer')).toBe(false);
+  await expect.poll(() => browser.evaluate(highlighted, 'A fazer')).toBe(false);
   await browser.mouse.up();
   await expect(todo).toContainText('Revisar contrato 1');
 
   await carry(browser, 'Revisar contrato 1', 'Concluídas');
-  await expect.poll(() => browser.evaluate(ruled, 'Concluídas')).toBe(true);
+  await expect.poll(() => browser.evaluate(highlighted, 'Concluídas')).toBe(true);
   await browser.keyboard.press('Escape');
   await browser.mouse.up();
-  await expect.poll(() => browser.evaluate(ruled, 'Concluídas')).toBe(false);
+  await expect.poll(() => browser.evaluate(highlighted, 'Concluídas')).toBe(false);
   await expect(todo).toContainText('Revisar contrato 1');
   expect(board.updates).toEqual([]);
 
@@ -222,7 +226,7 @@ test('uma falha devolve só aquele cartão e a nova tentativa usa a versão atua
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
   await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre A fazer.');
   await browser.keyboard.press('ArrowRight');
-  await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
+  await expect.poll(() => browser.evaluate(highlighted, 'Em andamento')).toBe(true);
   await browser.keyboard.press('Space');
   await expect(alert).toContainText('Não foi possível mover “Revisar contrato 1” para Em andamento. Este registro mudou.');
   await expect(screen.getByRole('region', 'A fazer')).toContainText('Revisar contrato 1');
@@ -256,9 +260,9 @@ test('movimentos seguidos usam a versão devolvida e o teclado anda coluna a col
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
   await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre Concluídas.');
   await browser.keyboard.press('ArrowLeft');
-  await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
+  await expect.poll(() => browser.evaluate(highlighted, 'Em andamento')).toBe(true);
   await browser.keyboard.press('ArrowLeft');
-  await expect.poll(() => browser.evaluate(ruled, 'A fazer')).toBe(true);
+  await expect.poll(() => browser.evaluate(highlighted, 'A fazer')).toBe(true);
   await browser.keyboard.press('Enter');
   await expect(screen.getByRole('region', 'A fazer')).toContainText('Revisar contrato 1');
   await expect(grip).toBeFocused();
@@ -274,9 +278,9 @@ test('movimentos seguidos usam a versão devolvida e o teclado anda coluna a col
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
   await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre A fazer.');
   await browser.keyboard.press('ArrowRight');
-  await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
+  await expect.poll(() => browser.evaluate(highlighted, 'Em andamento')).toBe(true);
   await browser.keyboard.press('Escape');
-  await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(false);
+  await expect.poll(() => browser.evaluate(highlighted, 'Em andamento')).toBe(false);
   await expect(screen.getByRole('region', 'A fazer')).toContainText('Revisar contrato 1');
   await expect(grip).toBeFocused();
   expect(board.updates).toHaveLength(3);
@@ -296,7 +300,7 @@ test('no celular o arrasto fica no quadro e o teclado leva a tarefa de coluna em
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
   await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre A fazer.');
   await browser.keyboard.press('ArrowRight');
-  await expect.poll(() => browser.evaluate(ruled, 'Em andamento')).toBe(true);
+  await expect.poll(() => browser.evaluate(highlighted, 'Em andamento')).toBe(true);
   await browser.keyboard.press('Enter');
   const moved = screen.getByRole('region', 'Em andamento').getByRole('article').filter({ hasText: 'Revisar contrato 1' });
   await expect(moved).toHaveAttribute('aria-busy', 'false');
@@ -306,9 +310,9 @@ test('no celular o arrasto fica no quadro e o teclado leva a tarefa de coluna em
   await expect(grip).toHaveAttribute('aria-pressed', 'true');
   await expect(screen.getByRole('status')).toContainText('“Revisar contrato 1” está sobre Em andamento.');
   await browser.keyboard.press('ArrowRight');
-  await expect.poll(() => browser.evaluate(ruled, 'Concluídas')).toBe(true);
+  await expect.poll(() => browser.evaluate(highlighted, 'Concluídas')).toBe(true);
   await browser.keyboard.press('ArrowRight');
-  await expect.poll(() => browser.evaluate(ruled, 'Canceladas')).toBe(true);
+  await expect.poll(() => browser.evaluate(highlighted, 'Canceladas')).toBe(true);
   await browser.keyboard.press('Enter');
   await expect(screen.getByRole('region', 'Canceladas')).toContainText('Revisar contrato 1');
   await expect(grip).toBeFocused();

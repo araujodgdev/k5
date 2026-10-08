@@ -402,7 +402,7 @@ Output: { ok, features: [{ id, title, recipe, tests }] }`,
   drive: `drive <feature-id> [--video]
 Run the feature's e2e tests (apps/web/e2e/*.e2e.ts) against the ready instance, signed in as its
 account, with a trace for every test. The report, summary.md, screenshots and traces go to
-<evidenceDir>/<feature-id>/. Agent tests (e2e/agent/) need OPENAI_API_KEY in your environment.
+<evidenceDir>/<feature-id>/. Client and case tests in e2e/agent/ use direct UI actions without a model key.
   --video     also record a WebM per test (listed in artifacts) for a demo or review
 Output: { ok, passed, tests: [{ title, status, error?, artifacts }], summary, evidenceDir }; on failure, error.details.failure has the runner's last lines.
 Example: ${CLI} drive office-tasks`,

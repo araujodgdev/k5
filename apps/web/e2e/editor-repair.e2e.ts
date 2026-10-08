@@ -1,3 +1,4 @@
+import { openModules } from './support/shell';
 import type { Browser } from '@e2e-dev/web';
 import { expect } from 'e2e';
 import { test, overflowsHorizontally } from './support/fixtures';
@@ -161,8 +162,7 @@ for (const operation of ['save', 'versions', 'restore', 'export', 'read'] as con
     await app.open(fixture.href);
     const editor = screen.getByRole('textbox', 'Texto do documento');
     await expect(editor).toContainText('Conteúdo da versão dois.');
-    const tabs = screen.getByRole('navigation', 'Abas do canvas');
-    await expect(tabs.getByRole('button', fixture.document.title, { exact: true })).toBeVisible();
+    await expect(browser.locator(`nav[aria-label="Abas do canvas"] a[title="${fixture.document.title}"]`)).toBeAttached();
     if (operation === 'restore') {
       await screen.getByRole('button', 'Versões').tap();
       await expect(screen.getByRole('button', 'Restaurar').first()).toBeVisible();
@@ -181,11 +181,12 @@ for (const operation of ['save', 'versions', 'restore', 'export', 'read'] as con
     if (operation === 'read') await screen.getByRole('button', 'Manter a minha').tap();
     await expect(screen.getByText('Este recurso não está mais disponível. Abra outro destino no canvas.')).toBeVisible({ timeout: operation === 'export' ? 60_000 : 10_000 });
     await expect(editor).toHaveCount(0);
-    await expect(tabs.getByRole('button', fixture.document.title, { exact: true })).toHaveCount(0);
+    await expect(browser.locator(`nav[aria-label="Abas do canvas"] a[title="${fixture.document.title}"]`)).toHaveCount(0);
     await expect(screen.getByLabel('Contexto da próxima mensagem')).toHaveText('Carregando contexto do canvas…');
     expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
     await app.screenshot(`acesso-removido-${operation}`);
-    await tabs.getByRole('button', 'Início', { exact: true }).tap();
+    await openModules({ screen, browser });
+    await screen.getByRole('navigation', 'Casos e módulos').getByRole('link', 'Início', { exact: true }).tap();
     await expect(browser).toHaveURL('/app/command-center');
     await expect(screen.getByRole('heading', 'Hoje', { level: 2, exact: true })).toBeVisible();
     await expect(screen.getByText('Não foi possível salvar o documento. Suas alterações continuam no editor.')).toHaveCount(0);
@@ -209,11 +210,11 @@ test('uma resposta de save real pendente não ressuscita a página invalidada pe
   await fixture.revoke();
   await screen.getByRole('button', 'Versões').tap();
   await expect(editor).toHaveCount(0);
-  await screen.getByRole('navigation', 'Abas do canvas').getByRole('button', 'Início', { exact: true }).tap();
+  await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', 'Início', { exact: true }).tap();
   await expect(browser).toHaveURL('/app/command-center');
   await releaseResponse(browser);
   await expect(screen.getByRole('heading', 'Hoje', { level: 2, exact: true })).toBeVisible();
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('button', fixture.document.title, { exact: true })).toHaveCount(0);
+  await expect(browser.locator(`nav[aria-label="Abas do canvas"] a[title="${fixture.document.title}"]`)).toHaveCount(0);
 });
 
 test('navegação que aguarda save negado segue após a invalidação', async ({ app, screen, browser }) => {
@@ -226,11 +227,11 @@ test('navegação que aguarda save negado segue após a invalidação', async ({
   await fixture.revoke();
   await editor.fill('Texto local cuja gravação será negada.');
   await expect.poll(() => delayedStatus(browser)).toBe(404);
-  await screen.getByRole('navigation', 'Abas do canvas').getByRole('button', 'Início', { exact: true }).tap();
+  await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', 'Início', { exact: true }).tap();
   await releaseResponse(browser);
   await expect(browser).toHaveURL('/app/command-center');
   await expect(screen.getByRole('heading', 'Hoje', { level: 2, exact: true })).toBeVisible();
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('button', fixture.document.title, { exact: true })).toHaveCount(0);
+  await expect(browser.locator(`nav[aria-label="Abas do canvas"] a[title="${fixture.document.title}"]`)).toHaveCount(0);
   await expect(screen.getByText('Não foi possível salvar o documento. Suas alterações continuam no editor.')).toHaveCount(0);
 });
 
@@ -243,8 +244,8 @@ test('revogação libera uma saída já aguardando save sem esperar a resposta a
   await delayResponse(browser, fixture.api, 'PUT');
   await editor.fill('Gravação real antes da revogação.');
   await expect.poll(() => delayedStatus(browser)).toBe(200);
-  await screen.getByRole('button', 'Abrir módulos').tap();
-  await screen.getByRole('navigation', 'Módulos').getByRole('button', 'Início', { exact: true }).tap();
+  await openModules({ screen, browser });
+  await screen.getByRole('navigation', 'Casos e módulos').getByRole('link', 'Início', { exact: true }).tap();
   await expect(browser).toHaveURL(fixture.href);
   await fixture.revoke();
   await screen.getByRole('button', 'Versões').tap();
@@ -253,7 +254,7 @@ test('revogação libera uma saída já aguardando save sem esperar a resposta a
   expect(await delayedStatus(browser)).toBe(200);
   await releaseResponse(browser);
   await expect(editor).toHaveCount(0);
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('button', fixture.document.title, { exact: true })).toHaveCount(0);
+  await expect(browser.locator(`nav[aria-label="Abas do canvas"] a[title="${fixture.document.title}"]`)).toHaveCount(0);
   expect(await sql('SELECT content FROM case_page WHERE id=$1', [fixture.document.id])).toEqual([{ content: 'Gravação real antes da revogação.' }]);
 });
 
@@ -267,7 +268,7 @@ test('falha transitória compartilhada preserva rascunho e permite retry real', 
     await browser.route(`**${fixture.api}`, route => route.request.method !== 'PUT' ? route.continue() : failure === 'network' ? route.abort() : route.fulfill({ status: 503, json: { error: 'Falha transitória de teste.' } }));
     await editor.fill(`Rascunho durante indisponibilidade temporária ${failure}.`);
     await expect(screen.getByRole('button', 'Tentar salvar novamente')).toBeVisible();
-    await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('button', fixture.document.title, { exact: true })).toBeVisible();
+    await expect(browser.locator(`nav[aria-label="Abas do canvas"] a[title="${fixture.document.title}"]`)).toBeVisible();
     await expect(editor).toContainText(`Rascunho durante indisponibilidade temporária ${failure}.`);
     await browser.unroute(`**${fixture.api}`);
     await screen.getByRole('button', 'Tentar salvar novamente').tap();

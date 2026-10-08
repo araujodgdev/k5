@@ -98,21 +98,8 @@ jobs:
         # Its own step, so the download stays out of the runner's launch timeout.
         run: pnpm --filter @k5/web exec playwright install --with-deps chromium
 
-      - name: Restore agent replay cache
-        # Verified agent steps replay without model calls; a run only records what it re-verified.
-        uses: actions/cache@v4
-        with:
-          path: apps/web/.e2e/cache
-          key: e2e-replay-${{ github.run_id }}
-          restore-keys: e2e-replay-
-
       - name: Run e2e
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          # Agent tests need the model key; forks and repositories without the secret skip them.
-          filter=$([ -n "$OPENAI_API_KEY" ] || echo "--exclude-tag agent")
-          pnpm --filter @k5/web exec e2e run --workers 4 --reporter list,junit,markdown $filter
+        run: pnpm --filter @k5/web exec e2e run --workers 4 --reporter list,junit,markdown
 
       - name: Publish e2e summary
         if: ${{ !cancelled() }}

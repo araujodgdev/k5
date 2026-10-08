@@ -37,13 +37,13 @@ for (const width of [1280, 390]) {
     await openChat();
     const groups = screen.getByRole('group', 'Confirmação');
     await expect(groups).toHaveCount(2);
-    const activity = screen.getByLabel('Atividade do Lume');
-    await expect(activity.getByText('Pesquisou na web: primeiro resultado', { exact: false })).toBeVisible();
-    await expect(activity.getByText('Pesquisou na web: segundo resultado', { exact: false })).toBeVisible();
+    const activity = screen.getByRole('region', 'Plano do Lume');
+    await expect(activity.getByText('primeiro resultado · segundo resultado', { exact: true })).toBeVisible();
+    await expect(activity.getByText('Pesquisou na web', { exact: true })).toBeVisible();
     expect(await browser.evaluate(() => {
-      const activity=document.querySelector('[aria-label="Atividade do Lume"]');
+      const activity=document.querySelector('[aria-label="Plano do Lume"]');
       const message = activity?.parentElement?.textContent ?? '';
-      const research = message.indexOf('Pesquisou na web: segundo resultado');
+      const research = message.indexOf('segundo resultado');
       return research >= 0 && research < message.indexOf('Fundamento consultado.');
     })).toBe(true);
     await expect(screen.getByRole('link', 'Fonte 1')).toHaveAttribute('href', 'https://example.test/fonte');

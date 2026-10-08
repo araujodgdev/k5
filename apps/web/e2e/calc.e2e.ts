@@ -15,13 +15,13 @@ test('Calc: consumidor, versões, tributo federal, proposta OAB e parcelas no de
   const noOverflow = async () => expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
   await signInWithSession({ app, screen, browser }, api);
   await app.open('/app/calc');
-  await expect(screen.getByText('Nenhum cálculo salvo para esta busca.')).toBeVisible();
+  await expect(screen.getByText('Nenhum cálculo salvo ainda.')).toBeVisible();
   await expect(screen.getByText('BETA', { exact: true })).toBeVisible();
   await app.screenshot('calc-desktop');
   for (const name of ['Correção de valores', 'Trabalhista', 'Revisional bancário', 'Pensão alimentícia', 'Aluguel', 'Consumidor', 'Tributário']) {
     await screen.getByRole('button', new RegExp(`^${name}`)).tap();
     await expect(screen.getByRole('heading', name, { exact: true })).toBeVisible();
-    await screen.getByRole('button', 'Voltar aos cálculos').tap();
+    await screen.getByRole('button', 'Cálculos').tap();
   }
   await screen.getByRole('button', /^Consumidor/).focus();
   await browser.keyboard.press('Enter');
@@ -51,14 +51,14 @@ test('Calc: consumidor, versões, tributo federal, proposta OAB e parcelas no de
   await screen.getByLabel('Parcela 1: valor (R$)').fill('200,00');
   await screen.getByRole('button', 'Salvar nova versão').tap();
   await expect(screen.getByTestId('calc-total')).toHaveText(/350,00/);
-  await screen.getByLabel('Versão', { exact: true }).selectOption({ value: '1' });
+  await screen.getByRole('tab', 'Versão 1', { exact: true }).tap();
   await expect(screen.getByTestId('calc-total')).toHaveText(/150,00/);
   const historical = savedCalculation.parse(await api.json('/api/calc/get', { json: { id: first.id, version: 1 } }));
   expect(historical.latestVersion).toBe(2);
   expect(historical.result.totalCents).toBe(15000);
 
   await screen.getByRole('link', 'Usar resultado como base de honorários').tap();
-  await expect(screen.getByRole('heading', 'Propostas e contratos')).toBeVisible({ timeout: 60_000 });
+  await expect(screen.getByRole('heading', 'Nova proposta', { exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(screen.getByText('BETA', { exact: true })).toBeVisible();
   await expect(screen.getByLabel('Componente 1: base (R$)')).toHaveValue('150,00');
   await screen.getByRole('button', 'Cliente (obrigatório)').tap();
@@ -111,11 +111,11 @@ test('Calc: consumidor, versões, tributo federal, proposta OAB e parcelas no de
   const held = new Promise<void>(resolve => { release = resolve; });
   await browser.route('**/api/calc/list', async route => { await held; await route.fulfill({ status: 503, json: { error: 'Consulta de cálculos indisponível na validação.' } }); });
   await browser.goto('/app/calc', { waitUntil: 'domcontentloaded' });
-  await expect(screen.getByText('Carregando cálculos…').first()).toBeVisible();
+  await expect(screen.getByRole('status', 'Carregando cálculos')).toBeVisible();
   release();
   await expect(screen.getByRole('alert').filter({ hasText: 'Consulta de cálculos indisponível' })).toBeVisible();
   await browser.unroute('**/api/calc/list');
-  await screen.getByRole('button', 'Atualizar', { exact: true }).tap();
+  await screen.getByRole('button', 'Tentar novamente', { exact: true }).tap();
   await expect(screen.getByRole('button', /Restituição de cobrança/)).toBeVisible();
   await noOverflow();
 });

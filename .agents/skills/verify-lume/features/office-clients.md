@@ -38,5 +38,5 @@ Preconditions:
 - The office has no cases at start, so the "Casos do Cofre" fieldset in the dialog is empty. Create a case first to prove linking.
 - Edits use optimistic versioning. Editing the same client from two tabs returns a conflict error, which is correct behavior and not a failure of the driver.
 
-- **Revisão de fonte; sem execução nesta etapa:** Teste com agente exige OPENAI_API_KEY no runner. A ficha também aparece em workspace.e2e.ts com APIs simuladas.
+- **Revisão de fonte; sem execução nesta etapa:** O cadastro usa ações diretas pela interface e confirma persistência no banco, sem chave de modelo. A ficha também aparece em workspace.e2e.ts com APIs simuladas.
 - [Grafo e roteiro por subitem](../coverage/README.md). Consultar as dependências do cenário antes de bloquear a funcionalidade inteira.

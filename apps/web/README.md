@@ -577,15 +577,15 @@ pnpm --filter @k5/web exec e2e run --exclude-tag agent --last-failed
   `E2E_EMAIL`/`E2E_PASSWORD`) e cria a conta se ela não existir; os testes com
   `{ session: 'admin' }` reaproveitam essa sessão. Testes que mudam credenciais ou precisam de
   outra pessoa criam contas próprias pela API (`e2e/support/accounts.ts`).
-- Tags: `agent` marca testes cujos passos o modelo conduz (`agent.act`/`agent.assert`) e exige
-  `OPENAI_API_KEY`; o CI os pula quando o secret não existe. `pdf` marca o que depende do
+- Os testes de cadastro de cliente e caso usam ações diretas pela interface e verificam a
+  persistência no banco; a suíte não depende de créditos de um modelo de QA.
+- A tag `pdf` marca o que depende do
   LibreOffice no servidor; em uma máquina sem conversor, use `--exclude-tag pdf`.
 - O servidor que a suíte sobe confia no cabeçalho `x-e2e-client` (`K5_CLIENT_IP_HEADER`) para
   separar os limites de login por cliente de teste. Não configure esse cabeçalho em ambientes reais.
 - A saída fica em `.e2e/` (ignorada pelo Git): `report.json`, `summary.md`, `failures/` e
   `artifacts/` com um trace por teste
-  (`pnpm --filter @k5/web exec playwright show-trace <arquivo>`). O replay cache dos passos de
-  agente fica em `.e2e/cache/`, preservado entre execuções do CI.
+  (`pnpm --filter @k5/web exec playwright show-trace <arquivo>`).
 - Para escrever ou depurar testes, use a skill `e2e` (`.agents/skills/e2e`).
 
 Os scripts em `scripts/` que ainda usam a biblioteca `playwright` não são testes: gravam o

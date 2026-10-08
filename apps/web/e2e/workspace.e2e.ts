@@ -1,3 +1,4 @@
+import { showCanvas, openAccount } from './support/shell';
 import { describe, test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 import { localDate } from '../src/lib/calendar-days';
@@ -9,9 +10,9 @@ describe('área de trabalho', { session: 'admin' }, () => {
   test('o menu da conta no celular alterna o tema e devolve o foco ao fechar', async ({ app, screen, browser }) => {
     await browser.setViewport({ width: 390, height: 844 });
     await app.open('/app/command-center');
-    await screen.getByRole('navigation', 'Alternar conversa e canvas').getByRole('button', 'Canvas').tap();
-    const account = screen.getByRole('button', /^Conta de /);
-    await account.tap();
+    await showCanvas({ screen, browser });
+    const account = screen.getByRole('button', /^Mais opções/);
+    await openAccount({ screen, browser });
     const wasDark = await browser.evaluate(() => document.documentElement.classList.contains('dark'));
     await screen.getByRole('button', wasDark ? 'Usar tema claro' : 'Usar tema escuro').tap();
     await expect.poll(() => browser.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(!wasDark);
@@ -124,7 +125,7 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await expect(markedDays).toHaveCount(0);
     await screen.getByRole('button', 'Mês anterior').tap();
     await expect(calendarDay(12)).toHaveAttribute('aria-label', /1 atividade/);
-    await screen.getByRole('textbox', 'Buscar atividades').fill('Reunião');
+    await screen.getByRole('searchbox', 'Buscar na agenda').fill('Reunião');
     await expect(markedDays).toHaveCount(2);
     failMonth = true;
     await screen.getByRole('button', 'Atualizar').tap();
@@ -150,7 +151,7 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await browser.setViewport({ width: 390, height: 844 });
     for (const path of pages) {
       await app.open(path);
-      await screen.getByRole('button', 'Canvas', { exact: true }).tap();
+      await showCanvas({ screen, browser });
       await expect(screen.getByRole('heading', path === '/app/command-center' ? { name: 'Hoje', exact: true } : { level: 1 })).toBeVisible();
       await expect(screen.getByRole('status')).toHaveCount(0);
       expect(await browser.evaluate(overflowsHorizontally), path).toBe(false);
@@ -159,7 +160,7 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await browser.setViewport({ width: 320, height: 740 });
     for (const path of pages) {
       await app.open(path);
-      await screen.getByRole('button', 'Canvas', { exact: true }).tap();
+      await showCanvas({ screen, browser });
       await expect(browser).toHaveClass(browser.locator('html'), /dark/);
       await expect(screen.getByRole('status')).toHaveCount(0);
       expect(await browser.evaluate(overflowsHorizontally), path).toBe(false);

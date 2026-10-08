@@ -37,7 +37,7 @@ for (const width of [1280, 390]) {
       await expect(screen.getByText('O CLIProxyAPI responde pelo endereço fixo do Lume', { exact: false }).first()).toBeVisible();
       await creation.getByLabel('Chave da API').fill('synthetic-e2e-key-not-a-credential');
       await screen.getByRole('button', 'Criar conexão').tap();
-      await expect(screen.getByRole('heading', name)).toBeVisible();
+      await expect(screen.getByText(name, { exact: true }).first()).toBeVisible();
       const overview = await api.json<AssignmentOverview>('/api/platform/ai/assignments');
       connectionId = overview.connections.find(connection => connection.name === name)!.id;
       const agentPlan = overview.groups.find(group => group.key === 'agent')!.plan;

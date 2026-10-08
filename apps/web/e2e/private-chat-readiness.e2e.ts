@@ -1,3 +1,4 @@
+import { showLume } from './support/shell';
 import { expect } from 'e2e';
 import { test, overflowsHorizontally } from './support/fixtures';
 import { ApiSession, uniqueAccount } from './support/accounts';
@@ -16,7 +17,7 @@ test('arquivo com falha não impede conversa particular: compositor chega à con
   await browser.setViewport({ width: 390, height: 844 });
   await app.open(`/app/vault/cases/${record.id}`);
   await expect(screen.getByRole('heading', 'Conversa independente da extração', { exact: true })).toBeVisible();
-  await screen.getByRole('navigation', 'Alternar conversa e canvas').getByRole('button', 'Lume', { exact: true }).tap();
+  await showLume({ screen, browser });
   const input = screen.getByRole('textbox', 'Pergunte ao Lume');
   await expect(input).toBeVisible(); await input.fill('Olá, quero conversar sem selecionar arquivos.');
   await screen.getByRole('button', 'Enviar mensagem').focus(); await browser.keyboard.press('Enter');

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { Columns3, List, Plus } from 'lucide-react';
+import { Columns3, List, Plus, RefreshCw } from 'lucide-react';
 import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
 import { Button } from '@/components/ui/button';
 import { agendaCall, type Choice } from '@/lib/agenda-client';
@@ -274,6 +274,7 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
         {view !== 'clients' && <ClientPicker variant="chip" label="Cliente" emptyLabel="Todos os clientes" value={clientId} choices={clients} onChange={(id, client) => { filter(setClientId)(id); if (client) setClients(current => [...current.filter(item => item.id !== client.id), client]); }} />}
       </>}
       <div className="ml-auto flex items-center gap-2">
+        <Button variant="ghost" size="icon" aria-label="Atualizar" onClick={refresh} disabled={loading || markersLoading}><RefreshCw aria-hidden="true" className="size-3.5" /></Button>
         {view !== 'clients' && !personal && optionsReady && <Button variant="ghost" className="h-[30px] text-[13px] text-muted-foreground max-md:hidden" onClick={() => setDescribing(true)}><LumeMark aria-hidden="true" className="size-3.5 text-foreground" />Descrever ao Lume</Button>}
         {view === 'tasks' && <Segmented label="Visualização das tarefas" value={taskLayout} options={layouts} onChange={changeTaskLayout} />}
       </div>

@@ -91,7 +91,7 @@ export function TaskDetail({ taskId, from = 'list' }: { taskId: string; from?: '
         { label: 'Atualizada em', value: instantLabel(activity.updatedAt), mono: true },
       ]} />
     </CanvasSection>
-    <CanvasSection title="Observações">
+    <CanvasSection title="Observações" label="Observações">
       <p className="max-w-[68ch] text-[14.5px] leading-relaxed break-words whitespace-pre-wrap text-muted-foreground">{activity.notes || 'Sem observações.'}</p>
     </CanvasSection>
     {activity.agentConversationId && <Link href={`/app/agents?conversationId=${encodeURIComponent(activity.agentConversationId)}${activity.caseId ? `&caseId=${encodeURIComponent(activity.caseId)}` : ''}`}

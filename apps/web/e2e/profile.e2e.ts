@@ -1,3 +1,4 @@
+import { openAccount } from './support/shell';
 import { expect } from 'e2e';
 import { ApiSession, uniqueAccount } from './support/accounts';
 import { overflowsHorizontally, test } from './support/fixtures';
@@ -83,8 +84,8 @@ test('perfil, foto, credenciais e convite de associado com o card do perfil', as
   await app.open('/app/profile');
   await expect(screen.getByRole('button', 'Salvar perfil')).toBeAttached();
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);
-  await screen.getByRole('button', /^Conta de /).tap();
-  await expect(screen.getByRole('button', /Vera Verificação.*Meu perfil/)).toBeVisible();
+  await openAccount({ screen, browser });
+  await expect(screen.getByRole('navigation', 'Casos e módulos').getByRole('link', 'Perfil')).toBeVisible();
   await browser.keyboard.press('Escape');
   await app.open('/app/agenda?view=associates');
   await screen.getByRole('button', `Ver perfil de ${partner.email}`).tap();

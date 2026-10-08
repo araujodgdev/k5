@@ -37,7 +37,7 @@ test('arquivos antigos do Cofre são alcançáveis e falhas de paginação se re
   await expect(pages).toContainText('1–50 de 201 arquivos');
   await pages.getByRole('button', 'Próxima').tap();
   await expect(screen.getByRole('alert').filter({ hasText: 'Não foi possível carregar os arquivos.' })).toBeVisible();
-  await expect(screen.getByRole('link', 'Baixar Arquivo 1')).toBeVisible();
+  await expect(screen.getByRole('link', 'Arquivo 1')).toBeVisible();
   fail = false;
   await screen.getByRole('button', 'Tentar novamente').tap();
   await expect(pages).toContainText('51–100 de 201 arquivos');
@@ -45,12 +45,13 @@ test('arquivos antigos do Cofre são alcançáveis e falhas de paginação se re
     await pages.getByRole('button', 'Próxima').tap();
     await expect(pages).toContainText(`${start}–${Math.min(start + 49, 201)} de 201 arquivos`);
   }
-  await expect(screen.getByRole('link', 'Baixar Arquivo 201')).toBeVisible();
+  await expect(screen.getByRole('link', 'Arquivo 201')).toBeVisible();
   await expect(pages.getByRole('button', 'Próxima')).toBeDisabled();
-  await screen.getByRole('button', 'Excluir Arquivo 201').tap();
+  await screen.getByRole('button', 'Mais opções de Arquivo 201').tap();
+  await screen.getByRole('menuitem', 'Excluir', { exact: true }).tap();
   await screen.getByRole('button', 'Excluir documento').tap();
   await expect(pages).toContainText('151–200 de 200 arquivos');
-  await expect(screen.getByRole('link', 'Baixar Arquivo 200')).toBeVisible();
+  await expect(screen.getByRole('link', 'Arquivo 200')).toBeVisible();
   expect(deleted).toEqual(['DELETE']);
   expect(offsets).toContain(200);
   expect(await browser.evaluate(overflowsHorizontally)).toBe(false);

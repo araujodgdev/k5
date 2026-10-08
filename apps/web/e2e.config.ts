@@ -24,7 +24,7 @@ const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY ?? '' });
 
 export default {
   tests: 'e2e/**/*.e2e.ts',
-  // CI keeps .e2e/cache/ between runs (actions/cache), so verified agent steps replay without model calls.
+  // Keep replay available for optional model-driven checks outside the deterministic CI suite.
   cache: 'read-write',
   // `next dev` compiles each route on first use; the first visit to a page can take tens of seconds.
   assertionTimeout: ci || external ? 10_000 : 30_000,

@@ -1,3 +1,4 @@
+import { showCanvas, openModules } from './support/shell';
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 import { tutorialSteps } from '../src/lib/onboarding';
@@ -37,8 +38,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
         await expect(dialog).toBeHidden();
         await browser.reload();
         await expect(screen.getByRole('dialog')).toHaveCount(0);
-        if (mobile) await screen.getByRole('navigation', 'Alternar conversa e canvas').getByRole('button', 'Canvas').tap();
-        await screen.getByRole('button', 'Abrir módulos').tap();
+        if (mobile) await showCanvas({ screen, browser });
+        await openModules({ screen, browser });
         await screen.getByRole('button', 'Tutorial do Lume', { visible: true }).tap();
         await screen.getByRole('button', 'Continuar tutorial').tap();
         await expect(dialog).toBeVisible();
@@ -58,7 +59,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
 
 test('o tour leva à biblioteca de vídeos por módulo', { session: 'tutorial-reader' }, async ({ app, screen, browser }) => {
   await app.open('/app/command-center');
-  await screen.getByRole('button', 'Abrir módulos').tap();
+  await openModules({ screen, browser });
   await screen.getByRole('button', 'Tutorial do Lume', { visible: true }).tap();
   await screen.getByRole('link', 'Ver vídeos por módulo').tap();
   await expect(browser).toHaveURL(/\/app\/tutorial$/);
@@ -83,9 +84,9 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     await app.screenshot(`video-${viewport.width}`);
     await expect(screen.getByRole('link', 'Baixar legendas')).toHaveAttribute('href', /clientes\/legendas\.pt-BR\.vtt/);
     expect(await browser.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await screen.getByRole('link', 'Organizar tarefas e agenda', { exact: true }).tap();
+    await screen.getByRole('link', 'Assistir: Organizar tarefas e agenda', { exact: true }).tap();
     await expect(screen.getByLabel('Tutorial: Organizar tarefas e agenda')).toHaveAttribute('src', /tarefas-e-agenda\/video\.mp4/);
-    await screen.getByRole('link', 'Voltar aos tutoriais de Escritório').tap();
+    await screen.getByRole('link', 'Tutoriais de Escritório').tap();
     await expect(screen.getByRole('link', /^Assistir:/)).toHaveCount(3);
     await app.open('/app/tutorial?modulo=inexistente');
     await expect(screen.getByText('Nenhum tutorial disponível neste módulo.')).toBeVisible();

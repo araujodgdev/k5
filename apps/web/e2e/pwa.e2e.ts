@@ -1,3 +1,4 @@
+import { openAccount } from './support/shell';
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 
@@ -17,8 +18,8 @@ test('o manifesto, os ícones e o service worker do Lume estão publicados para 
 
 test('instalar o Lume usa o convite do navegador ou explica como instalar, e o tema escuro ajusta a cor da barra', { session: 'admin' }, async ({ app, screen, browser }) => {
   await app.open('/app/command-center');
-  await screen.getByRole('button', /^Conta de /).tap();
-  const install = screen.getByRole('button', 'Instalar Lume', { visible: true });
+  await openAccount({ screen, browser });
+  const install = screen.getByRole('menuitem', 'Instalar o Lume');
   await expect(install).toBeVisible();
   // Chromium only offers the prompt to an installable, engaged page; fire it as the browser would.
   // `evaluate` runs in an isolated world, so a page script carries the `prompt` method into the
@@ -40,15 +41,16 @@ test('instalar o Lume usa o convite do navegador ou explica como instalar, e o t
   await install.tap();
   await expect(browser.locator('html')).toHaveAttribute('data-install-prompt-called', 'true');
   // Once the prompt is spent, the button explains the manual steps instead.
+  await openAccount({ screen, browser });
   await install.tap();
   await expect(screen.getByRole('dialog', 'Instalar o Lume')).toBeVisible();
   await browser.keyboard.press('Escape');
-  await expect(install).toBeFocused();
+  await expect(screen.getByRole('button', /^Conta de /)).toBeFocused();
 
   const dark = await browser.evaluate(() => document.documentElement.classList.contains('dark'));
   if (!dark) await screen.getByRole('button', 'Usar tema escuro', { visible: true }).tap();
   await expect(browser).toHaveClass(browser.locator('html'), /\bdark\b/);
-  await expect(browser.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#232323');
+  await expect(browser.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#1A1918');
   await browser.reload();
   await expect(browser).toHaveClass(browser.locator('html'), /\bdark\b/);
 });
