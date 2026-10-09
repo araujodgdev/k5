@@ -56,6 +56,15 @@ async function fixture() {
   return { owner, guest, stranger, shared, privateCase, sharedDoc, privateDoc, library, document, associate, grant };
 }
 
+test('whole-office knowledge search includes a matching document older than the newest 400', async () => {
+  const f = await fixture();
+  const oldest = await f.document(null, 'Sentinelacofre');
+  await db.prepare("UPDATE vault_document SET updated_at='2020-01-01T00:00:00Z' WHERE id=?").run(oldest);
+  for (let i = 0; i < 400; i++) await f.document(null, `Recente ${i}`);
+  const result = await runCapability(f.owner.context, 'k5_knowledge_search', { query: 'Sentinelacofre' }) as { sources: { documentId: string }[] };
+  assert.ok(result.sources.some(source => source.documentId === oldest));
+});
+
 test('each lawyer owns exactly one office and an office has exactly one lawyer', async () => {
   const f = await fixture();
   assert.equal((await findOfficeForUser(db, f.owner.id))?.officeId, f.owner.context.officeId);
