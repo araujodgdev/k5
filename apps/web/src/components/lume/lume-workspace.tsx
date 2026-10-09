@@ -56,7 +56,8 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
   const [leaves, setLeaves] = useState<CanvasLeaf[]>([]);
   const [activeView, setActiveView] = useState<string | null>(null);
   const leavesRef = useRef(leaves);
-  const intent = useRef<{ href: string; nonce: string; serial: number; access?: ResourceAccess } | null>(null);
+  // A quiet intent refreshes a canvas already on screen: no loading line, and a failure keeps it as it is.
+  const intent = useRef<{ href: string; nonce: string; serial: number; access?: ResourceAccess; quiet?: boolean } | null>(null);
   const serial = useRef(0);
   const completion = useRef<((success: boolean) => void) | null>(null);
   const finishNavigation = useCallback((success: boolean) => {
@@ -68,6 +69,8 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
   const [expired, setExpired] = useState(false);
   const expiredRef = useRef(false);
   const sender = useRef<((text: string) => void) | null>(null);
+  // The route's metadata titles the window only on a server navigation; a client switch restores it.
+  const titles = useRef(new Map<string, string>());
 
   const storageKey = tabStorageKey(identity.userId, identity.officeId);
 
@@ -133,8 +136,47 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
     const origin = controller.getSnapshot();
     if (origin.mode === 'focused') controller.dispatch({ type: 'mode', mode: 'floating' });
     controller.dispatch({ type: 'mobile', mobile: 'canvas' });
+    titles.current.set(canvasViewKey(origin.href), document.title);
+    const canonical = canonicalCanvasHref(requested);
+    const requestedUrl = new URL(requested, window.location.origin);
+    // When the person moves to another place whose canvas is mounted, it shows at once, with no loading
+    // state, and then refreshes in place from the server. A revoked place closes as before. Reloading the
+    // place on screen and the places the Lume opens keep the navigation below.
+    const retained = navigation === undefined && canonical && canonical !== origin.href && origin.revokedHref !== canonical
+      && !['conversationId', 'lume', 'feedback', 'notificacoes'].some(key => requestedUrl.searchParams.has(key))
+      ? leavesRef.current.find(leaf => leaf.href === canonical) : undefined;
+    if (retained) {
+      intent.current = null; setLoading(false);
+      if (!await saveOpen()) {
+        if (requestSerial === serial.current) setError('Salve ou resolva o conflito do documento antes de abrir outro recurso.');
+        return false;
+      }
+      if (requestSerial !== serial.current || !leavesRef.current.includes(retained)) return false;
+      setError('');
+      setActiveView(canvasViewKey(retained.href));
+      const title = titles.current.get(canvasViewKey(retained.href));
+      if (title) document.title = title;
+      // The open tab keeps the name its view gave it since the canvas was published.
+      const resource = controller.getSnapshot().tabs.find(tab => tab.href === retained.href && resourceKey(tab) === resourceKey(retained.resource)) ?? retained.resource;
+      controller.dispatch({ type: 'destination', href: retained.href, resource, mobile: 'canvas' });
+      controller.dispatch({ type: 'authorized', resource });
+      // A null state lets Next and vinext sync usePathname/useSearchParams without a navigation.
+      if (canonicalCanvasHref(window.location.pathname + window.location.search) !== retained.href) {
+        if (replace) window.history.replaceState(null, '', retained.href);
+        else window.history.pushState(null, '', retained.href);
+      }
+      void resolveResource(retained.href, false).catch(cause => {
+        if (requestSerial === serial.current) setError(cause instanceof Error ? cause.message : 'Não foi possível abrir o recurso.');
+      });
+      const nonce = crypto.randomUUID();
+      intent.current = { href: retained.href, nonce, serial: requestSerial, access: controller.captureResourceAccess(resource), quiet: true };
+      const refresh = new URL(retained.href, window.location.origin);
+      refresh.searchParams.set('__canvas', nonce);
+      router.replace(refresh.pathname + refresh.search, { scroll: false });
+      return true;
+    }
     const nonce = crypto.randomUUID();
-    intent.current = { href: canonicalCanvasHref(requested) ?? requested, nonce, serial: requestSerial };
+    intent.current = { href: canonical ?? requested, nonce, serial: requestSerial };
     setLoading(true);
     const started = navigation ?? origin.navigation;
     const canContinue = () => {
@@ -174,7 +216,6 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
       setError('');
       intent.current = { href: resource.href, nonce, serial: requestSerial, access: controller.captureResourceAccess(resource) };
       setLoading(true);
-      const requestedUrl = new URL(requested, window.location.origin);
       const target = new URL(resource.href, window.location.origin);
       for (const key of ['conversationId', 'lume', 'feedback', 'notificacoes']) {
         const value = requestedUrl.searchParams.get(key);
@@ -206,9 +247,11 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
   useEffect(() => registerWorkspaceNavigator(navigate), [navigate]);
   const loadFailed = useCallback(() => {
     if (!intent.current) return;
+    const quiet = intent.current.quiet;
     ++serial.current; intent.current = null;
     finishNavigation(false);
-    setLoading(false); setError('Não foi possível abrir a tela. O conteúdo anterior foi preservado.');
+    setLoading(false);
+    if (!quiet) setError('Não foi possível abrir a tela. O conteúdo anterior foi preservado.');
     router.replace(controller.getSnapshot().href, { scroll: false });
   }, [controller, finishNavigation, router]);
   const openResource = useCallback(async (requested: string, navigation?: number) => {
@@ -352,9 +395,10 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
     if (mobile) controller.dispatch({ type: 'mobile', mobile: next === 'collapsed' ? 'canvas' : 'chat' });
     requestAnimationFrame(() => document.getElementById(next === 'collapsed' ? 'main-content' : 'lume-panel')?.focus());
   }
+  // On a computer the office bar's Lume button collapses the panel; the panel's own button serves the phone.
   const panelControls = <>
     <button type="button" className="lume-icon" aria-label={state.mode === 'focused' ? 'Voltar ao painel flutuante' : 'Ampliar conversa'} onClick={() => mode(state.mode === 'focused' ? 'floating' : 'focused')}>{state.mode === 'focused' ? <Minimize2 /> : <Maximize2 />}</button>
-    <button type="button" className="lume-icon" aria-label="Recolher o Lume" onClick={() => mode('collapsed')}><PanelLeftClose /></button>
+    <button type="button" className="lume-icon lume-icon-phone" aria-label="Recolher o Lume" onClick={() => mode('collapsed')}><PanelLeftClose /></button>
   </>;
   if (expired) return null;
   return <WorkspaceContext value={actions}><CanvasRegistry value={publish}><CanvasFailure value={loadFailed}>

@@ -46,9 +46,11 @@ export function CommandCenter({ lumeWork }: { lumeWork: LumeWork[] | null }) {
     let cancelled = false;
     async function load() {
       const now = new Date(), day = localDate(now);
-      setToday(day); setPending(pendingSections); setData({});
+      // What is on screen stays while it refreshes, as when the tab returns to Início.
+      setToday(day); setPending(pendingSections);
       async function section<K extends keyof Overview>(key: K, request: Promise<Overview[K]>) {
         try { const value = await request; if (!cancelled) setData(current => ({ ...current, [key]: value })); }
+        catch { if (!cancelled) setData(current => ({ ...current, [key]: undefined })); }
         finally { if (!cancelled) setPending(current => ({ ...current, [key]: false })); }
       }
       await Promise.allSettled([
@@ -68,7 +70,7 @@ export function CommandCenter({ lumeWork }: { lumeWork: LumeWork[] | null }) {
     finally { setBusy(null); }
   }
   function status(key: keyof Overview, label: string) {
-    if (pending[key]) return <p role="status" className="py-3 text-sm text-muted-foreground">Carregando {label}…</p>;
+    if (pending[key] && !data[key]) return <p role="status" className="py-3 text-sm text-muted-foreground">Carregando {label}…</p>;
     if (!data[key]) return <p role="alert" className="py-3 text-sm text-destructive">Não foi possível carregar {label}. Use Atualizar para tentar novamente.</p>;
     return null;
   }
