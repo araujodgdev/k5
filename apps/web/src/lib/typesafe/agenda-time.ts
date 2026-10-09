@@ -26,7 +26,13 @@ export function temporalCandidates(message: string, referenceAt: string, timeZon
   const relative = /\bdaqui a (\d{1,3}) dias?\b/.exec(text);
   if (relative) dates.add(today.add({ days: Number(relative[1]) }).toString());
   const weekdays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
-  if (weekdays.some(day => text.includes(day)) && !dates.size) questions.push('Informe a data completa do dia da semana mencionado.');
+  if (!dates.size) {
+    for (const [index, day] of weekdays.entries()) {
+      if (new RegExp(`\\b${day}(?:-feira)?\\b`).test(text)) {
+        dates.add(today.add({ days: (index + 1 - today.dayOfWeek + 7) % 7 }).toString());
+      }
+    }
+  }
   if (/\b\d{1,2}\/\d{1,2}(?!\/\d{4})\b/.test(text) && !dates.size) questions.push('Informe o ano da data.');
   for (const match of text.matchAll(/\b(\d{1,2})(?::|h)(\d{2})?\b|\bas?\s+(\d{1,2})(?!\d)\b/g)) {
     const hour = Number(match[1] ?? match[3]); const minute = Number(match[2] ?? 0);
