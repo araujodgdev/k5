@@ -5,7 +5,6 @@ import type { OfficeSearchHit } from '@/lib/office-search-contract';
 import { CircleHelp, Folder } from 'lucide-react';
 import { useTutorial } from '@/components/onboarding-tour';
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { tabOf, titleOf, type CanvasTab } from './canvas-tabs';
 import type { LauncherAccess } from './launcher';
 import { adminEntry, caseHref, moduleEntries, profileEntry, useOfficeCases, type ShellEntry } from './modules';
 import { placeOf, type PlaceIcon } from './places';
@@ -20,8 +19,11 @@ function Item({ value, icon: Icon, label, onSelect }: { value: string; icon: Pla
   );
 }
 
-/** Ctrl K: finds an open tab, a case, a module or the person's pages, and opens it in the canvas. */
-export function SearchDialog({ open, onOpenChange, access, tabs }: { open: boolean; onOpenChange(open: boolean): void; access: LauncherAccess; tabs: readonly CanvasTab[] }) {
+/**
+ * Ctrl K: finds a place still open in the canvas (the latest of each module and the few before it), a
+ * case, a module or the person's pages, and opens it.
+ */
+export function SearchDialog({ open, onOpenChange, access, places }: { open: boolean; onOpenChange(open: boolean): void; access: LauncherAccess; places: readonly { href: string; title: string }[] }) {
   const shell = useShell();
   const openTutorial = useTutorial();
   const cases = useOfficeCases(open);
@@ -63,7 +65,7 @@ export function SearchDialog({ open, onOpenChange, access, tabs }: { open: boole
           {results && !results.error && !results.hits.length && <p role="status" className="px-3 py-2 text-xs text-muted-foreground">Nenhum resultado no escritório.</p>}
         </>}
         <CommandGroup heading="Abas abertas">
-          {tabs.map((tab) => <Item key={tabOf(tab)} value={`aba ${titleOf(tab)} ${tabOf(tab)}`} icon={placeOf(tab.href).icon} label={titleOf(tab)} onSelect={() => go(tab.href)} />)}
+          {places.map((place) => <Item key={place.href} value={`aba ${place.title} ${place.href}`} icon={placeOf(place.href).icon} label={place.title} onSelect={() => go(place.href)} />)}
         </CommandGroup>
         {cases.status === 'ready' && cases.cases.length > 0 && (
           <CommandGroup heading="Casos">

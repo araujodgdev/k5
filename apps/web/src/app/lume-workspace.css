@@ -10,17 +10,21 @@
 .lume-panel [data-chat-viewport] { scrollbar-width: thin; }
 .lume-open-canvas { display: flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; border-top: 1px solid var(--border); font-size: 13px; cursor: pointer; }
 @media (min-width: 768px) {
-  .lume-workspace[data-mode="focused"] .lume-panel { width: 100%; height: 100%; margin: 0; border: 0; border-radius: 0; background: var(--background); box-shadow: none; }
+  .lume-workspace { background: var(--canvas); }
+  .lume-icon-phone { display: none; }
+  /* The bar's Lume side is as wide as the panel under it, and shrinks to its buttons while the panel is folded. */
+  .lume-bar-lume { width: clamp(360px, 33.333%, 500px); }
+  .lume-workspace[data-mode="focused"] .lume-panel-slot { width: auto; flex: 1 1 0%; margin-right: 10px; }
   .lume-workspace[data-mode="focused"] .lume-canvas { display: none; }
   .lume-workspace[data-mode="focused"] .agent-chat { width: 100%; max-width: 760px; align-self: center; }
-  .lume-workspace[data-mode="focused"] .lume-composer-wrap { background: var(--background); padding-bottom: 24px; }
-  .lume-workspace[data-mode="collapsed"] .lume-panel { display: none; }
-  .lume-workspace[data-mode="collapsed"] .lume-shell-mark { display: grid; }
-  .lume-workspace[data-mode="collapsed"] .lume-toolbar { padding-left: 60px; }
+  .lume-workspace[data-mode="focused"] .lume-composer-wrap { padding-bottom: 24px; }
+  .lume-workspace[data-mode="collapsed"] .lume-panel-slot { width: 0; margin-left: 0; }
+  .lume-workspace[data-mode="collapsed"] .lume-panel { visibility: hidden; }
+  .lume-workspace[data-mode="collapsed"] .lume-bar-lume { width: auto; }
 }
 @media (max-width: 767px) {
   .lume-workspace { padding-top: env(safe-area-inset-top, 0px); }
-  .lume-workspace[data-mobile-surface="canvas"] .lume-panel { display: none; }
+  .lume-workspace[data-mobile-surface="canvas"] .lume-panel-slot { display: none; }
   .lume-workspace[data-mobile-surface="chat"] .lume-canvas { display: none; }
   .lume-panel-header { height: 56px; border-bottom: 1px solid var(--border); }
   .lume-icon { min-width: 44px; min-height: 44px; }

@@ -1,6 +1,6 @@
 # Lume design system
 
-The office is two surfaces side by side. The Lume panel floats on the left, and the canvas on the right shows the work: Início, cases, documents and modules. The person asks in the panel, the Lume acts, and the canvas shows what it touched. Everything is ink on warm paper, and the one orange belongs to the Lume.
+The office is a bar across the top and two surfaces under it. The Lume panel floats on the left, and the canvas on the right shows the work: Início, cases, documents and modules, one tab per module. The person asks in the panel, the Lume acts, and the canvas shows what it touched. Everything is ink on warm paper, and the one orange belongs to the Lume.
 
 The UI is built on [shadcn/ui](https://ui.shadcn.com) (Radix, `radix-nova` preset) with Tailwind v4. Primitives live in `src/components/ui/` and are ours to edit. The canvas page and its controls live in `src/components/canvas/`, the shell in `src/components/shell/` and the panel in `src/components/lume-panel/`. Tokens are set in `src/app/globals.css`. Style with Tailwind utilities and tokens, never with hex values.
 
@@ -26,7 +26,7 @@ Set in `:root` and `.dark` in `globals.css` and used through Tailwind classes su
 
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |
-| `background` | `#FDFDFB` | `#1A1918` | The canvas, the shell ground and the panel on a phone |
+| `background` | `#FDFDFB` | `#1A1918` | The canvas, and the shell ground and the panel on a phone |
 | `pane` | `#FAFAF8` | `#1E1D1B` | The floating panel on a computer |
 | `card`, `popover` | `#FFFFFF` | `#222120` | Cards, KPI tiles, the plan and approval cards, the composer, menus and dialogs |
 | `muted`, `secondary` | `#EFEEEA` | `#2A2927` | Sunken fills: the person's message, the context chip, the muted `Pill`, avatars without a photo, `kbd` |
@@ -36,8 +36,8 @@ Set in `:root` and `.dark` in `globals.css` and used through Tailwind classes su
 | `primary` | `#1C1B19` | `#F3F1EC` | The primary button and the send button, with `primary-foreground` (`#FAFAF8`, `#161514`) |
 | `accent` | ink at 4.5% | white at 5% | Hover fills |
 | `selected` | ink at 7% | white at 8.5% | The active tab, the current launcher row, the open conversation, a pressed `Chip` |
-| `border` | ink at 9% | white at 8% | Hairlines: cards, the strip, tab strips, table headers, dialog footers |
-| `border-strong` | ink at 16% | white at 14% | A hovered card, the composer, the phone pill, the strip's divider |
+| `border` | ink at 9% | white at 8% | Hairlines: cards, the canvas card, tab strips, table headers, dialog footers |
+| `border-strong` | ink at 16% | white at 14% | A hovered card, the composer, the phone pill |
 | `input` | ink at 16% | white at 14% | Control outlines |
 | `line` | ink at 14% | white at 12% | Structure in the sidebar shell, the auth screens and the landing |
 | `brand` | `#E08A6B` | `#E08A6B` | The Lume. See the list below |
@@ -47,12 +47,12 @@ Set in `:root` and `.dark` in `globals.css` and used through Tailwind classes su
 | `ring` | `#E08A6B` | `#E08A6B` | Focus rings and the composer's focus border |
 | `destructive` | `#B3261E` | `#FF9C94` | Error text and the destructive button |
 | `overlay` | `#1C1B19` | `#000000` | The dim behind dialogs and sheets, at 25% (50% in dark) |
-| `canvas` | `#F3F2EE` | `#0E0D0C` | No component uses it. The sidebar tokens repeat its value |
+| `canvas` | `#F3F2EE` | `#0E0D0C` | The office's ground on a computer, under the bar, the panel and the canvas. The sidebar tokens repeat its value |
 | `panel` | `#EAE9E4` | `#2A2927` | Landing blocks and the halftone silhouettes |
 | `--shadow-float` | `0 1px 2px` and `0 12px 32px`, ink at 5% and 9% | `0 1px 2px` and `0 16px 40px`, black at 40% and 45% | What floats: the panel, the phone pill, menus, dialogs, the scroll-to-latest button |
 | `--ease` | `cubic-bezier(.16, 1, .3, 1)` | same | Expo out, for every transition: `ease-(--ease)` |
 
-On `Sistema.dc.html`, `background` is "Canvas", `pane` is "Painel do Lume", `card` is "Cartão", `muted` is "Afundado", `muted-foreground` is "Texto secundário" and `canvas` is "Fundo do app". The token named `canvas` is not the canvas surface.
+On `Sistema.dc.html`, `background` is "Canvas", `pane` is "Painel do Lume", `card` is "Cartão", `muted` is "Afundado", `muted-foreground` is "Texto secundário" and `canvas` is "Fundo do app". The token named `canvas` is not the canvas surface: it is the ground the canvas sits on.
 
 `brand` marks only these things:
 
@@ -101,38 +101,45 @@ The utilities `display`, `page-title`, `label-mono` and `square-dot` serve the a
 
 ### Computer
 
-`OfficeShell` fills the viewport (`h-dvh`) on `background`. A skip link, "Ir para o conteúdo", comes first, then two regions:
+`OfficeShell` fills the viewport (`h-dvh`) on `canvas`. A skip link, "Ir para o conteúdo", comes first, then the office bar and, under it, two regions side by side:
 
-- `aside#lume-panel` ("Lume"): the panel, mounted once and kept while collapsed. From `md` it floats 10px from the top, bottom and left edges. It is `clamp(360px, 33.333%, 500px)` wide, on `pane`, with 16px corners, a `border` hairline and `--shadow-float`.
-- `main#main-content` ("Canvas do escritório"): the strip, then `.canvas-scroll`, the one scrolling region. Views with scroll regions of their own (E-mails, Mensagens, WhatsApp) fill it instead.
+- `aside#lume-panel` ("Lume"): the panel, mounted once and kept while collapsed. From `md` it sits in a slot 10px from the left and bottom edges, `clamp(360px, 33.333%, 500px)` wide, on `pane`, with 16px corners, a `border` hairline and `--shadow-float`.
+- The canvas section ("Canvas do escritório"): a card on `background`, 10px from the panel and from the right and bottom edges, with 16px corners and a `border` hairline. It holds `main#main-content`, `.canvas-scroll`, the one scrolling region. Views with scroll regions of their own (E-mails, Mensagens, WhatsApp) fill it instead.
 
 ### Collapsed
 
-Ctrl J or "Recolher o Lume" collapses the panel. The workspace controller changes the panel mode without unmounting the conversation. Collapsing focuses the canvas, and opening focuses the composer.
+Ctrl J or the Lume's button on the bar ("Recolher o Lume", "Abrir o Lume") collapses and opens the panel. The workspace controller changes the panel mode without unmounting the conversation. Collapsing focuses the canvas, and opening focuses the composer. On a phone the panel's own "Recolher o Lume" does the same.
 
-### Strip
+### Office bar
 
-The strip is 52px under a `border` hairline. In order:
+The bar (`office-bar.tsx`, "Barra do escritório") is 52px on `canvas`, across the whole window. It has two sides.
 
-1. The launcher button, "Casos e módulos" (32px, `LayoutGrid`).
-2. An 18px divider in `border-strong`.
-3. The tabs (`nav` "Abas do canvas").
-4. "Buscar" with the `kbd` "Ctrl K": 32px, outlined in `border`, 8px corners.
-5. The bell. A brand dot shows while anything is unread, and the label counts it.
-6. The theme toggle, a Sun or Moon icon.
-7. The avatar (28px). Its menu holds the name and office, Perfil, "Enviar feedback", "Instalar o Lume" and "Sair".
+Over the panel is a side as wide as the panel (`.lume-bar-lume`):
 
-Icon buttons on the strip are 32px with 6px corners, in `muted-foreground`, with an `accent` hover (`stripButton`).
+1. The Lume's button (32px). While the panel is open it shows `PanelLeftClose`. While the panel is collapsed it shows the live mark in the Lume's state. The panel folds into this button.
+2. The launcher button, "Casos e módulos" (32px, `LayoutGrid`).
+3. Search, "Buscar no escritório" (Ctrl K).
+4. The bell. A brand dot shows while anything is unread, and the label counts it.
+5. The theme toggle, a Sun or Moon icon.
+6. The avatar (28px). Its menu holds the name and office, Perfil, "Enviar feedback", "Instalar o Lume" and "Sair".
+
+While the panel is collapsed, this side shrinks to its buttons and the tabs move left with the canvas.
+
+Over the canvas are the tabs (`nav` "Abas do canvas"), starting at the canvas's edge. Icon buttons on the bar are 32px with 6px corners, in `muted-foreground`, with an `accent` hover (`stripButton`).
 
 ### Tabs
 
-`canvas-tabs.ts` and `places.ts` in `src/components/shell/` hold the model. The canvas opens one tab per case, document and module. Moving inside a module, such as a view of Escritório or a section of Administração, stays in its tab. Início comes first and never closes.
+`module-tabs.ts` in `src/components/shell/` holds the model. The bar has one tab per module, in the order of `appNavigation`: Início, Casos, Pesquisa, Escritório, Honorários, Cálculos, E-mails and Mensagens, plus WhatsApp and Anúncios where the office has them. Module tabs never close.
 
-- A tab is 32px with 8px corners: a 14px icon, the title in 13px medium and a 22px close button ("Fechar aba …"). Início is at most 110px wide, other tabs 230px. When the tabs outgrow the strip, the others shrink to 88px and then scroll behind Início, which stays put. The open tab keeps at least 120px and is always scrolled into view. The active tab takes `selected`, and the others are `muted-foreground` with an `accent` hover.
-- While the Lume works in a case, or touches a place in the running turn, that tab shows the live mark in place of its icon. A case keeps the mark while the Lume waits on the person there.
-- Beyond eight tabs, opening one drops the oldest tab that is not Início. Closing the active tab moves to the one before it.
-- Tabs persist per person and office in `localStorage` (`lume:canvas-tabs:v1:<user>:<office>`). Zod validates them on read and drops anything malformed.
-- A view names its tab and sets the canvas subject with `<CanvasMeta title subject />`. The composer's context chip shows the subject.
+- Everything a module opens shows in its tab: a case, a Cofre file or a document in Casos, a client or a view in Escritório. The tab names its module, and its tooltip names the place it holds ("Casos: Silva vs. Construtora").
+- A tab leads to the place it holds. Clicking the open tab again leads back to the module's start: from a case to Casos, from Agenda to Tarefas.
+- Each module keeps its three latest places mounted. Returning to one of them through a link, the browser's back button or search is instant and keeps its state. Older places close.
+- Places outside the modules (Perfil, Plano, Integrações, Tutorial, Personalizar Lume, Administração) share one extra tab at the end, with a close button ("Fechar aba …"). Closing it returns to the module the person came from.
+- A tab is 32px with 8px corners: a 14px icon and the title in 13px medium. The open tab takes `selected`, and the others are `muted-foreground` with an `accent` hover. When the tabs outgrow the bar they scroll and fade out at its end. The open tab is always scrolled into view.
+- While the Lume works on a place a tab holds, or in the conversation's case, that tab shows the live mark in place of its icon. Casos keeps the mark while the Lume waits on the person in a case.
+- Moving to a place whose canvas is mounted happens in the client. The canvas shows at once, with no "Abrindo…", and the address and the window title follow. It then refreshes in place from the server, keeping its state, and access to the place is checked again: a revoked place closes with "Não foi possível abrir este recurso.". The panel and its conversation never reload. Reloading the place on screen and the places the Lume opens still go through the server first.
+- The open places persist per person and office in `localStorage` (`lume:canvas:v1:<user>:<office>`) and are validated on read.
+- A view names its place and sets the canvas subject with `<CanvasMeta title subject />`. The composer's context chip shows the subject.
 - A plain click opens a place through `useShell().open(href, title)` (or `CanvasLink`). A modified click keeps the browser's own behavior.
 - An open document saves before the canvas leaves it. If the save fails, the canvas stays.
 
@@ -149,7 +156,7 @@ Rows are 34px with 13.5px text (44px and 15px on a phone), 8px corners and a 16p
 
 ### Search and keyboard
 
-Ctrl K opens "Buscar no escritório", a command dialog 560px wide, 64px from the top on a phone and 96px on a computer. Its groups are "Abas abertas", "Casos" and "Módulos e conta". The placeholder is "Buscar casos, módulos e abas", and no match reads "Nada encontrado.".
+Ctrl K opens "Buscar no escritório", a command dialog 560px wide, 64px from the top on a phone and 96px on a computer. Its groups are "Abas abertas" (every place still mounted in the canvas), "Casos" and "Módulos e conta". The placeholder is "Buscar casos, módulos e abas", and no match reads "Nada encontrado.".
 
 | Keys | Action |
 | --- | --- |
@@ -328,7 +335,7 @@ Form dialogs keep their fields in a scrolling area between the title and the foo
 Overlays dim and never blur. `backdrop-filter` breaks stacking in some Safari versions, and a flat `bg-overlay/25` (`/50` in dark) is cheaper on a phone.
 
 - Bottom sheets float 8px from the sides and above the safe area, with 16px corners and a hairline. The geometry is unlayered CSS in `globals.css` (`[data-slot="sheet-content"][data-side="bottom"]`).
-- Notificações and the feedback panel are dialogs. On a computer they hang under the bell, 56px from the top and 12px from the right. On a phone they sit at the bottom.
+- Notificações and the feedback panel are dialogs. On a computer Notificações hangs under the bell, 56px from the top and 12px from the left, and the feedback panel is centered. On a phone they sit at the bottom.
 - Menus and popovers are `popover` with 12px corners, a hairline and `--shadow-float`. Items have 8px corners and an `accent` hover.
 
 ## Views
@@ -379,7 +386,7 @@ The smaller views follow the same parts:
 
 ## Motion is the mark's states
 
-Motion says what the Lume is doing. Nothing animates its way onto the page. The mark's states (`.lume-mark` in `globals.css`) are the motion:
+Motion says what the Lume is doing. Nothing animates its way onto the page. The mark's states (`.lume-mark` in `globals.css`) are the motion, and the panel's fold is the one exception:
 
 | State | Where | What moves |
 | --- | --- | --- |
@@ -388,9 +395,11 @@ Motion says what the Lume is doing. Nothing animates its way onto the page. The 
 | `working` | The panel header, the working line, a case's tab and strip | The supplied Reflexo GIF |
 | `attention` | Anywhere an approval waits | The supplied Reflexo GIF with a written approval status |
 
-Hovering Opções inteligentes runs one band through a still mark. Two other signals stay because they are state too: the spinner on a running step or a busy button, and the 2px rule on changed document blocks, which fades over 6 seconds. Hover and focus change color only, over Tailwind's 150ms, with `ease-(--ease)`. No fill sweeps or rises, and nothing uses GSAP. Radix overlays fade through `tw-animate-css`.
+Hovering Opções inteligentes runs one band through a still mark. Two other signals stay because they are state too: the spinner on a running step or a busy button, and the 2px rule on changed document blocks, which fades over 6 seconds. Hover and focus change color only, over Tailwind's 150ms, with `ease-(--ease)`. No fill sweeps or rises. Radix overlays fade through `tw-animate-css`.
 
-Under reduced motion the global rule in `globals.css` stops every animation and transition. The mark uses the static PNG in every state, and spinners carry `motion-reduce:animate-none`.
+The panel is the one surface that moves (`panel-motion.ts`, GSAP). On a computer, collapsing folds it into the Lume's button on the bar: it scales and fades toward the button while the canvas widens into its place and the bar's Lume side shrinks to its buttons. Opening unfolds it from the button. The tween takes 0.5s with `expo.out`, the `--ease` curve. CSS already holds the state being entered, so the tween runs from the state being left and then clears its inline styles. The focused mode and the phone switch at once.
+
+Under reduced motion the global rule in `globals.css` stops every animation and transition, and the panel switches without its tween. The mark uses the static PNG in every state, and spinners carry `motion-reduce:animate-none`.
 
 ## Mobile
 
@@ -405,7 +414,7 @@ Under reduced motion the global rule in `globals.css` stops every animation and 
 
 ## Accessibility
 
-- **Focus is always visible.** Every control shows a ring or an outline in `ring` on keyboard focus: 2px on most, a 3px ring at 50% on `Button`. The Tailwind 4 trap: `outline-none` sets the outline style to none, and `focus-visible:outline-2` only sets its width, so no outline draws. Never put `outline-none` and `focus-visible:outline-*` on one element. Either use the outline alone (`focus-visible:outline-2 focus-visible:outline-ring`, as `CanvasRow`, `Chip` and `CanvasCard` do), or pair `outline-none` with `focus-visible:ring-2 focus-visible:ring-ring`, as the strip and the panel do.
+- **Focus is always visible.** Every control shows a ring or an outline in `ring` on keyboard focus: 2px on most, a 3px ring at 50% on `Button`. The Tailwind 4 trap: `outline-none` sets the outline style to none, and `focus-visible:outline-2` only sets its width, so no outline draws. Never put `outline-none` and `focus-visible:outline-*` on one element. Either use the outline alone (`focus-visible:outline-2 focus-visible:outline-ring`, as `CanvasRow`, `Chip` and `CanvasCard` do), or pair `outline-none` with `focus-visible:ring-2 focus-visible:ring-ring`, as the office bar and the panel do.
 - **Touch targets are 44px on a phone.** Add `max-md:h-11` or `max-md:size-11`. `Button` `lg` is 34px and is not a touch size.
 - **Form ids come from `useId`.** Derive related ids from it (`${id}-name`). Never hardcode an id.
 - **Every control has an accessible name.** Icon-only buttons take `aria-label`, with a tooltip or `title` on a computer. Icons and the mark are `aria-hidden` unless labelled. Rows whose text is not the action pass `label`. Counts belong in the label ("Notificações, 2 não lidas"). State icons carry screen-reader text.

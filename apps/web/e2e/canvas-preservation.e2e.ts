@@ -63,7 +63,7 @@ describe('folhas persistentes do canvas', { session: 'admin' }, () => {
       if (width < 768) {
         await screen.getByRole('button', 'Buscar', { exact: true }).tap();
         await screen.getByRole('group', 'Abas abertas').getByRole('option', 'Cálculos jurídicos', { exact: true }).tap();
-      } else await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', 'Cálculos jurídicos', { exact: true }).tap();
+      } else await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', /^Cálculos/).tap();
       await expect(screen.getByLabel('Título do cálculo')).toBeVisible();
       await expect(screen.getByLabel('Título do cálculo')).toHaveValue('Cálculo que permanece montado');
       expect(await browser.evaluate(() => Reflect.get(window, 'canvasProofInput') === document.querySelector('input[name="principal"]'))).toBe(true);

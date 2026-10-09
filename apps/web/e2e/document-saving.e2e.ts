@@ -1,4 +1,4 @@
-import { showCanvas, showLume, openModules, startLogout } from './support/shell';
+import { showCanvas, showLume, openModules, openPlace, startLogout } from './support/shell';
 import { describe, test, type Browser } from '@e2e-dev/web';
 import { expect, type Screen } from 'e2e';
 import { ApiSession, admin } from './support/accounts';
@@ -80,7 +80,7 @@ describe('salvamento de documentos', { session: 'admin' }, () => {
     await editor(screen).fill('a'.repeat(70_000) + ' último trecho');
     await hideTab(browser);
     await expect.poll(() => data.artifact.content.trimEnd().endsWith('último trecho')).toBe(true);
-    await screen.getByRole('button', 'Fechar aba Documento de teste').tap();
+    await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', 'Início', { exact: true }).tap();
     await expect(screen.getByRole('textbox', 'Texto do documento')).toHaveCount(0);
     await expect.poll(() => data.artifact.content.trimEnd().endsWith('último trecho')).toBe(true);
   });
@@ -197,7 +197,7 @@ describe('salvamento de documentos', { session: 'admin' }, () => {
     await openModules({ screen, browser });
     await screen.getByRole('navigation', 'Casos e módulos').getByRole('link', 'Todos os casos').tap();
     await expect(browser).toHaveURL(/\/app\/vault$/);
-    await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', 'Documento de teste', { exact: true }).tap();
+    await openPlace({ screen, browser }, 'Documento de teste');
     await expect(editor(screen)).toBeVisible();
     await browser.setViewport({ width: 390, height: 844 });
     data.fail();

@@ -3,6 +3,7 @@ import { expect, type Screen } from 'e2e';
 import { ApiSession, admin, uniqueAccount } from './support/accounts';
 import { overflowsHorizontally } from './support/fixtures';
 import { signInWithSession } from './support/sign-in';
+import { openPlace } from './support/shell';
 
 async function module(screen: Screen, label: string, mobile = false) {
   if (mobile) {
@@ -96,7 +97,7 @@ test('contrato frontend: o transporte envia o caso visível e uma saída tardia 
     await expect(screen.getByRole('status').filter({ hasText: `Pedido em andamento · ${first.case.name}` })).toBeVisible();
   } finally { release.resolve(); }
   await expect(screen.getByText('Pedido concluído.')).toBeVisible();
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('link', artifact.title, { exact: true })).toBeVisible();
+  await expect(browser.locator(`nav[aria-label="Abas do canvas"] a[title="Casos: ${artifact.title}"]`)).toBeVisible();
   await expect(browser).toHaveURL(`/app/vault/cases/${second.case.id}`);
   await input.fill('Agora resuma o segundo caso');
   await screen.getByRole('button', 'Enviar mensagem').tap();
@@ -157,9 +158,9 @@ test('a revogação real de um caso remove a aba, o conteúdo e o contexto sem a
   await input.fill('Pedido privado ainda não enviado');
   await owner.json('/api/collaboration', { json: { action: 'participant', caseId: record.id, userId: user.id, add: false } });
   expect((await guest.request(`/api/canvas/resource?href=${encodeURIComponent(href)}`)).status).toBe(404);
-  await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', record.name, { exact: true }).tap();
+  await openPlace({ screen, browser }, record.name);
   await expect(screen.getByRole('alert').filter({ hasText: 'Não foi possível abrir este recurso' })).toBeVisible();
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('link', record.name, { exact: true })).toHaveCount(0);
+  await expect(browser.locator(`nav[aria-label="Abas do canvas"] a[title="Casos: ${record.name}"]`)).toHaveCount(0);
   await expect(screen.getByRole('heading', record.name, { exact: true })).toHaveCount(0);
   await expect(browser.locator('[aria-label="Contexto da próxima mensagem"]')).not.toContainText(record.name);
   await expect(input).toHaveValue('Pedido privado ainda não enviado');
