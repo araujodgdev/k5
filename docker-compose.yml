@@ -78,7 +78,8 @@ services:
       K5_VAPID_KEY_ID: ${K5_VAPID_KEY_ID:-}
       K5_VAPID_SUBJECT: ${K5_VAPID_SUBJECT:-}
       K5_VAPID_PUBLIC_KEY: ${K5_VAPID_PUBLIC_KEY:-}
-      K5_CLIENT_IP_HEADER: ${K5_CLIENT_IP_HEADER:-}
+      # Obrigatório em produção Node: o proxy deve sobrescrever este cabeçalho com o IP real.
+      K5_CLIENT_IP_HEADER: ${K5_CLIENT_IP_HEADER:?defina o cabeçalho de IP sobrescrito pelo seu proxy}
       # Google integration (docs/integracao-google.md). Empty values keep the integration disabled.
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}

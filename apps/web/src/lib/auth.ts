@@ -55,7 +55,7 @@ Se não foi você, troque sua senha em Perfil e encerre as outras sessões.`,
   // Cloudflare overwrites cf-connecting-ip at the edge. Anywhere else a client can send it, so the
   // header is only trusted when the operator names the one their own proxy overwrites.
   ipHeaders: process.env.K5_RUNTIME === 'cloudflare' ? ['cf-connecting-ip']
-    : process.env.K5_CLIENT_IP_HEADER ? [process.env.K5_CLIENT_IP_HEADER.trim().toLowerCase()] : [],
+    : process.env.K5_CLIENT_IP_HEADER?.trim() ? [process.env.K5_CLIENT_IP_HEADER.trim().toLowerCase()] : [],
 };
 const instances = new WeakMap<Pool, ReturnType<typeof createAuth>>();
 function currentAuth() {
