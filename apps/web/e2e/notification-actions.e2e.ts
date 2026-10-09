@@ -77,7 +77,7 @@ describe('notificações pessoais', { session:'admin' }, () => {
       const dialog = screen.getByRole('dialog');
       await expect(dialog).toBeVisible();
       const box = (await dialog.boundingBox())!;
-      if (width >= 768) { expect(box.y).toBe(56); expect(Math.abs(box.x+box.width-(width-12))).toBeLessThan(2); }
+      if (width >= 768) { expect(box.y).toBe(56); expect(Math.abs(box.x-12)).toBeLessThan(2); }
       else { expect(box.x).toBe(12); expect(box.y+box.height).toBeLessThanOrEqual(888); }
       for (const tab of ['Novas','Arquivadas']) {
         await screen.getByRole('button',tab,{exact:true}).tap();

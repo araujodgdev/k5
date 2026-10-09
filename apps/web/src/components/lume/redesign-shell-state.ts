@@ -83,14 +83,14 @@ export function useRedesignShellState(access: LauncherAccess): ShellState {
     const here = controller.getSnapshot().href;
     void navigate(tab.id !== EXTRA_TAB && here === tab.href && here !== tab.root ? tab.root : tab.href);
   }, [controller, navigate]);
+  // Closing the extra tab closes every place it holds, not only the one it shows.
   const close = useCallback((tab: StripTab) => {
-    const resource = controller.getSnapshot().tabs.find(item => item.href === tab.href);
-    if (!resource || moduleOf(resource.href) !== EXTRA_TAB) return;
+    if (tab.id !== EXTRA_TAB) return;
     const back = tabs.find(item => item.id === lastModule.current)?.href ?? HOME_HREF;
     const finish = async () => {
       if (!await saveOpen() || drafts.hasUnsaved()) return;
-      if (controller.getSnapshot().href === resource.href && !await navigate(back)) return;
-      controller.dispatch({ type: 'close', key: resourceKey(resource) });
+      if (moduleOf(controller.getSnapshot().href) === EXTRA_TAB && !await navigate(back)) return;
+      for (const resource of controller.getSnapshot().tabs) if (moduleOf(resource.href) === EXTRA_TAB) controller.dispatch({ type: 'close', key: resourceKey(resource) });
     };
     void finish();
   }, [controller, navigate, saveOpen, drafts, tabs]);

@@ -11,7 +11,7 @@ import { LumeMark } from '@/components/lume-mark';
 import { useDocumentDrafts } from '@/components/document/document-drafts-provider';
 import { authClient } from '@/lib/auth-client';
 import type { Modalities } from '@/lib/ai-modalities';
-import { CanvasResourceReadError, canonicalCanvasHref, LumeWorkspaceController, resourceKey, restoreTabHrefs, tabStorageKey, type CanvasResource, type PanelMode, type ResourceAccess } from '@/lib/lume-workspace';
+import { CanvasResourceReadError, canonicalCanvasHref, LumeWorkspaceController, MAX_PLACES, resourceKey, restoreTabHrefs, tabStorageKey, type CanvasResource, type PanelMode, type ResourceAccess } from '@/lib/lume-workspace';
 import { WorkspaceContext, type WorkspaceActions } from './workspace-context';
 import type { WorkspaceMenuProps } from './workspace-menu';
 import { OfficeShell } from '@/components/shell/office-shell';
@@ -147,11 +147,21 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
       ? leavesRef.current.find(leaf => leaf.href === canonical) : undefined;
     if (retained) {
       intent.current = null; setLoading(false);
+      // The server confirms access before the mounted canvas shows again: a place revoked since it was
+      // last on screen closes instead. Nothing after the check may count as a newer authorization.
+      let checked: CanvasResource | null;
+      try { checked = await resolveResource(retained.href, false); }
+      catch (cause) {
+        if (requestSerial === serial.current) setError(cause instanceof Error ? cause.message : 'Não foi possível abrir o recurso.');
+        return false;
+      }
+      if (!checked || requestSerial !== serial.current || resourceKey(checked) !== resourceKey(retained.resource)) return false;
+      const access = controller.captureResourceAccess(retained.resource);
       if (!await saveOpen()) {
         if (requestSerial === serial.current) setError('Salve ou resolva o conflito do documento antes de abrir outro recurso.');
         return false;
       }
-      if (requestSerial !== serial.current || !leavesRef.current.includes(retained)) return false;
+      if (requestSerial !== serial.current || !leavesRef.current.includes(retained) || !controller.isResourceAccessCurrent(access)) return false;
       setError('');
       setActiveView(canvasViewKey(retained.href));
       const title = titles.current.get(canvasViewKey(retained.href));
@@ -165,9 +175,6 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
         if (replace) window.history.replaceState(null, '', retained.href);
         else window.history.pushState(null, '', retained.href);
       }
-      void resolveResource(retained.href, false).catch(cause => {
-        if (requestSerial === serial.current) setError(cause instanceof Error ? cause.message : 'Não foi possível abrir o recurso.');
-      });
       const nonce = crypto.randomUUID();
       intent.current = { href: retained.href, nonce, serial: requestSerial, access: controller.captureResourceAccess(resource), quiet: true };
       const refresh = new URL(retained.href, window.location.origin);
@@ -295,7 +302,7 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
       if (pending?.access && !controller.isResourceAccessCurrent(pending.access)) { loadFailed(); return; }
       const key = canvasViewKey(leaf.href);
       let retained = leavesRef.current;
-      if (!retained.some(entry => canvasViewKey(entry.href) === key) && retained.length >= 20) {
+      if (!retained.some(entry => canvasViewKey(entry.href) === key) && retained.length >= MAX_PLACES) {
         if (drafts.hasUnsaved()) {
           setError('Salve seus documentos antes de abrir mais telas.');
           router.replace(controller.getSnapshot().href, { scroll: false });
@@ -349,8 +356,16 @@ export function LumeWorkspace({ identity, aiNoticeAccepted, modalities, children
     let cancelled = false;
     let hrefs: string[] = [];
     try { hrefs = restoreTabHrefs(localStorage.getItem(storageKey)); } catch {}
-    void Promise.allSettled(hrefs.map(target => resolveResource(target))).then(() => {
+    // The places resolve together but open in their saved order, which the module tabs read as recency.
+    // One revoked or reopened while the others resolve keeps what happened to it.
+    void Promise.allSettled(hrefs.map(async target => {
+      const resource = await resolveResource(target, false);
+      return resource ? controller.captureResourceAccess(resource) : null;
+    })).then(results => {
       if (cancelled) return;
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value && controller.isResourceAccessCurrent(result.value)) controller.dispatch({ type: 'tab', resource: result.value.resource });
+      }
       setRestored(true);
     });
     return () => { cancelled = true; };

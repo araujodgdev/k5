@@ -1,4 +1,4 @@
-import { resourceKey, type CanvasResource } from '@/lib/lume-workspace';
+import { PLACES_PER_MODULE, resourceKey, type CanvasResource } from '@/lib/lume-workspace';
 import { appNavigation, navIsBeta } from '@/lib/navigation';
 import type { LauncherAccess } from './launcher';
 import { HOME_HREF, placeOf, type PlaceIcon } from './places';
@@ -26,9 +26,6 @@ export function moduleTabs({ whatsappEnabled, adsEnabled }: LauncherAccess): Mod
       return { id: moduleOf(root), root, title: titles[item.slug] ?? item.label, icon: placeOf(root).icon, beta: navIsBeta(item) };
     });
 }
-
-/** Places each module keeps mounted, so going back to one of them is instant and keeps its state. */
-export const PLACES_PER_MODULE = 3;
 
 /**
  * Each module's places by resource key, most recent first: the first is what its tab shows. `seen`

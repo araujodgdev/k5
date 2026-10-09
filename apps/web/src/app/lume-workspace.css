@@ -1,4 +1,5 @@
-.lume-workspace { position: relative; display: flex; height: 100dvh; overflow: hidden; background: var(--background); }
+/* The office bar sits on top; the Lume's panel and the canvas share the row under it. */
+.lume-workspace { position: relative; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; background: var(--background); }
 .lume-panel-header { display: flex; height: 52px; flex: none; align-items: center; gap: 8px; padding: 0 14px; }
 .lume-icon { display: inline-flex; flex: none; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 6px; color: var(--muted-foreground); cursor: pointer; }
 .lume-icon svg { width: 16px; height: 16px; }

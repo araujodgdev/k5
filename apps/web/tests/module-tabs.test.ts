@@ -78,14 +78,29 @@ test('a place the Lume opens behind the person takes its tab without closing the
   assert.deepEqual(tabs, [home, caseA, caseB]);
 });
 
-test('a view that changes its address moves its tab with it', () => {
+test('each view of a module is its own place', () => {
   const calendar = { ...tasks, href: '/app/agenda?view=calendar', title: 'Agenda' };
+  const clients = { ...tasks, href: '/app/agenda?view=clients', title: 'Clientes' };
+  const board = { ...tasks, href: '/app/agenda?view=board', title: 'Quadro' };
+  assert.notEqual(resourceKey(tasks), resourceKey(calendar));
+  const { follow, tabs } = run([
+    { tabs: [home, tasks], current: tasks },
+    { tabs: [home, tasks, calendar], current: calendar },
+    { tabs: [home, tasks, calendar, clients], current: clients },
+    { tabs: [home, tasks, calendar, clients, board], current: board },
+  ]);
+  assert.equal(modulePlaces(follow).agenda, resourceKey(board));
+  assert.deepEqual(tabs, [home, calendar, clients, board]);
+});
+
+test('a view that changes an address detail keeps its place', () => {
+  const filtered = { ...tasks, href: '/app/agenda?view=tasks&q=prazo' };
   const { follow } = run([
     { tabs: [home, tasks], current: tasks },
-    { tabs: [home, calendar], current: calendar },
+    { tabs: [home, filtered], current: filtered },
   ]);
-  assert.equal(modulePlaces(follow).agenda, resourceKey(calendar));
-  assert.equal(follow.seen.get(resourceKey(calendar)), '/app/agenda?view=calendar');
+  assert.equal(modulePlaces(follow).agenda, resourceKey(filtered));
+  assert.equal(follow.seen.get(resourceKey(filtered)), '/app/agenda?view=tasks&q=prazo');
 });
 
 test('a revoked place leaves its module on the module start', () => {
