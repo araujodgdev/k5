@@ -1,13 +1,14 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from '@/components/lume/canvas-navigation';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { CircleHelp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { tutorialNavigation } from '@/lib/navigation';
 import { tutorialSteps, tutorialStorageKey, type TutorialAccess } from '@/lib/onboarding';
+import { canonicalCanvasHref } from '@/lib/lume-workspace';
 
 const TutorialContext = createContext<() => void>(() => {});
 export function useTutorial() { return useContext(TutorialContext); }
@@ -35,8 +36,10 @@ export function OnboardingTour({ children, userId, officeId, whatsappEnabled, ad
   const opener = useRef<HTMLElement | null>(null);
   const manuallyOpened = useRef(false);
   const step = steps[index];
-  const currentHref = `${pathname}${params.size ? `?${params}` : ''}`;
-  const ready = view === 'tour' && step?.href === currentHref;
+  const rawHref = `${pathname}${params.size ? `?${params}` : ''}`;
+  // Compare canonical forms: the canvas sorts query keys and adds a transient navigation nonce.
+  const currentHref = canonicalCanvasHref(rawHref) ?? rawHref;
+  const ready = view === 'tour' && !!step && (canonicalCanvasHref(step.href) ?? step.href) === currentHref;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -67,7 +70,7 @@ export function OnboardingTour({ children, userId, officeId, whatsappEnabled, ad
     save(nextStep.id);
     setView('tour');
     window.dispatchEvent(new CustomEvent('lume:tutorial-surface', { detail: nextStep.module === 'agents' ? 'chat' : 'canvas' }));
-    if (currentHref !== nextStep.href) router.push(nextStep.href, { scroll: true });
+    if (currentHref !== (canonicalCanvasHref(nextStep.href) ?? nextStep.href)) router.push(nextStep.href, { scroll: true });
   }
 
   useEffect(() => {

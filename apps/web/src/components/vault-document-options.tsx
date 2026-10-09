@@ -4,11 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { fetchVaultDocumentPage } from '@/lib/vault-document-page';
 import type { VaultDocument } from '@/lib/vault';
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 
 type Options = { query: string | null; documents: VaultDocument[]; total: number; offset: number; loading: boolean; error: string };
 
 export function useVaultDocumentOptions(query: string | null, revision?: string) {
+  const canvasRevision = useCanvasRevision(), active = useCanvasActive();
   const [state, setState] = useState<Options>({ query: null, documents: [], total: 0, offset: 0, loading: false, error: '' });
+  const [seed, setSeed] = useState({canvasRevision, active});
+  if (seed.canvasRevision !== canvasRevision || seed.active !== active) { setSeed({canvasRevision, active}); setState({ query:null,documents:[],total:0,offset:0,loading:false,error:'' }); }
   const request = useRef<AbortController | null>(null);
   const load = useCallback(async (offset: number) => {
     if (!query) return;
@@ -38,7 +42,7 @@ export function useVaultDocumentOptions(query: string | null, revision?: string)
   useEffect(() => {
     const timer = window.setTimeout(() => void load(0), 0);
     return () => { window.clearTimeout(timer); request.current?.abort(); };
-  }, [load, revision]);
+  }, [load, revision, canvasRevision, active]);
   const current = state.query === query;
   return { documents: current ? state.documents : [], loading: query !== null && (!current || state.loading), error: current ? state.error : '',
     hasMore: current && state.offset < state.total, loadMore: () => load(current ? state.offset : 0) };

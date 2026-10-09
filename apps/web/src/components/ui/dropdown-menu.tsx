@@ -1,5 +1,5 @@
-"use client"
-
+"use client";
+import { useCanvasActive } from "@/components/lume/canvas-host";
 import * as React from "react"
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
@@ -16,6 +16,8 @@ function DropdownMenuTrigger(props: React.ComponentProps<typeof DropdownMenuPrim
 }
 
 function DropdownMenuContent({ className, align = "start", sideOffset = 4, ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  const canvasActive = useCanvasActive();
+  if (!canvasActive) return null;
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content

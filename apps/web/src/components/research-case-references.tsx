@@ -11,6 +11,7 @@ import { requestCapability } from '@/lib/capabilities/http-client';
 import type { ResearchCaseAssessment, ResearchCaseReference } from '@/lib/application/research-case-service';
 import { AssessmentView } from './research-case-linker';
 import { ResearchDraftStarter } from './research-draft-starter';
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 
 const purposeLabels = { foundation: 'Fundamentação', counterpoint: 'Contraponto', context: 'Contexto' } as const;
 const formatDate = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -24,9 +25,12 @@ function outcome<T>(result: Awaited<ReturnType<typeof requestCapability>>): T {
 }
 
 export function ResearchCaseReferences({ caseId, external = false }: { caseId: string; external?: boolean }) {
+  const revision = useCanvasRevision(), active = useCanvasActive();
   const [references, setReferences] = useState<ResearchCaseReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [seed, setSeed] = useState({revision,active});
+  if (seed.revision !== revision || seed.active !== active) { setSeed({revision,active}); setReferences([]); setLoading(true); }
   useEffect(() => {
     let live = true;
     const load = async () => {
@@ -38,7 +42,7 @@ export function ResearchCaseReferences({ caseId, external = false }: { caseId: s
     };
     void load();
     return () => { live = false; };
-  }, [caseId]);
+  }, [caseId, revision, active]);
   const replace = (next: ResearchCaseReference) => setReferences(current => current.map(item => item.id === next.id ? next : item));
   const remove = (id: string) => setReferences(current => current.filter(item => item.id !== id));
   return <section aria-label="Referências do caso">

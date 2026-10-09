@@ -16,6 +16,8 @@ import { hasAcceptedAny, hasAcceptedCurrent } from '@/lib/legal-acceptance';
 import { LEGAL_UPDATED_LABEL, LEGAL_VERSION } from '@/lib/legal-version';
 import { planTaskModel } from '@/lib/ai-connections';
 import { planReadsImages } from '@/lib/ai-assignments-core';
+import { OfficeAppearance } from '@/components/shell/office-appearance';
+import { officeAccent } from '@/lib/appearance-contract';
 
 const platformAdminFor = cache((userId: string) => isPlatformAdmin(database, userId));
 
@@ -36,7 +38,7 @@ export default async function OfficeLayout({ children }: { children: React.React
     isAdsEnabled({ officeId: office.officeId, userId: user.id }),
     database.prepare(`SELECT count(*) AS n FROM collaboration_invitation
       WHERE recipient_user_id=? AND status='pending' AND expires_at>CURRENT_TIMESTAMP`).get(userId),
-    database.prepare('SELECT avatar_version AS "avatarVersion" FROM user_profile WHERE user_id=?').get<{ avatarVersion: string | null }>(userId),
+    database.prepare('SELECT avatar_version AS "avatarVersion",office_accent AS accent FROM user_profile WHERE user_id=?').get<{ avatarVersion: string | null; accent: string | null }>(userId),
     platformAdminFor(userId),
     hasAcceptedCurrent(database, user.id, 'ai_notice'),
     planTaskModel('agent.chat').catch(() => null),
@@ -44,6 +46,7 @@ export default async function OfficeLayout({ children }: { children: React.React
   ]);
   const invitationCount = Number(invitationRow?.n ?? 0);
   return (
+    <OfficeAppearance key={user.id} initialAccent={officeAccent(photo?.accent)}>
     <OnboardingTour key={`${user.id}:${office.officeId}`} userId={user.id} officeId={office.officeId} platformAdmin={platformAdmin} whatsappEnabled={whatsappEnabled} adsEnabled={adsEnabled}>
     <DocumentDraftsProvider key={`${user.id}:${office.officeId}`}>
     <LumeWorkspace key={`${user.id}:${office.officeId}`} identity={{ userId: user.id, officeId: office.officeId }}
@@ -57,5 +60,6 @@ export default async function OfficeLayout({ children }: { children: React.React
     </LumeWorkspace>
     </DocumentDraftsProvider>
     </OnboardingTour>
+    </OfficeAppearance>
   );
 }

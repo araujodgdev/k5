@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CanvasResourceReadError, LumeWorkspaceController, canonicalCanvasHref, copyMessageScope, restoreTabHrefs, resourceKey, tabStorageKey, type CanvasResource } from '../src/lib/lume-workspace';
+
+test('legacy task and document destinations resolve to their canonical authorization identity', () => {
+  assert.equal(canonicalCanvasHref('/app/agents?conversationId=owned&caseId=shared'), '/app/vault/cases/shared');
+  assert.equal(canonicalCanvasHref('/app/agents?doc=private&conversationId=owned'), '/app/documents/private');
+  assert.equal(canonicalCanvasHref('/app/agents?conversationId=owned'), '/app/command-center');
+});
 import { requestedMessageScope, storedMessageScope, accessLost } from '../src/lib/chat-scope';
 import { documentKey } from '../src/lib/document-ref';
 
@@ -326,4 +332,39 @@ test('a newer pending resource read cannot suppress a confirmed editor denial', 
   workspace.dispatch({ type: 'authorized', resource: caseB });
   assert.deepEqual(workspace.getSnapshot().tabs, [caseB]);
   assert.equal(workspace.takeScope().caseId, 'case-b');
+});
+
+test('a pending authorized leaf loses its publication token when its resource is revoked', () => {
+  const workspace = new LumeWorkspaceController(caseA.href, 'canvas');
+  workspace.dispatch({ type: 'authorized', resource: caseA });
+  const access = workspace.captureResourceAccess(caseA);
+  assert.equal(workspace.isResourceAccessCurrent(access), true);
+  workspace.invalidateResource(access);
+  assert.equal(workspace.isResourceAccessCurrent(access), false);
+  assert.deepEqual(workspace.getSnapshot().tabs, []);
+});
+
+test('case revocation also invalidates a pending file leaf that was never registered as a tab', () => {
+  const workspace = new LumeWorkspaceController(caseA.href, 'canvas');
+  workspace.dispatch({ type: 'authorized', resource: caseA });
+  const file: CanvasResource = { kind: 'file', documentId: 'pending-file', caseId: 'case-a', href: '/app/vault/files/pending-file', title: 'Arquivo ainda carregando' };
+  const access = workspace.captureResourceAccess(file);
+  workspace.invalidateResource(workspace.captureResourceAccess(caseA));
+  assert.equal(workspace.isResourceAccessCurrent(access), false);
+  assert.equal(workspace.isResourceAccessCurrent(workspace.captureResourceAccess(caseB)), true);
+});
+
+test('the twenty-tab limit keeps home, the current canvas and the requested destination', () => {
+  const workspace = new LumeWorkspaceController('/app/command-center', 'canvas');
+  workspace.dispatch({ type: 'authorized', resource: { kind: 'module', slug: 'command-center', href: '/app/command-center', title: 'Início' } });
+  const cases: CanvasResource[] = Array.from({length:20}, (_, index) => ({ kind:'case',caseId:String(index),folderId:null,href:`/app/vault/cases/${index}`,title:`Caso ${index}` }));
+  for (const resource of cases.slice(0,19)) workspace.dispatch({type:'tab',resource});
+  workspace.dispatch({type:'destination',href:cases[0].href,resource:cases[0]});
+  workspace.dispatch({type:'tab',resource:cases[19]});
+  const tabs = workspace.getSnapshot().tabs;
+  assert.equal(tabs.length,20);
+  assert.equal(tabs.some(tab => tab.href === '/app/command-center'),true);
+  assert.equal(tabs.some(tab => tab.href === cases[0].href),true);
+  assert.equal(tabs.some(tab => tab.href === cases[19].href),true);
+  assert.equal(tabs.some(tab => tab.href === cases[1].href),false);
 });

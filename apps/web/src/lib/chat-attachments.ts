@@ -9,6 +9,7 @@ import { CapabilityError } from './capabilities/errors';
 import { captureOperationalError } from './observability/report';
 import { imageMatchesType } from './image-signature';
 import { DOCX_MIME, docxImages } from './docx-images';
+import { captureBillingOrigin } from './billing/origin';
 import { type Owner, conversation } from './ai-store';
 import { MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, MAX_CHAT_FILE_TEXT, MAX_CHAT_IMAGE_BYTES, type ChatAttachment } from './chat-attachment-contract';
 
@@ -24,6 +25,7 @@ export async function ownedChatAttachment(owner: Owner, id: string) {
 }
 export async function createChatAttachment(owner: Owner, conversationId: string, file: File) {
   if (!await conversation(database,owner,conversationId)) throw new CapabilityError('NOT_FOUND','Conversa não encontrada.');
+  const billingOrigin = await captureBillingOrigin(owner, conversationId);
   const {file:name,extension,mimeType}=validatedFileName(file.name);
   const limit=mimeType.startsWith('image/')?MAX_CHAT_IMAGE_BYTES:MAX_CHAT_FILE_BYTES;
   const tooLarge=mimeType.startsWith('image/')?'A imagem excede 10 MB.':'O arquivo excede 25 MB.';
@@ -58,7 +60,7 @@ export async function createChatAttachment(owner: Owner, conversationId: string,
     const row=await withTransaction(async tx=>{
       const row=await tx.prepare(`INSERT INTO ai_chat_attachment(id,conversation_id,office_id,user_id,storage_key,name,media_type,byte_size,extracted_text)
         VALUES(?,?,?,?,?,?,?,?,?) RETURNING *`).get<ChatAttachmentRow>(id,conversationId,owner.officeId,owner.userId,key,name,mimeType,bytes.length,extracted);
-      await chargeOcrPages(tx,owner,id,ocrPages);
+      await chargeOcrPages(tx,{...owner,billingOrigin},id,ocrPages);
       return row!;
     });
     return publicChatAttachment(row);

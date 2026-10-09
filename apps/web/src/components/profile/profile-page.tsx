@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/components/lume/canvas-navigation';
 import { CircleAlert } from 'lucide-react';
 import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
 import { CanvasMeta } from '@/components/shell/shell-context';

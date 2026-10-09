@@ -21,6 +21,7 @@ export type WorkspaceContext = {
   allowedResearchReferenceIds?: string[];
   /** The chat conversation of this turn, set by the chat route; decides which documents are the agent's own. */
   conversationId?: string;
+  billingOrigin?: import('@/lib/billing/origin').BillingOrigin | null;
   submissionId?: string;
   generationId?: string;
   contentTransaction?: Transaction;

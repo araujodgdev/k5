@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { GoogleApprovalReview } from '@/components/google/client';
 import { PageApprovalReview } from '@/components/document/page-approval-review';
-import { useRouter } from 'next/navigation';
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { useChat } from "@ai-sdk/react";
@@ -113,6 +112,10 @@ function storeMessages(id: string, next: UIMessage[]) {
   }
 }
 
+export function clearIdentityChatCache(identityKey: string) {
+  for (const key of memoryMessages.keys()) if (key.startsWith(identityKey + ':')) clearMessages(key);
+  try { for (const key of Object.keys(sessionStorage)) if (key.startsWith(MESSAGE_CACHE + identityKey + ':')) sessionStorage.removeItem(key); } catch {}
+}
 function clearMessages(id: string) {
   memoryMessages.delete(id);
   try { sessionStorage.removeItem(MESSAGE_CACHE + id); } catch { /* Storage may be disabled. */ }
@@ -436,8 +439,9 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
   const [runTarget, setRunTarget] = useState<string | null>(() => storedMessageScope(messages.findLast(message => message.role === 'user'))?.label ?? null);
   const [runHref, setRunHref] = useState<string | undefined>(() => storedMessageScope(messages.findLast(message => message.role === 'user'))?.canvasHref);
   const [activityHref, setActivityHref] = useState<string>();
+  const [reconnecting, setReconnecting] = useState(true);
   const chat = useChat({
-    id: conversationId, messages, transport, resume: true, onFinish,
+    id: conversationId, messages, transport, onFinish,
     onError: error => onError(chatErrorMessage(error)),
     onData: part => {
       if (part.type === 'data-canvas') {
@@ -451,6 +455,13 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
       }
     },
   });
+  const resumeStream = chat.resumeStream;
+  useEffect(() => {
+    // A late empty reconnect must finish before the SDK starts a new send.
+    let live = true;
+    void resumeStream().finally(() => { if (live) setReconnecting(false); });
+    return () => { live = false; };
+  }, [resumeStream]);
   const [decisions, setDecisions] = useState<ReadonlyMap<string, ApprovalDecision>>(new Map());
   const { setMessages: setChatMessages } = chat;
   const approvalDecisions = useMemo(() => ({
@@ -499,9 +510,9 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
   const sendCurrent = useRef(sendMessage);
   useLayoutEffect(() => { sendCurrent.current = sendMessage; });
   useEffect(() => registerSender(text => {
-    if (chat.status === 'submitted' || chat.status === 'streaming') throw new Error('Aguarde a resposta atual do Lume.');
+    if (reconnecting || chat.status === 'submitted' || chat.status === 'streaming') throw new Error('Aguarde a resposta atual do Lume.');
     void sendCurrent.current({ text });
-  }), [registerSender, chat.status]);
+  }), [registerSender, chat.status, reconnecting]);
   const running = chat.status === 'submitted' || chat.status === 'streaming';
   const latest = chat.messages.findLast(message => message.role === 'assistant');
   const plan = buildPlan(latest?.parts.flatMap(part => part.type.startsWith('data-') && 'data' in part ? [{ name: part.type.slice(5), data: part.data }] : []) ?? [], { running: running ? working || THINKING : null, decisions });
@@ -514,7 +525,7 @@ function RuntimeThread({ conversationId, identityKey, messages, onFilesSent, too
     setActivity?.({ state: activityState, status: activityStatus, caseId: storedMessageScope(chat.messages.findLast(message => message.role === 'user'))?.caseId, place: touched ? resourceKey(touched) : undefined });
   }, [activityState, activityStatus, activityHref, runHref, controller, setActivity, chat.messages]);
   useEffect(() => () => setActivity?.({ state: 'idle' }), [setActivity]);
-  const currentTools = { ...tools, runningTarget: running && (runHref !== controller.getSnapshot().resource?.href || runTarget !== tools.contextLabel) ? runTarget : null };
+  const currentTools = { ...tools, contextReady: tools.contextReady && !reconnecting, runningTarget: running && (runHref !== controller.getSnapshot().resource?.href || runTarget !== tools.contextLabel) ? runTarget : null };
   return <ConversationIdContext.Provider value={conversationId}><WorkingContext.Provider value={chat.status === 'submitted' ? '' : working}>
     <SharedProposalContext.Provider value={{ selected: selectedProposal, select: selectProposal }}>
     <ApprovalDecisionsContext.Provider value={approvalDecisions}>
@@ -529,7 +540,6 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
   const { controller, openResource, conversationIntent } = useLumeWorkspace();
   const workspace = useLumeState();
   const shell = useShell();
-  const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const activeConversation = useRef<string | null>(null);
@@ -556,13 +566,10 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
     intentId.current = conversationIntent.id;
   }, [conversationIntent]);
   const loseAccess = useCallback(() => {
-    for (const key of memoryMessages.keys()) if (key.startsWith(identityKey + ':')) clearMessages(key);
-    try {
-      for (const key of Object.keys(sessionStorage)) if (key.startsWith(MESSAGE_CACHE + identityKey + ':')) sessionStorage.removeItem(key);
-    } catch { /* Storage may be disabled. */ }
+    clearIdentityChatCache(identityKey);
+    window.dispatchEvent(new Event('lume:session-ended'));
     setMessages([]); setSelectedId(null); setConversations([]); setDraftFiles({});
-    router.replace('/sign-in'); router.refresh();
-  }, [identityKey, router, setDraftFiles]);
+  }, [identityKey, setDraftFiles]);
   const handledCalls = useRef(new Set<string>());
   const historyToggle = useRef<HTMLButtonElement>(null);
   function toggleList() {
@@ -597,6 +604,7 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
         problems.push(accepted.length>1?`${file.name}: ${reason}`:reason);
       } finally {
         setUploading(count=>count-1);
+        window.dispatchEvent(new Event('lume:credits-changed'));
       }
     }));
     report();
@@ -708,6 +716,7 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
   const selectedCount = new Set([...context.documentIds, ...(workspace.resource?.kind === 'file' ? [workspace.resource.documentId] : [])]).size + context.researchReferenceIds.length;
 
   const composerTools: ComposerToolsProps = {
+    conversationId: selectedId ?? null,
     modalities,
     uploading,
     onPickFiles: (files) => void attachFiles(files),
@@ -781,6 +790,7 @@ export function AgentChat({ identityKey, displayName = '', modalities = { image:
                 onFilesSent={ids=>setDraftFiles(current=>({...current,[selectedId]:(current[selectedId]??[]).filter(file=>!ids.includes(file.id))}))}
                 tools={composerTools}
                 onFinish={() => {
+                  window.dispatchEvent(new Event('lume:credits-changed'));
                   void loadConversations().catch(() => undefined);
                   void fetch(`/api/conversations/${encodeURIComponent(selectedId)}`)
                     .then(async (response) => {

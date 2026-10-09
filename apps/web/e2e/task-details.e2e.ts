@@ -88,7 +88,8 @@ test('cada tarefa do Kanban abre a própria página, que edita título e observa
   await app.screenshot('03-pagina-da-tarefa-celular');
 
   await main.getByRole('link', 'Voltar ao quadro').tap();
-  await expect(browser).toHaveURL('/app/agenda?view=tasks&layout=kanban');
+  // The workspace navigates to the canonical href, whose query keys are sorted.
+  await expect(browser).toHaveURL('/app/agenda?layout=kanban&view=tasks');
   await expect(board).toBeVisible();
 });
 

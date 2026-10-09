@@ -11,7 +11,7 @@ describe('área de trabalho', { session: 'admin' }, () => {
     await browser.setViewport({ width: 390, height: 844 });
     await app.open('/app/command-center');
     await showCanvas({ screen, browser });
-    const account = screen.getByRole('button', /^Mais opções/);
+    const account = screen.getByRole('button', /^Mais opções(?:,|$)/);
     await openAccount({ screen, browser });
     const wasDark = await browser.evaluate(() => document.documentElement.classList.contains('dark'));
     await screen.getByRole('button', wasDark ? 'Usar tema claro' : 'Usar tema escuro').tap();

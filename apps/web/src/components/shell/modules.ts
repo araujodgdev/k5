@@ -37,14 +37,15 @@ export type CasesState = { status: 'idle' | 'loading' | 'error' } | { status: 'r
 /** The office's cases, newest first, loaded when a menu that lists them opens. */
 export function useOfficeCases(active: boolean): CasesState {
   const [state, setState] = useState<CasesState>({ status: 'idle' });
+  const [opened,setOpened] = useState(active);
+  if (opened !== active) { setOpened(active); setState({status:active ? 'loading' : 'idle'}); }
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      setState((current) => current.status === 'ready' ? current : { status: 'loading' });
       void requestCapability('k5_vault_list_cases', {}).then((response) => {
         if (cancelled) return;
-        if (!response.ok) { setState((current) => current.status === 'ready' ? current : { status: 'error' }); return; }
+        if (!response.ok) { setState({status:'error'}); return; }
         const { cases } = response.data as { cases: CaseSummary[] };
         setState({ status: 'ready', cases: cases.map(({ id, name }) => ({ id, name })) });
       });

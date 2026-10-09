@@ -1,7 +1,9 @@
 "use client";
 
+import { useCanvasActive } from '@/components/lume/canvas-host';
+
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/components/lume/canvas-navigation";
 import { documentApi, documentHref, documentKey, type DocumentRef } from "@/lib/document-ref";
 import { CanvasResourceReadError } from "@/lib/lume-workspace";
 import { PublishDocument } from "./publish-document";
@@ -71,6 +73,7 @@ export function DocumentWorkspace({ resource }: { resource: DocumentRef }) {
 }
 
 function DocumentEditor({ resource }: { resource: DocumentRef }) {
+  const active = useCanvasActive();
   const router = useRouter();
   const api = documentApi(resource);
   const key = documentKey(resource);
@@ -113,7 +116,7 @@ function DocumentEditor({ resource }: { resource: DocumentRef }) {
     if (!draft.isValid(read)) throw new DOMException('Recurso invalidado.', 'AbortError');
     const response = await fetch(url, init);
     if (!draft.isValid(read)) throw new DOMException('Recurso invalidado.', 'AbortError');
-    if (response.status === 401) { router.replace('/sign-in'); router.refresh(); throw new CanvasResourceReadError(401); }
+    if (response.status === 401) { window.dispatchEvent(new Event('lume:session-ended')); router.replace('/sign-in'); router.refresh(); throw new CanvasResourceReadError(401); }
     if (shared && (response.status === 403 || response.status === 404)) {
       workspace.invalidateResource(access);
       throw new CanvasResourceReadError(response.status);
@@ -159,15 +162,17 @@ function DocumentEditor({ resource }: { resource: DocumentRef }) {
   }, [draft, fetchArtifact, apply, fail]);
 
   useEffect(() => {
+    if (!active) return;
     const controller = new AbortController();
     const read = draft.captureRevision();
+    const previousContent = draft.getSnapshot()?.content;
     void draft.waitForSave().then(() => fetchArtifact(controller.signal)).then(next => {
       if (controller.signal.aborted || !draft.isValid(read)) return;
       draft.open(next, read);
       const current = draft.getSnapshot();
       setArtifact(next);
       setEditorSeed(current?.content ?? next.content);
-      setEditorKey(key => key + 1);
+      if (previousContent !== current?.content) editorRef.current?.setMarkdown(current?.content ?? next.content);
       setPhase('ready');
     }, (cause) => { if (!controller.signal.aborted) fail(cause); });
     request(`${api}/format`, { signal: controller.signal, cache: "no-store" })
@@ -175,19 +180,19 @@ function DocumentEditor({ resource }: { resource: DocumentRef }) {
       .then((body) => { if (body && !controller.signal.aborted && draft.isValid(read)) { setTypography(body.typography); setTemplateName(body.templateName); } })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [api, draft, fetchArtifact, fail, request]);
+  }, [active, api, draft, fetchArtifact, fail, request]);
 
   // The citation check of the stored text; the Lume's writes refresh it on the server.
   const storedVersion = artifact?.version;
   useEffect(() => {
-    if (!storedVersion || shared) return;
+    if (!active || !storedVersion || shared) return;
     const controller = new AbortController();
     fetch(`${api}/citations`, { signal: controller.signal, cache: "no-store" })
       .then(async (response) => response.ok ? await response.json() as StoredCitations : null)
-      .then((body) => { if (body) setCitations(body); })
+      .then((body) => { if (body && !controller.signal.aborted) setCitations(body); })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [api, storedVersion, shared]);
+  }, [active, api, storedVersion, shared]);
 
   /** Saves what is on screen. `snapshot` also records a version in the history. */
   const save = useCallback((snapshot: boolean, leaving = false) => draft.save(async sent => {

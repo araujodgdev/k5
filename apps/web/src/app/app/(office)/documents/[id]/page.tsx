@@ -1,3 +1,4 @@
+import { officePage } from '@/components/lume/canvas-leaf';
 import type { Metadata } from "next";
 import { DocumentWorkspace } from "@/components/document/document-workspace";
 import { requireWorkspace } from '@/lib/session';
@@ -9,7 +10,7 @@ import { notFound } from 'next/navigation';
 
 export const metadata: Metadata = { title: "Documento" };
 
-export default async function DocumentPage({ params }: PageProps<"/app/documents/[id]">) {
+async function DocumentPage({ params }: PageProps<"/app/documents/[id]">) {
   const { id } = await params;
   const workspace = await requireWorkspace();
   const resource = await authorizedCanvasResource(workspaceContext(workspace), `/app/documents/${encodeURIComponent(id)}`).catch(error => {
@@ -18,3 +19,5 @@ export default async function DocumentPage({ params }: PageProps<"/app/documents
   });
   return <><CanvasResource resource={resource} /><DocumentWorkspace resource={{ kind: 'artifact', id }} /></>;
 }
+
+export default officePage('/app/documents/[id]', DocumentPage);

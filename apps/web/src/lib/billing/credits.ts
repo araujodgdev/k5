@@ -4,6 +4,7 @@ import { ApiError } from '../api-error';
 import { database, withTransaction, type Transaction } from '../database';
 import { assertPlatformAdmin, isPlatformAdmin } from '../platform-core';
 import { AI_TASK_DEFINITIONS, type AiTaskKey } from '../ai-tasks';
+import { persistedBillingOrigin, billingOwner, type BillingOwner, type BillingOrigin } from './origin';
 import { MILLI, millicreditsForUsd, usageCostUsd, type CallUsage, type CreditSettings, type ModelPrice } from './credit-pricing';
 
 /*
@@ -54,16 +55,17 @@ async function account(tx: Transaction, officeId: string, lock = false) {
   return (await applyEntry(tx, { officeId, kind: 'initial', amount: initialCredits * MILLI, reference: `initial:${officeId}`, description: 'Créditos iniciais' })) ?? row!.balance;
 }
 
-type Entry = { officeId: string; kind: CreditKind; amount: number; reference: string; userId?: string | null; actorUserId?: string | null; description?: string };
+type Entry = { officeId: string; kind: CreditKind; amount: number; reference: string; userId?: string | null; actorUserId?: string | null; description?: string; billingOrigin?: BillingOrigin | null };
 
 /** Applies one entry under the account's lock. Returns the new balance, or null when the reference was already applied. */
 async function applyEntry(tx: Transaction, entry: Entry): Promise<number | null> {
   if (!Number.isSafeInteger(entry.amount) || entry.amount === 0) return null;
-  const inserted = await tx.prepare(`INSERT INTO credit_entry (id, office_id, user_id, actor_user_id, kind, amount, balance_after, reference, description)
-    SELECT ?, ?, ?, ?, ?, ?::bigint, balance + ?::bigint, ?, ? FROM credit_account WHERE office_id = ?
+  const origin = await persistedBillingOrigin(tx, { officeId: entry.officeId, userId: entry.userId ?? null }, entry.billingOrigin?.id);
+  const inserted = await tx.prepare(`INSERT INTO credit_entry (id, office_id, user_id, actor_user_id, kind, amount, balance_after, reference, description, conversation_id, billing_origin_id)
+    SELECT ?, ?, ?, ?, ?, ?::bigint, balance + ?::bigint, ?, ?, ?, ? FROM credit_account WHERE office_id = ?
     ON CONFLICT (reference) DO NOTHING RETURNING balance_after::float8 AS "balanceAfter"`)
     .get<{ balanceAfter: number }>(randomUUID(), entry.officeId, entry.userId ?? null, entry.actorUserId ?? null, entry.kind,
-      entry.amount, entry.amount, entry.reference, entry.description ?? null, entry.officeId);
+      entry.amount, entry.amount, entry.reference, entry.description ?? null, origin?.conversationId ?? null, origin?.id ?? null, entry.officeId);
   if (!inserted) return null;
   await tx.prepare('UPDATE credit_account SET balance = ?::bigint, updated_at = CURRENT_TIMESTAMP WHERE office_id = ?').run(inserted.balanceAfter, entry.officeId);
   return inserted.balanceAfter;
@@ -80,6 +82,19 @@ export async function creditBalance(officeId: string) {
   return withTransaction(tx => account(tx, officeId));
 }
 
+export async function conversationCredits(owner: { officeId: string; userId: string }, conversationId: string) {
+  return withTransaction(async tx => {
+    if (!await tx.prepare('SELECT id FROM ai_conversation WHERE id=? AND office_id=? AND user_id=? FOR SHARE').get(conversationId, owner.officeId, owner.userId)) throw new ApiError(404, 'Conversa não encontrada.');
+    const balance = await account(tx, owner.officeId, true);
+    const row = await tx.prepare(`SELECT COALESCE(-sum(amount),0)::text AS used FROM credit_entry WHERE office_id=? AND user_id=? AND conversation_id=? AND kind IN ('usage','ocr')`)
+      .get<{ used: string }>(owner.officeId, owner.userId, conversationId);
+    const tracking = await tx.prepare('SELECT started_at AS "startedAt" FROM conversation_credit_tracking WHERE singleton=true').get<{ startedAt: string }>();
+    const used = Number(row!.used);
+    if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(used)) throw new ApiError(503, 'O saldo está indisponível no momento.');
+    return { used, balance, trackingStartedAt: tracking!.startedAt };
+  });
+}
+
 /**
  * Refuses an AI call or an OCR page when the office has nothing left. A call may still take the
  * balance a little below zero: it is charged what it really cost once it ends. `pending` is what the
@@ -93,12 +108,13 @@ export async function assertCredits(officeId: string, userId: string | null, pen
 export type UsageCharge = { modelId: string; calls: CallUsage[]; webSearchCalls?: number };
 
 /** Prices a model's usage and charges it to the office, inside the caller's transaction. */
-export async function chargeUsage(tx: Transaction, owner: { officeId: string; userId: string | null }, usageId: string, charge: UsageCharge) {
+export async function chargeUsage(tx: Transaction, owner: BillingOwner, usageId: string, charge: UsageCharge) {
+  owner = await billingOwner(tx, owner);
   const [price, settings] = await Promise.all([modelPrice(charge.modelId, tx), creditSettings(tx)]);
   const costUsd = usageCostUsd(price, charge.calls, charge.webSearchCalls);
   const millicredits = millicreditsForUsd(costUsd, settings);
   if (!millicredits || await isCreditExempt(owner.userId, tx)) return { costUsd, millicredits: 0 };
-  await postCredits(tx, { officeId: owner.officeId, userId: owner.userId, kind: 'usage', amount: -millicredits, reference: `usage:${usageId}` });
+  await postCredits(tx, { officeId: owner.officeId, userId: owner.userId, billingOrigin: owner.billingOrigin, kind: 'usage', amount: -millicredits, reference: `usage:${usageId}` });
   return { costUsd, millicredits };
 }
 
@@ -106,15 +122,16 @@ export async function chargeUsage(tx: Transaction, owner: { officeId: string; us
  * Charges one page about to be read by OCR, refusing it when the office has no credits. The
  * reference is the document and the page, so a retried extraction never pays for a page twice.
  */
-export async function chargeOcrPage(owner: { officeId: string; userId: string | null }, documentId: string, page: string) {
+export async function chargeOcrPage(owner: BillingOwner, documentId: string, page: string) {
   if (await isCreditExempt(owner.userId)) return;
   await withTransaction(async tx => {
+    owner = await billingOwner(tx, owner);
     const balance = await account(tx, owner.officeId, true);
     const reference = `ocr:${documentId}:${page}`;
     if (await tx.prepare('SELECT 1 FROM credit_entry WHERE reference = ?').get(reference)) return;
     if (balance <= 0) throw new InsufficientCreditsError();
     const { ocrPageMillicredits } = await creditSettings(tx);
-    await applyEntry(tx, { officeId: owner.officeId, userId: owner.userId, kind: 'ocr', amount: -ocrPageMillicredits, reference, description: 'OCR de uma página' });
+    await applyEntry(tx, { officeId: owner.officeId, userId: owner.userId, billingOrigin: owner.billingOrigin, kind: 'ocr', amount: -ocrPageMillicredits, reference, description: 'OCR de uma página' });
   });
 }
 
@@ -122,10 +139,11 @@ export async function chargeOcrPage(owner: { officeId: string; userId: string | 
  * Charges the pages a chat attachment was read by, in the transaction that records it. The chat
  * keeps no checkpoint of a page it paid for, so like usage it is charged after the work, once.
  */
-export async function chargeOcrPages(tx: Transaction, owner: { officeId: string; userId: string | null }, attachmentId: string, pages: number) {
+export async function chargeOcrPages(tx: Transaction, owner: BillingOwner, attachmentId: string, pages: number) {
   if (!pages || await isCreditExempt(owner.userId, tx)) return;
+  owner = await billingOwner(tx, owner);
   const { ocrPageMillicredits } = await creditSettings(tx);
-  await postCredits(tx, { officeId: owner.officeId, userId: owner.userId, kind: 'ocr', amount: -ocrPageMillicredits * pages,
+  await postCredits(tx, { officeId: owner.officeId, userId: owner.userId, billingOrigin: owner.billingOrigin, kind: 'ocr', amount: -ocrPageMillicredits * pages,
     reference: `ocr:${attachmentId}`, description: `OCR de ${pages} página${pages === 1 ? '' : 's'}` });
 }
 

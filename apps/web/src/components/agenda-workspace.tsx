@@ -2,7 +2,8 @@
 
 import { z } from 'zod';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/components/lume/canvas-navigation';
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 import { useCallback, useEffect, useState } from 'react';
 import { Columns3, List, Plus, RefreshCw } from 'lucide-react';
 import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
@@ -77,6 +78,7 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
   const [revision, setRevision] = useState(0);
   const [cases, setCases] = useState<Choice[]>([]);
   const [clients, setClients] = useState<CrmClient[]>([]);
+  const canvasRevision = useCanvasRevision(), active = useCanvasActive();
   const [members, setMembers] = useState<Choice[]>([]);
   const [activities, setActivities] = useState<AgendaActivity[]>([]);
   const [clientRows, setClientRows] = useState<CrmClient[]>([]);
@@ -86,6 +88,8 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
   const [optionsReady, setOptionsReady] = useState(false);
   const [failure, setFailure] = useState('');
   const [optionsFailure, setOptionsFailure] = useState('');
+  const [canvasSeed, setCanvasSeed] = useState({canvasRevision,active});
+  if (canvasSeed.canvasRevision !== canvasRevision || canvasSeed.active !== active) { setCanvasSeed({canvasRevision,active}); setActivities([]); setClientRows([]); setMembers([]); setClients([]); setCases([]); setOptionsReady(false); setTotal(0); setSummary(''); }
   const [editor, setEditor] = useState<Editor | null>(initialAction === 'new' ? { mode: view === 'clients' ? 'client' : 'activity' } : null);
   const [describing, setDescribing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -113,7 +117,7 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
       } catch (error) { if (!cancelled) { setOptionsFailure(message(error, 'Não foi possível carregar os vínculos.')); setOptionsReady(false); } }
     }
     void load(); return () => { cancelled = true; };
-  }, [revision]);
+  }, [revision, canvasRevision, active]);
 
   useEffect(() => {
     if (!initialActivityId) return;
@@ -136,7 +140,7 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
         .then(([all, prospects]) => all.total ? `${count(all.total, 'cliente', 'clientes')}${prospects.total ? `, ${prospects.total} em prospecção` : ''}` : 'Nenhum cliente cadastrado');
     counts.then(text => { if (!cancelled) setSummary(text); }, () => { if (!cancelled) setSummary(''); });
     return () => { cancelled = true; };
-  }, [view, day, revision]);
+  }, [view, day, revision, canvasRevision, active]);
 
   const month = day.slice(0, 7);
   useEffect(() => {
@@ -160,7 +164,7 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
     }
     void load();
     return () => { cancelled = true; };
-  }, [view, calendarMode, month, caseId, clientId, searchQuery, revision]);
+  }, [view, calendarMode, month, caseId, clientId, searchQuery, revision, canvasRevision, active]);
 
   useEffect(() => {
     if (!day || personal) return;
@@ -193,7 +197,7 @@ export function AgendaWorkspace({ initialCaseId, initialClientId, initialActivit
     }
     void load();
     return () => { cancelled = true; };
-  }, [view, board, personal, day, caseId, clientId, searchQuery, situation, stage, legalArea, offset, revision]);
+  }, [view, board, personal, day, caseId, clientId, searchQuery, situation, stage, legalArea, offset, revision, canvasRevision, active]);
 
   // Labels for the rows: clients beyond the first page of the CRM are read one by one.
   useEffect(() => {

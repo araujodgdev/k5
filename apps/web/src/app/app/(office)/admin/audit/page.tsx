@@ -1,3 +1,5 @@
+import { AdminCanvas } from '@/components/admin/admin-canvas';
+import { officePage } from '@/components/lume/canvas-leaf';
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Filter } from "lucide-react";
@@ -19,7 +21,7 @@ const fullFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeSt
 const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? "";
 
 /** What administrators and the platform's own processes changed: credits, payments, AI, keys. */
-export default async function PlatformAuditPage({ searchParams }: PageProps<"/app/admin/audit">) {
+async function PlatformAuditPage({ searchParams }: PageProps<"/app/admin/audit">) {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const search = await searchParams;
@@ -58,3 +60,5 @@ export default async function PlatformAuditPage({ searchParams }: PageProps<"/ap
     </AdminGrid>
   </>;
 }
+
+export default officePage('/app/admin/audit', PlatformAuditPage, AdminCanvas);

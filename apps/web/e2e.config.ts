@@ -30,7 +30,8 @@ export default {
   assertionTimeout: ci || external ? 10_000 : 30_000,
   targets: [{
     name: 'web',
-    engine: web({ viewport: { width: 1280, height: 844 }, headers: { 'x-e2e-client': workerClient } }),
+    // Local Workerd uses Cloudflare's trusted header; Next uses the configured test proxy header.
+    engine: web({ viewport: { width: 1280, height: 844 }, headers: { 'x-e2e-client': workerClient, 'cf-connecting-ip': workerClient } }),
     app: external ? { url: external } : {
       url: 'http://localhost:3000',
       readyUrl: 'http://localhost:{port}/sign-in',

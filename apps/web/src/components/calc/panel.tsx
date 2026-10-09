@@ -16,12 +16,14 @@ import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { calculators, calculationsList, savedCalculation, type CalculationKind, type SavedCalculation } from '@/lib/calc/contracts';
 import { CalcBack, CalcForm, calcCall } from './form';
 import { CalcResult } from './result';
+import { useCanvasRevision, useCanvasActive } from '../lume/canvas-host';
 
 const PAGE = 50;
 type View = { kind: 'list' } | { kind: 'edit'; calculator: CalculationKind; seed?: SavedCalculation; key: number } | { kind: 'detail'; value: SavedCalculation };
 
 /** Cálculos as a canvas module: the calculators as cards, then the saved calculations as rows. */
 export function CalcPanel() {
+  const canvasRevision = useCanvasRevision(), active = useCanvasActive();
   const [view, setView] = useState<View>({ kind: 'list' });
   const [list, setList] = useState<z.infer<typeof calculationsList> | null>(null);
   const [error, setError] = useState('');
@@ -30,11 +32,13 @@ export function CalcPanel() {
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [seed,setSeed] = useState({canvasRevision,active});
+  if (seed.canvasRevision !== canvasRevision || seed.active !== active) { setSeed({canvasRevision,active}); setList(null); }
   useEffect(() => {
     const controller = new AbortController();
-    void calcCall('list', { query: search, offset }, calculationsList, controller.signal).then(value => { setList(value); setError(''); }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os cálculos.'); });
+    void calcCall('list', { query: search, offset }, calculationsList, controller.signal).then(value => { if (!controller.signal.aborted) { setList(value); setError(''); } }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os cálculos.'); });
     return () => controller.abort();
-  }, [search, offset, revision]);
+  }, [search, offset, revision, canvasRevision, active]);
   async function open(id: string, version?: number) {
     setBusy(true); setError('');
     try { const value = await calcCall('get', { id, version }, savedCalculation); setView({ kind: 'detail', value }); }

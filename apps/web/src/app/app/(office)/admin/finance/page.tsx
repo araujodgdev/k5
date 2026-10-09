@@ -1,3 +1,5 @@
+import { AdminCanvas } from '@/components/admin/admin-canvas';
+import { officePage } from '@/components/lume/canvas-leaf';
 import { notFound } from 'next/navigation';
 import { Info } from 'lucide-react';
 import { requirePlatformPage } from '@/lib/platform';
@@ -16,7 +18,7 @@ const periods = [{ value: 30, label: 'Últimos 30 dias' }, { value: 90, label: '
 const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? '';
 
 /** What the platform charged its clients: totals for the period and client, then the charges themselves. */
-export default async function FinancePage({ searchParams }: PageProps<'/app/admin/finance'>) {
+async function FinancePage({ searchParams }: PageProps<'/app/admin/finance'>) {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const search = await searchParams;
@@ -75,3 +77,5 @@ export default async function FinancePage({ searchParams }: PageProps<'/app/admi
     </AdminGrid>
   </>;
 }
+
+export default officePage('/app/admin/finance', FinancePage, AdminCanvas);

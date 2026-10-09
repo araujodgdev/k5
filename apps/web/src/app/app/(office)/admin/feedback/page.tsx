@@ -1,3 +1,5 @@
+import { AdminCanvas } from '@/components/admin/admin-canvas';
+import { officePage } from '@/components/lume/canvas-leaf';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requirePlatformPage } from '@/lib/platform';
@@ -23,7 +25,7 @@ const count = (value: number) => value.toLocaleString('pt-BR');
 type Choice = { value: string; label: string };
 const choices = <T extends string>(values: readonly T[], labels: Record<T, string>): Choice[] => values.map(value => ({ value, label: labels[value] }));
 
-export default async function PlatformFeedbackPage({ searchParams }: PageProps<'/app/admin/feedback'>) {
+async function PlatformFeedbackPage({ searchParams }: PageProps<'/app/admin/feedback'>) {
   const context = await requirePlatformPage();
   if (!context) notFound();
   const params = await searchParams;
@@ -72,3 +74,5 @@ export default async function PlatformFeedbackPage({ searchParams }: PageProps<'
     </AdminGrid>
   </>;
 }
+
+export default officePage('/app/admin/feedback', PlatformFeedbackPage, AdminCanvas);

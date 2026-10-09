@@ -1,3 +1,4 @@
+import { officePage } from '@/components/lume/canvas-leaf';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CanvasResource } from '@/components/lume/workspace-context';
@@ -10,7 +11,7 @@ import { findVaultDocument, getDocumentChunks } from '@/lib/vault';
 
 export const metadata = { title: 'Arquivo do Cofre' };
 
-export default async function VaultFilePage({ params }: { params: Promise<{ id: string }> }) {
+async function VaultFilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const context = workspaceContext(await requireWorkspace());
   const resource = await authorizedCanvasResource(context, `/app/vault/files/${encodeURIComponent(id)}`).catch(error => {
@@ -38,3 +39,5 @@ export default async function VaultFilePage({ params }: { params: Promise<{ id: 
     </article>
   </>;
 }
+
+export default officePage('/app/vault/files/[id]', VaultFilePage);

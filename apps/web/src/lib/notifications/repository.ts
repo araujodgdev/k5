@@ -155,6 +155,11 @@ export async function archiveNotification(context: WorkspaceContext, eventId: st
   return results[0].changes > 0;
 }
 
+export async function deleteAllNotifications(context: WorkspaceContext, db: Database = defaultDatabase) {
+  return (await db.prepare('DELETE FROM notification_recipient WHERE office_id=? AND user_id=?')
+    .run(context.officeId, context.userId)).changes;
+}
+
 function preferenceView(row: PreferenceRow) {
   return {
     timezone: row.timezone,

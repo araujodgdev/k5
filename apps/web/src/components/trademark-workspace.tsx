@@ -8,6 +8,7 @@ import { CanvasHeader, CanvasPage } from '@/components/canvas/canvas-page';
 import { CanvasTrail, Field } from '@/components/canvas/canvas-controls';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 import { requestCapability } from '@/lib/capabilities/http-client';
 import { trademarkCountries, trademarkLabels, trademarkSearchView, trademarkUpload, activeTrademarkRun,
   trademarkSituation, type TrademarkSearchView, type TrademarkSearchInput, type TrademarkSummary } from '@/lib/research/trademarks/contracts';
@@ -19,6 +20,7 @@ export const trademarkSituationLabel = (value: string | null) => value ? value.r
 const searchOf = (data: unknown) => trademarkSearchView.parse(data && typeof data === 'object' && 'search' in data ? data.search : null);
 
 export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: string | null }) {
+  const revision = useCanvasRevision(), active = useCanvasActive();
   const [kind, setKind] = useState<TrademarkSearchInput['query']['kind']>('name');
   const [name, setName] = useState('');
   const [strategy, setStrategy] = useState<Extract<TrademarkSearchInput['query'], { kind: 'name' }>['strategy']>('contains');
@@ -32,6 +34,8 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(Boolean(initialSearchId));
+  const [seed,setSeed] = useState({revision,active});
+  if (seed.revision !== revision || seed.active !== active) { setSeed({revision,active}); setView(null); }
   const heading = useRef<HTMLHeadingElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const id = useId();
@@ -56,7 +60,7 @@ export function TrademarkWorkspace({ initialSearchId }: { initialSearchId: strin
       setLoading(false);
     });
     return () => controller.abort();
-  }, [initialSearchId, show]);
+  }, [initialSearchId, show, revision, active]);
 
   const running = view ? activeTrademarkRun(view.state) : false;
   const searchId = view?.id;

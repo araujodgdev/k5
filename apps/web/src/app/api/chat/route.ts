@@ -12,6 +12,7 @@ import { chatHearsAudio, modelModalities } from '@/lib/ai-modalities';
 import { resolveChatAttachments, claimChatAttachments, publicChatAttachment, createChatAttachment } from '@/lib/chat-attachments';
 import { attachmentPart } from '@/lib/chat-attachment-contract';
 import { planTaskModel } from '@/lib/ai-connections';
+import { captureBillingOrigin } from '@/lib/billing/origin';
 import { transcribeVoiceNote, TranscriptionError } from '@/lib/audio-transcription';
 import { chatRunResponse, followChatRun, startChatRun } from '@/lib/chat-run';
 import { assertCredits } from '@/lib/billing/credits';
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     const body = parsed.data;
     const id = body.conversationId ?? body.id;
     if (!id) throw new ApiError(400, 'Selecione uma conversa.');
-    const owner = { officeId: (office).officeId, userId: user.id };
+    const owner = { officeId: (office).officeId, userId: user.id, billingOrigin: await captureBillingOrigin({ officeId: office.officeId, userId: user.id }, id) };
     const stored = await conversation(database, owner, id);
     if (!stored) throw new ApiError(404, 'Conversa não encontrada.');
     const original = stored.messages.find(message => message.id === body.message.id && message.role === 'user');
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     if (body.message.role !== 'user') throw new ApiError(400, 'Envie uma mensagem.');
     const text = (original ?? body.message).parts.flatMap(part => part.type === 'text' && 'text' in part && typeof part.text === 'string' ? [part.text] : []).join('\n').trim();
     if (!text || text.length > 20000) throw new ApiError(400, 'Escreva uma mensagem de até 20 mil caracteres.');
-    const context = { ...workspaceContext(workspace), invocation: 'agent' as const };
+    const context = { ...workspaceContext(workspace), billingOrigin: owner.billingOrigin, invocation: 'agent' as const };
     let requestedScope;
     try { requestedScope = requestedMessageScope(stored.messages, body.message.id, body.trigger, body); }
     catch (error) { throw new ApiError(400, error instanceof Error ? error.message : 'Confira o contexto do pedido.'); }
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
       if (!current || !await writeTurnHistory(owner, id, lease, mergeHistory(current.messages, input))) throw new TurnFenced();
       await startChatRun({
         workspace: { userId: context.userId, officeId: context.officeId, sessionId: context.sessionId },
+        billingOriginId: owner.billingOrigin.id,
         conversationId: id,
         lease,
         request: { documentIds: scope.documentIds, caseId: scope.caseId, researchReferenceIds: scope.researchReferenceIds,

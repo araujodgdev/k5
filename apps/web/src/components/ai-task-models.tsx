@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/components/lume/canvas-navigation";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

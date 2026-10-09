@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/components/lume/canvas-navigation';
 import { useId, useState } from 'react';
 import { CircleAlert } from 'lucide-react';
 import { formatCredits, MILLI } from '@/lib/billing/credit-pricing';

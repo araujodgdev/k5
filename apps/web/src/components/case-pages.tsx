@@ -1,5 +1,6 @@
 'use client';
 
+import { useCanvasRevision, useCanvasActive } from './lume/canvas-host';
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Plus, FileText } from 'lucide-react';
@@ -12,8 +13,11 @@ import type { CasePage } from '@/lib/case-pages/contracts';
 import type { VaultDocument } from '@/lib/vault';
 
 export function CasePages({ caseId, folderId, documents }: { caseId: string; folderId: string | null; documents?: VaultDocument[] }) {
+  const revision = useCanvasRevision(), active = useCanvasActive();
   const { navigate } = useLumeWorkspace();
   const [pages, setPages] = useState<Omit<CasePage, 'content'>[] | null>(null);
+  const [seed, setSeed] = useState({ revision, active });
+  if (seed.revision !== revision || seed.active !== active) { setSeed({revision,active}); setPages(null); }
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
@@ -29,7 +33,7 @@ export function CasePages({ caseId, folderId, documents }: { caseId: string; fol
         if (!abort.signal.aborted) { setPages(body.pages); setError(''); }
       }).catch(cause => { if (!abort.signal.aborted) setError(cause.message); });
     return () => abort.abort();
-  }, [api, folderId, retry]);
+  }, [api, folderId, retry, revision, active]);
   async function create(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError('');
     try {

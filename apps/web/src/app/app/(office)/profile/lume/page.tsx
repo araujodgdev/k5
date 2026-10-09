@@ -1,3 +1,4 @@
+import { officePage } from '@/components/lume/canvas-leaf';
 import type { Metadata } from "next";
 import { AgentSettings } from "@/components/agent-settings";
 import { requireWorkspace } from "@/lib/session";
@@ -7,7 +8,7 @@ import { ALWAYS_BUDGET, knowledgeCandidates, listKnowledge } from "@/lib/agent-k
 
 export const metadata: Metadata = { title: "Personalizar Lume" };
 
-export default async function AgentSettingsPage() {
+async function AgentSettingsPage() {
   const { office, user } = await requireWorkspace();
   const owner = { officeId: office.officeId, userId: user.id };
   const [templates, candidates, rules, knowledge, documents] = await Promise.all([
@@ -23,3 +24,5 @@ export default async function AgentSettingsPage() {
     />
   );
 }
+
+export default officePage('/app/profile/lume', AgentSettingsPage);

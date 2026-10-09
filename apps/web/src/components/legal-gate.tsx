@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/components/lume/canvas-navigation";
 import { useState, useTransition } from "react";
 import { ArrowRight, CircleAlert, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";

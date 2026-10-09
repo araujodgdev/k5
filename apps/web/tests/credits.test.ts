@@ -1,4 +1,6 @@
 import { testDb } from './test-setup';
+import { captureBillingOrigin, restoreBillingOrigin } from '../src/lib/billing/origin';
+import { conversationCredits } from '../src/lib/billing/credits';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -176,4 +178,62 @@ test('the statement names the task behind each charge and sums this month\'s use
   assert.equal(overview.entries[0].description, 'Panorama de e-mails');
   assert.equal(overview.usedThisMonth, millicreditsForUsd(0.02, settings));
   assert.equal(overview.planMonthlyCredits, 850);
+});
+
+
+test('conversation charges are owned, integer, deduplicated and survive deletion', async () => {
+  const owner = await office(), other = await office();
+  const id = randomUUID();
+  await testDb.prepare('INSERT INTO ai_conversation(id,office_id,user_id,title) VALUES(?,?,?,?)').run(id,owner.officeId,owner.userId,'Conversa de cobrança');
+  await assert.rejects(captureBillingOrigin(other,id), { status: 404 });
+  const billingOrigin = await captureBillingOrigin(owner,id);
+  await chargeOcrPage({...owner,billingOrigin},'captured-document','1');
+  await chargeOcrPage({...owner,billingOrigin},'captured-document','1');
+  const before = await conversationCredits(owner,id);
+  assert.equal(before.used,100);
+  assert.equal(before.balance,499900);
+  await assert.rejects(conversationCredits(other,id), { status: 404 });
+  await recordUsage(owner.officeId,owner.userId,luna(owner.officeId),'agent.chat','completed',{inputTokens:100000,outputTokens:10000},{billingOrigin});
+  const usage = await testDb.prepare('SELECT conversation_id,billing_origin_id FROM ai_usage WHERE office_id=?').get(owner.officeId);
+  assert.equal(usage!.conversation_id,id);
+  assert.equal(usage!.billing_origin_id,billingOrigin.id);
+  await testDb.prepare('DELETE FROM ai_conversation WHERE id=?').run(id);
+  await chargeOcrPage({...owner,billingOrigin},'captured-document','2');
+  const ledger = await testDb.prepare("SELECT count(*)::int AS n FROM credit_entry WHERE office_id=? AND conversation_id=? AND kind IN ('usage','ocr')").get(owner.officeId,id);
+  assert.equal(ledger!.n,3);
+  await assert.rejects(conversationCredits(owner,id), { status: 404 });
+  const original = await creditBalance(other.officeId);
+  await chargeOcrPage({...other,billingOrigin},'other-document','1');
+  assert.equal(await creditBalance(other.officeId), original-100);
+  const rejected = await testDb.prepare("SELECT conversation_id,billing_origin_id FROM credit_entry WHERE reference='ocr:other-document:1'").get();
+  assert.equal(rejected!.conversation_id,null);
+  assert.equal(rejected!.billing_origin_id,null);
+});
+
+test('conversation selection cannot transfer a captured job charge and historical debits remain unattributed', async () => {
+  const owner = await office();
+  const first = randomUUID(), second = randomUUID();
+  for (const id of [first,second]) await testDb.prepare('INSERT INTO ai_conversation(id,office_id,user_id,title) VALUES(?,?,?,?)').run(id,owner.officeId,owner.userId,id);
+  const firstOrigin = await captureBillingOrigin(owner,first);
+  const secondOrigin = await captureBillingOrigin(owner,second);
+  await chargeOcrPage({...owner,billingOrigin:firstOrigin},'first-captured','1');
+  await chargeOcrPage({...owner,billingOrigin:secondOrigin},'second-captured','1');
+  await chargeOcrPage({...owner,billingOrigin:secondOrigin},'second-captured','2');
+  await chargeOcrPage(owner,'standalone-historical','1');
+  assert.equal((await conversationCredits(owner,first)).used,100);
+  const selected = await conversationCredits(owner,second);
+  assert.equal(selected.used,200);
+  assert.equal(selected.balance,499600);
+  const runId = randomUUID();
+  await testDb.prepare("INSERT INTO ai_run(id,office_id,user_id,kind,input,model_provider,model_id,billing_origin_id) VALUES(?,?,?,'draft','{}','openai','gpt-6-luna',?)").run(runId,owner.officeId,owner.userId,firstOrigin.id);
+  await testDb.prepare('DELETE FROM ai_conversation WHERE id=?').run(first);
+  const run = await testDb.prepare('SELECT billing_origin_id FROM ai_run WHERE id=?').get<{billing_origin_id:string}>(runId);
+  const restored = await restoreBillingOrigin(testDb,owner.userId,run!.billing_origin_id);
+  await chargeOcrPage({...owner,billingOrigin:restored},'first-captured','2');
+  assert.equal((await conversationCredits(owner,second)).used,200);
+  assert.equal((await conversationCredits(owner,second)).balance,499500);
+  const ledger = await testDb.prepare("SELECT conversation_id,billing_origin_id,amount::int AS amount FROM credit_entry WHERE reference='ocr:first-captured:2'").get();
+  assert.deepEqual(ledger,{conversation_id:first,billing_origin_id:firstOrigin.id,amount:-100});
+  const legacy = await testDb.prepare("SELECT conversation_id,billing_origin_id FROM credit_entry WHERE reference='ocr:standalone-historical:1'").get();
+  assert.deepEqual(legacy,{conversation_id:null,billing_origin_id:null});
 });

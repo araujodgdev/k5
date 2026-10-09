@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams } from '@/components/lume/canvas-navigation';
 import { z } from 'zod';
 import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { BetaLabel } from '@/components/ads/beta-label';

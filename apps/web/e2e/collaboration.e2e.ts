@@ -59,7 +59,7 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 844 }, { name: '
     await signInWithSession({ app, screen, browser }, guestApi);
     await app.open(casePath);
     await expect(screen.getByRole('button', 'Enviar arquivos', { visible: true })).toBeVisible();
-    await browser.locator('main input[type=file]').setInputFiles(['e2e/fixtures/colaboracao-validacao.txt']);
+    await browser.locator('main [data-canvas-active=true] input[type=file]').setInputFiles(['e2e/fixtures/colaboracao-validacao.txt']);
     await expect(screen.getByText('colaboracao-validacao.txt').first()).toBeVisible();
     await screen.getByRole('button', 'Nova pasta', { visible: true }).tap();
     await screen.getByLabel('Nome da pasta').fill('Reservada');
@@ -71,7 +71,7 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 844 }, { name: '
     if (!privateFolder) throw new Error('A pasta criada não apareceu para sua criadora.');
     await screen.getByRole('link', 'Reservada', { exact: false }).first().tap();
     await expect(screen.getByRole('navigation', 'Trilha').getByRole('link', 'Reservada', { exact: true })).toBeVisible();
-    await browser.locator('main input[type=file]').setInputFiles(['e2e/fixtures/colaboracao-privada.txt']);
+    await browser.locator('main [data-canvas-active=true] input[type=file]').setInputFiles(['e2e/fixtures/colaboracao-privada.txt']);
     await expect(screen.getByText('colaboracao-privada.txt').first()).toBeVisible();
     const { documents } = await guestApi.json<{ documents: { id: string }[] }>(`/api/vault/documents?caseId=${record.id}&folderId=${privateFolder.id}`);
     expect(documents.length).toBe(1);
