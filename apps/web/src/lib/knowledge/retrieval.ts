@@ -76,7 +76,7 @@ export async function searchKnowledgeEngine(
         JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
         WHERE c.search_vector @@ q AND d.office_id=? AND d.deleted_at IS NULL AND d.status='ready'
           AND lume_vault_visible(d.id, ?)${context.invocation ? ' AND (d.case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case vc WHERE vc.id=d.case_id AND vc.deleted_at IS NULL AND vc.lume_enabled))' : ''}${input.caseId ? ' AND d.case_id=?' : ''}
-        ORDER BY ts_rank_cd(c.search_vector,q) DESC,c.id LIMIT 100`)
+        GROUP BY c.document_id ORDER BY max(ts_rank_cd(c.search_vector,q)) DESC,c.document_id LIMIT 100`)
       .all<{ id: string }>(terms.map(term => `'${term.replaceAll("'", "''")}'`).join(' | '), context.officeId, context.userId, ...(input.caseId ? [input.caseId] : []))
     : [];
   const scopedDocumentIds = input.documentIds?.length

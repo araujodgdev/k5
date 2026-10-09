@@ -80,6 +80,25 @@ test("export: a participant's private folder stays out, what the owner sees stay
   assert.ok(!files.has("cofre/Caso compartilhado/rascunho.txt") && !zip.includes(Buffer.from("rascunho privado da Bia")), "its original never enters the export");
 });
 
+test("export: each version is checked against its own content policy, not the active one's", async () => {
+  const office = await seedOffice("Alfa");
+  const caseId = (await vaultService.createCase(office, { name: "Caso versionado" })).case.id;
+  const ref = await uploadsService.createUploadRef(office, new File(["primeira versão"], "versao-restrita.txt", { type: "text/plain" }));
+  const { document } = await vaultService.ingestUpload(office, { uploadRef: ref.id, scope: "case", caseId });
+  const first = (await testDb.prepare("SELECT id, stored_name, sha256 FROM vault_document_version WHERE document_id=? AND version=1")
+    .get<{ id: string; stored_name: string; sha256: string }>(document.id))!;
+  // A policy whose digest names other bytes is visible to no one.
+  await testDb.prepare(`UPDATE vault_document_version SET is_active=0, content_policy='{"digest":"outros-bytes"}'::jsonb WHERE id=?`).run(first.id);
+  const second = randomUUID();
+  await testDb.prepare("INSERT INTO vault_document_version(id,office_id,document_id,version,original_name,stored_name,mime_type,byte_size,sha256,created_by,is_active) VALUES(?,?,?,2,?,?,?,?,?,?,1)")
+    .run(second, office.officeId, document.id, "versao-atual.txt", first.stored_name, "text/plain", 16, first.sha256, office.userId);
+  await testDb.prepare("UPDATE vault_document SET original_name='versao-atual.txt' WHERE id=?").run(document.id);
+
+  const versions = entries(Buffer.from(await new Response(makeZip(officeExportEntries(office))).arrayBuffer())).get("dados/documentos-versoes.jsonl")!.toString("utf8");
+  assert.ok(versions.includes(second), "the active version is exported");
+  assert.ok(!versions.includes(first.id) && !versions.includes("versao-restrita.txt"), "the older version its own policy hides stays out");
+});
+
 test("export: file names stay valid in any unzip tool", () => {
   assert.equal(safeSegment("../../etc/passwd", "x"), "_.._etc_passwd");
   assert.equal(safeSegment("   ", "fallback"), "fallback");

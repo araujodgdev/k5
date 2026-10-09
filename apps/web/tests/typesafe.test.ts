@@ -258,6 +258,8 @@ test('agenda dates: civil date, year omission, midnight, invalid and duplicated 
   assert.ok(temporalCandidates('dia 30/02/2026', '2026-09-21T12:00:00Z', 'America/Sao_Paulo').questions.length);
   assert.deepEqual(temporalCandidates('até sexta-feira', '2026-10-06T12:00:00Z', 'America/Sao_Paulo').dates, ['2026-10-09']);
   assert.deepEqual(temporalCandidates('sexta às 9', '2026-09-21T12:00:00Z', 'America/Sao_Paulo').dates, ['2026-09-25']);
+  assert.ok(temporalCandidates('reunião 12/10 sexta-feira', '2026-10-06T12:00:00Z', 'America/Sao_Paulo').questions.includes('Informe o ano da data.'),
+    'a weekday does not hide the missing year of an explicit date');
   assert.equal(localInstant('2026-09-21', '09:00', 'America/Sao_Paulo'), '2026-09-21T12:00:00Z');
   assert.throws(() => localInstant('2026-03-08', '02:30', 'America/New_York'), /horário.*Escolha outro horário/);
   assert.throws(() => localInstant('2026-11-01', '01:30', 'America/New_York'), /horário.*Escolha outro horário/);

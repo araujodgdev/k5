@@ -63,6 +63,15 @@ test('whole-office knowledge search includes a matching document older than the 
   for (let i = 0; i < 400; i++) await f.document(null, `Recente ${i}`);
   const result = await runCapability(f.owner.context, 'k5_knowledge_search', { query: 'Sentinelacofre' }) as { sources: { documentId: string }[] };
   assert.ok(result.sources.some(source => source.documentId === oldest));
+
+  const crowded = await f.document(null, 'Outro');
+  await db.prepare("UPDATE vault_document SET updated_at='2020-01-01T00:00:00Z' WHERE id=?").run(crowded);
+  for (let i = 1; i <= 100; i++) await db.prepare('INSERT INTO vault_document_chunk(id,document_id,office_id,ordinal,stable_reference,content) VALUES(?,?,?,?,?,?)')
+    .run(randomUUID(), crowded, f.owner.context.officeId, i, `página:${i + 1}`, 'Sentinelacofre '.repeat(20));
+  await db.prepare('DELETE FROM knowledge_retrieval_audit WHERE user_id=?').run(f.owner.id);
+  await runCapability(f.owner.context, 'k5_knowledge_search', { query: 'Sentinelacofre' });
+  const audit = await db.prepare('SELECT document_count FROM knowledge_retrieval_audit WHERE user_id=?').get<{ document_count: number }>(f.owner.id);
+  assert.equal(Number(audit?.document_count), 402, 'a document with 100 better chunks does not push another older match out of the searched scope');
 });
 
 test('each lawyer owns exactly one office and an office has exactly one lawyer', async () => {

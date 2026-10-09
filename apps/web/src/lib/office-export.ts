@@ -19,7 +19,7 @@ const EXPORTS: Export[] = [
   { file: 'casos', table: 'vault_case', columns: ['id', 'name', 'description', 'client_name', 'client_document', 'client_email', 'client_phone', 'client_notes', 'created_at', 'updated_at'], where: 'deleted_at IS NULL' },
   { file: 'pastas', table: 'vault_folder', columns: ['id', 'case_id', 'parent_id', 'name', 'created_at', 'updated_at'], where: 'deleted_at IS NULL', visible: 'vault_folder_visible(id, ?)' },
   { file: 'documentos', table: 'vault_document', columns: ['id', 'case_id', 'folder_id', 'scope', 'original_name', 'mime_type', 'byte_size', 'status', 'created_at', 'updated_at'], where: 'deleted_at IS NULL', visible: 'lume_vault_visible(id, ?)' },
-  { file: 'documentos-versoes', table: 'vault_document_version', columns: ['id', 'document_id', 'version', 'original_name', 'mime_type', 'byte_size', 'is_active', 'created_at'], visible: 'lume_vault_visible(document_id, ?)' },
+  { file: 'documentos-versoes', table: 'vault_document_version', columns: ['id', 'document_id', 'version', 'original_name', 'mime_type', 'byte_size', 'is_active', 'created_at'], visible: 'lume_vault_visible(document_id, ?, version)' },
   { file: 'agenda', table: 'agenda_activity', where: "visibility='personal'", columns: ['id', 'kind', 'title', 'notes', 'status', 'due_on', 'starts_at', 'ends_at', 'client_id', 'case_id', 'created_at', 'updated_at'] },
   { file: 'honorarios', table: 'honorario_agreement', columns: ['id', 'client_id', 'case_id', 'title', 'notes', 'pricing', 'created_at', 'cancelled_at', 'cancel_reason'] },
   { file: 'calculos', table: 'legal_calculation', columns: ['id', 'title', 'kind', 'version', 'total_cents', 'updated_at'] },
