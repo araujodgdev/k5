@@ -60,6 +60,12 @@ export type ChatTurn = {
 type CitationPart = { status: string; items: CitationItem[] };
 
 const MAX_STEPS = 8;
+/**
+ * Output tokens of one step, reasoning included. A document is written whole into the arguments of
+ * k5_artifacts_create, and at 6000 a petition was cut mid-call: the tool never ran.
+ */
+const MAX_STEP_OUTPUT_TOKENS = 16_000;
+const TRUNCATED = '\n\n[A resposta atingiu o limite de tamanho antes de terminar. Peça para continuar ou divida o pedido em partes menores.]';
 const PENDING_PDF_BYTES = 12_000_000;
 const PENDING_PDF_PAGES = 90;
 const uncompressedPdfPageEstimate = (bytes: Buffer) => bytes.toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g)?.length ?? 0;
@@ -308,7 +314,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
           requestContext: requestContextFor({ ...config, session: conversationSession(owner, historyRevoked ? `${id}:${lease.token}` : id) }),
           maxSteps: MAX_STEPS,
           prepareStep: () => ({ activeTools: selection.activeTools() }),
-          modelSettings: { maxOutputTokens: 6000 },
+          modelSettings: { maxOutputTokens: MAX_STEP_OUTPUT_TOKENS },
           abortSignal: AbortSignal.any([signal, AbortSignal.timeout(180_000), controller.signal]),
           memory: historyRevoked ? undefined : { thread: id, resource: memoryResource(owner) },
 
@@ -322,6 +328,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
 
         const budget = new ToolBudget();
         let halted = '';
+        let lastStepReason: string | undefined;
         const stepUsages: unknown[] = [];
         let webSearches = 0;
 
@@ -331,6 +338,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
           if (chunk.type === 'step-finish') {
             trace.stepFinished({ reason: chunk.payload.stepResult.reason, usage: chunk.payload.output.usage, text: chunk.payload.output.text });
             stepUsages.push(chunk.payload.output.usage);
+            lastStepReason = chunk.payload.stepResult.reason;
             continue;
           }
           if (chunk.type === 'tool-call') {
@@ -399,6 +407,11 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         }
         signal.throwIfAborted();
         if (halted) { emit(halted); status = 'halted'; }
+        // The step ran out of output tokens: whatever it was writing, a tool call included, never ran.
+        else if (lastStepReason === 'length') {
+          emit(TRUNCATED); status = 'halted';
+          trace.event('halt', null, { reason: 'output_limit', maxOutputTokens: MAX_STEP_OUTPUT_TOKENS });
+        }
         usage = await response.usage;
         await recordUsage(owner.officeId, owner.userId, config, config.task, 'completed', usage,
           { billingOrigin: context.billingOrigin, durationMs: performance.now() - started, calls: stepUsages, webSearchCalls: webSearches });
