@@ -17,7 +17,7 @@ Cada frente segue o mesmo formato:
 | Reranqueamento que não derruba a busca | Feito | `fix/lume-anthropic` |
 | Uso de turnos que falham | Feito | `fix/lume-anthropic` |
 | Cache de prompt e esforço na Anthropic | Feito | `fix/lume-anthropic` |
-| Preço do Claude Haiku 5.5 | Pendente | — |
+| Preço do Claude Haiku 5.5 | Feito | `fix/lume-anthropic` |
 
 ## Fora do código
 
@@ -111,3 +111,21 @@ Um turno que falhava ou era cancelado gravava `ai_usage` sem tokens nem custo, m
 - O cache vale só para a conversa. Uma chamada única (extração, resumo, guarda) não reaproveita o prefixo e pagaria a gravação do cache, que custa 25% a mais na entrada.
 - A troca de ferramentas ativas depois de `k5_tools_select_modules` invalida o cache uma vez por turno, porque as ferramentas vêm antes de tudo no prefixo. Os passos seguintes voltam a acertar.
 - Os esforços que a migração 0030 gravou (`xhigh` em agente, minutas e extração) passam a chegar à Anthropic onde ainda estiverem salvos. Em produção, em 09/10, só a classificação tinha esforço explícito (`low`); os demais grupos herdam o padrão do provedor.
+
+## Preço do Claude Haiku 5.5
+
+### Situação anterior
+
+O Claude Haiku 5.5 foi atribuído aos resumos em 09/10, mas `ai_model_price` não tinha linha para ele. O custo caía na linha `*` (US$ 2 de entrada e 10 de saída por milhão de tokens), vinte vezes o preço de tabela, e era cobrado em créditos assim.
+
+### Feito
+
+- Migration `0096_claude_haiku_price.sql`: US$ 0,10 de entrada e 0,50 de saída por milhão; cache lido a 0,01 e gravado a 0,125; acima de 100 mil tokens de entrada, as duas taxas multiplicam por 5. Preços de tabela da Anthropic lidos em 10/10/2026.
+
+### Pendente
+
+- Nada nesta frente.
+
+### Decisões
+
+- `ON CONFLICT DO NOTHING`: um preço que alguém já tenha cadastrado à mão para o modelo continua valendo.
