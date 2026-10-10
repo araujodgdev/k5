@@ -14,7 +14,7 @@ Cada frente segue o mesmo formato:
 | Frente | Estado | Onde |
 | --- | --- | --- |
 | Limite de saída da conversa | Feito | `fix/lume-anthropic` |
-| Reranqueamento que não derruba a busca | Pendente | — |
+| Reranqueamento que não derruba a busca | Feito | `fix/lume-anthropic` |
 | Uso de turnos que falham | Pendente | — |
 | Cache de prompt e esforço na Anthropic | Pendente | — |
 | Preço do Claude Haiku 5.5 | Pendente | — |
@@ -43,3 +43,23 @@ Cada passo da conversa tinha `maxOutputTokens: 6000`. Na Anthropic o raciocínio
 ### Decisões
 
 - 16.000 cabe no tempo do turno (180 s). Um limite maior só ajudaria com o turno mais longo, e o custo é o mesmo: só se paga o que o modelo escreve.
+
+## Reranqueamento que não derruba a busca
+
+### Situação anterior
+
+Em 09/10, as 6 chamadas de `k5_knowledge_search` feitas com a Anthropic falharam com "The operation was aborted due to timeout", em cerca de 8 s cada. A busca lexical já tinha os trechos; quem estourou foi o reranqueamento do TypeSafe, que tem 2 s de prazo (`rerank.ts`). Os 6 registros `rag` com `unavailable`/`denied` em `typesafe_evaluation`, com média de 3,1 s, coincidem com essas falhas. Quando o prazo vence durante a admissão do conteúdo ou a chamada, `evaluate` relança o `TimeoutError` em vez de devolver um status, e `searchKnowledgeEngine` não o tratava, então a busca inteira falhava. Não é específico da Anthropic: o tempo da admissão e do banco passou dos 2 s na mesma época. [Reranqueamento](../apps/web/src/lib/typesafe/rerank.ts), [busca](../apps/web/src/lib/knowledge/retrieval.ts).
+
+### Feito
+
+- Passado o prazo do reranqueamento, a busca devolve os trechos na ordem RRF, com `reranking.status: unavailable` e `reason: timeout`.
+- O cancelamento do turno e qualquer outro erro continuam propagando.
+- Teste em `tests/typesafe.test.ts` com um envio mais lento que o prazo.
+
+### Pendente
+
+- Nada nesta frente.
+
+### Decisões
+
+- O prazo de 2 s continua. O reranqueamento melhora a ordem, mas não pode custar a busca; um prazo maior só atrasaria toda consulta quando o TypeSafe estiver lento.

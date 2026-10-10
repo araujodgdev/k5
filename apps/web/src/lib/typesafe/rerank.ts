@@ -34,14 +34,21 @@ export async function rerank<T extends { sourceId: string; text: string }>(
   if (batches.length > 4) return { sources, status: 'budget_exceeded', reason: 'context_limit', applied: false };
 
   const results: Evaluation[] = [];
-  const queryPolicy = await privateGenerationPolicy(context);
-  for (const items of batches) {
-    const result = await evaluate(context, 'rag', {
-      state: { query, sources: items.map(source => ({sourceId: snapshots.get(source)!.sourceId,text: snapshots.get(source)!.text})) },
-      questions: relevanceQuestions(items.length), questionVersion: relevanceVersion,
-    }, { ...options, signal, admission: contentAdmission(context, { query, items: items.map(source => snapshots.get(source)!) }, [queryPolicy, ...items.flatMap(source => snapshots.get(source)!.policies)], { capability: 'k5_knowledge_search', lease: options.lease }) });
-    if (result.status !== 'evaluated') return { sources, status: result.status, reason: result.reason, applied: false };
-    results.push(result);
+  try {
+    const queryPolicy = await privateGenerationPolicy(context);
+    for (const items of batches) {
+      const result = await evaluate(context, 'rag', {
+        state: { query, sources: items.map(source => ({sourceId: snapshots.get(source)!.sourceId,text: snapshots.get(source)!.text})) },
+        questions: relevanceQuestions(items.length), questionVersion: relevanceVersion,
+      }, { ...options, signal, admission: contentAdmission(context, { query, items: items.map(source => snapshots.get(source)!) }, [queryPolicy, ...items.flatMap(source => snapshots.get(source)!.policies)], { capability: 'k5_knowledge_search', lease: options.lease }) });
+      if (result.status !== 'evaluated') return { sources, status: result.status, reason: result.reason, applied: false };
+      results.push(result);
+    }
+  } catch (error) {
+    // The 2 s budget is the reranker's, not the search's: past it the sources keep their RRF order.
+    // A cancelled turn and any other failure still propagate.
+    if (options.signal?.aborted || (error as { name?: unknown } | null)?.name !== 'TimeoutError') throw error;
+    return { sources, status: 'unavailable', reason: 'timeout', applied: false };
   }
   const scored = batches.flatMap((items, n) => items.map((source, i) => {
     const answer = results[n].response!.answers[`source_${i}`];

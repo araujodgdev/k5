@@ -170,6 +170,17 @@ test('typesafe: rerank shadow preserves RRF and enabled preserves source identit
   assert.deepEqual((await rerank(context, 'consulta', sources, { send: async () => { throw new Error('down'); } })).sources, sources);
 });
 
+test('typesafe: a rerank past its deadline keeps the RRF order instead of failing the search', async () => {
+  const context = (await fixture()); await configure(context);
+  const sources = [{ sourceId: 'a', text: 'Contexto geral.' }, { sourceId: 'b', text: 'Evidência direta.' }];
+  const ranked = await rerank(context, 'consulta', sources, { send: async (_key, req) => {
+    await new Promise(resolve => setTimeout(resolve, 2_100));
+    return response(req);
+  } });
+  assert.deepEqual(ranked.sources, sources);
+  assert.deepEqual([ranked.status, ranked.reason, ranked.applied], ['unavailable', 'timeout', false]);
+});
+
 test('typesafe: two rerank batches can share an office with concurrency one', async () => {
   const context = (await fixture()); await configure(context, { concurrency: 1 });
   const sources = [{ sourceId: 'a', text: 'a'.repeat(12000) }, { sourceId: 'b', text: 'b'.repeat(12000) }];
