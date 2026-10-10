@@ -35,3 +35,9 @@ export async function startLogout(fixtures: Fixtures) {
   const mobile = await fixtures.browser.evaluate(() => window.innerWidth < 768);
   await fixtures.screen.getByRole(mobile ? 'button' : 'menuitem', 'Sair', { exact: true }).tap();
 }
+
+/** Returns to a place still open in the canvas (a case or a document inside its module's tab) through search. */
+export async function openPlace(fixtures: Fixtures, title: string) {
+  await fixtures.browser.keyboard.press('Control+k');
+  await fixtures.screen.getByRole('group', 'Abas abertas').getByRole('option', title, { exact: true }).tap();
+}

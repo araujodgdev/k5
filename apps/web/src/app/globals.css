@@ -15,10 +15,11 @@
   max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
 }
 @media (min-width: 768px) {
+  /* Under the bell, on the Lume's side of the office bar. */
   .notification-panel {
     top: 56px;
-    left: auto;
-    right: 12px;
+    left: 12px;
+    right: auto;
     bottom: auto;
     width: min(420px, calc(100vw - 24px));
     max-height: min(576px, calc(100dvh - 68px));

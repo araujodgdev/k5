@@ -1,7 +1,9 @@
 'use client';
 
 import { Activity, createContext, useContext, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
-import type { CanvasResource } from '@/lib/lume-workspace';
+import { canvasViewKey, type CanvasResource } from '@/lib/lume-workspace';
+
+export { canvasViewKey };
 
 export type CanvasLeaf = { href: string; nonce: string | null; resource: CanvasResource; children: ReactNode };
 export const CanvasRegistry = createContext<((leaf: CanvasLeaf) => void) | null>(null);
@@ -14,13 +16,6 @@ export function useCanvasActive() { return useCanvasLocation()?.active ?? true; 
 export function useCanvasLoadError() {
   const failed = useContext(CanvasFailure);
   useLayoutEffect(() => { failed?.(); }, [failed]);
-}
-
-export function canvasViewKey(href: string) {
-  const url = new URL(href, 'https://lume.invalid');
-  const structural = new URLSearchParams();
-  for (const key of ['view', 'folder', 'mode']) { const value = url.searchParams.get(key); if (value) structural.set(key, value); }
-  return url.pathname + (structural.size ? `?${structural}` : '');
 }
 
 export function PublishCanvasLeaf({ href, nonce, resource, children }: CanvasLeaf) {

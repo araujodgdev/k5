@@ -16,7 +16,8 @@ test('Calc: consumidor, versões, tributo federal, proposta OAB e parcelas no de
   await signInWithSession({ app, screen, browser }, api);
   await app.open('/app/calc');
   await expect(screen.getByText('Nenhum cálculo salvo ainda.')).toBeVisible();
-  await expect(screen.getByText('BETA', { exact: true })).toBeVisible();
+  // The office bar's Cálculos tab carries the same mark.
+  await expect(screen.getByRole('heading', /^Cálculos/).getByText('BETA', { exact: true })).toBeVisible();
   await app.screenshot('calc-desktop');
   for (const name of ['Correção de valores', 'Trabalhista', 'Revisional bancário', 'Pensão alimentícia', 'Aluguel', 'Consumidor', 'Tributário']) {
     await screen.getByRole('button', new RegExp(`^${name}`)).tap();

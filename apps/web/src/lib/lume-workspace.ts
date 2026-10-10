@@ -72,12 +72,28 @@ export function moduleResource(href: string): CanvasResource | null {
   return utility ? { kind: 'module', slug: slug as 'admin' | 'profile' | 'tutorial', href: canonical, title: utility.label } : null;
 }
 
+/** A canvas view: the pathname and the query parameters that change what the screen shows. */
+export function canvasViewKey(href: string) {
+  const url = new URL(href, 'https://lume.invalid');
+  const structural = new URLSearchParams();
+  for (const key of ['view', 'folder', 'mode']) { const value = url.searchParams.get(key); if (value) structural.set(key, value); }
+  return url.pathname + (structural.size ? `?${structural}` : '');
+}
+
+/** Places each module keeps mounted, so going back to one of them is instant and keeps its state. */
+export const PLACES_PER_MODULE = 3;
+/**
+ * The open places the workspace holds: enough for every module, and the extra tab, to keep its
+ * `PLACES_PER_MODULE`, plus the one that opens before the shell closes the oldest of its module.
+ */
+export const MAX_PLACES = PLACES_PER_MODULE * (appNavigation.length + 1) + 1;
+
 export function resourceKey(resource: CanvasResource): string {
   switch (resource.kind) {
     case 'case': return `case:${resource.caseId}:${resource.folderId ?? ''}`;
     case 'document': return documentKey(resource.document);
     case 'file': return `file:${resource.documentId}`;
-    case 'module': return `module:${new URL(resource.href, 'https://lume.invalid').pathname}`;
+    case 'module': return `module:${canvasViewKey(resource.href)}`;
   }
 }
 
@@ -142,7 +158,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       const tabs = [...state.tabs];
       if (index < 0) tabs.push(action.resource);
       else tabs[index] = action.resource;
-      if (tabs.length > 20) {
+      if (tabs.length > MAX_PLACES) {
         const remove = tabs.findIndex(tab => tab.href !== '/app/command-center' && resourceKey(tab) !== key
           && (!state.resource || resourceKey(tab) !== resourceKey(state.resource)));
         if (remove >= 0) tabs.splice(remove, 1);
@@ -228,6 +244,7 @@ export class LumeWorkspaceController {
     const matches = (resource: CanvasResource) => {
       const fileId = destination.searchParams.get('documentId');
       if (fileId) return resource.kind === 'file' && resource.documentId === fileId;
+      if (resource.kind === 'module') return canvasViewKey(resource.href) === canvasViewKey(href);
       return new URL(resource.href, 'https://lume.invalid').pathname === destination.pathname
         && (resource.kind !== 'case' || resource.folderId === destination.searchParams.get('folder'));
     };
@@ -257,6 +274,6 @@ export function restoreTabHrefs(raw: string | null): string[] {
     return Array.isArray(values) ? [...new Set(values.flatMap(value => {
       const href = typeof value === 'string' ? canonicalCanvasHref(value) : null;
       return href ? [href] : [];
-    }))].slice(-20) : [];
+    }))].slice(-MAX_PLACES) : [];
   } catch { return []; }
 }

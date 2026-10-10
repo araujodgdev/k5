@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CanvasResourceReadError, LumeWorkspaceController, canonicalCanvasHref, copyMessageScope, restoreTabHrefs, resourceKey, tabStorageKey, type CanvasResource } from '../src/lib/lume-workspace';
+import { CanvasResourceReadError, LumeWorkspaceController, MAX_PLACES, PLACES_PER_MODULE, canonicalCanvasHref, copyMessageScope, restoreTabHrefs, resourceKey, tabStorageKey, type CanvasResource } from '../src/lib/lume-workspace';
+import { moduleTabs } from '../src/components/shell/module-tabs';
 
 test('legacy task and document destinations resolve to their canonical authorization identity', () => {
   assert.equal(canonicalCanvasHref('/app/agents?conversationId=owned&caseId=shared'), '/app/vault/cases/shared');
@@ -354,17 +355,32 @@ test('case revocation also invalidates a pending file leaf that was never regist
   assert.equal(workspace.isResourceAccessCurrent(workspace.captureResourceAccess(caseB)), true);
 });
 
-test('the twenty-tab limit keeps home, the current canvas and the requested destination', () => {
+test('the place limit keeps home, the current canvas and the requested destination', () => {
   const workspace = new LumeWorkspaceController('/app/command-center', 'canvas');
   workspace.dispatch({ type: 'authorized', resource: { kind: 'module', slug: 'command-center', href: '/app/command-center', title: 'Início' } });
-  const cases: CanvasResource[] = Array.from({length:20}, (_, index) => ({ kind:'case',caseId:String(index),folderId:null,href:`/app/vault/cases/${index}`,title:`Caso ${index}` }));
-  for (const resource of cases.slice(0,19)) workspace.dispatch({type:'tab',resource});
+  const cases: CanvasResource[] = Array.from({length:MAX_PLACES}, (_, index) => ({ kind:'case',caseId:String(index),folderId:null,href:`/app/vault/cases/${index}`,title:`Caso ${index}` }));
+  for (const resource of cases.slice(0,MAX_PLACES-1)) workspace.dispatch({type:'tab',resource});
   workspace.dispatch({type:'destination',href:cases[0].href,resource:cases[0]});
-  workspace.dispatch({type:'tab',resource:cases[19]});
+  workspace.dispatch({type:'tab',resource:cases[MAX_PLACES-1]});
   const tabs = workspace.getSnapshot().tabs;
-  assert.equal(tabs.length,20);
+  assert.equal(tabs.length,MAX_PLACES);
   assert.equal(tabs.some(tab => tab.href === '/app/command-center'),true);
   assert.equal(tabs.some(tab => tab.href === cases[0].href),true);
-  assert.equal(tabs.some(tab => tab.href === cases[19].href),true);
+  assert.equal(tabs.some(tab => tab.href === cases[MAX_PLACES-1].href),true);
   assert.equal(tabs.some(tab => tab.href === cases[1].href),false);
+});
+
+test('the place limit holds the retained places of every module tab', () => {
+  const groups = moduleTabs({ whatsappEnabled: true, adsEnabled: true, platformAdmin: true }).length + 1;
+  assert.ok(MAX_PLACES > groups * PLACES_PER_MODULE);
+});
+
+test('module views are separate places; other address details are not', () => {
+  const tasks: CanvasResource = { kind: 'module', slug: 'agenda', href: '/app/agenda?view=tasks', title: 'Tarefas' };
+  assert.notEqual(resourceKey(tasks), resourceKey({ ...tasks, href: '/app/agenda?view=calendar' }));
+  assert.equal(resourceKey(tasks), resourceKey({ ...tasks, href: '/app/agenda?view=tasks&q=prazo' }));
+  const workspace = new LumeWorkspaceController(tasks.href, 'canvas');
+  workspace.dispatch({ type: 'authorized', resource: tasks });
+  workspace.dispatch({ type: 'tab', resource: { ...tasks, href: '/app/agenda?view=calendar', title: 'Agenda' } });
+  assert.equal(workspace.getSnapshot().tabs.length, 2);
 });

@@ -2,6 +2,7 @@ import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 import { ApiSession, uniqueAccount } from './support/accounts';
 import { signInWithSession } from './support/sign-in';
+import { openPlace } from './support/shell';
 
 test('reativação remove uma pasta revogada sem perder o caso ou o editor privado montado', {timeout:240_000}, async ({app,screen,browser}) => {
   const owner = await new ApiSession(app.baseUrl!).signIn(uniqueAccount('Dona das pastas'));
@@ -28,10 +29,10 @@ test('reativação remove uma pasta revogada sem perder o caso ou o editor priva
   await expect(screen.getByRole('heading',/^Cálculos/)).toBeVisible();
   await owner.json(`/api/vault/folders/${folder.id}`,{method:'PATCH',json:{visibility:'private'}});
   expect((await guest.request(`/api/canvas/resource?href=${encodeURIComponent(`/app/vault/cases/${record.id}`)}`)).status).toBe(200);
-  await screen.getByRole('navigation','Abas do canvas').getByRole('link',record.name,{exact:true}).tap();
+  await screen.getByRole('navigation','Abas do canvas').getByRole('link','Casos',{exact:true}).tap();
   await expect(screen.getByRole('heading',record.name,{exact:true})).toBeVisible();
   await expect(screen.getByRole('link',folder.name,{exact:false})).toHaveCount(0);
-  await screen.getByRole('navigation','Abas do canvas').getByRole('link',artifact.title,{exact:true}).tap();
+  await openPlace({screen,browser},artifact.title);
   await expect(editor).toContainText('Texto particular editado antes da troca.');
   expect(await browser.evaluate(() => Reflect.get(window,'privateEditorNode') === document.querySelector('[contenteditable="true"][aria-label="Texto do documento"]'))).toBe(true);
   await app.screenshot('pasta-revogada-editor-independente');

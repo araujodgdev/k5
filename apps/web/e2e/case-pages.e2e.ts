@@ -2,6 +2,7 @@ import { test } from './support/fixtures';
 import { expect } from 'e2e';
 import { ApiSession, admin, uniqueAccount } from './support/accounts';
 import { signInWithSession } from './support/sign-in';
+import { openPlace } from './support/shell';
 import { overflowsHorizontally } from './support/fixtures';
 
 type Page = { id: string; caseId: string; title: string; content: string; version: number };
@@ -102,9 +103,9 @@ test('publicação: revisar uma cópia exata, manter o original particular e col
   await expect(editor).toContainText('Rascunho da participante');
   await owner.json('/api/collaboration', { json: { action: 'participant', caseId: record.id, userId: user.id, add: false } });
   for (const path of [pageApi(page), `${pageApi(page)}/versions`, `${pageApi(page)}/export`, `/api/canvas/resource?href=${encodeURIComponent(pageHref(page))}`]) expect((await guest.request(path)).status).toBe(404);
-  await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', page.title, { exact: true }).tap();
+  await openPlace({ screen, browser }, page.title);
   await expect(editor).toHaveCount(0);
-  await expect(screen.getByRole('navigation', 'Abas do canvas').getByRole('link', page.title, { exact: true })).toHaveCount(0);
+  await expect(browser.locator(`nav[aria-label="Abas do canvas"] a[title="Casos: ${page.title}"]`)).toHaveCount(0);
   await app.screenshot('pagina-revogada');
 });
 
@@ -140,7 +141,7 @@ test('contrato frontend: página enviada fica congelada e resultado tardio não 
   await expect(screen.getByText('Página atualizada.', { exact: true })).toBeVisible();
   await expect(browser).toHaveURL(pageHref(second));
   await expect(screen.getByRole('textbox', 'Texto do documento')).toContainText('Edição humana na outra página');
-  await screen.getByRole('navigation', 'Abas do canvas').getByRole('link', first.title, { exact: true }).tap();
+  await openPlace({ screen, browser }, first.title);
   await expect(screen.getByRole('textbox', 'Texto do documento')).toContainText('Resultado salvo antes da saída tardia');
   await app.screenshot('contrato-pagina-resultado-tardio');
 });
