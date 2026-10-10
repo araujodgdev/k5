@@ -87,6 +87,20 @@ test('a completed call is charged with its usage record; a failed one is recorde
   assert.equal(entry!.amount, -completed.credits!);
 });
 
+test('a turn that fails after some steps records their tokens and cost without charging them', async () => {
+  const { officeId, userId } = await office();
+  const calls = [{ inputTokens: 100_000, outputTokens: 1_000 }, { inputTokens: 100_000, outputTokens: 1_000 }];
+  await recordUsage(officeId, userId, luna(officeId), 'agent.chat', 'failed', undefined, { calls, webSearchCalls: 1, errorClass: 'http_400' });
+  const row = await testDb.prepare(`SELECT input_tokens::int AS input, output_tokens::int AS output, cost_usd::float8 AS "costUsd", credits
+    FROM ai_usage WHERE office_id=?`).get<{ input: number; output: number; costUsd: number; credits: number | null }>(officeId);
+  assert.equal(row!.input, 200_000);
+  assert.equal(row!.output, 2_000);
+  // 200 thousand in at 0,10 + 2 thousand out at 0,50 + one search at 0,01 = US$ 0,031.
+  assert.ok(Math.abs(row!.costUsd - 0.031) < 1e-9);
+  assert.equal(row!.credits, null);
+  assert.equal(await creditBalance(officeId), 500_000);
+});
+
 test('a model without a price of its own is charged at the fallback rates', async () => {
   const { officeId, userId } = await office();
   await recordUsage(officeId, userId, { ...luna(officeId), modelId: 'unpriced-model' }, 'agent.chat', 'completed', { inputTokens: 200_000, outputTokens: 0 });

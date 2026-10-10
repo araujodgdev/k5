@@ -10,8 +10,8 @@ import type { OutputProcessor } from '@mastra/core/processors';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { database, withTransaction } from './database';
-import { assertCredits, chargeUsage } from './billing/credits';
-import { callUsage, totalUsage, type CallUsage } from './billing/credit-pricing';
+import { assertCredits, chargeUsage, modelPrice } from './billing/credits';
+import { callUsage, totalUsage, usageCostUsd, type CallUsage } from './billing/credit-pricing';
 import { resolveTaskModel } from './ai-connections';
 import { AiConnectionError, type AiProvider } from './ai-connections-core';
 import type { ResolvedTaskModel } from './ai-assignments-core';
@@ -162,12 +162,14 @@ type UsageConfig = ModelCredential & { connectionId: string; effort?: ReasoningE
 
 /**
  * Records a model call and, when it completed, charges its cost to the office in the same
- * transaction. A failed call is recorded but not charged.
+ * transaction. A failed call is recorded but not charged: its tokens and what it cost the platform
+ * are kept, including the steps a failed or cancelled agent turn finished before it stopped.
  */
 export async function recordUsage(officeId: string, userId: string | null, config: UsageConfig, task: string, status: string,
   usage?: unknown, details: UsageDetails = {}) {
   const calls: CallUsage[] = details.calls?.length ? details.calls.map(callUsage) : usage ? [callUsage(usage)] : [];
   const total = totalUsage(calls);
+  const measured = Boolean(usage) || calls.length > 0;
   const id = randomUUID();
   await withTransaction(async tx => {
     const owner = await billingOwner(tx, { officeId, userId, billingOrigin: details.billingOrigin });
@@ -176,16 +178,18 @@ export async function recordUsage(officeId: string, userId: string | null, confi
     const charged = status === 'completed' && (calls.length || details.webSearchCalls)
       ? await chargeUsage(tx, { officeId, userId, billingOrigin: origin }, id, { modelId: config.modelId, calls, webSearchCalls: details.webSearchCalls })
       : null;
+    const costUsd = charged ? charged.costUsd
+      : calls.length || details.webSearchCalls ? usageCostUsd(await modelPrice(config.modelId, tx), calls, details.webSearchCalls) : null;
     await tx.prepare(`INSERT INTO ai_usage(id,office_id,user_id,connection_id,provider,model_id,task,status,input_tokens,output_tokens,
         reasoning_effort,model_source,effort_source,duration_ms,error_class,signals,cached_input_tokens,cache_write_tokens,reasoning_tokens,
         web_search_calls,cost_usd,credits,conversation_id,billing_origin_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(id, officeId, userId, config.connectionId, config.provider, config.modelId, task, status,
-        usage ? total.inputTokens : null, usage ? total.outputTokens : null,
+        measured ? total.inputTokens : null, measured ? total.outputTokens : null,
         config.effort ?? null, config.modelSource ?? null, config.effortSource ?? null,
         details.durationMs === undefined ? null : Math.round(details.durationMs), details.errorClass ?? null,
         details.signals ? JSON.stringify(details.signals) : null,
-        usage ? total.cachedInputTokens : null, usage ? total.cacheWriteTokens : null, usage ? total.reasoningTokens : null,
-        details.webSearchCalls ?? null, charged?.costUsd ?? null, charged?.millicredits ?? null, origin?.conversationId ?? null, origin?.id ?? null);
+        measured ? total.cachedInputTokens : null, measured ? total.cacheWriteTokens : null, measured ? total.reasoningTokens : null,
+        details.webSearchCalls ?? null, costUsd, charged?.millicredits ?? null, origin?.conversationId ?? null, origin?.id ?? null);
   });
 }
 

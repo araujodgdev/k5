@@ -15,7 +15,7 @@ Cada frente segue o mesmo formato:
 | --- | --- | --- |
 | Limite de saída da conversa | Feito | `fix/lume-anthropic` |
 | Reranqueamento que não derruba a busca | Feito | `fix/lume-anthropic` |
-| Uso de turnos que falham | Pendente | — |
+| Uso de turnos que falham | Feito | `fix/lume-anthropic` |
 | Cache de prompt e esforço na Anthropic | Pendente | — |
 | Preço do Claude Haiku 5.5 | Pendente | — |
 
@@ -63,3 +63,24 @@ Em 09/10, as 6 chamadas de `k5_knowledge_search` feitas com a Anthropic falharam
 ### Decisões
 
 - O prazo de 2 s continua. O reranqueamento melhora a ordem, mas não pode custar a busca; um prazo maior só atrasaria toda consulta quando o TypeSafe estiver lento.
+
+## Uso de turnos que falham
+
+### Situação anterior
+
+Um turno que falhava ou era cancelado gravava `ai_usage` sem tokens nem custo, mesmo depois de vários passos concluídos. O turno das 14:25 de 09/10 rodou 5 passos (cerca de 190 mil tokens de entrada e 7 mil de saída, com duas buscas web) antes do erro da Anthropic, e nada disso ficou registrado. O trace do turno também fechava sem tokens. [Turno do chat](../apps/web/src/lib/chat-turn.ts), [registro de uso](../apps/web/src/lib/ai-runtime.ts).
+
+### Feito
+
+- O turno guarda o uso de cada passo fora do streaming. Em falha ou cancelamento, `recordUsage` recebe esses passos e as buscas web.
+- `recordUsage` grava tokens e `cost_usd` de chamadas que não são cobradas. `credits` continua vazio e o saldo não muda.
+- O trace do turno fecha com o total dos passos concluídos.
+- Teste em `tests/credits.test.ts`.
+
+### Pendente
+
+- Nada nesta frente.
+
+### Decisões
+
+- Turno que falha ou é cancelado continua sem cobrança de créditos, como antes. O custo fica registrado para a plataforma acompanhar o que absorve. Cobrar esses passos é uma decisão de produto em aberto: um turno pode falhar depois de criar um documento.

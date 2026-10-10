@@ -14,6 +14,7 @@ import { documentFocusPrompt } from '@/lib/artifact-edits';
 import { reviewCitations, type CitationItem } from '@/lib/citations/review';
 import { conversationSources, recordSources, type RecordedSource } from '@/lib/citations/sources';
 import { captureBillingOrigin, persistedBillingOrigin } from '@/lib/billing/origin';
+import { callUsage, totalUsage } from '@/lib/billing/credit-pricing';
 import { createAgent, errorClass, recordUsage, requestContextFor } from '@/lib/ai-runtime';
 import { conversationSession } from '@/lib/ai-providers';
 import { selectedResearchSources } from '@/lib/ai-sources';
@@ -234,6 +235,9 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
       const messageId = randomUUID();
       const partId = randomUUID();
       let answer = '';
+      // Kept outside the stream so a turn that fails or is cancelled still records the steps it finished.
+      const stepUsages: unknown[] = [];
+      let webSearches = 0;
       const steps: Array<{ callId: string; name: string; summary: string; state: 'running' | 'completed' | 'failed' | 'awaiting_approval' | 'interrupted'; href?: string; canvasAction?: 'open' | 'touch' }> = [];
       const confirmations: AgentApprovalPart[] = [];
       const webPages: RecordedSource[] = [];
@@ -329,8 +333,6 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         const budget = new ToolBudget();
         let halted = '';
         let lastStepReason: string | undefined;
-        const stepUsages: unknown[] = [];
-        let webSearches = 0;
 
         for await (const chunk of response.fullStream) {
           if (chunk.type === 'error') throw chunk.payload.error;
@@ -438,8 +440,9 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         const message = aborted ? '\n[Resposta interrompida.]' : '\n[Não foi possível concluir a resposta. Tente novamente.]';
         if (!answer.endsWith(message)) { answer += message; writer.write({ type: 'text-delta', id: partId, delta: message }); }
         span.setAttribute('lume.outcome', status);
+        if (stepUsages.length) usage = totalUsage(stepUsages.map(callUsage));
         await recordUsage(owner.officeId, owner.userId, config, config.task, status, undefined,
-          { billingOrigin: context.billingOrigin, durationMs: performance.now() - started, errorClass: aborted ? 'aborted' : errorClass(error) });
+          { billingOrigin: context.billingOrigin, durationMs: performance.now() - started, errorClass: aborted ? 'aborted' : errorClass(error), calls: stepUsages, webSearchCalls: webSearches });
       } finally {
         for (const step of steps) if (step.state === 'running') {
           step.state = 'interrupted'; step.summary = 'A chamada terminou sem resultado confirmado.';
