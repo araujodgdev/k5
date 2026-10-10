@@ -315,7 +315,8 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         const controller = new AbortController();
         for (const policy of context.contentSources ?? []) await assertSourcesAdmitted(policy);
         const response = await agent.stream(promptMessages as Parameters<typeof agent.stream>[0], {
-          requestContext: requestContextFor({ ...config, session: conversationSession(owner, historyRevoked ? `${id}:${lease.token}` : id) }),
+          // Every step resends the same system prompt, tools and history: Anthropic caches them between steps.
+          requestContext: requestContextFor({ ...config, session: conversationSession(owner, historyRevoked ? `${id}:${lease.token}` : id) }, { promptCache: true }),
           maxSteps: MAX_STEPS,
           prepareStep: () => ({ activeTools: selection.activeTools() }),
           modelSettings: { maxOutputTokens: MAX_STEP_OUTPUT_TOKENS },

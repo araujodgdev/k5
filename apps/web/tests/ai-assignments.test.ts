@@ -17,7 +17,7 @@ import {
   assignmentOverview, loadAssignmentSnapshot, pinRunModelPlan, planGroup, planTask, resolveLegacyRunModel, resolvePinnedTaskModel,
   resolveTaskModelFromDatabase, testModelAssignment, updateModelAssignment, type AssignmentUpdate, type TaskModelPlan,
 } from '../src/lib/ai-assignments-core';
-import { type AiTaskKey } from '../src/lib/ai-tasks';
+import { supportsReasoningEffort, type AiTaskKey } from '../src/lib/ai-tasks';
 import { DEFAULT_CHAT_MODEL } from '../src/lib/ai-defaults';
 import { chatHearsAudio } from '../src/lib/ai-modalities';
 import { encryptCredential } from '../src/lib/platform-crypto';
@@ -47,7 +47,8 @@ type Outcome = { connectionId: string; modelId: string; effort: string | null } 
 /**
  * The resolution before 0030, written down as the reference: resolveModelConfigFromDatabase for
  * chat, extraction and drafting, the e-mail writer's request for gpt-6-luna with its fallback, the
- * guard on extraction, and transcription following the chat's provider.
+ * guard on extraction, and transcription following the chat's provider. Only OpenAI took an effort
+ * then; the efforts 0030 seeded now also reach the other providers that accept one (Anthropic).
  */
 function legacy(connections: LegacyConnection[], task: AiTaskKey): Outcome {
   const active = connections.filter(item => item.enabled !== false && !item.deleted)
@@ -58,9 +59,9 @@ function legacy(connections: LegacyConnection[], task: AiTaskKey): Outcome {
     const fallback = active.find(item => item.key);
     return fallback ? { connectionId: fallback.id, modelId: DEFAULT_CHAT_MODEL[fallback.provider], provider: fallback.provider } : undefined;
   };
-  const openai = (resolved: { provider: AiProvider } | undefined, effort: string) => resolved?.provider === 'openai' ? effort : null;
+  const accepted = (resolved: { provider: AiProvider }, effort: string) => supportsReasoningEffort(resolved.provider) ? effort : null;
   const outcome = (resolved: ReturnType<typeof profile>, effort: string): Outcome =>
-    resolved ? { connectionId: resolved.connectionId, modelId: resolved.modelId, effort: openai(resolved, effort) } : 'not_found';
+    resolved ? { connectionId: resolved.connectionId, modelId: resolved.modelId, effort: accepted(resolved, effort) } : 'not_found';
   if (task === 'agent.chat') return outcome(profile('chat'), 'xhigh');
   if (task.startsWith('drafting.')) return outcome(profile('drafting'), 'xhigh');
   if (task.startsWith('extraction.')) return outcome(profile('extraction'), 'xhigh');
@@ -153,13 +154,18 @@ test('a task takes its group, then the group\'s parents; model and effort are in
   const section = await plan('drafting.section');
   assert.ok(section.status === 'ready' && section.effort === null && section.effortNote === 'other_provider');
 
-  // A provider that takes no effort never gets one, even when chosen at the same level.
+  // Provider default at a level leaves the effort to the provider.
   await set(db, admin, { scope: 'group', target: 'extraction', model: explicit(an.id, 'claude-sonnet-5'), effort: { mode: 'provider_default' } });
   const facts = await plan('extraction.chronology_facts');
   assert.ok(facts.status === 'ready' && facts.effort === null && facts.effortOrigin.scope === 'group' && facts.effortOrigin.target === 'extraction');
-  // The guard and the e-mail writer follow extraction's model; their own efforts stay theirs, and only apply to OpenAI.
+  // The guard and the e-mail writer follow extraction's model; their own efforts stay theirs, and Anthropic takes them.
   const guard = await plan('classification.injection_guard');
-  assert.ok(guard.status === 'ready' && guard.provider === 'anthropic' && guard.effort === null && guard.effortNote === 'unsupported');
+  assert.ok(guard.status === 'ready' && guard.provider === 'anthropic' && guard.effort === 'low' && !guard.effortNote);
+  // A provider that takes no effort never gets one, even when chosen at the same level.
+  const go = await createAiConnection(db, key, admin, { name: 'Google', provider: 'google', apiKey: 'sk-go' });
+  await set(db, admin, { scope: 'group', target: 'extraction', model: explicit(go.id, 'gemini-2.5-pro'), effort: inherit });
+  const unsupported = await plan('classification.injection_guard');
+  assert.ok(unsupported.status === 'ready' && unsupported.provider === 'google' && unsupported.effort === null && unsupported.effortNote === 'unsupported');
 
   // Provider default at the task level beats every effort above it.
   await set(db, admin, { scope: 'task', target: 'agent.chat', model: inherit, effort: { mode: 'provider_default' } });

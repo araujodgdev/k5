@@ -16,7 +16,7 @@ Cada frente segue o mesmo formato:
 | Limite de saída da conversa | Feito | `fix/lume-anthropic` |
 | Reranqueamento que não derruba a busca | Feito | `fix/lume-anthropic` |
 | Uso de turnos que falham | Feito | `fix/lume-anthropic` |
-| Cache de prompt e esforço na Anthropic | Pendente | — |
+| Cache de prompt e esforço na Anthropic | Feito | `fix/lume-anthropic` |
 | Preço do Claude Haiku 5.5 | Pendente | — |
 
 ## Fora do código
@@ -84,3 +84,30 @@ Um turno que falhava ou era cancelado gravava `ai_usage` sem tokens nem custo, m
 ### Decisões
 
 - Turno que falha ou é cancelado continua sem cobrança de créditos, como antes. O custo fica registrado para a plataforma acompanhar o que absorve. Cobrar esses passos é uma decisão de produto em aberto: um turno pode falhar depois de criar um documento.
+
+## Cache de prompt e esforço na Anthropic
+
+### Situação anterior
+
+- **Sem cache.** Todos os passos com a Anthropic registraram `cachedInputTokens: 0`. Cada passo reenviava de 16 mil a 80 mil tokens a preço cheio; o turno das 13:44 somou 299 mil tokens de entrada em 8 passos. A OpenAI faz cache sozinha; a Anthropic só faz quando o pedido marca `cache_control`.
+- **Esforço ignorado.** `supportsReasoningEffort` só aceitava OpenAI e CLIProxyAPI, e `modelProviderOptions` só montava opções para a OpenAI. O esforço escolhido no admin não chegava à Anthropic, e o painel nem deixava escolher. [Provedores](../apps/web/src/lib/ai-providers.ts), [tarefas](../apps/web/src/lib/ai-tasks.ts).
+
+### Feito
+
+- Os passos da conversa pedem cache automático à Anthropic (`cacheControl: ephemeral` no pedido). Cada passo lê do cache o prefixo do passo anterior.
+- A Anthropic passa a aceitar esforço. O admin pode escolhê-lo, e o pedido leva `output_config.effort`:
+  - "Mínimo" vira `low`, porque a Anthropic não tem esse nível;
+  - `xhigh` vira `high` nos modelos anteriores ao Opus 4.7;
+  - Sonnet 4.5, Haiku 4.5 e modelos mais antigos não recebem esforço, porque recusam o parâmetro.
+- A guarda contra injeção também manda o modelo, para o esforço respeitar essas regras.
+- Testes em `tests/source-provider-round3.test.ts` (corpo do pedido) e `tests/ai-assignments.test.ts` (resolução do esforço).
+
+### Pendente
+
+- Medir a taxa de acerto do cache em produção, por `cached_input_tokens` em `ai_usage`, depois do deploy.
+
+### Decisões
+
+- O cache vale só para a conversa. Uma chamada única (extração, resumo, guarda) não reaproveita o prefixo e pagaria a gravação do cache, que custa 25% a mais na entrada.
+- A troca de ferramentas ativas depois de `k5_tools_select_modules` invalida o cache uma vez por turno, porque as ferramentas vêm antes de tudo no prefixo. Os passos seguintes voltam a acertar.
+- Os esforços que a migração 0030 gravou (`xhigh` em agente, minutas e extração) passam a chegar à Anthropic onde ainda estiverem salvos. Em produção, em 09/10, só a classificação tinha esforço explícito (`low`); os demais grupos herdam o padrão do provedor.

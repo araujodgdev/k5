@@ -38,7 +38,9 @@ function agentFor(config: EffortCredential, instructions: string, tools?: Record
     defaultOptions: ({ requestContext }) => {
       const provider = (requestContext?.get('provider') as AiProvider | undefined) ?? config.provider;
       const effort = requestContext?.get('reasoningEffort') as ReasoningEffort | null | undefined;
-      return { providerOptions: modelProviderOptions(provider, effort === undefined ? config.effort : effort) };
+      const modelId = (requestContext?.get('modelId') as string | undefined) ?? config.modelId;
+      return { providerOptions: modelProviderOptions(provider, effort === undefined ? config.effort : effort,
+        { modelId, promptCache: requestContext?.get('promptCache') === true }) };
     },
     model: ({ requestContext }: { requestContext?: RequestContext }) => {
       const provider = (requestContext?.get('provider') as AiProvider | undefined) ?? config.provider;
@@ -56,13 +58,15 @@ function agentFor(config: EffortCredential, instructions: string, tools?: Record
   return agent;
 }
 
-export function requestContextFor(config: EffortCredential) {
+/** `promptCache` is for calls that resend the same prompt, such as the steps of a chat turn. */
+export function requestContextFor(config: EffortCredential, options: { promptCache?: boolean } = {}) {
   const ctx = new RequestContext();
   ctx.set('provider', config.provider);
   ctx.set('modelId', config.modelId);
   ctx.set('apiKey', config.apiKey);
   ctx.set('reasoningEffort', config.effort ?? null);
   ctx.set('session', config.session ?? taskSession());
+  ctx.set('promptCache', options.promptCache === true);
   return ctx;
 }
 

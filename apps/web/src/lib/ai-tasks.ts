@@ -82,7 +82,7 @@ export const reasoningEffortLabels: Record<ReasoningEffort, string> = {
  * Providers whose request carries an explicit reasoning effort. Elsewhere the provider's own
  * default applies, and an explicit effort cannot be saved.
  */
-const EFFORT_PROVIDERS: ReadonlySet<AiProvider> = new Set<AiProvider>(["openai", "cliproxyapi"]);
+const EFFORT_PROVIDERS: ReadonlySet<AiProvider> = new Set<AiProvider>(["openai", "cliproxyapi", "anthropic"]);
 
 export function supportsReasoningEffort(provider: AiProvider): boolean {
   return EFFORT_PROVIDERS.has(provider);
