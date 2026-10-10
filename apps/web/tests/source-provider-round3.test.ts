@@ -40,3 +40,29 @@ test('all eight public protected adapters reach their native concrete request an
     assert.notEqual(transport.wireDigests[0],admission.applicationDigest);
   }
 });
+
+test('anthropic requests carry the effort the model accepts and cache the prompt only when asked', async () => {
+  const bodies: Record<string, unknown>[] = [];
+  const fetch: typeof globalThis.fetch = async (_input, init) => {
+    bodies.push(JSON.parse(String(init?.body)));
+    return Response.json({ error: { message: 'Controlled rejection', type: 'invalid_request_error' } }, { status: 400 });
+  };
+  const send = async (modelId: string, providerOptions: ReturnType<typeof modelProviderOptions>) => {
+    const model = protectedModelFor({ provider: 'anthropic', modelId, apiKey: 'synthetic-key' }, fetch);
+    await assert.rejects(async () => model.doGenerate({ prompt: [{ role: 'user', content: [{ type: 'text', text: 'Olá' }] }], providerOptions }));
+    return bodies.at(-1)!;
+  };
+
+  const chat = await send('claude-sonnet-5-5', modelProviderOptions('anthropic', 'medium', { modelId: 'claude-sonnet-5-5', promptCache: true }));
+  assert.deepEqual(chat.cache_control, { type: 'ephemeral' });
+  assert.deepEqual(chat.output_config, { effort: 'medium' });
+
+  const task = await send('claude-haiku-5-5', modelProviderOptions('anthropic', 'minimal', { modelId: 'claude-haiku-5-5' }));
+  assert.equal(task.cache_control, undefined);
+  assert.deepEqual(task.output_config, { effort: 'low' });
+
+  // Sonnet 4.5 rejects an effort, and the provider default sends none.
+  assert.equal((await send('claude-sonnet-4-5', modelProviderOptions('anthropic', 'high', { modelId: 'claude-sonnet-4-5' }))).output_config, undefined);
+  assert.equal(modelProviderOptions('anthropic', null, { modelId: 'claude-sonnet-5-5' }), undefined);
+  assert.deepEqual(modelProviderOptions('anthropic', 'xhigh', { modelId: 'claude-sonnet-4-6' }), { anthropic: { effort: 'high' } });
+});

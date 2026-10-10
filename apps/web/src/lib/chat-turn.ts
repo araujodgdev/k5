@@ -14,6 +14,7 @@ import { documentFocusPrompt } from '@/lib/artifact-edits';
 import { reviewCitations, type CitationItem } from '@/lib/citations/review';
 import { conversationSources, recordSources, type RecordedSource } from '@/lib/citations/sources';
 import { captureBillingOrigin, persistedBillingOrigin } from '@/lib/billing/origin';
+import { callUsage, totalUsage } from '@/lib/billing/credit-pricing';
 import { createAgent, errorClass, recordUsage, requestContextFor } from '@/lib/ai-runtime';
 import { conversationSession } from '@/lib/ai-providers';
 import { selectedResearchSources } from '@/lib/ai-sources';
@@ -60,6 +61,12 @@ export type ChatTurn = {
 type CitationPart = { status: string; items: CitationItem[] };
 
 const MAX_STEPS = 8;
+/**
+ * Output tokens of one step, reasoning included. A document is written whole into the arguments of
+ * k5_artifacts_create, and at 6000 a petition was cut mid-call: the tool never ran.
+ */
+const MAX_STEP_OUTPUT_TOKENS = 16_000;
+const TRUNCATED = '\n\n[A resposta atingiu o limite de tamanho antes de terminar. Peça para continuar ou divida o pedido em partes menores.]';
 const PENDING_PDF_BYTES = 12_000_000;
 const PENDING_PDF_PAGES = 90;
 const uncompressedPdfPageEstimate = (bytes: Buffer) => bytes.toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g)?.length ?? 0;
@@ -228,6 +235,9 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
       const messageId = randomUUID();
       const partId = randomUUID();
       let answer = '';
+      // Kept outside the stream so a turn that fails or is cancelled still records the steps it finished.
+      const stepUsages: unknown[] = [];
+      let webSearches = 0;
       const steps: Array<{ callId: string; name: string; summary: string; state: 'running' | 'completed' | 'failed' | 'awaiting_approval' | 'interrupted'; href?: string; canvasAction?: 'open' | 'touch' }> = [];
       const confirmations: AgentApprovalPart[] = [];
       const webPages: RecordedSource[] = [];
@@ -305,10 +315,11 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         const controller = new AbortController();
         for (const policy of context.contentSources ?? []) await assertSourcesAdmitted(policy);
         const response = await agent.stream(promptMessages as Parameters<typeof agent.stream>[0], {
-          requestContext: requestContextFor({ ...config, session: conversationSession(owner, historyRevoked ? `${id}:${lease.token}` : id) }),
+          // Every step resends the same system prompt, tools and history: Anthropic caches them between steps.
+          requestContext: requestContextFor({ ...config, session: conversationSession(owner, historyRevoked ? `${id}:${lease.token}` : id) }, { promptCache: true }),
           maxSteps: MAX_STEPS,
           prepareStep: () => ({ activeTools: selection.activeTools() }),
-          modelSettings: { maxOutputTokens: 6000 },
+          modelSettings: { maxOutputTokens: MAX_STEP_OUTPUT_TOKENS },
           abortSignal: AbortSignal.any([signal, AbortSignal.timeout(180_000), controller.signal]),
           memory: historyRevoked ? undefined : { thread: id, resource: memoryResource(owner) },
 
@@ -322,8 +333,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
 
         const budget = new ToolBudget();
         let halted = '';
-        const stepUsages: unknown[] = [];
-        let webSearches = 0;
+        let lastStepReason: string | undefined;
 
         for await (const chunk of response.fullStream) {
           if (chunk.type === 'error') throw chunk.payload.error;
@@ -331,6 +341,7 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
           if (chunk.type === 'step-finish') {
             trace.stepFinished({ reason: chunk.payload.stepResult.reason, usage: chunk.payload.output.usage, text: chunk.payload.output.text });
             stepUsages.push(chunk.payload.output.usage);
+            lastStepReason = chunk.payload.stepResult.reason;
             continue;
           }
           if (chunk.type === 'tool-call') {
@@ -399,6 +410,11 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         }
         signal.throwIfAborted();
         if (halted) { emit(halted); status = 'halted'; }
+        // The step ran out of output tokens: whatever it was writing, a tool call included, never ran.
+        else if (lastStepReason === 'length') {
+          emit(TRUNCATED); status = 'halted';
+          trace.event('halt', null, { reason: 'output_limit', maxOutputTokens: MAX_STEP_OUTPUT_TOKENS });
+        }
         usage = await response.usage;
         await recordUsage(owner.officeId, owner.userId, config, config.task, 'completed', usage,
           { billingOrigin: context.billingOrigin, durationMs: performance.now() - started, calls: stepUsages, webSearchCalls: webSearches });
@@ -425,8 +441,9 @@ export async function runChatTurn(turn: ChatTurn, writer: UIMessageStreamWriter,
         const message = aborted ? '\n[Resposta interrompida.]' : '\n[Não foi possível concluir a resposta. Tente novamente.]';
         if (!answer.endsWith(message)) { answer += message; writer.write({ type: 'text-delta', id: partId, delta: message }); }
         span.setAttribute('lume.outcome', status);
+        if (stepUsages.length) usage = totalUsage(stepUsages.map(callUsage));
         await recordUsage(owner.officeId, owner.userId, config, config.task, status, undefined,
-          { billingOrigin: context.billingOrigin, durationMs: performance.now() - started, errorClass: aborted ? 'aborted' : errorClass(error) });
+          { billingOrigin: context.billingOrigin, durationMs: performance.now() - started, errorClass: aborted ? 'aborted' : errorClass(error), calls: stepUsages, webSearchCalls: webSearches });
       } finally {
         for (const step of steps) if (step.state === 'running') {
           step.state = 'interrupted'; step.summary = 'A chamada terminou sem resultado confirmado.';

@@ -111,7 +111,7 @@ export function injectionDetector(credential: () => Promise<ResolvedTaskModel>, 
       });
       const instance = new PromptInjectionDetector({
         // A classifier: its effort comes from the classification task, not from the chat.
-        model, providerOptions: modelProviderOptions(resolved.provider, resolved.effort),
+        model, providerOptions: modelProviderOptions(resolved.provider, resolved.effort, { modelId: resolved.modelId }),
         strategy: 'filter', threshold: 0.7, errorStrategy: 'warn', lastMessageOnly: false,
       });
       const verdicts = await Promise.all(chunks.map(async chunk => {

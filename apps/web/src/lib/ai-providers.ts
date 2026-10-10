@@ -17,10 +17,40 @@ type RouterModel = { providerId: string; modelId: string; apiKey: string };
 
 export const CLIPROXYAPI_BASE_URL = 'https://api.lume.software/v1';
 
-export function modelProviderOptions(provider: AiProvider, effort: ReasoningEffort | null | undefined) {
+type AnthropicEffort = 'low' | 'medium' | 'high' | 'xhigh';
+/** Options keyed by provider, as the AI SDK takes them: JSON values only. */
+type ProviderOptions = Record<string, Record<string, string | boolean | Record<string, string>>>;
+
+/**
+ * The effort a Claude model accepts, or null when it takes none. Sonnet 4.5, Haiku 4.5 and older
+ * reject the parameter; xhigh arrived with Opus 4.7; Anthropic has no minimal level.
+ */
+export function anthropicEffort(modelId: string, effort: ReasoningEffort): AnthropicEffort | null {
+  const match = /^claude-(opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d))?(?!\d)/.exec(modelId);
+  if (!match) return null;
+  const [, family, major, minor] = match;
+  const version = Number(major) + Number(minor ?? 0) / 10;
+  const level: AnthropicEffort = effort === 'minimal' ? 'low' : effort;
+  if (family === 'fable' || family === 'mythos' || version >= 4.7) return level;
+  if (version >= 4.6 || (family === 'opus' && version >= 4.5)) return level === 'xhigh' ? 'high' : level;
+  return null;
+}
+
+/**
+ * Provider options of one request. `promptCache` asks Anthropic to cache the prompt up to its last
+ * block, which pays off when the same prefix is sent again, as in the steps of an agent turn; a
+ * one-shot call would only pay the cache write.
+ */
+export function modelProviderOptions(provider: AiProvider, effort: ReasoningEffort | null | undefined,
+  options: { modelId?: string; promptCache?: boolean } = {}): ProviderOptions | undefined {
   const reasoning = effort && supportsReasoningEffort(provider) ? { reasoningEffort: effort } : undefined;
 
   if (provider === 'cliproxyapi') return { openai: { ...reasoning, store: false } };
+  if (provider === 'anthropic') {
+    const level = effort && options.modelId && supportsReasoningEffort(provider) ? anthropicEffort(options.modelId, effort) : null;
+    const anthropic = { ...(level ? { effort: level } : {}), ...(options.promptCache ? { cacheControl: { type: 'ephemeral' as const } } : {}) };
+    return Object.keys(anthropic).length ? { anthropic } : undefined;
+  }
   return reasoning ? { openai: reasoning } : undefined;
 }
 
