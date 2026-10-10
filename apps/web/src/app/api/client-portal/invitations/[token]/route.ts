@@ -6,6 +6,7 @@ import { isTrustedOrigin } from '@/lib/trusted-origins';
 import { portalInvitation, acceptPortalInvitation } from '@/lib/client-portal/invitations';
 import { withClientRegistration } from '@/lib/client-portal/registration';
 import { authErrorMessage } from '@/lib/auth-validation';
+import { LEGAL_VERSION } from '@/lib/legal-version';
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const invitation = await portalInvitation(database, token);
     const session = await auth.api.getSession({ headers: request.headers, query: { disableCookieCache: true } });
     if (session) { await acceptPortalInvitation(database, token, session.user, { id: session.session.id, signal: request.signal }); return Response.json({ accepted: true }); }
-    const input = z.object({ name: z.string().trim().min(2).max(120), password: z.string().min(8).max(128), acceptedLegalVersion: z.string().max(20).optional() }).parse(await limitedJson(request, 4096));
+    const input = z.object({ name: z.string().trim().min(2).max(120), password: z.string().min(8).max(128), acceptedLegalVersion: z.literal(LEGAL_VERSION) }).parse(await limitedJson(request, 4096));
     const headers = new Headers(request.headers); headers.delete('content-length'); headers.set('content-type', 'application/json');
     const response = await withClientRegistration(token, () => auth.handler(new Request(new URL('/api/auth/sign-up/email', request.url), {
       method: 'POST', headers, body: JSON.stringify({ ...input, email: invitation.email, officeName: 'Portal do cliente', callbackURL: '/client' }),

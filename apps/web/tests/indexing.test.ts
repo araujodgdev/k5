@@ -111,6 +111,37 @@ test("indexing: a job that exhausted its attempts while running reaches a termin
   assert.equal(await publishGenerationIfComplete(officeId, generationId), false, "and it is visible to publication as unfinished");
 });
 
+test('uploads: long names preserve the extension and Unicode code points through ingestion', async () => {
+  const { context } = await seedOffice();
+  for (const stem of ['a'.repeat(300), '😀'.repeat(300)]) {
+    const upload = await uploadsService.createUploadRef(context, new File(['conteudo'], `${stem}.TXT`));
+    const { document } = await vaultService.ingestUpload(context, { uploadRef: upload.id, scope: 'library' });
+    assert.equal(Array.from(upload.originalName).length, 255);
+    assert.ok(upload.originalName.endsWith('.TXT'));
+    assert.equal((await testDb.prepare('SELECT original_name FROM vault_document WHERE id=?').get<{ original_name: string }>(document.id))?.original_name, upload.originalName);
+    assert.equal(upload.originalName, `${Array.from(stem).slice(0, 251).join('')}.TXT`);
+  }
+});
+
+test('uploads: a rejected one-request upload removes its bytes and reference', async () => {
+  const { context } = await seedOffice();
+  const upload = await uploadsService.createUploadRef(context, new File(['conteudo'], 'arquivo.txt'));
+  await uploadsService.consumeUploadRef(context, upload.id);
+  await uploadsService.discardUploadRef(context, upload);
+  assert.equal(await testDb.prepare('SELECT id FROM vault_upload_ref WHERE id=?').get(upload.id), undefined);
+  await assert.rejects((await import('../src/lib/storage')).objectStorage().then(storage => storage.get(upload.storageKey)));
+});
+
+test('uploads: cleanup cannot remove an original after document creation committed', async () => {
+  const { context } = await seedOffice();
+  const upload = await uploadsService.createUploadRef(context, new File(['conteudo'], 'arquivo.txt'));
+  await vaultService.ingestUpload(context, { uploadRef: upload.id, scope: 'library' });
+  await uploadsService.discardUploadRef(context, upload);
+  const storage = await (await import('../src/lib/storage')).objectStorage();
+  assert.equal((await storage.get(upload.storageKey)).toString(), 'conteudo');
+  assert.ok((await testDb.prepare('SELECT consumed_at FROM vault_upload_ref WHERE id=?').get<{ consumed_at: string }>(upload.id))?.consumed_at);
+});
+
 test("uploads: a destination the server rejects does not cost the person their upload", async () => {
   const { context } = (await seedOffice());
   const file = new File([Buffer.from("conteudo")], "peticao.pdf", { type: "application/pdf" });

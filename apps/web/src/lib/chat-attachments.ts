@@ -1,10 +1,10 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { database } from './database';
+import { database, withTransaction } from './database';
 import { objectStorage, storageKey } from './storage';
 import { validatedFileName } from './application/uploads-service';
 import { extractDocumentSections, OcrRequiredError } from './document-extraction';
-import { chargeOcrPage, InsufficientCreditsError } from './billing/credits';
+import { assertCredits, chargeOcrPages, creditSettings, InsufficientCreditsError } from './billing/credits';
 import { CapabilityError } from './capabilities/errors';
 import { captureOperationalError } from './observability/report';
 import { imageMatchesType } from './image-signature';
@@ -36,10 +36,12 @@ export async function createChatAttachment(owner: Owner, conversationId: string,
   if (mimeType.startsWith('image/') && !imageMatchesType(bytes,mimeType)) throw new CapabilityError('INVALID','A imagem não corresponde ao formato informado.');
   const id=randomUUID();
   let extracted='';
+  let ocrPages=0;
   if (!mimeType.startsWith('image/')) {
-    // A scanned page read here by OCR is charged like one in the Cofre.
-    const onOcrPage=(page:string)=>chargeOcrPage({...owner, billingOrigin},id,page);
-    try { extracted=(await extractDocumentSections(bytes,mimeType,name,id,{onOcrPage})).map(part=>`${part.reference}: ${part.content}`).join('\n\n'); }
+    // Scanned pages are charged like in the Cofre, but only once the attachment exists: one that fails costs nothing.
+    const {ocrPageMillicredits}=await creditSettings();
+    const onOcrPage=async()=>{await assertCredits(owner.officeId,owner.userId,ocrPages*ocrPageMillicredits);ocrPages++;};
+    try { extracted=(await extractDocumentSections(bytes,mimeType,name,null,{onOcrPage})).map(part=>`${part.reference}: ${part.content}`).join('\n\n'); }
     catch(error) {
       if (error instanceof InsufficientCreditsError) throw error;
       if (error instanceof OcrRequiredError) throw new CapabilityError('INVALID',`${error.message} Para uma página, envie uma foto ou imagem.`);
@@ -55,9 +57,13 @@ export async function createChatAttachment(owner: Owner, conversationId: string,
   const storage=await objectStorage();
   await storage.put(key,bytes);
   try {
-    const row=await database.prepare(`INSERT INTO ai_chat_attachment(id,conversation_id,office_id,user_id,storage_key,name,media_type,byte_size,extracted_text)
-      VALUES(?,?,?,?,?,?,?,?,?) RETURNING *`).get<ChatAttachmentRow>(id,conversationId,owner.officeId,owner.userId,key,name,mimeType,bytes.length,extracted);
-    return publicChatAttachment(row!);
+    const row=await withTransaction(async tx=>{
+      const row=await tx.prepare(`INSERT INTO ai_chat_attachment(id,conversation_id,office_id,user_id,storage_key,name,media_type,byte_size,extracted_text)
+        VALUES(?,?,?,?,?,?,?,?,?) RETURNING *`).get<ChatAttachmentRow>(id,conversationId,owner.officeId,owner.userId,key,name,mimeType,bytes.length,extracted);
+      await chargeOcrPages(tx,{...owner,billingOrigin},id,ocrPages);
+      return row!;
+    });
+    return publicChatAttachment(row);
   } catch(error) {await storage.delete(key).catch(()=>undefined);throw error;}
 }
 

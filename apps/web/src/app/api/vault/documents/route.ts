@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { assertSameOrigin, createVaultDocument, drainQueuedDocument, publicDocument, requireVaultWorkspace, VaultHttpError } from "@/lib/vault";
 import { vaultErrorResponse } from "@/lib/vault-api";
 import { workspaceContext } from "@/lib/application/context";
-import { consumeUploadRef, createUploadRef } from "@/lib/application/uploads-service";
+import { consumeUploadRef, createUploadRef, discardUploadRef } from "@/lib/application/uploads-service";
 import { contextForCase } from '@/lib/collaboration/access';
 import { assertCapabilityAllowed } from '@/lib/application/context';
 import { vaultUploadForm } from '@/lib/vault-upload-request';
@@ -48,13 +48,19 @@ export async function POST(request: Request) {
     const upload = await createUploadRef(context, file);
     // Consumed here, in the same request that created it: an unclaimed reference is garbage the
     // sweeper is entitled to delete, and it would take this document's bytes with it.
-    await consumeUploadRef(context, upload.id);
-    const document = await createVaultDocument(context, upload, {
-      policy: personPolicy(upload.originalName, upload.sha256),
-      scope: String(form.get("scope") ?? ""),
-      caseId: typeof form.get("caseId") === "string" ? String(form.get("caseId")) : null,
-      folderId: typeof form.get("folderId") === "string" ? String(form.get("folderId")) : null,
-    });
+    let document: Awaited<ReturnType<typeof createVaultDocument>>;
+    try {
+      await consumeUploadRef(context, upload.id);
+      document = await createVaultDocument(context, upload, {
+        policy: personPolicy(upload.originalName, upload.sha256),
+        scope: String(form.get("scope") ?? ""),
+        caseId: typeof form.get("caseId") === "string" ? String(form.get("caseId")) : null,
+        folderId: typeof form.get("folderId") === "string" ? String(form.get("folderId")) : null,
+      });
+    } catch (error) {
+      await discardUploadRef(context, upload).catch(() => undefined);
+      throw error;
+    }
     const officeId = context.officeId;
     const documentId = document.id;
     // The arrow returns the promise rather than dropping it: `after` only keeps the runtime alive

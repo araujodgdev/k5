@@ -28,6 +28,13 @@ function supportedCharset(value: string): string | null {
   const label = normalized === 'utf8' ? 'utf-8' : normalized === 'latin1' ? 'iso-8859-1' : normalized;
   return ['utf-8', 'iso-8859-1', 'windows-1252'].includes(label) ? label : null;
 }
+/** Node 22.13 to 22.21 decodes windows-1252 0x80-0x9F as C1 controls (nodejs/node#60888), so that range comes from the WHATWG table. */
+const windows1252High = '€\x81‚ƒ„…†‡ˆ‰Š‹Œ\x8dŽ\x8f\x90‘’“”•–—˜™š›œ\x9džŸ';
+/** WHATWG decodes both single-byte labels as windows-1252, which never rejects a byte. */
+function decodeCharset(label: string, bytes: Buffer, fatal = false): string {
+  if (label === 'utf-8') return new TextDecoder(label, { fatal }).decode(bytes);
+  return bytes.toString('latin1').replace(/[\x80-\x9f]/g, character => windows1252High[character.charCodeAt(0) - 0x80]);
+}
 /** Gmail metadata can retain RFC 2047 encoded words. Decode only known charsets, preserving malformed words verbatim. */
 export function decodeHeaderWords(value: string): string {
   const word = /=\?([^?\s]{1,40})\?([bBqQ])\?([^?]*)\?=/g;
@@ -52,7 +59,7 @@ export function decodeHeaderWords(value: string): string {
       }
       bytes = Buffer.from(octets);
     }
-    try { return new TextDecoder(label, { fatal: true }).decode(bytes); }
+    try { return decodeCharset(label, bytes, true); }
     catch { return null; }
   };
   let result = '', cursor = 0, previousDecoded = false;
@@ -91,7 +98,7 @@ function partText(part: GmailPart): string {
   const contentType = part.headers?.find(header => header.name.toLowerCase() === 'content-type')?.value ?? '';
   const declared = contentType.match(/(?:^|;)\s*charset\s*=\s*(?:"([^";]{1,40})"|'([^';]{1,40})'|([^;\s]{1,40}))/i);
   const charset = supportedCharset(declared?.[1] ?? declared?.[2] ?? declared?.[3] ?? '') ?? 'utf-8';
-  return new TextDecoder(charset).decode(decodeBase64Url(part.body!.data!, 2_000_000));
+  return decodeCharset(charset, decodeBase64Url(part.body!.data!, 2_000_000));
 }
 /**
  * Senders that generate the text part from their HTML leave Outlook conditional comments and

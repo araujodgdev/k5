@@ -10,6 +10,7 @@ import { createAiConnection } from '../src/lib/ai-connections-core';
 import { requestHeaders } from './support/request-headers';
 import { executor } from './support/chat-route-executor';
 import { createPage } from '../src/lib/case-pages/service';
+import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 process.env.BETTER_AUTH_SECRET = randomBytes(48).toString('base64url');
 process.env.BETTER_AUTH_URL = 'http://localhost:3000';
@@ -29,7 +30,7 @@ async function fixture() {
   const origin = 'http://localhost:3000';
   const signup = await withPostgres(pool, () => auth.handler(new Request(`${origin}/api/auth/sign-up/email`, {
     method: 'POST', headers: { origin, 'content-type': 'application/json' },
-    body: JSON.stringify({ name: 'Teste', officeName: 'Teste', email: `${randomUUID()}@test.local`, password: 'Route-Test-2026!' }),
+    body: JSON.stringify({ name: 'Teste', officeName: 'Teste', email: `${randomUUID()}@test.local`, password: 'Route-Test-2026!', acceptedLegalVersion: LEGAL_VERSION }),
   })));
   assert.equal(signup.status, 200);
   const cookie = signup.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');

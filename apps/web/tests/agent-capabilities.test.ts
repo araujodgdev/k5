@@ -10,6 +10,7 @@ import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { z } from 'zod';
 import { agentMemory, clearMemory, forgetThread, memoryResource, readMemory } from '../src/lib/agent-memory';
+import { toolOutcome } from '../src/lib/chat-tool-outcome';
 import { isWithheld, MAX_CHUNKS, resultText, TOO_LONG_NOTICE, UNVERIFIED_NOTICE, UntrustedToolResultGuard, WITHHELD_NOTICE } from '../src/lib/agent-guard';
 import { exaSearch, webSearchFor } from '../src/lib/agent-web-search';
 import { beforeSendSpan } from '../src/lib/observability/privacy';
@@ -29,9 +30,10 @@ const answer = (text: string): Chunk[] => [
 ];
 
 /** A model that plays the given turns in order and keeps every prompt it was sent. */
-function scriptedModel(turns: Chunk[][]) {
+function scriptedModel(turns: Chunk[][], identity: { provider: string; modelId: string } = { provider: 'mock-provider', modelId: 'mock-model-id' }) {
   const prompts: string[] = [];
   const model = new MockLanguageModelV4({
+    ...identity,
     doStream: async (options: { prompt: unknown }) => {
       prompts.push(JSON.stringify(options.prompt));
       const chunks = turns.shift() ?? answer('fim');
@@ -84,6 +86,47 @@ test('working memory persists per person and office, without copying the convers
 
   assert.deepEqual(await clearMemory(lawyer), { cleared: true });
   assert.deepEqual(await readMemory(lawyer), { memory: '', updatedAt: null });
+});
+
+test('a tool that reports its own failure is a failed step', () => {
+  const outcome = (result: unknown) => toolOutcome({ type: 'tool-result', payload: { toolCallId: 'c', toolName: 'updateWorkingMemory', result } })!;
+  assert.equal(outcome({ error: true, message: 'Tool input validation failed for updateWorkingMemory.' }).failed, true, 'Mastra returns a rejected input as a normal result');
+  assert.equal(outcome({ success: false, message: 'Update skipped to prevent data loss.' }).failed, true, 'the working-memory guard answers success: false');
+  assert.equal(outcome({ success: true }).failed, false);
+  assert.equal(outcome({ status: 'failed' }).failed, false, 'a delivery status is the answer of a call that completed');
+  assert.equal(toolOutcome({ type: 'tool-result', payload: { toolCallId: 'c', toolName: 'k5_notifications_read', result: { success: false } } })!.failed, false, 'an app tool that changed nothing still completed');
+});
+
+test('a memory update the tool rejects is a failed step and writes nothing', async () => {
+  const lawyer = { officeId: randomUUID(), userId: randomUUID() };
+  const { model } = scriptedModel([toolCall('updateWorkingMemory', { memory: { tom: 'respostas curtas' } }), answer('Não consegui salvar.')]);
+  const agent = lume(model, { memory: await agentMemory() });
+  const chunks = await drain(await agent.stream('Prefiro respostas curtas.', { memory: { thread: randomUUID(), resource: memoryResource(lawyer) }, maxSteps: 3 }));
+  const outcomes = chunks.flatMap(chunk => toolOutcome(chunk) ?? []);
+  assert.deepEqual(outcomes.map(outcome => [outcome.name, outcome.failed]), [['updateWorkingMemory', true]], 'an object where the tool wants a string never shows as done');
+  assert.equal((await readMemory(lawyer)).memory, '');
+});
+
+/** workerd forbids code generation from strings; Ajv, which validates a JSON-schema tool, compiles with `new Function`. */
+async function withoutCodeGeneration<T>(run: () => Promise<T>) {
+  const original = globalThis.Function;
+  const blocked = function () { throw new EvalError('Code generation from strings disallowed for this context'); };
+  blocked.prototype = original.prototype;
+  globalThis.Function = blocked as unknown as FunctionConstructor;
+  try { return await run(); } finally { globalThis.Function = original; }
+}
+
+test('the memory is written on a runtime without code generation from strings, as on Workers', async () => {
+  const remembered = '# Memória do Lume\n- Tom: respostas curtas, com o artigo de lei.';
+  for (const identity of [{ provider: 'anthropic.messages', modelId: 'claude-sonnet-4-5' }, { provider: 'openai.responses', modelId: 'gpt-5' }, { provider: 'google.generative-ai', modelId: 'gemini-2.5-pro' }]) {
+    const lawyer = { officeId: randomUUID(), userId: randomUUID() };
+    const { model } = scriptedModel([toolCall('updateWorkingMemory', { memory: remembered }), answer('Anotado.')], identity);
+    const agent = lume(model, { memory: await agentMemory() });
+    const chunks = await withoutCodeGeneration(async () => drain(await agent.stream('Lembre disto: prefiro respostas curtas.', { memory: { thread: randomUUID(), resource: memoryResource(lawyer) }, maxSteps: 3 })));
+    const outcomes = chunks.flatMap(chunk => toolOutcome(chunk) ?? []);
+    assert.deepEqual(outcomes.map(outcome => [outcome.name, outcome.failed, outcome.result]), [['updateWorkingMemory', false, { success: true }]], identity.modelId);
+    assert.equal((await readMemory(lawyer)).memory, remembered, identity.modelId);
+  }
 });
 
 test('third-party tool results with instructions are withheld before the model reads them', async () => {

@@ -28,7 +28,7 @@ preservando os demais segredos. Inicie esse processo novamente após reiniciar a
 ## Docker
 
 ```sh
-cp .env.example .env     # preencha BETTER_AUTH_SECRET e K5_CREDENTIALS_KEY
+cp .env.example .env     # preencha BETTER_AUTH_SECRET, K5_CREDENTIALS_KEY e K5_CLIENT_IP_HEADER
 docker compose up
 ```
 

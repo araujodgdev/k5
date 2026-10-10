@@ -23,6 +23,7 @@ const visibleTo = (column: string, viewer: Viewer) => viewer === null ? { sql: "
   : { sql: `vault_folder_visible(${column}, ?)`, values: [viewer] };
 import { assertStorageKey, objectStorage, StorageError } from "@/lib/storage";
 import { isTrustedOrigin } from "@/lib/trusted-origins";
+import { assertTermsAccepted } from "@/lib/legal-acceptance";
 import { restoreBillingOrigin } from "@/lib/billing/origin";
 import type { UploadRef } from "@/lib/application/uploads-service";
 import type { CapabilityErrorCode } from "@/lib/capabilities/errors";
@@ -91,6 +92,7 @@ export async function requireVaultWorkspace(): Promise<{ user: { id: string }; o
   const { getSession, requireWorkspace } = await import("@/lib/session");
   const session = await getSession();
   if (!session) throw new VaultHttpError(401, "Sua sessão expirou.");
+  await assertTermsAccepted(database, session.user.id);
   return requireWorkspace();
 }
 
@@ -147,11 +149,16 @@ function cleanText(value: unknown, max: number, label: string): string | null {
   return text;
 }
 
-export async function createVaultCase(officeId: string, userId: string, name: string, details: CaseDetails = {}, context: WorkspaceContext = { officeId, userId: userId }) {
+export async function createVaultCase(officeId: string, userId: string, name: string, details: CaseDetails = {}, context: WorkspaceContext = { officeId, userId: userId }): Promise<{ case: VaultCase; created: boolean }> {
   return aclTransaction(async tx => {
     await assertCapabilityAllowed(context, 'k5_vault_create_case', tx);
   const clean = name.trim();
   if (clean.length < 2 || clean.length > 180) throw new VaultHttpError(400, "Informe um nome de caso entre 2 e 180 caracteres.");
+  // The name lookup stays inside the ACL lock that serializes every insert, so simultaneous creations cannot all miss it.
+  const select = caseSelect(userId);
+  const existing = await tx.prepare(`${select.sql} WHERE k.office_id = ? AND k.deleted_at IS NULL AND lower(k.name) = lower(?) ORDER BY k.updated_at DESC, k.created_at DESC LIMIT 1`)
+    .get(...select.values, officeId, clean) as Record<string, unknown> | undefined;
+  if (existing) return { case: mapCase(existing), created: false };
   const id = randomUUID();
   const client = details.client ?? {};
   await tx.prepare(`INSERT INTO vault_case (id, office_id, name, description, client_name, client_document, client_email, client_phone, client_notes, created_by)
@@ -159,7 +166,7 @@ export async function createVaultCase(officeId: string, userId: string, name: st
     .run(id, officeId, clean, cleanText(details.description, 4000, "A descrição"), cleanText(client.name, 180, "O nome do cliente"),
       cleanText(client.document, 40, "O documento do cliente"), cleanText(client.email, 200, "O e-mail do cliente"),
       cleanText(client.phone, 40, "O telefone do cliente"), cleanText(client.notes, 4000, "As observações"), userId);
-  return (await findVaultCase(officeId, id, userId, tx))!;
+  return { case: (await findVaultCase(officeId, id, userId, tx))!, created: true };
   });
 }
 
@@ -294,11 +301,13 @@ export async function updateVaultFolderAccess(officeId: string, folderId: string
   if (!folder) throw new VaultHttpError(404, "Pasta não encontrada.");
   if (!folder.owned) throw new VaultHttpError(403, "Só quem criou a pasta altera quem pode vê-la.");
   const { visibility, memberIds } = await cleanAccess(officeId, folder.caseId, userId, access, tx);
-  for (const write of [
-    tx.prepare("UPDATE vault_folder SET visibility = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND created_by = ?").bind(visibility, folderId, officeId, userId),
-    tx.prepare("DELETE FROM vault_folder_member WHERE folder_id = ?").bind(folderId),
-    ...memberIds.map((memberId) => tx.prepare("INSERT INTO vault_folder_member (folder_id, user_id) VALUES (?, ?)").bind(folderId, memberId)),
-  ]) await tx.prepare(write.sql).run(...write.params);
+  await keepingOwnerSight(officeId, userId, { caseId: folder.caseId }, tx, async () => {
+    for (const write of [
+      tx.prepare("UPDATE vault_folder SET visibility = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND office_id = ? AND created_by = ?").bind(visibility, folderId, officeId, userId),
+      tx.prepare("DELETE FROM vault_folder_member WHERE folder_id = ?").bind(folderId),
+      ...memberIds.map((memberId) => tx.prepare("INSERT INTO vault_folder_member (folder_id, user_id) VALUES (?, ?)").bind(folderId, memberId)),
+    ]) await tx.prepare(write.sql).run(...write.params);
+  });
   return (await findVaultFolder(officeId, folderId, userId, tx))!;
   });
 }
@@ -341,6 +350,22 @@ export async function assertVaultDocumentMove(officeId: string, userId: string, 
   const retained = new Set(target.map(folder => folder.id));
   if (source.some(folder => folder.visibility !== "public" && !folder.owned && !retained.has(folder.id)))
     throw new VaultHttpError(403, "Só quem definiu o acesso da pasta pode mover arquivos para fora dela.");
+}
+
+/**
+ * A participant may hide only the documents they sent. Every other document the case owner could
+ * reach before the write has to stay in a folder the owner sees, so neither a move nor a folder
+ * access change can lock the owner out of their own case. Content policy is a separate gate.
+ */
+export async function keepingOwnerSight(officeId: string, userId: string, scope: { documentId: string } | { caseId: string }, db: Transaction, write: () => Promise<unknown>) {
+  if (await db.prepare("SELECT 1 FROM office_member WHERE office_id = ? AND user_id = ?").get(officeId, userId)) return write();
+  const [column, id] = "documentId" in scope ? ["d.id", scope.documentId] : ["d.case_id", scope.caseId];
+  const inSight = async () => new Set((await db.prepare(`SELECT d.id FROM vault_document d WHERE d.office_id = ? AND ${column} = ? AND d.deleted_at IS NULL AND d.created_by <> ?
+    AND NOT EXISTS(SELECT 1 FROM office_member m WHERE m.office_id = d.office_id AND NOT vault_folder_visible(d.folder_id, m.user_id))`).all<{ id: string }>(officeId, id, userId)).map(row => row.id));
+  const before = await inSight();
+  await write();
+  const after = await inSight();
+  if ([...before].some(documentId => !after.has(documentId))) throw new VaultHttpError(403, "Só quem enviou o documento pode escondê-lo do responsável pelo caso.");
 }
 
 export function publicDocument(row: DocumentRow): VaultDocument {
@@ -574,7 +599,8 @@ export async function processDocument(documentId: string, officeId: string, leas
 
     const billingOwner = { officeId, userId: notificationOwner?.created_by ?? null };
     const billingOrigin = await restoreBillingOrigin(database, billingOwner.userId, notificationOwner?.billing_origin_id);
-    const onOcrPage = (page: string) => chargeOcrPage({ ...billingOwner, billingOrigin }, documentId, page);
+    // Keyed by the stored file: a new version pays for its pages again, a retry of the same one does not.
+    const onOcrPage = (page: string) => chargeOcrPage({ ...billingOwner, billingOrigin }, documentId, `${document.storedName}:${page}`);
     const sections = await extractDocumentSections(await readVaultOriginal(document), document.mimeType, document.name, document.id, { ocrImages: true, onProgress, onOcrPage });
     const insert = database.prepare("INSERT INTO vault_document_chunk (id, document_id, office_id, ordinal, stable_reference, content) VALUES (?, ?, ?, ?, ?, ?)");
     let ordinal = 0;

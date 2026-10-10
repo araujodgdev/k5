@@ -67,6 +67,18 @@ export async function searchKnowledgeEngine(
     usedReferences: new Set(used.map(item => item.researchReferenceId)).size,
     partial: used.length < researchChunks.length || new Set(used.map(item => item.researchReferenceId)).size < new Set(researchReferenceIds).size });
 
+  // Find lexical candidates across the entire authorized scope before narrowing document ids.
+  // The recent window below remains only the bounded input for semantic retrieval.
+  const terms = query.match(/[\p{L}\p{N}_-]+/gu)?.slice(0, 12) ?? [];
+  const wholeScopeMatches = !input.documentIds?.length && !researchReferenceIds.length && terms.length
+    ? await database.prepare(`SELECT c.document_id AS id
+        FROM vault_document_chunk c CROSS JOIN to_tsquery('portuguese', ?) q
+        JOIN vault_document d ON d.id=c.document_id AND d.office_id=c.office_id
+        WHERE c.search_vector @@ q AND d.office_id=? AND d.deleted_at IS NULL AND d.status='ready'
+          AND lume_vault_visible(d.id, ?)${context.invocation ? ' AND (d.case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case vc WHERE vc.id=d.case_id AND vc.deleted_at IS NULL AND vc.lume_enabled))' : ''}${input.caseId ? ' AND d.case_id=?' : ''}
+        GROUP BY c.document_id ORDER BY max(ts_rank_cd(c.search_vector,q)) DESC,c.document_id LIMIT 100`)
+      .all<{ id: string }>(terms.map(term => `'${term.replaceAll("'", "''")}'`).join(' | '), context.officeId, context.userId, ...(input.caseId ? [input.caseId] : []))
+    : [];
   const scopedDocumentIds = input.documentIds?.length
     ? input.documentIds
     : researchReferenceIds.length ? []
@@ -74,7 +86,7 @@ export async function searchKnowledgeEngine(
         `SELECT id FROM vault_document
          WHERE office_id = ? AND deleted_at IS NULL AND status = 'ready' AND lume_vault_visible(id, ?)${context.invocation ? ' AND (case_id IS NULL OR EXISTS(SELECT 1 FROM vault_case c WHERE c.id=vault_document.case_id AND c.deleted_at IS NULL AND c.lume_enabled))' : ''}${input.caseId ? ' AND case_id = ?' : ''}
          ORDER BY updated_at DESC LIMIT 400`,
-      ).all(context.officeId, context.userId, ...(input.caseId ? [input.caseId] : [])) as Array<{ id: string }>).map((row) => String(row.id));
+      ).all(context.officeId, context.userId, ...(input.caseId ? [input.caseId] : [])) as Array<{ id: string }>).map((row) => String(row.id)).concat(wholeScopeMatches.map(row => row.id));
 
   if (!scopedDocumentIds.length) {
     if (researchDto.length) {

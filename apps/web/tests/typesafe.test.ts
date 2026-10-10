@@ -206,6 +206,21 @@ test('agenda interpretation: no mutation, no invented meeting end, owner-scoped 
   assert.equal((await testDb.prepare('SELECT count(*) AS n FROM agenda_activity WHERE office_id=?').get(context.officeId))!.n, 0);
   await assert.rejects(runCapability(other, 'k5_agenda_get_proposal', { proposalId: result.proposal.id }), { code: 'NOT_FOUND' });
 });
+
+test('agenda interpretation: uncertain meeting intent preserves explicit date and interval for review', async () => {
+  const context = await fixture(); await configure(context);
+  const result = await interpretAgenda(context, { message: 'Reunião em 2026-10-09 das 9h às 10h', timeZone: 'America/Sao_Paulo' }, async (_key, req) => {
+    const result = response(req, { intent: 'create_meeting', date: 'date_0', start: 'time_0', end: 'time_1' });
+    const intent = result.answers.intent;
+    if (intent.type === 'choice') intent.confidence = 0.6;
+    return result;
+  });
+  assert.equal(result.proposal.payload.kind, 'meeting');
+  assert.equal(result.proposal.payload.startsAt, '2026-10-09T12:00:00Z');
+  assert.equal(result.proposal.payload.endsAt, '2026-10-09T13:00:00Z');
+  assert.ok(result.proposal.questions.some(question => question.includes('interpretação incerta')));
+  assert.equal((await testDb.prepare('SELECT count(*) AS n FROM agenda_activity WHERE office_id=?').get(context.officeId))?.n, 0);
+});
 test('agenda autonomy: the Lume saves activities itself, WebMCP only suggests', async () => {
   const context = (await fixture());
   const catalog = publishedCapabilities('webmcp');
@@ -241,7 +256,10 @@ test('agenda confirmation: receipt and activity roll back together on persistenc
 test('agenda dates: civil date, year omission, midnight, invalid and duplicated local times', () => {
   assert.deepEqual(temporalCandidates('amanhã às 9h', '2026-09-22T01:00:00Z', 'America/Sao_Paulo').dates, ['2026-09-22']);
   assert.ok(temporalCandidates('dia 30/02/2026', '2026-09-21T12:00:00Z', 'America/Sao_Paulo').questions.length);
-  assert.ok(temporalCandidates('sexta às 9', '2026-09-21T12:00:00Z', 'America/Sao_Paulo').questions.length);
+  assert.deepEqual(temporalCandidates('até sexta-feira', '2026-10-06T12:00:00Z', 'America/Sao_Paulo').dates, ['2026-10-09']);
+  assert.deepEqual(temporalCandidates('sexta às 9', '2026-09-21T12:00:00Z', 'America/Sao_Paulo').dates, ['2026-09-25']);
+  assert.ok(temporalCandidates('reunião 12/10 sexta-feira', '2026-10-06T12:00:00Z', 'America/Sao_Paulo').questions.includes('Informe o ano da data.'),
+    'a weekday does not hide the missing year of an explicit date');
   assert.equal(localInstant('2026-09-21', '09:00', 'America/Sao_Paulo'), '2026-09-21T12:00:00Z');
   assert.throws(() => localInstant('2026-03-08', '02:30', 'America/New_York'), /horário.*Escolha outro horário/);
   assert.throws(() => localInstant('2026-11-01', '01:30', 'America/New_York'), /horário.*Escolha outro horário/);

@@ -55,6 +55,46 @@ test('citations: a source matches on the main number and the named code or court
   assert.deepEqual(candidateSources('Súmula 54 do STJ', sources), []);
 });
 
+test('citations: an article span runs through dotted numbers, abbreviations and enumerations up to its code', () => {
+  const spans = (sample: string) => findCitationSpans(sample).map(span => span.text);
+  assert.deepEqual(spans('Nos termos dos arts. 1.238 a 1.244 do Código Civil, a posse deve ser mansa.'), ['arts. 1.238 a 1.244 do Código Civil']);
+  assert.deepEqual(spans('O art. 5º, inc. XXIII, da CF/88 trata da função social.'), ['art. 5º, inc. XXIII, da CF/88']);
+  assert.deepEqual(spans('Conforme os arts. 1.238 e 1.242 do CC.'), ['arts. 1.238 e 1.242 do CC']);
+  assert.deepEqual(spans('Os arts. 23 e 24 da Lei do Inquilinato regulam o tema.'), ['arts. 23 e 24']);
+  assert.deepEqual(spans('Aplica-se o art. 5º da lei. A CF/88 não trata disso.'), ['art. 5º'], 'a sentence end is not crossed');
+  assert.deepEqual(spans('Aplica-se o art. 5. A CF/88 não trata disso.'), ['art. 5'], 'a period right after the number ends the sentence');
+});
+
+const judgment = {
+  id: 'j1', installationId: 'i1', sourceJudgmentId: 'src-1', tribunal: 'STJ', courtUnit: null, caseNumber: '1.234.567', title: 'REsp 1.234.567/SP',
+  decisionDate: null, sourceUrl: 'https://stj.jus.br/resp', sourceStatus: 'active' as const, ementa: 'Usucapião extraordinária. Art. 1.238 do Código Civil.', ementaVersionId: 'v1',
+  fullTextStatus: 'pending' as const, fullTextVersionId: null,
+};
+
+test('citations: research web searches and corpus judgments are sources with their text', () => {
+  const search = { id: 's1', query: 'usucapião', mode: 'auto', createdAt: '2026-10-06T00:00:00.000Z', resultCount: 1, results: [
+    { title: 'Código Civil', url: 'https://planalto.gov.br/cc', host: 'planalto.gov.br', publishedDate: null, excerpt: 'Art. 1.238. Aquele que, por quinze anos, possuir como seu um imóvel…' },
+  ] };
+  const web = sourcesFromTool('k5_research_web_search', { search });
+  assert.deepEqual(web.map(source => [source.kind, source.ref, source.url, source.title, source.text]),
+    [['web', 'https://planalto.gov.br/cc', 'https://planalto.gov.br/cc', 'Código Civil', search.results[0].excerpt]]);
+  assert.deepEqual(sourcesFromTool('k5_research_get_web_search', { search }), web);
+  const [corpus] = sourcesFromTool('k5_research_search_corpus', { results: [judgment], nextCursor: null, total: 1 });
+  assert.deepEqual([corpus.kind, corpus.ref, corpus.url, corpus.title, corpus.court, corpus.caseNumber, corpus.text, corpus.policy?.origin],
+    ['web_jurisprudence', 'j1', 'https://stj.jus.br/resp', 'REsp 1.234.567/SP', 'STJ', '1.234.567', judgment.ementa, 'generated']);
+  const page = { id: 'p1', pageNumber: 1, status: 'completed', results: [{ ...judgment, resultId: 'r1', position: 1, origin: 'local' }], nextCursor: null, totalReported: 1,
+    progress: { ready: 1, pending: 0, unavailable: 0, failed: 0, cancelled: 0 }, sourceError: null };
+  const view = { id: 's2', theme: 'usucapião', filters: {}, status: 'completed', createdAt: '2026-10-06T00:00:00.000Z', pageCount: 1, includeSources: false, pages: [page] };
+  assert.deepEqual(sourcesFromTool('k5_research_get_search', { search: view }).map(source => source.ref), ['j1']);
+  const detail = { ...judgment, className: null, rapporteur: null, metadataRevision: 1, sourceUpdatedAt: null, collectedAt: '2026-10-06T00:00:00.000Z', materials: [
+    { id: 'm1', judgmentId: 'j1', kind: 'full_text', status: 'ready', currentVersionId: 'v2', unavailableReason: null, chunks: [], version: {
+      id: 'v2', materialId: 'm1', sha256: 'x', mimeType: 'text/plain', byteSize: 10, textContent: 'Inteiro teor: o prazo é de quinze anos.', originalAvailable: false,
+      parserVersion: '1', sourceUrl: null, collectedAt: '2026-10-06T00:00:00.000Z', publishedAt: null } },
+  ] };
+  const [full] = sourcesFromTool('k5_research_get_judgment', { judgment: detail });
+  assert.equal(full.text, `${judgment.ementa}\nInteiro teor: o prazo é de quinze anos.`);
+});
+
 const choice = (value: string, confidence: number) => ({ type: 'choice' as const, choice: value, confidence, probabilities: { [value]: confidence } });
 const noul = (value: number) => ({ type: 'noul' as const, noul: value });
 
@@ -138,6 +178,26 @@ test('citations: Jev decides what is a citation and whether the consulted source
   assert.equal(offline.status, 'disabled');
   assert.equal(offline.mentions, 0);
   assert.deepEqual(offline.items.map(item => item.status), ['no_source', 'unchecked', 'no_source', 'unchecked', 'no_source']);
+});
+
+test('citations: a corpus judgment the Lume read is a conversation source until its catalog is revoked', async () => {
+  const owner = await fixture();
+  const installationId = randomUUID(), judgmentId = randomUUID(), materialId = randomUUID(), versionId = randomUUID();
+  const ementa = 'Usucapião extraordinária. Art. 1.238 do Código Civil. Posse por quinze anos.';
+  await testDb.prepare(`INSERT INTO judicial_source_installation(id,kind,court_code,court_name,degree,system,purpose,auth_kind,discovery_status,permission_query,permission_cache,permission_documents,permission_redistribution,permission_ai,enabled)
+    VALUES(?,'jurisprudence_api',?,'STJ','second','proprietary','jurisprudence','none','pilot','permitido','permitido','permitido','permitido','permitido',1)`).run(installationId, installationId.slice(0, 8));
+  await testDb.prepare(`INSERT INTO research_judgment(id,installation_id,source_judgment_id,tribunal,case_number,title,source_url,metadata_hash,collected_at,status)
+    VALUES(?,?,?,'STJ','1.234.567','REsp 1.234.567/SP','https://stj.jus.br/resp','fixture',CURRENT_TIMESTAMP,'active')`).run(judgmentId, installationId, randomUUID());
+  await testDb.prepare("INSERT INTO research_material(id,judgment_id,kind,status,current_version_id) VALUES(?,?,'ementa','ready',?)").run(materialId, judgmentId, versionId);
+  await testDb.prepare(`INSERT INTO research_material_version(id,material_id,sha256,mime_type,byte_size,text_content,parser_version,citation_metadata_json,metadata_revision,collected_at,published_at)
+    VALUES(?,?,?,'text/plain',?,?,'fixture','{}'::jsonb,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`).run(versionId, materialId, randomUUID().replaceAll('-', ''), ementa.length, ementa);
+  const conversation = await createConversation(testDb, owner);
+  await recordSources(owner, conversation.id, sourcesFromTool('k5_research_get_judgment', await runCapability(owner, 'k5_research_get_judgment', { judgmentId })));
+  const [source] = await conversationSources(owner, conversation.id);
+  assert.deepEqual([source.kind, source.title, source.court, source.caseNumber, source.url, source.text],
+    ['web_jurisprudence', 'REsp 1.234.567/SP', 'STJ', '1.234.567', 'https://stj.jus.br/resp', ementa]);
+  await testDb.prepare("UPDATE judicial_source_installation SET permission_ai='proibido' WHERE id=?").run(installationId);
+  assert.deepEqual(await conversationSources(owner, conversation.id), []);
 });
 
 test('citations: sources belong to their conversation and owner', async () => {

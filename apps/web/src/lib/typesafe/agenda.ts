@@ -13,7 +13,7 @@ import { evaluate, fingerprint, type DecisionTransport } from './client';
 import { localInstant, temporalCandidates } from './agenda-time';
 import { proposalDto, type AgendaProposal } from './agenda-contracts';
 
-export const agendaQuestionVersion = 'agenda-pt-BR-v1';
+export const agendaQuestionVersion = 'agenda-pt-BR-v2';
 const intents = { create_task: 'Criar tarefa humana', create_meeting: 'Criar reunião', reschedule: 'Reagendar atividade existente', complete: 'Concluir atividade existente', cancel: 'Cancelar atividade existente', query: 'Apenas consultar atividades', other: 'Sem pedido explícito, pedido negado, múltiplas ações ou intenção ambígua' };
 type Named = { id: string; name: string };
 function options(items: Named[]) { return Object.fromEntries([['none', 'Nenhum vínculo solicitado'], ['ambiguous', 'Ambíguo ou candidato ausente'], ...items.map((item, i) => [`item_${i}`, item.name])]); }
@@ -62,7 +62,9 @@ export async function interpretAgenda(context: WorkspaceContext, input: { messag
 
     if (answer.confidence < 0.8) {
       const label: Record<string, string> = { intent: 'a operação', client: 'o cliente', case: 'o caso', member: 'o responsável', activity: 'a atividade', date: 'a data', start: 'o início', end: 'o fim' };
-      doubts.push(`Confira ${label[name] ?? 'o campo'}: interpretação incerta.`); return 'ambiguous';
+      doubts.push(`Confira ${label[name] ?? 'o campo'}: interpretação incerta.`);
+      // This is a proposal requiring human confirmation, so preserve the meeting shape for review.
+      return name === 'intent' && answer.choice === 'create_meeting' ? answer.choice : 'ambiguous';
     }
     return answer.choice;
   };

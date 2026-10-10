@@ -31,6 +31,8 @@ export const documentCorpus = topics.flatMap(([topic, evidence, supported, contr
 const agendaTemplates = [
   ['Criar uma tarefa para revisar o contrato', 'create_task'],
   ['Marque uma reunião amanhã das 9h às 10h', 'create_meeting'],
+  ['Marque uma reunião sexta-feira das 9h às 10h', 'create_meeting'],
+  ['Criar uma tarefa para revisar o contrato até sexta-feira', 'create_task'],
   ['Quero reagendar a reunião de revisão', 'reschedule'],
   ['Conclua a tarefa de revisar o contrato', 'complete'],
   ['Cancele a reunião de revisão', 'cancel'],

@@ -11,7 +11,7 @@ test('o portal do cliente: convite, conta sem escritório, PDF e cobrança publi
   const officeApi = await new ApiSession(app.baseUrl!).signIn(office);
   const clientEmail = `maria-${randomUUID().slice(0, 8)}@client.test`;
   const clientPassword = `Cliente!${randomUUID()}`;
-  const { client } = await officeApi.json<{ client: { id: string } }>('/api/agenda/clients/create', { json: { name: 'Maria Portal', email: clientEmail, stage: 'active' } });
+  const { client } = await officeApi.json<{ client: { id: string } }>('/api/agenda/clients/create', { json: { name: 'Maria Portal', email: clientEmail, stage: 'active', idempotencyKey: randomUUID() } });
   const { artifact } = await officeApi.json<{ artifact: { id: string } }>('/api/artifacts', { json: { title: 'Contrato Portal', content: '# Contrato\n\nVersão humana publicada para o cliente.' } });
   const artifactId = artifact.id;
   const clientPage = `/app/agenda/clients/${client.id}`;

@@ -56,6 +56,24 @@ async function fixture() {
   return { owner, guest, stranger, shared, privateCase, sharedDoc, privateDoc, library, document, associate, grant };
 }
 
+test('whole-office knowledge search includes a matching document older than the newest 400', async () => {
+  const f = await fixture();
+  const oldest = await f.document(null, 'Sentinelacofre');
+  await db.prepare("UPDATE vault_document SET updated_at='2020-01-01T00:00:00Z' WHERE id=?").run(oldest);
+  for (let i = 0; i < 400; i++) await f.document(null, `Recente ${i}`);
+  const result = await runCapability(f.owner.context, 'k5_knowledge_search', { query: 'Sentinelacofre' }) as { sources: { documentId: string }[] };
+  assert.ok(result.sources.some(source => source.documentId === oldest));
+
+  const crowded = await f.document(null, 'Outro');
+  await db.prepare("UPDATE vault_document SET updated_at='2020-01-01T00:00:00Z' WHERE id=?").run(crowded);
+  for (let i = 1; i <= 100; i++) await db.prepare('INSERT INTO vault_document_chunk(id,document_id,office_id,ordinal,stable_reference,content) VALUES(?,?,?,?,?,?)')
+    .run(randomUUID(), crowded, f.owner.context.officeId, i, `página:${i + 1}`, 'Sentinelacofre '.repeat(20));
+  await db.prepare('DELETE FROM knowledge_retrieval_audit WHERE user_id=?').run(f.owner.id);
+  await runCapability(f.owner.context, 'k5_knowledge_search', { query: 'Sentinelacofre' });
+  const audit = await db.prepare('SELECT document_count FROM knowledge_retrieval_audit WHERE user_id=?').get<{ document_count: number }>(f.owner.id);
+  assert.equal(Number(audit?.document_count), 402, 'a document with 100 better chunks does not push another older match out of the searched scope');
+});
+
 test('each lawyer owns exactly one office and an office has exactly one lawyer', async () => {
   const f = await fixture();
   assert.equal((await findOfficeForUser(db, f.owner.id))?.officeId, f.owner.context.officeId);
@@ -310,6 +328,24 @@ test('moving within a reserved ancestor preserves access without requiring its c
   await assert.rejects(runCapability(f.stranger.context, 'k5_vault_get_document', { documentId: doc }), { code: 'NOT_FOUND' });
 });
 
+test('a participant cannot hide the owner\'s document, neither by moving it into a reserved folder nor by closing the folder it sits in', async () => {
+  const f = await fixture(); await f.grant(); await f.grant(f.stranger);
+  const { folder: reserved } = await runCapability(f.guest.context, 'k5_vault_create_folder', { caseId: f.shared, name: 'Minha', visibility: 'private' }) as { folder: Folder };
+  await assert.rejects(runCapability(f.guest.context, 'k5_vault_update_document', { documentId: f.sharedDoc, folderId: reserved.id }), { code: 'FORBIDDEN' });
+  const { folder: open } = await runCapability(f.guest.context, 'k5_vault_create_folder', { caseId: f.shared, name: 'Aberta' }) as { folder: Folder };
+  await runCapability(f.owner.context, 'k5_vault_update_document', { documentId: f.sharedDoc, folderId: open.id });
+  await assert.rejects(runCapability(f.guest.context, 'k5_vault_update_folder_access', { folderId: open.id, visibility: 'private' }), { code: 'FORBIDDEN' });
+  await runCapability(f.guest.context, 'k5_vault_update_folder_access', { folderId: open.id, visibility: 'restricted', memberIds: [f.owner.id] });
+  await assert.rejects(runCapability(f.guest.context, 'k5_vault_update_folder_access', { folderId: open.id, visibility: 'restricted', memberIds: [f.stranger.id] }), { code: 'FORBIDDEN' });
+  const seen = await runCapability(f.owner.context, 'k5_vault_get_document', { documentId: f.sharedDoc }) as { document: { folderId: string | null } };
+  assert.equal(seen.document.folderId, open.id);
+  assert.deepEqual(await db.prepare('SELECT user_id FROM vault_folder_member WHERE folder_id=?').all(open.id), [{ user_id: f.owner.id }]);
+
+  const theirs = await f.document(f.shared, 'Nota da Bia', null, f.guest.id);
+  await runCapability(f.guest.context, 'k5_vault_update_document', { documentId: theirs, folderId: reserved.id });
+  await assert.rejects(runCapability(f.owner.context, 'k5_vault_get_document', { documentId: theirs }), { code: 'NOT_FOUND' });
+});
+
 test('folder visibility fails closed for missing, deleted, cyclic, cross-case or overlong ancestors', async () => {
   const f = await fixture();
   const visible = async (id: string | null) => (await db.prepare('SELECT vault_folder_visible(?, ?) AS visible').get<{ visible: boolean }>(id, f.owner.id))?.visible;
@@ -341,7 +377,8 @@ test('document verification drops cached private evidence and never sends it for
   const f = await fixture(); await f.grant();
   await db.prepare('INSERT INTO platform_admin(user_id) VALUES(?)').run(f.owner.id);
   await saveConnection(f.owner.id, connectionSettings.parse({ apiKey: 'synthetic-test-key', enabled: true, documents: 'enabled', version: (await connectionView()).version }));
-  const source = await db.prepare('SELECT id,content FROM vault_document_chunk WHERE document_id=?').get<{ id: string; content: string }>(f.sharedDoc);
+  const theirs = await f.document(f.shared, 'Fonte da participante', null, f.guest.id);
+  const source = await db.prepare('SELECT id,content FROM vault_document_chunk WHERE document_id=?').get<{ id: string; content: string }>(theirs);
   assert.ok(source);
   const runId = randomUUID(), artifactId = randomUUID();
   await db.prepare("INSERT INTO ai_run(id,office_id,user_id,kind,input,status) VALUES(?,?,?,'draft','{}','completed')").run(runId, f.owner.context.officeId, f.owner.id);
@@ -355,7 +392,7 @@ test('document verification drops cached private evidence and never sends it for
       probabilities: { supported: 1, unsupported: 0, contradicted: 0, insufficient_context: 0 } }])) }) });
   assert.equal((await getVerification(f.owner.context, { artifactId })).verification?.items.length, 1);
   const { folder } = await runCapability(f.guest.context, 'k5_vault_create_folder', { caseId: f.shared, name: 'Pessoal', visibility: 'private' }) as { folder: Folder };
-  await runCapability(f.guest.context, 'k5_vault_update_document', { documentId: f.sharedDoc, folderId: folder.id });
+  await runCapability(f.guest.context, 'k5_vault_update_document', { documentId: theirs, folderId: folder.id });
   const hidden = (await getVerification(f.owner.context, { artifactId })).verification;
   assert.equal(hidden?.status, 'stale'); assert.deepEqual(hidden?.items, []);
   await db.prepare('UPDATE ai_artifact SET version=version+1 WHERE id=?').run(artifactId);

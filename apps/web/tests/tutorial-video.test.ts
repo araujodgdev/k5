@@ -1,6 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 import { tutorialVideoResponse } from '../src/lib/tutorial-video-response';
+
+test('every tutorial video reaches the Worker before the asset binding answers', () => {
+  const list = readFileSync('wrangler.jsonc', 'utf8').match(/"run_worker_first"\s*:\s*(\[[^\]]*\])/)?.[1];
+  assert.ok(list, 'wrangler.jsonc declares assets.run_worker_first');
+  // Cloudflare's router turns each "*" into ".*" and matches the whole path.
+  const rules = (JSON.parse(list) as string[]).map(rule => new RegExp(`^${rule.split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`));
+  const videos = readdirSync('public/tutorial/videos', { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => `/tutorial/videos/${entry.name}/video.mp4`);
+  assert.ok(videos.length > 0);
+  assert.deepEqual(videos.filter(path => !rules.some(rule => rule.test(path))), []);
+});
 
 const bytes = new TextEncoder().encode('0123456789');
 const assets = { fetch: async () => new Response(bytes, { headers: { 'Content-Type': 'video/mp4', ETag: '"video-v1"' } }) };

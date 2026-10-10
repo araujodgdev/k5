@@ -15,6 +15,7 @@ import { personPolicy } from '../src/lib/content-policy';
 import { changeAccess } from '../src/lib/collaboration/service';
 import { generateAnnexes } from '../src/lib/annexes';
 import { sendMail } from '../src/lib/google/gmail/service';
+import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 test('actual capability archive reauthorizes after stored rendering on real logout and cancellation, retaining legitimate retries', async t => {
   const pool = await authStore();
@@ -25,7 +26,7 @@ test('actual capability archive reauthorizes after stored rendering on real logo
   const request = (path: string, body: object, cookie = '') => withPostgres(pool, () => auth.handler(new Request(`${origin}/api/auth/${path}`, {
     method: 'POST', headers: { origin, cookie, 'content-type': 'application/json' }, body: JSON.stringify(body),
   })));
-  const signup = await request('sign-up/email', { email, password, name: 'Arquivista', officeName: 'Arquivo' });
+  const signup = await request('sign-up/email', { email, password, name: 'Arquivista', officeName: 'Arquivo', acceptedLegalVersion: LEGAL_VERSION });
   assert.equal(signup.status, 200);
   let cookie = signup.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
   const { user } = await signup.json();

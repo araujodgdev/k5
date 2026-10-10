@@ -2,35 +2,43 @@
 
 import Link from "next/link";
 import { useRouter } from "@/components/lume/canvas-navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { ArrowRight, CircleAlert, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import type { LegalDocumentKind } from "@/lib/legal-acceptance";
 
+const ACCEPT_TIMEOUT_MS = 15_000;
+
 async function accept(document: LegalDocumentKind) {
-  const response = await fetch("/api/legal/acceptance", {
+  const post = () => fetch("/api/legal/acceptance", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ document }),
+    signal: AbortSignal.timeout(ACCEPT_TIMEOUT_MS),
   });
+  const first = await post();
+  // The platform answers a passing 503 now and then; the insert is idempotent, so one retry is safe.
+  const response = first.status >= 500 ? await post() : first;
   if (!response.ok) throw new Error();
 }
 
 function useAcceptance(document: LegalDocumentKind) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
   const [error, setError] = useState("");
   async function submit() {
     setPending(true);
     setError("");
     try {
       await accept(document);
-      router.refresh();
+      startRefresh(() => router.refresh());
     } catch {
       setError("Não foi possível registrar. Confira sua conexão e tente novamente.");
+    } finally {
       setPending(false);
     }
   }
-  return { pending, error, submit };
+  return { pending: pending || refreshing, error, submit };
 }
 
 const failure = (error: string) => error

@@ -10,7 +10,7 @@ import { ownedChatAttachment } from '@/lib/chat-attachments';
 import { objectStorage, storageKey } from '@/lib/storage';
 import {
   assertVaultDocumentMove, countVaultDocuments, createVaultDocument, createVaultCase, createVaultFolder, deleteVaultFolder, findVaultCase,
-  findVaultDocument, findVaultDocumentIncludingDeleted, findVaultFolder, listVaultCases, listVaultDocuments,
+  findVaultDocument, findVaultDocumentIncludingDeleted, findVaultFolder, keepingOwnerSight, listVaultCases, listVaultDocuments,
   listVaultFolders, retryVaultDocument, updateVaultCase, updateVaultFolderAccess, vaultFolderPath, VaultHttpError, type VaultOriginKind,
 } from '@/lib/vault';
 import { caseAccess } from '@/lib/collaboration/access';
@@ -51,11 +51,8 @@ export async function listCases(context: WorkspaceContext): Promise<CapabilityOu
 }
 
 export async function createCase(context: WorkspaceContext, input: CapabilityInput<'k5_vault_create_case'>): Promise<CapabilityOutput<'k5_vault_create_case'>> {
-
-  const existing = (await listVaultCases(context.officeId, context.userId)).find((item) => item.name.toLowerCase() === input.name.toLowerCase());
-  if (existing) return { case: existing, created: false };
   try {
-    return { case: await createVaultCase(context.officeId, context.userId, input.name, { description: input.description, client: input.client }, context), created: true };
+    return await createVaultCase(context.officeId, context.userId, input.name, { description: input.description, client: input.client }, context);
   } catch (error) { throw asCapabilityError(error); }
 }
 
@@ -194,8 +191,10 @@ export async function updateDocument(context: WorkspaceContext, input: Capabilit
   }
   if (input.caseId !== undefined || input.folderId !== undefined) { changes.push('folder_id=?'); values.push(folderId); }
   await assertCapabilityAllowed(context, 'k5_vault_update_document', tx);
-  if (changes.length) await tx.prepare(`UPDATE vault_document SET ${changes.join(',')},updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL`)
+  const update = () => tx.prepare(`UPDATE vault_document SET ${changes.join(',')},updated_at=CURRENT_TIMESTAMP WHERE id=? AND office_id=? AND deleted_at IS NULL`)
     .run(...values, input.documentId, context.officeId);
+  try { if (changes.length) await keepingOwnerSight(context.officeId, context.userId, { documentId: input.documentId }, tx, update); }
+  catch (error) { throw asCapabilityError(error); }
   });
   return getDocument(context, { documentId: input.documentId });
 }

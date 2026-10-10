@@ -53,7 +53,7 @@ export const getSearch = (context: WorkspaceContext, input: CapabilityInput<'k5_
 export const startSearch = (context: WorkspaceContext, input: CapabilityInput<'k5_research_start_search'>) =>
   operation(async () => { const search = await startResearchSearch(context, input); return mapContentResult({ search }, search); });
 export const requestPage = (context: WorkspaceContext, input: CapabilityInput<'k5_research_request_page'>) =>
-  operation(async () => { const page = await requestResearchPage(context, input.searchId, input.cursor); return mapContentResult({ page }, page); });
+  operation(async () => { const page = await requestResearchPage(context, input.searchId, input.cursor, { approvalId: input.approvalId }); return mapContentResult({ page }, page); });
 export const requestMaterial = (context: WorkspaceContext, input: CapabilityInput<'k5_research_request_material'>) =>
   operation(async () => contentResult(await requestResearchMaterial(context, input), []));
 export const cancelDownloads = (context: WorkspaceContext, input: CapabilityInput<'k5_research_cancel_downloads'>) =>

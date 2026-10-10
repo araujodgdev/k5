@@ -4,13 +4,22 @@ import type { ApprovalRequest } from '@/lib/agent-tools';
 export type ToolOutcome = { callId: string; name: string; result: unknown; failed: boolean };
 
 /**
+ * Mastra answers a rejected input as `{ error: true }`, and the working-memory tool a skipped write as
+ * `{ success: false }`, both as plain results. App tools answer `success: false` when nothing changed.
+ */
+function reportsFailure(name: string, result: unknown) {
+  const value = result as { error?: unknown; success?: unknown } | null;
+  return Boolean(value && typeof value === 'object' && (value.error === true || (name === 'updateWorkingMemory' && value.success === false)));
+}
+
+/**
  * Mastra streams a returned value as `tool-result` and a thrown error as `tool-error`. The chat
  * needs both: a gated action throws, and it must still become a Confirmar button.
  */
 export function toolOutcome(chunk: { type: string; payload?: unknown }): ToolOutcome | null {
   if (chunk.type === 'tool-result') {
     const payload = chunk.payload as { toolCallId: string; toolName: string; result: unknown; isError?: boolean };
-    return { callId: payload.toolCallId, name: payload.toolName, result: payload.result, failed: Boolean(payload.isError) };
+    return { callId: payload.toolCallId, name: payload.toolName, result: payload.result, failed: Boolean(payload.isError) || reportsFailure(payload.toolName, payload.result) };
   }
   if (chunk.type === 'tool-error') {
     const payload = chunk.payload as { toolCallId: string; toolName: string; error: unknown };

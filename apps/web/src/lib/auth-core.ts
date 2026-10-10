@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { z } from "zod";
-import { signUpSchema } from "./auth-validation";
+import { authErrorMessage, signUpSchema } from "./auth-validation";
 import type { Database } from "./database";
 import { withPostgres } from './database';
 import type { Pool } from 'pg';
@@ -93,6 +93,8 @@ export function createAuth(store: AuthStore, db: Database, settings: { secret: s
         if (ctx.path === "/sign-up/email") {
           const result = signUpSchema.safeParse(ctx.body);
           if (!result.success) throw new APIError("BAD_REQUEST", { code: "INVALID_SIGN_UP", message: "Confira os dados do cadastro." });
+          if (ctx.body?.acceptedLegalVersion !== LEGAL_VERSION)
+            throw new APIError('BAD_REQUEST', { code: 'LEGAL_ACCEPTANCE_REQUIRED', message: authErrorMessage('LEGAL_ACCEPTANCE_REQUIRED') });
           const registration = clientRegistration();
           if (!registration && settings.signUpChallenge?.enabled()) {
             const token = ctx.headers?.get('x-captcha-response') ?? '';

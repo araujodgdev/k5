@@ -2,7 +2,9 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { database } from '@/lib/database';
 import type { CitationSource } from './detect';
+import type { z } from 'zod';
 import { trademarkDetail, trademarkSearchView } from '@/lib/research/trademarks/contracts';
+import { researchCapabilities } from '@/lib/capabilities/research';
 import { assertPolicyAccess, combinePolicy, exposeContent, exposedPolicies, exposedSourcePolicies, parsePolicy, type ContentPolicy } from '@/lib/content-policy';
 import { CapabilityError } from '@/lib/capabilities/errors';
 
@@ -49,6 +51,14 @@ export async function conversationSources(owner: Owner, conversationId: string |
   return visible;
 }
 
+type Judgment = z.output<typeof researchCapabilities.k5_research_search_corpus.output>['results'][number];
+
+function judgmentSource(item: Judgment, texts: Array<string | null | undefined>, policies: ContentPolicy[]): RecordedSource {
+  const text = texts.filter(Boolean).join('\n');
+  return { kind: 'web_jurisprudence', ref: item.id, url: item.sourceUrl, title: item.title, court: item.tribunal, caseNumber: item.caseNumber, text,
+    policy: combinePolicy(item.title, text, policies, 'generated') };
+}
+
 /** Sources worth recording from a finished tool call; everything else is ignored. */
 export function sourcesFromTool(name: string, result: unknown): RecordedSource[] {
   if (!result || typeof result !== 'object') return [];
@@ -68,6 +78,21 @@ export function sourcesFromTool(name: string, result: unknown): RecordedSource[]
       caseNumber: typeof item.caseNumber === 'string' ? item.caseNumber : null, text: [item.title, item.summary].filter(Boolean).join('\n'),
       policy: combinePolicy(String(item.title ?? ''), [item.title, item.summary].filter(Boolean).join('\n'), exposedPolicies(result) ?? [], 'generated'),
     }] : []);
+  }
+  if (name === 'k5_research_web_search' || name === 'k5_research_get_web_search') {
+    const parsed = researchCapabilities.k5_research_web_search.output.safeParse(value);
+    return parsed.success ? parsed.data.search.results.map(item => ({ kind: 'web' as const, ref: item.url, url: item.url, title: item.title, text: item.excerpt })) : [];
+  }
+  if (name === 'k5_research_search_corpus' || name === 'k5_research_get_search' || name === 'k5_research_get_judgment') {
+    const policies = exposedPolicies(result) ?? [];
+    const corpus = researchCapabilities.k5_research_search_corpus.output.safeParse(value);
+    if (corpus.success) return corpus.data.results.map(item => judgmentSource(item, [item.ementa], policies));
+    const search = researchCapabilities.k5_research_get_search.output.safeParse(value);
+    if (search.success) return search.data.search.pages.flatMap(page => page.results.map(item => judgmentSource(item, [item.ementa], policies)));
+    const detail = researchCapabilities.k5_research_get_judgment.output.safeParse(value);
+    if (!detail.success) return [];
+    const { judgment } = detail.data;
+    return [judgmentSource(judgment, [judgment.ementa, ...judgment.materials.filter(material => material.kind === 'full_text').map(material => material.version?.textContent)], policies)];
   }
   if ((name === 'k5_knowledge_search') && Array.isArray(value.sources)) {
     return (value.sources as Array<Record<string, unknown>>).flatMap(item => typeof item.sourceId === 'string' ? [{

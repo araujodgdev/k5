@@ -4,6 +4,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { extractDocumentSections } from '../src/lib/document-extraction';
+import type { WorkspaceContext } from '../src/lib/application/context';
+import { createUploadRef } from '../src/lib/application/uploads-service';
+import { addDocumentVersion, ingestUpload } from '../src/lib/application/vault-service';
+import { getDocumentChunks, processDocument } from '../src/lib/vault';
 
 test('scanned PDF uses matching native PDF.js and OCR versions, then resumes from its checkpoint', async () => {
   const office = randomUUID(), user = randomUUID(), document = randomUUID();
@@ -19,6 +23,44 @@ test('scanned PDF uses matching native PDF.js and OCR versions, then resumes fro
   assert.match(sections[0].content, /Organizar arquivos em 26\/09\/2026/i);
   assert.deepEqual(await extractDocumentSections(pdf, 'application/pdf', 'ocr.pdf', document), sections);
   assert.equal((await testDb.prepare('SELECT count(*) AS total FROM vault_document_checkpoint WHERE document_id=?').get(document))!.total, 1);
+});
+
+test('a new version of a scanned PDF is read by OCR again, charged once per version, and search serves its text', async () => {
+  const context = { officeId: randomUUID(), userId: randomUUID() } as WorkspaceContext;
+  await testDb.prepare('INSERT INTO office(id,name) VALUES (?,?)').run(context.officeId, 'OCR versões');
+  await testDb.prepare('INSERT INTO "user"(id,email,name) VALUES (?,?,?)').run(context.userId, `${context.userId}@example.test`, 'QA');
+  await testDb.prepare('INSERT INTO office_member(id,office_id,user_id) VALUES (?,?,?)').run(randomUUID(), context.officeId, context.userId);
+  const ocrCharges = async () => (await testDb.prepare("SELECT count(*)::int AS total FROM credit_entry WHERE office_id=? AND kind='ocr'").get<{ total: number }>(context.officeId))!.total;
+
+  const first = await createUploadRef(context, new File([await readFile(new URL('./fixtures/ocr-task-list.pdf', import.meta.url))], 'tarefas.pdf', { type: 'application/pdf' }));
+  const documentId = (await ingestUpload(context, { uploadRef: first.id, scope: 'library' })).document.id;
+  const text = async () => (await getDocumentChunks(context.officeId, context.userId, [documentId])).map(chunk => chunk.content).join('\n');
+  await processDocument(documentId, context.officeId);
+  assert.match(await text(), /Revisar documentos em 25\/09\/2026/i);
+  assert.equal(await ocrCharges(), 1);
+
+  // The second version is another scan: an image-only page with different words.
+  const { createCanvas } = await import('@napi-rs/canvas');
+  const canvas = createCanvas(900, 200);
+  const graphics = canvas.getContext('2d');
+  graphics.fillStyle = '#ffffff'; graphics.fillRect(0, 0, 900, 200);
+  graphics.fillStyle = '#111111'; graphics.font = '48px sans-serif';
+  graphics.fillText('Protocolar recurso em 30/10/2026', 30, 120);
+  const { PDFDocument } = await import('pdf-lib');
+  const scan = await PDFDocument.create();
+  scan.addPage([900, 200]).drawImage(await scan.embedPng(canvas.toBuffer('image/png')), { x: 0, y: 0, width: 900, height: 200 });
+  const second = await createUploadRef(context, new File([Buffer.from(await scan.save())], 'tarefas.pdf', { type: 'application/pdf' }));
+  assert.equal((await addDocumentVersion(context, { documentId, uploadRef: second.id })).version, 2);
+  await processDocument(documentId, context.officeId);
+  const replaced = await text();
+  assert.match(replaced, /Protocolar recurso em 30\/10\/2026/i);
+  assert.doesNotMatch(replaced, /Revisar documentos/i);
+  assert.equal(await ocrCharges(), 2);
+
+  // Reading the same version again resumes from its checkpoint and charges nothing.
+  await processDocument(documentId, context.officeId);
+  assert.match(await text(), /Protocolar recurso em 30\/10\/2026/i);
+  assert.equal(await ocrCharges(), 2);
 });
 
 test('a Word guide made of screenshots is read by OCR in the Cofre, once, and only there', async () => {
@@ -48,7 +90,7 @@ test('a Word guide made of screenshots is read by OCR in the Cofre, once, and on
   assert.match(sections[0].content, /Prorrogar prazo em 30\/09\/2026/i);
   // A retry resumes from the checkpoint instead of recognising the picture again.
   assert.deepEqual(await extractDocumentSections(word, mime, 'guia.docx', document, { ocrImages: true }), sections);
-  assert.equal((await testDb.prepare("SELECT count(*) AS total FROM vault_document_checkpoint WHERE document_id=? AND stable_reference='imagem:1'").get(document))!.total, 1);
+  assert.equal((await testDb.prepare('SELECT count(*) AS total FROM vault_document_checkpoint WHERE document_id=?').get(document))!.total, 1);
 });
 
 test('a phone scan with oversized pages is read at a reduced scale instead of refused', async () => {

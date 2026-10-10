@@ -7,7 +7,7 @@ import type { WorkspaceContext } from '../src/lib/application/context';
 import { upsertInstallation } from '../src/lib/judicial/repositories/installations';
 import { normalizeTjdftResponse, type SourceJudgment } from '../src/lib/research/sources/tjdft';
 import { upsertSourceJudgment } from '../src/lib/research/catalog';
-import { searchResearchCorpus, startResearchSearch, getResearchSearch, getResearchJudgment,
+import { searchResearchCorpus, startResearchSearch, getResearchSearch, getResearchJudgment, listResearchHistory,
   requestResearchMaterial, requestResearchPage, getResearchOriginal as getResearchOriginalForUser } from '../src/lib/application/research-service';
 import { fixtureTransport, fixtureKey } from '../src/lib/judicial/connectors/transport';
 import { processNextResearchExternalJob } from '../src/lib/research/worker';
@@ -557,4 +557,23 @@ test('espelho STJ fica pesquisável sem agendar download individual impossível'
     {jobId:null,status:'unavailable'});
   assert.equal((await testDb.prepare("SELECT count(*) AS n FROM research_job WHERE material_id=? AND kind='fetch_material'")
     .get(material?.id))!.n,0);
+});
+
+test('o histórico mostra o mesmo status que o detalhe da pesquisa',async()=>{
+  await source();
+  const person=await actor(),theme=`statusunico${randomUUID().replaceAll('-','')}`;
+  const historyStatus=async(searchId:string)=>(await listResearchHistory(person)).find(item=>item.id===searchId)?.status;
+  assert.deepEqual(await listResearchHistory(person),[]);
+  const finished=await startResearchSearch(person,{theme,includeSources:false,idempotencyKey:randomUUID()});
+  assert.equal(finished.status,'completed');
+  assert.equal(await historyStatus(finished.id),finished.status);
+  const external=await startResearchSearch(person,{theme:`${theme} externa`,includeSources:true,idempotencyKey:randomUUID()});
+  assert.equal(external.status,'running');
+  assert.equal(await historyStatus(external.id),external.status);
+  await testDb.prepare("UPDATE research_job SET status='failed' WHERE search_id=?").run(external.id);
+  assert.equal((await getResearchSearch(person,external.id)).status,'partial');
+  assert.equal(await historyStatus(external.id),'partial');
+  await testDb.prepare("UPDATE research_search_page SET status='partial' WHERE search_id=?").run(finished.id);
+  assert.equal((await getResearchSearch(person,finished.id)).status,'partial');
+  assert.equal(await historyStatus(finished.id),'partial');
 });

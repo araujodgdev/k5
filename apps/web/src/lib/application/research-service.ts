@@ -21,7 +21,8 @@ import { contentAdmission, admissionTransport } from '@/lib/content-admission';
 import { exposedPolicies } from '@/lib/content-policy';
 import { CapabilityError } from '@/lib/capabilities/errors';
 
-async function authorize(context: WorkspaceContext, write = false): Promise<void> {
+/** An agent writes only with the approval runCapability consumed before calling here; the interface needs none. */
+async function authorize(context: WorkspaceContext, write = false, approvalId?: string): Promise<void> {
   if (context.sessionId) {
     const session = await database.prepare('SELECT "userId" AS user_id,"expiresAt" AS expires_at FROM session WHERE id=?')
       .get<{ user_id: string; expires_at: string }>(context.sessionId);
@@ -31,7 +32,7 @@ async function authorize(context: WorkspaceContext, write = false): Promise<void
   }
   const membership = await database.prepare('SELECT 1 FROM office_member WHERE office_id=? AND user_id=?').get(context.officeId,context.userId);
   if (!membership) throw new ResearchError('forbidden', 'Acesso ao escritório removido.');
-  if (write && context.invocation) throw new ResearchError('forbidden', 'Esta ação exige a interface humana.');
+  if (write && context.invocation && !approvalId) throw new ResearchError('forbidden', 'Esta ação exige a interface humana.');
 }
 
 type SearchRow = { id: string; office_id: string; user_id: string; theme: string; filters_json: string;
@@ -101,15 +102,19 @@ async function pageView(context: WorkspaceContext, page: PageRow, search: Search
     totalReported: page.total_reported, sourceError: page.source_error, progress }, contentResult({},[search.content_policy ? parsePolicy(search.content_policy) : uncertainPolicy(context.userId)]), ...results);
 }
 
+/** A search's state comes from its jobs and pages; research_search.status stays at its default. */
+function searchStatus(jobs: { status: string }[], pages: { status: string }[]) {
+  if (jobs.some((job) => job.status === 'queued' || job.status === 'running')) return 'running';
+  return jobs.some((job) => job.status === 'failed') || pages.some((page) => page.status === 'partial' || page.status === 'failed') ? 'partial' : 'completed';
+}
+
 async function loadSearch(context: WorkspaceContext, search: SearchRow): Promise<ResearchSearchView> {
   const pageRows = await database.prepare(`SELECT * FROM research_search_page WHERE search_id=? ORDER BY page_number`)
     .all<PageRow>(search.id);
   const pages = await Promise.all(pageRows.map((page) => pageView(context,page,search)));
-  const jobs = await database.prepare(`SELECT status,kind FROM research_job WHERE search_id=? AND office_id=? AND user_id=?`)
-    .all<{ status: string; kind: string }>(search.id,context.officeId,context.userId);
-  const active = jobs.some((job) => job.status === 'queued' || job.status === 'running');
-  const failed = jobs.some((job) => job.status === 'failed');
-  const status = active ? 'running' : failed || pages.some((page) => page.status === 'partial' || page.status === 'failed') ? 'partial' : 'completed';
+  const jobs = await database.prepare(`SELECT status FROM research_job WHERE search_id=? AND office_id=? AND user_id=?`)
+    .all<{ status: string }>(search.id,context.officeId,context.userId);
+  const status = searchStatus(jobs,pages);
   return mapContentResult({ id: search.id, theme: search.theme, filters: JSON.parse(search.filters_json), status,
     createdAt: search.created_at, pageCount: pages.length, pages, includeSources: search.include_sources === 1 }, contentResult({},[search.content_policy ? parsePolicy(search.content_policy) : uncertainPolicy(context.userId)]), ...pages);
 }
@@ -198,10 +203,10 @@ async function queueMaterial(context: WorkspaceContext, searchId: string | null,
     installationId:source.id,materialId:row.id,kind:'fetch_material',idempotencyKey:`fetch:${row.id}:${keySuffix}` });
 }
 
-export async function startResearchSearch(context: WorkspaceContext, input: SearchInput,
+export async function startResearchSearch(context: WorkspaceContext, input: SearchInput & { approvalId?: string },
   options: {rerankSend?:DecisionTransport} = {}): Promise<ResearchSearchView> {
   await assertResearchWritableRuntime();
-  await authorize(context,true);
+  await authorize(context,true,input.approvalId);
   const parsed = searchInputSchema.parse(input);
   if (parsed.refreshSources && !parsed.includeSources) throw new ResearchError('invalid_input','Atualizar fontes exige consulta externa.');
   const filters = JSON.stringify(parsed.filters);
@@ -249,9 +254,9 @@ export async function startResearchSearch(context: WorkspaceContext, input: Sear
 }
 
 export async function requestResearchPage(context: WorkspaceContext, searchId: string, cursor?: string,
-  options: {rerankSend?:DecisionTransport} = {}): Promise<SearchPage> {
+  options: {rerankSend?:DecisionTransport;approvalId?:string} = {}): Promise<SearchPage> {
   await assertResearchWritableRuntime();
-  await authorize(context,true);
+  await authorize(context,true,options.approvalId);
   const search = await findSearch(context,searchId);
   if (cursor) {
     const replay=await database.prepare(`SELECT * FROM research_search_page WHERE search_id=? AND request_cursor=?`)
@@ -281,15 +286,21 @@ export async function getResearchSearch(context: WorkspaceContext, searchId: str
 }
 export async function listResearchHistory(context: WorkspaceContext): Promise<SearchHistoryItem[]> {
   await authorize(context);
-  const rows = await database.prepare(`SELECT s.id,s.theme,s.filters_json,s.status,s.created_at,s.content_policy,COUNT(p.id) AS pages
+  const rows = await database.prepare(`SELECT s.id,s.theme,s.filters_json,s.created_at,s.content_policy,COUNT(p.id) AS pages
     FROM research_search s LEFT JOIN research_search_page p ON p.search_id=s.id
     WHERE s.office_id=? AND s.user_id=? GROUP BY s.id ORDER BY s.created_at DESC,s.id DESC LIMIT 100`)
-    .all<{ id:string;theme:string;filters_json:string;status:string;created_at:string;pages:number;content_policy:unknown }>(context.officeId,context.userId);
+    .all<{ id:string;theme:string;filters_json:string;created_at:string;pages:number;content_policy:unknown }>(context.officeId,context.userId);
+  const ids=rows.map((row)=>row.id);
+  const jobs=await database.prepare(`SELECT search_id,status FROM research_job WHERE office_id=? AND user_id=? AND search_id=ANY(?::text[])`)
+    .all<{ search_id:string;status:string }>(context.officeId,context.userId,ids);
+  const pages=await database.prepare(`SELECT search_id,status FROM research_search_page WHERE search_id=ANY(?::text[])`)
+    .all<{ search_id:string;status:string }>(ids);
   const visible:SearchHistoryItem[]=[];
   for(const row of rows) {
     const policy=row.content_policy ? parsePolicy(row.content_policy) : uncertainPolicy(context.userId);
     try {await assertPolicyAccess(context.userId,policy);}catch(error){if(error instanceof CapabilityError)continue;throw error;}
-    visible.push(contentResult({id:row.id,theme:row.theme,filters:JSON.parse(row.filters_json),status:row.status,createdAt:row.created_at,pageCount:row.pages},[policy]));
+    const status=searchStatus(jobs.filter((job)=>job.search_id===row.id),pages.filter((page)=>page.search_id===row.id));
+    visible.push(contentResult({id:row.id,theme:row.theme,filters:JSON.parse(row.filters_json),status,createdAt:row.created_at,pageCount:row.pages},[policy]));
   }
   return mapContentResult(visible,...visible);
 }
@@ -321,9 +332,9 @@ export async function getResearchOriginal(context: WorkspaceContext, versionId: 
   return { bytes: await readOriginal(version.storageKey), mimeType: version.mimeType, sha256: version.sha256 };
 }
 export async function requestResearchMaterial(context: WorkspaceContext,
-  input: { judgmentId: string; kind: ResearchMaterialKind; searchId?: string }): Promise<{ jobId: string | null; status: ResearchMaterialStatus }> {
+  input: { judgmentId: string; kind: ResearchMaterialKind; searchId?: string; approvalId?: string }): Promise<{ jobId: string | null; status: ResearchMaterialStatus }> {
   await assertResearchWritableRuntime();
-  await authorize(context,true);
+  await authorize(context,true,input.approvalId);
   if (input.searchId) await findSearch(context,input.searchId);
   const judgment = await findResearchJudgment(input.judgmentId);
   if (!judgment) throw new ResearchError('not_found','Julgado não encontrado.');

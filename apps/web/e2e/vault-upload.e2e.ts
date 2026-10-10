@@ -2,6 +2,27 @@ import { expect } from 'e2e';
 import { admin, ApiSession } from './support/accounts';
 import { test } from './support/fixtures';
 
+test('nomes longos no upload são encurtados e um destino recusado não deixa referência consumida', async ({ app, sql }) => {
+  const api = await new ApiSession(app.baseUrl!).signIn(admin);
+  const { case: vaultCase } = await api.json<{ case: { id: string } }>('/api/vault/cases', { json: { name: `Nomes longos ${Date.now()}` } });
+  const cookie = api.cookieList.map(({ name, value }) => `${name}=${value}`).join('; ');
+  const upload = (name: string, folderId?: string) => fetch(new URL('/api/vault/documents', app.baseUrl!), {
+    method: 'POST', body: new File(['Documento de teste.'], name),
+    headers: { origin: new URL(app.baseUrl!).origin, cookie, 'x-k5-file-name': encodeURIComponent(name),
+      'x-k5-upload-scope': 'case', 'x-k5-upload-caseid': vaultCase.id, ...(folderId ? { 'x-k5-upload-folderid': folderId } : {}) },
+  });
+  const longName = `${'😀'.repeat(300)}.txt`;
+  const accepted = await upload(longName);
+  expect(accepted.status).toBe(201);
+  const saved = await accepted.json();
+  expect(saved.document.name).toBe(`${'😀'.repeat(251)}.txt`);
+  const rejectedName = `recusado-${Date.now()}.txt`;
+  const rejected = await upload(rejectedName, '00000000-0000-4000-8000-000000000001');
+  expect(rejected.status).toBe(404);
+  expect(await sql('SELECT id FROM vault_upload_ref WHERE original_name=$1', [rejectedName])).toEqual([]);
+  expect(await sql('SELECT id FROM vault_document WHERE original_name=$1', [rejectedName])).toEqual([]);
+});
+
 test('o Cofre recebe arquivo de 100 MB e recusa um byte a mais', async ({ app, sql }) => {
   const api = await new ApiSession(app.baseUrl!).signIn(admin);
   const bytes = new Uint8Array(100 * 1024 * 1024);

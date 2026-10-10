@@ -190,3 +190,17 @@ test('agent approvals: only gated actions can be confirmed from the chat', async
   const row = await testDb.prepare("SELECT id FROM capability_approval WHERE office_id=? AND capability_name='k5_session_end_global'").get<{ id: string }>(context.officeId);
   await assert.rejects(decideAgentApproval(context, row!.id, 'confirm'), { code: 'FORBIDDEN' });
 });
+
+test('agent approvals: Confirmar runs the research proposal, and an agent write without approval stays refused', async () => {
+  const { context, agent } = await office();
+  const theme = `usucapião extraordinária ${randomUUID().slice(0, 8)}`;
+  const approvalId = await proposal(runCapability(agent, 'k5_research_start_search', { theme, includeSources: false }));
+  const decided = await decideAgentApproval(context, approvalId, 'confirm');
+  assert.equal(decided.state, 'confirmed', decided.result);
+  const search = await testDb.prepare('SELECT id FROM research_search WHERE office_id=? AND user_id=? AND theme=?').get<{ id: string }>(context.officeId, context.userId, theme);
+  assert.ok(search, 'the confirmed proposal created the search');
+  const pageApproval = await proposal(runCapability(agent, 'k5_research_request_page', { searchId: search.id }));
+  const page = await decideAgentApproval(context, pageApproval, 'confirm');
+  assert.equal(page.state, 'confirmed', page.result);
+  await assert.rejects(runCapability(agent, 'k5_research_cancel_downloads', { searchId: search.id }), { code: 'FORBIDDEN', message: 'Esta ação exige a interface humana.' });
+});

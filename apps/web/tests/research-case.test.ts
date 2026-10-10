@@ -122,6 +122,7 @@ test('reserved case evidence is hidden in profiles and cached assessments when f
   await processNextResearchAssessment({ send: sendOpposes });
   assert.ok((await getResearchCaseAssessment(a.context, assessment.id)).result?.excerpts.some(source => source.id === a.chunkId));
   const folder = await createVaultFolder(a.context.officeId, guest.context.userId, a.caseId, 'Estratégia', null, { visibility: 'private' }, await contextForCase(guest.context, a.caseId));
+  await testDb.prepare('UPDATE vault_document SET created_by=? WHERE id=?').run(guest.context.userId, a.documentId);
   await runCapability(guest.context, 'k5_vault_update_document', { documentId: a.documentId, folderId: folder.id });
   const profile = await getResearchCaseProfile(a.context, a.caseId);
   assert.deepEqual(profile?.documentIds, []);

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 import { createPostgresPool } from '../src/lib/db/postgres';
+import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 const path = '.data/monitoring/secrets.json';
 const schema = z.object({
@@ -25,7 +26,7 @@ try {
   if (!existing.rowCount) {
     const response = await fetch('https://lume.software/api/auth/sign-up/email', {
       method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://lume.software' },
-      body: JSON.stringify({ name: 'Monitor automático do Lume', officeName, email: secrets.MONITOR_EMAIL, password: secrets.MONITOR_PASSWORD }),
+      body: JSON.stringify({ name: 'Monitor automático do Lume', officeName, email: secrets.MONITOR_EMAIL, password: secrets.MONITOR_PASSWORD, acceptedLegalVersion: LEGAL_VERSION }),
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) throw new Error(`Provisionamento recusado: HTTP ${response.status}.`);

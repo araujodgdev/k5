@@ -1,5 +1,6 @@
 // Test accounts and the HTTP calls that create them. Accounts go through the real Better Auth
 // sign-up, which provisions the office in its hook, so a fresh database needs no seed script.
+import { LEGAL_VERSION } from '../../src/lib/legal-version';
 
 export type Account = { name: string; officeName: string; email: string; password: string };
 
@@ -51,11 +52,11 @@ export class ApiSession {
     return await response.json() as T;
   }
 
-  /** Signs in, creating the account first when it does not exist yet. */
+  /** Signs in, creating the account first when it does not exist yet; sign-up itself accepts the current terms. */
   async signIn(account: Account, options: { acceptLegal?: boolean } = {}) {
     const signIn = await this.request('/api/auth/sign-in/email', { json: { email: account.email, password: account.password } });
     if (!signIn.ok) {
-      const signUp = await this.request('/api/auth/sign-up/email', { json: account });
+      const signUp = await this.request('/api/auth/sign-up/email', { json: { ...account, acceptedLegalVersion: LEGAL_VERSION } });
       if (!signUp.ok) throw new Error(`Não foi possível entrar nem cadastrar ${account.email}: HTTP ${signIn.status} / ${signUp.status} ${await signUp.text()}`);
     }
     if (options.acceptLegal !== false) await this.acceptLegal();
@@ -64,7 +65,8 @@ export class ApiSession {
 
   /**
    * Accepts the current terms and the Lume's AI notice, which otherwise stand in front of the app
-   * and of the chat. Tests that cover those screens use an account that skipped this.
+   * and of the chat. Tests that cover those screens use an account that skipped this and whose
+   * terms acceptance was removed (see legal-acceptance.e2e.ts).
    */
   async acceptLegal() {
     for (const document of ['terms', 'ai_notice']) {

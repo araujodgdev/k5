@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {readFile} from 'node:fs/promises';
 import {testDatabase as db} from './test-setup';
 import {createConversation,saveMessages} from '../src/lib/ai-store';
 import {createChatAttachment,ownedChatAttachment,resolveChatAttachments,claimChatAttachments,removeChatAttachment,publicChatAttachment} from '../src/lib/chat-attachments';
@@ -8,9 +9,9 @@ import {attachmentPart} from '../src/lib/chat-attachment-contract';
 import {chatPromptMessages} from '../src/lib/chat-prompt';
 import {objectStorage} from '../src/lib/storage';
 import type {UIMessage} from 'ai';
-import {getCurrentScope} from '@sentry/core';
 import {PDFDocument} from 'pdf-lib';
 import {CapabilityError} from '../src/lib/capabilities/errors';
+import {creditBalance,creditSettings,InsufficientCreditsError} from '../src/lib/billing/credits';
 
 test('chat files persist with their message, remain private and never enter the Vault',async()=>{
   const officeId=randomUUID(),userId=randomUUID();
@@ -45,30 +46,36 @@ test('chat files persist with their message, remain private and never enter the 
   await assert.rejects(createChatAttachment(owner,two.id,new File([],'vazio.txt')));
 });
 
-test('chat files (LUME-N): a scanned PDF on Workers explains the OCR route and is not reported as a failure',async t=>{
+// The Workers case lives in chat-attachments-workers.test.ts: unpdf's PDF.js breaks pdfjs-dist in the same process.
+test('chat files (LUM-43): a scanned PDF is read by OCR as in the Cofre, and only an attachment that succeeds pays for it',async()=>{
   const officeId=randomUUID(),userId=randomUUID();
-  await db.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Teste de OCR');
+  await db.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Teste de OCR no chat');
   await db.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@example.test`,'Teste');
   const owner={officeId,userId};
   const chat=await createConversation(db,owner);
-  const captured:unknown[]=[];
-  t.mock.method(getCurrentScope(),'captureException',(error:unknown)=>{captured.push(error);return 'test-event';});
-  // A page with no text layer: what a scanner produces.
-  const pdf=await PDFDocument.create();pdf.addPage();
-  const scanned=new File([Buffer.from(await pdf.save())],'digitalizado.pdf',{type:'application/pdf'});
-  const previous={runtime:process.env.K5_RUNTIME,ocr:process.env.VAULT_OCR_URL};
-  process.env.K5_RUNTIME='cloudflare';delete process.env.VAULT_OCR_URL;
-  try {
-    await assert.rejects(createChatAttachment(owner,chat.id,scanned),(error:unknown)=>
-      error instanceof CapabilityError&&error.code==='INVALID'&&/precisa de OCR/.test(error.message)&&/Cofre/.test(error.message));
-  } finally {
-    if (previous.runtime===undefined) delete process.env.K5_RUNTIME; else process.env.K5_RUNTIME=previous.runtime;
-    if (previous.ocr!==undefined) process.env.VAULT_OCR_URL=previous.ocr;
-  }
-  assert.equal(captured.length,0,'an expected limitation is not an incident');
-  // A file that genuinely cannot be read is still reported.
-  await assert.rejects(createChatAttachment(owner,chat.id,new File([Buffer.from('%PDF-1.7 corrompido')],'quebrado.pdf',{type:'application/pdf'})),CapabilityError);
-  assert.equal(captured.length,1);
+  const ocrCharges=async()=>(await db.prepare("SELECT amount::float8 AS amount FROM credit_entry WHERE office_id=? AND kind='ocr'").all<{amount:number}>(officeId)).map(entry=>entry.amount);
+  // A blank scan: the OCR runs, finds nothing, and the attachment is refused.
+  const blank=await PDFDocument.create();blank.addPage();
+  await assert.rejects(createChatAttachment(owner,chat.id,new File([Buffer.from(await blank.save())],'branco.pdf',{type:'application/pdf'})),CapabilityError);
+  assert.deepEqual(await ocrCharges(),[],'a refused attachment costs nothing');
+  const scan=new File([await readFile(new URL('./fixtures/ocr-task-list.pdf',import.meta.url))],'tarefas.pdf',{type:'application/pdf'});
+  const attachment=await createChatAttachment(owner,chat.id,scan);
+  assert.match((await ownedChatAttachment(owner,attachment.id))!.extracted_text,/Revisar documentos em 25\/09\/2026/i);
+  assert.deepEqual(await ocrCharges(),[-(await creditSettings()).ocrPageMillicredits],'one page, charged once');
+});
+
+test('chat files: a scan stops at the page the credits no longer cover, and the refused attachment costs nothing',async()=>{
+  const officeId=randomUUID(),userId=randomUUID();
+  await db.prepare('INSERT INTO office(id,name) VALUES(?,?)').run(officeId,'Teste de saldo do OCR');
+  await db.prepare('INSERT INTO user(id,email,name) VALUES(?,?,?)').run(userId,`${userId}@example.test`,'Teste');
+  const owner={officeId,userId};
+  const chat=await createConversation(db,owner);
+  const {ocrPageMillicredits}=await creditSettings();
+  await creditBalance(officeId);
+  await db.prepare('UPDATE credit_account SET balance=? WHERE office_id=?').run(ocrPageMillicredits,officeId);
+  const scan=await PDFDocument.create();scan.addPage();scan.addPage();
+  await assert.rejects(createChatAttachment(owner,chat.id,new File([Buffer.from(await scan.save())],'duas.pdf',{type:'application/pdf'})),InsufficientCreditsError);
+  assert.equal(await creditBalance(officeId),ocrPageMillicredits);
 });
 
 test('chat files: documents up to 25 MB, images up to 10 MB',async()=>{

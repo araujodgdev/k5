@@ -44,7 +44,9 @@ export function validatedFileName(fileName: string) {
   const mimeType = ALLOWED_EXTENSIONS[extension];
   if (!mimeType) throw new CapabilityError('INVALID', 'Envie PDF, DOCX, EML, XLSX, CSV, TXT ou uma imagem PNG, JPG ou WEBP.');
   if (!file || file === extension) throw new CapabilityError('INVALID', 'O arquivo precisa ter um nome válido.');
-  return { file, extension, mimeType };
+  const stem = file.slice(0, -extension.length);
+  const suffix = file.slice(-extension.length);
+  return { file: Array.from(stem).slice(0, 255 - suffix.length).join('') + suffix, extension, mimeType };
 }
 
 /**
@@ -140,6 +142,21 @@ export async function releaseUploadRef(context: WorkspaceContext, refId: string)
   await database.prepare(
     'UPDATE vault_upload_ref SET consumed_at = NULL WHERE id = ? AND office_id = ? AND user_id = ? AND consumed_at IS NOT NULL',
   ).run(refId, context.officeId, context.userId);
+}
+
+/** A failed one-request upload has no caller who can reuse its reference. */
+export async function discardUploadRef(context: WorkspaceContext, upload: UploadRef): Promise<void> {
+  const own = await database.prepare('SELECT storage_key FROM vault_upload_ref WHERE id = ? AND office_id = ? AND user_id = ?')
+    .get<{ storage_key: string }>(upload.id, context.officeId, context.userId);
+  if (!own) return;
+  // Creation may have committed before its response failed; never delete a document's original.
+  if (await database.prepare('SELECT 1 FROM vault_document_version WHERE office_id = ? AND stored_name = ? LIMIT 1')
+    .get(context.officeId, own.storage_key)) return;
+  // Release first: even if storage deletion fails, the sweep can still collect the object.
+  await releaseUploadRef(context, upload.id);
+  await (await objectStorage()).delete(own.storage_key);
+  await database.prepare('DELETE FROM vault_upload_ref WHERE id = ? AND office_id = ? AND user_id = ? AND consumed_at IS NULL')
+    .run(upload.id, context.officeId, context.userId);
 }
 
 /** Expired references leave bytes behind; the worker collects them through the deletion queue. */

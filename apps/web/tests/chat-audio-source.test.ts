@@ -12,6 +12,7 @@ import { saveInstruction } from '../src/lib/agent-instructions';
 import { memoryResource } from '../src/lib/agent-memory';
 import { approvalPreview } from '../src/lib/case-pages/service';
 import { decideAgentApproval } from '../src/lib/application/agent-approvals';
+import { LEGAL_VERSION } from '../src/lib/legal-version';
 
 process.env.BETTER_AUTH_SECRET = randomBytes(48).toString('base64url');
 process.env.BETTER_AUTH_URL = 'http://localhost:3000';
@@ -41,7 +42,7 @@ test('authenticated HTTP: authenticated voice instruction reaches the shared pro
   const { POST } = await import('../src/app/api/chat/route');
   const origin = 'http://localhost:3000';
   const signup = await withPostgres(pool, () => auth.handler(new Request(`${origin}/api/auth/sign-up/email`, {
-    method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Pessoa', officeName: 'Fontes HTTP', email: `${randomUUID()}@test.local`, password: 'Http-Sources-2026!' }),
+    method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Pessoa', officeName: 'Fontes HTTP', email: `${randomUUID()}@test.local`, password: 'Http-Sources-2026!', acceptedLegalVersion: LEGAL_VERSION }),
   })));
   assert.equal(signup.status, 200);
   const cookie = signup.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');

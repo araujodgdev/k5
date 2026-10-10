@@ -12,6 +12,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { LEGAL_VERSION } from '../../../../apps/web/src/lib/legal-version.ts';
 
 const SCRIPTS = dirname(fileURLToPath(import.meta.url));
 const FEATURES = resolve(SCRIPTS, '../features');
@@ -159,7 +160,7 @@ async function serve(runDir: string) {
     // The real Better Auth endpoint the sign-up form calls; provisions the office through its hook.
     const signUp = await fetch(`${state.baseURL}/api/auth/sign-up/email`, {
       method: 'POST', headers: { 'content-type': 'application/json', origin: state.baseURL },
-      body: JSON.stringify({ name: ACCOUNT.name, officeName: ACCOUNT.officeName, email: ACCOUNT.email, password: ACCOUNT.password }),
+      body: JSON.stringify({ name: ACCOUNT.name, officeName: ACCOUNT.officeName, email: ACCOUNT.email, password: ACCOUNT.password, acceptedLegalVersion: LEGAL_VERSION }),
     });
     if (!signUp.ok) throw new Error(`Registering the verification account failed: HTTP ${signUp.status} ${await signUp.text()}`);
     state.status = 'ready'; writeState(state);
